@@ -19,6 +19,8 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFutureListener;
@@ -29,13 +31,20 @@ import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.resolver.dns.DnsAddressResolverGroup;
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.ScheduledFuture;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.channels.ClosedChannelException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +52,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -55,6 +65,7 @@ import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarChannelInitializer;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.api.proto.CommandAuthResponse;
@@ -64,14 +75,15 @@ import org.apache.pulsar.common.api.proto.CommandGetSchema;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
+import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.configuration.anonymizer.DefaultAuthenticationRoleLoggingAnonymizer;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.PulsarHandler;
+import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Handles incoming discovery request from client and sends appropriate response back to client.
@@ -79,9 +91,9 @@ import org.slf4j.LoggerFactory;
  * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle* method
  * parameter instance lifecycle.
  */
+@CustomLog
 public class ProxyConnection extends PulsarHandler {
-    private static final Logger LOG = LoggerFactory.getLogger(ProxyConnection.class);
-    // ConnectionPool is used by the proxy to issue lookup requests
+    // ConnectionPool is used by the proxy to issue lookup requests. It is null when doing direct broker proxying.
     private ConnectionPool connectionPool;
     private final AtomicLong requestIdGenerator =
             new AtomicLong(ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE / 2));
@@ -92,10 +104,16 @@ public class ProxyConnection extends PulsarHandler {
     private LookupProxyHandler lookupProxyHandler = null;
     @Getter
     private DirectProxyHandler directProxyHandler = null;
+    private ScheduledFuture<?> authRefreshTask;
+    // When authChallengeSentTime is not Long.MAX_VALUE, it means the proxy is waiting for the client to respond
+    // to an auth challenge. When authChallengeSentTime is Long.MAX_VALUE, there are no pending auth challenges.
+    private long authChallengeSentTime = Long.MAX_VALUE;
+    private FeatureFlags features;
+    private Set<CompletableFuture<AuthData>> pendingBrokerAuthChallenges = null;
     private final BrokerProxyValidator brokerProxyValidator;
     private final ConnectionController connectionController;
     String clientAuthRole;
-    AuthData clientAuthData;
+    volatile AuthData clientAuthData;
     String clientAuthMethod;
     String clientVersion;
 
@@ -107,6 +125,7 @@ public class ProxyConnection extends PulsarHandler {
     private int protocolVersionToAdvertise;
     private String proxyToBrokerUrl;
     private HAProxyMessage haProxyMessage;
+    private final DefaultAuthenticationRoleLoggingAnonymizer authenticationRoleLoggingAnonymizer;
 
     protected static final Integer SPLICE_BYTES = 1024 * 1024 * 1024;
     private static final byte[] EMPTY_CREDENTIALS = new byte[0];
@@ -134,20 +153,32 @@ public class ProxyConnection extends PulsarHandler {
 
         Closing,
 
-        Closed,
+        Closed;
+
+        boolean isAuthenticatedState() {
+            return this == ProxyLookupRequests
+                    || this == ProxyConnectionToBroker;
+        }
     }
 
     ConnectionPool getConnectionPool() {
         return connectionPool;
     }
 
+    @VisibleForTesting
+    void setStateForTesting(State state) {
+        this.state = state;
+    }
+
     public ProxyConnection(ProxyService proxyService, DnsAddressResolverGroup dnsAddressResolverGroup) {
-        super(30, TimeUnit.SECONDS);
+        super(proxyService.getConfiguration().getKeepAliveIntervalSeconds(), TimeUnit.SECONDS);
         this.service = proxyService;
         this.dnsAddressResolverGroup = dnsAddressResolverGroup;
         this.state = State.Init;
         this.brokerProxyValidator = service.getBrokerProxyValidator();
         this.connectionController = proxyService.getConnectionController();
+        this.authenticationRoleLoggingAnonymizer = new DefaultAuthenticationRoleLoggingAnonymizer(
+                proxyService.getConfiguration().getAuthenticationRoleLoggingAnonymizer());
     }
 
     @Override
@@ -156,6 +187,11 @@ public class ProxyConnection extends PulsarHandler {
         ProxyService.ACTIVE_CONNECTIONS.inc();
         SocketAddress rmAddress = ctx.channel().remoteAddress();
         ConnectionController.State state = connectionController.increaseConnection(rmAddress);
+        log.debug()
+                .attr("count", ProxyService.ACTIVE_CONNECTIONS.get())
+                .attr("rmAddress", rmAddress)
+                .attr("state", state)
+                .log("Active connection for cnx with state");
         if (!state.equals(ConnectionController.State.OK)) {
             ctx.writeAndFlush(Commands.newError(-1, ServerError.NotAllowedError,
                     state.equals(ConnectionController.State.REACH_MAX_CONNECTION)
@@ -171,6 +207,9 @@ public class ProxyConnection extends PulsarHandler {
         super.channelUnregistered(ctx);
         connectionController.decreaseConnection(ctx.channel().remoteAddress());
         ProxyService.ACTIVE_CONNECTIONS.dec();
+        log.debug()
+                .attr("count", ProxyService.ACTIVE_CONNECTIONS.get())
+                .log("Decreasing active connection");
     }
 
     @Override
@@ -179,7 +218,9 @@ public class ProxyConnection extends PulsarHandler {
         ProxyService.NEW_CONNECTIONS.inc();
         service.getClientCnxs().add(this);
         isTlsInboundChannel = ProxyConnection.isTlsChannel(ctx.channel());
-        LOG.info("[{}] New connection opened", remoteAddress);
+        log.info()
+                .attr("remoteAddress", remoteAddress)
+                .log("New connection opened");
     }
 
     @Override
@@ -191,15 +232,28 @@ public class ProxyConnection extends PulsarHandler {
             directProxyHandler = null;
         }
 
+        if (authRefreshTask != null) {
+            authRefreshTask.cancel(false);
+        }
+
+        if (pendingBrokerAuthChallenges != null) {
+            pendingBrokerAuthChallenges.forEach(future -> future.cancel(true));
+            pendingBrokerAuthChallenges = null;
+        }
+
         service.getClientCnxs().remove(this);
-        LOG.info("[{}] Connection closed", remoteAddress);
+        log.info()
+                .attr("remoteAddress", remoteAddress)
+                .log("Connection closed");
 
         if (connectionPool != null) {
             try {
                 connectionPool.close();
                 connectionPool = null;
             } catch (Exception e) {
-                LOG.error("Failed to close connection pool {}", e.getMessage(), e);
+                log.error()
+                        .exception(e)
+                        .log("Failed to close connection pool");
             }
         }
 
@@ -208,10 +262,13 @@ public class ProxyConnection extends PulsarHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        super.exceptionCaught(ctx, cause);
-        LOG.warn("[{}] Got exception {} : Message: {} State: {}", remoteAddress, cause.getClass().getSimpleName(),
-                cause.getMessage(), state,
-                ClientCnx.isKnownException(cause) ? null : cause);
+        log.warn()
+                .attr("remoteAddress", remoteAddress)
+                .attr("cause", cause.getClass().getSimpleName())
+                .attr("State", state)
+                .exceptionMessage(cause)
+                .exception(ClientCnx.isKnownException(cause) ? null : cause)
+                .log("Got exception");
         if (state != State.Closed) {
             state = State.Closing;
         }
@@ -241,6 +298,7 @@ public class ProxyConnection extends PulsarHandler {
     public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof HAProxyMessage) {
             haProxyMessage = (HAProxyMessage) msg;
+            haProxyMessage.release();
             return;
         }
         switch (state) {
@@ -264,6 +322,9 @@ public class ProxyConnection extends PulsarHandler {
 
                 if (service.proxyZeroCopyModeEnabled && service.proxyLogLevel == 0) {
                     if (!directProxyHandler.isTlsOutboundChannel && !isTlsInboundChannel) {
+                        if (ctx.pipeline().get("readTimeoutHandler") != null) {
+                            ctx.pipeline().remove("readTimeoutHandler");
+                        }
                         spliceNIC2NIC((EpollSocketChannel) ctx.channel(),
                                 (EpollSocketChannel) directProxyHandler.outboundChannel, SPLICE_BYTES)
                                 .addListener(future -> {
@@ -274,17 +335,26 @@ public class ProxyConnection extends PulsarHandler {
                     }
                 }
             } else {
-                LOG.warn("Received message of type {} while connection to broker is missing in state {}. "
-                                + "Dropping the input message (readable bytes={}).", msg.getClass(), state,
-                        msg instanceof ByteBuf ? ((ByteBuf) msg).readableBytes() : -1);
+                log.warn()
+                        .attr("msg", msg.getClass())
+                        .attr("state", state)
+                        .attr("bytes", msg instanceof ByteBuf ? ((ByteBuf) msg).readableBytes() : -1)
+                        .log("Received message while connection to broker"
+                                + " is missing. Dropping input.");
+                ReferenceCountUtil.safeRelease(msg);
             }
             break;
         case ProxyConnectingToBroker:
-            LOG.warn("Received message of type {} while connecting to broker. "
-                            + "Dropping the input message (readable bytes={}).", msg.getClass(),
-                    msg instanceof ByteBuf ? ((ByteBuf) msg).readableBytes() : -1);
+            log.warn()
+                    .attr("msg", msg.getClass())
+                    .attr("bytes", msg instanceof ByteBuf
+                            ? ((ByteBuf) msg).readableBytes() : -1)
+                    .log("Received message while connecting to broker."
+                            + " Dropping input.");
+            ReferenceCountUtil.safeRelease(msg);
             break;
         default:
+            ReferenceCountUtil.safeRelease(msg);
             break;
         }
     }
@@ -294,6 +364,7 @@ public class ProxyConnection extends PulsarHandler {
      * @param inboundChannel input channel
      * @param outboundChannel output channel
      */
+    @SuppressWarnings("deprecation")
     protected static ChannelPromise spliceNIC2NIC(EpollSocketChannel inboundChannel,
                                                   EpollSocketChannel outboundChannel, int spliceLength) {
         ChannelPromise promise = inboundChannel.newPromise();
@@ -311,34 +382,38 @@ public class ProxyConnection extends PulsarHandler {
     }
 
     private synchronized void completeConnect() throws PulsarClientException {
-        Supplier<ClientCnx> clientCnxSupplier;
-        if (service.getConfiguration().isAuthenticationEnabled()) {
-            clientCnxSupplier = () -> new ProxyClientCnx(clientConf, service.getWorkerGroup(), clientAuthRole,
-                    clientAuthData, clientAuthMethod, protocolVersionToAdvertise,
-                    service.getConfiguration().isForwardAuthorizationCredentials(), this);
-        } else {
-            clientCnxSupplier = () -> new ClientCnx(clientConf, service.getWorkerGroup(), protocolVersionToAdvertise);
-        }
-
-        if (this.connectionPool == null) {
-            this.connectionPool = new ConnectionPool(clientConf, service.getWorkerGroup(),
-                    clientCnxSupplier,
-                    Optional.of(dnsAddressResolverGroup.getResolver(service.getWorkerGroup().next())));
-        } else {
-            LOG.error("BUG! Connection Pool has already been created for proxy connection to {} state {} role {}",
-                    remoteAddress, state, clientAuthRole);
-        }
-
-        LOG.info("[{}] complete connection, init proxy handler. authenticated with {} role {}, hasProxyToBrokerUrl: {}",
-                remoteAddress, authMethod, clientAuthRole, hasProxyToBrokerUrl);
+        checkArgument(state == State.Connecting);
+        String maybeAnonymizedClientAuthRole = authenticationRoleLoggingAnonymizer.anonymize(clientAuthRole);
+        log.info()
+                .attr("remoteAddress", remoteAddress)
+                .attr("authMethod", authMethod)
+                .attr("maybeAnonymizedClientAuthRole", maybeAnonymizedClientAuthRole)
+                .attr("hasProxyToBrokerUrl", hasProxyToBrokerUrl)
+                .log("complete connection, init proxy handler. authenticated with role");
         if (hasProxyToBrokerUrl) {
-            // Optimize proxy connection to fail-fast if the target broker isn't active
-            // Pulsar client will retry connecting after a back off timeout
-            if (service.getConfiguration().isCheckActiveBrokers()
+            if (proxyToBrokerUrl.isBlank()) {
+                // An empty proxyToBrokerUrl is the "pair me to any broker" sentinel: the
+                // client (e.g. a scalable-topic control connection) doesn't target a specific
+                // broker, so the proxy selects one and bridges the connection to it.
+                String anyBroker = selectAnyBrokerHostAndPort();
+                if (anyBroker == null) {
+                    state = State.Closing;
+                    writeAndFlushAndClose(Commands.newError(-1,
+                            ServerError.ServiceNotReady, "No broker available to proxy the connection."));
+                    return;
+                }
+                proxyToBrokerUrl = anyBroker;
+            } else if (service.getConfiguration().isCheckActiveBrokers()
                     && !isBrokerActive(proxyToBrokerUrl)) {
+                // Optimize proxy connection to fail-fast if the target broker isn't active
+                // Pulsar client will retry connecting after a back off timeout
                 state = State.Closing;
-                LOG.warn("[{}] Target broker '{}' isn't available. authenticated with {} role {}.",
-                        remoteAddress, proxyToBrokerUrl, authMethod, clientAuthRole);
+                log.warn()
+                        .attr("remoteAddress", remoteAddress)
+                        .attr("proxyToBrokerUrl", proxyToBrokerUrl)
+                        .attr("authMethod", authMethod)
+                        .attr("maybeAnonymizedClientAuthRole", maybeAnonymizedClientAuthRole)
+                        .log("Target broker '' isn't available. authenticated with role");
                 final ByteBuf msg = Commands.newError(-1,
                         ServerError.ServiceNotReady, "Target broker isn't available.");
                 writeAndFlushAndClose(msg);
@@ -355,12 +430,21 @@ public class ProxyConnection extends PulsarHandler {
                                     (TargetAddressDeniedException) (throwable instanceof TargetAddressDeniedException
                                             ? throwable : throwable.getCause());
 
-                            LOG.warn("[{}] Target broker '{}' cannot be validated. {}. authenticated with {} role {}.",
-                                    remoteAddress, proxyToBrokerUrl, targetAddressDeniedException.getMessage(),
-                                    authMethod, clientAuthRole);
+                            log.warn()
+                                    .attr("remoteAddress", remoteAddress)
+                                    .attr("proxyToBrokerUrl", proxyToBrokerUrl)
+                                    .attr("targetAddressDeniedException", targetAddressDeniedException.getMessage())
+                                    .attr("authMethod", authMethod)
+                                    .attr("maybeAnonymizedClientAuthRole", maybeAnonymizedClientAuthRole)
+                                    .log("Target broker '' cannot be validated. . authenticated with role");
                         } else {
-                            LOG.error("[{}] Error validating target broker '{}'. authenticated with {} role {}.",
-                                    remoteAddress, proxyToBrokerUrl, authMethod, clientAuthRole, throwable);
+                            log.error()
+                                    .attr("remoteAddress", remoteAddress)
+                                    .attr("proxyToBrokerUrl", proxyToBrokerUrl)
+                                    .attr("authMethod", authMethod)
+                                    .attr("maybeAnonymizedClientAuthRole", maybeAnonymizedClientAuthRole)
+                                    .exception(throwable)
+                                    .log("Error validating target broker ''. authenticated with role");
                         }
                         final ByteBuf msg = Commands.newError(-1, ServerError.ServiceNotReady,
                                 "Target broker cannot be validated.");
@@ -369,12 +453,73 @@ public class ProxyConnection extends PulsarHandler {
                     });
         } else {
             // Client is doing a lookup, we can consider the handshake complete
-            // and we'll take care of just topics and
-            // partitions metadata lookups
+            // and we'll take care of just topics and partitions metadata lookups
+            Supplier<ClientCnx> clientCnxSupplier;
+            if (service.getConfiguration().isAuthenticationEnabled()) {
+                clientCnxSupplier = () -> new ProxyClientCnx(clientConf, service.getWorkerGroup(), clientAuthRole,
+                        clientAuthMethod, protocolVersionToAdvertise,
+                        service.getConfiguration().isForwardAuthorizationCredentials(), this);
+            } else {
+                clientCnxSupplier =
+                        () -> new ClientCnx(InstrumentProvider.NOOP, clientConf, service.getWorkerGroup(),
+                                protocolVersionToAdvertise);
+            }
+
+            if (this.connectionPool == null) {
+                this.connectionPool = new ConnectionPool(InstrumentProvider.NOOP, clientConf, service.getWorkerGroup(),
+                        clientCnxSupplier,
+                        Optional.of(() -> dnsAddressResolverGroup.getResolver(service.getWorkerGroup().next())), null);
+            } else {
+                log.error()
+                        .attr("remoteAddress", remoteAddress)
+                        .attr("state", state)
+                        .attr("maybeAnonymizedClientAuthRole", maybeAnonymizedClientAuthRole)
+                        .log("BUG! Connection Pool has already been created for proxy connection to state role");
+            }
+
             state = State.ProxyLookupRequests;
-            lookupProxyHandler = new LookupProxyHandler(service, this);
-            final ByteBuf msg = Commands.newConnected(protocolVersionToAdvertise, false);
+            lookupProxyHandler = service.newLookupProxyHandler(this);
+            startAuthRefreshTaskIfNotStarted();
+            final ByteBuf msg = Commands.newConnected(protocolVersionToAdvertise, false, false);
             writeAndFlush(msg);
+        }
+    }
+
+    /**
+     * Select a broker for an "any broker" proxy pairing (empty proxyToBrokerUrl). Returns the
+     * broker as {@code host:port} (the format {@link BrokerProxyValidator} expects), or
+     * {@code null} if no broker is available.
+     */
+    private String selectAnyBrokerHostAndPort() {
+        boolean tls = service.getConfiguration().isTlsEnabledWithBroker();
+        String brokerUrl = tls
+                ? service.getConfiguration().getBrokerServiceURLTLS()
+                : service.getConfiguration().getBrokerServiceURL();
+        if (brokerUrl == null || brokerUrl.isBlank()) {
+            try {
+                ServiceLookupData broker = service.getDiscoveryProvider().nextBroker();
+                brokerUrl = tls ? broker.getPulsarServiceUrlTls() : broker.getPulsarServiceUrl();
+            } catch (Exception e) {
+                log.warn()
+                        .attr("remoteAddress", remoteAddress)
+                        .exception(e)
+                        .log("Failed to select a broker for any-broker proxying");
+                return null;
+            }
+        }
+        if (brokerUrl == null || brokerUrl.isBlank()) {
+            return null;
+        }
+        try {
+            URI uri = new URI(brokerUrl);
+            if (uri.getHost() == null || uri.getPort() < 0) {
+                log.warn().attr("brokerUrl", brokerUrl).log("Broker URL is missing host or port");
+                return null;
+            }
+            return uri.getHost() + ":" + uri.getPort();
+        } catch (URISyntaxException e) {
+            log.warn().attr("brokerUrl", brokerUrl).exception(e).log("Invalid broker URL");
+            return null;
         }
     }
 
@@ -386,14 +531,22 @@ public class ProxyConnection extends PulsarHandler {
             int maxMessageSize =
                     connected.hasMaxMessageSize() ? connected.getMaxMessageSize() : Commands.INVALID_MAX_MESSAGE_SIZE;
             final ByteBuf msg = Commands.newConnected(connected.getProtocolVersion(), maxMessageSize,
-                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers());
+                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTopicWatchers(),
+                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsScalableTopics(),
+                    connected.hasFeatureFlags()
+                            && connected.getFeatureFlags().isSupportsTcMetadataDiscovery());
             writeAndFlush(msg);
+            // Start auth refresh task only if we are not forwarding authorization credentials
+            if (!service.getConfiguration().isForwardAuthorizationCredentials()) {
+                startAuthRefreshTaskIfNotStarted();
+            }
         } else {
-            LOG.warn("[{}] Channel is {}. ProxyConnection is in {}. "
-                            + "Closing connection to broker '{}'.",
-                    remoteAddress, ctx.channel().isOpen() ? "open" : "already closed",
-                    state != State.ProxyConnectingToBroker ? "invalid state " + state : "state " + state,
-                    proxyToBrokerUrl);
+            log.warn()
+                    .attr("remoteAddress", remoteAddress)
+                    .attr("channelOpen", ctx.channel().isOpen())
+                    .attr("state", state)
+                    .attr("proxyToBrokerUrl", proxyToBrokerUrl)
+                    .log("Closing connection to broker");
             directProxyHandler.close();
             ctx.close();
         }
@@ -402,7 +555,7 @@ public class ProxyConnection extends PulsarHandler {
     private void connectToBroker(InetSocketAddress brokerAddress) {
         assert ctx.executor().inEventLoop();
         DirectProxyHandler directProxyHandler = new DirectProxyHandler(service, this);
-        directProxyHandler.connect(proxyToBrokerUrl, brokerAddress, protocolVersionToAdvertise);
+        directProxyHandler.connect(proxyToBrokerUrl, brokerAddress, protocolVersionToAdvertise, features);
     }
 
     public void brokerConnected(DirectProxyHandler directProxyHandler, CommandConnected connected) {
@@ -410,10 +563,10 @@ public class ProxyConnection extends PulsarHandler {
             final CommandConnected finalConnected = new CommandConnected().copyFrom(connected);
             handleBrokerConnected(directProxyHandler, finalConnected);
         } catch (RejectedExecutionException e) {
-            LOG.error("Event loop was already closed. Closing broker connection.", e);
+            log.error().exception(e).log("Event loop was already closed. Closing broker connection.");
             directProxyHandler.close();
         } catch (AssertionError e) {
-            LOG.error("Failed assertion, closing direct proxy handler.", e);
+            log.error().exception(e).log("Failed assertion, closing direct proxy handler.");
             directProxyHandler.close();
         }
     }
@@ -433,7 +586,10 @@ public class ProxyConnection extends PulsarHandler {
     }
 
     protected void authenticationFailedCallback(Throwable t) {
-        LOG.warn("[{}] Unable to authenticate: ", remoteAddress, t);
+        log.warn()
+                .attr("remoteAddress", remoteAddress)
+                .exception(t)
+                .log("Unable to authenticate");
         final ByteBuf msg = Commands.newError(-1, ServerError.AuthenticationError, "Failed to authenticate");
         writeAndFlushAndClose(msg);
     }
@@ -444,13 +600,14 @@ public class ProxyConnection extends PulsarHandler {
             // authentication has completed, will send newConnected command.
             if (authChallenge == null) {
                 clientAuthRole = authState.getAuthRole();
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("[{}] Client successfully authenticated with {} role {}",
-                            remoteAddress, authMethod, clientAuthRole);
-                }
+                log.debug()
+                        .attr("remoteAddress", remoteAddress)
+                        .attr("authMethod", authMethod)
+                        .attr("role", authenticationRoleLoggingAnonymizer.anonymize(clientAuthRole))
+                        .log("Client successfully authenticated with role");
 
                 // First connection
-                if (this.connectionPool == null || state == State.Connecting) {
+                if (state == State.Connecting) {
                     // authentication has completed, will send newConnected command.
                     completeConnect();
                 }
@@ -460,12 +617,105 @@ public class ProxyConnection extends PulsarHandler {
             // auth not complete, continue auth with client side.
             final ByteBuf msg = Commands.newAuthChallenge(authMethod, authChallenge, protocolVersionToAdvertise);
             writeAndFlush(msg);
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] Authentication in progress client by method {}.",
-                        remoteAddress, authMethod);
-            }
+            log.debug()
+                    .attr("remoteAddress", remoteAddress)
+                    .attr("authMethod", authMethod)
+                    .log("Authentication in progress client by method");
         } catch (Exception e) {
             authenticationFailedCallback(e);
+        }
+    }
+
+    private void startAuthRefreshTaskIfNotStarted() {
+        if (service.getConfiguration().isAuthenticationEnabled()
+                && service.getConfiguration().getAuthenticationRefreshCheckSeconds() > 0
+                && authRefreshTask == null) {
+            authRefreshTask = ctx.executor().scheduleAtFixedRate(
+                    Runnables.catchingAndLoggingThrowables(
+                            this::refreshAuthenticationCredentialsAndCloseIfTooExpired),
+                    service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
+                    service.getConfiguration().getAuthenticationRefreshCheckSeconds(),
+                    TimeUnit.SECONDS);
+        }
+    }
+
+    private void refreshAuthenticationCredentialsAndCloseIfTooExpired() {
+        assert ctx.executor().inEventLoop();
+
+        // Only check expiration in authenticated states
+        if (!state.isAuthenticatedState()) {
+            return;
+        }
+
+        if (!authState.isExpired()) {
+            // Credentials are still valid. Nothing to do at this point
+            return;
+        }
+
+        // If we are not forwarding authorization credentials to the broker, the broker cannot
+        // refresh the client's credentials. In this case, we must close the connection immediately
+        // when credentials expire.
+        if (!service.getConfiguration().isForwardAuthorizationCredentials()) {
+            log.debug()
+                    .attr("remoteAddress", remoteAddress)
+                    .log("Closing connection because client credentials"
+                            + " have expired and forwardAuthorizationCredentials"
+                            + " is disabled");
+            ctx.close();
+            return;
+        }
+
+        if (System.nanoTime() - authChallengeSentTime
+                > TimeUnit.SECONDS.toNanos(service.getConfiguration().getAuthenticationRefreshCheckSeconds())) {
+            log.warn()
+                    .attr("remoteAddress", remoteAddress)
+                    .log("Closing connection after timeout on refreshing auth credentials");
+            ctx.close();
+        }
+
+        maybeSendAuthChallenge();
+    }
+
+    private void maybeSendAuthChallenge() {
+        assert ctx.executor().inEventLoop();
+
+        if (!supportsAuthenticationRefresh()) {
+            log.warn()
+                    .attr("remoteAddress", remoteAddress)
+                    .log("Closing connection because client doesn't support auth credentials refresh");
+            ctx.close();
+            return;
+        } else if (authChallengeSentTime != Long.MAX_VALUE) {
+            // If the proxy sent a refresh but hasn't yet heard back, do not send another challenge.
+            return;
+        } else if (service.getConfiguration().getAuthenticationRefreshCheckSeconds() < 1) {
+            // Without the refresh check enabled, there is no way to guarantee the ProxyConnection will close
+            // this connection if the client fails to respond to the auth challenge with valid auth data.
+            // The cost is minimal since the client can recreate the connection. This logic prevents a leak.
+            log.warn()
+                    .attr("remoteAddress", remoteAddress)
+                    .log("Closing connection because auth credentials refresh is disabled");
+            ctx.close();
+            return;
+        }
+
+        log.debug()
+                .attr("remoteAddress", remoteAddress)
+                .log("Refreshing authentication credentials");
+        try {
+            AuthData challenge = authState.refreshAuthentication();
+            writeAndFlush(Commands.newAuthChallenge(authMethod, challenge, protocolVersionToAdvertise));
+            log.debug()
+                    .attr("remoteAddress", remoteAddress)
+                    .attr("method", authMethod)
+                    .log("Sent auth challenge to client to refresh credentials");
+            authChallengeSentTime = System.nanoTime();
+        } catch (AuthenticationException e) {
+            log.warn()
+                    .attr("remoteAddress", remoteAddress)
+                    .attr("authentication", e)
+                    .log("Failed to refresh");
+            ctx.close();
         }
     }
 
@@ -478,19 +728,37 @@ public class ProxyConnection extends PulsarHandler {
         this.protocolVersionToAdvertise = getProtocolVersionToAdvertise(connect);
         this.proxyToBrokerUrl = connect.hasProxyToBrokerUrl() ? connect.getProxyToBrokerUrl() : "null";
         this.clientVersion = connect.getClientVersion();
-
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Received CONNECT from {} proxyToBroker={}", remoteAddress, proxyToBrokerUrl);
-            LOG.debug(
-                "[{}] Protocol version to advertise to broker is {}, clientProtocolVersion={}, proxyProtocolVersion={}",
-                remoteAddress, protocolVersionToAdvertise, getRemoteEndpointProtocolVersion(),
-                Commands.getCurrentProtocolVersion());
+        features = new FeatureFlags();
+        if (connect.hasFeatureFlags()) {
+            features.copyFrom(connect.getFeatureFlags());
         }
 
+        log.debug()
+                .attr("remoteAddress", remoteAddress)
+                .attr("proxyToBroker", proxyToBrokerUrl)
+                .log("Received CONNECT from");
+        log.debug()
+                .attr("remoteAddress", remoteAddress)
+                .attr("protocolVersionToAdvertise", protocolVersionToAdvertise)
+                .attr("clientProtocolVersion", getRemoteEndpointProtocolVersion())
+                .attr("proxyProtocolVersion", Commands.getCurrentProtocolVersion())
+                .log("Protocol version to advertise to broker");
+
         if (getRemoteEndpointProtocolVersion() < ProtocolVersion.v10.getValue()) {
-            LOG.warn("[{}] Client doesn't support connecting through proxy", remoteAddress);
+            log.warn()
+                    .attr("remoteAddress", remoteAddress)
+                    .log("Client doesn't support connecting through proxy");
             state = State.Closing;
             ctx.close();
+            return;
+        }
+
+        if (connect.hasProxyVersion()) {
+            log.debug()
+                    .attr("remoteAddress", remoteAddress)
+                    .log("Client illegally provided proxyVersion");
+            state = State.Closing;
+            writeAndFlushAndClose(Commands.newError(-1, ServerError.NotAllowedError, "Must not provide proxyVersion"));
             return;
         }
 
@@ -556,63 +824,39 @@ public class ProxyConnection extends PulsarHandler {
         checkArgument(authResponse.hasResponse());
         checkArgument(authResponse.getResponse().hasAuthData() && authResponse.getResponse().hasAuthMethodName());
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Received AuthResponse from {}, auth method: {}",
-                    remoteAddress, authResponse.getResponse().getAuthMethodName());
-        }
+        log.debug()
+                .attr("remoteAddress", remoteAddress)
+                .attr("method", authResponse.getResponse().getAuthMethodName())
+                .log("Received AuthResponse from client");
 
         try {
+            // Reset the auth challenge sent time to indicate we are not waiting on a client response.
+            authChallengeSentTime = Long.MAX_VALUE;
             AuthData clientData = AuthData.of(authResponse.getResponse().getAuthData());
+            // Authenticate the client's auth data and send to the broker concurrently
+            // Note: this implementation relies on the current weakness that prevents multi-stage authentication
+            // from working when forwardAuthorizationCredentials is enabled. Here is an issue to fix the protocol:
+            // https://github.com/apache/pulsar/issues/19291.
             doAuthentication(clientData);
-            if (service.getConfiguration().isForwardAuthorizationCredentials()
-                    && connectionPool != null && state == State.ProxyLookupRequests) {
-                connectionPool.getConnections().forEach(toBrokerCnxFuture -> {
-                    String clientVersion;
-                    if (authResponse.hasClientVersion()) {
-                        clientVersion = authResponse.getClientVersion();
-                    } else {
-                        clientVersion = this.clientVersion;
+            if (service.getConfiguration().isForwardAuthorizationCredentials()) {
+                // Update the clientAuthData to be able to initialize future ProxyClientCnx.
+                this.clientAuthData = clientData;
+                // We only have pendingBrokerAuthChallenges when forwardAuthorizationCredentials is enabled.
+                if (pendingBrokerAuthChallenges != null && !pendingBrokerAuthChallenges.isEmpty()) {
+                    // Send auth data to pending challenges from the broker
+                    for (CompletableFuture<AuthData> challenge : pendingBrokerAuthChallenges) {
+                        challenge.complete(clientData);
                     }
-                    int protocolVersion;
-                    if (authResponse.hasProtocolVersion()) {
-                        protocolVersion = authResponse.getProtocolVersion();
-                    } else {
-                        protocolVersion = Commands.getCurrentProtocolVersion();
-                    }
-
-                    ByteBuf cmd =
-                            Commands.newAuthResponse(clientAuthMethod, clientData, protocolVersion, clientVersion);
-                    toBrokerCnxFuture.thenAccept(toBrokerCnx -> toBrokerCnx.ctx().writeAndFlush(cmd)
-                                    .addListener(writeFuture -> {
-                                        if (writeFuture.isSuccess()) {
-                                            if (LOG.isDebugEnabled()) {
-                                                LOG.debug("{} authentication is refreshed successfully by {}, "
-                                                                + "auth method: {} ",
-                                                        toBrokerCnx.ctx().channel(), ctx.channel(), clientAuthMethod);
-                                            }
-                                        } else {
-                                            LOG.error("Failed to forward the auth response "
-                                                            + "from the proxy to the broker through the proxy client, "
-                                                            + "proxy: {}, proxy client: {}",
-                                                    ctx.channel(),
-                                                    toBrokerCnx.ctx().channel(),
-                                                    writeFuture.cause());
-                                            toBrokerCnx.ctx().channel().pipeline()
-                                                    .fireExceptionCaught(writeFuture.cause());
-                                        }
-                                    }))
-                            .whenComplete((__, ex) -> {
-                                if (ex != null) {
-                                    LOG.error("Failed to forward the auth response from the proxy to "
-                                                    + "the broker through the proxy client, proxy: {}",
-                                            ctx().channel(), ex);
-                                }
-                            });
-                });
+                    pendingBrokerAuthChallenges.clear();
+                }
             }
         } catch (Exception e) {
             String errorMsg = "Unable to handleAuthResponse";
-            LOG.warn("[{}] {} ", remoteAddress, errorMsg, e);
+            log.warn()
+                    .attr("remoteAddress", remoteAddress)
+                    .attr("errorMsg", errorMsg)
+                    .exception(e)
+                    .log("log");
             final ByteBuf msg = Commands.newError(-1, ServerError.AuthenticationError, errorMsg);
             writeAndFlushAndClose(msg);
         }
@@ -648,10 +892,31 @@ public class ProxyConnection extends PulsarHandler {
     }
 
     ClientConfigurationData createClientConfiguration() {
+        return createClientConfiguration(service);
+    }
+
+    /**
+     * Build the deterministic broker-client {@link ClientConfigurationData} the proxy uses for its outbound
+     * (proxy&rarr;broker) lookup and direct connections. The result depends only on the {@link ProxyService}
+     * configuration (identical for every connection), so {@link ProxyService} also calls it once at startup to
+     * derive the representative config for building the shared lookup client TLS factory.
+     *
+     * <p>PIP-478: when TLS with the broker is enabled the resolved lookup client TLS factory
+     * ({@link ProxyService#getLookupClientTlsFactory()}) is stashed on the config so the lookup
+     * {@code ConnectionPool}'s client transport can build its per-connection {@code SslContext} for the
+     * {@code CLIENT_DEFAULT} purpose. This method self-builds the config outside
+     * {@code PulsarClientImpl} (which is where the client factory is normally resolved), so the factory must
+     * be stashed here explicitly; otherwise the proxy binary lookup path hits a null-factory NPE. The factory
+     * is {@code null} while it is itself being built at startup, which is harmless: that representative config
+     * is only read for its {@code tls*} fields.
+     */
+    static ClientConfigurationData createClientConfiguration(ProxyService service) {
         ClientConfigurationData initialConf = new ClientConfigurationData();
         ProxyConfiguration proxyConfig = service.getConfiguration();
         initialConf.setServiceUrl(
                 proxyConfig.isTlsEnabledWithBroker() ? service.getServiceUrlTls() : service.getServiceUrl());
+        /** The proxy service does not need to automatically clean up idling connections, so set to false. **/
+        initialConf.setConnectionMaxIdleSeconds(-1);
 
         // Apply all arbitrary configuration. This must be called before setting any fields annotated as
         // @Secret on the ClientConfigurationData object because of the way they are serialized.
@@ -660,9 +925,7 @@ public class ProxyConnection extends PulsarHandler {
                 .filterAndMapProperties(proxyConfig.getProperties(), "brokerClient_");
         ClientConfigurationData clientConf = ConfigurationDataUtils
                 .loadData(overrides, initialConf, ClientConfigurationData.class);
-        /** The proxy service does not need to automatically clean up invalid connections, so set false. **/
-        initialConf.setConnectionMaxIdleSeconds(-1);
-        clientConf.setAuthentication(this.getClientAuthentication());
+        clientConf.setAuthentication(service.getProxyClientAuthenticationPlugin());
         if (proxyConfig.isTlsEnabledWithBroker()) {
             clientConf.setUseTls(true);
             clientConf.setTlsHostnameVerificationEnable(proxyConfig.isTlsHostnameVerificationEnabled());
@@ -680,6 +943,32 @@ public class ProxyConnection extends PulsarHandler {
                 clientConf.setTlsCertificateFilePath(proxyConfig.getBrokerClientCertificateFilePath());
             }
             clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
+            // PIP-478: propagate the broker-client TLS engine (sslProvider), JSSE (SSLContext) provider
+            // (jsseProvider) and JCA (crypto) provider (jcaProvider) onto the internal lookup client config so
+            // the proxy's outbound broker client honors them — otherwise they are dropped (never copied into
+            // ClientConfigurationData) and the engine/provider silently defaults. The JCA pin matters here
+            // because ProxyTlsFactories.brokerClientPolicy already honours it on the direct path: one
+            // proxy.conf setting drives two outbound legs, and only one of them read it.
+            if (isNotBlank(proxyConfig.getBrokerClientSslProvider())) {
+                clientConf.setSslProvider(proxyConfig.getBrokerClientSslProvider());
+            }
+            if (isNotBlank(proxyConfig.getBrokerClientJsseProvider())) {
+                clientConf.setJsseProvider(proxyConfig.getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(proxyConfig.getBrokerClientJcaProvider())) {
+                clientConf.setJcaProvider(proxyConfig.getBrokerClientJcaProvider());
+            }
+            // PIP-478: propagate the broker-client custom TLS factory selection so resolveClientTlsFactory
+            // (run by ProxyService over the representative config built here) instantiates the named factory
+            // for the lookup path's shared CLIENT_DEFAULT factory instead of silently defaulting to the
+            // file-based one while the direct path honors it. Gated on a non-default (non-blank) class name —
+            // mirroring PulsarService.maybeApplyBrokerClientTlsFactory — so a brokerClient_tlsFactoryClassName
+            // / brokerClient_tlsFactoryConfig override applied above is not clobbered by blank defaults.
+            if (isNotBlank(proxyConfig.getBrokerClientTlsFactoryClassName())) {
+                clientConf.setTlsFactoryClassName(proxyConfig.getBrokerClientTlsFactoryClassName());
+                clientConf.setTlsFactoryConfig(proxyConfig.getBrokerClientTlsFactoryConfig());
+            }
+            clientConf.setTlsFactory(service.getLookupClientTlsFactory());
         }
         return clientConf;
     }
@@ -730,7 +1019,7 @@ public class ProxyConnection extends PulsarHandler {
 
     private List<? extends ServiceLookupData> getAvailableBrokers() {
         if (service.getDiscoveryProvider() == null) {
-            LOG.warn("Unable to retrieve active brokers. service.getDiscoveryProvider() is null."
+            log.warn("Unable to retrieve active brokers. service.getDiscoveryProvider() is null."
                     + "zookeeperServers and configurationStoreServers must be configured in proxy configuration "
                     + "when checkActiveBrokers is enabled.");
             return Collections.emptyList();
@@ -738,7 +1027,7 @@ public class ProxyConnection extends PulsarHandler {
         try {
             return service.getDiscoveryProvider().getAvailableBrokers();
         } catch (PulsarServerException e) {
-            LOG.error("Unable to get available brokers", e);
+            log.error().exception(e).log("Unable to get available brokers");
             return Collections.emptyList();
         }
     }
@@ -756,5 +1045,37 @@ public class ProxyConnection extends PulsarHandler {
 
     private void writeAndFlushAndClose(ByteBuf cmd) {
         NettyChannelUtil.writeAndFlushWithClosePromise(ctx, cmd);
+    }
+
+    boolean supportsAuthenticationRefresh() {
+        return features != null && features.isSupportsAuthRefresh();
+    }
+
+    AuthData getClientAuthData() {
+        return clientAuthData;
+    }
+
+    /**
+     * Thread-safe method to retrieve unexpired client auth data. Due to inherent race conditions,
+     * the auth data may expire before it is used.
+     */
+    CompletableFuture<AuthData> getValidClientAuthData() {
+        final CompletableFuture<AuthData> clientAuthDataFuture = new CompletableFuture<>();
+        ctx().executor().execute(Runnables.catchingAndLoggingThrowables(() -> {
+            // authState is not thread safe, so this must run on the ProxyConnection's event loop.
+            if (!authState.isExpired()) {
+                clientAuthDataFuture.complete(clientAuthData);
+            } else if (state == State.ProxyLookupRequests) {
+                maybeSendAuthChallenge();
+                if (pendingBrokerAuthChallenges == null) {
+                    pendingBrokerAuthChallenges = new HashSet<>();
+                }
+                pendingBrokerAuthChallenges.add(clientAuthDataFuture);
+            } else {
+                clientAuthDataFuture.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                        "ProxyConnection is not in a valid state to get client auth data for " + remoteAddress));
+            }
+        }));
+        return clientAuthDataFuture;
     }
 }

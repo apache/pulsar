@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.loadbalance.extensions.channel.models;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -56,12 +55,9 @@ public class SplitTest {
         new Split("A", "B", map);
     }
 
-    @Test
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testNullSplitServiceUnitToDestBroker() {
-        var split = new Split("A", "B");
-        assertEquals(split.serviceUnit(), "A");
-        assertEquals(split.sourceBroker(), "B");
-        assertNull(split.splitServiceUnitToDestBroker());
+        var split = new Split("A", "B", null);
     }
 
 }

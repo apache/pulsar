@@ -1,0 +1,62 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Disconnected sites with a message TTL and a backlog quota: a retailer's gateways publish the telemetry of 100,000
+# devices, 5,000 messages per second, to four topics, which four store sites read through Key_Shared subscriptions of
+# their own, with two pods each. The sites lose their connectivity for two minutes every three minutes, as stores with
+# a flaky uplink do, and only the recent telemetry matters to them: the brokers expire messages older than 60 seconds,
+# checked every minute, and evict the oldest messages of a subscription whose backlog passes 20 MB, checked every
+# 10 seconds, with the backlog quota's consumer_backlog_eviction policy. The sites keep each device's latest state,
+# with applications.mode latestState, so the expired and evicted messages are gaps. It measures the expiry's and the
+# eviction's cost, and checks that no device's state goes back to an older one and that every site has each device's
+# last state once the gateways have finished.
+extends: iot-telemetry-base.yaml
+cluster:
+  brokers:
+    env:
+      ttlDurationDefaultInSeconds: "60"
+      messageExpiryCheckIntervalInMinutes: "1"
+      backlogQuotaDefaultLimitBytes: "20971520"
+      backlogQuotaDefaultRetentionPolicy: consumer_backlog_eviction
+      backlogQuotaCheckIntervalInSeconds: "10"
+workloads:
+  iotTelemetry:
+    rate: 5000
+    payload:
+      size: 256
+    measurement:
+      seconds: 360
+    timeoutSeconds: 600
+    devices:
+      count: 100000
+    gateways:
+      count: 10
+      producer:
+        precreate: true
+    topics:
+      count: 4
+      prefix: persistent://public/default/iot-store-
+    applications:
+      count: 4
+      podsPerApplication: 2
+      subscriptionPrefix: store-site-
+      mode: latestState
+    behaviors:
+      podPauses:
+        intervalSeconds: 180
+        fraction: 1.0
+        pauseMillis: 120000

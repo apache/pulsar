@@ -41,7 +41,7 @@ public class UnloadDecision {
     public enum Reason {
         Overloaded,
         Underloaded,
-        Balanced,
+        HitCount,
         NoBundles,
         CoolDown,
         OutDatedData,

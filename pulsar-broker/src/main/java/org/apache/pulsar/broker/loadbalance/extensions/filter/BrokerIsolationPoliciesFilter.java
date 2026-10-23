@@ -19,23 +19,24 @@
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
 import java.util.Map;
-import java.util.Set;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
+import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPoliciesHelper;
-import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 
 
-@Slf4j
+@CustomLog
 public class BrokerIsolationPoliciesFilter implements BrokerFilter {
 
     public static final String FILTER_NAME = "broker_isolation_policies_filter";
 
     private IsolationPoliciesHelper isolationPoliciesHelper;
+
+    public BrokerIsolationPoliciesFilter(IsolationPoliciesHelper helper) {
+        this.isolationPoliciesHelper = helper;
+    }
 
     @Override
     public String name() {
@@ -43,18 +44,13 @@ public class BrokerIsolationPoliciesFilter implements BrokerFilter {
     }
 
     @Override
-    public void initialize(PulsarService pulsar) {
-        this.isolationPoliciesHelper = new IsolationPoliciesHelper(new SimpleResourceAllocationPolicies(pulsar));
-    }
-
-    @Override
-    public Map<String, BrokerLookupData> filter(Map<String, BrokerLookupData> availableBrokers,
-                                                ServiceUnitId serviceUnit,
-                                                LoadManagerContext context)
-            throws BrokerFilterException {
-        Set<String> brokerCandidateCache =
-                isolationPoliciesHelper.applyIsolationPolicies(availableBrokers, serviceUnit);
-        availableBrokers.keySet().retainAll(brokerCandidateCache);
-        return availableBrokers;
+    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(Map<String, BrokerLookupData> availableBrokers,
+                                                                        ServiceUnitId serviceUnit,
+                                                                        LoadManagerContext context) {
+        return isolationPoliciesHelper.applyIsolationPoliciesAsync(availableBrokers, serviceUnit)
+                .thenApply(brokerCandidateCache -> {
+                    availableBrokers.keySet().retainAll(brokerCandidateCache);
+                    return availableBrokers;
+                });
     }
 }

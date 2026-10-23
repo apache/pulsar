@@ -36,6 +36,7 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -51,16 +52,18 @@ public class LeaderServiceTest {
     AtomicReference<ConsumerEventListener> listenerHolder;
     private LeaderService leaderService;
     private PulsarClientImpl mockClient;
+    @SuppressWarnings("rawtypes")
     private ConsumerImpl mockConsumer;
     private FunctionAssignmentTailer functionAssignmentTailer;
     private SchedulerManager schedulerManager;
     private FunctionRuntimeManager functionRuntimeManager;
     private FunctionMetaDataManager functionMetadataManager;
-    private CompletableFuture metadataManagerInitFuture;
-    private CompletableFuture runtimeManagerInitFuture;
-    private CompletableFuture readToTheEndAndExitFuture;
+    private CompletableFuture<Void> metadataManagerInitFuture;
+    private CompletableFuture<Void> runtimeManagerInitFuture;
+    private CompletableFuture<Void> readToTheEndAndExitFuture;
     private MembershipManager membershipManager;
 
+    @SuppressWarnings("unchecked")
     public LeaderServiceTest() {
         this.workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
@@ -74,9 +77,11 @@ public class LeaderServiceTest {
     }
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     public void setup() throws PulsarClientException {
         mockClient = mock(PulsarClientImpl.class);
-
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(mockClient.getCnxPool()).thenReturn(connectionPool);
         mockConsumer = mock(ConsumerImpl.class);
         ConsumerBuilder<byte[]> mockConsumerBuilder = mock(ConsumerBuilder.class);
 
@@ -133,6 +138,7 @@ public class LeaderServiceTest {
         verify(mockClient, times(1)).newConsumer();
 
         listenerHolder.get().becameActive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertTrue(leaderService.isLeader());
 
         verify(functionMetadataManager, times(1)).getIsInitialized();
@@ -148,6 +154,7 @@ public class LeaderServiceTest {
         verify(schedulerManager, times((1))).initialize(any());
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertFalse(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(1)).startFromMessage(messageId);
@@ -163,6 +170,7 @@ public class LeaderServiceTest {
         verify(mockClient, times(1)).newConsumer();
 
         listenerHolder.get().becameActive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertTrue(leaderService.isLeader());
 
         verify(functionMetadataManager, times(1)).acquireExclusiveWrite(any());
@@ -174,6 +182,7 @@ public class LeaderServiceTest {
         verify(schedulerManager, times((1))).initialize(any());
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertFalse(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(1)).start();
@@ -193,6 +202,7 @@ public class LeaderServiceTest {
         when(schedulerManager.acquireExclusiveWrite(any())).thenThrow(new WorkerUtils.NotLeaderAnymore());
 
         listenerHolder.get().becameActive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         // should have failed to become leader
         assertFalse(leaderService.isLeader());
 
@@ -209,6 +219,7 @@ public class LeaderServiceTest {
         verify(schedulerManager, times((0))).initialize(any());
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertFalse(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(0)).startFromMessage(messageId);
@@ -229,6 +240,7 @@ public class LeaderServiceTest {
         when(functionMetadataManager.acquireExclusiveWrite(any())).thenThrow(new WorkerUtils.NotLeaderAnymore());
 
         listenerHolder.get().becameActive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         // should have failed to become leader
         assertFalse(leaderService.isLeader());
 
@@ -245,6 +257,7 @@ public class LeaderServiceTest {
         verify(schedulerManager, times((0))).initialize(any());
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertFalse(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(0)).startFromMessage(messageId);
