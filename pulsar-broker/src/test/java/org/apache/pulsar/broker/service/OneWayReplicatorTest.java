@@ -2170,25 +2170,21 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 {true, SchemaRecoveryTrigger.NAMESPACE_POLICY},
                 {false, SchemaRecoveryTrigger.NEW_SCHEMA},
                 {true, SchemaRecoveryTrigger.NEW_SCHEMA}
+//                 TODO: Re-enable after https://github.com/apache/pulsar/issues/27048 is fixed.
+//                {false, SchemaRecoveryTrigger.DELETE_SCHEMA},
+//                {true, SchemaRecoveryTrigger.DELETE_SCHEMA}
         };
     }
 
-    private enum SchemaRecoveryTrigger {
+    protected enum SchemaRecoveryTrigger {
         TOPIC_POLICY,
         NAMESPACE_POLICY,
         NEW_SCHEMA,
         DELETE_SCHEMA
     }
 
-    // TODO: Re-enable after https://github.com/apache/pulsar/issues/27048 is fixed.
-     @Test(timeOut = 120_000, enabled = false)
-    public void testReplicationResumesAfterDeletingIncompatibleSchema() throws Exception {
-        testReplicationResumesAfterSchemaConflictResolved(false, SchemaRecoveryTrigger.DELETE_SCHEMA);
-    }
-
     @Test(dataProvider = "schemaRecovery", timeOut = 120_000)
-    public void testReplicationResumesAfterSchemaConflictResolved(boolean deduplication,
-                                                                    SchemaRecoveryTrigger trigger)
+    public void testReplicationResumesAfterSchemaConflictResolved(boolean deduplication, SchemaRecoveryTrigger trigger)
             throws Exception {
         String topicName = BrokerTestUtil.newUniqueName("persistent://"
                 + sourceClusterAlwaysSchemaCompatibleNamespace + "/schema-retry-");
