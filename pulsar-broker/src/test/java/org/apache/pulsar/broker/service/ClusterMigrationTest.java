@@ -387,10 +387,15 @@ public class ClusterMigrationTest {
             producer3.send("test2".getBytes());
         }
         log.info("Successfully published messages by migrated producers");
+        // Ack the messages: restarting broker-1 below fails the subscribe request that consumer2 sent there before
+        // it was redirected, and the client then subscribes consumer2 again, which redelivers its unacked messages.
         for (int i = 0; i < n * 3; i++) {
-            assertEquals(consumer1.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-            assertEquals(consumer2.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-
+            Message<byte[]> msg1 = consumer1.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg1.getData(), "test2".getBytes());
+            consumer1.acknowledge(msg1);
+            Message<byte[]> msg2 = consumer2.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg2.getData(), "test2".getBytes());
+            consumer2.acknowledge(msg2);
         }
 
         // create non-migrated topic which should connect to cluster-1
@@ -871,10 +876,15 @@ public class ClusterMigrationTest {
             greenProducerNs11.send("test2".getBytes());
         }
         log.info("Successfully published messages by migrated producers");
+        // Ack the messages: restarting broker-1 below fails the subscribe request that blueConsumerNs12 sent there
+        // before it was redirected, and the client then subscribes it again, which redelivers its unacked messages.
         for (int i = 0; i < n * 3; i++) {
-            assertEquals(blueConsumerNs11.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-            assertEquals(blueConsumerNs12.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-
+            Message<byte[]> msg1 = blueConsumerNs11.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg1.getData(), "test2".getBytes());
+            blueConsumerNs11.acknowledge(msg1);
+            Message<byte[]> msg2 = blueConsumerNs12.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg2.getData(), "test2".getBytes());
+            blueConsumerNs12.acknowledge(msg2);
         }
 
         // create non-migrated topic which should connect to blue
