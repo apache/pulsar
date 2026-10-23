@@ -19,10 +19,12 @@
 package org.apache.pulsar.client.impl;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -225,8 +227,11 @@ public class AcknowledgementsGroupingTrackerTest {
 
         returnCnx.set(false);
         try {
-            tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
-            assertFalse(tracker.isDuplicate(msg1));
+            CompletableFuture<Void> ackFuture =
+                    tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
+            // Without a connection, the ack waits for the next flush instead of failing
+            assertFalse(ackFuture.isCompletedExceptionally());
+            assertTrue(tracker.isDuplicate(msg1));
         } finally {
             returnCnx.set(true);
         }
@@ -237,6 +242,43 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.addAcknowledgment(msg2, AckType.Individual, Collections.emptyMap());
         // Since we were connected, the ack went out immediately
         assertFalse(tracker.isDuplicate(msg2));
+        tracker.close();
+    }
+
+    @Test(dataProvider = "isNeedReceipt")
+    public void testImmediateAcksWaitForTheSubscription(boolean isNeedReceipt) throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(0);
+        conf.setAckReceiptEnabled(isNeedReceipt);
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+
+        MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
+        MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
+        MessageIdImpl msg3 = new MessageIdImpl(5, 3, 0);
+        MessageIdImpl msg4 = new MessageIdImpl(5, 4, 0);
+
+        // Reconnected but not subscribed yet: the broker would drop the acks sent on the new connection
+        doReturn(HandlerState.State.Connecting).when(consumer).getState();
+        clearInvocations(cnx);
+        try {
+            assertFalse(tracker.addAcknowledgment(msg2, AckType.Cumulative, Collections.emptyMap())
+                    .isCompletedExceptionally());
+            assertFalse(tracker.addAcknowledgment(msg4, AckType.Individual, Collections.emptyMap())
+                    .isCompletedExceptionally());
+            assertTrue(tracker.isDuplicate(msg1));
+            assertFalse(tracker.isDuplicate(msg3));
+            assertTrue(tracker.isDuplicate(msg4));
+            assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+            verifyNoInteractions(cnx);
+        } finally {
+            doReturn(HandlerState.State.Ready).when(consumer).getState();
+        }
+
+        // The flush that follows the subscription sends them
+        tracker.flush();
+        assertFalse(tracker.isDuplicate(msg4));
+        assertEquals(tracker.getPendingIndividualAcksSize(), 0);
         tracker.close();
     }
 

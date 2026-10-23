@@ -254,10 +254,22 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
         }
     }
 
+    private boolean isImmediateAck(Map<String, Long> properties) {
+        // We cannot group acks when there are properties attached to them. Fortunately that's an uncommon condition
+        // since it's only used for the compaction subscription. Without a delay, the acks are only grouped while the
+        // consumer is not subscribed, until the flush that follows the subscription.
+        return (properties != null && !properties.isEmpty())
+                || (acknowledgementGroupTimeMicros == 0 && getSubscribedCnx() != null);
+    }
+
+    // The connection of the subscribed consumer: the broker drops the acks sent before the subscription completes
+    private @Nullable ClientCnx getSubscribedCnx() {
+        ClientCnx cnx = consumer.getClientCnx();
+        return cnx != null && consumer.getState() != HandlerState.State.Connecting ? cnx : null;
+    }
+
     private CompletableFuture<Void> doIndividualAck(MessageIdAdv messageId, Map<String, Long> properties) {
-        if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
-            // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
-            // uncommon condition since it's only used for the compaction subscription.
+        if (isImmediateAck(properties)) {
             return doImmediateAck(messageId, AckType.Individual, properties, null);
         } else {
             Optional<Lock> readLock = acquireReadLock();
@@ -266,7 +278,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return readLock.map(__ -> currentIndividualAckFuture).orElse(CompletableFuture.completedFuture(null));
             } finally {
                 readLock.ifPresent(Lock::unlock);
-                if (isMaxAckGroupSizeReached()) {
+                if (acknowledgementGroupTimeMicros == 0 || isMaxAckGroupSizeReached()) {
                     flush();
                 }
             }
@@ -292,7 +304,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     private CompletableFuture<Void> doIndividualBatchAck(MessageIdAdv batchMessageId,
                                                          Map<String, Long> properties) {
-        if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
+        if (isImmediateAck(properties)) {
             return doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
                     batchMessageId.getBatchSize(), AckType.Individual, properties);
         } else {
@@ -307,7 +319,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             return readLock.map(__ -> currentIndividualAckFuture).orElse(CompletableFuture.completedFuture(null));
         } finally {
             readLock.ifPresent(Lock::unlock);
-            if (isMaxAckGroupSizeReached()) {
+            if (acknowledgementGroupTimeMicros == 0 || isMaxAckGroupSizeReached()) {
                 flush();
             }
         }
@@ -316,9 +328,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
     private CompletableFuture<Void> doCumulativeAck(MessageIdAdv messageId, Map<String, Long> properties,
                                                     BitSetRecyclable bitSet) {
         consumer.getStats().incrementNumAcksSent(consumer.getUnAckedMessageTracker().removeMessagesTill(messageId));
-        if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
-            // We cannot group acks if the delay is 0 or when there are properties attached to it. Fortunately that's an
-            // uncommon condition since it's only used for the compaction subscription.
+        if (isImmediateAck(properties)) {
             return doImmediateAck(messageId, AckType.Cumulative, properties, bitSet);
         } else {
             Optional<Lock> readLock = acquireReadLock();
@@ -332,6 +342,9 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 }).orElse(CompletableFuture.completedFuture(null));
             } finally {
                 readLock.ifPresent(Lock::unlock);
+                if (acknowledgementGroupTimeMicros == 0) {
+                    flush();
+                }
             }
         }
     }
@@ -369,7 +382,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     private CompletableFuture<Void> doCumulativeBatchIndexAck(MessageIdAdv batchMessageId,
                                                               Map<String, Long> properties) {
-        if (acknowledgementGroupTimeMicros == 0 || (properties != null && !properties.isEmpty())) {
+        if (isImmediateAck(properties)) {
             return doImmediateBatchIndexAck(batchMessageId, batchMessageId.getBatchIndex(),
                     batchMessageId.getBatchSize(), AckType.Cumulative, properties);
         } else {
@@ -426,7 +439,7 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
      */
     @Override
     public void flush() {
-        ClientCnx cnx = consumer.getClientCnx();
+        ClientCnx cnx = getSubscribedCnx();
 
         if (cnx == null) {
             if (log.isDebugEnabled()) {
