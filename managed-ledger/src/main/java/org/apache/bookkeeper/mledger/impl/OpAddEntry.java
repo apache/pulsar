@@ -289,8 +289,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             entry.release();
         }
 
-        ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
-        ml.lastConfirmedEntry = lastEntry;
+        ml.updateLastPositionAndCounter(lastEntry);
 
         if (closeWhenDone) {
             log.info().attr("managedLedger", ml.getName())

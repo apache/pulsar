@@ -150,7 +150,8 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     /**
      * Tail of the chain that hands the entries of {@link #appendBufferToTxn} to the managed ledger in
      * publish order: each entry goes once its op record is written and the appends before it handed
-     * theirs over. Non-transactional entries published while it's pending join the chain (see
+     * theirs over, unless its txn was resolved meanwhile (see {@link #appendToLedgerIfOpen}).
+     * Non-transactional entries published while it's pending join the chain (see
      * {@link #addEntryInPublishOrder}). Never completes exceptionally, so an append that fails before
      * the ledger doesn't hold up the ones behind it. Replaced under {@link #lock}; volatile so that a
      * non-transactional publish sees without the lock whether anything is pending.
@@ -363,7 +364,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
             // durable before any ledger entry exists for this op.
             appendTail = appendTail.thenCompose(__ -> opWritten).handle((__, opWriteFailure) -> {
                 if (opWriteFailure == null) {
-                    appendToLedger(buffer, appended);
+                    appendToLedgerIfOpen(txnId, txnIdKey, buffer, appended);
                 }
                 return null;
             });
@@ -410,23 +411,49 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         });
     }
 
-    private void appendToLedger(ByteBuf buffer, CompletableFuture<Position> result) {
-        try {
-            ledger.asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
-                @Override
-                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                    result.complete(position);
+    /**
+     * Hand an append's entry to the ledger, unless its txn was resolved while the append waited for
+     * the ones before it. The outcome is applied with the positions known by then, so an entry
+     * appended afterwards would escape it: an aborted txn's would sit above its aborted record, and be
+     * read as committed once the record is pruned because the ledger trimmed past it. The txn is
+     * checked, and the entry handed over, under the lock {@link #applyTerminalNow} reads the positions
+     * under, so no outcome is applied in between.
+     */
+    private void appendToLedgerIfOpen(TxnID txnId, String txnIdKey, ByteBuf buffer,
+                                      CompletableFuture<Position> result) {
+        Exception failure = null;
+        synchronized (lock) {
+            TxnEntry entry = txns.get(txnIdKey);
+            if (entry == null || entry.state != TxnState.OPEN) {
+                failure = new BrokerServiceException.NotAllowedException("Transaction " + txnId + " is already "
+                        + (entry == null ? "resolved" : entry.state.toString()) + " — TxnConflict");
+            } else {
+                try {
+                    // Only queues the add: it completes on the ledger's thread.
+                    appendToLedger(buffer, result);
+                } catch (RuntimeException e) {
+                    failure = e;
                 }
-
-                @Override
-                public void addFailed(ManagedLedgerException exception, Object ctx) {
-                    result.completeExceptionally(exception);
-                }
-            }, null);
-        } catch (RuntimeException e) {
-            // Only this append fails: the ones behind it still go to the ledger.
-            result.completeExceptionally(e);
+            }
         }
+        if (failure != null) {
+            // Only this append fails: the ones behind it still go to the ledger.
+            result.completeExceptionally(failure);
+        }
+    }
+
+    private void appendToLedger(ByteBuf buffer, CompletableFuture<Position> result) {
+        ledger.asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                result.complete(position);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null);
     }
 
     @Override

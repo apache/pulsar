@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -972,6 +973,78 @@ public class BatchMessageContainerImplTest {
             assertFalse(container.hasSameTxn(newMessage(3L, 7L, 13L)),
                     "a transactional message was admitted into a plain batch through the transaction identity"
                             + " left behind by a failed add");
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    /**
+     * The entry-bucket container, the V5 producer's batcher on scalable topics, builds each bucket's entry with a
+     * default container, which stamps the transaction id of the entry's first message on every message in it. A
+     * plain message sent right after a transactional one must therefore start a new batch, or it joins the
+     * transaction: invisible until commit and dropped on abort.
+     */
+    @Test
+    public void testEntryBucketContainerKeepsPlainMessagesOutOfTransactionalBatches() throws Exception {
+        EntryBucketBatchContainer container = new EntryBucketBatchContainer(List.of());
+        container.setProducer(createTestProducer(CompressionType.NONE));
+        try {
+            container.add(newMessage(1L, 7L, 13L), null);
+
+            assertThat(container.hasSameTxn(newMessage(2L, null, null)))
+                    .as("a plain message was accepted into a transactional entry-bucket batch")
+                    .isFalse();
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    /** Messages of one transaction must still share an entry-bucket batch, and messages of two transactions not. */
+    @Test
+    public void testEntryBucketContainerBatchesMessagesOfOneTransactionTogether() throws Exception {
+        EntryBucketBatchContainer container = new EntryBucketBatchContainer(List.of());
+        container.setProducer(createTestProducer(CompressionType.NONE));
+        try {
+            container.add(newMessage(1L, 7L, 13L), null);
+
+            assertThat(container.hasSameTxn(newMessage(2L, 7L, 13L)))
+                    .as("two messages of the same transaction were split across entry-bucket batches")
+                    .isTrue();
+            assertThat(container.hasSameTxn(newMessage(3L, 7L, 14L)))
+                    .as("messages of two different transactions were put in one entry-bucket batch")
+                    .isFalse();
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    /**
+     * As in the key-based container, a bucket whose first add fails to allocate clears itself without clearing the
+     * entry-bucket container, so the transaction identity taken from that message must not survive into the next
+     * first message.
+     */
+    @Test
+    public void testEntryBucketContainerDropsTheTransactionIdentityOfAFailedFirstAdd() throws Exception {
+        ProducerImpl<?> producer = createTestProducer(CompressionType.NONE);
+        MemoryLimitController memoryLimitController = producer.client.getMemoryLimitController();
+        // fail only the first bucket-batch allocation
+        doThrow(new OutOfMemoryError("test")).doNothing()
+                .when(memoryLimitController).forceReserveMemory(anyLong());
+
+        EntryBucketBatchContainer container = new EntryBucketBatchContainer(List.of());
+        container.setProducer(producer);
+        try {
+            container.add(newMessage(1L, 7L, 13L), null);
+            assertThat(container.getNumMessagesInBatch())
+                    .as("the failed add should have left the container empty")
+                    .isZero();
+
+            container.add(newMessage(2L, null, null), null);
+
+            assertThat(container.hasSameTxn(newMessage(3L, 7L, 13L)))
+                    .as("a transactional message was admitted into a plain entry-bucket batch through the"
+                            + " transaction identity left behind by a failed add")
+                    .isFalse();
         } finally {
             container.discard(null);
         }
