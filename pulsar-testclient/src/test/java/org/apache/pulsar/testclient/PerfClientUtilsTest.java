@@ -19,13 +19,17 @@
 package org.apache.pulsar.testclient;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import io.github.merlimat.slog.Logger;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.HdrHistogram.Histogram;
 import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.api.Authentication;
@@ -465,6 +469,25 @@ public class PerfClientUtilsTest {
                     .as("histogram footprint for range %d", range)
                     .isLessThan(512 * 1024);
         }
+    }
+
+    /** Stopping a tool interrupts the thread waiting for its transaction ends, which must stop waiting. */
+    @Test(timeOut = 30000)
+    public void awaitTransactionEndsStopsWaitingWhenInterrupted() throws Exception {
+        AtomicBoolean interruptedAfterwards = new AtomicBoolean();
+        Thread waiting = new Thread(() -> {
+            // Long enough that only the interrupt can end the wait within the test's timeout.
+            PerfClientUtils.awaitTransactionEnds(Logger.get(PerfClientUtilsTest.class),
+                    List.of(new CompletableFuture<Void>()), 600);
+            interruptedAfterwards.set(Thread.currentThread().isInterrupted());
+        }, "perf-transaction-ends");
+        waiting.start();
+
+        waiting.interrupt();
+        waiting.join(TimeUnit.SECONDS.toMillis(10));
+
+        assertThat(waiting.isAlive()).as("still waiting for the transaction ends after an interrupt").isFalse();
+        assertThat(interruptedAfterwards).as("interrupt status after the wait").isTrue();
     }
 }
 
