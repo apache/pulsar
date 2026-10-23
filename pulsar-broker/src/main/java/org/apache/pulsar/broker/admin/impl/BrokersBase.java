@@ -342,6 +342,12 @@ public class BrokersBase extends AdminResource {
             return FutureUtil
                     .failedFuture(new RestException(Status.PRECONDITION_FAILED, " Invalid dynamic-config value"));
         }
+        if ("configurationMetadataSyncEventTopic".equals(configName)
+                && pulsar().isConfigurationMetadataStoreSharedWithLocal()) {
+            return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                    "Can't update configurationMetadataSyncEventTopic because the configuration metadata store is"
+                            + " the same as the local metadata store"));
+        }
         if (pulsar().getBrokerService().isDynamicConfiguration(configName)) {
             return dynamicConfigurationResources().setDynamicConfigurationWithCreateAsync(old -> {
                 Map<String, String> configurationMap = old.orElseGet(Maps::newHashMap);
