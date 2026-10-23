@@ -22,7 +22,6 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,7 +29,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.testng.annotations.Test;
 
 /**
- * Test compareTo method in MessageIdImpl and BatchMessageIdImpl
+ * Test compareTo method in MessageIdImpl and BatchMessageIdImpl.
  */
 public class MessageIdCompareToTest  {
 
@@ -148,15 +147,12 @@ public class MessageIdCompareToTest  {
         MessageIdImpl messageIdImpl = new MessageIdImpl(123L, 345L, 567);
         TopicMessageIdImpl topicMessageId1 = new TopicMessageIdImpl(
             "test-topic-partition-0",
-            "test-topic",
             new BatchMessageIdImpl(123L, 345L, 566, 789));
         TopicMessageIdImpl topicMessageId2 = new TopicMessageIdImpl(
             "test-topic-partition-0",
-            "test-topic",
             new BatchMessageIdImpl(123L, 345L, 567, 789));
         TopicMessageIdImpl topicMessageId3 = new TopicMessageIdImpl(
             "test-topic-partition-0",
-            "test-topic",
             new BatchMessageIdImpl(messageIdImpl));
         assertTrue(messageIdImpl.compareTo(topicMessageId1) > 0, "Expected to be greater than");
         assertTrue(messageIdImpl.compareTo(topicMessageId2) < 0, "Expected to be less than");
@@ -173,11 +169,9 @@ public class MessageIdCompareToTest  {
         BatchMessageIdImpl messageIdImpl3 = new BatchMessageIdImpl(123L, 345L, 567, -1);
         TopicMessageIdImpl topicMessageId1 = new TopicMessageIdImpl(
             "test-topic-partition-0",
-            "test-topic",
             new MessageIdImpl(123L, 345L, 566));
         TopicMessageIdImpl topicMessageId2 = new TopicMessageIdImpl(
             "test-topic-partition-0",
-            "test-topic",
             new MessageIdImpl(123L, 345L, 567));
         assertTrue(messageIdImpl1.compareTo(topicMessageId1) > 0, "Expected to be greater than");
         assertTrue(messageIdImpl1.compareTo(topicMessageId2) > 0, "Expected to be greater than");
@@ -186,9 +180,10 @@ public class MessageIdCompareToTest  {
         assertTrue(topicMessageId1.compareTo(messageIdImpl1) < 0, "Expected to be less than");
         assertTrue(topicMessageId2.compareTo(messageIdImpl1) < 0, "Expected to be less than");
         assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
-        assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
+        assertEquals(topicMessageId2.compareTo(messageIdImpl3), 0, "Expected to be equal");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiMessageIdEqual() {
         // null
@@ -265,6 +260,7 @@ public class MessageIdCompareToTest  {
         assertNotEquals(item7, item5);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMultiMessageIdCompareto() {
         // null

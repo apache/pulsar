@@ -24,11 +24,10 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
 import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
@@ -45,10 +44,11 @@ import org.testng.annotations.Test;
 /**
  * Unit testing generic schemas.
  */
-@Slf4j
+@CustomLog
 public class GenericSchemaImplTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericAvroSchema() {
         Schema<Foo> encodeSchema = Schema.AVRO(Foo.class);
         GenericSchema decodeSchema = GenericSchemaImpl.of(encodeSchema.getSchemaInfo());
@@ -56,6 +56,7 @@ public class GenericSchemaImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenericJsonSchema() {
         Schema<Foo> encodeSchema = Schema.JSON(Foo.class);
         GenericSchema decodeSchema = GenericSchemaImpl.of(encodeSchema.getSchemaInfo());
@@ -108,7 +109,7 @@ public class GenericSchemaImplTest {
             Foo foo = newFoo(i);
             byte[] data = encodeSchema.encode(foo);
 
-            log.info("Decoding : {}", new String(data, UTF_8));
+            log.info().attr("data", new String(data, UTF_8)).log("Decoding");
 
             GenericRecord record;
             if (decodeSchema instanceof AutoConsumeSchema) {
@@ -141,9 +142,7 @@ public class GenericSchemaImplTest {
                 Schema<KeyValue<GenericRecord, GenericRecord>> decodeSchema = KeyValueSchemaImpl.of(
                     Schema.AUTO_CONSUME(), Schema.AUTO_CONSUME()
                 );
-                decodeSchema.configureSchemaInfo(
-                    "test-topic", "topic",kvSchema.getSchemaInfo()
-                );
+                decodeSchema.configureSchemaInfo("test-topic", "topic", kvSchema.getSchemaInfo());
 
                 GenericSchema genericAvroSchema = GenericSchemaImpl.of(Schema.AVRO(Foo.class).getSchemaInfo());
                 when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))

@@ -20,6 +20,9 @@ package org.apache.pulsar.broker.authentication;
 
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedDataAttributeName;
 import static org.apache.pulsar.broker.web.AuthenticationFilter.AuthenticatedRoleAttributeName;
+import io.opentelemetry.api.OpenTelemetry;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.SocketAddress;
@@ -27,9 +30,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import lombok.Builder;
+import lombok.Value;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.util.FutureUtil;
 
@@ -46,7 +50,29 @@ public interface AuthenticationProvider extends Closeable {
      * @throws IOException
      *             if the initialization fails
      */
+    @Deprecated(since = "3.4.0")
     void initialize(ServiceConfiguration config) throws IOException;
+
+    @Builder
+    @Value
+    class Context {
+        ServiceConfiguration config;
+
+        @Builder.Default
+        OpenTelemetry openTelemetry = OpenTelemetry.noop();
+    }
+
+    /**
+     * Perform initialization for the authentication provider.
+     *
+     * @param context
+     *            the authentication provider context
+     * @throws IOException
+     *             if the initialization fails
+     */
+    default void initialize(Context context) throws IOException {
+        initialize(context.getConfig());
+    }
 
     /**
      * @return the authentication method name supported by this provider
@@ -114,7 +140,7 @@ public interface AuthenticationProvider extends Closeable {
      * an {@link AuthenticationDataSource} that was added as the {@link AuthenticatedDataAttributeName} attribute to
      * the http request. Removing this method removes an unnecessary step in the authentication flow.</p>
      */
-    @Deprecated(since = "2.12.0")
+    @Deprecated(since = "3.0.0")
     default AuthenticationState newHttpAuthState(HttpServletRequest request)
             throws AuthenticationException {
         return new OneStageAuthenticationState(request, this);
@@ -141,6 +167,11 @@ public interface AuthenticationProvider extends Closeable {
         } catch (Exception e) {
             return FutureUtil.failedFuture(e);
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    default void incrementFailureMetric(Enum<?> errorCode) {
+        AuthenticationMetrics.authenticateFailure(getClass().getSimpleName(), getAuthMethodName(), errorCode);
     }
 
     /**

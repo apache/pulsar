@@ -1,30 +1,38 @@
 <!--
 ### Contribution Checklist
-  
-  - PR title format should be *[type][component] summary*. For details, see *[Guideline - Pulsar PR Naming Convention](https://docs.google.com/document/d/1d8Pw6ZbWk-_pCKdOmdvx9rnhPiyuxwq60_TrD68d7BA/edit#heading=h.trs9rsex3xom)*. 
+
+  - PR title format should be *[type][component] summary*. The valid `[type]` and `[component]`/scope
+    prefixes are enforced by CI (see `.github/workflows/ci-semantic-pull-request.yml`); for details,
+    see *[Guideline - Pulsar PR Naming Convention](https://pulsar.apache.org/contribute/develop-semantic-title/)*.
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
-  
+
+  - The **Motivation** and **Modifications** sections are required: explain *why* (the problem/context)
+    and *what/how* (the change). A title alone, or a description that only restates the title, is not enough.
+
   - Each pull request should address only one issue, not mix up code from multiple issues.
-  
+
   - Each commit in the pull request has a meaningful commit message
+
+  - For the local build/test/PR workflow see `CONTRIBUTING.md`, and for coding conventions see
+    `CODING.md`. If you use an AI coding assistant, see `AGENTS.md`.
 
   - Once all items of the checklist are addressed, remove the above text and this checklist, leaving only the filled out template below.
 -->
 
-<!-- Either this PR fixes an issue, -->
+<!-- Either this PR fixes/closes an issue — use "Fixes #xyz" or, equivalently, "Closes #xyz", -->
 
 Fixes #xyz
 
 <!-- or this PR is one task of an issue -->
 
-Master Issue: #xyz
+Main Issue: #xyz
 
 <!-- If the PR belongs to a PIP, please add the PIP link here -->
 
 PIP: #xyz 
 
-<!-- Details of when a PIP is required and how the PIP process work, please see: https://github.com/apache/pulsar/blob/master/wiki/proposals/PIP.md -->
+<!-- Details of when a PIP is required and how the PIP process work, please see: https://github.com/apache/pulsar/blob/master/pip/README.md -->
 
 ### Motivation
 
@@ -70,29 +78,3 @@ This change added tests and can be verified as follows:
 - [ ] The admin CLI options
 - [ ] The metrics
 - [ ] Anything that affects deployment
-
-### Documentation
-
-<!-- DO NOT REMOVE THIS SECTION. CHECK THE PROPER BOX ONLY. -->
-
-- [ ] `doc` <!-- Your PR contains doc changes. -->
-- [ ] `doc-required` <!-- Your PR changes impact docs and you will update later -->
-- [ ] `doc-not-needed` <!-- Your PR changes do not impact docs -->
-- [ ] `doc-complete` <!-- Docs have been already added -->
-
-### Matching PR in forked repository
-
-PR in forked repository: <!-- ENTER URL HERE -->
-
-<!--
-After opening this PR, the build in apache/pulsar will fail and instructions will
-be provided for opening a PR in the PR author's forked repository.
-
-apache/pulsar pull requests should be first tested in your own fork since the 
-apache/pulsar CI based on GitHub Actions has constrained resources and quota.
-GitHub Actions provides separate quota for pull requests that are executed in 
-a forked repository.
-
-The tests will be run in the forked repository until all PR review comments have
-been handled, the tests pass and the PR is approved by a reviewer.
--->

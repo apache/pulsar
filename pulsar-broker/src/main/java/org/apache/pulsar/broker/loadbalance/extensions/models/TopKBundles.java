@@ -22,12 +22,19 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import lombok.CustomLog;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.extensions.data.TopBundlesLoadData;
+import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
+import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**
@@ -36,13 +43,22 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 @Getter
 @ToString
 @EqualsAndHashCode
-@NoArgsConstructor
+@CustomLog
 public class TopKBundles {
 
     // temp array for sorting
     private final List<Map.Entry<String, ? extends Comparable>> arr = new ArrayList<>();
 
     private final TopBundlesLoadData loadData = new TopBundlesLoadData();
+
+    private final PulsarService pulsar;
+
+    private final SimpleResourceAllocationPolicies allocationPolicies;
+
+    public TopKBundles(PulsarService pulsar) {
+        this.pulsar = pulsar;
+        this.allocationPolicies = new SimpleResourceAllocationPolicies(pulsar);
+    }
 
     /**
      * Update the topK bundles from the input bundleStats.
@@ -52,29 +68,52 @@ public class TopKBundles {
      */
     public void update(Map<String, NamespaceBundleStats> bundleStats, int topk) {
         arr.clear();
-        for (var etr : bundleStats.entrySet()) {
-            if (etr.getKey().startsWith(NamespaceName.SYSTEM_NAMESPACE.toString())) {
-                continue;
-            }
-            arr.add(etr);
-        }
-        var topKBundlesLoadData = loadData.getTopBundlesLoadData();
-        topKBundlesLoadData.clear();
-        if (arr.isEmpty()) {
-            return;
-        }
-        topk = Math.min(topk, arr.size());
-        partitionSort(arr, topk);
+        try {
+            var conf = pulsar.getConfiguration();
+            var isLoadBalancerSheddingBundlesWithPoliciesEnabled =
+                    conf.isLoadBalancerSheddingBundlesWithPoliciesEnabled();
+            Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
+            for (var etr : bundleStats.entrySet()) {
+                String bundle = etr.getKey();
+                var stat = etr.getValue();
 
-        for (int i = 0; i < topk; i++) {
-            var etr = arr.get(i);
-            topKBundlesLoadData.add(
-                    new TopBundlesLoadData.BundleLoadData(etr.getKey(), (NamespaceBundleStats) etr.getValue()));
+                // skip zero traffic bundles
+                if (stat.msgThroughputIn + stat.msgThroughputOut == 0) {
+                    continue;
+                }
+                // TODO: do not filter system topic while shedding
+                String namespace = NamespaceBundle.getBundleNamespace(bundle);
+                if (NamespaceService.isSystemServiceNamespace(namespace)) {
+                    continue;
+                }
+                if (!isLoadBalancerSheddingBundlesWithPoliciesEnabled && hasPolicies(bundle)) {
+                    continue;
+                }
+                if (sheddingExcludedNamespaces.contains(namespace)) {
+                    continue;
+                }
+                arr.add(etr);
+            }
+            var topKBundlesLoadData = loadData.getTopBundlesLoadData();
+            topKBundlesLoadData.clear();
+            if (arr.isEmpty()) {
+                return;
+            }
+            topk = Math.min(topk, arr.size());
+            partitionSort(arr, topk);
+
+            for (int i = topk - 1; i >= 0; i--) {
+                var etr = arr.get(i);
+                topKBundlesLoadData.add(
+                        new TopBundlesLoadData.BundleLoadData(etr.getKey(), (NamespaceBundleStats) etr.getValue()));
+            }
+        } finally {
+            arr.clear();
         }
-        arr.clear();
     }
 
-    static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {
+    @SuppressWarnings("unchecked")
+    public static void partitionSort(List<Map.Entry<String, ? extends Comparable>> arr, int k) {
         int start = 0;
         int end = arr.size() - 1;
         int target = k - 1;
@@ -108,5 +147,24 @@ public class TopKBundles {
             }
         }
         Collections.sort(arr.subList(0, end), (a, b) -> b.getValue().compareTo(a.getValue()));
+    }
+
+    private boolean hasPolicies(String bundle) {
+        NamespaceName namespace = NamespaceName.get(LoadManagerShared.getNamespaceNameFromBundleName(bundle));
+        if (allocationPolicies.areIsolationPoliciesPresent(namespace)) {
+            return true;
+        }
+
+        try {
+            var antiAffinityGroupOptional =
+                    LoadManagerShared.getNamespaceAntiAffinityGroup(pulsar, namespace.toString());
+            if (antiAffinityGroupOptional.isPresent()) {
+                return true;
+            }
+        } catch (MetadataStoreException e) {
+            log.error().attr("bundle", bundle).exception(e).log("Failed to get localPolicies for bundle");
+            throw new RuntimeException(e);
+        }
+        return false;
     }
 }

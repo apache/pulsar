@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import com.google.common.collect.Multimap;
+import java.util.Set;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**
@@ -36,4 +37,19 @@ public interface LoadSheddingStrategy {
      * @return A map from all selected bundles to the brokers on which they reside.
      */
     Multimap<String, String> findBundlesForUnloading(LoadData loadData, ServiceConfiguration conf);
+
+    /**
+     * Triggered when active broker changes.
+     *
+     * @param activeBrokers active Brokers
+     */
+    default void onActiveBrokersChange(Set<String> activeBrokers) {}
+
+    /**
+     * Triggered after the load manager finishes processing a load-shedding attempt.
+     *
+     * <p>This is also called when planning or an individual unload fails. It does not indicate that a destination
+     * broker has acquired ownership.
+     */
+    default void onUnloadAttemptCompleted() {}
 }

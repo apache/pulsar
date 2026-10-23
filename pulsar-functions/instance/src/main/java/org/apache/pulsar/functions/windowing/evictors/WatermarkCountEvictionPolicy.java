@@ -37,6 +37,7 @@ public class WatermarkCountEvictionPolicy<T>
     protected final AtomicLong currentCount;
     private EvictionContext context;
 
+    @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<WatermarkCountEvictionPolicy> PROCESSED_UPDATER =
             AtomicLongFieldUpdater.newUpdater(WatermarkCountEvictionPolicy.class, "processed");
     private volatile long processed;

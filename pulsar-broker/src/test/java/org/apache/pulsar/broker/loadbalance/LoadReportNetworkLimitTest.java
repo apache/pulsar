@@ -60,12 +60,12 @@ public class LoadReportNetworkLimitTest extends MockedPulsarServiceBaseTest {
         LoadManagerReport report = admin.brokerStats().getLoadReport();
 
         if (SystemUtils.IS_OS_LINUX) {
-            assertEquals(report.getBandwidthIn().limit, usableNicCount * 5.4 * 1000 * 1000);
-            assertEquals(report.getBandwidthOut().limit, usableNicCount * 5.4 * 1000 * 1000);
+            assertEquals(report.getBandwidthIn().limit, usableNicCount * 5.4 * 1000 * 1000, 0.0001);
+            assertEquals(report.getBandwidthOut().limit, usableNicCount * 5.4 * 1000 * 1000, 0.0001);
         } else {
             // On non-Linux system we don't report the network usage
-            assertEquals(report.getBandwidthIn().limit, -1.0);
-            assertEquals(report.getBandwidthOut().limit, -1.0);
+            assertEquals(report.getBandwidthIn().limit, -1.0, 0.0001);
+            assertEquals(report.getBandwidthOut().limit, -1.0, 0.0001);
         }
     }
 

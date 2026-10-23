@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.extensions.store;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -74,4 +75,38 @@ public interface LoadDataStore<T> extends Closeable {
      */
     int size();
 
+
+    /**
+     * Closes the table view.
+     */
+    void closeTableView() throws IOException;
+
+
+    /**
+     * Starts the data store (both producer and table view).
+     */
+    void start() throws LoadDataStoreException;
+
+    /**
+     * Inits the data store (close and start the data store).
+     */
+    void init() throws IOException;
+
+    /**
+     * Starts the table view.
+     */
+    void startTableView() throws LoadDataStoreException;
+
+
+    /**
+     * Starts the producer.
+     */
+    void startProducer() throws LoadDataStoreException;
+
+    /**
+     * Shutdowns the data store.
+     */
+    default void shutdown() throws IOException {
+        close();
+    }
 }

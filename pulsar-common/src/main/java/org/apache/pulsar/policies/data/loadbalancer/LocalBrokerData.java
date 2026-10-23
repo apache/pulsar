@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @JsonIgnoreProperties(value = {"bundleStats"})
 @JsonDeserialize(as = LocalBrokerData.class)
 public class LocalBrokerData implements LoadManagerReport {
-
+    private final String brokerId;
     // URLs to satisfy contract of ServiceLookupData (used by NamespaceService).
     private final String webServiceUrl;
     private final String webServiceUrlTls;
@@ -66,7 +66,7 @@ public class LocalBrokerData implements LoadManagerReport {
     // The stats given in the most recent invocation of update.
     private Map<String, NamespaceBundleStats> lastStats;
 
-    private int numTopics;
+    private long numTopics;
     private int numBundles;
     private int numConsumers;
     private int numProducers;
@@ -91,28 +91,34 @@ public class LocalBrokerData implements LoadManagerReport {
     //
     private Map<String, AdvertisedListener> advertisedListeners;
 
+    private String loadManagerClassName;
+    private long startTimestamp;
+
     // For JSON only.
     public LocalBrokerData() {
-        this(null, null, null, null);
+        this(null, null, null, null, null);
     }
 
     /**
      * Broker data constructor which takes in four URLs to satisfy the contract of ServiceLookupData.
      */
-    public LocalBrokerData(final String webServiceUrl, final String webServiceUrlTls, final String pulsarServiceUrl,
-            final String pulsarServiceUrlTls) {
-        this(webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
+    public LocalBrokerData(final String brokerId, final String webServiceUrl, final String webServiceUrlTls,
+                           final String pulsarServiceUrl, final String pulsarServiceUrlTls) {
+        this(brokerId, webServiceUrl, webServiceUrlTls, pulsarServiceUrl, pulsarServiceUrlTls,
                 Collections.unmodifiableMap(Collections.emptyMap()));
     }
 
-    public LocalBrokerData(final String webServiceUrl, final String webServiceUrlTls, final String pulsarServiceUrl,
-                           final String pulsarServiceUrlTls, Map<String, AdvertisedListener> advertisedListeners) {
+    public LocalBrokerData(final String brokerId, final String webServiceUrl, final String webServiceUrlTls,
+                           final String pulsarServiceUrl, final String pulsarServiceUrlTls,
+                           Map<String, AdvertisedListener> advertisedListeners) {
+        this.brokerId = brokerId;
         this.webServiceUrl = webServiceUrl;
         this.webServiceUrlTls = webServiceUrlTls;
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.pulsarServiceUrlTls = pulsarServiceUrlTls;
         lastStats = new ConcurrentHashMap<>();
         lastUpdate = System.currentTimeMillis();
+        startTimestamp = System.currentTimeMillis();
         cpu = new ResourceUsage();
         memory = new ResourceUsage();
         directMemory = new ResourceUsage();
@@ -198,7 +204,7 @@ public class LocalBrokerData implements LoadManagerReport {
         msgRateOut = 0;
         msgThroughputIn = 0;
         msgThroughputOut = 0;
-        int totalNumTopics = 0;
+        long totalNumTopics = 0;
         int totalNumBundles = 0;
         int totalNumConsumers = 0;
         int totalNumProducers = 0;
@@ -250,10 +256,10 @@ public class LocalBrokerData implements LoadManagerReport {
                 bandwidthOut.percentUsage());
     }
 
-    public double getMaxResourceUsageWithWeight(final double cpuWeight, final double memoryWeight,
+    public double getMaxResourceUsageWithWeight(final double cpuWeight,
                                                 final double directMemoryWeight, final double bandwidthInWeight,
                                                 final double bandwidthOutWeight) {
-        return max(cpu.percentUsage() * cpuWeight, memory.percentUsage() * memoryWeight,
+        return max(cpu.percentUsage() * cpuWeight,
                 directMemory.percentUsage() * directMemoryWeight, bandwidthIn.percentUsage() * bandwidthInWeight,
                 bandwidthOut.percentUsage() * bandwidthOutWeight) / 100;
     }
@@ -378,7 +384,7 @@ public class LocalBrokerData implements LoadManagerReport {
     }
 
     @Override
-    public int getNumTopics() {
+    public long getNumTopics() {
         return numTopics;
     }
 
@@ -459,6 +465,11 @@ public class LocalBrokerData implements LoadManagerReport {
     }
 
     @Override
+    public String getBrokerId() {
+        return brokerId;
+    }
+
+    @Override
     public String getWebServiceUrl() {
         return webServiceUrl;
     }
@@ -521,5 +532,17 @@ public class LocalBrokerData implements LoadManagerReport {
 
     public void setAdvertisedListeners(Map<String, AdvertisedListener> advertisedListeners) {
         this.advertisedListeners = advertisedListeners;
+    }
+
+    public String getLoadManagerClassName() {
+        return this.loadManagerClassName;
+    }
+
+    public void setLoadManagerClassName(String loadManagerClassName) {
+        this.loadManagerClassName = loadManagerClassName;
+    }
+
+    public long getStartTimestamp() {
+        return this.startTimestamp;
     }
 }
