@@ -160,17 +160,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     // Never acquire this or incomingQueueLock while holding receiverQueuePermitLock: memory-triggered resizes
     // can run while incomingQueueLock is held, whereas redelivery acquires this before incomingQueueLock.
     private final Object receiverQueuePermitLock = new Object();
-    // Guarded by receiverQueuePermitLock; capacity and its initial grant belong to one subscription attempt.
-    private ReceiverQueuePermitState receiverQueuePermitState;
+    // Guarded by receiverQueuePermitLock. Request ids distinguish attempts that reuse the same ClientCnx.
+    private long receiverQueuePermitRequestId = -1;
+    private ReceiverQueuePermitPhase receiverQueuePermitPhase = ReceiverQueuePermitPhase.SUBSCRIBING;
 
-    private static final class ReceiverQueuePermitState {
-        private final ClientCnx cnx;
-        private boolean subscribed;
-        private boolean initialized;
-
-        private ReceiverQueuePermitState(ClientCnx cnx) {
-            this.cnx = cnx;
-        }
+    private enum ReceiverQueuePermitPhase {
+        SUBSCRIBING,
+        AWAITING_INITIAL_PERMITS,
+        INITIALIZED
     }
 
     protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
@@ -933,11 +930,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         + client.getConfiguration().getOperationTimeoutMs());
 
         int currentSize;
-        final ReceiverQueuePermitState newReceiverQueuePermitState = new ReceiverQueuePermitState(cnx);
         synchronized (this) {
             currentSize = incomingMessages.size();
             synchronized (receiverQueuePermitLock) {
-                receiverQueuePermitState = newReceiverQueuePermitState;
+                receiverQueuePermitRequestId = requestId;
+                receiverQueuePermitPhase = ReceiverQueuePermitPhase.SUBSCRIBING;
             }
             setClientCnx(cnx);
             clearReceiverQueue(true);
@@ -991,10 +988,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 boolean consumerReady = false;
                 synchronized (ConsumerImpl.this) {
                     synchronized (receiverQueuePermitLock) {
-                        staleSubscription = receiverQueuePermitState != newReceiverQueuePermitState || cnx() != cnx;
+                        staleSubscription = receiverQueuePermitRequestId != requestId || cnx() != cnx;
                         if (!staleSubscription && changeToReadyState()) {
                             consumerIsReconnectedToBroker(cnx, currentSize);
-                            newReceiverQueuePermitState.subscribed = true;
+                            receiverQueuePermitPhase = ReceiverQueuePermitPhase.AWAITING_INITIAL_PERMITS;
                             consumerReady = true;
                         }
                     }
@@ -1018,7 +1015,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
                 // command to receive messages.
                 if (!(firstTimeConnect && hasParentConsumer)) {
-                    initializeReceiverQueuePermits(newReceiverQueuePermitState);
+                    initializeReceiverQueuePermits(requestId, cnx);
                 }
                 // send the acks that waited for the subscription
                 acknowledgmentsGroupingTracker.flush();
@@ -1121,21 +1118,22 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     void initializeReceiverQueuePermits() {
         synchronized (receiverQueuePermitLock) {
-            initializeReceiverQueuePermits(receiverQueuePermitState);
+            initializeReceiverQueuePermits(receiverQueuePermitRequestId, cnx());
         }
     }
 
-    private void initializeReceiverQueuePermits(ReceiverQueuePermitState state) {
+    private void initializeReceiverQueuePermits(long requestId, ClientCnx cnx) {
         synchronized (receiverQueuePermitLock) {
-            if (state == null || receiverQueuePermitState != state || !state.subscribed || state.initialized
-                    || cnx() != state.cnx || getState() != State.Ready) {
+            if (cnx == null || receiverQueuePermitRequestId != requestId
+                    || receiverQueuePermitPhase != ReceiverQueuePermitPhase.AWAITING_INITIAL_PERMITS
+                    || cnx() != cnx || getState() != State.Ready) {
                 return;
             }
             // A resize before initialization is included in this snapshot; later resizes grant only their delta.
             // Add the initial grant under the same lock as the subscription's available-permit reset.
             int permits = getCurrentReceiverQueueSize();
-            state.initialized = true;
-            increaseAvailablePermits(state.cnx, permits);
+            receiverQueuePermitPhase = ReceiverQueuePermitPhase.INITIALIZED;
+            increaseAvailablePermits(cnx, permits);
         }
     }
 
@@ -2189,9 +2187,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     .attr("newSize", newSize)
                     .attr("delta", delta)
                     .log("update currentReceiverQueueSize from to, increaseAvailablePermits by");
-            ReceiverQueuePermitState state = receiverQueuePermitState;
-            if (state != null && state.initialized && cnx() == state.cnx && getState() == State.Ready) {
-                increaseAvailablePermits(state.cnx, delta);
+            ClientCnx currentCnx = cnx();
+            if (receiverQueuePermitPhase == ReceiverQueuePermitPhase.INITIALIZED
+                    && currentCnx != null && getState() == State.Ready) {
+                increaseAvailablePermits(currentCnx, delta);
             }
         }
     }

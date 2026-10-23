@@ -137,6 +137,75 @@ public class ConsumerQueuePermitTest {
     }
 
     @Test(timeOut = 120000)
+    public void testStaleSubscribeReplyOnSameConnectionDoesNotInitializeNewAttempt() throws Exception {
+        try (TestConsumer fixture = new TestConsumer()) {
+            Connection connection = new Connection();
+            AtomicInteger subscriptionCompletions = new AtomicInteger();
+            fixture.beforeSubscribeCompletion = subscriptionCompletions::incrementAndGet;
+            CompletableFuture<ProducerResponse> firstReply = connection.subscribeReply;
+            CompletableFuture<Void> firstOpen = fixture.consumer.connectionOpened(connection.cnx);
+
+            assertThat(fixture.consumer.changeToConnecting()).isTrue();
+            CompletableFuture<ProducerResponse> secondReply = connection.newSubscription();
+            CompletableFuture<Void> secondOpen = fixture.consumer.connectionOpened(connection.cnx);
+            assertThat(firstOpen).isNotDone();
+            assertThat(secondOpen).isNotDone();
+
+            // A previous SUBSCRIBE can complete after a replacement is published on the same connection.
+            firstReply.complete(null);
+            firstOpen.get(5, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Connecting);
+            assertThat(secondOpen).isNotDone();
+            assertThat(subscriptionCompletions.get()).isZero();
+            assertThat(connection.sentPermits.get()).isZero();
+            assertThat(fixture.consumer.getAvailablePermits()).isZero();
+
+            fixture.consumer.setCurrentReceiverQueueSize(2);
+            secondReply.complete(null);
+            secondOpen.get(5, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(subscriptionCompletions.get()).isEqualTo(1);
+            assertThat(fixture.consumer.getCurrentReceiverQueueSize()).isEqualTo(2);
+            assertThat(connection.sentPermits.get()).isEqualTo(2);
+            assertThat(fixture.consumer.getAvailablePermits()).isZero();
+            fixture.consumer.initializeReceiverQueuePermits();
+            assertThat(connection.sentPermits.get()).isEqualTo(2);
+        }
+    }
+
+    @Test(timeOut = 120000)
+    public void testStaleInitializationDoesNotBypassParentOnSameConnection() throws Exception {
+        try (TestConsumer fixture = new TestConsumer(true)) {
+            fixture.consumer.setCurrentReceiverQueueSize(2);
+            Connection connection = new Connection();
+            CompletableFuture<ProducerResponse> firstReply = connection.subscribeReply;
+            fixture.beforeSubscribeCompletion = () -> {
+                fixture.beforeSubscribeCompletion = () -> { };
+                assertThat(fixture.consumer.changeToConnecting()).isTrue();
+                CompletableFuture<ProducerResponse> replacementReply = connection.newSubscription();
+                CompletableFuture<Void> replacementOpen = fixture.consumer.connectionOpened(connection.cnx);
+                replacementReply.complete(null);
+                assertThat(replacementOpen).isDone();
+                assertThat(replacementOpen.isCompletedExceptionally()).isFalse();
+            };
+
+            CompletableFuture<Void> firstOpen = fixture.consumer.connectionOpened(connection.cnx);
+            firstReply.complete(null);
+            firstOpen.get(5, TimeUnit.SECONDS);
+
+            // The replacement completed the user future first and must still wait for its parent.
+            assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(connection.sentPermits.get()).isZero();
+            assertThat(fixture.consumer.getAvailablePermits()).isZero();
+            fixture.consumer.initializeReceiverQueuePermits();
+            fixture.consumer.initializeReceiverQueuePermits();
+            assertThat(fixture.consumer.getCurrentReceiverQueueSize()).isEqualTo(2);
+            assertThat(connection.sentPermits.get()).isEqualTo(2);
+            assertThat(fixture.consumer.getAvailablePermits()).isZero();
+        }
+    }
+
+    @Test(timeOut = 120000)
     public void testMemoryTriggeredResizeDoesNotAcquireConsumerMonitor() throws Exception {
         try (TestConsumer fixture = new TestConsumer()) {
             fixture.consumer.setCurrentReceiverQueueSize(2);
@@ -226,7 +295,7 @@ public class ConsumerQueuePermitTest {
 
     private static final class Connection {
         private final ClientCnx cnx = mock(ClientCnx.class);
-        private final CompletableFuture<ProducerResponse> subscribeReply = new CompletableFuture<>();
+        private CompletableFuture<ProducerResponse> subscribeReply = new CompletableFuture<>();
         private final AtomicInteger sentPermits = new AtomicInteger();
 
         Connection() {
@@ -246,11 +315,17 @@ public class ConsumerQueuePermitTest {
             when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenAnswer(invocation -> {
                 BaseCommand command = decodeAndRelease(invocation.getArgument(0));
                 if (command.getType() == BaseCommand.Type.SUBSCRIBE) {
-                    return subscribeReply;
+                    CompletableFuture<ProducerResponse> reply = subscribeReply;
+                    return reply;
                 }
                 assertThat(command.getType()).isEqualTo(BaseCommand.Type.CLOSE_CONSUMER);
                 return CompletableFuture.<ProducerResponse>completedFuture(null);
             });
+        }
+
+        CompletableFuture<ProducerResponse> newSubscription() {
+            subscribeReply = new CompletableFuture<>();
+            return subscribeReply;
         }
 
         private static BaseCommand decodeAndRelease(ByteBuf frame) {
