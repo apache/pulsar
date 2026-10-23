@@ -285,10 +285,13 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         }
 
         Producer<byte[]> producer = producerBuilder.create();
+        // send asynchronously so the messages are grouped into batches: a synchronous send would flush a batch
+        // with a single message, which the producer publishes as a non-batched message
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
-            producer.send(message.getBytes());
+            producer.sendAsync(message.getBytes());
         }
+        producer.flush();
 
         AtomicReference<Throwable> exceptionRef = new AtomicReference<>();
 
