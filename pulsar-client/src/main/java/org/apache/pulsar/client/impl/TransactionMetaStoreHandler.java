@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -296,7 +297,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout), scalable);
         String description = String.format("Create new transaction %s", transactionCoordinatorId);
         OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
+        executeRequest(op, () -> {
             pendingRequests.put(requestId, op);
             timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
             if (!checkStateAndSendRequest(op)) {
@@ -376,7 +377,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                 String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack
                 .create(cmd, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
+        executeRequest(op, () -> {
             pendingRequests.put(requestId, op);
             timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
             if (!checkStateAndSendRequest(op)) {
@@ -458,7 +459,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         String description = String.format("Add subscription %s to TXN %s", toStringSubscriptionList(subscriptionList),
                 String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
+        executeRequest(op, () -> {
             pendingRequests.put(requestId, op);
             timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
             if (!checkStateAndSendRequest(op)) {
@@ -550,7 +551,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         ByteBuf buf = Commands.serializeWithSize(cmd);
         String description = String.format("End [%s] TXN %s", String.valueOf(action), String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
+        executeRequest(op, () -> {
             pendingRequests.put(requestId, op);
             timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
             if (!checkStateAndSendRequest(op)) {
@@ -743,6 +744,20 @@ public class TransactionMetaStoreHandler extends HandlerState
         ReferenceCountUtil.safeRelease(op.cmd);
         op.recycle();
         semaphore.release();
+    }
+
+    /**
+     * Runs the task that sends {@code op} on the pinned executor. Once the client has stopped that executor, fails
+     * and releases {@code op} instead: its caller only learns the outcome from the request's future.
+     */
+    private void executeRequest(OpBase<?> op, Runnable sendTask) {
+        try {
+            internalPinnedExecutor.execute(sendTask);
+        } catch (RejectedExecutionException e) {
+            op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                    "Could not send the request to the transaction meta store: the client is already closed."));
+            onResponse(op);
+        }
     }
 
     private boolean canSendRequest(CompletableFuture<?> callback) {

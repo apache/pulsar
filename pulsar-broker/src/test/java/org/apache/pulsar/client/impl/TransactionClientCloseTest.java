@@ -19,19 +19,28 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mockStatic;
+import io.netty.buffer.ByteBuf;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException.CoordinatorClientStateException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
+import org.apache.pulsar.client.util.MathUtils;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.protocol.Commands;
+import org.mockito.MockedStatic;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
@@ -72,6 +81,57 @@ public class TransactionClientCloseTest extends SharedPulsarBaseTest {
         assertRequestsFail(new TransactionCoordinatorClientImpl(pulsarClient));
     }
 
+    @Test
+    public void testNewTransactionWhenClientClosesDuringCoordinatorSelection() throws Exception {
+        @Cleanup
+        PulsarClient client = newTransactionClient();
+        AtomicBoolean closed = new AtomicBoolean();
+        CompletableFuture<Transaction> txnFuture;
+        // The request found the client ready; the close clears the coordinator handlers while it picks one.
+        try (MockedStatic<MathUtils> ignored = mockStatic(MathUtils.class, invocation -> {
+            if (invocation.getMethod().getName().equals("signSafeMod") && closed.compareAndSet(false, true)) {
+                client.close();
+            }
+            return invocation.callRealMethod();
+        })) {
+            txnFuture = client.newTransaction().build();
+        }
+
+        assertThat(closed).as("closed while picking the coordinator").isTrue();
+        assertFailsWith("newTransaction", txnFuture, AlreadyClosedException.class);
+    }
+
+    @Test
+    public void testCommitWhenClientClosesBeforeTheRequestIsSent() throws Exception {
+        @Cleanup
+        PulsarClient client = newTransactionClient();
+        Transaction txn = client.newTransaction().withTransactionTimeout(1, TimeUnit.MINUTES).build().get();
+        AtomicReference<BaseCommand> endTxnCommand = new AtomicReference<>();
+        AtomicReference<ByteBuf> endTxnRequest = new AtomicReference<>();
+        CompletableFuture<Void> commitFuture;
+        // The commit found the client ready and picked its coordinator handler; the close stops the executor that
+        // sends the request while the handler builds it.
+        try (MockedStatic<Commands> ignored = mockStatic(Commands.class, invocation -> {
+            String method = invocation.getMethod().getName();
+            if (method.equals("newEndTxn") && endTxnCommand.get() == null) {
+                client.close();
+            }
+            Object result = invocation.callRealMethod();
+            if (method.equals("newEndTxn")) {
+                endTxnCommand.compareAndSet(null, (BaseCommand) result);
+            } else if (method.equals("serializeWithSize") && invocation.getArgument(0) == endTxnCommand.get()) {
+                endTxnRequest.compareAndSet(null, (ByteBuf) result);
+            }
+            return result;
+        })) {
+            commitFuture = txn.commit();
+        }
+
+        assertFailsWith("commit", commitFuture, AlreadyClosedException.class);
+        assertThat(endTxnRequest.get()).as("END_TXN request").isNotNull();
+        assertThat(endTxnRequest.get().refCnt()).as("END_TXN request reference count").isZero();
+    }
+
     private PulsarClient newTransactionClient() throws Exception {
         return PulsarClient.builder()
                 .serviceUrl(getBrokerServiceUrl())
@@ -91,9 +151,14 @@ public class TransactionClientCloseTest extends SharedPulsarBaseTest {
     }
 
     private static void assertFailsWithStateException(String operation, CompletableFuture<?> future) {
+        assertFailsWith(operation, future, CoordinatorClientStateException.class);
+    }
+
+    private static void assertFailsWith(String operation, CompletableFuture<?> future,
+                                        Class<? extends Throwable> cause) {
         assertThat(future).as(operation)
                 .failsWithin(TIMEOUT)
                 .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(CoordinatorClientStateException.class);
+                .withCauseInstanceOf(cause);
     }
 }
