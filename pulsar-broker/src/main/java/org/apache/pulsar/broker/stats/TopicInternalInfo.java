@@ -22,7 +22,7 @@ import java.util.List;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 
 /**
- * Persistent topic internal statistics.
+ * Persistent topic internal info: the managed ledger info plus the ids of the topic's schema ledgers.
  */
 public class TopicInternalInfo extends ManagedLedgerInfo {
 
