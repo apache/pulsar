@@ -34,7 +34,7 @@ public class BrokerLoadManagerClassFilter implements BrokerFilter {
     }
 
     @Override
-    public CompletableFuture<Map<String, BrokerLookupData>> filter(
+    public CompletableFuture<Map<String, BrokerLookupData>> filterAsync(
             Map<String, BrokerLookupData> brokers,
             ServiceUnitId serviceUnit,
             LoadManagerContext context) {

@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.functions.utils.functions;
 
 import java.io.File;
@@ -24,66 +25,73 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.common.nar.FileUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.utils.Exceptions;
+import org.zeroturnaround.zip.ZipUtil;
 
 
 @UtilityClass
-@Slf4j
+@CustomLog
 public class FunctionUtils {
 
     private static final String PULSAR_IO_SERVICE_NAME = "pulsar-io.yaml";
 
     /**
+     * Computes a SHA-256 digest of a file as lower-case hex (for function archive identity on reload).
+     */
+    public static String computeArchiveChecksumHex(Path path) throws IOException {
+        return HexFormat.of().formatHex(FileUtils.calculateSha256sum(path.toAbsolutePath().normalize().toFile()));
+    }
+
+    /**
      * Extract the Pulsar Function class from a function or archive.
      */
-    public static String getFunctionClass(ClassLoader classLoader) throws IOException {
-        NarClassLoader ncl = (NarClassLoader) classLoader;
-        String configStr = ncl.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
+    public static String getFunctionClass(File narFile) throws IOException {
+        return getFunctionDefinition(narFile).getFunctionClass();
+    }
 
-        FunctionDefinition conf = ObjectMapperFactory.getYamlMapper().reader().readValue(configStr,
-        FunctionDefinition.class);
-        if (StringUtils.isEmpty(conf.getFunctionClass())) {
-            throw new IOException(
-                    String.format("The '%s' functionctor does not provide a function implementation", conf.getName()));
+    public static FunctionDefinition getFunctionDefinition(File narFile) throws IOException {
+        return getPulsarIOServiceConfig(narFile, FunctionDefinition.class);
+    }
+
+    public static <T> T getPulsarIOServiceConfig(File narFile, Class<T> valueType) throws IOException {
+        String filename = "META-INF/services/" + PULSAR_IO_SERVICE_NAME;
+        byte[] configEntry = ZipUtil.unpackEntry(narFile, filename);
+        if (configEntry != null) {
+            return ObjectMapperFactory.getYamlMapper().reader().readValue(configEntry, valueType);
+        } else {
+            return null;
         }
+    }
 
-        try {
-            // Try to load source class and check it implements Function interface
-            Class functionClass = ncl.loadClass(conf.getFunctionClass());
-            if (!(Function.class.isAssignableFrom(functionClass))) {
-                throw new IOException(
-                        "Class " + conf.getFunctionClass() + " does not implement interface " + Function.class
-                                .getName());
-            }
-        } catch (Throwable t) {
-            Exceptions.rethrowIOException(t);
-        }
-
-        return conf.getFunctionClass();
+    public static String getFunctionClass(NarClassLoader narClassLoader) throws IOException {
+        return getFunctionDefinition(narClassLoader).getFunctionClass();
     }
 
     public static FunctionDefinition getFunctionDefinition(NarClassLoader narClassLoader) throws IOException {
-        String configStr = narClassLoader.getServiceDefinition(PULSAR_IO_SERVICE_NAME);
-        return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, FunctionDefinition.class);
+        return getPulsarIOServiceConfig(narClassLoader, FunctionDefinition.class);
     }
 
-    public static TreeMap<String, FunctionArchive> searchForFunctions(String functionsDirectory) throws IOException {
-        return searchForFunctions(functionsDirectory, false);
+    public static <T> T getPulsarIOServiceConfig(NarClassLoader narClassLoader, Class<T> valueType) throws IOException {
+        return ObjectMapperFactory.getYamlMapper().reader()
+                .readValue(narClassLoader.getServiceDefinition(PULSAR_IO_SERVICE_NAME), valueType);
     }
 
-    public static TreeMap<String, FunctionArchive> searchForFunctions(String functionsDirectory,
-                                                                      boolean alwaysPopulatePath) throws IOException {
-        Path path = Paths.get(functionsDirectory).toAbsolutePath();
-        log.info("Searching for functions in {}", path);
+    public static Map<String, FunctionArchive> searchForFunctions(String functionsDirectory,
+                                                                      String narExtractionDirectory,
+                                                                      boolean enableClassloading) throws IOException {
+        Path path = Paths.get(functionsDirectory).toAbsolutePath().normalize();
+        log.info().attr("path", path).log("Searching for functions");
 
         TreeMap<String, FunctionArchive> functions = new TreeMap<>();
 
@@ -95,29 +103,89 @@ public class FunctionUtils {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(path, "*.nar")) {
             for (Path archive : stream) {
                 try {
-
-                    NarClassLoader ncl = NarClassLoaderBuilder.builder()
-                            .narFile(new File(archive.toString()))
-                            .build();
-
-                    FunctionArchive.FunctionArchiveBuilder functionArchiveBuilder = FunctionArchive.builder();
-                    FunctionDefinition cntDef = FunctionUtils.getFunctionDefinition(ncl);
-                    log.info("Found function {} from {}", cntDef, archive);
-
-                    functionArchiveBuilder.archivePath(archive);
-
-                    functionArchiveBuilder.classLoader(ncl);
-                    functionArchiveBuilder.functionDefinition(cntDef);
-
-                    if (alwaysPopulatePath || !StringUtils.isEmpty(cntDef.getFunctionClass())) {
-                        functions.put(cntDef.getName(), functionArchiveBuilder.build());
+                    FunctionDefinition cntDef = FunctionUtils.getFunctionDefinition(archive.toFile());
+                    log.info().attr("function", cntDef).attr("archive", archive)
+                            .log("Found function");
+                    if (!StringUtils.isEmpty(cntDef.getFunctionClass())) {
+                        FunctionArchive functionArchive =
+                                new FunctionArchive(archive, cntDef, narExtractionDirectory, enableClassloading);
+                        functions.put(cntDef.getName(), functionArchive);
                     }
                 } catch (Throwable t) {
-                    log.warn("Failed to load function from {}", archive, t);
+                    log.warn().attr("archive", archive).exception(t)
+                            .log("Failed to load function");
                 }
             }
         }
 
         return functions;
+    }
+
+    /**
+     * Reloads functions from disk against {@code previous}, reusing {@link FunctionArchive} instances when path and
+     * archive MD5 are unchanged (keeps class loaders open). New or changed archives get new instances.
+     * <p>
+     * {@link ReloadFunctionsResult#functionsToClose()} lists function archives evicted from the active set (replaced
+     * or no longer present on disk); the caller must {@link FunctionArchive#close()} each.
+     *
+     * @param previous functions from the previous scan (may be empty, never null)
+     * @param functionsDirectory same semantics as {@link #searchForFunctions}
+     * @param narExtractionDirectory same semantics as {@link #searchForFunctions}
+     * @param enableClassloading same semantics as {@link #searchForFunctions}
+     * @return new map keyed by function name (reused values are identical instances from {@code previous}) and
+     *         functions the caller should close
+     */
+    public static ReloadFunctionsResult reloadFunctions(
+            Map<String, FunctionArchive> previous,
+            String functionsDirectory,
+            String narExtractionDirectory,
+            boolean enableClassloading) throws IOException {
+
+        TreeMap<String, FunctionArchive> remaining = new TreeMap<>(previous);
+        TreeMap<String, FunctionArchive> next = new TreeMap<>();
+        List<FunctionArchive> toClose = new ArrayList<>();
+
+        Path dir = Paths.get(functionsDirectory).toAbsolutePath().normalize();
+        if (!dir.toFile().exists()) {
+            toClose.addAll(remaining.values());
+            return new ReloadFunctionsResult(next, toClose);
+        }
+
+        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "*.nar")) {
+            for (Path archive : stream) {
+                try {
+                    FunctionDefinition funcDef = FunctionUtils.getFunctionDefinition(archive.toFile());
+                    if (!StringUtils.isEmpty(funcDef.getFunctionClass())) {
+                        String name = funcDef.getName();
+                        String checksumHex = computeArchiveChecksumHex(archive);
+                        FunctionArchive prev = remaining.remove(name);
+                        if (prev != null
+                                && prev.getArchivePath() != null
+                                && archive.equals(prev.getArchivePath())
+                                && checksumHex.equals(prev.getArchiveChecksumHex())) {
+                            next.put(name, prev);
+                        } else {
+                            if (prev != null) {
+                                log.info()
+                                        .attr("function", name)
+                                        .attr("archive", archive)
+                                        .attr("previousArchive", prev.getArchivePath())
+                                        .log("Reloading changed function");
+                                toClose.add(prev);
+                            }
+                            next.put(name, new FunctionArchive(archive, funcDef, narExtractionDirectory,
+                                    enableClassloading, checksumHex));
+                        }
+                    }
+                } catch (Throwable t) {
+                    log.warn()
+                            .attr("archive", archive)
+                            .exception(t)
+                            .log("Failed to load function");
+                }
+            }
+        }
+        toClose.addAll(remaining.values());
+        return new ReloadFunctionsResult(next, toClose);
     }
 }

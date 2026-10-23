@@ -25,9 +25,9 @@ import org.testng.annotations.Test;
 
 public abstract class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
 
-	PulsarFunctionsPythonTest(FunctionRuntimeType functionRuntimeType) {
-		super(functionRuntimeType);
-	}
+    PulsarFunctionsPythonTest(FunctionRuntimeType functionRuntimeType) {
+        super(functionRuntimeType);
+    }
 
     @Test(groups = {"python_function", "function"})
     public void testPythonFunctionLocalRun() throws Exception {
@@ -67,6 +67,23 @@ public abstract class PulsarFunctionsPythonTest extends PulsarFunctionsTest {
     @Test(groups = {"python_function", "function"})
     public void testAvroSchemaFunctionTest() throws Exception {
         testAvroSchemaFunction(Runtime.PYTHON);
+    }
+
+    @Test(groups = {"python_function", "function"})
+    public void testRetainOrderingTest() throws Exception {
+        testExclamationFunction(Runtime.PYTHON, false, false, false,
+                false, null, null, generator -> {
+                    generator.setRetainOrdering(true);
+                });
+    }
+
+    @Test(groups = {"python_function", "function"})
+    public void testRetainKeyOrderingTest() throws Exception {
+        testExclamationFunction(Runtime.PYTHON, false, false, false,
+                false, null, null, generator -> {
+                    System.out.println("calling generator.setRetainKeyOrdering(true);");
+                    generator.setRetainKeyOrdering(true);
+                });
     }
 
 }

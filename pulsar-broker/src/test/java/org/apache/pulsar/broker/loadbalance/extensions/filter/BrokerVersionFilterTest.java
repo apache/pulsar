@@ -22,7 +22,6 @@ import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -43,7 +42,8 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
     @Test
     public void testFilterEmptyBrokerList() throws BrokerFilterException, ExecutionException, InterruptedException {
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(new HashMap<>(), null, getContext()).get();
+        Map<String, BrokerLookupData> result = brokerVersionFilter.filterAsync(new HashMap<>(),
+                null, getContext()).get();
         assertTrue(result.isEmpty());
     }
 
@@ -60,7 +60,7 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
         );
         Map<String, BrokerLookupData> brokers = new HashMap<>(originalBrokers);
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(brokers, null, context).get();
+        Map<String, BrokerLookupData> result = brokerVersionFilter.filterAsync(brokers, null, context).get();
         assertEquals(result, originalBrokers);
     }
 
@@ -73,7 +73,7 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
                 "localhost:6653", getLookupData("2.10.1")
         );
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
-        Map<String, BrokerLookupData> result = brokerVersionFilter.filter(
+        Map<String, BrokerLookupData> result = brokerVersionFilter.filterAsync(
                 new HashMap<>(originalBrokers), null, getContext()).get();
         assertEquals(result, Map.of(
                 "localhost:6651", getLookupData("2.10.1"),
@@ -87,7 +87,7 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
                 "localhost:6652", getLookupData("2.10.1"),
                 "localhost:6653", getLookupData("2.10.1")
         );
-        result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext()).get();
+        result = brokerVersionFilter.filterAsync(new HashMap<>(originalBrokers), null, getContext()).get();
 
         assertEquals(result, Map.of(
                 "localhost:6652", getLookupData("2.10.1"),
@@ -101,7 +101,7 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
                 "localhost:6653", getLookupData("2.10.2-SNAPSHOT")
         );
 
-        result = brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext()).get();
+        result = brokerVersionFilter.filterAsync(new HashMap<>(originalBrokers), null, getContext()).get();
         assertEquals(result, Map.of(
                 "localhost:6653", getLookupData("2.10.2-SNAPSHOT")
         ));
@@ -115,7 +115,7 @@ public class BrokerVersionFilterTest extends BrokerFilterTestBase {
         );
         BrokerVersionFilter brokerVersionFilter = new BrokerVersionFilter();
         try {
-            brokerVersionFilter.filter(new HashMap<>(originalBrokers), null, getContext()).get();
+            brokerVersionFilter.filterAsync(new HashMap<>(originalBrokers), null, getContext()).get();
             fail();
         } catch (Exception ex) {
             assertEquals(ex.getCause().getClass(), BrokerFilterBadVersionException.class);

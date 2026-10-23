@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -30,47 +31,51 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.PulsarEvent;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * System topic for topic policy.
  */
+@CustomLog
 public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<PulsarEvent> {
+
+    static Schema<PulsarEvent> avroSchema = DefaultImplementation.getDefaultImplementation()
+            .newAvroSchema(SchemaDefinition.builder().withPojo(PulsarEvent.class).build());
 
     public TopicPoliciesSystemTopicClient(PulsarClient client, TopicName topicName) {
         super(client, topicName);
+
     }
 
     @Override
     protected  CompletableFuture<Writer<PulsarEvent>> newWriterAsyncInternal() {
-        return client.newProducer(Schema.AVRO(PulsarEvent.class))
+        return client.newProducer(avroSchema)
                 .topic(topicName.toString())
                 .enableBatching(false)
                 .createAsync()
                 .thenApply(producer -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new writer is created", topicName);
-                    }
-                    return new TopicPolicyWriter(producer, TopicPoliciesSystemTopicClient.this);
+                        log.debug().attr("topic", topicName).log("A new writer is created");
+                                        return new TopicPolicyWriter(producer, TopicPoliciesSystemTopicClient.this);
                 });
     }
 
     @Override
     protected CompletableFuture<Reader<PulsarEvent>> newReaderAsyncInternal() {
-        return client.newReader(Schema.AVRO(PulsarEvent.class))
+        return client.newReader(avroSchema)
                 .topic(topicName.toString())
+                .subscriptionRolePrefix(SystemTopicNames.SYSTEM_READER_PREFIX)
                 .startMessageId(MessageId.earliest)
                 .readCompacted(true)
+                .poolMessages(true)
                 .createAsync()
                 .thenApply(reader -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new reader is created", topicName);
-                    }
-                    return new TopicPolicyReader(reader, TopicPoliciesSystemTopicClient.this);
+                        log.debug().attr("topic", topicName).log("A new reader is created");
+                                        return new TopicPolicyReader(reader, TopicPoliciesSystemTopicClient.this);
                 });
     }
 
@@ -112,8 +117,6 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
             setReplicateCluster(event, builder);
             return builder.sendAsync();
         }
-
-
 
         @Override
         public void close() throws IOException {
@@ -213,6 +216,4 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
             return systemTopic;
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(TopicPoliciesSystemTopicClient.class);
 }

@@ -21,6 +21,8 @@ package org.apache.pulsar.common.topics;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Defines a custom strategy to compact messages in a topic.
@@ -45,10 +47,12 @@ import org.apache.pulsar.client.api.Schema;
  *                         "topicCompactionStrategyClassName", strategy.getClass().getCanonicalName()))
  *                 .create();
  */
+@InterfaceAudience.Private
+@InterfaceStability.Unstable
 public interface TopicCompactionStrategy<T> {
 
     String TABLE_VIEW_TAG = "table-view";
-    Map<String, TopicCompactionStrategy> INSTANCES = new ConcurrentHashMap<>();
+    Map<String, TopicCompactionStrategy<?>> INSTANCES = new ConcurrentHashMap<>();
 
     /**
      * Returns the schema object for this strategy.
@@ -69,14 +73,16 @@ public interface TopicCompactionStrategy<T> {
     }
 
 
-    static TopicCompactionStrategy load(String tag, String topicCompactionStrategyClassName) {
+    @SuppressWarnings("unchecked") // Instance created via reflection; caller is responsible for type safety
+    static <T> TopicCompactionStrategy<T> load(String tag, String topicCompactionStrategyClassName) {
         if (topicCompactionStrategyClassName == null) {
             return null;
         }
 
         try {
             Class<?> clazz = Class.forName(topicCompactionStrategyClassName);
-            TopicCompactionStrategy instance = (TopicCompactionStrategy) clazz.getDeclaredConstructor().newInstance();
+            TopicCompactionStrategy<T> instance =
+                    (TopicCompactionStrategy<T>) clazz.getDeclaredConstructor().newInstance();
             INSTANCES.put(tag, instance);
             return instance;
         } catch (Exception e) {
@@ -85,7 +91,8 @@ public interface TopicCompactionStrategy<T> {
         }
     }
 
-    static TopicCompactionStrategy getInstance(String tag) {
-        return INSTANCES.get(tag);
+    @SuppressWarnings("unchecked") // Caller is responsible for type safety
+    static <T> TopicCompactionStrategy<T> getInstance(String tag) {
+        return (TopicCompactionStrategy<T>) INSTANCES.get(tag);
     }
 }

@@ -22,15 +22,19 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import com.google.common.collect.Sets;
+import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockOIDCIdentityProvider;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -39,9 +43,8 @@ import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationFactoryOAuth2;
 import org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -52,17 +55,17 @@ import org.testng.annotations.Test;
 /**
  * Test Token authentication with:
  *    client: org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2
- *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken
+ *    broker: org.apache.pulsar.broker.authentication.AuthenticationProviderToken.
  */
 @Test(groups = "broker-api")
+@CustomLog
 public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(TokenOauth2AuthenticatedProducerConsumerTest.class);
 
     private MockOIDCIdentityProvider server;
 
     // Credentials File, which contains "client_id" and "client_secret"
-    private final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
-    private final String audience = "my-pulsar-cluster";
+    private static final String CREDENTIALS_FILE = "./src/test/resources/authentication/token/credentials_file.json";
+    private static final String audience = "my-pulsar-cluster";
 
     @BeforeClass(alwaysRun = true)
     protected void setupClass() {
@@ -87,11 +90,12 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         conf.setAuthenticationProviders(providers);
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationOAuth2.class.getName());
-        conf.setBrokerClientAuthenticationParameters("{\n"
-                + "  \"privateKey\": \"" + CREDENTIALS_FILE + "\",\n"
-                + "  \"issuerUrl\": \"" + server.getIssuer() + "\",\n"
-                + "  \"audience\": \"" + audience + "\",\n"
-                + "}\n");
+        final Map<String, String> oauth2Param = new HashMap<>();
+        oauth2Param.put("privateKey", CREDENTIALS_FILE);
+        oauth2Param.put("issuerUrl", server.getIssuer());
+        oauth2Param.put("audience", audience);
+        conf.setBrokerClientAuthenticationParameters(ObjectMapperFactory
+                .getMapper().getObjectMapper().writeValueAsString(oauth2Param));
 
         conf.setClusterName("test");
 
@@ -102,26 +106,30 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         conf.setProperties(properties);
         super.init();
     }
+    @SuppressWarnings("deprecation")
 
     // setup both admin and pulsar client
     protected final void clientSetup() throws Exception {
         Path path = Paths.get(CREDENTIALS_FILE).toAbsolutePath();
-        log.info("Credentials File path: {}", path.toString());
+        log.info().attr("path", path.toString()).log("Credentials File path");
 
-        // AuthenticationOAuth2
-        Authentication authentication = AuthenticationFactoryOAuth2.clientCredentials(
-                new URL(server.getIssuer()),
-                path.toUri().toURL(),  // key file path
-                audience
-        );
-
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
-                .authentication(authentication)
+                .authentication(createAuthentication(path))
                 .build());
 
         replacePulsarClient(PulsarClient.builder().serviceUrl(new URI(pulsar.getBrokerServiceUrl()).toString())
                 .statsInterval(0, TimeUnit.SECONDS)
-                .authentication(authentication));
+                .authentication(createAuthentication(path)));
+    }
+    @SuppressWarnings("deprecation")
+
+    private Authentication createAuthentication(Path path) throws MalformedURLException {
+        return AuthenticationFactoryOAuth2.clientCredentials(
+                new URL(server.getIssuer()),
+                path.toUri().toURL(),  // key file path
+                audience
+        );
     }
 
     @AfterMethod(alwaysRun = true)
@@ -144,7 +152,8 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
 
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {
@@ -157,7 +166,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -168,7 +177,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
 
     @Test
     public void testTokenProducerAndConsumer() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         clientSetup();
 
         // test rest by admin
@@ -180,12 +189,12 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         // test protocol by producer/consumer
         testSyncProducerAndConsumer();
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test
     public void testOAuth2TokenRefreshedWithoutReconnect() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
         clientSetup();
 
         // test rest by admin
@@ -197,7 +206,8 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
             .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
         Producer<byte[]> producer = producerBuilder.create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -209,7 +219,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -245,7 +255,7 @@ public class TokenOauth2AuthenticatedProducerConsumerTest extends ProducerConsum
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }

@@ -37,9 +37,9 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
         super(localStore, LocalPolicies.class, operationTimeoutSec);
     }
 
-    public void setLocalPolicies(NamespaceName ns, Function<LocalPolicies, LocalPolicies> modifyFunction)
-            throws MetadataStoreException {
-        set(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), modifyFunction);
+    public CompletableFuture<Void> setLocalPoliciesAsync(NamespaceName ns,
+                                                         Function<LocalPolicies, LocalPolicies> modifyFunction) {
+        return setAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), modifyFunction);
     }
 
     public Optional<LocalPolicies> getLocalPolicies(NamespaceName ns) throws MetadataStoreException{
@@ -53,6 +53,11 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     public void setLocalPoliciesWithCreate(NamespaceName ns, Function<Optional<LocalPolicies>,
             LocalPolicies> createFunction) throws MetadataStoreException {
         setWithCreate(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
+    }
+
+    public CompletableFuture<Void> setLocalPoliciesWithCreateAsync(NamespaceName ns, Function<Optional<LocalPolicies>,
+            LocalPolicies> createFunction) {
+        return setWithCreateAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()), createFunction);
     }
 
     public CompletableFuture<Void> createLocalPoliciesAsync(NamespaceName ns, LocalPolicies policies) {
@@ -79,7 +84,7 @@ public class LocalPoliciesResources extends BaseResources<LocalPolicies> {
     }
 
     public CompletableFuture<Void> deleteLocalPoliciesAsync(NamespaceName ns) {
-        return deleteAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
+        return deleteIfExistsAsync(joinPath(LOCAL_POLICIES_ROOT, ns.toString()));
     }
 
     public CompletableFuture<Void> deleteLocalPoliciesTenantAsync(String tenant) {

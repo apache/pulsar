@@ -40,7 +40,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
@@ -80,9 +81,9 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Test Pulsar function state
+ * Test Pulsar function state.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "functions-worker")
 public class PulsarFunctionPublishTest {
     LocalBookkeeperEnsemble bkEnsemble;
@@ -100,15 +101,15 @@ public class PulsarFunctionPublishTest {
     String primaryHost;
     String workerId;
 
-    private final String TLS_SERVER_CERT_FILE_PATH =
+    private static final String TLS_SERVER_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
-    private final String TLS_SERVER_KEY_FILE_PATH =
+    private static final String TLS_SERVER_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
-    private final String TLS_CLIENT_CERT_FILE_PATH =
+    private static final String TLS_CLIENT_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
-    private final String TLS_CLIENT_KEY_FILE_PATH =
+    private static final String TLS_CLIENT_KEY_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
-    private final String TLS_TRUST_CERT_FILE_PATH =
+    private static final String TLS_TRUST_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
 
@@ -116,13 +117,14 @@ public class PulsarFunctionPublishTest {
     public Object[][] validRoleName() {
         return new Object[][]{{Boolean.TRUE}, {Boolean.FALSE}};
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod
     void setup(Method method) throws Exception {
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
         config = new ServiceConfiguration();
@@ -218,17 +220,33 @@ public class PulsarFunctionPublishTest {
     void shutdown() throws Exception {
         try {
             log.info("--- Shutting down ---");
-            pulsarClient.close();
-            admin.close();
-            functionsWorkerService.stop();
-            pulsar.close();
-            bkEnsemble.stop();
+            if (pulsarClient != null) {
+                pulsarClient.close();
+                pulsarClient = null;
+            }
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
+            if (functionsWorkerService != null) {
+                functionsWorkerService.stop();
+                functionsWorkerService = null;
+            }
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();
             }
         }
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config) {
 
@@ -268,12 +286,17 @@ public class PulsarFunctionPublishTest {
         workerConfig.setAuthenticationEnabled(true);
         workerConfig.setAuthorizationEnabled(true);
 
+        List<String> urlPatterns = List.of(getPulsarApiExamplesJar().getParentFile().toURI() + ".*");
+        workerConfig.setAdditionalEnabledConnectorUrlPatterns(urlPatterns);
+        workerConfig.setAdditionalEnabledFunctionsUrlPatterns(urlPatterns);
+
         PulsarWorkerService workerService = new PulsarWorkerService();
-        workerService.init(workerConfig, null, false);
         return workerService;
     }
+    @SuppressWarnings("deprecation")
 
-    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName, String sourceTopic, String publishTopic, String subscriptionName) {
+    protected static FunctionConfig createFunctionConfig(String tenant, String namespace, String functionName,
+                                                     String sourceTopic, String publishTopic, String subscriptionName) {
 
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
@@ -306,11 +329,12 @@ public class PulsarFunctionPublishTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(publishTopic).subscriptionName("sub").subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(publishTopic)
+                .subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopic, publishTopic, subscriptionName);
@@ -335,7 +359,8 @@ public class PulsarFunctionPublishTest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                SubscriptionStats subStats =
+                        admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
                 return subStats.getUnackedMessages() == 0;
             } catch (PulsarAdminException e) {
                 return false;
@@ -362,7 +387,8 @@ public class PulsarFunctionPublishTest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions()
+                        .values().iterator().next().getUnackedMessages(),
                 totalMsgs);
 
         // delete functions
@@ -381,6 +407,7 @@ public class PulsarFunctionPublishTest {
 
         tempDirectory.assertThatFunctionDownloadTempFilesHaveBeenDeleted();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testMultipleAddress() throws Exception {
@@ -392,7 +419,7 @@ public class PulsarFunctionPublishTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopic, publishTopic, subscriptionName);
@@ -405,7 +432,9 @@ public class PulsarFunctionPublishTest {
         String secondAddress = pulsar.getWebServiceAddressTls().replace("https://", "");
 
         //set multi webService url
-        PulsarAdmin pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls() + "," + secondAddress)
+        @Cleanup
+        PulsarAdmin pulsarAdmin =
+                PulsarAdmin.builder().serviceHttpUrl(pulsar.getWebServiceAddressTls() + "," + secondAddress)
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .allowTlsInsecureConnection(true).authentication(authTls)
                 .build();
@@ -443,11 +472,12 @@ public class PulsarFunctionPublishTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(publishTopic).subscriptionName("sub").subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(publishTopic)
+                .subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopic, publishTopic, subscriptionName);
@@ -473,7 +503,8 @@ public class PulsarFunctionPublishTest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                SubscriptionStats subStats =
+                        admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
                 return subStats.getUnackedMessages() == 0;
             } catch (PulsarAdminException e) {
                 return false;
@@ -500,7 +531,8 @@ public class PulsarFunctionPublishTest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions()
+                        .values().iterator().next().getUnackedMessages(),
           totalMsgs);
 
         // delete functions
@@ -522,10 +554,12 @@ public class PulsarFunctionPublishTest {
         DistributedLogConfiguration dlogConf = WorkerUtils.getDlogConf(workerConfig);
 
         // check if all function files are deleted from BK
-        String url = String.format("distributedlog://%s/pulsar/functions", "127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
-        log.info("dlog url: {}", url);
+        String url = String.format("distributedlog://%s/pulsar/functions", "127.0.0.1" + ":"
+                + bkEnsemble.getZookeeperPort());
+        log.info().attr("url", url).log("dlog url");
         URI dlogUri = URI.create(url);
 
+        @Cleanup
         Namespace dlogNamespace = NamespaceBuilder.newBuilder()
                 .conf(dlogConf)
                 .clientId("function-worker-" + workerConfig.getWorkerId())
@@ -533,7 +567,8 @@ public class PulsarFunctionPublishTest {
                 .build();
 
         List<String> files = new LinkedList<>();
-        dlogNamespace.getLogs(String.format("%s/%s/%s", tenant, namespacePortion, functionName)).forEachRemaining(new java.util.function.Consumer<String>() {
+        dlogNamespace.getLogs(String.format("%s/%s/%s", tenant, namespacePortion, functionName))
+                .forEachRemaining(new java.util.function.Consumer<String>() {
             @Override
             public void accept(String s) {
                 files.add(s);
@@ -554,7 +589,7 @@ public class PulsarFunctionPublishTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
                 sourceTopic, publishTopic, subscriptionName);

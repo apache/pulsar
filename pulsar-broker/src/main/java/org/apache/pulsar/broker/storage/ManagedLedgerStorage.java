@@ -19,10 +19,10 @@
 package org.apache.pulsar.broker.storage;
 
 import io.netty.channel.EventLoopGroup;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.IOException;
-import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.stats.StatsProvider;
+import java.util.Collection;
+import java.util.Optional;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.classification.InterfaceAudience.Private;
@@ -32,6 +32,12 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
  * Storage to access {@link org.apache.bookkeeper.mledger.ManagedLedger}s.
+ * <p>
+ * The interface provides the abstraction to access the storage layer for managed ledgers.
+ * The interface supports multiple storage classes, each with its own configuration. The default
+ * implementation supports a single instance of {@link BookkeeperManagedLedgerStorageClass}.
+ * Implementations can provide multiple storage classes. The default storage class is used
+ * for topics unless it is overridden by the persistency policy at topic or namespace level.
  */
 @Private
 @Unstable
@@ -47,28 +53,29 @@ public interface ManagedLedgerStorage extends AutoCloseable {
     void initialize(ServiceConfiguration conf,
                     MetadataStoreExtended metadataStore,
                     BookKeeperClientFactory bookkeeperProvider,
-                    EventLoopGroup eventLoopGroup) throws Exception;
+                    EventLoopGroup eventLoopGroup,
+                    OpenTelemetry openTelemetry) throws Exception;
 
     /**
-     * Return the factory to create {@link ManagedLedgerFactory}.
-     *
-     * @return the factory to create {@link ManagedLedgerFactory}.
+     * Get all configured storage class instances.
+     * @return all configured storage class instances
      */
-    ManagedLedgerFactory getManagedLedgerFactory();
+    Collection<ManagedLedgerStorageClass> getStorageClasses();
 
     /**
-     * Return the stats provider to expose the stats of the storage implementation.
-     *
-     * @return the stats provider.
+     * Get the default storage class.
+     * @return default storage class
      */
-    StatsProvider getStatsProvider();
+    default ManagedLedgerStorageClass getDefaultStorageClass() {
+        return getStorageClasses().stream().findFirst().get();
+    }
 
     /**
-     * Return the default bookkeeper client.
-     *
-     * @return the default bookkeeper client.
+     * Lookup a storage class by name.
+     * @param name storage class name
+     * @return storage class instance, or empty if not found
      */
-    BookKeeper getBookKeeperClient();
+    Optional<ManagedLedgerStorageClass> getManagedLedgerStorageClass(String name);
 
     /**
      * Close the storage.
@@ -87,12 +94,12 @@ public interface ManagedLedgerStorage extends AutoCloseable {
     static ManagedLedgerStorage create(ServiceConfiguration conf,
                                        MetadataStoreExtended metadataStore,
                                        BookKeeperClientFactory bkProvider,
-                                       EventLoopGroup eventLoopGroup) throws Exception {
+                                       EventLoopGroup eventLoopGroup,
+                                       OpenTelemetry openTelemetry) throws Exception {
         ManagedLedgerStorage storage =
                 Reflections.createInstance(conf.getManagedLedgerStorageClassName(), ManagedLedgerStorage.class,
                         Thread.currentThread().getContextClassLoader());
-        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup);
+        storage.initialize(conf, metadataStore, bkProvider, eventLoopGroup, openTelemetry);
         return storage;
     }
-
 }

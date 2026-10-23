@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.compaction;
 
-import com.google.common.annotations.Beta;
 import java.util.concurrent.CompletableFuture;
-import javax.annotation.Nonnull;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.jspecify.annotations.NonNull;
 
-@Beta
 @InterfaceAudience.Public
+@InterfaceStability.Evolving
 public interface CompactionServiceFactory extends AutoCloseable {
 
     /**
@@ -35,7 +35,7 @@ public interface CompactionServiceFactory extends AutoCloseable {
      *            the pulsar service instance
      * @return a future represents the initialization result
      */
-    CompletableFuture<Void> initialize(@Nonnull PulsarService pulsarService);
+    CompletableFuture<Void> initialize(@NonNull PulsarService pulsarService);
 
     /**
      * Create a new topic compaction service for topic.
@@ -44,5 +44,5 @@ public interface CompactionServiceFactory extends AutoCloseable {
      *            the topic name
      * @return a future represents the topic compaction service
      */
-    CompletableFuture<TopicCompactionService> newTopicCompactionService(@Nonnull String topic);
+    CompletableFuture<TopicCompactionService> newTopicCompactionService(@NonNull String topic);
 }
