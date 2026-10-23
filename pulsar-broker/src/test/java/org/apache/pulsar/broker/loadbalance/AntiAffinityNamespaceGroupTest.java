@@ -282,6 +282,14 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
         assertEquals(candidate.size(), 4);
+
+        // another namespace-1 bundle must go back to broker-2: it's in the domain with the fewest other
+        // namespaces of the group, and the only broker there that doesn't own one
+        candidate.addAll(brokers);
+        assignedNamespace = namespace + "1" + "/0x00000000_0x80000000";
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
+                brokerToNamespaceToBundleRange, brokerToDomainMap);
+        assertEquals(candidate, Set.of("brokerName-2"));
     }
 
     /**
@@ -357,6 +365,13 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
         filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, null);
         assertEquals(candidate.size(), 3);
+
+        // another ns-2 bundle must not go next to ns-0 or ns-1 => broker-2
+        candidate.addAll(brokers);
+        assignedNamespace = namespace + "2" + "/0x00000000_0x80000000";
+        filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
+                brokerToNamespaceToBundleRange, null);
+        assertEquals(candidate, Set.of("broker-2"));
     }
 
     protected void selectBrokerForNamespace(
@@ -479,16 +494,26 @@ public class AntiAffinityNamespaceGroupTest extends MockedPulsarServiceBaseTest 
                 currentBroker, pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertTrue(shouldUnload);
         // add ns-1 to broker-1
-        selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-1", namespace + "1", assignedNamespace);
+        selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-1", namespace + "1",
+                namespace + "1" + bundle);
         shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
                 pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertTrue(shouldUnload);
         // add ns-2 to broker-2
-        selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-2", namespace + "2", assignedNamespace);
+        selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-2", namespace + "2",
+                namespace + "2" + bundle);
+        // broker-0 is the only broker without another namespace of the group, ns-0 would come back to it
         shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
                 pulsar1, brokerToNamespaceToBundleRange, candidate);
         assertFalse(shouldUnload);
 
+        // add another ns-0 bundle to broker-3 => ns-0 can be unloaded to broker-3
+        candidate.add("broker-3");
+        selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-3", namespace + "0",
+                namespace + "0" + "/0x00000000_0x80000000");
+        shouldUnload = shouldAntiAffinityNamespaceUnload(namespace + "0", bundle, currentBroker,
+                pulsar1, brokerToNamespaceToBundleRange, candidate);
+        assertTrue(shouldUnload);
     }
 
     /**

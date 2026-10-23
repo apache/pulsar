@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.testclient;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import java.net.URL;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -31,7 +34,9 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.Producer;
 import org.apache.pulsar.client.api.v5.PulsarClient;
+import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.QueueConsumer;
+import org.apache.pulsar.client.api.v5.Transaction;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -180,15 +185,21 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
                 .subscribe();
-        Thread thread = new Thread(() -> {
-            try {
-                new PerformanceProducer().run(args.split(" "));
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
-        thread.start();
-        thread.join();
+        PerformanceProducer arguments = new PerformanceProducer();
+        arguments.parse(args.split(" "));
+        arguments.validate();
+        TransactionRecordingProducer producer = new TransactionRecordingProducer(arguments);
+        producer.run();
+
+        // 100 messages fill two transactions of 50 (the -nmt default). run() returns only once the
+        // producer has ended every transaction it opened and counted the outcome.
+        assertThat(producer.transactions)
+                .extracting(Transaction::state)
+                .as("states of the transactions the producer opened")
+                .containsExactly(Transaction.State.COMMITTED, Transaction.State.COMMITTED);
+        assertThat(producer.getTransactionsEndedSuccessfully())
+                .as("transaction ends reported as successful")
+                .isEqualTo(2);
 
         @Cleanup
         QueueConsumer<byte[]> consumer = v5Client.newQueueConsumer(Schema.bytes())
@@ -196,20 +207,11 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
                 .subscribe();
-        // PerformanceProducer commits its transactions asynchronously and run() returns without
-        // awaiting them, so committed messages may still be becoming visible after the join. Drain
-        // up to a deadline rather than assuming all are immediately readable.
-        int received = 0;
-        long deadline = System.currentTimeMillis() + 30_000;
-        while (received < totalMessage && System.currentTimeMillis() < deadline) {
-            Message<byte[]> message = consumer.receive(Duration.ofSeconds(2));
-            if (message == null) {
-                continue;
-            }
+        for (int i = 0; i < totalMessage; i++) {
+            Message<byte[]> message = consumer.receive(Duration.ofSeconds(10));
+            assertThat(message).as("committed message %d", i).isNotNull();
             consumer.acknowledge(message.id());
-            received++;
         }
-        Assert.assertEquals(received, totalMessage, "all committed produced messages must be delivered");
         Message<byte[]> message = consumer.receive(Duration.ofSeconds(2));
         Assert.assertNull(message);
     }
@@ -264,4 +266,27 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         Assert.assertNull(message, "all transactionally-acked messages must stay acknowledged");
     }
 
+    /** Keeps every transaction the producer opens, to check what became of each one. */
+    private static final class TransactionRecordingProducer extends PerformanceProducerV5 {
+        private final List<Transaction> transactions = new CopyOnWriteArrayList<>();
+
+        TransactionRecordingProducer(PerformanceProducer arguments) {
+            super(arguments);
+        }
+
+        @Override
+        protected Transaction openFirstTransaction(PulsarClient client)
+                throws PulsarClientException, InterruptedException {
+            Transaction transaction = super.openFirstTransaction(client);
+            transactions.add(transaction);
+            return transaction;
+        }
+
+        @Override
+        protected Transaction newTransaction(PulsarClient client) throws PulsarClientException {
+            Transaction transaction = super.newTransaction(client);
+            transactions.add(transaction);
+            return transaction;
+        }
+    }
 }
