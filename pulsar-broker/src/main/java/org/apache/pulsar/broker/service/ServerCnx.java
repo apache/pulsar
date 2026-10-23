@@ -2334,12 +2334,28 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         commandSender.sendErrorResponse(requestId, error,
                                 "Consumer that failed is already present on the connection");
                     } else {
+                        // A client re-subscribes only after clearing its receiver queue, so the messages already
+                        // dispatched to the existing consumer would stay unacked on it. Close it so that they are
+                        // redelivered, and let the client retry with a fresh consumer.
                         Consumer consumer = existingConsumerFuture.getNow(null);
                         log.warn()
                                 .attr("consumerId", consumerId)
                                 .attr("consumer", consumer)
-                                .log("Consumer with the same id is already created:" + "consumerId=, consumer");
-                        commandSender.sendSuccessResponse(requestId);
+                                .log("Consumer with the same id is already created, closing it");
+                        try {
+                            consumer.close();
+                            if (brokerInterceptor != null) {
+                                brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
+                            }
+                        } catch (BrokerServiceException e) {
+                            log.warn()
+                                    .attr("consumer", consumer)
+                                    .exceptionMessage(e)
+                                    .log("Error closing the existing consumer with the same id");
+                        }
+                        consumers.remove(consumerId, existingConsumerFuture);
+                        commandSender.sendErrorResponse(requestId, ServerError.ServiceNotReady,
+                                "Consumer with the same id was already present on the connection");
                     }
                     return null;
                 }
