@@ -3948,28 +3948,19 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 // schema-state change can be observed synchronously while tryAddSchema is still being invoked.
                 CompletableFuture<Void> inProgressSchemaRegistrationMarker =
                         topic.addInProgressSchemaRegistrationMarker();
-                CompletableFuture<SchemaVersion> schemaVersionFuture;
-                try {
-                    schemaVersionFuture = tryAddSchema(topic, schema, isReplicatorProducer);
-                } catch (Throwable t) {
-                    topic.completeInProgressSchemaRegistrationMarker(inProgressSchemaRegistrationMarker);
-                    commandSender.sendGetOrCreateSchemaErrorResponse(requestId,
-                            BrokerServiceException.getClientErrorCode(t), t.getMessage());
-                    return;
-                }
+                CompletableFuture<SchemaVersion> schemaVersionFuture =
+                        tryAddSchema(topic, schema, isReplicatorProducer);
                 schemaVersionFuture.whenComplete((schemaVersion, ex) -> {
+                    topic.completeInProgressSchemaRegistrationMarker(inProgressSchemaRegistrationMarker);
                     if (ex != null) {
-                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                        if (isReplicatorProducer && cause instanceof IncompatibleSchemaException) {
+                        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                        if (isReplicatorProducer && actEx instanceof IncompatibleSchemaException) {
                             topic.markProducerBlockedByIncompatibleSchema(producerName);
                         }
-                    }
-                    topic.completeInProgressSchemaRegistrationMarker(inProgressSchemaRegistrationMarker);
-                    if (ex != null) {
-                        ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
-                        String message = ex.getMessage();
+                        ServerError errorCode = BrokerServiceException.getClientErrorCode(actEx);
+                        String message = actEx.getMessage();
                         if (ex.getCause() != null) {
-                            message += (" caused by " + ex.getCause());
+                            message += (" caused by " + actEx.getCause());
                         }
                         commandSender.sendGetOrCreateSchemaErrorResponse(requestId, errorCode, message);
                     } else {
