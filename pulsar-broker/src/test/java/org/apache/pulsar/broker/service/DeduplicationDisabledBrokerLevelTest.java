@@ -142,9 +142,7 @@ public class DeduplicationDisabledBrokerLevelTest extends ProducerConsumerBase {
         });
         // step 3.
         producer.send("last message");
-        CompletableFuture<Void> trimFuture = new CompletableFuture<>();
-        ml2.trimConsumedLedgersInBackground(trimFuture);
-        trimFuture.join();
+        ml2.trimConsumedLedgersInBackground(new CompletableFuture<>());
         // step 4.
         Awaitility.await().untilAsserted(() -> {
             int snapshotCounter3 = WhiteboxImpl.getInternalState(deduplication2, "snapshotCounter");

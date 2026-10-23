@@ -1018,6 +1018,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         }
                         if (ex == null) {
                             log.debug("GetOrCreateSchema succeed");
+                            // An empty version means there is no schema and must not be set on message metadata.
                             if (v.length != 0) {
                                 schemaCache.putIfAbsent(msg.getSchemaHash(), v);
                                 msg.getMessageBuilder().setSchemaVersion(v);
