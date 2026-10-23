@@ -984,27 +984,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this), conf.isEntryBucketDispatch());
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
-                boolean staleSubscription;
-                boolean consumerReady = false;
-                synchronized (ConsumerImpl.this) {
-                    synchronized (receiverQueuePermitLock) {
-                        staleSubscription = receiverQueuePermitRequestId != requestId || cnx() != cnx;
-                        if (!staleSubscription && changeToReadyState()) {
-                            consumerIsReconnectedToBroker(cnx, currentSize);
-                            receiverQueuePermitPhase = ReceiverQueuePermitPhase.AWAITING_INITIAL_PERMITS;
-                            consumerReady = true;
-                        }
-                    }
-                    if (!staleSubscription && !consumerReady) {
-                        // Consumer was closed while reconnecting, close the connection to make sure the broker
-                        // drops the consumer on its side.
-                        setState(State.Closed);
-                        deregisterFromClientCnx();
-                        client.cleanupConsumer(this);
-                        cnx.channel().close();
-                    }
-                }
-                if (staleSubscription || !consumerReady) {
+                if (!tryMarkSubscriptionReady(requestId, cnx, currentSize)) {
                     future.complete(null);
                     return;
                 }
@@ -1072,6 +1052,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             });
         }
         return future;
+    }
+
+    private boolean tryMarkSubscriptionReady(long requestId, ClientCnx cnx, int currentSize) {
+        synchronized (this) {
+            synchronized (receiverQueuePermitLock) {
+                if (receiverQueuePermitRequestId != requestId || cnx() != cnx) {
+                    return false;
+                }
+                if (changeToReadyState()) {
+                    consumerIsReconnectedToBroker(cnx, currentSize);
+                    receiverQueuePermitPhase = ReceiverQueuePermitPhase.AWAITING_INITIAL_PERMITS;
+                    return true;
+                }
+            }
+            // Consumer was closed while reconnecting; make sure the broker drops it as well.
+            setState(State.Closed);
+            deregisterFromClientCnx();
+            client.cleanupConsumer(this);
+            cnx.channel().close();
+            return false;
+        }
     }
 
     /***
