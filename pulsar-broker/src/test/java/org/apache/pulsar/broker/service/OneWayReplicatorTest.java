@@ -2181,7 +2181,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     }
 
     // TODO: Re-enable after https://github.com/apache/pulsar/issues/27048 is fixed.
-    // @Test(timeOut = 120_000)
+     @Test(timeOut = 120_000, enabled = false)
     public void testReplicationResumesAfterDeletingIncompatibleSchema() throws Exception {
         testReplicationResumesAfterSchemaConflictResolved(false, SchemaRecoveryTrigger.DELETE_SCHEMA);
     }
@@ -2216,7 +2216,10 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.topicPolicies().setDeduplicationStatus(topicName, deduplication);
         admin2.schemas().createSchema(topicName, Schema.KeyValue(oldKey, Schema.STRING).getSchemaInfo());
         admin2.topics().createSubscription(topicName, "schema-retry", MessageId.earliest);
-        try (Producer<byte[]> producer = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName)
+        try (Consumer<byte[]> consumer = client2.newConsumer(Schema.BYTES).topic(topicName)
+                .subscriptionName("schema-retry").subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+             Producer<byte[]> producer = client1.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topicName)
                      .enableBatching(false).create()) {
             waitReplicatorStarted(topicName);
             PersistentTopic destination = (PersistentTopic) broker2.getTopic(topicName, false).join().orElseThrow();
@@ -2239,8 +2242,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 producer.newMessage(Schema.BYTES).value(following).send();
                 expected.add(following);
             }
-//            assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isEqualTo(expected.size());
-//            assertThat(consumer.receive(1, TimeUnit.SECONDS)).isNull();
+            assertThat(replicator.getCursor().getNumberOfEntriesInBacklog(false)).isEqualTo(expected.size());
+            assertThat(consumer.receive(1, TimeUnit.SECONDS)).isNull();
 
             switch (trigger) {
                 case DELETE_SCHEMA:
@@ -2282,16 +2285,16 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
             assertThat(replicator.getProducer()).isSameAs(replicationProducer);
             assertThat(broker1.getTopic(topicName, false).join().orElseThrow()).isSameAs(source);
             assertThat(broker2.getTopic(topicName, false).join().orElseThrow()).isSameAs(destination);
-//            for (byte[] payload : expected) {
-//                Message<byte[]> received = consumer.receive(5, TimeUnit.SECONDS);
-//                assertThat(received).isNotNull();
-//                assertThat(received.getData()).isEqualTo(payload);
-//                consumer.acknowledge(received);
-//            }
-//            assertThat(consumer.receive(1, TimeUnit.SECONDS)).isNull();
-//            producer.newMessage(schema).value(new KeyValue<>(
-//                    newKey.newRecordBuilder().set("game_id", 100L).build(), "live")).send();
-//            assertThat(consumer.receive(5, TimeUnit.SECONDS)).isNotNull();
+            for (byte[] payload : expected) {
+                Message<byte[]> received = consumer.receive(5, TimeUnit.SECONDS);
+                assertThat(received).isNotNull();
+                assertThat(received.getData()).isEqualTo(payload);
+                consumer.acknowledge(received);
+            }
+            assertThat(consumer.receive(1, TimeUnit.SECONDS)).isNull();
+            producer.newMessage(schema).value(new KeyValue<>(
+                    newKey.newRecordBuilder().set("game_id", 100L).build(), "live")).send();
+            assertThat(consumer.receive(5, TimeUnit.SECONDS)).isNotNull();
         } finally {
             if (trigger == SchemaRecoveryTrigger.NAMESPACE_POLICY) {
                 admin2.namespaces().setSchemaCompatibilityStrategy(sourceClusterAlwaysSchemaCompatibleNamespace,
