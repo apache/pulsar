@@ -3915,15 +3915,14 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         AtomicBoolean addsCompleted = new AtomicBoolean();
         AtomicReference<Pair<Position, Long>> mismatch = new AtomicReference<>();
-        Thread reader = new Thread(() -> {
+        CompletableFuture<Void> reader = CompletableFuture.runAsync(() -> {
             while (!addsCompleted.get() && mismatch.get() == null) {
                 Pair<Position, Long> positionAndCounter = ledger.getLastPositionAndCounter();
                 if (positionAndCounter.getRight() != positionAndCounter.getLeft().getEntryId() + 1) {
                     mismatch.set(positionAndCounter);
                 }
             }
-        }, "last-position-and-counter-reader");
-        reader.start();
+        }, task -> new Thread(task, "last-position-and-counter-reader").start());
 
         CountDownLatch addsLatch = new CountDownLatch(numEntries);
         AtomicReference<ManagedLedgerException> addFailure = new AtomicReference<>();
@@ -3945,6 +3944,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
         addsLatch.await();
         addsCompleted.set(true);
+        // Rethrows a failure of the reader
         reader.join();
 
         assertThat(addFailure.get()).as("add failure").isNull();
