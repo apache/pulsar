@@ -18,21 +18,36 @@
  */
 package org.apache.pulsar.common.naming;
 
-import com.google.common.collect.Lists;
-import java.util.Arrays;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.testng.annotations.Test;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.collect.Lists;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.testng.annotations.Test;
 
 public class SpecifiedPositionsBundleSplitAlgorithmTest {
+
+    @Test
+    public void testEmptyTopicWithForce() {
+        SpecifiedPositionsBundleSplitAlgorithm algorithm = new SpecifiedPositionsBundleSplitAlgorithm(true);
+        NamespaceService mockNamespaceService = mock(NamespaceService.class);
+        NamespaceBundle mockNamespaceBundle = mock(NamespaceBundle.class);
+        doReturn(1L).when(mockNamespaceBundle).getLowerEndpoint();
+        doReturn(1000L).when(mockNamespaceBundle).getUpperEndpoint();
+        doReturn(CompletableFuture.completedFuture(List.of()))
+                .when(mockNamespaceService).getOwnedTopicListForNamespaceBundle(mockNamespaceBundle);
+        List<Long> splitPositions =
+                algorithm.getSplitBoundary(new BundleSplitOption(mockNamespaceService, mockNamespaceBundle,
+                        Arrays.asList(1L, 2L))).join();
+        assertEquals(splitPositions, Arrays.asList(2L));
+    }
 
     @Test
     public void testTotalTopicsSizeLessThan1() {

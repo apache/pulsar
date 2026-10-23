@@ -28,6 +28,7 @@ public class Rate {
     private final LongAdder valueAdder = new LongAdder();
     private final LongAdder countAdder = new LongAdder();
     private final LongAdder totalCountAdder = new LongAdder();
+    private final LongAdder totalValueAdder = new LongAdder();
 
     // Computed stats
     private long count = 0L;
@@ -43,12 +44,14 @@ public class Rate {
 
     public void recordEvent(long value) {
         valueAdder.add(value);
+        totalValueAdder.add(value);
         countAdder.increment();
         totalCountAdder.increment();
     }
 
     public void recordMultipleEvents(long events, long totalValue) {
         valueAdder.add(totalValue);
+        totalValueAdder.add(totalValue);
         countAdder.add(events);
         totalCountAdder.add(events);
     }
@@ -87,5 +90,9 @@ public class Rate {
 
     public long getTotalCount() {
         return this.totalCountAdder.longValue();
+    }
+
+    public long getTotalValue() {
+        return this.totalValueAdder.sum();
     }
 }

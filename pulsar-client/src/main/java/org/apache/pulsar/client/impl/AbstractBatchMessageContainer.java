@@ -21,21 +21,21 @@ package org.apache.pulsar.client.impl;
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.List;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.common.protocol.Commands;
 
 /**
  * Batch message container framework.
  */
-@Slf4j
+@CustomLog
 public abstract class AbstractBatchMessageContainer implements BatchMessageContainerBase {
 
     protected CompressionType compressionType;
     protected CompressionCodec compressor;
     protected String topicName;
-    protected String producerName;
     protected ProducerImpl producer;
 
     protected int maxNumMessagesInBatch;
@@ -54,19 +54,24 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     // allocate a new buffer that can hold the entire batch without needing costly reallocations
     protected int maxBatchSize = INITIAL_BATCH_BUFFER_SIZE;
     protected int maxMessagesNum = INITIAL_MESSAGES_NUM;
+    private volatile long firstAddedTimestamp = 0L;
 
     @Override
     public boolean haveEnoughSpace(MessageImpl<?> msg) {
         int messageSize = msg.getDataBuffer().readableBytes();
         return (
-            (maxBytesInBatch <= 0 && (messageSize + currentBatchSizeBytes) <= ClientCnx.getMaxMessageSize())
+            (maxBytesInBatch <= 0 && (messageSize + currentBatchSizeBytes) <= getMaxMessageSize())
             || (maxBytesInBatch > 0 && (messageSize + currentBatchSizeBytes) <= maxBytesInBatch)
         ) && (maxNumMessagesInBatch <= 0 || numMessagesInBatch < maxNumMessagesInBatch);
+    }
+    protected int getMaxMessageSize() {
+        return producer != null && producer.getConnectionHandler() != null
+                ? producer.getConnectionHandler().getMaxMessageSize() : Commands.DEFAULT_MAX_MESSAGE_SIZE;
     }
 
     protected boolean isBatchFull() {
         return (maxBytesInBatch > 0 && currentBatchSizeBytes >= maxBytesInBatch)
-            || (maxBytesInBatch <= 0 && currentBatchSizeBytes >= ClientCnx.getMaxMessageSize())
+            || (maxBytesInBatch <= 0 && currentBatchSizeBytes >= getMaxMessageSize())
             || (maxNumMessagesInBatch > 0 && numMessagesInBatch >= maxNumMessagesInBatch);
     }
 
@@ -108,7 +113,6 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
     public void setProducer(ProducerImpl<?> producer) {
         this.producer = producer;
         this.topicName = producer.getTopic();
-        this.producerName = producer.getProducerName();
         this.compressionType = CompressionCodecProvider
                 .convertToWireProtocol(producer.getConfiguration().getCompressionType());
         this.compressor = CompressionCodecProvider.getCompressionCodec(compressionType);
@@ -116,17 +120,46 @@ public abstract class AbstractBatchMessageContainer implements BatchMessageConta
         this.maxBytesInBatch = producer.getConfiguration().getBatchingMaxBytes();
     }
 
+    /**
+     * Whether {@code msg} belongs to the same transaction as the messages already in this batch.
+     *
+     * <p>A batch carries a single transaction id in its metadata, so every message in it inherits that
+     * transaction. "No transaction" is therefore an identity of its own and is not compatible with any
+     * transaction: mixing the two in one batch would either enroll a plain message in a transaction (invisible
+     * until commit, dropped on abort) or publish a transactional message outside its transaction.
+     *
+     * <p>This is a pure query. The batch adopts its transaction id from its first message in {@code add}.
+     */
     @Override
     public boolean hasSameTxn(MessageImpl<?> msg) {
-        if (!msg.getMessageBuilder().hasTxnidMostBits() || !msg.getMessageBuilder().hasTxnidLeastBits()) {
+        if (numMessagesInBatch == 0) {
             return true;
         }
-        if (currentTxnidMostBits == -1 || currentTxnidLeastBits == -1) {
-            currentTxnidMostBits = msg.getMessageBuilder().getTxnidMostBits();
-            currentTxnidLeastBits = msg.getMessageBuilder().getTxnidLeastBits();
+        boolean msgHasTxn = msg.getMessageBuilder().hasTxnidMostBits()
+                && msg.getMessageBuilder().hasTxnidLeastBits();
+        boolean batchHasTxn = currentTxnidMostBits != -1L && currentTxnidLeastBits != -1L;
+        if (msgHasTxn != batchHasTxn) {
+            return false;
+        }
+        if (!msgHasTxn) {
             return true;
         }
         return currentTxnidMostBits == msg.getMessageBuilder().getTxnidMostBits()
                 && currentTxnidLeastBits == msg.getMessageBuilder().getTxnidLeastBits();
+    }
+
+    @Override
+    public long getFirstAddedTimestamp() {
+        return firstAddedTimestamp;
+    }
+
+    protected void tryUpdateTimestamp() {
+        if (numMessagesInBatch == 1) {
+            firstAddedTimestamp = System.nanoTime();
+        }
+    }
+
+    protected void clearTimestamp() {
+        firstAddedTimestamp = 0L;
     }
 }

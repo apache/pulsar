@@ -18,19 +18,30 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.BitSet;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.client.api.TraceableMessageId;
+import org.apache.pulsar.common.naming.TopicName;
 
-public class TopicMessageIdImpl implements TopicMessageId {
+public class TopicMessageIdImpl implements MessageIdAdv, TopicMessageId, TraceableMessageId {
+    private static final long serialVersionUID = 1L;
 
-    /** This topicPartitionName is get from ConsumerImpl, it contains partition part. */
-    private final String topicPartitionName;
-    private final String topicName;
-    private final MessageId messageId;
+    private final String ownerTopic;
+    private final MessageIdAdv msgId;
+    private final String topicName; // it's never used
 
+    public TopicMessageIdImpl(String topic, MessageIdAdv msgId) {
+        this.ownerTopic = topic;
+        this.msgId = msgId;
+        this.topicName = "";
+    }
+
+    @Deprecated
     public TopicMessageIdImpl(String topicPartitionName, String topicName, MessageId messageId) {
-        this.messageId = messageId;
-        this.topicPartitionName = topicPartitionName;
+        this.msgId = (MessageIdAdv) messageId;
+        this.ownerTopic = topicPartitionName;
         this.topicName = topicName;
     }
 
@@ -49,40 +60,100 @@ public class TopicMessageIdImpl implements TopicMessageId {
      */
     @Deprecated
     public String getTopicPartitionName() {
-        return this.topicPartitionName;
+        return getOwnerTopic();
     }
 
+    @Deprecated
     public MessageId getInnerMessageId() {
-        return messageId;
-    }
-
-    @Override
-    public String toString() {
-        return messageId.toString();
-    }
-
-    @Override
-    public byte[] toByteArray() {
-        return messageId.toByteArray();
-    }
-
-    @Override
-    public int hashCode() {
-        return messageId.hashCode();
+        return msgId;
     }
 
     @Override
     public boolean equals(Object obj) {
-        return messageId.equals(obj);
+        return msgId.equals(obj);
+    }
+
+    @Override
+    public int hashCode() {
+        return msgId.hashCode();
     }
 
     @Override
     public int compareTo(MessageId o) {
-        return messageId.compareTo(o);
+        return msgId.compareTo(o);
+    }
+
+    @Override
+    public byte[] toByteArray() {
+        return msgId.toByteArray();
     }
 
     @Override
     public String getOwnerTopic() {
-        return topicPartitionName;
+        return ownerTopic;
+    }
+
+    @Override
+    public boolean hasSameBasePartitionedTopic(String topicName) {
+        return TopicName.get(getOwnerTopic()).getPartitionedTopicName()
+                .equals(TopicName.get(topicName).getPartitionedTopicName());
+    }
+
+    @Override
+    public long getLedgerId() {
+        return msgId.getLedgerId();
+    }
+
+    @Override
+    public long getEntryId() {
+        return msgId.getEntryId();
+    }
+
+    @Override
+    public int getPartitionIndex() {
+        return msgId.getPartitionIndex();
+    }
+
+    @Override
+    public int getBatchIndex() {
+        return msgId.getBatchIndex();
+    }
+
+    @Override
+    public int getBatchSize() {
+        return msgId.getBatchSize();
+    }
+
+    @Override
+    public BitSet getAckSet() {
+        return msgId.getAckSet();
+    }
+
+    @Override
+    public MessageIdAdv getFirstChunkMessageId() {
+        return msgId.getFirstChunkMessageId();
+    }
+
+    @Override
+    public String toString() {
+        return msgId.toString();
+    }
+
+    // TraceableMessageId implementation for OpenTelemetry support
+    // Delegates to the wrapped MessageIdAdv if it implements TraceableMessageId
+
+    @Override
+    public void setTracingSpan(io.opentelemetry.api.trace.Span span) {
+        if (msgId instanceof TraceableMessageId) {
+            ((TraceableMessageId) msgId).setTracingSpan(span);
+        }
+    }
+
+    @Override
+    public io.opentelemetry.api.trace.Span getTracingSpan() {
+        if (msgId instanceof TraceableMessageId) {
+            return ((TraceableMessageId) msgId).getTracingSpan();
+        }
+        return null;
     }
 }

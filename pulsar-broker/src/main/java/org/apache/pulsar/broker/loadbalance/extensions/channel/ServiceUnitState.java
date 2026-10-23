@@ -42,14 +42,30 @@ public enum ServiceUnitState {
 
     Deleted; // deleted in the system (semi-terminal state)
 
-    private static final Map<ServiceUnitState, Set<ServiceUnitState>> validTransitions = Map.of(
+
+    public enum StorageType {
+        SystemTopic,
+        MetadataStore;
+    }
+
+    private static final Map<ServiceUnitState, Set<ServiceUnitState>> validTransitionsOverSystemTopic = Map.of(
             // (Init -> all states) transitions are required
             // when the topic is compacted in the middle of assign, transfer or split.
             Init, Set.of(Free, Owned, Assigning, Releasing, Splitting, Deleted),
             Free, Set.of(Assigning, Init),
-            Owned, Set.of(Assigning, Splitting, Releasing),
-            Assigning, Set.of(Owned, Releasing),
-            Releasing, Set.of(Owned, Free),
+            Owned, Set.of(Splitting, Releasing),
+            Assigning, Set.of(Owned),
+            Releasing, Set.of(Assigning, Free),
+            Splitting, Set.of(Deleted),
+            Deleted, Set.of(Init)
+    );
+
+    private static final Map<ServiceUnitState, Set<ServiceUnitState>> validTransitionsOverMetadataStore = Map.of(
+            Init, Set.of(Assigning),
+            Free, Set.of(Assigning),
+            Owned, Set.of(Splitting, Releasing),
+            Assigning, Set.of(Owned),
+            Releasing, Set.of(Assigning, Free),
             Splitting, Set.of(Deleted),
             Deleted, Set.of(Init)
     );
@@ -58,8 +74,10 @@ public enum ServiceUnitState {
             Assigning, Releasing, Splitting
     );
 
-    public static boolean isValidTransition(ServiceUnitState from, ServiceUnitState to) {
-        Set<ServiceUnitState> transitions = validTransitions.get(from);
+    public static boolean isValidTransition(ServiceUnitState from, ServiceUnitState to, StorageType storageType) {
+        Set<ServiceUnitState> transitions =
+                (storageType == StorageType.SystemTopic) ? validTransitionsOverSystemTopic.get(from)
+                        : validTransitionsOverMetadataStore.get(from);
         return transitions.contains(to);
     }
 
@@ -67,4 +85,7 @@ public enum ServiceUnitState {
         return inFlightStates.contains(state);
     }
 
+    public static boolean isActiveState(ServiceUnitState state) {
+        return inFlightStates.contains(state) || state == Owned;
+    }
 }
