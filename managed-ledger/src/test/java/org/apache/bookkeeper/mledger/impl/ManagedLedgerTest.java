@@ -3198,6 +3198,38 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testLazyCursorRecoveryBacklogWithEntriesAddedBeforeRecovery() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        ManagedLedger ledger = factory.open("testLazyCursorRecoveryBacklog", config);
+        ledger.openCursor("cursor");
+        for (int i = 0; i < 3; i++) {
+            ledger.addEntry(("entry-" + i).getBytes());
+        }
+        ledger.close();
+
+        Map<String, CompletableFuture<Void>> recoveryGates = new ConcurrentHashMap<>();
+        recoveryGates.put("cursor", new CompletableFuture<>());
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory2 = createFactoryWithGatedCursorRecovery(recoveryGates);
+        ManagedLedger reopened = factory2.open("testLazyCursorRecoveryBacklog",
+                new ManagedLedgerConfig().setLazyCursorRecovery(true));
+
+        // The managed ledger accepts entries while the cursor is still recovering
+        Position lastPosition = null;
+        for (int i = 3; i < 5; i++) {
+            lastPosition = reopened.addEntry(("entry-" + i).getBytes());
+        }
+        recoveryGates.get("cursor").complete(null);
+        ManagedCursor cursor = reopened.openCursor("cursor");
+        assertEquals(cursor.getNumberOfEntriesInBacklog(true), 5);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), cursor.getNumberOfEntriesInBacklog(true));
+
+        // Once everything is acknowledged, the estimate must not report a backlog left
+        cursor.markDelete(lastPosition);
+        assertEquals(cursor.getNumberOfEntriesInBacklog(false), 0);
+    }
+
+    @Test
     public void testConcurrentOpenCursor() throws Exception {
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testConcurrentOpenCursor");
 

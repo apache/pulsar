@@ -858,14 +858,19 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
             position = nextExistingLedger != null ? PositionFactory.create(nextExistingLedger, -1) : position;
         }
-        if (position.compareTo(ledger.getLastPosition()) > 0) {
+        Pair<Position, Long> lastPositionAndCounter = ledger.getLastPositionAndCounter();
+        Position lastPosition = lastPositionAndCounter.getLeft();
+        if (position.compareTo(lastPosition) > 0) {
             log.warn("[{}] [{}] Current position {} is ahead of last position {}", ledger.getName(), name, position,
-                    ledger.getLastPosition());
-            position = ledger.getLastPosition();
+                    lastPosition);
+            position = lastPosition;
         }
         log.info("[{}] Cursor {} recovered to position {}", ledger.getName(), name, position);
         this.cursorProperties = cursorProperties == null ? Collections.emptyMap() : cursorProperties;
-        messagesConsumedCounter = -getNumberOfEntries(Range.openClosed(position, ledger.getLastPosition()));
+        // Initialize the counter such that the difference between the entries added to the ML and the
+        // messagesConsumed is the backlog. Entries may already have been added if the recovery was lazy.
+        messagesConsumedCounter = lastPositionAndCounter.getRight()
+                - getNumberOfEntries(Range.openClosed(position, lastPosition));
         markDeletePosition = position;
         persistentMarkDeletePosition = position;
         inProgressMarkDeletePersistPosition = null;
