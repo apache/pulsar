@@ -521,8 +521,8 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
             if (subscriptionType.equals(SubscriptionType.Shared)) {
                 assertEquals(msg.getRedeliveryCount(), redeliveryCount);
             } else {
-                Integer count = ((UnAckedMessageRedeliveryTracker) consumer.getUnAckedMessageTracker())
-                        .ackTimeoutMessagesRedeliveryCount.get(msg.getMessageId());
+                int count = ((UnAckedMessageRedeliveryTracker) consumer.getUnAckedMessageTracker())
+                        .getLocalRedeliveryCount(msg.getMessageId());
                 assertEquals(count, redeliveryCount);
             }
             assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
