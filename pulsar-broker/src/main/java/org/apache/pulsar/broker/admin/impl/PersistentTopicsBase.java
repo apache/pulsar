@@ -93,6 +93,8 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
+import org.apache.pulsar.broker.stats.TopicInternalInfo;
 import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
@@ -1591,7 +1593,7 @@ public class PersistentTopicsBase extends AdminResource {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             try {
                                 final ObjectReader managedLedgerInfoReader = objectReader()
-                                        .forType(ManagedLedgerInfo.class);
+                                        .forType(TopicInternalInfo.class);
                                 futures.add(pulsar().getAdminClient().topics()
                                         .getInternalInfoAsync(topicNamePartition.toString())
                                         .thenApply((response) -> {
@@ -1673,8 +1675,12 @@ public class PersistentTopicsBase extends AdminResource {
                                         new ManagedLedgerInfoCallback() {
                                             @Override
                                             public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
-                                                asyncResponse.resume((StreamingOutput) output -> {
-                                                    objectWriter().writeValue(output, info);
+                                                getSchemaLedgerIdsAsync().thenAccept(schemaLedgers -> {
+                                                    TopicInternalInfo internalInfo =
+                                                            new TopicInternalInfo(info, schemaLedgers);
+                                                    asyncResponse.resume((StreamingOutput) output -> {
+                                                        objectWriter().writeValue(output, internalInfo);
+                                                    });
                                                 });
                                             }
 
@@ -1697,6 +1703,25 @@ public class PersistentTopicsBase extends AdminResource {
                     return null;
                 });
 
+    }
+
+    /**
+     * Reads the schema ledger ids from the schema locator, without loading the topic. Completes with null, rather
+     * than failing, when the schema storage is not BookKeeper based or the locator can't be read, so the managed
+     * ledger info is still returned.
+     */
+    private CompletableFuture<List<Long>> getSchemaLedgerIdsAsync() {
+        if (!(pulsar().getSchemaStorage() instanceof BookkeeperSchemaStorage schemaStorage)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return schemaStorage.getStoreLedgerIdsBySchemaId(topicName.getSchemaName())
+                .exceptionally(ex -> {
+                    log.warn()
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to get the schema ledgers");
+                    return null;
+                });
     }
 
     protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative, boolean perPartition,

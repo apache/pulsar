@@ -978,6 +978,20 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         try {
             synchronized (brokerCandidateCache) {
                 final String bundle = serviceUnit.toString();
+                // A pending affinity (unload to a destination broker) is preallocated, so that every lookup
+                // until the bundle is owned resolves to the same broker, not only the first one.
+                final String affinityBroker = bundleBrokerAffinityMap.remove(bundle);
+                if (affinityBroker != null) {
+                    if (loadData.getBrokerData().containsKey(affinityBroker)
+                            && getAvailableBrokers().contains(affinityBroker)) {
+                        preallocateBundle(bundle, affinityBroker);
+                        return Optional.of(affinityBroker);
+                    }
+                    log.warn()
+                            .attr("bundle", bundle)
+                            .attr("broker", affinityBroker)
+                            .log("Ignoring bundle affinity to unavailable broker");
+                }
                 if (preallocatedBundleToBroker.containsKey(bundle)) {
                     // If the given bundle is already in preallocated, return the selected broker.
                     return Optional.of(preallocatedBundleToBroker.get(bundle));
