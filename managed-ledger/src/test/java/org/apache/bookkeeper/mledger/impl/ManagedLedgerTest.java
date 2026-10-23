@@ -3904,6 +3904,55 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     }
 
+    @Test(timeOut = 20000)
+    public void testLastPositionAndCounterMatchWhileEntriesAreAdded() throws Exception {
+        final int numEntries = 20_000;
+        // Complete the adds without the mock's default delay, to add many entries while the reader runs
+        bkc.setDefaultAddEntryDelayMillis(0);
+        // A single data ledger, so the counter is the number of entries up to the last position
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("last_position_and_counter_while_adding",
+                initManagedLedgerConfig(defaultConfig()).setMaxEntriesPerLedger(numEntries + 1));
+
+        AtomicBoolean addsCompleted = new AtomicBoolean();
+        AtomicReference<Pair<Position, Long>> mismatch = new AtomicReference<>();
+        Thread reader = new Thread(() -> {
+            while (!addsCompleted.get() && mismatch.get() == null) {
+                Pair<Position, Long> positionAndCounter = ledger.getLastPositionAndCounter();
+                if (positionAndCounter.getRight() != positionAndCounter.getLeft().getEntryId() + 1) {
+                    mismatch.set(positionAndCounter);
+                }
+            }
+        }, "last-position-and-counter-reader");
+        reader.start();
+
+        CountDownLatch addsLatch = new CountDownLatch(numEntries);
+        AtomicReference<ManagedLedgerException> addFailure = new AtomicReference<>();
+        AddEntryCallback callback = new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                addsLatch.countDown();
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                addFailure.compareAndSet(null, exception);
+                addsLatch.countDown();
+            }
+        };
+        byte[] data = "entry".getBytes(Encoding);
+        for (int i = 0; i < numEntries; i++) {
+            ledger.asyncAddEntry(data, callback, null);
+        }
+        addsLatch.await();
+        addsCompleted.set(true);
+        reader.join();
+
+        assertThat(addFailure.get()).as("add failure").isNull();
+        assertThat(ledger.getLedgersInfo()).as("data ledgers").hasSize(1);
+        assertThat(mismatch.get()).as("last position and counter read while entries were being added").isNull();
+        ledger.close();
+    }
+
     @Test
     public void testManagedLedgerAutoCreate() throws Exception {
         ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig()).setCreateIfMissing(true);
