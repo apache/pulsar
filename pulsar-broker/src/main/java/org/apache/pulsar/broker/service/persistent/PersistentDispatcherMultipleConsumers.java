@@ -440,15 +440,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .log("Schedule replay of messages for consumers");
                 havePendingReplayRead = true;
                 Set<? extends Position> deletedMessages;
+                boolean readStarted = false;
                 try {
                     updateMinReplayedPosition();
                     onReadStarted(ReadType.Replay);
+                    readStarted = true;
                     deletedMessages = topic.isDelayedDeliveryEnabled()
                             ? asyncReplayEntriesInOrder(messagesToReplayNow)
                             : asyncReplayEntries(messagesToReplayNow);
                 } catch (Throwable failure) {
-                    // The replay reads were never submitted: nothing would ever clear the flag again.
-                    handleReadSchedulingFailure(failure, ReadType.Replay);
+                    // Nothing else would ever clear the flag after this failure (issue #26454).
+                    handleReadSchedulingFailure(failure, ReadType.Replay, readStarted);
                     return;
                 }
                 // clear already acked positions from replay bucket
@@ -480,17 +482,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .attr("consumersCount", consumerList.size())
                         .log("Schedule read of messages");
                 havePendingRead = true;
+                boolean readStarted = false;
                 try {
                     updateMinReplayedPosition();
                     onReadStarted(ReadType.Normal);
+                    readStarted = true;
 
                     messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
                     cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
                             topic.getMaxReadPosition(), createReadEntriesSkipConditionForNormalRead());
                 } catch (Throwable failure) {
-                    // The read was never issued to the managed cursor: nothing would ever clear the
-                    // flag again.
-                    handleReadSchedulingFailure(failure, ReadType.Normal);
+                    // Nothing else would ever clear the flag after this failure (issue #26454).
+                    handleReadSchedulingFailure(failure, ReadType.Normal, readStarted);
                 }
             } else {
                 log.debug("Cannot schedule next read until previous one is done");
@@ -501,13 +504,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     /**
-     * Handles a failure that happens between setting the pending read flag and issuing the read to
-     * the managed cursor, including errors such as {@link OutOfMemoryError} which are not handled
-     * anywhere else on this path. No read completion can ever clear the flag in this case, so it is
-     * cleared here and the read is retried with backoff; otherwise the dispatcher would stop
-     * reading until the topic is unloaded (issue #26454).
+     * Handles a failure that happens between setting the pending read flag and the submission of the
+     * read returning, including errors such as {@link OutOfMemoryError} which are not handled
+     * anywhere else on this path. Without this recovery no completion would ever clear the flag and
+     * the dispatcher would stop reading until the topic is unloaded (issue #26454).
+     *
+     * <p>The recovery is best-effort: the failure may also come from inside the managed cursor after
+     * it already took over the read, in which case cursor-side state, such as the pending read
+     * operations counter, can still be left behind. {@code onReadEnded} is only notified when
+     * {@code onReadStarted} was reached, to keep the read-started/read-ended notifications paired.
      */
-    private void handleReadSchedulingFailure(Throwable failure, ReadType readType) {
+    private void handleReadSchedulingFailure(Throwable failure, ReadType readType, boolean readStarted) {
         if (readType == ReadType.Normal) {
             havePendingRead = false;
             // The failure may have happened after the read was already registered inside the
@@ -517,7 +524,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         } else {
             havePendingReplayRead = false;
         }
-        onReadEnded(readType);
+        if (readStarted) {
+            onReadEnded(readType);
+        }
         log.error()
                 .attr("readType", readType)
                 .exception(failure)

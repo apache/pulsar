@@ -115,7 +115,8 @@ public class PersistentDispatcherMultipleConsumersStuckReadTest extends MockedBo
         topic = new PersistentTopic(TOPIC, ledger, pulsarTestContext.getBrokerService());
         // Open the cursor after topic construction so the topic does not auto-create a second
         // subscription sharing this cursor.
-        cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        // Spied so a test can fail a scheduling attempt after the cursor has registered a wait-read.
+        cursor = spy((ManagedCursorImpl) ledger.openCursor("sub"));
         // The dispatcher field is assigned after the subscription: the override below is only
         // evaluated when the first consumer is added, so it hands the spied dispatcher to the
         // real subscription lifecycle (see the seam's javadoc on PersistentSubscription).
@@ -284,6 +285,76 @@ public class PersistentDispatcherMultipleConsumersStuckReadTest extends MockedBo
         Awaitility.await("entry should be delivered after the scheduling failure is retried")
                 .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
                 .until(() -> deliveries.contains(Delivery.of("c1", p1)));
+
+        cursor.markDelete(p1);
+        Awaitility.await("cursor should wait for new entries again")
+                .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
+                .until(() -> cursor.hasPendingReadRequest() && dispatcher.havePendingRead);
+        Assert.assertEquals(cursor.getPendingReadOpsCount(), 0);
+    }
+
+    /**
+     * A scheduling failure on the replay path (after {@code havePendingReplayRead} is set, before
+     * the replay reads are submitted) must clear the flag and retry, otherwise the stuck replay
+     * flag blocks every read. The redelivered entry must reach the consumer again.
+     */
+    @Test
+    public void testReplaySchedulingFailureIsRetriedAndRedelivers() throws Exception {
+        buildFixture("shared-stuck-read-replay-failure");
+        Position p1 = publish();
+        subscription.addConsumer(consumer).get();
+        dispatcher.readMoreEntriesAsync();
+        Awaitility.await("entry should be delivered first")
+                .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
+                .until(() -> deliveries.contains(Delivery.of("c1", p1)));
+
+        // Mark the delivered-but-unacked entry for redelivery and fail the first replay scheduling.
+        dispatcher.redeliveryMessages.add(p1.getLedgerId(), p1.getEntryId());
+        doThrow(new RuntimeException("replay scheduling failed")).doCallRealMethod()
+                .when(dispatcher).asyncReplayEntries(any());
+
+        dispatcher.readMoreEntriesAsync();
+
+        Awaitility.await("entry should be redelivered after the replay failure is retried")
+                .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
+                .until(() -> Collections.frequency(deliveries, Delivery.of("c1", p1)) >= 2);
+        Assert.assertEquals(cursor.getPendingReadOpsCount(), 0);
+    }
+
+    /**
+     * A scheduling failure that happens after the cursor has already registered the wait-read must
+     * not leave the cursor waiting with a cleared flag: the registered read is cancelled and the
+     * retry re-registers it, after which a published entry is delivered.
+     */
+    @Test
+    public void testSchedulingFailureAfterWaitReadRegisteredRecovers() throws Exception {
+        buildFixture("shared-stuck-read-wait-cancel");
+        subscription.addConsumer(consumer).get();
+
+        // The first scheduling attempt registers the wait-read on the cursor, then fails.
+        doAnswer(invocation -> {
+            invocation.callRealMethod();
+            throw new RuntimeException("failure after the read was registered");
+        }).doAnswer(invocation -> {
+            invocation.callRealMethod();
+            return null;
+        }).when(cursor).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+
+        dispatcher.readMoreEntriesAsync();
+
+        // The retry re-registers the wait-read, and a message published afterwards is delivered.
+        Awaitility.await("cursor should wait for new entries again")
+                .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
+                .until(() -> cursor.hasPendingReadRequest() && dispatcher.havePendingRead);
+        Position p1 = publish();
+        Awaitility.await("entry published after the failure should be delivered")
+                .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
+                .until(() -> deliveries.contains(Delivery.of("c1", p1)));
+        cursor.markDelete(p1);
+        Awaitility.await("cursor should wait for new entries again")
+                .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
+                .until(() -> cursor.hasPendingReadRequest() && dispatcher.havePendingRead);
+        Assert.assertEquals(cursor.getPendingReadOpsCount(), 0);
     }
 
     private Position publish() throws Exception {
