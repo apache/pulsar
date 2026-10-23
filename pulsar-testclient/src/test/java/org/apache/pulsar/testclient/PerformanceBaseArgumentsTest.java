@@ -407,4 +407,27 @@ public class PerformanceBaseArgumentsTest {
         assertFalse(json.contains("trust-secret"), json);
         assertFalse(json.contains("key-secret"), json);
     }
+
+    @Test
+    public void testStorePasswordsAreHiddenInUsageHelp() throws Exception {
+        final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
+            @Override
+            public void run() throws Exception {
+
+            }
+        };
+        // client.conf values are the picocli defaults, and pulsar-perf shows default values in its help.
+        Properties prop = new Properties();
+        prop.setProperty("tlsTrustStoreType", "PKCS12");
+        prop.setProperty("tlsTrustStorePassword", "trust-secret");
+        prop.setProperty("tlsKeyStorePassword", "key-secret");
+        args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
+        args.getCommander().getCommandSpec().usageMessage().showDefaultValues(true);
+
+        final String usage = args.getCommander().getUsageMessage();
+
+        assertTrue(usage.contains("Default: PKCS12"), usage);
+        assertFalse(usage.contains("trust-secret"), usage);
+        assertFalse(usage.contains("key-secret"), usage);
+    }
 }

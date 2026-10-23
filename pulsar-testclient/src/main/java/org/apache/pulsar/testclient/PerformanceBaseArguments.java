@@ -23,6 +23,7 @@ import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.util.Secret;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
+import picocli.CommandLine.Help.Visibility;
 import picocli.CommandLine.Option;
 
 /**
@@ -63,7 +64,7 @@ public abstract class PerformanceBaseArguments extends CmdBase {
     public String tlsTrustStorePath = "";
 
     @Option(names = {"--truststore-pass"}, description = "Password to the truststore.",
-            descriptionKey = "tlsTrustStorePassword")
+            descriptionKey = "tlsTrustStorePassword", showDefaultValue = Visibility.NEVER)
     @Secret
     public String tlsTrustStorePassword = "";
 
@@ -75,7 +76,7 @@ public abstract class PerformanceBaseArguments extends CmdBase {
     public String tlsKeyStorePath = "";
 
     @Option(names = {"--keystore-pass"}, description = "Password to the keystore.",
-            descriptionKey = "tlsKeyStorePassword")
+            descriptionKey = "tlsKeyStorePassword", showDefaultValue = Visibility.NEVER)
     @Secret
     public String tlsKeyStorePassword = "";
 
