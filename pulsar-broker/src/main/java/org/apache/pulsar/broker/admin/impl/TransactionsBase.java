@@ -36,6 +36,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
@@ -588,17 +589,36 @@ public abstract class TransactionsBase extends AdminResource {
         TxnID txnID = new TxnID(mostSigBits, leastSigBits);
         return validateTopicOwnershipAsync(
                 SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN.getPartition(partitionIdx), authoritative)
-                .thenCompose(__ -> verifyTxnOwnership(txnID))
-                .thenAccept(isOwner -> {
-                    if (!isOwner) {
-                        String msg = String.format(
-                                "(%s) is neither the owner of the transaction %s nor a super user",
-                                originalPrincipal() != null ? originalPrincipal() : clientAppId(), txnID);
-                        log.warn(msg);
-                        throw new RestException(Response.Status.UNAUTHORIZED, msg);
-                    }
-                })
+                .thenCompose(__ -> validateTxnOwnerOrSuperUserAccessAsync(txnID))
                 .thenCompose(__ -> pulsar().getTransactionMetadataStoreService()
                         .endTransaction(txnID, TxnAction.ABORT_VALUE, false));
+    }
+
+    /**
+     * Allows the principal that opened the transaction, otherwise requires super-user access. The owner is the
+     * principal recorded when the transaction was created: the original principal when the client came through a
+     * proxy, the authenticated role otherwise. A transaction without a recorded owner can only be aborted by a super
+     * user, and any failure to read the transaction falls back to the super-user check, so a caller that is neither
+     * learns nothing about the transaction.
+     */
+    private CompletableFuture<Void> validateTxnOwnerOrSuperUserAccessAsync(TxnID txnID) {
+        if (!config().isAuthenticationEnabled() || !config().isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        AuthorizationService authorizationService = pulsar().getBrokerService().getAuthorizationService();
+        String appId = clientAppId();
+        String originalPrincipal = originalPrincipal();
+        if (!authorizationService.isValidOriginalPrincipal(appId, originalPrincipal, clientAuthData())) {
+            return validateSuperUserAccessAsync();
+        }
+        String principal = authorizationService.isProxyRole(appId) ? originalPrincipal : appId;
+        if (principal == null || authorizationService.isWebsocketPrinciple(principal)) {
+            return validateSuperUserAccessAsync();
+        }
+        return pulsar().getTransactionMetadataStoreService().getTxnMeta(txnID)
+                .thenApply(txnMeta -> principal.equals(txnMeta.getOwner()))
+                .exceptionally(ex -> false)
+                .thenCompose(isOwner -> isOwner ? CompletableFuture.completedFuture(null)
+                        : validateSuperUserAccessAsync());
     }
 }
