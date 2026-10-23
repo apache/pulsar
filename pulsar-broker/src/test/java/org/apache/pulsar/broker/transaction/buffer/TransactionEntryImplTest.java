@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.transaction.buffer;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;

@@ -18,12 +18,13 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import static org.apache.pulsar.common.allocator.PulsarByteBufAllocator.ML_CACHE_ALLOCATOR_NAME;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.mledger.impl.cache.PooledByteBufAllocatorStats;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheImpl;
+import org.apache.pulsar.common.allocator.ByteBufAllocatorStats;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.opentelemetry.Constants;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.CacheEntryStatus;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.CacheOperationStatus;
@@ -160,7 +161,8 @@ public class OpenTelemetryManagedLedgerCacheStats implements AutoCloseable {
         cacheOperationCounter.record(stats.getCacheMissesTotal(), CacheOperationStatus.MISS.attributes);
         cacheOperationBytesCounter.record(stats.getCacheMissesBytesTotal(), CacheOperationStatus.MISS.attributes);
 
-        var allocatorStats = new PooledByteBufAllocatorStats(RangeEntryCacheImpl.ALLOCATOR);
+        var allocatorStats = new ByteBufAllocatorStats(
+                PulsarByteBufAllocator.getAllocatorMetric(ML_CACHE_ALLOCATOR_NAME));
         cachePoolActiveAllocationCounter.record(allocatorStats.activeAllocationsSmall, PoolArenaType.SMALL.attributes);
         cachePoolActiveAllocationCounter.record(allocatorStats.activeAllocationsNormal,
                 PoolArenaType.NORMAL.attributes);

@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Properties;
 import javax.naming.AuthenticationException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
@@ -55,6 +56,13 @@ public class AuthenticationProviderAthenzTest {
 
         // Specify Athenz configuration file for AuthZpeClient which is used in AuthenticationProviderAthenz
         System.setProperty(ZpeConsts.ZPE_PROP_ATHENZ_CONF, "./src/test/resources/athenz.conf.test");
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void cleanup() throws Exception {
+        if (provider != null) {
+            provider.close();
+        }
     }
 
     @Test

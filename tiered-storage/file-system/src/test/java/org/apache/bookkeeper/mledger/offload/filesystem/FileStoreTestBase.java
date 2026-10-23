@@ -24,6 +24,7 @@ import java.nio.file.Files;
 import java.util.Properties;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.filesystem.impl.FileSystemManagedLedgerOffloader;
@@ -38,6 +39,7 @@ import org.testng.annotations.BeforeMethod;
 public abstract class FileStoreTestBase {
     protected FileSystemManagedLedgerOffloader fileSystemManagedLedgerOffloader;
     protected OrderedScheduler scheduler;
+    protected OrderedExecutor bkExecutor;
     protected final String basePath = "pulsar";
     private MiniDFSCluster hdfsCluster;
     private String hdfsURI;
@@ -51,6 +53,8 @@ public abstract class FileStoreTestBase {
 
     public void init() throws Exception {
         scheduler = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("offloader").build();
+        // The mock BookKeeper client needs an OrderedExecutor (not an OrderedScheduler) as its main worker pool.
+        bkExecutor = OrderedExecutor.newBuilder().numThreads(1).name("offloader-bk").build();
     }
 
     @AfterClass(alwaysRun = true)
@@ -63,6 +67,10 @@ public abstract class FileStoreTestBase {
             scheduler.shutdownNow();
             scheduler = null;
         }
+        if (bkExecutor != null) {
+            bkExecutor.shutdownNow();
+            bkExecutor = null;
+        }
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -74,7 +82,7 @@ public abstract class FileStoreTestBase {
         MiniDFSCluster.Builder builder = new MiniDFSCluster.Builder(conf);
         hdfsCluster = builder.build();
 
-        hdfsURI = "hdfs://localhost:"+ hdfsCluster.getNameNodePort() + "/";
+        hdfsURI = "hdfs://localhost:" + hdfsCluster.getNameNodePort() + "/";
         Properties properties = new Properties();
         scheduledExecutorService = Executors.newScheduledThreadPool(1);
         this.offloaderStats = LedgerOffloaderStats.create(true, true, scheduledExecutorService, 60);
@@ -84,10 +92,14 @@ public abstract class FileStoreTestBase {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void tearDown() {
+    public void tearDown() throws Exception {
         if (fileSystemManagedLedgerOffloader != null) {
             fileSystemManagedLedgerOffloader.close();
             fileSystemManagedLedgerOffloader = null;
+        }
+        if (offloaderStats != null) {
+            offloaderStats.close();
+            offloaderStats = null;
         }
         if (hdfsCluster != null) {
             hdfsCluster.shutdown(true, true);

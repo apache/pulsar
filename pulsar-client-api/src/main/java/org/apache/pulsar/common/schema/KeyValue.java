@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.common.schema;
 
+import static org.apache.pulsar.client.api.EncodeData.isValidSchemaId;
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -100,26 +102,79 @@ public class KeyValue<K, V> {
      */
     public static <K, V> byte[] encode(K key, Schema<K> keyWriter,
                                        V value, Schema<V> valueWriter) {
-        byte [] keyBytes;
+        return encode(null, key, keyWriter, value, valueWriter).data();
+    }
+
+    public static <K, V> EncodeData encode(String topic, K key, Schema<K> keyWriter,
+                                           V value, Schema<V> valueWriter) {
+        EncodeData keyEncodeData;
         if (key == null) {
-            keyBytes = new byte[0];
+            keyEncodeData = new EncodeData(new byte[0]);
         } else {
-            keyBytes = keyWriter.encode(key);
+            keyEncodeData = keyWriter.encode(topic, key);
         }
 
-        byte [] valueBytes;
+        EncodeData valueEncodeData;
         if (value == null) {
-            valueBytes = new byte[0];
+            valueEncodeData = new EncodeData(new byte[0]);
         } else {
-            valueBytes = valueWriter.encode(value);
+            valueEncodeData = valueWriter.encode(topic, value);
         }
-        ByteBuffer byteBuffer = ByteBuffer.allocate(4 + keyBytes.length + 4 + valueBytes.length);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(
+                4 + keyEncodeData.data().length + 4 + valueEncodeData.data().length);
         byteBuffer
-            .putInt(key == null ? -1 : keyBytes.length)
-            .put(keyBytes)
-            .putInt(value == null ? -1 : valueBytes.length)
-            .put(valueBytes);
-        return byteBuffer.array();
+            .putInt(key == null ? -1 : keyEncodeData.data().length)
+            .put(keyEncodeData.data())
+            .putInt(value == null ? -1 : valueEncodeData.data().length)
+            .put(valueEncodeData.data());
+        return new EncodeData(byteBuffer.array(),
+                generateKVSchemaId(keyEncodeData.schemaId(), valueEncodeData.schemaId()));
+    }
+
+    /**
+     * Generate a combined schema id for key/value schema.
+     * The format is:
+     * schemaId = schemaKeyLength + keySchemaIdBytes + schemaValueLength + valueSchemaIdBytes
+     * where schemaKeyLength and schemaValueLength are 4 bytes integer.
+     * If keySchemaIdBytes or valueSchemaIdBytes is null, the length will be 0.
+     * So the total length of schemaId is:
+     * 4 + keySchemaIdBytes.length + 4 + valueSchemaIdBytes.length
+     *
+     * @param keySchemaId the schema id of key schema
+     * @param valueSchemaId the schema id of value schema
+     */
+    public static byte[] generateKVSchemaId(byte[] keySchemaId, byte[] valueSchemaId) {
+        if (!isValidSchemaId(keySchemaId) && !isValidSchemaId(valueSchemaId)) {
+            return null;
+        }
+        keySchemaId = keySchemaId == null ? new byte[0] : keySchemaId;
+        valueSchemaId = valueSchemaId == null ? new byte[0] : valueSchemaId;
+        ByteBuffer buffer = ByteBuffer.allocate(
+                4 + keySchemaId.length + 4 + valueSchemaId.length);
+        buffer
+                .putInt(keySchemaId.length)
+                .put(keySchemaId)
+                .putInt(valueSchemaId.length)
+                .put(valueSchemaId);
+        return buffer.array();
+    }
+
+    public static KeyValue<byte[], byte[]> getSchemaId(byte[] schemaId) {
+        ByteBuffer buffer = ByteBuffer.wrap(schemaId);
+        int keySchemaLength = buffer.getInt();
+        byte[] keySchemaId = new byte[0];
+        if (keySchemaLength > 0) {
+            keySchemaId = new byte[keySchemaLength];
+            buffer.get(keySchemaId);
+        }
+
+        int valueSchemaLength = buffer.getInt();
+        byte[] valueSchemaId = new byte[0];
+        if (valueSchemaLength > 0) {
+            valueSchemaId = new byte[valueSchemaLength];
+            buffer.get(valueSchemaId);
+        }
+        return new KeyValue<>(keySchemaId, valueSchemaId);
     }
 
     /**
