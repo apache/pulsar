@@ -65,6 +65,12 @@ This bridge exists only for migration. New applications use canonical `topic://`
 
 ## 5. Schema and policies
 
-Schema negotiation, topic-level policies, authentication/authorization, and TLS are the standard Pulsar
-mechanisms, applied at the segment level. A scalable topic has a single topic-level schema regardless of
-segment count ([Data Model](data-model.md) §6).
+Schema negotiation, topic-level policies, authentication, and TLS are the standard Pulsar mechanisms,
+applied at the segment level. A scalable topic has a single topic-level schema regardless of segment count
+([Data Model](data-model.md) §6).
+
+Authorization is also the standard Pulsar mechanism, but it is evaluated against the scalable topic: the
+broker authorizes a client's commands on a `segment://` name as it authorizes the parent `topic://`, with
+the permissions granted on that topic or on its namespace. An application needs no per-segment grant, and
+a grant on the topic covers the segments that splits and merges create later. A legacy segment (§1) is
+authorized as the wrapped `persistent://` topic.

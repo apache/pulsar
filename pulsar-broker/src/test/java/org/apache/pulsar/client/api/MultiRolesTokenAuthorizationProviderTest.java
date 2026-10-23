@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
@@ -56,6 +58,7 @@ import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServiceBaseTest {
@@ -215,6 +218,101 @@ public class MultiRolesTokenAuthorizationProviderTest extends MockedPulsarServic
         assertThrows(PulsarAdminException.NotAuthorizedException.class,
                 () -> admin.tenants().createTenant(tenant, TenantInfo.builder()
                         .allowedClusters(Sets.newHashSet(configClusterName)).build()));
+    }
+
+    @DataProvider(name = "truncateTopics")
+    public Object[][] truncateTopics() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "truncateTopics")
+    public void testTruncateWithSecondaryTenantAdminRole(boolean partitioned) throws Exception {
+        final String tenant = "multi-roles-truncate-tenant-" + partitioned;
+        final String otherTenant = tenant + "-other";
+        final String namespace = tenant + "/ns";
+        final String topic = "persistent://" + namespace + "/test-topic";
+        final String subscription = "sub";
+        final String primaryRole = "truncate-user";
+        final String tenantAdminRole = "truncate-tenant-admin";
+        final String otherTenantAdminRole = "truncate-other-tenant-admin";
+        final int numMessages = 6;
+        Map<String, Object> claims = new HashMap<>();
+        // The authenticated principal is the first role, while the second role grants tenant admin access.
+        claims.put("roles", List.of(primaryRole, tenantAdminRole));
+        final String tenantAdminToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        claims.put("roles", List.of(primaryRole));
+        final String userToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+        claims.put("roles", List.of(primaryRole, otherTenantAdminRole));
+        final String otherTenantAdminToken = Jwts.builder().setClaims(claims).signWith(secretKey).compact();
+
+        try (PulsarAdmin superUserAdmin = newPulsarAdmin(superUserToken);
+             PulsarAdmin tenantAdmin = newPulsarAdmin(tenantAdminToken);
+             PulsarAdmin userAdmin = newPulsarAdmin(userToken);
+             PulsarAdmin otherTenantAdmin = newPulsarAdmin(otherTenantAdminToken);
+             PulsarClient client = newPulsarClient(superUserToken)) {
+            superUserAdmin.tenants().createTenant(tenant, TenantInfo.builder()
+                    .adminRoles(Set.of(tenantAdminRole))
+                    .allowedClusters(Set.of(configClusterName)).build());
+            superUserAdmin.tenants().createTenant(otherTenant, TenantInfo.builder()
+                    .adminRoles(Set.of(otherTenantAdminRole))
+                    .allowedClusters(Set.of(configClusterName)).build());
+            assertThat(otherTenantAdmin.namespaces().getNamespaces(otherTenant))
+                    .as("the secondary role grants administration of the other tenant")
+                    .isEmpty();
+            superUserAdmin.namespaces().createNamespace(namespace);
+            if (partitioned) {
+                superUserAdmin.topics().createPartitionedTopic(topic, 2);
+            } else {
+                superUserAdmin.topics().createNonPartitionedTopic(topic);
+            }
+            superUserAdmin.topics().createSubscription(topic, subscription, MessageId.earliest);
+            try (Producer<byte[]> producer = client.newProducer().topic(topic).enableBatching(false).create()) {
+                for (int i = 0; i < numMessages; i++) {
+                    producer.send(new byte[] {(byte) i});
+                }
+            }
+            assertThat(getBacklog(superUserAdmin, topic, subscription, partitioned)).isEqualTo(numMessages);
+            assertThat(tenantAdmin.topics().getPartitionedTopicMetadata(topic).partitions)
+                    .as("topic lookup recognizes the secondary tenant admin role")
+                    .isEqualTo(partitioned ? 2 : 0);
+
+            superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, primaryRole,
+                    Set.of(AuthAction.produce, AuthAction.consume));
+            assertThatThrownBy(() -> userAdmin.topics().truncate(topic))
+                    .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+            assertThat(getBacklog(superUserAdmin, topic, subscription, partitioned)).isEqualTo(numMessages);
+
+            assertThatThrownBy(() -> otherTenantAdmin.topics().truncate(topic))
+                    .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+            assertThat(getBacklog(superUserAdmin, topic, subscription, partitioned)).isEqualTo(numMessages);
+
+            tenantAdmin.topics().truncate(topic);
+            assertThat(getBacklog(superUserAdmin, topic, subscription, partitioned)).isZero();
+
+            if (partitioned) {
+                final String partition = TopicName.get(topic).getPartition(0).toString();
+                try (Producer<byte[]> producer = client.newProducer().topic(partition)
+                        .enableBatching(false).create()) {
+                    producer.send(new byte[] {1});
+                }
+                assertThat(getBacklog(superUserAdmin, topic, subscription, true)).isEqualTo(1);
+                assertThatThrownBy(() -> userAdmin.topics().truncate(partition))
+                        .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+                assertThat(getBacklog(superUserAdmin, topic, subscription, true)).isEqualTo(1);
+                assertThatThrownBy(() -> otherTenantAdmin.topics().truncate(partition))
+                        .isInstanceOf(PulsarAdminException.NotAuthorizedException.class);
+                assertThat(getBacklog(superUserAdmin, topic, subscription, true)).isEqualTo(1);
+                tenantAdmin.topics().truncate(partition);
+                assertThat(getBacklog(superUserAdmin, topic, subscription, true)).isZero();
+            }
+        }
+    }
+
+    private long getBacklog(PulsarAdmin admin, String topic, String subscription, boolean partitioned)
+            throws PulsarAdminException {
+        return partitioned ? admin.topics().getPartitionedStats(topic, false)
+                .getSubscriptions().get(subscription).getMsgBacklog()
+                : admin.topics().getStats(topic).getSubscriptions().get(subscription).getMsgBacklog();
     }
 
     @Test

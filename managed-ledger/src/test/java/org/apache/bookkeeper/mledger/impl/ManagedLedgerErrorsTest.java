@@ -21,13 +21,17 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -48,11 +52,13 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedByAnotherWriterException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
@@ -659,6 +665,115 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         List<Entry> entries = cursor.readEntries(10);
         assertEquals(entries.size(), 3);
         entries.forEach(Entry::release);
+    }
+
+    @Test
+    public void fencedLedgerFencesTheManagedLedgerAfterTheMetadataSessionIsLost() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = spy(new ManagedLedgerFactoryImpl(metadataStore, bkc));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "fencedLedgerFencesTheManagedLedgerAfterTheMetadataSessionIsLost", defaultConfig());
+        ledger.addEntry("entry-1".getBytes());
+        LedgerHandle fencedLedger = ledger.currentLedger;
+
+        // Another broker took the topic over and fenced the ledger after this broker lost its metadata session: the
+        // add must fail at once instead of waiting for the metadata service to check the ledger.
+        when(factory.isMetadataServiceAvailable()).thenReturn(false);
+        when(factory.isMetadataSessionLost()).thenReturn(true);
+        bkc.addEntryFailAfter(0, BKException.Code.LedgerFencedException);
+
+        ManagedLedgerException e = expectThrows(ManagedLedgerException.class,
+                () -> ledger.addEntry("entry-2".getBytes()));
+        assertThat(e, instanceOf(ManagedLedgerFencedByAnotherWriterException.class));
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.Fenced);
+        assertThat(expectThrows(ManagedLedgerException.class, () -> ledger.addEntry("entry-3".getBytes())),
+                instanceOf(ManagedLedgerFencedException.class));
+
+        PulsarMockLedgerHandle mockFencedLedger = (PulsarMockLedgerHandle) fencedLedger;
+        Awaitility.await().untilAsserted(() -> assertTrue(mockFencedLedger.getAsyncCloseCount().get() > 0,
+                "the handle of the concurrently modified ledger must be closed"));
+    }
+
+    @Test
+    public void fencedLedgerAfterTheMetadataSessionIsLostKeepsAClosedManagedLedgerClosed() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = spy(new ManagedLedgerFactoryImpl(metadataStore, bkc));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "fencedLedgerAfterTheMetadataSessionIsLostKeepsAClosedManagedLedgerClosed", defaultConfig());
+        ledger.addEntry("entry-1".getBytes());
+        LedgerHandle fencedLedger = ledger.currentLedger;
+        ledger.close();
+
+        // the failure of an add that was in flight while the managed ledger closed arrives after the session loss
+        when(factory.isMetadataSessionLost()).thenReturn(true);
+        ledger.addEntryFailedDueToConcurrentlyModified(fencedLedger, BKException.Code.LedgerFencedException);
+
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.Closed);
+    }
+
+    @Test
+    public void pendingRecheckOfAFencedLedgerFencesTheManagedLedgerWhenTheMetadataSessionIsLost() throws Exception {
+        // A real factory, not a spy: it learns of the session from the metadata store's events
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "pendingRecheckOfAFencedLedgerFencesTheManagedLedgerWhenTheMetadataSessionIsLost", defaultConfig());
+        ledger.addEntry("entry-1".getBytes());
+        long fencedLedgerId = ledger.currentLedger.getId();
+
+        // The ledger is fenced while only the connection is lost: the recheck opens it with recovery, which waits
+        // for the metadata service
+        metadataStore.triggerSessionEvent(SessionEvent.ConnectionLost);
+        CompletableFuture<Void> recovery = bkc.promiseAfter(0);
+        bkc.addEntryFailAfter(0, BKException.Code.LedgerFencedException);
+        CompletableFuture<Position> add = new CompletableFuture<>();
+        ledger.asyncAddEntry("entry-2".getBytes(), new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                add.complete(position);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                add.completeExceptionally(exception);
+            }
+        }, null);
+        Awaitility.await().until(ledger::isLedgerRecheckPending);
+
+        // The session is lost while the recheck waits: no other add may fail to tell the managed ledger, so the
+        // factory tells it
+        metadataStore.triggerSessionEvent(SessionEvent.SessionLost);
+
+        ExecutionException e = expectThrows(ExecutionException.class, () -> add.get(10, TimeUnit.SECONDS));
+        assertThat(e.getCause(), instanceOf(ManagedLedgerFencedByAnotherWriterException.class));
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.Fenced);
+
+        // The recheck completing later doesn't switch the fenced managed ledger to a new ledger
+        recovery.complete(null);
+        Awaitility.await().pollDelay(Duration.ofMillis(500)).untilAsserted(() -> {
+            assertEquals(ledger.getState(), ManagedLedgerImpl.State.Fenced);
+            assertEquals(ledger.currentLedger.getId(), fencedLedgerId);
+        });
+    }
+
+    @Test
+    public void fencedLedgerIsReplacedWhileTheMetadataSessionIsAlive() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = spy(new ManagedLedgerFactoryImpl(metadataStore, bkc));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "fencedLedgerIsReplacedWhileTheMetadataSessionIsAlive", defaultConfig());
+        ledger.addEntry("entry-1".getBytes());
+        long fencedLedgerId = ledger.currentLedger.getId();
+
+        // Only the connection is lost, so the session and its locks are still this broker's, and no other broker
+        // can own the topic: the ledger, fenced by someone else such as auto-recovery, is replaced as before.
+        when(factory.isMetadataServiceAvailable()).thenReturn(false);
+        when(factory.isMetadataSessionLost()).thenReturn(false);
+        bkc.addEntryFailAfter(0, BKException.Code.LedgerFencedException);
+
+        ledger.addEntry("entry-2".getBytes());
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.LedgerOpened);
+        assertNotEquals(ledger.currentLedger.getId(), fencedLedgerId);
     }
 
     @Test

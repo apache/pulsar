@@ -26,7 +26,7 @@ mimalloc = "3.5.3"
 # Code quality
 checkstyle = "13.3.0"
 # Major frameworks
-bookkeeper = "4.18.1"
+bookkeeper = "4.18.2"
 zookeeper = "3.9.6"
 netty = "4.2.19.Final"
 jetty = "12.1.13"
@@ -111,8 +111,12 @@ aircompressor = "2.0.3"
 completable-futures = "0.3.6"
 re2j = "1.8"
 # Metrics / Observability
+# Legacy Prometheus simpleclient (client_java 0.x). Still required by BookKeeper's and ZooKeeper's
+# stats providers and by Pulsar's own broker/proxy/functions metrics, which have not been migrated yet.
 prometheus = "0.16.0"
 prometheus-jmx = "0.16.1"
+# Prometheus Java client 1.x (the successor to simpleclient)
+prometheus-client-java = "1.8.0"
 dropwizardmetrics = "4.2.39"
 hdrHistogram = "2.2.2"
 perfmark = "0.27.0"
@@ -144,7 +148,8 @@ netty-reactive-streams = "2.0.20"
 # 9.2.0+ is required for CronType.SPRING53 (Spring 5.3+ cron syntax)
 cron-utils = "9.2.1"
 failsafe = "3.3.2"
-disruptor = "3.4.3"
+# The LMAX Disruptor of log4j2's async loggers, which bin/pulsar enables
+disruptor = "4.0.0"
 ant = "1.10.17"
 # guice is held at 5.1.0 to match what TestNG 7.x declares; Guice 7 switches from
 # javax.inject to jakarta.inject. jclouds is the only consumer that needs Guice 7 and
@@ -229,6 +234,7 @@ log4j-web = { module = "org.apache.logging.log4j:log4j-web", version.ref = "log4
 log4j-layout-template-json = { module = "org.apache.logging.log4j:log4j-layout-template-json", version.ref = "log4j2" }
 log4j-slf4j2-impl = { module = "org.apache.logging.log4j:log4j-slf4j2-impl", version.ref = "log4j2" }
 log4j-jul = { module = "org.apache.logging.log4j:log4j-jul", version.ref = "log4j2" }
+disruptor = { module = "com.lmax:disruptor", version.ref = "disruptor" }
 # slog
 slog = { module = "io.github.merlimat.slog:slog", version.ref = "slog" }
 # Lombok
@@ -342,6 +348,11 @@ simpleclient-servlet = { module = "io.prometheus:simpleclient_servlet", version.
 simpleclient-common = { module = "io.prometheus:simpleclient_common", version.ref = "prometheus" }
 simpleclient-log4j2 = { module = "io.prometheus:simpleclient_log4j2", version.ref = "prometheus" }
 prometheus-jmx-collector = { module = "io.prometheus.jmx:collector", version.ref = "prometheus-jmx" }
+# Prometheus Java client 1.x
+prometheus-metrics-core = { module = "io.prometheus:prometheus-metrics-core", version.ref = "prometheus-client-java" }
+prometheus-metrics-model = { module = "io.prometheus:prometheus-metrics-model", version.ref = "prometheus-client-java" }
+prometheus-metrics-instrumentation-jvm = { module = "io.prometheus:prometheus-metrics-instrumentation-jvm", version.ref = "prometheus-client-java" }
+prometheus-metrics-exposition-textformats = { module = "io.prometheus:prometheus-metrics-exposition-textformats", version.ref = "prometheus-client-java" }
 # OpenTelemetry
 opentelemetry-bom = { module = "io.opentelemetry:opentelemetry-bom", version.ref = "opentelemetry" }
 opentelemetry-bom-alpha = { module = "io.opentelemetry:opentelemetry-bom-alpha", version.ref = "opentelemetry-alpha" }

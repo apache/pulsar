@@ -56,6 +56,7 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -63,6 +64,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -328,11 +330,17 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private String brokerId;
     private final CompletableFuture<Void> readyForIncomingRequestsFuture = new CompletableFuture<>();
     private final List<Runnable> pendingTasksBeforeReadyForIncomingRequests = new ArrayList<>();
+    // The callbacks that unregister the listeners that this service registered with the metadata stores, which
+    // can be shared with other services, for example in tests
+    private final List<Runnable> metadataStoreListenerCleanups = new CopyOnWriteArrayList<>();
 
     public enum State {
         Init, Started, Closing, Closed
     }
 
+    private volatile boolean metadataSessionLost;
+    // How many times the local metadata store's session was lost, to tell one loss from the next
+    private final AtomicLong metadataSessionLosses = new AtomicLong();
     private volatile State state;
 
     private final ReentrantLock mutex = new ReentrantLock();
@@ -685,6 +693,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             offloadersCache.close();
 
+            unregisterMetadataStoreListeners();
+
             if (coordinationService != null) {
                 try {
                     coordinationService.close();
@@ -794,9 +804,19 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             } else {
                 pse = new PulsarServerException(e);
             }
+            // A failed shutdown step must not leave this service registered with the metadata stores
+            unregisterMetadataStoreListeners();
             return FutureUtil.failedFuture(pse);
         } finally {
             mutex.unlock();
+        }
+    }
+
+    private void unregisterMetadataStoreListeners() {
+        metadataStoreListenerCleanups.forEach(Runnable::run);
+        metadataStoreListenerCleanups.clear();
+        if (pulsarResources != null) {
+            pulsarResources.close();
         }
     }
 
@@ -933,7 +953,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                     : null;
             localMetadataStore = createLocalMetadataStore(localMetadataSynchronizer,
                     openTelemetry.getOpenTelemetryService().getOpenTelemetry());
-            localMetadataStore.registerSessionListener(this::handleMetadataSessionEvent);
+            metadataStoreListenerCleanups.add(
+                    localMetadataStore.registerCancellableSessionListener(this::handleMetadataSessionEvent));
 
             coordinationService = new CoordinationServiceImpl(localMetadataStore);
 
@@ -1218,7 +1239,8 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         PulsarResources pulsarResources = new PulsarResources(localMetadataStore, configurationMetadataStore,
                 config.getMetadataStoreOperationTimeoutSeconds(), getExecutor(), config.isScalableTopicsEnabled());
 
-        pulsarResources.getClusterResources().getStore().registerListener(this::handleDeleteCluster);
+        metadataStoreListenerCleanups.add(pulsarResources.getClusterResources().getStore()
+                .registerCancellableListener(this::handleDeleteCluster));
         return pulsarResources;
     }
 
@@ -1280,14 +1302,37 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         addBrokerAdditionalServlets(webService, attributeMap, config);
     }
 
+    /**
+     * Whether the local metadata store's session was lost and not reestablished yet. The store may have deleted the
+     * session's ephemeral nodes meanwhile, and another broker may have acquired the bundles whose locks they were.
+     */
+    public boolean isMetadataSessionLost() {
+        return metadataSessionLost;
+    }
+
+    /** How many times the local metadata store's session was lost since the broker started. */
+    public long getMetadataSessionLossCount() {
+        return metadataSessionLosses.get();
+    }
+
     private void handleMetadataSessionEvent(SessionEvent e) {
         log.info().attr("event", e).log("Received metadata service session event");
+        if (e == SessionEvent.SessionLost) {
+            metadataSessionLosses.incrementAndGet();
+            metadataSessionLost = true;
+        } else if (e == SessionEvent.SessionReestablished) {
+            metadataSessionLost = false;
+        }
         if (e == SessionEvent.SessionLost
                 && config.getZookeeperSessionExpiredPolicy() == MetadataSessionExpiredPolicy.shutdown) {
             log.warn()
                     .attr("threads", ThreadDumpUtil.buildThreadDiagnosticString())
                     .log("The session with metadata service was lost. Shutting down.\n\n");
             shutdownNow();
+        }
+        BrokerService broker = brokerService;
+        if (broker != null) {
+            broker.onMetadataSessionEvent(e);
         }
     }
 
@@ -1337,8 +1382,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                             ServiceConfiguration config)
             throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException {
         if (config.isWebSocketServiceEnabled()) {
-            // Use local broker address to avoid different IP address when using a VIP for service discovery
-            this.webSocketService = new WebSocketService(null, config);
+            // Use local broker address to avoid different IP address when using a VIP for service discovery.
+            // Share the broker's configuration store client, which applies settings like configurationStoreConfigPath.
+            this.webSocketService = new WebSocketService(null, config, pulsarResources);
             this.webSocketService.start();
 
             addWebSocketServlet(new WebSocketProducerServlet(webSocketService), attributeMap,
@@ -2205,12 +2251,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                     AuthorizationService authorizationService)
             throws Exception {
         if (functionWorkerService.isPresent()) {
-            if (workerConfig.isUseTls() || brokerServiceUrl == null) {
+            // Like the broker's own clients, honor brokerClientTlsEnabled so that a broker with both plaintext
+            // and TLS listeners doesn't make the worker and its instances connect over plaintext.
+            boolean useTls = workerConfig.isUseTls() || config.isBrokerClientTlsEnabled();
+            if ((useTls && brokerServiceUrlTls != null) || brokerServiceUrl == null) {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrlTls);
             } else {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrl);
             }
-            if (workerConfig.isUseTls() || webServiceAddress == null) {
+            if ((useTls && webServiceAddressTls != null) || webServiceAddress == null) {
                 workerConfig.setPulsarWebServiceUrl(webServiceAddressTls);
                 workerConfig.setFunctionWebServiceUrl(webServiceAddressTls);
             } else {
@@ -2405,6 +2454,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    /**
+     * Whether the configuration metadata store and the local metadata store are the same instance, which happens
+     * when both use the same URL.
+     */
+    public boolean isConfigurationMetadataStoreSharedWithLocal() {
+        return configurationMetadataStore == localMetadataStore;
+    }
+
     public void initConfigMetadataSynchronizerIfNeeded() {
         mutex.lock();
         try {
@@ -2416,6 +2473,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .attr("configurationMetadataStore", configurationMetadataStore.getClass().getName())
                         .log("Skip to update Metadata Synchronizer because of the Configuration Metadata Store using"
                                 + " does not support.");
+                return;
+            }
+            // Skip if the configuration metadata store is the local one: swapping its synchronizer would make every
+            // local metadata write depend on the configuration sync topic.
+            if (isConfigurationMetadataStoreSharedWithLocal()) {
+                log.warn()
+                        .attr("topic", newTopic)
+                        .log("Skip to update Metadata Synchronizer because the Configuration Metadata Store is the"
+                                + " same as the Local Metadata Store.");
                 return;
             }
             // Skip if no changes.

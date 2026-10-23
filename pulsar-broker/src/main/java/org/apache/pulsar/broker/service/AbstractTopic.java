@@ -123,7 +123,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     // Wraps this topic as a TopicPolicyListener so topic-policy updates received while the initial policy is still
     // loading are buffered and applied in order once initTopicPolicy() completes initialization.
-    protected final TopicPolicyListenerWrapper topicPolicyListener = new TopicPolicyListenerWrapper(this);
+    protected final TopicPolicyListenerWrapper topicPolicyListener;
 
     // Prefix for replication cursors
     protected final String replicatorPrefix;
@@ -211,6 +211,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     public AbstractTopic(String topic, BrokerService brokerService) {
         this.topic = topic;
+        this.topicPolicyListener = new TopicPolicyListenerWrapper(this, topic);
         this.log = LOG.with().attr("topic", topic).build();
         this.namespace = TopicName.get(topic).getNamespaceObject();
         // Pin the per-topic policies-notify thread once. BrokerService#getTopicPoliciesNotifyThread centralizes
@@ -618,17 +619,14 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
      * topic load, which removes the need to broadcast every topic's policy when a namespace's policy cache finishes
      * loading (see {@code topicPolicyListenerReplayEnabled}).
      *
-     * <p>Each call re-initializes the listener wrapper and, whatever the outcome, always completes its initialization
-     * afterwards, so the wrapper never stays in the buffering phase (dropping updates) even if policy loading fails.
-     * This makes the method safe to run again (e.g. a future retry); runs are expected to be serialized.
+     * <p>This method is invoked once during topic initialization; the listener wrapper is one-shot for a topic
+     * instance. Whatever the outcome, the wrapper's initialization is always completed afterwards, so it never stays
+     * in the buffering phase (dropping updates) even if policy loading fails.
      */
     protected CompletableFuture<Void> initTopicPolicy() {
         final var topicPoliciesService = brokerService.getPulsar().getTopicPoliciesService();
         final var partitionedTopicName = TopicName.getPartitionedTopicName(topic);
 
-        // Begin a fresh initialization phase: updates are buffered until initialization completes below. This resets
-        // any previous phase so the method can be run again.
-        topicPolicyListener.startInitialization();
         CompletableFuture<Void> initTopicPolicyFuture =
                 topicPoliciesService.registerListenerAsync(partitionedTopicName, topicPolicyListener)
                         .thenCompose(registered -> {
@@ -923,31 +921,15 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
         return brokerService.checkTopicNsOwnership(getName())
                 .thenCompose(__ ->
                         incrementTopicEpochIfNeeded(producer, producerQueuedFuture))
-                .thenCompose(producerEpoch -> {
-                    lock.writeLock().lock();
-                    try {
-                        checkTopicFenced();
-                        if (isMigrated()) {
-                            log.warn("Attempting to add producer to a migrated topic");
-                            throw new TopicMigratedException("Topic was already migrated");
-                        } else if (isTerminated()) {
-                            log.warn("Attempting to add producer to a terminated topic");
-                            throw new TopicTerminatedException("Topic was already terminated");
-                        }
-                        return internalAddProducer(producer).thenApply(ignore -> {
+                .thenCompose(producerEpoch ->
+                        internalAddProducer(producer).thenApply(ignore -> {
                             USAGE_COUNT_UPDATER.incrementAndGet(this);
                             log.debug()
                                     .attr("producerName", producer.getProducerName())
                                     .attr("usageCount", USAGE_COUNT_UPDATER.get(this))
                                     .log("Added producer");
                             return producerEpoch;
-                        });
-                    } catch (BrokerServiceException e) {
-                        return FutureUtil.failedFuture(e);
-                    } finally {
-                        lock.writeLock().unlock();
-                    }
-                });
+                        }));
     }
 
     protected CompletableFuture<Optional<Long>> incrementTopicEpochIfNeeded(Producer producer,
@@ -1124,23 +1106,41 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     }
 
     protected CompletableFuture<Void> internalAddProducer(Producer producer) {
-        if (isSameAddressProducersExceeded(producer)) {
-            log.warn("Attempting to add producer to topic which reached max same address producers limit");
-            return CompletableFuture.failedFuture(new BrokerServiceException.ProducerBusyException(
-                    "Topic '" + topic + "' reached max same address producers limit"));
-        }
+        // Check the topic state under the lock on every attempt, including the retry after the old producer's
+        // connection liveness check, since the topic may have been closed while that check was in progress.
+        lock.writeLock().lock();
+        try {
+            checkTopicFenced();
+            if (isMigrated()) {
+                log.warn("Attempting to add producer to a migrated topic");
+                throw new TopicMigratedException("Topic was already migrated");
+            } else if (isTerminated()) {
+                log.warn("Attempting to add producer to a terminated topic");
+                throw new TopicTerminatedException("Topic was already terminated");
+            }
 
-        log.debug()
-                .attr("producerName", producer.getProducerName())
-                .log("Got request to create producer");
+            if (isSameAddressProducersExceeded(producer)) {
+                log.warn("Attempting to add producer to topic which reached max same address producers limit");
+                return CompletableFuture.failedFuture(new BrokerServiceException.ProducerBusyException(
+                        "Topic '" + topic + "' reached max same address producers limit"));
+            }
 
-        Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
-        if (existProducer != null) {
-            return tryOverwriteOldProducer(existProducer, producer);
-        } else if (!producer.isRemote()) {
-            USER_CREATED_PRODUCER_COUNTER_UPDATER.incrementAndGet(this);
+            log.debug()
+                    .attr("producerName", producer.getProducerName())
+                    .log("Got request to create producer");
+
+            Producer existProducer = producers.putIfAbsent(producer.getProducerName(), producer);
+            if (existProducer != null) {
+                return tryOverwriteOldProducer(existProducer, producer);
+            } else if (!producer.isRemote()) {
+                USER_CREATED_PRODUCER_COUNTER_UPDATER.incrementAndGet(this);
+            }
+            return CompletableFuture.completedFuture(null);
+        } catch (BrokerServiceException e) {
+            return FutureUtil.failedFuture(e);
+        } finally {
+            lock.writeLock().unlock();
         }
-        return CompletableFuture.completedFuture(null);
     }
 
     private CompletableFuture<Void> tryOverwriteOldProducer(Producer oldProducer, Producer newProducer) {

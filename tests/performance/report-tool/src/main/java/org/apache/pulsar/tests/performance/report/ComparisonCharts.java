@@ -207,7 +207,7 @@ public final class ComparisonCharts implements Callable<Integer> {
                 TimeSeriesRenderer.axisMaximum(max(throughput, time) * 1.05), false, 0, throughput, markers),
                 a, b, footer);
         write(written, output, BACKLOG + labels, new Chart("Backlog",
-                "Messages in the backlog, sampled from the topic stats", time,
+                "Entries in the backlog, sampled from the topic stats", time,
                 TimeSeriesRenderer.axisMaximum(max(backlog, time) * 1.05), false, 0, backlog, markers),
                 a, b, footer);
         write(written, output, LATENCY + labels, new Chart("Latency by percentile", "Latency (ms)", percentiles,

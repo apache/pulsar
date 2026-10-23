@@ -80,10 +80,10 @@ public class ScenarioFilesTest {
 
     @Test(dataProvider = "scenarios")
     public void acceptsEveryConfigurationOnTopOfTheScenario(String scenario) throws IOException {
-        // What --extends adds: a memory configuration or a profile, which must leave a valid workload
+        // What --extends adds: a memory configuration, a profile, TLS or JWT, which must leave a valid workload
         try (Stream<Path> files = Files.list(CONFIGS)) {
             for (Path configuration : files.filter(file -> file.getFileName().toString().matches(
-                    "(iot-telemetry-.*-mem|profile-.*)\\.yaml")).sorted().toList()) {
+                    "(iot-telemetry-.*-mem|profile-.*|tls|jwt)\\.yaml")).sorted().toList()) {
                 checkWorkload(resolve(SCENARIOS.resolve(scenario), List.of(configuration)));
             }
         }

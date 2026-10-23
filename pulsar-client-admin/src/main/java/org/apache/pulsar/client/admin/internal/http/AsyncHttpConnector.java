@@ -38,7 +38,6 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.resolver.NameResolver;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import jakarta.ws.rs.ProcessingException;
-import jakarta.ws.rs.client.Client;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response.Status;
 import java.io.ByteArrayOutputStream;
@@ -68,7 +67,6 @@ import lombok.SneakyThrows;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.Validate;
 import org.apache.pulsar.PulsarVersion;
-import org.apache.pulsar.client.admin.internal.PulsarAdminImpl;
 import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.ServiceNameResolver;
@@ -99,7 +97,6 @@ import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
 import org.asynchttpclient.proxy.ProxyServer;
 import org.asynchttpclient.proxy.ProxyType;
 import org.asynchttpclient.uri.Uri;
-import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
 import org.glassfish.jersey.client.spi.AsyncConnectorCallback;
@@ -138,18 +135,15 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     @Setter
     private boolean followRedirects = true;
 
-    public AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
+    public AsyncHttpConnector(ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                               boolean acceptGzipCompression) {
-        this(client, conf, autoCertRefreshTimeSeconds, acceptGzipCompression, TlsFactoryOwnership.none());
+        this(conf, autoCertRefreshTimeSeconds, acceptGzipCompression, TlsFactoryOwnership.none());
     }
 
-    AsyncHttpConnector(Client client, ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
+    AsyncHttpConnector(ClientConfigurationData conf, int autoCertRefreshTimeSeconds,
                        boolean acceptGzipCompression, TlsFactoryOwnership suppliedTlsFactory) {
-        this((int) client.getConfiguration().getProperty(ClientProperties.CONNECT_TIMEOUT),
-                (int) client.getConfiguration().getProperty(ClientProperties.READ_TIMEOUT),
-                PulsarAdminImpl.DEFAULT_REQUEST_TIMEOUT_SECONDS * 1000,
-                autoCertRefreshTimeSeconds,
-                conf, acceptGzipCompression, null, suppliedTlsFactory);
+        this(conf.getConnectionTimeoutMs(), conf.getReadTimeoutMs(), conf.getRequestTimeoutMs(),
+                autoCertRefreshTimeSeconds, conf, acceptGzipCompression, null, suppliedTlsFactory);
     }
 
     public AsyncHttpConnector(int connectTimeoutMs, int readTimeoutMs,

@@ -91,6 +91,18 @@ public class ManagedLedgerConfig {
     @Getter
     @Setter
     private boolean cacheEvictionByExpectedReadCount = true;
+    /**
+     * Read ahead for cursors that read ranges of entries: when a cursor reads a range, the managed ledger also reads
+     * the next range of the same ledger into the entry cache, unless it's cached, so that the cursor's next read
+     * finds it in the cache or joins the read in progress instead of waiting for storage. A cursor has at most one
+     * read ahead in progress; a read ahead doesn't move the cursor, takes no permits that reads are waiting for nor
+     * ones that would leave more than 70 % of the limit of the reads in flight in use, and is skipped when the entry
+     * cache is at its eviction watermark or wouldn't keep the entries.
+     * Enabled by default.
+     */
+    @Getter
+    @Setter
+    private boolean readAheadEnabled = true;
 
     /**
      * Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC fetches multiple
@@ -472,8 +484,8 @@ public class ManagedLedgerConfig {
      * Set the maximum number of add entry requests handed over to the ledger's executor thread in one batch.
      *
      * <p>Publishing threads queue adds for the ledger's executor, which takes them over in batches of up to this many
-     * adds and processes each batch before other tasks on that thread can run. A batch also stops taking adds once
-     * their entries add up to {@link #setAddEntryHandoverMaxBatchBytesSize(long)} bytes. A larger value reduces
+     * adds and processes each batch before other tasks on that thread can run. A batch also stops before taking an
+     * entry that would exceed {@link #setAddEntryHandoverMaxBatchBytesSize(long)} bytes. A larger value reduces
      * scheduling overhead and contention between publishing threads, but keeps the executor thread occupied for longer
      * per batch, which can delay add completions, reads and cursor notifications for the ledgers that share the
      * thread. 0 or 1 disables batching: each add is handed over to the executor as a task of its own.
@@ -492,8 +504,8 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * The total size in bytes of the entries after which a batch of add entry requests handed over to the ledger's
-     * executor thread stops taking more, or 0 when batches are limited only by their number of adds.
+     * The maximum total entry size in bytes of a batch of add entry requests handed over to the ledger's executor
+     * thread, or 0 when batches are limited only by their number of adds. An oversized entry runs in its own batch.
      *
      * @see #setAddEntryHandoverMaxBatchBytesSize(long)
      */
@@ -502,13 +514,13 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Set the total size in bytes of the entries after which a batch of add entry requests handed over to the ledger's
-     * executor thread stops taking more.
+     * Set the maximum total entry size in bytes of a batch of add entry requests handed over to the ledger's executor
+     * thread.
      *
      * <p>This keeps a ledger with large entries from occupying the executor thread for as long as a full batch of
      * {@link #setAddEntryHandoverMaxBatchItems(int)} adds would, which would delay add completions, reads and cursor
-     * notifications for the ledgers that share the thread. A batch always takes at least one add, even one whose entry
-     * is larger than this. 0 removes the limit, so that batches are limited only by their number of adds. It has no
+     * notifications for the ledgers that share the thread. An entry larger than this runs in a batch of its own.
+     * 0 removes the limit, so that batches are limited only by their number of adds. It has no
      * effect when batching is disabled.
      *
      * <p>The value is captured when the ledger is opened; subsequent changes, including

@@ -1013,6 +1013,12 @@ public class PulsarClientImpl implements PulsarClient {
                         Optional.empty());
             }
             producers.add(producer);
+            // The creation can fail before this line runs, from another thread or from a connection that fails at
+            // once, in which case the producer has already closed or failed and removed itself from the client. Do
+            // not keep it then.
+            if (producer.isTerminalState()) {
+                cleanupProducer(producer);
+            }
         }).exceptionally(ex -> {
             log.warn().attr("topic", topic).exceptionMessage(ex).log("Failed to get partitioned topic metadata");
             producerCreatedFuture.completeExceptionally(ex);
@@ -1896,7 +1902,8 @@ public class PulsarClientImpl implements PulsarClient {
                     blockingAuthExecutor());
         } else {
             lookupService = new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
-                    this.scheduledExecutorProvider.getExecutor(), this.lookupExecutorProvider.getExecutor());
+                    (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor(),
+                    this.lookupExecutorProvider.getExecutor());
         }
         return new InProgressDeduplicationDecoratorLookupService(lookupService,
                 () -> getConfiguration().getLookupProperties());

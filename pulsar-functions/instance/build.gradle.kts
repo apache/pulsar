@@ -69,6 +69,8 @@ dependencies {
     // Main code only touches com.google.protobuf reflectively (protobuf schema detection for user
     // functions); tests exercise that path with concrete protobuf types.
     testImplementation(libs.protobuf.java)
+    // Log4j2's async loggers, which the broker and the functions worker use, for the log topic appender's tests
+    testImplementation(libs.disruptor)
 }
 
 tasks.withType<Test> {

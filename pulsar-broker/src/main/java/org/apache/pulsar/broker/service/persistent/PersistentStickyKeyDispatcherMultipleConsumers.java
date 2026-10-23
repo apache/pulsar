@@ -508,6 +508,18 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
             return true;
         }
 
+        // A completed write triggers the next read, but a blocked socket can hold its write indefinitely.
+        // Read again now when a consumer that received nothing from this read can accept messages.
+        return hasOtherConsumerWithPermits(entriesByConsumerForDispatching.keySet());
+    }
+
+    private boolean hasOtherConsumerWithPermits(Set<Consumer> dispatchedConsumers) {
+        for (Consumer consumer : consumerList) {
+            if (consumer != null && !consumer.isBlocked() && !dispatchedConsumers.contains(consumer)
+                    && getAvailablePermits(consumer) > 0) {
+                return true;
+            }
+        }
         return false;
     }
 
@@ -840,9 +852,9 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     protected int getStickyKeyHash(Entry entry) {
         if (entry instanceof EntryAndMetadata entryAndMetadata) {
             // use the cached sticky key hash if available, otherwise calculate the sticky key hash and cache it
-            return entryAndMetadata.getOrUpdateCachedStickyKeyHash(selector::makeStickyKeyHash);
+            return entryAndMetadata.getOrUpdateCachedStickyKeyHash(selector);
         }
-        return selector.makeStickyKeyHash(peekStickyKey(entry));
+        return selector.makeStickyKeyHashOfKeyHash(peekStickyKeyHash(entry));
     }
 
     @Override
