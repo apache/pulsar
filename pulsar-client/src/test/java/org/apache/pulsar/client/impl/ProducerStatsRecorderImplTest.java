@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.client.impl;
 
-import io.netty.util.HashedWheelTimer;
-import io.netty.util.Timer;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
-import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.testng.annotations.Test;
-
-import java.util.concurrent.TimeUnit;
-
-import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.testng.annotations.Test;
 
 /**
  * Unit tests of {@link ProducerStatsRecorderImpl}.
@@ -42,7 +41,10 @@ public class ProducerStatsRecorderImplTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setStatsIntervalSeconds(1);
         PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
         when(client.getConfiguration()).thenReturn(conf);
+        @Cleanup("stop")
         Timer timer = new HashedWheelTimer();
         when(client.timer()).thenReturn(timer);
         ProducerImpl<?> producer = mock(ProducerImpl.class);
@@ -55,6 +57,7 @@ public class ProducerStatsRecorderImplTest {
         recorder.incrementNumAcksReceived(latencyNs);
         Thread.sleep(1200);
         assertEquals(1000.0, recorder.getSendLatencyMillisMax(), 0.5);
+        recorder.cancelStatsTimeout();
     }
 
     @Test
@@ -62,7 +65,10 @@ public class ProducerStatsRecorderImplTest {
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setStatsIntervalSeconds(60);
         PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
         when(client.getConfiguration()).thenReturn(conf);
+        @Cleanup("stop")
         Timer timer = new HashedWheelTimer();
         when(client.timer()).thenReturn(timer);
         ProducerImpl<?> producer = mock(ProducerImpl.class);
@@ -86,5 +92,30 @@ public class ProducerStatsRecorderImplTest {
         recorder2.updateCumulativeStats("test", recorder1);
         assertTrue(recorder2.getSendBytesRate() > 0);
         assertTrue(recorder2.getSendMsgsRate() > 0);
+    }
+
+    @Test
+    public void testPartitionedTopicProducerStatsPendingQueueSizeDoesntNPE() {
+        PartitionedTopicProducerStatsRecorderImpl recorder = new PartitionedTopicProducerStatsRecorderImpl();
+        assertEquals(recorder.getPendingQueueSize(), 0);
+    }
+
+    @Test
+    public void testProducerStatsPendingQueueSizeDoesntNPE() {
+        ProducerStatsRecorderImpl recorder = new ProducerStatsRecorderImpl();
+        assertEquals(recorder.getPendingQueueSize(), 0);
+    }
+
+    @Test
+    public void testPartitionedTopicProducerStatsPendingQueueSizeAggregated() {
+        PartitionedTopicProducerStatsRecorderImpl recorder = new PartitionedTopicProducerStatsRecorderImpl();
+
+        ProducerStatsRecorderImpl individualStats = spy(new ProducerStatsRecorderImpl());
+        when(individualStats.getPendingQueueSize()).thenReturn(1);
+        recorder.updateCumulativeStats("1", individualStats);
+        recorder.updateCumulativeStats("2", individualStats);
+        recorder.updateCumulativeStats("3", individualStats);
+
+        assertEquals(recorder.getPendingQueueSize(), 3);
     }
 }

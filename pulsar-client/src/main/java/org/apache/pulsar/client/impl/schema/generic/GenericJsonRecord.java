@@ -19,21 +19,22 @@
 package org.apache.pulsar.client.impl.schema.generic;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.Field;
+import org.apache.pulsar.common.schema.AvroSchemaCompat;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Generic json record.
  */
-@Slf4j
+@CustomLog
 public class GenericJsonRecord extends VersionedGenericRecord {
 
     private final JsonNode jn;
@@ -113,8 +114,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
             if (field == null) {
                 return false;
             }
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode jsonNode = objectMapper.readTree(field.schema().toString());
+            JsonNode jsonNode = ObjectMapperFactory.getMapper().reader().readTree(field.schema().toString());
             for (JsonNode node : jsonNode) {
                 JsonNode jn = node.get("type");
                 if (jn != null && ("bytes".equals(jn.asText()) || "byte".equals(jn.asText()))) {
@@ -123,7 +123,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
                 }
             }
         } catch (Exception e) {
-            log.error("parse schemaInfo failed. ", e);
+            log.error().exception(e).log("parse schemaInfo failed. ");
         }
         return isBinary;
     }
@@ -131,7 +131,7 @@ public class GenericJsonRecord extends VersionedGenericRecord {
     private static org.apache.avro.Schema parseAvroSchema(String schemaJson) {
         final org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
         parser.setValidateDefaults(false);
-        return parser.parse(schemaJson);
+        return parser.parse(AvroSchemaCompat.normalizeNamedTypeReferences(schemaJson));
     }
 
     @Override

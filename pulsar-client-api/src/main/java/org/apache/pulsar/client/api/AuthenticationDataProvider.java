@@ -62,7 +62,7 @@ public interface AuthenticationDataProvider extends Serializable {
     /**
      * @return a client certificate file path
      */
-    default String getTlsCerificateFilePath() {
+    default String getTlsCertificateFilePath() {
         return null;
     }
 

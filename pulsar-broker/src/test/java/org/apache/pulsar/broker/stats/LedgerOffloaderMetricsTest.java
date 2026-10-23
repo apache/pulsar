@@ -19,22 +19,31 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
-public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
+public class LedgerOffloaderMetricsTest extends BrokerTestBase {
 
     @Override
     protected void setup() throws Exception {
+    }
+
+    @Override
+    protected ServiceConfiguration getDefaultConf() {
+        ServiceConfiguration conf = super.getDefaultConf();
+        // wait for shutdown of the broker, this prevents flakiness which could be caused by metrics being
+        // unregistered asynchronously. This impacts the execution of the next test method if this would be happening.
+        conf.setBrokerShutdownTimeoutMs(5000L);
+        return conf;
     }
 
     @AfterMethod(alwaysRun = true)
@@ -50,7 +59,7 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
 
         String ns1 = "prop/ns-abc1";
         admin.namespaces().createNamespace(ns1);
-        String []topics = new String[3];
+        String[] topics = new String[3];
 
         LedgerOffloaderStatsImpl offloaderStats = (LedgerOffloaderStatsImpl) pulsar.getOffloaderStats();
         for (int i = 0; i < 3; i++) {
@@ -70,10 +79,10 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
 
         for (String topicName : topics) {
             assertEquals(offloaderStats.getOffloadError(topicName), 2);
-            assertEquals(offloaderStats.getOffloadBytes(topicName) , 100);
+            assertEquals(offloaderStats.getOffloadBytes(topicName), 100);
             assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 1);
             assertEquals(offloaderStats.getReadOffloadError(topicName), 2);
-            assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum ,1000);
+            assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 1000);
             assertEquals(offloaderStats.getReadOffloadBytes(topicName), 100000);
             assertEquals(offloaderStats.getWriteStorageError(topicName), 2);
         }
@@ -116,13 +125,13 @@ public class LedgerOffloaderMetricsTest  extends BrokerTestBase {
             List<String> topics = entry.getValue();
             String topicName = topics.get(0);
 
-            assertTrue(offloaderStats.getOffloadError(topicName) >= 1);
-            assertTrue(offloaderStats.getOffloadBytes(topicName) >= 100);
-            assertTrue((long) offloaderStats.getReadLedgerLatency(topicName).sum >= 1);
-            assertTrue(offloaderStats.getReadOffloadError(topicName) >= 1);
-            assertTrue((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum >= 1000);
-            assertTrue(offloaderStats.getReadOffloadBytes(topicName) >= 100000);
-            assertTrue(offloaderStats.getWriteStorageError(topicName) >= 1);
+            assertEquals(offloaderStats.getOffloadError(topicName), 6);
+            assertEquals(offloaderStats.getOffloadBytes(topicName), 600);
+            assertEquals((long) offloaderStats.getReadLedgerLatency(topicName).sum, 6);
+            assertEquals(offloaderStats.getReadOffloadError(topicName), 6);
+            assertEquals((long) offloaderStats.getReadOffloadIndexLatency(topicName).sum, 6000);
+            assertEquals(offloaderStats.getReadOffloadBytes(topicName), 600000);
+            assertEquals(offloaderStats.getWriteStorageError(topicName), 6);
         }
     }
 

@@ -19,13 +19,11 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
-
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.testng.annotations.Test;
 
 public class MessageIdTest {
-
     @Test
     public void messageIdTest() {
         MessageId mId = new MessageIdImpl(1, 2, 3);

@@ -103,7 +103,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         this.labelValues = labelValues.clone();
 
         String recordsPerBatchMetricName =
-                String.format("%s_bufferedwriter_batch_record_count", metricsPrefix);
+                String.format("%s_bufferedwriter_batch_records", metricsPrefix);
         recordsPerBatchMetric = new Histogram.Builder()
                         .name(recordsPerBatchMetricName)
                         .labelNames(this.labelNames)
@@ -122,7 +122,7 @@ public class TxnLogBufferedWriterMetricsStats implements Closeable {
         batchSizeBytesHistogram = batchSizeBytesMetric.labels(this.labelValues);
 
         String oldestRecordInBatchDelayTimeSecondsMetricName =
-                String.format("%s_bufferedwriter_batch_oldest_record_delay_time_second", metricsPrefix);
+                String.format("%s_bufferedwriter_batch_oldest_record_delay_seconds", metricsPrefix);
         oldestRecordInBatchDelayTimeSecondsMetric = new Histogram.Builder()
                         .name(oldestRecordInBatchDelayTimeSecondsMetricName)
                         .labelNames(this.labelNames)

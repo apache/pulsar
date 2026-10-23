@@ -18,31 +18,52 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalMethodInvoker.ensureNoBacklogByInflightTask;
+import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
+import static org.testng.Assert.assertTrue;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.schema.GenericRecord;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.assertj.core.util.Lists;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.schema.Schemas;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-replication")
 public class ShadowReplicatorTest extends BrokerTestBase {
 
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setEnableShadowTopics(true);
         super.baseSetup();
         admin.tenants().createTenant("prop1",
                 new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
@@ -50,7 +71,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         admin.namespaces().createNamespace("prop1/ns-shadow");
     }
 
-    @BeforeClass(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -62,10 +83,14 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         String shadowTopicName = "persistent://prop1/ns-shadow/shadow-topic";
         String shadowTopicName2 = "persistent://prop1/ns-shadow/shadow-topic-2";
 
+        admin.topics().createNonPartitionedTopic(sourceTopicName);
+        admin.topics().createShadowTopic(shadowTopicName, sourceTopicName);
+        admin.topics().createShadowTopic(shadowTopicName2, sourceTopicName);
+        admin.topics().setShadowTopics(sourceTopicName, Lists.newArrayList(shadowTopicName, shadowTopicName2));
+
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(sourceTopicName).create();
-        // NOTE: shadow topic is not ready yet. So use normal topic instead.
-        // The only difference for consumer should be that the message id is changed.
+
         @Cleanup
         Consumer<byte[]> shadowConsumer =
                 pulsarClient.newConsumer().topic(shadowTopicName).subscriptionName("shadow-sub")
@@ -77,8 +102,6 @@ public class ShadowReplicatorTest extends BrokerTestBase {
 
         PersistentTopic sourceTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopicName).get().get();
-
-        admin.topics().setShadowTopics(sourceTopicName, Lists.newArrayList(shadowTopicName, shadowTopicName2));
 
         Awaitility.await().untilAsserted(()->Assert.assertEquals(sourceTopic.getShadowReplicators().size(), 2));
 
@@ -108,7 +131,7 @@ public class ShadowReplicatorTest extends BrokerTestBase {
             replicator.msgOut.calculateRate();
             return replicator.msgOut.getCount() >= 1;
         });
-        Awaitility.await().until(() -> PersistentReplicator.PENDING_MESSAGES_UPDATER.get(replicator) == 0);
+        ensureNoBacklogByInflightTask(replicator);
 
         PersistentTopic shadowTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(shadowTopicName).get().get();
@@ -127,9 +150,111 @@ public class ShadowReplicatorTest extends BrokerTestBase {
         Assert.assertEquals(shadowMessage.getBrokerPublishTime(), sourceMessage.getBrokerPublishTime());
         Assert.assertEquals(shadowMessage.getIndex(), sourceMessage.getIndex());
 
-        //`replicatedFrom` is set as localClusterName in shadow topic.
-        Assert.assertNotEquals(shadowMessage.getReplicatedFrom(), sourceMessage.getReplicatedFrom());
-        //Currently, msg is copied in BK. So the message id is not the same.
-        Assert.assertNotEquals(shadowMessage.getMessageId(), sourceMessage.getMessageId());
+        Assert.assertEquals(replicator.stats.getBytesOutCount(), 0);
+
+        Assert.assertEquals(shadowMessage.getMessageId(), sourceMessage.getMessageId());
     }
+
+    @Test
+    public void testShadowReplicatorReleasesSourceEntryBuffer() throws Exception {
+        String sourceTopicName = BrokerTestUtil.newUniqueName("persistent://prop1/ns-source/source-topic");
+        String shadowTopicName = BrokerTestUtil.newUniqueName("persistent://prop1/ns-shadow/shadow-topic");
+
+        admin.topics().createNonPartitionedTopic(sourceTopicName);
+        admin.topics().createShadowTopic(shadowTopicName, sourceTopicName);
+        admin.topics().setShadowTopics(sourceTopicName, Lists.newArrayList(shadowTopicName));
+
+        PersistentTopic sourceTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopicName).get().get();
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(sourceTopic.getShadowReplicators().size(), 1));
+        ShadowReplicator replicator = (ShadowReplicator) sourceTopic.getShadowReplicators().get(shadowTopicName);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(String.valueOf(replicator.getState()), "Started"));
+
+        Entry entry = createEntry(1, 0, "ref-count-check", 1);
+        ByteBuf entryBuffer = entry.getDataBuffer();
+        Assert.assertEquals(entryBuffer.refCnt(), 1);
+
+        List<Entry> entries = Lists.newArrayList(entry);
+        PersistentReplicator.InFlightTask inFlightTask =
+                new PersistentReplicator.InFlightTask(
+                        entry.getPosition(), entries.size(), replicator.getReplicatorId());
+        inFlightTask.setEntries(entries);
+        Assert.assertTrue(replicator.replicateEntries(entries, inFlightTask));
+        inFlightTask.setSubmissionComplete(true);
+
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(inFlightTask.isDone());
+            Assert.assertEquals(entryBuffer.refCnt(), 0);
+        });
+    }
+
+    private static PersistentReplicator getAnyShadowReplicator(TopicName topicName, PulsarService pulsar) {
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topicName.toString(), false).join().get();
+        Awaitility.await().until(() -> !persistentTopic.getShadowReplicators().isEmpty());
+        return (PersistentReplicator) persistentTopic.getShadowReplicators().values().iterator().next();
+    }
+
+    private static void waitReplicateFinish(TopicName topicName, PulsarAdmin admin){
+        Awaitility.await().untilAsserted(() -> {
+            for (Map.Entry<String, ? extends ReplicatorStats> subStats :
+                    admin.topics().getStats(topicName.toString(), true, false, false).getReplication().entrySet()){
+                assertTrue(subStats.getValue().getReplicationBacklog() == 0, "replication task finished");
+            }
+        });
+    }
+
+    @Test
+    public void testCounterOfPendingMessagesCorrect() throws Exception {
+        TopicName sourceTopicName = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://prop1/ns-source/source-topic"));
+        TopicName shadowTopicName = TopicName
+                .get(BrokerTestUtil.newUniqueName("persistent://prop1/ns-shadow/shadow-topic"));
+
+        admin.topics().createNonPartitionedTopic(sourceTopicName.toString());
+        admin.topics().createShadowTopic(shadowTopicName.toString(), sourceTopicName.toString());
+        admin.topics().setShadowTopics(sourceTopicName.toString(), Lists.newArrayList(shadowTopicName.toString()));
+
+        // Init replicator and send many messages.
+        final String subName = "my-sub";
+        @Cleanup
+        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(sourceTopicName.toString())
+                .subscriptionName(subName)
+                .receiverQueueSize(10)
+                .subscribe();
+        @Cleanup
+        Producer<Schemas.PersonOne> producer = pulsarClient.newProducer(Schema.AVRO(Schemas.PersonOne.class))
+                .topic(sourceTopicName.toString())
+                .enableBatching(false)
+                .create();
+        for (int i = 0; i < 20; i++) {
+            producer.send(new Schemas.PersonOne(i));
+        }
+
+        // Verify "inflight replication tasks" are correct.
+        PersistentReplicator replicator = getAnyShadowReplicator(sourceTopicName, pulsar);
+        waitReplicateFinish(sourceTopicName, admin);
+        ensureNoBacklogByInflightTask(replicator);
+    }
+
+    private Entry createEntry(long ledgerId, long entryId, String message, long sequenceId) {
+        ByteBuf headersAndPayload = createMessage(message, sequenceId);
+        Entry entry = EntryImpl.create(ledgerId, entryId, headersAndPayload);
+        headersAndPayload.release();
+        return entry;
+    }
+
+    private ByteBuf createMessage(String message, long sequenceId) {
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setSequenceId(sequenceId)
+                .setProducerName("testProducer")
+                .setPublishTime(System.currentTimeMillis());
+        ByteBuf payload = Unpooled.copiedBuffer(message.getBytes(StandardCharsets.UTF_8));
+        ByteBuf headersAndPayload = serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, payload);
+        payload.release();
+        return headersAndPayload;
+    }
+
 }

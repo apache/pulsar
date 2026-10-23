@@ -27,23 +27,47 @@ DAYS=36500
 COMMON_PARAMS="-storetype JKS -storepass 111111 -keypass 111111 -noprompt"
 
 # generate keystore
+# The broker keystore is presented as a TLS *server* certificate, and TLS hostname verification is
+# enabled by default in 5.0 (PIP-478), so it carries a SubjectAltName covering the connected host.
+# CN=localhost on its own would satisfy the JDK and OpenSSL engines, which fall back to the CN for a
+# certificate with no dNSName SAN — but not a Conscrypt-pinned peer, which does not fall back, and not a
+# connection made to the IP literal, which is never matched against the CN. The SAN is what makes this
+# fixture portable across providers and endpoint forms. Tests reach the broker/proxy over loopback
+# (advertised address pinned to localhost), so DNS:localhost + IP:127.0.0.1 is sufficient. The client
+# and proxy keystores below are only ever used as *client* identities (not hostname-verified), so they
+# intentionally keep no SAN.
 keytool -genkeypair -keystore broker.keystore.jks $COMMON_PARAMS -keyalg RSA -keysize 2048 -alias broker -validity $DAYS \
-  -dname 'CN=localhost,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown'
+  -dname 'CN=localhost,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown' \
+  -ext 'SAN=dns:localhost,ip:127.0.0.1'
 keytool -genkeypair -keystore client.keystore.jks $COMMON_PARAMS -keyalg RSA -keysize 2048 -alias client -validity $DAYS \
   -dname 'CN=clientuser,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown'
+keytool -genkeypair -keystore proxy.keystore.jks $COMMON_PARAMS -keyalg RSA -keysize 2048 -alias proxy -validity $DAYS \
+  -dname 'CN=proxy,OU=Unknown,O=Unknown,L=Unknown,ST=Unknown,C=Unknown'
 
 # export certificate
 keytool -exportcert -keystore broker.keystore.jks $COMMON_PARAMS -file broker.cer -alias broker
 keytool -exportcert -keystore client.keystore.jks $COMMON_PARAMS -file client.cer -alias client
+keytool -exportcert -keystore proxy.keystore.jks $COMMON_PARAMS -file proxy.cer -alias proxy
 
 # generate truststore
 keytool -importcert -keystore client.truststore.jks $COMMON_PARAMS -file client.cer -alias truststore
 keytool -importcert -keystore broker.truststore.jks $COMMON_PARAMS -file broker.cer -alias truststore
+keytool -importcert -keystore proxy.truststore.jks $COMMON_PARAMS -file proxy.cer -file client.cer -alias truststore
+
+# generate trust store with proxy and client public certs
+keytool -importcert -keystore proxy-and-client.truststore.jks $COMMON_PARAMS -file proxy.cer -alias proxy
+keytool -importcert -keystore proxy-and-client.truststore.jks $COMMON_PARAMS -file client.cer -alias client
 
 # generate a truststore without password
 java ../RemoveJksPassword.java client.truststore.jks 111111 client.truststore.nopassword.jks
 java ../RemoveJksPassword.java broker.truststore.jks 111111 broker.truststore.nopassword.jks
+java ../RemoveJksPassword.java proxy.truststore.jks 111111 proxy.truststore.nopassword.jks
+java ../RemoveJksPassword.java proxy-and-client.truststore.jks 111111 proxy-and-client.truststore.nopassword.jks
+
+# write broker truststore to pem file for use in http client as a ca cert
+keytool -keystore broker.truststore.jks -exportcert -alias truststore | openssl x509 -inform der -text > broker.truststore.pem
 
 # cleanup
 rm broker.cer
 rm client.cer
+rm proxy.cer

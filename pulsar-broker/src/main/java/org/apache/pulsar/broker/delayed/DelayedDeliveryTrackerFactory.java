@@ -19,9 +19,10 @@
 package org.apache.pulsar.broker.delayed;
 
 import com.google.common.annotations.Beta;
-import java.io.IOException;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Factory of InMemoryDelayedDeliveryTracker objects. This is the entry point for implementations.
@@ -33,9 +34,9 @@ public interface DelayedDeliveryTrackerFactory extends AutoCloseable {
     /**
      * Initialize the factory implementation from the broker service configuration.
      *
-     * @param config the broker service config object
+     * @param pulsarService the broker service
      */
-    void initialize(ServiceConfiguration config) throws IOException;
+    void initialize(PulsarService pulsarService) throws Exception;
 
     /**
      * Create a new tracker instance.
@@ -43,10 +44,25 @@ public interface DelayedDeliveryTrackerFactory extends AutoCloseable {
      * @param dispatcher
      *            a multi-consumer dispatcher instance
      */
-    DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher);
+    DelayedDeliveryTracker newTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher);
+
+    /**
+     * Create a new tracker instance asynchronously.
+     *
+     * @param dispatcher
+     *            a multi-consumer dispatcher instance
+     */
+    default CompletableFuture<DelayedDeliveryTracker> newTrackerAsync(
+            AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        try {
+            return CompletableFuture.completedFuture(newTracker(dispatcher));
+        } catch (Throwable t) {
+            return FutureUtil.failedFuture(t);
+        }
+    }
 
     /**
      * Close the factory and release all the resources.
      */
-    void close() throws IOException;
+    void close() throws Exception;
 }

@@ -17,47 +17,20 @@
 # under the License.
 #
 
-FROM ubuntu:20.04
+ARG PULSAR_IMAGE
+FROM $PULSAR_IMAGE
 
-RUN groupadd -g 10001 pulsar
-RUN adduser -u 10000 --gid 10001 --disabled-login --disabled-password --gecos '' pulsar
-
-ARG PULSAR_TARBALL=target/pulsar-server-distribution-bin.tar.gz
-ADD ${PULSAR_TARBALL} /
-RUN mv /apache-pulsar-* /pulsar
-RUN chown -R root:root /pulsar
+# Base pulsar image is designed not be modified, though we need to add more scripts
+USER root
 
 COPY target/scripts /pulsar/bin
 RUN chmod a+rx /pulsar/bin/*
 
-WORKDIR /pulsar
-
-ARG DEBIAN_FRONTEND=noninteractive
-ARG UBUNTU_MIRROR=mirror://mirrors.ubuntu.com/mirrors.txt
-
-RUN sed -i "s|http://archive\.ubuntu\.com/ubuntu/|${UBUNTU_MIRROR:-mirror://mirrors.ubuntu.com/mirrors.txt}|g" /etc/apt/sources.list \
-     && apt-get update \
-     && apt-get -y dist-upgrade \
-     && apt-get -y install wget apt-transport-https
-
-# Install Eclipse Temurin Package
-RUN mkdir -p /etc/apt/keyrings \
-     && wget -O - https://packages.adoptium.net/artifactory/api/gpg/key/public | tee /etc/apt/keyrings/adoptium.asc \
-     && echo "deb [signed-by=/etc/apt/keyrings/adoptium.asc] https://packages.adoptium.net/artifactory/deb $(awk -F= '/^VERSION_CODENAME/{print$2}' /etc/os-release) main" | tee /etc/apt/sources.list.d/adoptium.list \
-     && apt-get update \
-     && apt-get -y dist-upgrade \
-     && apt-get -y install temurin-17-jdk \
-     && export ARCH=$(uname -m | sed -r 's/aarch64/arm64/g' |  awk '!/arm64/{$0="amd64"}1') \
-     && echo networkaddress.cache.ttl=1 >> /usr/lib/jvm/temurin-17-jdk-$ARCH/conf/security/java.security
-
-# /pulsar/bin/watch-znode.py requires python3-kazoo
-# /pulsar/bin/pulsar-managed-ledger-admin requires python3-protobuf
-# gen-yml-from-env.py requires python3-yaml
-# make python3 the default
-RUN apt-get install -y python3-kazoo python3-protobuf python3-yaml \
-    && update-alternatives --install /usr/bin/python python /usr/bin/python3 10
-
-RUN apt-get install -y supervisor procps curl less netcat dnsutils iputils-ping
+RUN apk add --no-cache supervisor jq
+# On Alpine, musl's debug symbols, which Alpine strips from musl: with them, profilers name musl's functions, such as
+# the system call wrappers under the JNI methods, and walk native stacks through them, instead of showing every frame in
+# musl as /lib/ld-musl-*.so.1. apk installs the ones of the installed musl version. The Wolfi image has glibc instead.
+RUN if ls /lib/ld-musl-*.so.1 > /dev/null 2>&1; then apk add --no-cache musl-dbg; fi
 
 RUN mkdir -p /var/log/pulsar \
     && mkdir -p /var/run/supervisor/ \
@@ -71,12 +44,49 @@ COPY target/certificate-authority /pulsar/certificate-authority/
 
 COPY target/java-test-functions.jar /pulsar/examples/
 
-ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
+# copy buildtools.jar to /pulsar/lib so that org.apache.pulsar.tests.ExtendedNettyLeakDetector can be used
+COPY target/buildtools.jar /pulsar/lib/
 
-RUN chown -R pulsar:0 /pulsar && chmod -R g=u /pulsar
+# The tiered storage offloader, for the offloading performance tests: the Pulsar images of 4.x releases don't include the
+# offloaders, which a release publishes as apache-pulsar-offloaders-<version>-bin.tar.gz. With INSTALL_OFFLOADERS=true,
+# install the jcloud offloader of the image's Pulsar version when the image doesn't have it, from the download CDN, which
+# has only the latest releases, or else from the slower release archive, checked against the release's SHA-512. Images
+# that include it, such as this repository's and those of 5.0 and later, are left as they are. It is off by default,
+# since the tarball is 64 MB for 4.2.5 and 281 MB for 4.0.0, which only the scenarios that offload need; Docker keeps
+# the layer, so it is downloaded once for each release image.
+ARG INSTALL_OFFLOADERS=false
+ARG PULSAR_RELEASE_DOWNLOAD_URL=https://dlcdn.apache.org/pulsar
+ARG PULSAR_RELEASE_ARCHIVE_URL=https://archive.apache.org/dist/pulsar
+RUN if [ "${INSTALL_OFFLOADERS}" = "true" ] && ! ls /pulsar/offloaders/tiered-storage-jcloud-*.nar > /dev/null 2>&1; then \
+    version=$(ls /pulsar/lib | sed -n 's/^org\.apache\.pulsar-pulsar-broker-\([0-9][^-]*\)\.jar$/\1/p' | head -1) \
+    && if [ -n "${version}" ]; then \
+        name="apache-pulsar-offloaders-${version}-bin.tar.gz" \
+        && file="pulsar-${version}/${name}" \
+        && mkdir -p /pulsar/offloaders /tmp/offloaders /tmp/offloaders-download \
+        && cd /tmp/offloaders-download \
+        && { { curl -fsSL -o "${name}" "${PULSAR_RELEASE_DOWNLOAD_URL}/${file}" \
+                && curl -fsSL -o "${name}.sha512" "${PULSAR_RELEASE_DOWNLOAD_URL}/${file}.sha512"; } \
+            || { curl -fsSL -o "${name}" "${PULSAR_RELEASE_ARCHIVE_URL}/${file}" \
+                && curl -fsSL -o "${name}.sha512" "${PULSAR_RELEASE_ARCHIVE_URL}/${file}.sha512"; }; } \
+        && sha512sum -c "${name}.sha512" \
+        && tar -xzf "${name}" -C /tmp/offloaders \
+        && cp /tmp/offloaders/*/offloaders/tiered-storage-jcloud-*.nar /pulsar/offloaders/ \
+        && cd / && rm -rf /tmp/offloaders /tmp/offloaders-download \
+        && ls /pulsar/offloaders/tiered-storage-jcloud-*.nar; \
+    else \
+        echo "No offloader installed: the Pulsar version of the image wasn't found"; \
+    fi; \
+    fi
 
-# cleanup
-RUN apt-get -y --purge autoremove \
-    && apt-get autoclean \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+ARG INSTALL_ASYNC_PROFILER=false
+ARG ASYNC_PROFILER_VERSION=4.5
+# install async-profiler from https://github.com/async-profiler/async-profiler/releases to /opt/async-profiler
+RUN if [ "${INSTALL_ASYNC_PROFILER}" = "true" ]; then \
+    mkdir -p /opt/async-profiler \
+    && cd /opt/async-profiler \
+    && curl -L \
+    "https://github.com/async-profiler/async-profiler/releases/download/v${ASYNC_PROFILER_VERSION}/async-profiler-${ASYNC_PROFILER_VERSION}-linux-$([ "$(uname -m)" = "aarch64" ] && echo "arm64" || echo "x64").tar.gz" \
+    | tar -zxvf - --strip-components=1; \
+    else \
+    echo "async-profiler installation skipped"; \
+    fi

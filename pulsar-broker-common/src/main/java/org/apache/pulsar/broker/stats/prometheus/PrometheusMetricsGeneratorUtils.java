@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.stats.prometheus;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.prometheus.client.Collector;
 import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
@@ -27,6 +26,7 @@ import java.io.OutputStream;
 import java.util.Enumeration;
 import java.util.List;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
@@ -38,7 +38,7 @@ public class PrometheusMetricsGeneratorUtils {
     public static void generate(String cluster, OutputStream out,
                                 List<PrometheusRawMetricsProvider> metricsProviders)
             throws IOException {
-        ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
+        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
             generateSystemMetrics(stream, cluster);
@@ -59,8 +59,10 @@ public class PrometheusMetricsGeneratorUtils {
         while (metricFamilySamples.hasMoreElements()) {
             Collector.MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
 
-            // Write type of metric
-            stream.write("# TYPE ").write(metricFamily.name).write(getTypeNameSuffix(metricFamily.type)).write(' ')
+            // Preserve existing TYPE names; only explicitly opted-in counter families use the total sample name.
+            String typeName = metricFamily instanceof PrometheusCounterMetricFamily counter
+                    ? counter.getPrometheusTypeName() : metricFamily.name + getTypeNameSuffix(metricFamily.type);
+            stream.write("# TYPE ").write(typeName).write(' ')
                     .write(getTypeStr(metricFamily.type)).write('\n');
 
             for (int i = 0; i < metricFamily.samples.size(); i++) {
@@ -76,7 +78,7 @@ public class PrometheusMetricsGeneratorUtils {
                 }
                 for (int j = 0; j < sample.labelNames.size(); j++) {
                     String labelValue = sample.labelValues.get(j);
-                    if (labelValue != null) {
+                    if (labelValue != null && labelValue.indexOf('"') > -1) {
                         labelValue = labelValue.replace("\"", "\\\"");
                     }
                     if (j > 0) {

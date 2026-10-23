@@ -24,13 +24,13 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 
-public interface Subscription {
+public interface Subscription extends MessageExpirer {
 
     BrokerInterceptor interceptor();
 
@@ -48,7 +48,20 @@ public interface Subscription {
 
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
-    void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties);
+    /** Called on the connection's event loop; implementations must not block while resuming dispatch. */
+    default void notifyChannelWritable(Consumer consumer) {
+    }
+
+    /**
+     * @deprecated Use {@link #acknowledgeMessageAsync(List, AckType, Map)} instead.
+     */
+    @Deprecated
+    default void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
+        acknowledgeMessageAsync(positions, ackType, properties);
+    }
+
+    CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
+                                                    Map<String, Long> properties);
 
     String getTopicName();
 
@@ -58,21 +71,27 @@ public interface Subscription {
 
     long getNumberOfEntriesInBacklog(boolean getPreciseBacklog);
 
+    default boolean hasBacklog(boolean getPreciseBacklog) {
+        return getNumberOfEntriesInBacklog(getPreciseBacklog) > 0;
+    }
+
     default long getNumberOfEntriesDelayed() {
         return 0;
     }
 
     List<Consumer> getConsumers();
 
-    CompletableFuture<Void> close();
-
     CompletableFuture<Void> delete();
 
     CompletableFuture<Void> deleteForcefully();
 
-    CompletableFuture<Void> disconnect();
+    CompletableFuture<Void> disconnect(Optional<BrokerLookupData> assignedBrokerLookupData);
+
+    CompletableFuture<Void> close(boolean disconnectConsumers, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     CompletableFuture<Void> doUnsubscribe(Consumer consumer);
+
+    CompletableFuture<Void> doUnsubscribe(Consumer consumer, boolean forcefully);
 
     CompletableFuture<Void> clearBacklog();
 
@@ -84,13 +103,9 @@ public interface Subscription {
 
     CompletableFuture<Entry> peekNthMessage(int messagePosition);
 
-    boolean expireMessages(int messageTTLInSeconds);
-
-    boolean expireMessages(Position position);
-
     void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch);
 
-    void redeliverUnacknowledgedMessages(Consumer consumer, List<PositionImpl> positions);
+    void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions);
 
     void markTopicWithBatchMessagePublished();
 
@@ -105,6 +120,8 @@ public interface Subscription {
     Map<String, String> getSubscriptionProperties();
 
     CompletableFuture<Void> updateSubscriptionProperties(Map<String, String> subscriptionProperties);
+
+    boolean isSubscriptionMigrated();
 
     default void processReplicatedSubscriptionSnapshot(ReplicatedSubscriptionsSnapshot snapshot) {
         // Default is no-op
@@ -134,4 +151,5 @@ public interface Subscription {
     static boolean isIndividualAckMode(SubType subType) {
         return SubType.Shared.equals(subType) || SubType.Key_Shared.equals(subType);
     }
+
 }

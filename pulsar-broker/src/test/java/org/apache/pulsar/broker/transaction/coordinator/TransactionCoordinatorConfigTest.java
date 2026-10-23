@@ -62,8 +62,8 @@ public class TransactionCoordinatorConfigTest extends BrokerTestBase {
 
     @Test
     public void testMaxActiveTxn() throws Exception {
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
-                .enableTransaction(true).operationTimeout(3, TimeUnit.SECONDS).build();
+        replacePulsarClient(PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .enableTransaction(true).operationTimeout(3, TimeUnit.SECONDS));
 
         // new two txn will not reach max active txns
         Transaction commitTxn =

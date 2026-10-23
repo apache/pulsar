@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
-import java.util.Set;
+import java.util.Map;
 import org.apache.pulsar.broker.PulsarService;
 
 /**
@@ -33,7 +33,7 @@ public interface BundleSplitStrategy {
      *            leader broker).
      * @param pulsar
      *            Service to use.
-     * @return A set of the bundles that should be split.
+     * @return A map of the bundles that should be split and the brokers on which they reside.
      */
-    Set<String> findBundlesToSplit(LoadData loadData, PulsarService pulsar);
+    Map<String, String> findBundlesToSplit(LoadData loadData, PulsarService pulsar);
 }

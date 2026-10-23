@@ -20,9 +20,9 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import java.time.LocalDate;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.time.LocalDate;
 
 public class LocalDateSchemaTest {
 
@@ -38,7 +38,7 @@ public class LocalDateSchemaTest {
                 (byte) (localDate.toEpochDay() >>> 24),
                 (byte) (localDate.toEpochDay() >>> 16),
                 (byte) (localDate.toEpochDay() >>> 8),
-                ((Long)localDate.toEpochDay()).byteValue()
+                ((Long) localDate.toEpochDay()).byteValue()
         };
         Assert.assertEquals(expected, schema.encode(localDate));
     }
@@ -66,7 +66,7 @@ public class LocalDateSchemaTest {
                24,
                42
         };
-        long expected = 10*65536 + 24*256 + 42;
+        long expected = 10 * 65536 + 24 * 256 + 42;
 
         LocalDateSchema schema = LocalDateSchema.of();
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(8);

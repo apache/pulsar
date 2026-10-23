@@ -19,13 +19,14 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Objects;
+import lombok.SneakyThrows;
 import lombok.ToString;
 
 /**
  * Publish-rate to manage publish throttling.
  */
 @ToString
-public class PublishRate {
+public class PublishRate implements Cloneable{
 
     public int publishThrottlingRateInMsg = -1;
     public long publishThrottlingRateInByte = -1;
@@ -50,6 +51,12 @@ public class PublishRate {
         } else {
             return null;
         }
+    }
+
+    @SneakyThrows
+    @Override
+    protected PublishRate clone() {
+        return PublishRate.class.cast(super.clone());
     }
 
     @Override

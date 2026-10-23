@@ -19,24 +19,24 @@
 package org.apache.pulsar.compaction;
 
 import static org.testng.Assert.assertEquals;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -44,18 +44,23 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
-    private ScheduledExecutorService compactionScheduler;
-    private BookKeeper bk;
+    protected ScheduledExecutorService compactionScheduler;
+    protected BookKeeper bk;
+    private PublishingOrderCompactor compactor;
 
     @BeforeMethod
     @Override
@@ -71,21 +76,26 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
 
         compactionScheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
-        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null);
+        bk = pulsar.getBookKeeperClientFactory().create(this.conf, null, null, Optional.empty(), null).get();
+        compactor = new PublishingOrderCompactor(conf, pulsarClient, bk, compactionScheduler);
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-
+        bk.close();
         if (compactionScheduler != null) {
             compactionScheduler.shutdownNow();
         }
     }
 
+    protected long compact(String topic) throws ExecutionException, InterruptedException {
+        return compactor.compact(topic).get();
+    }
+
     /**
-     * Compaction should retain expired keys in the compacted view
+     * Compaction should retain expired keys in the compacted view.
      */
     @Test
     public void testCompaction() throws Exception {
@@ -105,11 +115,10 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .create();
 
-        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-        compactor.compact(topic).join();
+        compact(topic);
 
-        log.info(" ---- X 1: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 1");
 
         int round = 1;
 
@@ -120,15 +129,15 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        log.info(" ---- X 2: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 2");
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
         compactor.compact(topic).join();
 
-        log.info(" ---- X 3: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 3");
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
@@ -141,7 +150,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        compactor.compact(topic).join();
+        compact(topic);
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
@@ -152,10 +161,10 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        compactor.compact(topic).join();
+        compact(topic);
 
-        log.info(" ---- X 4: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 4");
 
         validateMessages(pulsarClient, true, topic, round, keys);
 
@@ -191,6 +200,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                 testCompactionCursorRetention(topic)
         );
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCompactionRetentionOnTopicCreationWithTopicPolicies() throws Exception {
@@ -204,6 +214,50 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         Awaitility.await().untilAsserted(() ->
                 testCompactionCursorRetention(topic)
         );
+    }
+
+    @Test
+    public void testRetentionPolicesForSystemTopic() throws Exception {
+        String namespace = "my-tenant/my-ns";
+        String topicPrefix = "persistent://" + namespace + "/";
+        admin.namespaces().setRetention(namespace, new RetentionPolicies(-1, -1));
+        // Check event topics and transaction internal topics.
+        for (String eventTopic : SystemTopicNames.EVENTS_TOPIC_NAMES) {
+            checkSystemTopicRetentionPolicy(topicPrefix + eventTopic);
+        }
+        // TRANSACTION_COORDINATOR_ASSIGN and TRANSACTION_COORDINATOR_LOG are only recognized as system
+        // topics when in the pulsar/system namespace (via startsWith check), so they are not tested here.
+        checkSystemTopicRetentionPolicy(topicPrefix + SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
+
+        // Check common topics.
+        checkCommonTopicRetentionPolicy(topicPrefix + "my-topic" + System.nanoTime());
+        // Specify retention policies for system topic.
+        pulsar.getConfiguration().setTopicLevelPoliciesEnabled(true);
+        pulsar.getConfiguration().setSystemTopicEnabled(true);
+        admin.topics().createNonPartitionedTopic(topicPrefix + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT);
+        admin.topicPolicies().setRetention(topicPrefix + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT,
+                new RetentionPolicies(10, 10));
+        Awaitility.await().untilAsserted(() -> {
+            checkTopicRetentionPolicy(topicPrefix + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT,
+                    new RetentionPolicies(10, 10));
+        });
+    }
+
+    private void checkSystemTopicRetentionPolicy(String topicName) throws Exception {
+        checkTopicRetentionPolicy(topicName, new RetentionPolicies(0, 0));
+
+    }
+
+    private void checkCommonTopicRetentionPolicy(String topicName) throws Exception {
+        checkTopicRetentionPolicy(topicName, new RetentionPolicies(-1, -1));
+    }
+
+    private void checkTopicRetentionPolicy(String topicName, RetentionPolicies retentionPolicies) throws Exception {
+        ManagedLedgerConfig config = pulsar.getBrokerService()
+                .getManagedLedgerConfig(TopicName.get(topicName)).get();
+        Assert.assertEquals(config.getRetentionSizeInMB(), retentionPolicies.getRetentionSizeInMB());
+        Assert.assertEquals(config.getRetentionTimeMillis(),
+                retentionPolicies.getRetentionTimeInMinutes() * 60000L);
     }
 
     private void testCompactionCursorRetention(String topic) throws Exception {
@@ -221,10 +275,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                 .topic(topic)
                 .create();
 
-        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
-
-        log.info(" ---- X 1: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 1");
 
         int round = 1;
 
@@ -235,21 +287,21 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
                     .send();
         }
 
-        log.info(" ---- X 2: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 2");
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
 
-        compactor.compact(topic).join();
+        compact(topic);
 
-        log.info(" ---- X 3: {}", mapper.writeValueAsString(
-                admin.topics().getInternalStats(topic, false)));
+        log.info().attr("internalStats",
+                mapper.writeValueAsString(admin.topics().getInternalStats(topic, false))).log("X 3");
 
         validateMessages(pulsarClient, true, topic, round, allKeys);
     }
 
-    private void validateMessages(PulsarClient client, boolean readCompacted, String topic, int round, Set<String> expectedKeys)
-            throws Exception {
+    private void validateMessages(PulsarClient client, boolean readCompacted, String topic,
+                                  int round, Set<String> expectedKeys) throws Exception {
         @Cleanup
         Reader<Integer> reader = client.newReader(Schema.INT32)
                 .topic(topic)
@@ -266,7 +318,7 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
             }
 
             Integer value = msg.size() > 0 ? msg.getValue() : null;
-            log.info("Received: {} -- value: {}", msg.getKey(), value);
+            log.info().attr("key", msg.getKey()).attr("value", value).log("Received");
             if (value != null) {
                 receivedValues.put(msg.getKey(), value);
             }
@@ -275,8 +327,8 @@ public class CompactionRetentionTest extends MockedPulsarServiceBaseTest {
         Map<String, Integer> expectedReceivedValues = new HashMap<>();
         expectedKeys.forEach(k -> expectedReceivedValues.put(k, round));
 
-        log.info("Received values: {}", receivedValues);
-        log.info("Expected values: {}", expectedReceivedValues);
+        log.info().attr("values", receivedValues).log("Received values");
+        log.info().attr("values", expectedReceivedValues).log("Expected values");
         assertEquals(receivedValues, expectedReceivedValues);
     }
 }

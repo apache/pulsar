@@ -20,14 +20,14 @@ package org.apache.pulsar.broker.web.plugin.servlet;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import java.io.IOException;
+import java.nio.file.Paths;
+import java.util.Properties;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-import java.io.IOException;
-import java.nio.file.Paths;
-import java.util.Properties;
 
 public class AdditionalServletsTest {
 
@@ -52,10 +52,8 @@ public class AdditionalServletsTest {
         AdditionalServletWithClassLoader as1 = mock(AdditionalServletWithClassLoader.class);
         AdditionalServletWithClassLoader as2 = mock(AdditionalServletWithClassLoader.class);
 
-        String originalTmpDirectory = System.getProperty("java.io.tmpdir");
         try (MockedStatic<AdditionalServletUtils> utils = mockStatic(AdditionalServletUtils.class)) {
-            String tmpDirectory = "/my/tmp/directory";
-            System.setProperty("java.io.tmpdir", tmpDirectory);
+            String tmpDirectory =  System.getProperty("java.io.tmpdir");
             utils.when(() -> AdditionalServletUtils.searchForServlets(
                     "/additionalServletDirectory", tmpDirectory)).thenReturn(definitions);
             utils.when(() -> AdditionalServletUtils.load(asm1, tmpDirectory)).thenReturn(as1);
@@ -65,8 +63,6 @@ public class AdditionalServletsTest {
 
             Assert.assertEquals(servlets.getServlets().get("AS1"), as1);
             Assert.assertEquals(servlets.getServlets().get("AS2"), as2);
-        } finally {
-            System.setProperty("java.io.tmpdir", originalTmpDirectory);
         }
     }
 
@@ -76,7 +72,7 @@ public class AdditionalServletsTest {
         as.setDefinition(new AdditionalServletDefinition());
         as.getDefinition().setName("as" + index);
         as.getDefinition().setAdditionalServletClass("com.example.AS" + index);
-        as.getDefinition().setDescription("Additional Servlet " +index);
+        as.getDefinition().setDescription("Additional Servlet " + index);
         return as;
     }
 }

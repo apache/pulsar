@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.functions.worker.rest.api;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriBuilder;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
@@ -27,19 +32,19 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 import org.apache.pulsar.common.util.RestException;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -50,7 +55,7 @@ import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.WorkerUtils;
 import org.apache.pulsar.functions.worker.service.api.Workers;
 
-@Slf4j
+@CustomLog
 public class WorkerImpl implements Workers<PulsarWorkerService> {
 
     private final Supplier<PulsarWorkerService> workerServiceSupplier;
@@ -63,7 +68,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
         try {
             return Objects.requireNonNull(workerServiceSupplier.get());
         } catch (Throwable t) {
-            log.info("Failed to get worker service", t);
+            log.info().exception(t).log("Failed to get worker service");
             throw t;
         }
     }
@@ -77,29 +82,24 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
     }
 
     @Override
-    public List<WorkerInfo> getCluster(String clientRole) {
+    public List<WorkerInfo> getCluster(AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-        }
+        throwIfNotSuperUser(authParams, "get cluster");
 
         List<WorkerInfo> workers = worker().getMembershipManager().getCurrentMembership();
         return workers;
     }
 
     @Override
-    public WorkerInfo getClusterLeader(String clientRole) {
+    public WorkerInfo getClusterLeader(AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            log.error("Client [{}] is not authorized to get cluster leader", clientRole);
-            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-        }
+        throwIfNotSuperUser(authParams, "get cluster leader");
 
         MembershipManager membershipManager = worker().getMembershipManager();
         WorkerInfo leader = membershipManager.getLeader();
@@ -112,52 +112,64 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
     }
 
     @Override
-    public Map<String, Collection<String>> getAssignments(String clientRole) {
+    public Map<String, Collection<String>> getAssignments(AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            log.error("Client [{}] is not authorized to get cluster assignments", clientRole);
-            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-        }
+        throwIfNotSuperUser(authParams, "get cluster assignments");
 
         FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
-        Map<String, Map<String, Function.Assignment>> assignments = functionRuntimeManager.getCurrentAssignments();
+        Map<String, Map<String, Assignment>> assignments = functionRuntimeManager.getCurrentAssignments();
         Map<String, Collection<String>> ret = new HashMap<>();
-        for (Map.Entry<String, Map<String, Function.Assignment>> entry : assignments.entrySet()) {
+        for (Map.Entry<String, Map<String, Assignment>> entry : assignments.entrySet()) {
             ret.put(entry.getKey(), entry.getValue().keySet());
         }
         return ret;
     }
 
-    private boolean isSuperUser(final String clientRole) {
-        return clientRole != null && worker().getWorkerConfig().getSuperUserRoles().contains(clientRole);
+    private void throwIfNotSuperUser(AuthenticationParameters authParams, String action) {
+        if (worker().getWorkerConfig().isAuthorizationEnabled()) {
+            try {
+                if (authParams.getClientRole() == null || !worker().getAuthorizationService().isSuperUser(authParams)
+                        .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS)) {
+                    log.error().attr("clientRole", authParams.getClientRole())
+
+                            .attr("originalPrincipal", authParams.getOriginalPrincipal()).attr("action", action)
+
+                            .log("Client with role [ ] and originalPrincipal [ ] is not authorized to");
+                    throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
+                }
+            } catch (ExecutionException | TimeoutException | InterruptedException e) {
+                log.warn().attr("workerConfig", worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds())
+
+                        .attr("clientRole", authParams.getClientRole())
+
+                        .attr("originalPrincipal", authParams.getOriginalPrincipal())
+
+                        .log("Time-out sec while checking the role originalPrincipal is a super user role");
+                throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+            }
+        }
     }
 
     @Override
-    public List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrics(final String clientRole) {
+    public List<org.apache.pulsar.common.stats.Metrics> getWorkerMetrics(final AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable() || worker().getMetricsGenerator() == null) {
             throwUnavailableException();
         }
-
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            log.error("Client [{}] is not authorized to get worker stats", clientRole);
-            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-        }
+        throwIfNotSuperUser(authParams, "get worker stats");
         return worker().getMetricsGenerator().generate();
     }
 
     @Override
-    public List<WorkerFunctionInstanceStats> getFunctionsMetrics(String clientRole) throws IOException {
+    public List<WorkerFunctionInstanceStats> getFunctionsMetrics(AuthenticationParameters authParams)
+            throws IOException {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            log.error("Client [{}] is not authorized to get function stats", clientRole);
-            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-        }
+        throwIfNotSuperUser(authParams, "get function stats");
 
         Map<String, FunctionRuntimeInfo> functionRuntimes = worker().getFunctionRuntimeManager()
                 .getFunctionRuntimeInfos();
@@ -169,7 +181,7 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             FunctionRuntimeInfo functionRuntimeInfo = entry.getValue();
 
             if (worker().getFunctionRuntimeManager().getRuntimeFactory().externallyManaged()) {
-                Function.FunctionDetails functionDetails =
+                FunctionDetails functionDetails =
                         functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().getFunctionDetails();
                 int parallelism = functionDetails.getParallelism();
                 for (int i = 0; i < parallelism; ++i) {
@@ -196,28 +208,20 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
     }
 
     @Override
-    public List<ConnectorDefinition> getListOfConnectors(String clientRole) {
+    public List<ConnectorDefinition> getListOfConnectors(AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
-
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-        }
-
+        throwIfNotSuperUser(authParams, "get list of connectors");
         return this.worker().getConnectorsManager().getConnectorDefinitions();
     }
 
     @Override
-    public void rebalance(final URI uri, final String clientRole) {
+    public void rebalance(final URI uri, final AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
-
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            log.error("Client [{}] is not authorized to rebalance cluster", clientRole);
-            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
-        }
+        throwIfNotSuperUser(authParams, "rebalance cluster");
 
         if (worker().getLeaderService().isLeader()) {
             try {
@@ -239,24 +243,24 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
     }
 
     @Override
-    public void drain(final URI uri, final String inWorkerId, final String clientRole, boolean calledOnLeaderUri) {
+    public void drain(final URI uri, final String inWorkerId, final AuthenticationParameters authParams,
+                      boolean calledOnLeaderUri) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }
 
         final String actualWorkerId = worker().getWorkerConfig().getWorkerId();
         final String workerId = (inWorkerId == null || inWorkerId.isEmpty()) ? actualWorkerId : inWorkerId;
+        log.debug().attr("uri", uri)
+                .attr("inWorkerId", inWorkerId)
+                .attr("workerId", workerId)
+                .attr("clientRole", authParams.getClientRole())
+                .attr("originalPrincipal", authParams.getOriginalPrincipal())
+                .attr("calledOnLeaderUri", calledOnLeaderUri)
+                .attr("actualWorkerId", actualWorkerId)
+                .log("drain called");
 
-        if (log.isDebugEnabled()) {
-            log.debug("drain called with URI={}, inWorkerId={}, workerId={}, clientRole={}, calledOnLeaderUri={}, "
-                    + "on actual worker-id={}",
-                    uri, inWorkerId, workerId, clientRole, calledOnLeaderUri, actualWorkerId);
-        }
-
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            log.error("Client [{}] is not authorized to drain worker {}", clientRole, workerId);
-            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform drain operation");
-        }
+        throwIfNotSuperUser(authParams, "drain worker");
 
         // Depending on which operations we decide to allow, we may add checks here to error/exception if
         //      calledOnLeaderUri is true on a non-leader
@@ -279,13 +283,14 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             }
         } else {
             URI redirect = buildRedirectUriForDrainRelatedOp(uri, workerId);
-            log.info("Not leader; redirect URI={}", redirect);
+            log.info().attr("redirect", redirect).log("Not leader; redirect URI=");
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }
     }
 
     @Override
-    public LongRunningProcessStatus getDrainStatus(final URI uri, final String inWorkerId, final String clientRole,
+    public LongRunningProcessStatus getDrainStatus(final URI uri, final String inWorkerId,
+                                                   final AuthenticationParameters authParams,
                                                    boolean calledOnLeaderUri) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
@@ -293,18 +298,16 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
 
         final String actualWorkerId = worker().getWorkerConfig().getWorkerId();
         final String workerId = (inWorkerId == null || inWorkerId.isEmpty()) ? actualWorkerId : inWorkerId;
+        log.debug().attr("uri", uri)
+                .attr("inWorkerId", inWorkerId)
+                .attr("workerId", workerId)
+                .attr("clientRole", authParams.getClientRole())
+                .attr("originalPrincipal", authParams.getOriginalPrincipal())
+                .attr("calledOnLeaderUri", calledOnLeaderUri)
+                .attr("actualWorkerId", actualWorkerId)
+                .log("getDrainStatus called");
 
-        if (log.isDebugEnabled()) {
-            log.debug("getDrainStatus called with uri={}, inWorkerId={}, workerId={}, clientRole={}, "
-                            + " calledOnLeaderUri={}, on actual workerId={}",
-                    uri, inWorkerId, workerId, clientRole, calledOnLeaderUri, actualWorkerId);
-        }
-
-        if (worker().getWorkerConfig().isAuthorizationEnabled() && !isSuperUser(clientRole)) {
-            log.error("Client [{}] is not authorized to get drain status of worker {}", clientRole, workerId);
-            throw new RestException(Status.UNAUTHORIZED,
-                    "Client is not authorized to get the status of a drain operation");
-        }
+        throwIfNotSuperUser(authParams, "get drain status of worker");
 
         // Depending on which operations we decide to allow, we may add checks here to error/exception if
         //      calledOnLeaderUri is true on a non-leader
@@ -315,13 +318,13 @@ public class WorkerImpl implements Workers<PulsarWorkerService> {
             return worker().getSchedulerManager().getDrainStatus(workerId);
         } else {
             URI redirect = buildRedirectUriForDrainRelatedOp(uri, workerId);
-            log.info("Not leader; redirect URI={}", redirect);
+            log.info().attr("redirect", redirect).log("Not leader; redirect URI=");
             throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
         }
     }
 
     @Override
-    public Boolean isLeaderReady(final String clientRole) {
+    public boolean isLeaderReady(AuthenticationParameters authParams) {
         if (!isWorkerServiceAvailable()) {
             throwUnavailableException();
         }

@@ -22,7 +22,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -34,13 +34,13 @@ public class LoadReportDeserializer extends JsonDeserializer<LoadManagerReport> 
     @Override
     public LoadManagerReport deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
             throws IOException, JsonProcessingException {
-        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
-        ObjectNode root = ObjectMapperFactory.getThreadLocal().readTree(jsonParser);
+        ObjectReader reader = ObjectMapperFactory.getMapper().reader();
+        ObjectNode root = reader.readTree(jsonParser);
         if ((root.has("loadReportType") && root.get("loadReportType").asText().equals(LoadReport.loadReportType))
                 || (root.has("underLoaded"))) {
-            return mapper.readValue(root.toString(), LoadReport.class);
+            return reader.treeToValue(root, LoadReport.class);
         } else {
-            return mapper.readValue(root.toString(), LocalBrokerData.class);
+            return reader.treeToValue(root, LocalBrokerData.class);
         }
     }
 }
