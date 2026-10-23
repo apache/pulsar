@@ -419,6 +419,15 @@ public class MLTransactionMetadataStore
                             appendLogCount.increment();
                             try {
                                 synchronized (txnMetaListPair.getLeft()) {
+                                    if (txnMetaListPair.getLeft().status() == newStatus) {
+                                        transactionLog.deletePosition(Collections.singletonList(position));
+                                        if (log.isDebugEnabled()) {
+                                            log.debug("[{}] Transaction status already updated concurrently to {}",
+                                                    txnID, newStatus);
+                                        }
+                                        promise.complete(null);
+                                        return;
+                                    }
                                     txnMetaListPair.getLeft().updateTxnStatus(newStatus, expectedStatus);
                                     txnMetaListPair.getRight().add(position);
                                 }

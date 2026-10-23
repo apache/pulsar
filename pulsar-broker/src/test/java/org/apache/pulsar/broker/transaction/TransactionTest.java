@@ -1766,8 +1766,10 @@ public class TransactionTest extends TransactionTestBase {
         // test error
         transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
                 .build().get();
+        // Wait for the broker to end the txn, so the client's commit fails with TransactionNotFound
+        // instead of racing the broker's commit as a concurrent duplicate, which can succeed.
         pulsarServiceList.get(0).getTransactionMetadataStoreService()
-                .endTransaction(transaction.getTxnID(), 0, false);
+                .endTransaction(transaction.getTxnID(), 0, false).get();
         transaction.commit();
         Transaction errorTxn = transaction;
         Awaitility.await().until(() -> errorTxn.getState() == Transaction.State.ERROR);
