@@ -209,8 +209,9 @@ public class PerfClientUtils {
      * Build the V5 {@link TlsPolicy} from the perf CLI arguments: {@link TlsPolicy.Format#KEYSTORE} material
      * when {@code --use-keystore-tls} is set (PIP-351), PEM otherwise.
      *
-     * <p>A keystore policy rejects PEM fields on {@link TlsPolicy.Builder#build()}, so combining
-     * {@code --use-keystore-tls} with {@code --trust-cert-file} fails loudly instead of silently dropping one.
+     * <p>As on the v4 client ({@code ClientTlsFactorySupport}) and in {@code pulsar-client}, the PEM trust file is
+     * only used when keystore TLS is off, so a {@code tlsTrustCertsFilePath} left in client.conf does not break
+     * {@code --use-keystore-tls}.
      *
      * <p>Package-private for {@code PerfClientUtilsTest} (VisibleForTesting).
      *
@@ -233,8 +234,7 @@ public class PerfClientUtils {
             if (isNotBlank(arguments.tlsKeyStorePassword)) {
                 tls.keyStorePassword(arguments.tlsKeyStorePassword);
             }
-        }
-        if (isNotBlank(arguments.tlsTrustCertsFilePath)) {
+        } else if (isNotBlank(arguments.tlsTrustCertsFilePath)) {
             tls.trustCertsFilePath(arguments.tlsTrustCertsFilePath);
         }
         if (arguments.tlsAllowInsecureConnection != null) {

@@ -19,7 +19,6 @@
 package org.apache.pulsar.testclient;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -362,15 +361,18 @@ public class PerfClientUtilsTest {
     }
 
     @Test
-    public void v5TlsPolicyRejectsKeyStoreTlsWithTrustCertFile() {
+    public void v5TlsPolicyKeyStoreTlsIgnoresTrustCertFile() {
         final PerformanceBaseArguments args = new PerformanceArgumentsTestDefault("");
         args.useKeyStoreTls = true;
         args.tlsTrustStorePath = "./tlsTrustStorePath";
         args.tlsTrustCertsFilePath = "/tls/ca.pem";
 
-        assertThatThrownBy(() -> PerfClientUtils.createV5TlsPolicy(args))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("trustCertsFilePath");
+        // Same as the v4 client: keystore TLS wins over a PEM trust file, e.g. one left in client.conf.
+        final TlsPolicy policy = PerfClientUtils.createV5TlsPolicy(args);
+
+        assertThat(policy.format()).isEqualTo(TlsPolicy.Format.KEYSTORE);
+        assertThat(policy.trustStorePath()).isEqualTo("./tlsTrustStorePath");
+        assertThat(policy.trustCertsFilePath()).isNull();
     }
 
     @Test

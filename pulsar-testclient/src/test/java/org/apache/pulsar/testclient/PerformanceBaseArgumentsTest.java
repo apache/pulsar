@@ -20,9 +20,10 @@ package org.apache.pulsar.testclient;
 
 import static org.apache.pulsar.client.api.ProxyProtocol.SNI;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertThrows;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -290,7 +291,7 @@ public class PerformanceBaseArgumentsTest {
     }
 
     @Test
-    public void testReadConfigFileWithUseKeyStoreTlsAndNoTrustStorePath() throws Exception {
+    public void testReadConfigFileWithUseKeyStoreTlsWithoutTrustStorePath() throws Exception {
         final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
             @Override
             public void run() throws Exception {
@@ -322,7 +323,11 @@ public class PerformanceBaseArgumentsTest {
             }
             args.getCommander().setDefaultValueProvider(PulsarPerfTestPropertiesProvider.create(prop));
             args.parse(new String[]{});
-            assertThrows(CommandLine.ParameterException.class, args::validate);
+            // No truststore is fine: the client falls back to the platform trust store,
+            // or trusts every certificate with --tls-allow-insecure.
+            args.validate();
+            assertTrue(args.useKeyStoreTls);
+            assertEquals(args.tlsTrustStorePath, "");
         } catch (IOException e) {
             fail("Error while updating/reading config file");
         } finally {
@@ -383,4 +388,23 @@ public class PerformanceBaseArgumentsTest {
         }
     }
 
+    @Test
+    public void testStorePasswordsAreMaskedInLoggedConfig() throws Exception {
+        final PerformanceBaseArguments args = new PerformanceBaseArguments("") {
+            @Override
+            public void run() throws Exception {
+
+            }
+        };
+        args.parse(new String[]{"--use-keystore-tls", "--truststore-pass", "trust-secret",
+                "--keystore-pass", "key-secret"});
+
+        // The perf commands log the arguments as JSON at startup.
+        final String json = new ObjectMapper().writeValueAsString(args);
+
+        assertTrue(json.contains("\"tlsTrustStorePassword\":\"*****\""), json);
+        assertTrue(json.contains("\"tlsKeyStorePassword\":\"*****\""), json);
+        assertFalse(json.contains("trust-secret"), json);
+        assertFalse(json.contains("key-secret"), json);
+    }
 }

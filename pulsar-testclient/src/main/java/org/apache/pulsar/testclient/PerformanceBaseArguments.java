@@ -21,6 +21,7 @@ package org.apache.pulsar.testclient;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import org.apache.pulsar.cli.converters.picocli.ByteUnitToLongConverter;
 import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.client.util.Secret;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import picocli.CommandLine.Option;
 
@@ -63,6 +64,7 @@ public abstract class PerformanceBaseArguments extends CmdBase {
 
     @Option(names = {"--truststore-pass"}, description = "Password to the truststore.",
             descriptionKey = "tlsTrustStorePassword")
+    @Secret
     public String tlsTrustStorePassword = "";
 
     @Option(names = {"--keystore-type"}, description = "Type of the keystore, PKCS12 or JKS. The default is JKS.",
@@ -74,6 +76,7 @@ public abstract class PerformanceBaseArguments extends CmdBase {
 
     @Option(names = {"--keystore-pass"}, description = "Password to the keystore.",
             descriptionKey = "tlsKeyStorePassword")
+    @Secret
     public String tlsKeyStorePassword = "";
 
     @Option(names = {
@@ -159,9 +162,6 @@ public abstract class PerformanceBaseArguments extends CmdBase {
     @Override
     public void validate() throws Exception {
         parseCLI();
-        if (useKeyStoreTls && isBlank(tlsTrustStorePath)) {
-            throw new ParameterException("tlsTrustStorePath is required if useKeystoreTls is used");
-        }
     }
 
     /**
