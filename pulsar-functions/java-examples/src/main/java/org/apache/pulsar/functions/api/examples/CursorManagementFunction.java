@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,8 +34,8 @@ public class CursorManagementFunction implements Function<String, String> {
     public String process(String input, Context context) throws Exception {
         PulsarAdmin adminClient = context.getPulsarAdmin();
         if (adminClient != null) {
-            String topic = context.getCurrentRecord().getTopicName().isPresent() ?
-                    context.getCurrentRecord().getTopicName().get() : null;
+            String topic = context.getCurrentRecord().getTopicName().isPresent()
+                    ? context.getCurrentRecord().getTopicName().get() : null;
             String subName = context.getTenant() + "/" + context.getNamespace() + "/" + context.getFunctionName();
             if (topic != null) {
                 // 1578188166 below is a random-pick timestamp

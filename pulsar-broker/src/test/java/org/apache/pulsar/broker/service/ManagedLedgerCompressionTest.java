@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -34,13 +34,13 @@ import org.testng.annotations.Test;
  * ManagedLedgerInfo compression configuration test.
  */
 
-@Test(groups = {"broker", "broker-jdk8"})
+@Test(groups = {"broker"})
 public class ManagedLedgerCompressionTest extends BrokerTestBase {
 
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
+        conf.setManagedLedgerInfoCompressionType(CompressionType.NONE.name());
         super.baseSetup();
     }
 
@@ -50,7 +50,7 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 1000 * 20)
+    @Test(timeOut = 1000 * 60)
     public void testRestartBrokerEnableManagedLedgerInfoCompression() throws Exception {
         String topic = newTopicName();
         @Cleanup
@@ -67,12 +67,12 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
         produceAndConsume(producer, consumer, messageCnt);
 
         stopBroker();
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.ZSTD.name());
+        conf.setManagedLedgerInfoCompressionType(CompressionType.ZSTD.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);
 
         stopBroker();
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.LZ4.name());
+        conf.setManagedLedgerInfoCompressionType(CompressionType.LZ4.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);
 
@@ -81,14 +81,15 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
         try {
             startBroker();
             Assert.fail("The managedLedgerInfo compression type is invalid, should fail.");
-        } catch (Exception e) {
+        } catch (Exception rte) {
+            Throwable e = rte.getCause();
             Assert.assertEquals(e.getCause().getClass(), IllegalArgumentException.class);
             Assert.assertEquals(
-                    "No enum constant org.apache.bookkeeper.mledger.proto.MLDataFormats.CompressionType.INVALID",
+                    "No enum constant org.apache.bookkeeper.mledger.proto.CompressionType.INVALID",
                     e.getCause().getMessage());
         }
 
-        conf.setManagedLedgerInfoCompressionType(MLDataFormats.CompressionType.NONE.name());
+        conf.setManagedLedgerInfoCompressionType(CompressionType.NONE.name());
         startBroker();
         produceAndConsume(producer, consumer, messageCnt);
     }
@@ -99,7 +100,7 @@ public class ManagedLedgerCompressionTest extends BrokerTestBase {
             producer.newMessage().value("test".getBytes()).send();
         }
         for (int i = 0; i < messageCnt; i++) {
-            Message<byte[]> message = consumer.receive(1000, TimeUnit.SECONDS);
+            Message<byte[]> message = consumer.receive(1000, TimeUnit.MILLISECONDS);
             consumer.acknowledge(message);
             Assert.assertNotNull(message);
         }

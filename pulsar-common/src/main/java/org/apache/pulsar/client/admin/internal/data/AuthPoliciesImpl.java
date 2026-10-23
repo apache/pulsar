@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -50,7 +50,7 @@ public final class AuthPoliciesImpl implements AuthPolicies {
     public static class AuthPoliciesImplBuilder implements AuthPolicies.Builder {
         private Map<String, Set<AuthAction>> namespaceAuthentication = new TreeMap<>();
         private Map<String, Map<String, Set<AuthAction>>> topicAuthentication = new TreeMap<>();;
-        private Map<String, Set<String>> subscriptionAuthentication= new TreeMap<>();;
+        private Map<String, Set<String>> subscriptionAuthentication = new TreeMap<>();;
 
         AuthPoliciesImplBuilder() {
         }

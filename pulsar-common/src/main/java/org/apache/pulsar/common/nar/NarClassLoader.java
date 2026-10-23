@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,14 +17,11 @@
  * under the License.
  */
 
-/**
+/*
  * This class was adapted from NiFi NAR Utils
  * https://github.com/apache/nifi/tree/master/nifi-nar-bundles/nifi-framework-bundle/nifi-framework/nifi-nar-utils
  */
 package org.apache.pulsar.common.nar;
-
-import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -36,15 +33,14 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.CustomLog;
 
 /**
  * <p>
@@ -126,7 +122,7 @@ import java.util.Set;
  * NAR.
  * </p>
  */
-@Slf4j
+@CustomLog
 public class NarClassLoader extends URLClassLoader {
 
     private static final FileFilter JAR_FILTER = pathname -> {
@@ -138,32 +134,23 @@ public class NarClassLoader extends URLClassLoader {
      * The NAR for which this <tt>ClassLoader</tt> is responsible.
      */
     private final File narWorkingDirectory;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     private static final String TMP_DIR_PREFIX = "pulsar-nar";
 
-    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("java.io.tmpdir");
+    public static final String DEFAULT_NAR_EXTRACTION_DIR = System.getProperty("nar.extraction.tmpdir") != null
+            ? System.getProperty("nar.extraction.tmpdir") : System.getProperty("java.io.tmpdir");
 
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars,
-                                                String narExtractionDirectory) throws IOException {
-        return  NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.class.getClassLoader(),
-                                                narExtractionDirectory);
-    }
-
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars) throws IOException {
-        return NarClassLoader.getFromArchive(narPath, additionalJars, NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR);
-    }
-
-    public static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
+    static NarClassLoader getFromArchive(File narPath, Set<String> additionalJars, ClassLoader parent,
                                                 String narExtractionDirectory)
         throws IOException {
         File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
-        return AccessController.doPrivileged(new PrivilegedAction<NarClassLoader>() {
-            @SneakyThrows
-            @Override
-            public NarClassLoader run() {
-                return new NarClassLoader(unpacked, additionalJars, parent);
-            }
-        });
+        return new NarClassLoader(unpacked, additionalJars, parent);
+    }
+
+    public static List<File> getClasspathFromArchive(File narPath, String narExtractionDirectory) throws IOException {
+        File unpacked = NarUnpacker.unpackNar(narPath, getNarExtractionDirectory(narExtractionDirectory));
+        return getClassPathEntries(unpacked);
     }
 
     private static File getNarExtractionDirectory(String configuredDirectory) {
@@ -176,35 +163,24 @@ public class NarClassLoader extends URLClassLoader {
      * @param narWorkingDirectory
      *            directory to explode nar contents to
      * @param parent
-     * @throws IllegalArgumentException
-     *             if the NAR is missing the Java Services API file for <tt>FlowFileProcessor</tt> implementations.
-     * @throws ClassNotFoundException
-     *             if any of the <tt>FlowFileProcessor</tt> implementations defined by the Java Services API cannot be
-     *             loaded.
      * @throws IOException
      *             if an error occurs while loading the NAR.
      */
     private NarClassLoader(final File narWorkingDirectory, Set<String> additionalJars, ClassLoader parent)
-            throws ClassNotFoundException, IOException {
+            throws IOException {
         super(new URL[0], parent);
         this.narWorkingDirectory = narWorkingDirectory;
 
         // process the classpath
         updateClasspath(narWorkingDirectory);
 
-        for (String jar : additionalJars) {
-            if (jar.startsWith("/")) {
-                addURL(new URL("file://" + jar));
-            } else {
-                Path currentRelativePath = Paths.get("");
-                String cwd = currentRelativePath.toAbsolutePath().toString();
-                addURL(new URL("file://" + cwd + "/" + jar));
+        if (additionalJars != null) {
+            for (String jar : additionalJars) {
+                addURL(Paths.get(jar).toUri().toURL());
             }
         }
 
-        if (log.isDebugEnabled()) {
-            log.info("Created class loader with paths: {}", Arrays.toString(getURLs()));
-        }
+        log.debug().attr("paths", () -> Arrays.toString(getURLs())).log("Created class loader with paths");
     }
 
     public File getWorkingDirectory() {
@@ -254,29 +230,38 @@ public class NarClassLoader extends URLClassLoader {
      *             if the URL list could not be updated.
      */
     private void updateClasspath(File root) throws IOException {
-        addURL(root.toURI().toURL()); // for compiled classes, META-INF/, etc.
+        getClassPathEntries(root).forEach(f -> {
+            try {
+                addURL(f.toURI().toURL());
+            } catch (IOException e) {
+                log.error().attr("entry", f).exception(e).log("Failed to add entry to classpath");
+            }
+        });
+    }
 
+    static List<File> getClassPathEntries(File root) {
+        List<File> classPathEntries = new ArrayList<>();
+        classPathEntries.add(root);
         File dependencies = new File(root, "META-INF/bundled-dependencies");
         if (!dependencies.isDirectory()) {
-            log.warn("{} does not contain META-INF/bundled-dependencies!", narWorkingDirectory);
+            log.warn().attr("root", root).log("does not contain META-INF/bundled-dependencies!");
         }
-        addURL(dependencies.toURI().toURL());
+        classPathEntries.add(dependencies);
         if (dependencies.isDirectory()) {
             final File[] jarFiles = dependencies.listFiles(JAR_FILTER);
             if (jarFiles != null) {
                 Arrays.sort(jarFiles, Comparator.comparing(File::getName));
-                for (File libJar : jarFiles) {
-                    addURL(libJar.toURI().toURL());
-                }
+                classPathEntries.addAll(Arrays.asList(jarFiles));
             }
         }
+        return classPathEntries;
     }
 
     @Override
     protected String findLibrary(final String libname) {
         File dependencies = new File(narWorkingDirectory, "META-INF/bundled-dependencies");
         if (!dependencies.isDirectory()) {
-            log.warn("{} does not contain META-INF/bundled-dependencies!", narWorkingDirectory);
+            log.warn().attr("directory", narWorkingDirectory).log("does not contain META-INF/bundled-dependencies!");
         }
 
         final File nativeDir = new File(dependencies, "native");
@@ -298,5 +283,19 @@ public class NarClassLoader extends URLClassLoader {
     @Override
     public String toString() {
         return NarClassLoader.class.getName() + "[" + narWorkingDirectory.getPath() + "]";
+    }
+
+    @Override
+    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+        if (closed.get()) {
+            log.warn().attr("class", name).attr("classloader", this).log("Loading class from a closed classloader");
+        }
+        return super.loadClass(name, resolve);
+    }
+
+    @Override
+    public void close() throws IOException {
+        closed.set(true);
+        super.close();
     }
 }

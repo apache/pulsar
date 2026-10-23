@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -29,7 +31,6 @@ import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
-import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
 /**
  * Wrapper class allowing classes of instance ModularLoadManager to be compatible with the interface LoadManager.
@@ -63,18 +64,12 @@ public class ModularLoadManagerWrapper implements LoadManager {
 
     @Override
     public Optional<ResourceUnit> getLeastLoaded(final ServiceUnitId serviceUnit) {
-        Optional<String> leastLoadedBroker = loadManager.selectBrokerForAssignment(serviceUnit);
-        return leastLoadedBroker.map(s -> new SimpleResourceUnit(getBrokerWebServiceUrl(s),
-                new PulsarResourceDescription()));
-    }
-
-    private String getBrokerWebServiceUrl(String broker) {
-        LocalBrokerData localData = (loadManager).getBrokerLocalData(broker);
-        if (localData != null) {
-            return localData.getWebServiceUrl() != null ? localData.getWebServiceUrl()
-                    : localData.getWebServiceUrlTls();
+        String affinityBroker = loadManager.setNamespaceBundleAffinity(serviceUnit.toString(), null);
+        if (!StringUtils.isBlank(affinityBroker)) {
+            return Optional.of(buildBrokerResourceUnit(affinityBroker));
         }
-        return String.format("http://%s", broker);
+        Optional<String> leastLoadedBroker = loadManager.selectBrokerForAssignment(serviceUnit);
+        return leastLoadedBroker.map(this::buildBrokerResourceUnit);
     }
 
     @Override
@@ -129,5 +124,19 @@ public class ModularLoadManagerWrapper implements LoadManager {
     @Override
     public Set<String> getAvailableBrokers() throws Exception {
         return loadManager.getAvailableBrokers();
+    }
+
+    @Override
+    public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
+        return loadManager.getAvailableBrokersAsync();
+    }
+
+    private SimpleResourceUnit buildBrokerResourceUnit (String broker) {
+        return new SimpleResourceUnit(broker, new PulsarResourceDescription());
+    }
+
+    @Override
+    public String setNamespaceBundleAffinity(String bundle, String broker) {
+        return loadManager.setNamespaceBundleAffinity(bundle, broker);
     }
 }

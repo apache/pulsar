@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,17 @@ package org.apache.pulsar.broker.service;
 
 
 import io.netty.util.concurrent.Future;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
+import java.util.function.Function;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
+import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -49,7 +56,10 @@ public interface PulsarCommandSender {
 
     void sendSendError(long producerId, long sequenceId, ServerError error, String errorMsg);
 
-    void sendGetTopicsOfNamespaceResponse(List<String> topics, long requestId);
+    CompletableFuture<Void> sendGetTopicsOfNamespaceResponse(List<String> topics, String topicsHash, boolean filtered,
+                                                             boolean changed, long requestId,
+                                                             Function<Throwable, CompletableFuture<Void>>
+                                                                     permitAcquireErrorHandler);
 
     void sendGetSchemaResponse(long requestId, SchemaInfo schema, SchemaVersion version);
 
@@ -59,7 +69,8 @@ public interface PulsarCommandSender {
 
     void sendGetOrCreateSchemaErrorResponse(long requestId, ServerError error, String errorMessage);
 
-    void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize);
+    void sendConnectedResponse(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
+                               boolean supportsScalableTopics);
 
     void sendLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
                             CommandLookupTopicResponse.LookupType response, long requestId,
@@ -69,18 +80,67 @@ public interface PulsarCommandSender {
 
     void sendActiveConsumerChange(long consumerId, boolean isActive);
 
-    void sendSuccess(long requestId);
-
-    void sendError(long requestId, ServerError error, String message);
-
     void sendReachedEndOfTopic(long consumerId);
 
+    boolean sendTopicMigrated(ResourceType type, long resourceId, String brokerUrl, String brokerUrlTls);
+
     Future<Void> sendMessagesToConsumer(long consumerId, String topicName, Subscription subscription,
-            int partitionIdx, List<Entry> entries, EntryBatchSizes batchSizes, EntryBatchIndexesAcks batchIndexesAcks,
-            RedeliveryTracker redeliveryTracker);
+                                        int partitionIdx, List<? extends Entry> entries, EntryBatchSizes batchSizes,
+                                        EntryBatchIndexesAcks batchIndexesAcks,
+                                        RedeliveryTracker redeliveryTracker, long epoch);
 
     void sendTcClientConnectResponse(long requestId, ServerError error, String message);
 
     void sendTcClientConnectResponse(long requestId);
 
+    void sendNewTxnResponse(long requestId, TxnID txnID, long tcID);
+
+    void sendNewTxnErrorResponse(long requestId, long tcID, ServerError error, String message);
+
+    void sendEndTxnResponse(long requestId, TxnID txnID, int txnAction);
+
+    void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message);
+
+    /**
+     * Sends the topic list watcher success response after acquiring direct memory permits for it.
+     *
+     * @param isCancelled supplier that returns true when the response is no longer needed, for example when the
+     *                    watcher has been closed. The response isn't sent when the connection is inactive or the
+     *                    request has been cancelled.
+     */
+    CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
+                                                      Collection<String> topics,
+                                                      Function<Throwable, CompletableFuture<Void>>
+                                                              permitAcquireErrorHandler,
+                                                      BooleanSupplier isCancelled);
+
+    /**
+     * Sends a topic list watcher update after acquiring direct memory permits for it.
+     *
+     * @param isCancelled supplier that returns true when the update is no longer needed, for example when the
+     *                    watcher has been closed. The update isn't sent when the connection is inactive or the
+     *                    request has been cancelled.
+     */
+    CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId,
+                                  List<String> newTopics, List<String> deletedTopics, String topicsHash,
+                                  Function<Throwable, CompletableFuture<Void>>
+                                                             permitAcquireErrorHandler,
+                                  BooleanSupplier isCancelled);
+
+    /**
+     * Send the response to a scalable-topic subscribe request on success. The caller is
+     * responsible for building the {@link ScalableConsumerAssignment}.
+     */
+    void sendScalableTopicSubscribeResponse(long requestId, ScalableConsumerAssignment assignment);
+
+    /**
+     * Send an error response to a scalable-topic subscribe request.
+     */
+    void sendScalableTopicSubscribeError(long requestId, ServerError error, String message);
+
+    /**
+     * Push a segment-assignment update to a previously-subscribed scalable consumer after
+     * a rebalance (peer added/removed, split, merge).
+     */
+    void sendScalableTopicAssignmentUpdate(long consumerId, ScalableConsumerAssignment assignment);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,8 @@ public class TypeCheckUtil {
     public static <T> T checkType(Object o, Class<T> clazz) {
         if (!clazz.isInstance(o)) {
             throw new RuntimeException(
-                    String.format("Invalid object type '%s' when expecting '%s'", o.getClass().getName(), clazz.getName()));
+                    String.format("Invalid object type '%s' when expecting '%s'",
+                            o.getClass().getName(), clazz.getName()));
         }
         return (T) o;
     }

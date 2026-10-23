@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,6 @@
 package org.apache.pulsar.broker.web.plugin.servlet;
 
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
-import org.apache.pulsar.broker.web.plugin.servlet.AdditionalServlet;
-import org.eclipse.jetty.servlet.ServletHolder;
 
 public class MockAdditionalServlet implements AdditionalServlet {
 
@@ -35,7 +33,7 @@ public class MockAdditionalServlet implements AdditionalServlet {
     }
 
     @Override
-    public ServletHolder getServletHolder() {
+    public Object getServletInstance() {
         return null;
     }
 

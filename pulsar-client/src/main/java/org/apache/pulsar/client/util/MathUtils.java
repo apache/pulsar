@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,7 @@ import lombok.experimental.UtilityClass;
 @UtilityClass
 public class MathUtils {
     /**
-     * Compute sign safe mod
+     * Compute sign safe mod.
      *
      * @param dividend
      * @param divisor
@@ -37,5 +37,16 @@ public class MathUtils {
         }
 
         return mod;
+    }
+
+    /**
+     * Ceil version of Math.floorDiv().
+     * @param x the dividend
+     * @param y the divisor
+     * @return the smallest value that is larger than or equal to the algebraic quotient.
+     *
+     */
+    public static int ceilDiv(int x, int y) {
+        return -Math.floorDiv(-x, y);
     }
 }

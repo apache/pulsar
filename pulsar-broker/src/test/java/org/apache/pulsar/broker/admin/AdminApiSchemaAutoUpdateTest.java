@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,33 +18,31 @@
  */
 package org.apache.pulsar.broker.admin;
 
-import com.google.common.collect.Sets;
-import java.lang.reflect.Field;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Set;
+import lombok.CustomLog;
 import org.apache.avro.reflect.AvroAlias;
 import org.apache.avro.reflect.AvroDefault;
+import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrategy;
-import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
-@Test(groups = "broker")
+@CustomLog
+@Test(groups = "broker-admin")
 public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AdminApiSchemaAutoUpdateTest.class);
-
     @BeforeMethod
     @Override
     public void setup() throws Exception {
@@ -52,12 +50,10 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
-        TenantInfoImpl tenantInfo = new TenantInfoImpl(Sets.newHashSet("role1", "role2"), Sets.newHashSet("test"));
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
         admin.tenants().createTenant("prop-xyz", tenantInfo);
-        admin.namespaces().createNamespace("prop-xyz/ns1", Sets.newHashSet("test"));
-        admin.namespaces().createNamespace("prop-xyz/test/ns1");
-        admin.namespaces().createNamespace("prop-xyz/ns2", Sets.newHashSet("test"));
-        admin.namespaces().createNamespace("prop-xyz/test/ns2");
+        admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
+        admin.namespaces().createNamespace("prop-xyz/ns2", Set.of("test"));
     }
 
     @AfterMethod(alwaysRun = true)
@@ -66,9 +62,10 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateBackward(String namespace, String topicName) throws Exception {
-        Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
-                            SchemaAutoUpdateCompatibilityStrategy.Full);
+        Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
+
         admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
                                                                     SchemaAutoUpdateCompatibilityStrategy.Backward);
 
@@ -80,7 +77,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
             Assert.fail("Forward compat schema should be rejected");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with backward compat, should succeed");
@@ -90,9 +88,10 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateForward(String namespace, String topicName) throws Exception {
-        Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
-                            SchemaAutoUpdateCompatibilityStrategy.Full);
+        Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
+
         admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
                                                                     SchemaAutoUpdateCompatibilityStrategy.Forward);
 
@@ -104,7 +103,8 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
             Assert.fail("Backward compat schema should be rejected");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with forward compat, should succeed");
@@ -113,9 +113,9 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateFull(String namespace, String topicName) throws Exception {
-        Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
-                            SchemaAutoUpdateCompatibilityStrategy.Full);
+        Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
 
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topicName).create()) {
             p.send(new V1Data("test1", 1));
@@ -125,25 +125,28 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
             Assert.fail("Backward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with forward compat only, should fail");
         try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
             Assert.fail("Forward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with fully compat");
         try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
-            p.send(new V4Data("test2", 1, (short)100));
+            p.send(new V4Data("test2", 1, (short) 100));
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void testAutoUpdateDisabled(String namespace, String topicName) throws Exception {
-        Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
-                            SchemaAutoUpdateCompatibilityStrategy.Full);
+        Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));
+
         admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
                 SchemaAutoUpdateCompatibilityStrategy.AutoUpdateDisabled);
 
@@ -154,21 +157,24 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         try (Producer<V2Data> p = pulsarClient.newProducer(Schema.AVRO(V2Data.class)).topic(topicName).create()) {
             Assert.fail("Backward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with forward compat only, should fail");
         try (Producer<V3Data> p = pulsarClient.newProducer(Schema.AVRO(V3Data.class)).topic(topicName).create()) {
             Assert.fail("Forward compat only schema should fail");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("try with fully compat, should fail");
         try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
             Assert.fail("Fully compat schema should fail, autoupdate disabled");
         } catch (PulsarClientException e) {
-            Assert.assertTrue(e.getMessage().contains("IncompatibleSchemaException"));
+            Throwable actEx = FutureUtil.unwrapCompletionException(e);
+            Assert.assertTrue(actEx instanceof PulsarClientException.IncompatibleSchemaException, actEx.getMessage());
         }
 
         log.info("Should still be able to connect with original schema");
@@ -179,22 +185,17 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setSchemaAutoUpdateCompatibilityStrategy(namespace,
                 SchemaAutoUpdateCompatibilityStrategy.Full);
 
-        for (int i = 0; i < 100; i++) {
-            Topic t = pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
-            // get around fact that field is private and topic can be persistent or non-persistent
-            Field strategy = t.getClass().getSuperclass().getDeclaredField("schemaCompatibilityStrategy");
-            strategy.setAccessible(true);
-            if (strategy.get(t) == SchemaCompatibilityStrategy.FULL) {
-                break;
-            }
-        }
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertEquals(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace),
+                        SchemaAutoUpdateCompatibilityStrategy.Full));
+
         log.info("try with fully compat, again");
         try (Producer<V4Data> p = pulsarClient.newProducer(Schema.AVRO(V4Data.class)).topic(topicName).create()) {
-            p.send(new V4Data("test2", 1, (short)100));
+            p.send(new V4Data("test2", 1, (short) 100));
         }
     }
 
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V1Data {
         String foo;
         int bar;
@@ -206,7 +207,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     // backward compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V2Data {
         String foo;
 
@@ -216,7 +217,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     // forward compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V3Data {
         String foo;
         int bar;
@@ -230,7 +231,7 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
     }
 
     // fully compatible with V1Data
-    @AvroAlias(space="blah", alias="data")
+    @AvroAlias(space = "blah", alias = "data")
     static class V4Data {
         String foo;
         int bar;
@@ -270,25 +271,87 @@ public class AdminApiSchemaAutoUpdateTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testBackwardV1() throws Exception {
-        testAutoUpdateBackward("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/backward");
-        testAutoUpdateBackward("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/backward-np");
+        testAutoUpdateBackward("prop-xyz/ns1", "persistent://prop-xyz/ns1/backward");
+        testAutoUpdateBackward("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/backward-np");
     }
 
     @Test
     public void testForwardV1() throws Exception {
-        testAutoUpdateForward("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/forward");
-        testAutoUpdateForward("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/forward-np");
+        testAutoUpdateForward("prop-xyz/ns1", "persistent://prop-xyz/ns1/forward");
+        testAutoUpdateForward("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/forward-np");
     }
 
     @Test
     public void testFullV1() throws Exception {
-        testAutoUpdateFull("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/full");
-        testAutoUpdateFull("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/full-np");
+        testAutoUpdateFull("prop-xyz/ns1", "persistent://prop-xyz/ns1/full");
+        testAutoUpdateFull("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/full-np");
     }
 
     @Test
     public void testDisabledV1() throws Exception {
-        testAutoUpdateDisabled("prop-xyz/test/ns1", "persistent://prop-xyz/test/ns1/disabled");
-        testAutoUpdateDisabled("prop-xyz/test/ns2", "non-persistent://prop-xyz/test/ns2/disabled-np");
+        testAutoUpdateDisabled("prop-xyz/ns1", "persistent://prop-xyz/ns1/disabled");
+        testAutoUpdateDisabled("prop-xyz/ns2", "non-persistent://prop-xyz/ns2/disabled-np");
+    }
+
+    @Test(timeOut = 60_000)
+    @SuppressWarnings("deprecation")
+    public void testIsAllowAutoUpdateSchemaWithReplicator() throws Exception {
+        final String namespace = BrokerTestUtil.newUniqueName("prop-xyz/ns");
+        admin.namespaces().createNamespace(namespace);
+        final String topic = BrokerTestUtil.newUniqueName(namespace + "/tp");
+        admin.topics().createNonPartitionedTopic(topic);
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).join().get();
+
+        // By default, it is true.
+        Awaitility.await().untilAsserted(() -> {
+            Assert.assertTrue(admin.namespaces().getPolicies(namespace).is_allow_auto_update_schema_with_replicator);
+            Assert.assertTrue(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        try {
+            admin.namespaces().setIsAllowAutoUpdateSchema(
+                    namespace, true, false);
+            Assert.fail("Should have thrown exception");
+        } catch (PulsarAdminException e) {
+            Assert.assertTrue(e.getMessage().contains("Can not enable for all producers but denies for replicators,"
+                    + " which is meaningless"));
+        }
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(
+                namespace, false, false);
+        Awaitility.await().untilAsserted(() -> {
+            // namespace level.
+            Policies policies = admin.namespaces().getPolicies(namespace);
+            Assert.assertFalse(policies.is_allow_auto_update_schema);
+            Assert.assertFalse(policies.is_allow_auto_update_schema_with_replicator);
+            // topic level.
+            Assert.assertFalse(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(
+                namespace, true, true);
+        Awaitility.await().untilAsserted(() -> {
+            // namespace level.
+            Policies policies = admin.namespaces().getPolicies(namespace);
+            Assert.assertTrue(policies.is_allow_auto_update_schema);
+            Assert.assertTrue(policies.is_allow_auto_update_schema_with_replicator);
+            // topic level.
+            Assert.assertTrue(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        admin.namespaces().setIsAllowAutoUpdateSchema(
+                namespace, false, true);
+        Awaitility.await().untilAsserted(() -> {
+            // namespace level.
+            Policies policies = admin.namespaces().getPolicies(namespace);
+            Assert.assertFalse(policies.is_allow_auto_update_schema);
+            Assert.assertTrue(policies.is_allow_auto_update_schema_with_replicator);
+            // topic level.
+            Assert.assertTrue(persistentTopic.getIsAllowAutoUpdateSchemaWithReplicator());
+        });
+
+        // cleanup.
+        admin.topics().delete(topic);
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,6 +34,18 @@ import java.util.concurrent.locks.StampedLock;
  * no node allocations are required to store the keys and values, and no boxing is required.
  *
  * <p>Values <b>MUST</b> be &gt;= 0.
+ * <br>
+ * <b>WARN: method forEach do not guarantee thread safety, nor does the items method.</b>
+ * <br>
+ * The forEach method is specifically designed for single-threaded usage. When iterating over a set
+ * with concurrent writes, it becomes possible for new values to be either observed or not observed.
+ * There is no guarantee that if we write value1 and value2, and are able to see value2, then we will also see value1.
+ *
+ * <br>
+ * It is crucial to understand that the results obtained from aggregate status methods such as items
+ * are typically reliable only when the map is not undergoing concurrent updates from other threads.
+ * When concurrent updates are involved, the results of these methods reflect transient states
+ * that may be suitable for monitoring or estimation purposes, but not for program control.
  */
 public class ConcurrentLongPairSet implements LongPairSet {
 
@@ -45,7 +57,73 @@ public class ConcurrentLongPairSet implements LongPairSet {
     private static final int DefaultExpectedItems = 256;
     private static final int DefaultConcurrencyLevel = 16;
 
+    private static final float DefaultMapFillFactor = 0.66f;
+    private static final float DefaultMapIdleFactor = 0.15f;
+
+    private static final float DefaultExpandFactor = 2;
+    private static final float DefaultShrinkFactor = 2;
+
+    private static final boolean DefaultAutoShrink = false;
+
     private final Section[] sections;
+
+    public static Builder newBuilder() {
+        return new Builder();
+    }
+
+    /**
+     * Builder of ConcurrentLongPairSet.
+     */
+    public static class Builder {
+        int expectedItems = DefaultExpectedItems;
+        int concurrencyLevel = DefaultConcurrencyLevel;
+        float mapFillFactor = DefaultMapFillFactor;
+        float mapIdleFactor = DefaultMapIdleFactor;
+        float expandFactor = DefaultExpandFactor;
+        float shrinkFactor = DefaultShrinkFactor;
+        boolean autoShrink = DefaultAutoShrink;
+
+        public Builder expectedItems(int expectedItems) {
+            this.expectedItems = expectedItems;
+            return this;
+        }
+
+        public Builder concurrencyLevel(int concurrencyLevel) {
+            this.concurrencyLevel = concurrencyLevel;
+            return this;
+        }
+
+        public Builder mapFillFactor(float mapFillFactor) {
+            this.mapFillFactor = mapFillFactor;
+            return this;
+        }
+
+        public Builder mapIdleFactor(float mapIdleFactor) {
+            this.mapIdleFactor = mapIdleFactor;
+            return this;
+        }
+
+        public Builder expandFactor(float expandFactor) {
+            this.expandFactor = expandFactor;
+            return this;
+        }
+
+        public Builder shrinkFactor(float shrinkFactor) {
+            this.shrinkFactor = shrinkFactor;
+            return this;
+        }
+
+        public Builder autoShrink(boolean autoShrink) {
+            this.autoShrink = autoShrink;
+            return this;
+        }
+
+        public ConcurrentLongPairSet build() {
+            return new ConcurrentLongPairSet(expectedItems, concurrencyLevel,
+                    mapFillFactor, mapIdleFactor, autoShrink, expandFactor, shrinkFactor);
+        }
+    }
+
 
     /**
      * Represents a function that accepts an object of the {@code LongPair} type.
@@ -61,18 +139,33 @@ public class ConcurrentLongPairSet implements LongPairSet {
         void accept(long v1, long v2);
     }
 
+    @Deprecated
     public ConcurrentLongPairSet() {
         this(DefaultExpectedItems);
     }
 
+    @Deprecated
     public ConcurrentLongPairSet(int expectedItems) {
         this(expectedItems, DefaultConcurrencyLevel);
     }
 
+    @Deprecated
     public ConcurrentLongPairSet(int expectedItems, int concurrencyLevel) {
+        this(expectedItems, concurrencyLevel, DefaultMapFillFactor, DefaultMapIdleFactor,
+                DefaultAutoShrink, DefaultExpandFactor, DefaultShrinkFactor);
+    }
+
+    public ConcurrentLongPairSet(int expectedItems, int concurrencyLevel,
+                                 float mapFillFactor, float mapIdleFactor,
+                                 boolean autoShrink, float expandFactor, float shrinkFactor) {
         checkArgument(expectedItems > 0);
         checkArgument(concurrencyLevel > 0);
         checkArgument(expectedItems >= concurrencyLevel);
+        checkArgument(mapFillFactor > 0 && mapFillFactor < 1);
+        checkArgument(mapIdleFactor > 0 && mapIdleFactor < 1);
+        checkArgument(mapFillFactor > mapIdleFactor);
+        checkArgument(expandFactor > 1);
+        checkArgument(shrinkFactor > 1);
 
         int numSections = concurrencyLevel;
         int perSectionExpectedItems = expectedItems / numSections;
@@ -80,10 +173,12 @@ public class ConcurrentLongPairSet implements LongPairSet {
         this.sections = new Section[numSections];
 
         for (int i = 0; i < numSections; i++) {
-            sections[i] = new Section(perSectionCapacity);
+            sections[i] = new Section(perSectionCapacity, mapFillFactor, mapIdleFactor,
+                    autoShrink, expandFactor, shrinkFactor);
         }
     }
 
+    @Override
     public long size() {
         long size = 0;
         for (int i = 0; i < sections.length; i++) {
@@ -92,6 +187,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
         return size;
     }
 
+    @Override
     public long capacity() {
         long capacity = 0;
         for (int i = 0; i < sections.length; i++) {
@@ -153,6 +249,12 @@ public class ConcurrentLongPairSet implements LongPairSet {
         }
     }
 
+    /**
+     * Iterate over all the elements in the set and apply the provided function.
+     * <p>
+     * <b>Warning: Do Not Guarantee Thread-Safety.</b>
+     * @param processor the processor to process the elements
+     */
     public void forEach(LongPairConsumer processor) {
         for (int i = 0; i < sections.length; i++) {
             sections[i].forEach(processor);
@@ -176,7 +278,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
     }
 
     /**
-     * @return a new list of all keys (makes a copy)
+     * @return a new set of all keys (makes a copy)
      */
     public Set<LongPair> items() {
         Set<LongPair> items = new HashSet<>();
@@ -210,29 +312,51 @@ public class ConcurrentLongPairSet implements LongPairSet {
     // A section is a portion of the hash map that is covered by a single
     @SuppressWarnings("serial")
     private static final class Section extends StampedLock {
+        // Each item take up 2 continuous array space.
+        private static final int ITEM_SIZE = 2;
+
         // Keys and values are stored interleaved in the table array
         private volatile long[] table;
 
         private volatile int capacity;
+        private final int initCapacity;
         private static final AtomicIntegerFieldUpdater<Section> SIZE_UPDATER = AtomicIntegerFieldUpdater
                 .newUpdater(Section.class, "size");
         private volatile int size;
         private int usedBuckets;
-        private int resizeThreshold;
+        private int resizeThresholdUp;
+        private int resizeThresholdBelow;
+        private final float mapFillFactor;
+        private final float mapIdleFactor;
+        private final float expandFactor;
+        private final float shrinkFactor;
+        private final boolean autoShrink;
 
-        Section(int capacity) {
+        Section(int capacity, float mapFillFactor, float mapIdleFactor, boolean autoShrink,
+                float expandFactor, float shrinkFactor) {
             this.capacity = alignToPowerOfTwo(capacity);
-            this.table = new long[2 * this.capacity];
+            this.initCapacity = this.capacity;
+            this.table = new long[ITEM_SIZE * this.capacity];
             this.size = 0;
             this.usedBuckets = 0;
-            this.resizeThreshold = (int) (this.capacity * SetFillFactor);
+            this.autoShrink = autoShrink;
+            this.mapFillFactor = mapFillFactor;
+            this.mapIdleFactor = mapIdleFactor;
+            this.expandFactor = expandFactor;
+            this.shrinkFactor = shrinkFactor;
+            this.resizeThresholdUp = (int) (this.capacity * mapFillFactor);
+            this.resizeThresholdBelow = (int) (this.capacity * mapIdleFactor);
             Arrays.fill(table, EmptyItem);
         }
 
         boolean contains(long item1, long item2, int hash) {
             long stamp = tryOptimisticRead();
             boolean acquiredLock = false;
-            int bucket = signSafeMod(hash, capacity);
+
+            // add local variable here, so OutOfBound won't happen
+            long[] table = this.table;
+            // calculate table.length / 2 as capacity to avoid rehash changing capacity
+            int bucket = signSafeMod(hash, table.length / ITEM_SIZE);
 
             try {
                 while (true) {
@@ -254,7 +378,9 @@ public class ConcurrentLongPairSet implements LongPairSet {
                             stamp = readLock();
                             acquiredLock = true;
 
-                            bucket = signSafeMod(hash, capacity);
+                            // update local variable
+                            table = this.table;
+                            bucket = signSafeMod(hash, table.length / ITEM_SIZE);
                             storedItem1 = table[bucket];
                             storedItem2 = table[bucket + 1];
                         }
@@ -267,7 +393,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
                         }
                     }
 
-                    bucket = (bucket + 2) & (table.length - 1);
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
             } finally {
                 if (acquiredLock) {
@@ -311,12 +437,14 @@ public class ConcurrentLongPairSet implements LongPairSet {
                         }
                     }
 
-                    bucket = (bucket + 2) & (table.length - 1);
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
             } finally {
-                if (usedBuckets > resizeThreshold) {
+                if (usedBuckets > resizeThresholdUp) {
                     try {
-                        rehash();
+                        // Expand the hashmap
+                        int newCapacity = alignToPowerOfTwo((int) (capacity * expandFactor));
+                        rehash(newCapacity);
                     } finally {
                         unlockWrite(stamp);
                     }
@@ -344,10 +472,10 @@ public class ConcurrentLongPairSet implements LongPairSet {
                         return false;
                     }
 
-                    bucket = (bucket + 2) & (table.length - 1);
+                    bucket = (bucket + ITEM_SIZE) & (table.length - 1);
                 }
             } finally {
-                unlockWrite(stamp);
+                tryShrinkThenUnlock(stamp);
             }
         }
 
@@ -356,29 +484,63 @@ public class ConcurrentLongPairSet implements LongPairSet {
             int removedItems = 0;
 
             // Go through all the buckets for this section
-            for (int bucket = 0; bucket < table.length; bucket += 2) {
-                long storedItem1 = table[bucket];
-                long storedItem2 = table[bucket + 1];
-
-                if (storedItem1 != DeletedItem && storedItem1 != EmptyItem) {
-                    if (filter.test(storedItem1, storedItem2)) {
-                        long h = hash(storedItem1, storedItem2);
-                        if (remove(storedItem1, storedItem2, (int) h)) {
+            long stamp = writeLock();
+            try {
+                for (int bucket = 0; bucket < table.length; bucket += ITEM_SIZE) {
+                    long storedItem1 = table[bucket];
+                    long storedItem2 = table[bucket + 1];
+                    if (storedItem1 != DeletedItem && storedItem1 != EmptyItem) {
+                        if (filter.test(storedItem1, storedItem2)) {
+                            SIZE_UPDATER.decrementAndGet(this);
+                            cleanBucket(bucket);
                             removedItems++;
                         }
                     }
                 }
+            } finally {
+                tryShrinkThenUnlock(stamp);
             }
-
             return removedItems;
         }
 
+        private void tryShrinkThenUnlock(long stamp) {
+            if (autoShrink && size < resizeThresholdBelow) {
+                try {
+                    // Shrinking must at least ensure initCapacity,
+                    // so as to avoid frequent shrinking and expansion near initCapacity,
+                    // frequent shrinking and expansion,
+                    // additionally opened arrays will consume more memory and affect GC
+                    int newCapacity = Math.max(alignToPowerOfTwo((int) (capacity / shrinkFactor)), initCapacity);
+                    int newResizeThresholdUp = (int) (newCapacity * mapFillFactor);
+                    if (newCapacity < capacity && newResizeThresholdUp > size) {
+                        // shrink the hashmap
+                        rehash(newCapacity);
+                    }
+                } finally {
+                    unlockWrite(stamp);
+                }
+            } else {
+                unlockWrite(stamp);
+            }
+        }
+
         private void cleanBucket(int bucket) {
-            int nextInArray = (bucket + 2) & (table.length - 1);
+            int nextInArray = (bucket + ITEM_SIZE) & (table.length - 1);
             if (table[nextInArray] == EmptyItem) {
                 table[bucket] = EmptyItem;
                 table[bucket + 1] = EmptyItem;
                 --usedBuckets;
+
+                // Cleanup all the buckets that were in `DeletedItem` state,
+                // so that we can reduce unnecessary expansions
+                int lastBucket = (bucket - ITEM_SIZE) & (table.length - 1);
+                while (table[lastBucket] == DeletedItem) {
+                    table[lastBucket] = EmptyItem;
+                    table[lastBucket + 1] = EmptyItem;
+                    --usedBuckets;
+
+                    lastBucket = (lastBucket - ITEM_SIZE) & (table.length - 1);
+                }
             } else {
                 table[bucket] = DeletedItem;
                 table[bucket + 1] = DeletedItem;
@@ -389,9 +551,13 @@ public class ConcurrentLongPairSet implements LongPairSet {
             long stamp = writeLock();
 
             try {
-                Arrays.fill(table, EmptyItem);
-                this.size = 0;
-                this.usedBuckets = 0;
+                if (autoShrink && capacity > initCapacity) {
+                    shrinkToInitCapacity();
+                } else {
+                    Arrays.fill(table, EmptyItem);
+                    this.size = 0;
+                    this.usedBuckets = 0;
+                }
             } finally {
                 unlockWrite(stamp);
             }
@@ -403,7 +569,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
             // Go through all the buckets for this section. We try to renew the stamp only after a validation
             // error, otherwise we keep going with the same.
             long stamp = 0;
-            for (int bucket = 0; bucket < table.length; bucket += 2) {
+            for (int bucket = 0; bucket < table.length; bucket += ITEM_SIZE) {
                 if (stamp == 0) {
                     stamp = tryOptimisticRead();
                 }
@@ -431,14 +597,13 @@ public class ConcurrentLongPairSet implements LongPairSet {
             }
         }
 
-        private void rehash() {
+        private void rehash(int newCapacity) {
             // Expand the hashmap
-            int newCapacity = capacity * 2;
-            long[] newTable = new long[2 * newCapacity];
+            long[] newTable = new long[ITEM_SIZE * newCapacity];
             Arrays.fill(newTable, EmptyItem);
 
             // Re-hash table
-            for (int i = 0; i < table.length; i += 2) {
+            for (int i = 0; i < table.length; i += ITEM_SIZE) {
                 long storedItem1 = table[i];
                 long storedItem2 = table[i + 1];
                 if (storedItem1 != EmptyItem && storedItem1 != DeletedItem) {
@@ -451,7 +616,23 @@ public class ConcurrentLongPairSet implements LongPairSet {
             // Capacity needs to be updated after the values, so that we won't see
             // a capacity value bigger than the actual array size
             capacity = newCapacity;
-            resizeThreshold = (int) (capacity * SetFillFactor);
+            resizeThresholdUp = (int) (capacity * mapFillFactor);
+            resizeThresholdBelow = (int) (capacity * mapIdleFactor);
+        }
+
+        private void shrinkToInitCapacity() {
+            // Expand the hashmap
+            long[] newTable = new long[ITEM_SIZE * initCapacity];
+            Arrays.fill(newTable, EmptyItem);
+
+            table = newTable;
+            size = 0;
+            usedBuckets = 0;
+            // Capacity needs to be updated after the values, so that we won't see
+            // a capacity value bigger than the actual array size
+            capacity = initCapacity;
+            resizeThresholdUp = (int) (capacity * mapFillFactor);
+            resizeThresholdBelow = (int) (capacity * mapIdleFactor);
         }
 
         private static void insertKeyValueNoLock(long[] table, int capacity, long item1, long item2) {
@@ -467,7 +648,7 @@ public class ConcurrentLongPairSet implements LongPairSet {
                     return;
                 }
 
-                bucket = (bucket + 2) & (table.length - 1);
+                bucket = (bucket + ITEM_SIZE) & (table.length - 1);
             }
         }
     }
@@ -486,6 +667,8 @@ public class ConcurrentLongPairSet implements LongPairSet {
     }
 
     static final int signSafeMod(long n, int max) {
+        // as the ITEM_SIZE of Section is 2, so the index is the multiple of 2
+        // that is to left shift 1 bit
         return (int) (n & (max - 1)) << 1;
     }
 

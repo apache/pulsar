@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,18 +24,23 @@ import static org.apache.pulsar.transaction.coordinator.proto.TxnStatus.COMMITTI
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.pulsar.broker.namespace.NamespaceBundleOwnershipListener;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.transaction.exception.coordinator.TransactionCoordinatorException;
 import org.apache.pulsar.broker.transaction.recover.TransactionRecoverTrackerImpl;
@@ -47,10 +52,9 @@ import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.ReachMaxPendingOpsException;
 import org.apache.pulsar.client.api.transaction.TransactionBufferClientException.RequestTimeoutException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.TxnAction;
-import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
@@ -64,14 +68,11 @@ import org.apache.pulsar.transaction.coordinator.TxnMeta;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.CoordinatorNotFoundException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.InvalidTxnStatusException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionMetadataStoreStateException;
+import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class TransactionMetadataStoreService {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TransactionMetadataStoreService.class);
-
     private final Map<TransactionCoordinatorID, TransactionMetadataStore> stores;
     private final TransactionMetadataStoreProvider transactionMetadataStoreProvider;
     private final PulsarService pulsarService;
@@ -81,9 +82,10 @@ public class TransactionMetadataStoreService {
     private final Timer transactionOpRetryTimer;
     // this semaphore for loading one transaction coordinator with the same tc id on the same time
     private final ConcurrentLongHashMap<Semaphore> tcLoadSemaphores;
-    // one connect request open the transactionMetaStore the other request will add to the queue, when the open op
-    // finished the request will be poll and complete the future
+    // one connect request opens the transactionMetaStore the other request will add to the queue, when the open op
+    // finishes the request will be polled and will complete the future
     private final ConcurrentLongHashMap<ConcurrentLinkedDeque<CompletableFuture<Void>>> pendingConnectRequests;
+    private final ExecutorService internalPinnedExecutor;
 
     private static final long HANDLE_PENDING_CONNECT_TIME_OUT = 30000L;
 
@@ -96,149 +98,140 @@ public class TransactionMetadataStoreService {
         this.tbClient = tbClient;
         this.timeoutTrackerFactory = new TransactionTimeoutTrackerFactoryImpl(this, timer);
         this.transactionOpRetryTimer = timer;
-        this.tcLoadSemaphores = new ConcurrentLongHashMap<>();
-        this.pendingConnectRequests = new ConcurrentLongHashMap<>();
-    }
-
-    @Deprecated
-    public void start() {
-        pulsarService.getNamespaceService().addNamespaceBundleOwnershipListener(new NamespaceBundleOwnershipListener() {
-
-            @Override
-            public void onLoad(NamespaceBundle bundle) {
-                pulsarService.getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle)
-                        .whenComplete((topics, ex) -> {
-                            if (ex == null) {
-                                for (String topic : topics) {
-                                    TopicName name = TopicName.get(topic);
-                                    if (TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
-                                            .equals(TopicName.get(name.getPartitionedTopicName()).getLocalName())
-                                            && name.isPartitioned()) {
-                                        handleTcClientConnect(TransactionCoordinatorID.get(name.getPartitionIndex()));
-                                    }
-                                }
-                            } else {
-                                LOG.error("Failed to get owned topic list when triggering on-loading bundle {}.",
-                                        bundle, ex);
-                            }
-                        });
-            }
-
-            @Override
-            public void unLoad(NamespaceBundle bundle) {
-                pulsarService.getNamespaceService().getOwnedTopicListForNamespaceBundle(bundle)
-                        .whenComplete((topics, ex) -> {
-                            if (ex == null) {
-                                for (String topic : topics) {
-                                    TopicName name = TopicName.get(topic);
-                                    if (TopicName.TRANSACTION_COORDINATOR_ASSIGN.getLocalName()
-                                            .equals(TopicName.get(name.getPartitionedTopicName()).getLocalName())
-                                            && name.isPartitioned()) {
-                                        removeTransactionMetadataStore(
-                                                TransactionCoordinatorID.get(name.getPartitionIndex()));
-                                    }
-                                }
-                            } else {
-                                LOG.error("Failed to get owned topic list error when triggering un-loading bundle {}.",
-                                        bundle, ex);
-                            }
-                        });
-            }
-            @Override
-            public boolean test(NamespaceBundle namespaceBundle) {
-                return namespaceBundle.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE);
-            }
-        });
+        this.tcLoadSemaphores = ConcurrentLongHashMap.<Semaphore>newBuilder().build();
+        this.pendingConnectRequests =
+                ConcurrentLongHashMap.<ConcurrentLinkedDeque<CompletableFuture<Void>>>newBuilder().build();
+        ThreadFactory threadFactory =
+                new ExecutorProvider.ExtendedThreadFactory("transaction-coordinator-thread-factory");
+        this.internalPinnedExecutor = Executors.newSingleThreadScheduledExecutor(threadFactory);
     }
 
     public CompletableFuture<Void> handleTcClientConnect(TransactionCoordinatorID tcId) {
-        if (stores.get(tcId) != null) {
-            return CompletableFuture.completedFuture(null);
-        } else {
-            return pulsarService.getBrokerService().checkTopicNsOwnership(TopicName
-                    .TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) tcId.getId()).toString()).thenCompose(v -> {
-                        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
-                final Semaphore tcLoadSemaphore = this.tcLoadSemaphores
-                        .computeIfAbsent(tcId.getId(), (id) -> new Semaphore(1));
-                Deque<CompletableFuture<Void>> deque = pendingConnectRequests
-                        .computeIfAbsent(tcId.getId(), (id) -> new ConcurrentLinkedDeque<>());
-                if (tcLoadSemaphore.tryAcquire()) {
-                    // when tcLoadSemaphore.release(), this command will acquire semaphore, so we should jude the store
-                    // exist again.
-                    if (stores.get(tcId) != null) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-
-                    openTransactionMetadataStore(tcId).thenAccept((store) -> {
-                        stores.put(tcId, store);
-                        LOG.info("Added new transaction meta store {}", tcId);
-                        long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
-                        while (true) {
-                            // prevent thread in a busy loop.
-                            if (System.currentTimeMillis() < endTime) {
-                                CompletableFuture<Void> future = deque.poll();
-                                if (future != null) {
-                                    // complete queue request future
-                                    future.complete(null);
-                                } else {
-                                    break;
-                                }
-                            } else {
-                                deque.clear();
-                                break;
-                            }
+        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        internalPinnedExecutor.execute(() -> {
+            if (stores.get(tcId) != null) {
+                completableFuture.complete(null);
+            } else {
+                pulsarService.getBrokerService().checkTopicNsOwnership(SystemTopicNames
+                        .TRANSACTION_COORDINATOR_ASSIGN.getPartition((int) tcId.getId()).toString())
+                        .thenRun(() -> internalPinnedExecutor.execute(() -> {
+                    final Semaphore tcLoadSemaphore = this.tcLoadSemaphores
+                            .computeIfAbsent(tcId.getId(), (id) -> new Semaphore(1));
+                    Deque<CompletableFuture<Void>> deque = pendingConnectRequests
+                            .computeIfAbsent(tcId.getId(), (id) -> new ConcurrentLinkedDeque<>());
+                    if (tcLoadSemaphore.tryAcquire()) {
+                        // when tcLoadSemaphore.release(), this command will acquire semaphore,
+                        // so we should jude the store exist again.
+                        if (stores.get(tcId) != null) {
+                            completableFuture.complete(null);
+                            tcLoadSemaphore.release();
+                            return;
                         }
 
-                        completableFuture.complete(null);
-                        tcLoadSemaphore.release();
-                    }).exceptionally(e -> {
-                        completableFuture.completeExceptionally(e.getCause());
-                        // release before handle request queue, in order to client reconnect infinite loop
-                        tcLoadSemaphore.release();
-                        long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
-                        while (true) {
-                            // prevent thread in a busy loop.
-                            if (System.currentTimeMillis() < endTime) {
-                                CompletableFuture<Void> future = deque.poll();
-                                if (future != null) {
-                                    // this means that this tc client connection connect fail
-                                    future.completeExceptionally(e);
-                                } else {
-                                    break;
+                        TransactionTimeoutTracker timeoutTracker = timeoutTrackerFactory.newTracker(tcId);
+                        TransactionRecoverTracker recoverTracker =
+                                new TransactionRecoverTrackerImpl(TransactionMetadataStoreService.this,
+                                        timeoutTracker, tcId.getId());
+                        openTransactionMetadataStore(tcId, timeoutTracker, recoverTracker).thenAccept(
+                                store -> internalPinnedExecutor.execute(() -> {
+                                    // TransactionMetadataStore initialization
+                                    // need to use TransactionMetadataStore itself.
+                                    // we need to put store into stores map before
+                                    // handle committing and aborting transaction.
+                                    stores.put(tcId, store);
+                                    log.info().attr("tcId", tcId).log("Added new transaction meta store");
+                                    recoverTracker.handleCommittingAndAbortingTransaction();
+                                    timeoutTracker.start();
+
+                                    long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
+                                    while (true) {
+                                        // prevent thread in a busy loop.
+                                        if (System.currentTimeMillis() < endTime) {
+                                            CompletableFuture<Void> future = deque.poll();
+                                            if (future != null) {
+                                                // complete queue request future
+                                                future.complete(null);
+                                            } else {
+                                                break;
+                                            }
+                                        } else {
+                                            deque.clear();
+                                            break;
+                                        }
+                                    }
+
+                                    completableFuture.complete(null);
+                                    tcLoadSemaphore.release();
+                                })).exceptionally(e -> {
+                            internalPinnedExecutor.execute(() -> {
+                                Throwable realCause = FutureUtil.unwrapCompletionException(e);
+                                completableFuture.completeExceptionally(realCause);
+                                // release before handle request queue,
+                                //in order to client reconnect infinite loop
+                                tcLoadSemaphore.release();
+                                long endTime = System.currentTimeMillis() + HANDLE_PENDING_CONNECT_TIME_OUT;
+                                while (true) {
+                                    // prevent thread in a busy loop.
+                                    if (System.currentTimeMillis() < endTime) {
+                                        CompletableFuture<Void> future = deque.poll();
+                                        if (future != null) {
+                                            // this means that this tc client connection connect fail
+                                            future.completeExceptionally(realCause);
+                                        } else {
+                                            break;
+                                        }
+                                    } else {
+                                        deque.clear();
+                                        break;
+                                    }
                                 }
-                            } else {
-                                deque.clear();
-                                break;
-                            }
-                        }
-                        LOG.error("Add transaction metadata store with id {} error", tcId.getId(), e);
-                        return null;
-                    });
-                } else {
-                    // only one command can open transaction metadata store,
-                    // other will be added to the deque, when the op of openTransactionMetadataStore finished
-                    // then handle the requests witch in the queue
-                    deque.add(completableFuture);
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Handle tc client connect added into pending queue! tcId : {}", tcId.toString());
-                    }
-                }
-                return completableFuture;
-            });
-        }
+                                log.error()
+                                        .attr("tcId", tcId.getId())
+                                        .exception(e)
+                                        .log("Add transaction metadata store error");
+                            });
+                            return null;
+                        });
+                    } else {
+                        // only one command can open transaction metadata store,
+                        // other will be added to the deque, when the op of openTransactionMetadataStore finished
+                        // then handle the requests witch in the queue
+                        deque.add(completableFuture);
+                            log.debug()
+                                    .attr("tcId", tcId)
+                                    .log("Handle tc client connect added into pending queue");
+                                            }
+                })).exceptionally(ex -> {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    completableFuture.completeExceptionally(realCause);
+                    return null;
+                });
+            }
+        });
+        return completableFuture;
     }
 
-    public CompletableFuture<TransactionMetadataStore> openTransactionMetadataStore(TransactionCoordinatorID tcId) {
-        return pulsarService.getBrokerService()
-                .getManagedLedgerConfig(getMLTransactionLogName(tcId)).thenCompose(v -> {
-                            TransactionTimeoutTracker timeoutTracker = timeoutTrackerFactory.newTracker(tcId);
-                            TransactionRecoverTracker recoverTracker =
-                                    new TransactionRecoverTrackerImpl(TransactionMetadataStoreService.this,
-                                    timeoutTracker, tcId.getId());
-                            return transactionMetadataStoreProvider
-                                    .openStore(tcId, pulsarService.getManagedLedgerFactory(), v,
-                                            timeoutTracker, recoverTracker);
-                });
+    public CompletableFuture<TransactionMetadataStore>
+    openTransactionMetadataStore(TransactionCoordinatorID tcId,
+                                 TransactionTimeoutTracker timeoutTracker,
+                                 TransactionRecoverTracker recoverTracker) {
+        final Timer brokerClientSharedTimer = pulsarService.getBrokerClientSharedTimer();
+        final ServiceConfiguration serviceConfiguration = pulsarService.getConfiguration();
+        final TxnLogBufferedWriterConfig txnLogBufferedWriterConfig = new TxnLogBufferedWriterConfig();
+        txnLogBufferedWriterConfig.setBatchEnabled(serviceConfiguration.isTransactionLogBatchedWriteEnabled());
+        txnLogBufferedWriterConfig
+                .setBatchedWriteMaxRecords(serviceConfiguration.getTransactionLogBatchedWriteMaxRecords());
+        txnLogBufferedWriterConfig.setBatchedWriteMaxSize(serviceConfiguration.getTransactionLogBatchedWriteMaxSize());
+        txnLogBufferedWriterConfig
+                .setBatchedWriteMaxDelayInMillis(serviceConfiguration.getTransactionLogBatchedWriteMaxDelayInMillis());
+
+        return pulsarService.getBrokerService().getManagedLedgerConfig(getMLTransactionLogName(tcId)).thenCompose(
+                v -> transactionMetadataStoreProvider.openStore(tcId,
+                        pulsarService.getManagedLedgerStorage().getManagedLedgerStorageClass(v.getStorageClassName())
+                                .get().getManagedLedgerFactory(), v,
+                        timeoutTracker, recoverTracker,
+                        pulsarService.getConfig().getMaxActiveTransactionsPerCoordinator(), txnLogBufferedWriterConfig,
+                        brokerClientSharedTimer));
     }
 
     public CompletableFuture<Void> removeTransactionMetadataStore(TransactionCoordinatorID tcId) {
@@ -249,9 +242,9 @@ public class TransactionMetadataStoreService {
             if (metadataStore != null) {
                 metadataStore.closeAsync().whenComplete((v, ex) -> {
                     if (ex != null) {
-                        LOG.error("Close transaction metadata store with id " + tcId, ex);
+                        log.error().attr("tcId", tcId).exception(ex).log("Close transaction metadata store");
                     } else {
-                        LOG.info("Removed and closed transaction meta store {}", tcId);
+                        log.info().attr("tcId", tcId).log("Removed and closed transaction meta store");
                     }
                 });
             }
@@ -264,12 +257,13 @@ public class TransactionMetadataStoreService {
         }
     }
 
-    public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId, long timeoutInMills) {
+    public CompletableFuture<TxnID> newTransaction(TransactionCoordinatorID tcId, long timeoutInMills,
+                                                   String owner) {
         TransactionMetadataStore store = stores.get(tcId);
         if (store == null) {
             return FutureUtil.failedFuture(new CoordinatorNotFoundException(tcId));
         }
-        return store.newTransaction(timeoutInMills);
+        return store.newTransaction(timeoutInMills, owner);
     }
 
     public CompletableFuture<Void> addProducedPartitionToTxn(TxnID txnId, List<String> partitions) {
@@ -320,7 +314,13 @@ public class TransactionMetadataStoreService {
     }
 
     public CompletableFuture<Void> endTransaction(TxnID txnID, int txnAction, boolean isTimeout) {
-        CompletableFuture<Void> completableFuture = new CompletableFuture<>();
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        endTransaction(txnID, txnAction, isTimeout, future);
+        return future;
+    }
+
+    public void endTransaction(TxnID txnID, int txnAction, boolean isTimeout,
+                                                  CompletableFuture<Void> future) {
         TxnStatus newStatus;
         switch (txnAction) {
             case TxnAction.COMMIT_VALUE:
@@ -332,93 +332,64 @@ public class TransactionMetadataStoreService {
             default:
                 TransactionCoordinatorException.UnsupportedTxnActionException exception =
                         new TransactionCoordinatorException.UnsupportedTxnActionException(txnID, txnAction);
-                LOG.error(exception.getMessage());
-                completableFuture.completeExceptionally(exception);
-                return completableFuture;
+                log.error(exception.getMessage());
+                future.completeExceptionally(exception);
+                return;
         }
-
-        getTxnMeta(txnID).thenAccept(txnMeta -> {
-            TxnStatus txnStatus = txnMeta.status();
-            if (txnStatus == TxnStatus.OPEN) {
-                updateTxnStatus(txnID, newStatus, TxnStatus.OPEN, isTimeout).thenAccept(v ->
-                        endTxnInTransactionBuffer(txnID, txnAction).thenAccept(a ->
-                                completableFuture.complete(null)).exceptionally(e -> {
-                            if (!isRetryableException(e.getCause())) {
-                                LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
-                                        + "TxnAction : {}", txnID, txnAction, e);
-                            } else {
-                                if (LOG.isDebugEnabled()) {
-                                    LOG.debug("EndTxnInTransactionBuffer retry! TxnId : {}, "
-                                            + "TxnAction : {}", txnID, txnAction, e);
-                                }
-                                transactionOpRetryTimer.newTimeout(timeout ->
-                                        endTransaction(txnID, txnAction, isTimeout),
-                                        endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
-
-                            }
-                            completableFuture.completeExceptionally(e);
-                            return null;
-                        })).exceptionally(e -> {
-                    if (!isRetryableException(e.getCause())) {
-                        LOG.error("EndTransaction UpdateTxnStatus fail! TxnId : {}, "
-                                + "TxnAction : {}", txnID, txnAction, e);
-                    } else {
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("EndTransaction UpdateTxnStatus op retry! TxnId : {}, "
-                                    + "TxnAction : {}", txnID, txnAction, e);
-                        }
-                        transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction, isTimeout),
-                                endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
-
+        getTxnMeta(txnID)
+                .thenCompose(txnMeta -> {
+                    if (txnMeta.status() == TxnStatus.OPEN) {
+                        return updateTxnStatus(txnID, newStatus, TxnStatus.OPEN, isTimeout)
+                                .thenCompose(__ -> endTxnInTransactionBuffer(txnID, txnAction));
                     }
-                    completableFuture.completeExceptionally(e);
-                    return null;
+                    return fakeAsyncCheckTxnStatus(txnMeta.status(), txnAction, txnID, newStatus)
+                            .thenCompose(__ -> endTxnInTransactionBuffer(txnID, txnAction));
+                }).whenComplete((__, ex)-> {
+                    if (ex == null) {
+                        future.complete(null);
+                        return;
+                    }
+                    if (!isRetryableException(ex)) {
+                        log.error()
+                                .attr("txnId", txnID)
+                                .attr("txnAction", txnAction)
+                                .exception(ex)
+                                .log("End transaction fail! TxnId: , TxnAction");
+                        future.completeExceptionally(ex);
+                        return;
+                    }
+                        log.debug()
+                                .attr("txnId", txnID)
+                                .attr("txnAction", txnAction)
+                                .exception(ex)
+                                .log("EndTxnInTransactionBuffer retry! TxnId: , TxnAction");
+                                        transactionOpRetryTimer.newTimeout(timeout ->
+                                    endTransaction(txnID, txnAction, isTimeout, future),
+                            endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
                 });
-            } else {
-                if ((txnStatus == COMMITTING && txnAction == TxnAction.COMMIT.getValue())
-                        || (txnStatus == ABORTING && txnAction == TxnAction.ABORT.getValue())) {
-                    endTxnInTransactionBuffer(txnID, txnAction).thenAccept(k ->
-                            completableFuture.complete(null)).exceptionally(e -> {
-                        if (isRetryableException(e.getCause())) {
-                            if (LOG.isDebugEnabled()) {
-                                LOG.debug("EndTxnInTransactionBuffer retry! TxnId : {}, "
-                                        + "TxnAction : {}", txnID, txnAction, e);
-                            }
-                            transactionOpRetryTimer.newTimeout(timeout ->
-                                            endTransaction(txnID, txnAction, isTimeout),
-                                    endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
-                        } else {
-                            LOG.error("EndTxnInTransactionBuffer fail! TxnId : {}, "
-                                    + "TxnAction : {}", txnID, txnAction, e);
-                        }
-                        completableFuture.completeExceptionally(e);
-                        return null;
-                    });
-                } else {
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("EndTxnInTransactionBuffer op retry! TxnId : {}, TxnAction : {}", txnID, txnAction);
-                    }
-                    completableFuture.completeExceptionally(new InvalidTxnStatusException(txnID, newStatus, txnStatus));
-                }
-            }
-        }).exceptionally(e -> {
-            if (isRetryableException(e.getCause())) {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("End transaction op retry! TxnId : {}, TxnAction : {}", txnID, txnAction, e);
-                }
-                transactionOpRetryTimer.newTimeout(timeout -> endTransaction(txnID, txnAction, isTimeout),
-                        endTransactionRetryIntervalTime, TimeUnit.MILLISECONDS);
-            }
-            completableFuture.completeExceptionally(e);
-            return null;
-        });
-        return completableFuture;
+    }
+
+    private CompletionStage<Void> fakeAsyncCheckTxnStatus(TxnStatus txnStatus, int txnAction,
+                                                          TxnID txnID, TxnStatus expectStatus) {
+        boolean isLegal = switch (txnStatus) {
+            case COMMITTING -> (txnAction == TxnAction.COMMIT.getValue());
+            case ABORTING -> (txnAction == TxnAction.ABORT.getValue());
+            default -> false;
+        };
+        if (!isLegal) {
+                log.debug()
+                        .attr("txnId", txnID)
+                        .attr("txnAction", txnAction)
+                        .log("EndTxnInTransactionBuffer op retry! TxnId : , TxnAction");
+                        return FutureUtil.failedFuture(
+                    new InvalidTxnStatusException(txnID, expectStatus, txnStatus));
+        }
+       return CompletableFuture.completedFuture(null);
     }
 
     // when managedLedger fence will remove this tc and reload
     public void handleOpFail(Throwable e, TransactionCoordinatorID tcId) {
-        if (e.getCause() instanceof ManagedLedgerException.ManagedLedgerFencedException
-                || e instanceof ManagedLedgerException.ManagedLedgerFencedException) {
+        if (e instanceof ManagedLedgerException.ManagedLedgerFencedException) {
             removeTransactionMetadataStore(tcId);
         }
     }
@@ -431,83 +402,67 @@ public class TransactionMetadataStoreService {
                 return null;
             }
         }).exceptionally(e -> {
-            if (isRetryableException(e.getCause())) {
+            if (isRetryableException(e)) {
                 endTransaction(txnID, TxnAction.ABORT_VALUE, true);
             } else {
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("Transaction have been handle complete, "
-                            + "don't need to handle by transaction timeout! TxnId : {}", txnID);
-                }
-            }
+                    log.debug()
+                            .attr("txnId", txnID)
+                            .log("Transaction have been handle complete, don't need to handle by transaction"
+                                    + " timeout! TxnId");
+                            }
             return null;
         });
     }
 
     private CompletableFuture<Void> endTxnInTransactionBuffer(TxnID txnID, int txnAction) {
-        CompletableFuture<Void> resultFuture = new CompletableFuture<>();
-        List<CompletableFuture<TxnID>> completableFutureList = new ArrayList<>();
-        this.getTxnMeta(txnID).whenComplete((txnMeta, throwable) -> {
-            if (throwable != null) {
-                resultFuture.completeExceptionally(throwable);
-                return;
-            }
-            long lowWaterMark = getLowWaterMark(txnID);
-
-            txnMeta.ackedPartitions().forEach(tbSub -> {
-                CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
-                if (TxnAction.COMMIT_VALUE == txnAction) {
-                    actionFuture = tbClient.commitTxnOnSubscription(
-                            tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(),
-                            txnID.getLeastSigBits(), lowWaterMark);
-                } else if (TxnAction.ABORT_VALUE == txnAction) {
-                    actionFuture = tbClient.abortTxnOnSubscription(
-                            tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(),
-                            txnID.getLeastSigBits(), lowWaterMark);
-                } else {
-                    actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
-                }
-                completableFutureList.add(actionFuture);
-            });
-
-            txnMeta.producedPartitions().forEach(partition -> {
-                CompletableFuture<TxnID> actionFuture = new CompletableFuture<>();
-                if (TxnAction.COMMIT_VALUE == txnAction) {
-                    actionFuture = tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(),
-                            txnID.getLeastSigBits(), lowWaterMark);
-                } else if (TxnAction.ABORT_VALUE == txnAction) {
-                    actionFuture = tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(),
-                            txnID.getLeastSigBits(), lowWaterMark);
-                } else {
-                    actionFuture.completeExceptionally(new Throwable("Unsupported txnAction " + txnAction));
-                }
-                completableFutureList.add(actionFuture);
-            });
-
-            try {
-                FutureUtil.waitForAll(completableFutureList).whenComplete((ignored, waitThrowable) -> {
-                    if (waitThrowable != null) {
-                        resultFuture.completeExceptionally(waitThrowable);
-                        return;
-                    }
-                    resultFuture.complete(null);
+        return getTxnMeta(txnID)
+                .thenCompose(txnMeta -> {
+                    long lowWaterMark = getLowWaterMark(txnID);
+                    Stream<CompletableFuture<?>> onSubFutureStream = txnMeta.ackedPartitions().stream().map(tbSub -> {
+                        switch (txnAction) {
+                            case TxnAction.COMMIT_VALUE:
+                                return tbClient.commitTxnOnSubscription(
+                                        tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(),
+                                        txnID.getLeastSigBits(), lowWaterMark);
+                            case TxnAction.ABORT_VALUE:
+                                return tbClient.abortTxnOnSubscription(
+                                        tbSub.getTopic(), tbSub.getSubscription(), txnID.getMostSigBits(),
+                                        txnID.getLeastSigBits(), lowWaterMark);
+                            default:
+                                return FutureUtil.failedFuture(
+                                        new IllegalStateException("Unsupported txnAction " + txnAction));
+                        }
+                    });
+                    Stream<CompletableFuture<?>> onTopicFutureStream =
+                            txnMeta.producedPartitions().stream().map(partition -> {
+                                switch (txnAction) {
+                                    case TxnAction.COMMIT_VALUE:
+                                        return tbClient.commitTxnOnTopic(partition, txnID.getMostSigBits(),
+                                                txnID.getLeastSigBits(), lowWaterMark);
+                                    case TxnAction.ABORT_VALUE:
+                                        return tbClient.abortTxnOnTopic(partition, txnID.getMostSigBits(),
+                                            txnID.getLeastSigBits(), lowWaterMark);
+                                    default:
+                                        return FutureUtil.failedFuture(
+                                                new IllegalStateException("Unsupported txnAction " + txnAction));
+                        }
+                    });
+                    return FutureUtil.waitForAll(Stream.concat(onSubFutureStream, onTopicFutureStream)
+                                    .collect(Collectors.toList()))
+                            .thenCompose(__ -> endTxnInTransactionMetadataStore(txnID, txnAction));
                 });
-            } catch (Exception e) {
-                resultFuture.completeExceptionally(e);
-            }
-        });
-
-        return resultFuture.thenCompose((future) -> endTxnInTransactionMetadataStore(txnID, txnAction));
     }
 
-    private static boolean isRetryableException(Throwable e) {
-        return (e instanceof TransactionMetadataStoreStateException
-                || e instanceof RequestTimeoutException
-                || e instanceof ManagedLedgerException
-                || e instanceof BrokerPersistenceException
-                || e instanceof LookupException
-                || e instanceof ReachMaxPendingOpsException
-                || e instanceof ConnectException)
-                && !(e instanceof ManagedLedgerException.ManagedLedgerFencedException);
+    private static boolean isRetryableException(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        return (realCause instanceof TransactionMetadataStoreStateException
+                || realCause instanceof RequestTimeoutException
+                || realCause instanceof ManagedLedgerException
+                || realCause instanceof BrokerPersistenceException
+                || realCause instanceof LookupException
+                || realCause instanceof ReachMaxPendingOpsException
+                || realCause instanceof ConnectException)
+                && !(realCause instanceof ManagedLedgerException.ManagedLedgerFencedException);
     }
 
     private CompletableFuture<Void> endTxnInTransactionMetadataStore(TxnID txnID, int txnAction) {
@@ -527,5 +482,32 @@ public class TransactionMetadataStoreService {
     @VisibleForTesting
     public Map<TransactionCoordinatorID, TransactionMetadataStore> getStores() {
         return Collections.unmodifiableMap(stores);
+    }
+
+    public CompletableFuture<Boolean> verifyTxnOwnership(TxnID txnID, String checkOwner) {
+        return getTxnMeta(txnID)
+                .thenCompose(meta -> {
+                    // owner was null in the old versions or no auth enabled
+                    if (meta.getOwner() == null) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    if (meta.getOwner().equals(checkOwner)) {
+                        return CompletableFuture.completedFuture(true);
+                    }
+                    return CompletableFuture.completedFuture(false);
+                });
+    }
+
+    public void close () {
+        this.internalPinnedExecutor.shutdown();
+        stores.forEach((tcId, metadataStore) ->
+            metadataStore.closeAsync().whenComplete((v, ex) -> {
+                if (ex != null) {
+                    log.error().attr("tcId", tcId).exception(ex).log("Close transaction metadata store");
+                } else {
+                    log.info().attr("tcId", tcId).log("Removed and closed transaction meta store");
+                }
+        }));
+        stores.clear();
     }
 }

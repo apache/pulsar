@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,20 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBufAllocator;
+import java.lang.reflect.Field;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -25,16 +39,11 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 
 @Test(groups = "broker-impl")
 public class ProducerSemaphoreTest extends ProducerConsumerBase {
@@ -52,8 +61,41 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
+    @Test(timeOut = 10_000)
+    public void testProducerSemaphoreInvalidMessage() throws Exception {
+        final int pendingQueueSize = 100;
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic("testProducerSemaphoreAcquire")
+                .maxPendingMessages(pendingQueueSize)
+                .enableBatching(true)
+                .create();
+        this.stopBroker();
+        try {
+            ConnectionHandler connectionHandler = Mockito.spy(producer.getConnectionHandler());
+            Field field = producer.getClass().getDeclaredField("connectionHandler");
+            field.setAccessible(true);
+            field.set(producer, connectionHandler);
+            when(connectionHandler.getMaxMessageSize()).thenReturn(2);
+            producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            throw new IllegalStateException("can not reach here");
+        } catch (PulsarClientException.InvalidMessageException ex) {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        }
+
+        producer.conf.setBatchingEnabled(false);
+        try {
+            producer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            throw new IllegalStateException("can not reach here");
+        } catch (PulsarClientException.InvalidMessageException ex) {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        }
+    }
+
     @Test(timeOut = 30000)
-    public void testProducerSemaphoreAcquireAndRelease() throws PulsarClientException, ExecutionException, InterruptedException {
+    public void testProducerSemaphoreAcquireAndRelease()
+            throws PulsarClientException, ExecutionException, InterruptedException {
 
         final int pendingQueueSize = 100;
 
@@ -72,11 +114,13 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
                 futures.add(producer.newMessage().value(("Semaphore-test-" + i).getBytes()).sendAsync());
             }
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize - messages);
+            Assert.assertFalse(producer.isErrorStat());
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
         }
         FutureUtil.waitForAll(futures).get();
         Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
         futures.clear();
 
         // Simulate replicator, non batching message but `numMessagesInBatch` of message metadata > 1
@@ -85,19 +129,24 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
             for (int i = 0; i < messages / 2; i++) {
                 MessageMetadata metadata = new MessageMetadata()
                         .setNumMessagesInBatch(10);
-                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
+                MessageImpl<byte[]> msg = MessageImpl.create(metadata,
+                        ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
                 futures.add(producer.sendAsync(msg));
             }
-            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize - messages/2);
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(),
+                    pendingQueueSize - messages / 2);
+            Assert.assertFalse(producer.isErrorStat());
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
         }
         FutureUtil.waitForAll(futures).get();
         Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
         futures.clear();
 
         // Here must ensure that the semaphore available permits is 0
         Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
 
         // Acquire 5 and not wait the send ack call back
         producer.getClientCnx().channel().config().setAutoRead(false);
@@ -108,12 +157,14 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
 
             // Here must ensure that the Semaphore a acquired 5
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize - messages / 2);
+            Assert.assertFalse(producer.isErrorStat());
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
 
         }
         FutureUtil.waitForAll(futures).get();
         Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
     }
 
     /**
@@ -138,27 +189,32 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         // Test that when we fill the queue with "replicator" messages, we are notified
         // (replicator itself would block)
         Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < pendingQueueSize; i++) {
                 MessageMetadata metadata = new MessageMetadata()
                         .setNumMessagesInBatch(10);
 
-                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
+                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]),
+                        Schema.BYTES, null);
                 futures.add(producer.sendAsync(msg));
             }
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
+            Assert.assertFalse(producer.isErrorStat());
             try {
                 MessageMetadata metadata = new MessageMetadata()
                         .setNumMessagesInBatch(10);
 
-                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
+                MessageImpl<byte[]> msg = MessageImpl.create(metadata, ByteBuffer.wrap(new byte[0]),
+                        Schema.BYTES, null);
                 producer.sendAsync(msg).get();
                 Assert.fail("Shouldn't be able to send message");
             } catch (ExecutionException ee) {
                 Assert.assertEquals(ee.getCause().getClass(),
                                     PulsarClientException.ProducerQueueIsFullError.class);
                 Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
+                Assert.assertFalse(producer.isErrorStat());
             }
         } finally {
             producer.getClientCnx().channel().config().setAutoRead(true);
@@ -168,12 +224,14 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
 
         // Test that when we fill the queue with normal messages, we get an error
         Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
         producer.getClientCnx().channel().config().setAutoRead(false);
         try {
             for (int i = 0; i < pendingQueueSize; i++) {
                 futures.add(producer.newMessage().value(("Semaphore-test-" + i).getBytes()).sendAsync());
             }
             Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
+            Assert.assertFalse(producer.isErrorStat());
 
             try {
                 producer.newMessage().value(("Semaphore-test-Q-full").getBytes()).sendAsync().get();
@@ -181,6 +239,7 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
                 Assert.assertEquals(ee.getCause().getClass(),
                                     PulsarClientException.ProducerQueueIsFullError.class);
                 Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 0);
+                Assert.assertFalse(producer.isErrorStat());
 
             }
         } finally {
@@ -188,5 +247,80 @@ public class ProducerSemaphoreTest extends ProducerConsumerBase {
         }
         FutureUtil.waitForAll(futures).get();
         Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        Assert.assertFalse(producer.isErrorStat());
+    }
+
+    @Test(timeOut = 10_000)
+    public void testBatchMessageSendTimeoutProducerSemaphoreRelease() throws Exception {
+        final int pendingQueueSize = 10;
+        @Cleanup
+        ProducerImpl<byte[]> producer =
+                (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                        .topic("testProducerSemaphoreRelease")
+                        .sendTimeout(5, TimeUnit.SECONDS)
+                        .maxPendingMessages(pendingQueueSize)
+                        .enableBatching(true)
+                        .batchingMaxPublishDelay(500, TimeUnit.MILLISECONDS)
+                        .batchingMaxBytes(12)
+                        .create();
+        this.stopBroker();
+        try {
+            ProducerImpl<byte[]> spyProducer = Mockito.spy(producer);
+            Mockito.doThrow(new PulsarClientException.CryptoException("crypto error")).when(spyProducer)
+                    .encryptMessage(any(), any());
+
+            Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");
+            batchMessageContainerField.setAccessible(true);
+            BatchMessageContainerImpl batchMessageContainer =
+                    (BatchMessageContainerImpl) batchMessageContainerField.get(spyProducer);
+            batchMessageContainer.setProducer(spyProducer);
+            spyProducer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+
+            throw new IllegalStateException("can not reach here");
+        } catch (PulsarClientException.TimeoutException ex) {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), 10);
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testBatchMessageOOMProducerSemaphoreRelease() throws Exception {
+        final int pendingQueueSize = 10;
+        @Cleanup
+        ProducerImpl<byte[]> producer =
+                (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                        .topic("testProducerSemaphoreRelease")
+                        .sendTimeout(5, TimeUnit.SECONDS)
+                        .maxPendingMessages(pendingQueueSize)
+                        .enableBatching(true)
+                        .batchingMaxPublishDelay(500, TimeUnit.MILLISECONDS)
+                        .batchingMaxBytes(12)
+                        .create();
+        this.stopBroker();
+
+        try {
+            ProducerImpl<byte[]> spyProducer = Mockito.spy(producer);
+            final ByteBufAllocator mockAllocator = mock(ByteBufAllocator.class);
+            doAnswer((ignore) -> {
+                throw new OutOfMemoryError("semaphore-test");
+            }).when(mockAllocator).buffer(anyInt());
+
+            final BatchMessageContainerImpl batchMessageContainer = new BatchMessageContainerImpl(mockAllocator);
+            Field batchMessageContainerField = ProducerImpl.class.getDeclaredField("batchMessageContainer");
+            batchMessageContainerField.setAccessible(true);
+            batchMessageContainerField.set(spyProducer, batchMessageContainer);
+            /* Without `batchMessageContainer.setProducer(producer);` it throws NPE since producer is null, and
+                eventually sendAsync() catches this NPE and releases the memory and semaphore.
+                } catch (Throwable t) {
+                    completeCallbackAndReleaseSemaphore(uncompressedSize, callback,
+                            new PulsarClientException(t, msg.getSequenceId()));
+                }
+            */
+            batchMessageContainer.setProducer(producer);
+
+            spyProducer.send("semaphore-test".getBytes(StandardCharsets.UTF_8));
+            Assert.fail("can not reach here");
+        } catch (PulsarClientException ex) {
+            Assert.assertEquals(producer.getSemaphore().get().availablePermits(), pendingQueueSize);
+        }
     }
 }

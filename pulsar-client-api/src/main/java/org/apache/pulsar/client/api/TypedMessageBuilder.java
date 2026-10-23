@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -189,8 +189,8 @@ public interface TypedMessageBuilder<T> extends Serializable {
      * <p>The timestamp is milliseconds and based on UTC (eg: {@link System#currentTimeMillis()}.
      *
      * <p><b>Note</b>: messages are only delivered with delay when a consumer is consuming
-     * through a {@link SubscriptionType#Shared} subscription. With other subscription
-     * types, the messages will still be delivered immediately.
+     * through a {@link SubscriptionType#Shared} or {@link SubscriptionType#Key_Shared} subscription.
+     * With other subscription types, the messages will still be delivered immediately.
      *
      * @param timestamp
      *            absolute timestamp indicating when the message should be delivered to consumers
@@ -202,8 +202,8 @@ public interface TypedMessageBuilder<T> extends Serializable {
      * Request to deliver the message only after the specified relative delay.
      *
      * <p><b>Note</b>: messages are only delivered with delay when a consumer is consuming
-     * through a {@link SubscriptionType#Shared} subscription. With other subscription
-     * types, the messages will still be delivered immediately.
+     * through a {@link SubscriptionType#Shared} or {@link SubscriptionType#Key_Shared} subscription.
+     * With other subscription types, the messages will still be delivered immediately.
      *
      * @param delay
      *            the amount of delay before the message will be delivered

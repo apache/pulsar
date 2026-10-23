@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,13 +18,15 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.base.Predicate;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.collect.Range;
-
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
-
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
@@ -34,17 +36,27 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 
 /**
  * A ManagedCursor is a persisted cursor inside a ManagedLedger.
  *
  * <p/>The ManagedCursor is used to read from the ManagedLedger and to signal when the consumer is done with the
  * messages that it has read before.
+ *
+ * <p>Depending on the completion policy in {@link ManagedLedgerConfig}, successful read callbacks may run before the
+ * asynchronous read method returns, including on the calling thread for a cache hit, or on another completing thread.
+ * Failure callbacks can run inline regardless of that policy. Callers must coordinate reads advancing the cursor and
+ * processing of their results: finish processing a result, or safely hand off its ownership, before the next read.
+ * The next read may be initiated from a callback, but callers must account for reentrant completion. Do not infer
+ * callback ordering or exclusive access to caller state from the order of entries within a result or the callback
+ * thread. See {@link ReadEntriesCallback} for completion and entry ownership responsibilities.
  */
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
 public interface ManagedCursor {
+
+    String CURSOR_INTERNAL_PROPERTY_PREFIX = "#pulsar.internal.";
 
     @SuppressWarnings("checkstyle:javadoctype")
     enum FindPositionConstraint {
@@ -71,15 +83,62 @@ public interface ManagedCursor {
     long getLastActive();
 
     /**
-     * Update the last active time of the cursor
+     * Update the last active time of the cursor.
      *
      */
     void updateLastActive();
 
     /**
+     * Mark the cursor as idle, e.g. because its subscription has no consumers anymore. A cursor that is already idle
+     * stays idle since the same time. The last active time of an idle cursor is the time since which it is idle: unlike
+     * the last active time of a cursor in use, it is persisted with the cursor position and kept when the cursor is
+     * recovered, until {@link #updateLastActive()} is called again.
+     */
+    default void markIdle() {
+        updateLastActive();
+    }
+
+    /**
      * Return any properties that were associated with the last stored position.
      */
     Map<String, Long> getProperties();
+
+    /**
+     * Return any properties that were associated with the cursor.
+     */
+    Map<String, String> getCursorProperties();
+
+    /**
+     * Add a property associated with the cursor.
+     *
+     * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
+     * if there are concurrent modification and store data has changed.
+     *
+     * @return a handle to the result of the operation
+     */
+    CompletableFuture<Void> putCursorProperty(String key, String value);
+
+    /**
+     * Set all properties associated with the cursor,
+     * but internal properties(start with '#pulsar_internal.') are still preserved
+     * and prohibit setting of internal properties by this method.
+     *
+     * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
+     * if there are concurrent modification and store data has changed.
+     *
+     * @return a handle to the result of the operation
+     */
+    CompletableFuture<Void> setCursorProperties(Map<String, String> cursorProperties);
+
+    /**
+     * Remove a property associated with the cursor.
+     *
+     * Note: {@link ManagedLedgerException.BadVersionException} will be set in this {@link CompletableFuture},
+     * if there are concurrent modification and store data has changed.
+     *
+     * @return a handle to the result of the operation
+     */
+    CompletableFuture<Void> removeCursorProperty(String key);
 
     /**
      * Add a property associated with the last stored position.
@@ -115,8 +174,23 @@ public interface ManagedCursor {
      *            max position can read
      */
     void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                          PositionImpl maxPosition);
+                          Position maxPosition);
 
+
+    /**
+     * Asynchronously read entries from the ManagedLedger.
+     *
+     * <p>The byte limit estimates the entry count using average entry sizes; it is not a strict limit on the returned
+     * entries' total size. A logical read may use multiple storage requests to retrieve the requested entry range.
+     *
+     * @param numberOfEntriesToRead maximum number of entries to return
+     * @param maxSizeBytes          estimated maximum size in bytes of the entries to return
+     * @param callback              callback object
+     * @param ctx                   opaque context
+     * @param maxPosition           max position can read
+     */
+    void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                          Object ctx, Position maxPosition);
 
     /**
      * Asynchronously read entries from the ManagedLedger.
@@ -126,9 +200,12 @@ public interface ManagedCursor {
      * @param callback              callback object
      * @param ctx                   opaque context
      * @param maxPosition           max position can read
+     * @param skipCondition         predicate of read filter out
      */
-    void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                          Object ctx, PositionImpl maxPosition);
+    default void asyncReadEntriesWithSkip(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
+                                          Object ctx, Position maxPosition, Predicate<Position> skipCondition) {
+        asyncReadEntries(numberOfEntriesToRead, maxSizeBytes, callback, ctx, maxPosition);
+    }
 
     /**
      * Get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
@@ -204,7 +281,7 @@ public interface ManagedCursor {
      *            max position can read
      */
     void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx,
-                                PositionImpl maxPosition);
+                                Position maxPosition);
 
     /**
      * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
@@ -225,12 +302,61 @@ public interface ManagedCursor {
      *            max position can read
      */
     void asyncReadEntriesOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback, Object ctx,
-                                PositionImpl maxPosition);
+                                Position maxPosition);
+
+    /**
+     * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
+     * a new message will be persisted into the managed ledger
+     *
+     * @see #readEntriesOrWait(int, long)
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     * @param maxPosition
+     *            max position can read
+     * @param skipCondition
+     *            predicate of read filter out
+     */
+    default void asyncReadEntriesWithSkipOrWait(int maxEntries, ReadEntriesCallback callback, Object ctx,
+                                                Position maxPosition, Predicate<Position> skipCondition) {
+        asyncReadEntriesOrWait(maxEntries, callback, ctx, maxPosition);
+    }
+
+    /**
+     * Asynchronously read entries from the ManagedLedger, up to the specified number and size.
+     *
+     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
+     * a new message will be persisted into the managed ledger
+     *
+     * @see #readEntriesOrWait(int, long)
+     * @param maxEntries
+     *            maximum number of entries to return
+     * @param maxSizeBytes
+     *            max size in bytes of the entries to return
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     * @param maxPosition
+     *            max position can read
+     * @param skipCondition
+     *            predicate of read filter out
+     */
+    default void asyncReadEntriesWithSkipOrWait(int maxEntries, long maxSizeBytes, ReadEntriesCallback callback,
+                                                Object ctx, Position maxPosition,
+                                                Predicate<Position> skipCondition) {
+        asyncReadEntriesOrWait(maxEntries, maxSizeBytes, callback, ctx, maxPosition);
+    }
 
     /**
      * Cancel a previously scheduled asyncReadEntriesOrWait operation.
      *
-     * @see #asyncReadEntriesOrWait(int, ReadEntriesCallback, Object, PositionImpl)
+     * @see #asyncReadEntriesOrWait(int, ReadEntriesCallback, Object, Position)
      * @return true if the read operation was canceled or false if there was no pending operation
      */
     boolean cancelPendingReadRequest();
@@ -265,6 +391,25 @@ public interface ManagedCursor {
      * @return the number of entries
      */
     long getNumberOfEntriesInBacklog(boolean isPrecise);
+
+    /**
+     * Return whether this cursor has non-deleted messages in backlog.
+     *
+     * @return true if there is at least one entry in backlog
+     */
+    default boolean hasBacklog() {
+        return hasBacklog(true);
+    }
+
+    /**
+     * Return whether this cursor has non-deleted messages in backlog.
+     *
+     * @param isPrecise set to true to get a precise backlog check
+     * @return true if there is at least one entry in backlog
+     */
+    default boolean hasBacklog(boolean isPrecise) {
+        return getNumberOfEntriesInBacklog(isPrecise) > 0;
+    }
 
     /**
      * This signals that the reader is done with all the entries up to "position" (included). This can potentially
@@ -416,6 +561,10 @@ public interface ManagedCursor {
      */
     void rewind();
 
+    default void rewind(boolean readCompacted) {
+        rewind();
+    }
+
     /**
      * Move the cursor to a different read position.
      *
@@ -476,7 +625,7 @@ public interface ManagedCursor {
      *            opaque context
      */
     void asyncSkipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries,
-            final SkipEntriesCallback callback, Object ctx);
+             SkipEntriesCallback callback, Object ctx);
 
     /**
      * Find the newest entry that matches the given predicate.  Will only search among active entries
@@ -489,6 +638,23 @@ public interface ManagedCursor {
      */
     Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
 
+    /**
+     * Scan the cursor from the current position up to the end.
+     * Please note that this is an expensive operation
+     * @param startingPosition the position to start from, if not provided the scan will start from
+     *                         the lastDeleteMarkPosition
+     * @param condition a condition to continue the scan, the condition can access the entry
+     * @param batchSize number of entries to process at each read
+     * @param maxEntries maximum number of entries to scan
+     * @param timeOutMs maximum time to spend on this operation
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    default CompletableFuture<ScanOutcome> scan(Optional<Position> startingPosition,
+                                                Predicate<Entry> condition,
+                                                int batchSize, long maxEntries, long timeOutMs) {
+        return CompletableFuture.failedFuture(new UnsupportedOperationException());
+    }
 
     /**
      * Find the newest entry that matches the given predicate.
@@ -501,7 +667,8 @@ public interface ManagedCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
+    Position findNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition)
+            throws InterruptedException, ManagedLedgerException;
 
     /**
      * Find the newest entry that matches the given predicate.
@@ -519,6 +686,48 @@ public interface ManagedCursor {
             FindEntryCallback callback, Object ctx);
 
     /**
+     * Find the newest entry that matches the given predicate.
+     *
+     * @param constraint
+     *            search only active entries or all entries
+     * @param condition
+     *            predicate that reads an entry an applies a condition
+     * @param callback
+     *            callback object returning the resultant position
+     * @param ctx
+     *            opaque context
+     * @param isFindFromLedger
+     *            find the newest entry from ledger
+     */
+    void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+            FindEntryCallback callback, Object ctx, boolean isFindFromLedger);
+
+
+    /**
+     * Find the newest entry that matches the given predicate.
+     *
+     * @param constraint
+     *            search only active entries or all entries
+     * @param condition
+     *            predicate that reads an entry an applies a condition
+     * @param callback
+     *            callback object returning the resultant position
+     * @param startPosition
+     *           start position to search from.
+     * @param endPosition
+     *          end position to search to.
+     * @param ctx
+     *            opaque context
+     * @param isFindFromLedger
+     *            find the newest entry from ledger
+     */
+    default void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+                                 Position startPosition, Position endPosition, FindEntryCallback callback,
+                                 Object ctx, boolean isFindFromLedger) {
+        asyncFindNewestMatching(constraint, condition, callback, ctx, isFindFromLedger);
+    }
+
+    /**
      * reset the cursor to specified position to enable replay of messages.
      *
      * @param position
@@ -526,17 +735,21 @@ public interface ManagedCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    void resetCursor(final Position position) throws InterruptedException, ManagedLedgerException;
+    void resetCursor(Position position) throws InterruptedException, ManagedLedgerException;
 
     /**
      * reset the cursor to specified position to enable replay of messages.
      *
      * @param position
      *            position to move the cursor to
+     * @param forceReset
+     *            whether to force reset the position even if the position is no longer in the managed ledger,
+     *            this is used by compacted topic which has data in the compacted ledger, to ensure the cursor can
+     *            read data from the compacted ledger.
      * @param callback
      *            callback object
      */
-    void asyncResetCursor(final Position position, AsyncCallbacks.ResetCursorCallback callback);
+    void asyncResetCursor(Position position, boolean forceReset, AsyncCallbacks.ResetCursorCallback callback);
 
     /**
      * Read the specified set of positions from ManagedLedger.
@@ -657,11 +870,17 @@ public interface ManagedCursor {
     int getNonContiguousDeletedMessagesRangeSerializedSize();
 
     /**
-     * Returns the estimated size of the unacknowledged backlog for this cursor
+     * Returns the estimated size of the unacknowledged backlog for this cursor.
      *
      * @return the estimated size from the mark delete position of the cursor
      */
     long getEstimatedSizeSinceMarkDeletePosition();
+
+    /**
+     * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is
+     * used to delete information about this ledger in the ManagedCursor.
+     */
+    default void skipNonRecoverableLedger(long ledgerId){}
 
     /**
      * Returns cursor throttle mark-delete rate.
@@ -677,27 +896,49 @@ public interface ManagedCursor {
     void setThrottleMarkDelete(double throttleMarkDelete);
 
     /**
-     * Get {@link ManagedLedger} attached with cursor
+     * Get {@link ManagedLedger} attached with cursor.
      *
      * @return ManagedLedger
      */
     ManagedLedger getManagedLedger();
 
     /**
-     * Get last individual deleted range
-     * @return range
+     * Schedule a continuation of a read callback.
+     *
+     * <p>Implementations that deliver read callbacks on a dedicated execution context should override this method
+     * to run the continuation on that same execution context.
+     *
+     * @param callback the callback continuation
+     * @param delay the delay before executing the continuation
+     * @param unit the time unit of the delay
      */
-    Range<PositionImpl> getLastIndividualDeletedRange();
+    default void scheduleReadCallback(Runnable callback, long delay, TimeUnit unit) {
+        CompletableFuture.delayedExecutor(delay, unit).execute(catchingAndLoggingThrowables(callback));
+    }
 
     /**
-     * Trim delete entries for the given entries
+     * Get last individual deleted range.
+     * @return range
+     */
+    Range<Position> getLastIndividualDeletedRange();
+
+    /**
+     * Trim delete entries for the given entries.
      */
     void trimDeletedEntries(List<Entry> entries);
 
     /**
      * Get deleted batch indexes list for a batch message.
      */
-    long[] getDeletedBatchIndexesAsLongArray(PositionImpl position);
+    long[] getDeletedBatchIndexesAsLongArray(Position position);
+
+    /**
+     * Get deleted batch indexes using ledger and entry IDs. Implementations may avoid creating a position when
+     * no batch-index acknowledgements are recorded. The default preserves existing cursor implementations.
+     */
+    default long[] getDeletedBatchIndexesAsLongArray(long ledgerId, long entryId) {
+        return getDeletedBatchIndexesAsLongArray(PositionFactory.create(ledgerId, entryId));
+    }
 
     /**
      * @return the managed cursor stats MBean
@@ -710,4 +951,42 @@ public interface ManagedCursor {
      * @return if read position changed
      */
     boolean checkAndUpdateReadPositionChanged();
+
+    /**
+     * Checks if the cursor is closed.
+     * @return whether this cursor is closed.
+     */
+    boolean isClosed();
+
+    default boolean isCursorDataFullyPersistable() {
+        return true;
+    }
+
+    /**
+     * Called by the system to trigger periodic rollover in absence of activity.
+     */
+    default boolean periodicRollover() {
+        return false;
+    }
+
+    /**
+     * Get the attributes associated with the cursor.
+     *
+     * @return the attributes associated with the cursor
+     */
+    default ManagedCursorAttributes getManagedCursorAttributes() {
+        return new ManagedCursorAttributes(this);
+    }
+
+    ManagedLedgerInternalStats.CursorStats getCursorStats();
+
+    boolean isMessageDeleted(Position position);
+
+    ManagedCursor duplicateNonDurableCursor(String nonDurableCursorName) throws ManagedLedgerException;
+
+    long[] getBatchPositionAckSet(Position position);
+
+    int applyMaxSizeCap(int maxEntries, long maxSizeBytes);
+
+    void updateReadStats(int readEntriesCount, long readEntriesSize);
 }

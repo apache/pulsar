@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
-
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MockBrokerService;
@@ -54,7 +53,8 @@ public class ConsumerUnsubscribeTest {
                 .serviceUrl(mockBrokerService.getBrokerAddress())
                 .build();
 
-        Consumer<?> consumer = client.newConsumer().topic("persistent://public/default/t1").subscriptionName("sub1").subscribe();
+        Consumer<?> consumer = client.newConsumer().topic("persistent://public/default/t1")
+                .subscriptionName("sub1").subscribe();
         consumer.unsubscribe();
 
         assertEquals(client.consumersCount(), 0);

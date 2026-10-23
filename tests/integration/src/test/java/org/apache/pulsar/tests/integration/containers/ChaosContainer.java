@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
-
 import com.github.dockerjava.api.DockerClient;
-import com.github.dockerjava.api.command.LogContainerCmd;
-import com.github.dockerjava.api.model.Frame;
-import com.github.dockerjava.core.command.LogContainerResultCallback;
 import java.util.Base64;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.utils.DockerUtils;
 import org.testcontainers.containers.GenericContainer;
@@ -36,7 +31,7 @@ import org.testcontainers.containers.GenericContainer;
 /**
  * A base container provides chaos capability.
  */
-@Slf4j
+@CustomLog
 public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends GenericContainer<SelfT> {
 
     protected final String clusterName;
@@ -49,7 +44,29 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     @Override
     protected void configure() {
         super.configure();
-        addEnv("MALLOC_ARENA_MAX", "1");
+    }
+
+    protected void appendToEnv(String key, String value) {
+        String existingValue = getEnvMap().get(key);
+        if (existingValue == null) {
+            addEnv(key, value);
+        } else if (!existingValue.contains(value)) {
+            addEnv(key, existingValue + " " + value);
+        }
+    }
+
+    protected void passSystemPropertyInEnv(String envKey, String systemPropertyName) {
+        passSystemPropertyInEnv(envKey, systemPropertyName, System.getProperty(systemPropertyName));
+    }
+
+    protected void passSystemPropertyInEnv(String envKey, String systemPropertyName, String systemPropertyValue) {
+        if (systemPropertyValue != null) {
+            String entryValue = "-D" + systemPropertyName + "=" + systemPropertyValue;
+            if (StringUtils.containsWhitespace(systemPropertyValue)) {
+                entryValue = "\"" + entryValue + "\"";
+            }
+            appendToEnv(envKey, entryValue);
+        }
     }
 
     protected void beforeStop() {
@@ -67,6 +84,10 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
     @Override
     public void stop() {
         beforeStop();
+        doStop();
+    }
+
+    protected void doStop() {
         super.stop();
     }
 
@@ -98,7 +119,8 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
         return DockerUtils.runCommandAsUser(userId, client, dockerId, commands);
     }
 
-    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands) throws Exception {
+    public CompletableFuture<ContainerExecResult> execCmdAsyncAsUser(String userId, String... commands)
+            throws Exception {
         DockerClient client = this.getDockerClient();
         String dockerId = this.getContainerId();
         return DockerUtils.runCommandAsyncAsUser(userId, client, dockerId, commands);
@@ -110,7 +132,7 @@ public class ChaosContainer<SelfT extends ChaosContainer<SelfT>> extends Generic
             return false;
         }
 
-        ChaosContainer another = (ChaosContainer) o;
+        ChaosContainer<?> another = (ChaosContainer<?>) o;
         return clusterName.equals(another.clusterName)
             && super.equals(another);
     }

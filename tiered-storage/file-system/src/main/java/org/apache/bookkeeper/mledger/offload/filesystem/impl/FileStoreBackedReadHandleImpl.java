@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,17 @@
  */
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
+import static org.apache.bookkeeper.mledger.offload.OffloadUtils.parseLedgerMetadata;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
@@ -28,42 +37,52 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
-
+import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.MapFile;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
+import org.apache.pulsar.common.naming.TopicName;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledExecutorService;
-
-import static org.apache.bookkeeper.mledger.offload.OffloadUtils.parseLedgerMetadata;
-
-public class FileStoreBackedReadHandleImpl implements ReadHandle {
-    private static final Logger log = LoggerFactory.getLogger(FileStoreBackedReadHandleImpl.class);
+@CustomLog
+public class FileStoreBackedReadHandleImpl implements ReadHandle, OffloadedLedgerHandle {
     private final ExecutorService executor;
     private final MapFile.Reader reader;
     private final long ledgerId;
     private final LedgerMetadata ledgerMetadata;
+    private final LedgerOffloaderStats offloaderStats;
+    private final String managedLedgerName;
+    private final String topicName;
+    enum State {
+        Opened,
+        Closed
+    }
+    private volatile State state;
+    private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
 
-    private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId) throws IOException {
+    private FileStoreBackedReadHandleImpl(ExecutorService executor, MapFile.Reader reader, long ledgerId,
+                                          LedgerOffloaderStats offloaderStats,
+                                          String managedLedgerName) throws IOException {
         this.ledgerId = ledgerId;
         this.executor = executor;
         this.reader = reader;
+        this.offloaderStats = offloaderStats;
+        this.managedLedgerName = managedLedgerName;
+        this.topicName = TopicName.fromPersistenceNamingEncoding(managedLedgerName);
         LongWritable key = new LongWritable();
         BytesWritable value = new BytesWritable();
         try {
             key.set(FileSystemManagedLedgerOffloader.METADATA_KEY_INDEX);
+            long startReadIndexTime = System.nanoTime();
             reader.get(key, value);
+            offloaderStats.recordReadOffloadIndexLatency(topicName,
+                    System.nanoTime() - startReadIndexTime, TimeUnit.NANOSECONDS);
             this.ledgerMetadata = parseLedgerMetadata(ledgerId, value.copyBytes());
+            state = State.Opened;
         } catch (IOException e) {
-            log.error("Fail to read LedgerMetadata for ledgerId {}",
-                    ledgerId);
+            log.error().attr("ledgerId", ledgerId).log("Fail to read LedgerMetadata");
             throw new IOException("Fail to read LedgerMetadata for ledgerId " + key.get());
         }
     }
@@ -81,24 +100,35 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        CompletableFuture<Void> promise = new CompletableFuture<>();
-        executor.submit(() -> {
-                try {
-                    reader.close();
-                } catch (IOException t) {
-                    promise.completeExceptionally(t);
-                }
-            });
+        if (closeFuture.get() != null || !closeFuture.compareAndSet(null, new CompletableFuture<>())) {
+            return closeFuture.get();
+        }
+
+        CompletableFuture<Void> promise = closeFuture.get();
+        executor.execute(() -> {
+            try {
+                reader.close();
+                state = State.Closed;
+                promise.complete(null);
+            } catch (IOException t) {
+                promise.completeExceptionally(t);
+            }
+        });
         return promise;
     }
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        if (log.isDebugEnabled()) {
-            log.debug("Ledger {}: reading {} - {}", getId(), firstEntry, lastEntry);
-        }
+        log.debug().attr("ledgerId", getId()).attr("firstEntry", firstEntry)
+                .attr("lastEntry", lastEntry).log("Reading entries");
         CompletableFuture<LedgerEntries> promise = new CompletableFuture<>();
-        executor.submit(() -> {
+        executor.execute(() -> {
+            if (state == State.Closed) {
+                log.warn().attr("ledgerId", ledgerId).attr("firstEntry", firstEntry)
+                        .attr("lastEntry", lastEntry).log("Reading a closed read handler");
+                promise.completeExceptionally(new ManagedLedgerException.OffloadReadHandleClosedException());
+                return;
+            }
             if (firstEntry > lastEntry
                     || firstEntry < 0
                     || lastEntry > getLastAddConfirmed()) {
@@ -114,23 +144,28 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
                 key.set(nextExpectedId - 1);
                 reader.seek(key);
                 while (entriesToRead > 0) {
+                    long startReadTime = System.nanoTime();
                     reader.next(key, value);
+                    this.offloaderStats.recordReadOffloadDataLatency(topicName,
+                            System.nanoTime() - startReadTime, TimeUnit.NANOSECONDS);
                     int length = value.getLength();
                     long entryId = key.get();
                     if (entryId == nextExpectedId) {
-                        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(length, length);
+                        ByteBuf buf = PulsarByteBufAllocator.DEFAULT.buffer(length, length);
                         entries.add(LedgerEntryImpl.create(ledgerId, entryId, length, buf));
                         buf.writeBytes(value.copyBytes());
                         entriesToRead--;
                         nextExpectedId++;
+                        this.offloaderStats.recordReadOffloadBytes(topicName, length);
                     } else if (entryId > lastEntry) {
-                        log.info("Expected to read {}, but read {}, which is greater than last entry {}",
-                                nextExpectedId, entryId, lastEntry);
+                        log.info().attr("expected", nextExpectedId).attr("actual", entryId)
+                                .attr("lastEntry", lastEntry).log("Read entryId greater than last entry");
                         throw new BKException.BKUnexpectedConditionException();
                     }
-            }
+                }
                 promise.complete(LedgerEntriesImpl.create(entries));
             } catch (Throwable t) {
+                this.offloaderStats.recordReadOffloadError(topicName);
                 promise.completeExceptionally(t);
                 entries.forEach(LedgerEntry::close);
             }
@@ -177,7 +212,8 @@ public class FileStoreBackedReadHandleImpl implements ReadHandle {
         return promise;
     }
 
-    public static ReadHandle open(ScheduledExecutorService executor, MapFile.Reader reader, long ledgerId) throws IOException {
-            return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId);
+    public static ReadHandle open(ScheduledExecutorService executor, MapFile.Reader reader, long ledgerId,
+                                  LedgerOffloaderStats offloaderStats, String managedLedgerName) throws IOException {
+        return new FileStoreBackedReadHandleImpl(executor, reader, ledgerId, offloaderStats, managedLedgerName);
     }
 }

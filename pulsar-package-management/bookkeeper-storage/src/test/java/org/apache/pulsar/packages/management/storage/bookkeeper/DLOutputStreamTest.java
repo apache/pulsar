@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,26 +19,24 @@
 package org.apache.pulsar.packages.management.storage.bookkeeper;
 
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.AssertJUnit.assertEquals;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-
 import org.apache.distributedlog.DLSN;
+import org.apache.distributedlog.LogRecord;
 import org.apache.distributedlog.api.AsyncLogWriter;
 import org.apache.distributedlog.api.DistributedLogManager;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.times;
-import static org.testng.AssertJUnit.assertEquals;
 
 public class DLOutputStreamTest {
 
@@ -54,8 +52,9 @@ public class DLOutputStreamTest {
         when(dlm.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
         when(writer.markEndOfStream()).thenReturn(CompletableFuture.completedFuture(null));
         when(writer.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
-        when(writer.writeBulk(any(List.class)))
-            .thenReturn(CompletableFuture.completedFuture(Collections.singletonList(DLSN.InitialDLSN))); }
+        when(writer.write(any(LogRecord.class)))
+                .thenReturn(CompletableFuture.completedFuture(DLSN.InitialDLSN));
+    }
 
     @AfterMethod(alwaysRun = true)
     public void teardown() throws IOException {
@@ -74,7 +73,7 @@ public class DLOutputStreamTest {
             .thenCompose(w -> w.writeAsync(new ByteArrayInputStream(data))
                 .thenCompose(DLOutputStream::closeAsync)).get();
 
-        verify(writer, times(1)).writeBulk(any(List.class));
+        verify(writer, times(1)).write(any(LogRecord.class));
         verify(writer, times(1)).markEndOfStream();
         verify(writer, times(1)).asyncClose();
         verify(dlm, times(1)).asyncClose();
@@ -90,7 +89,7 @@ public class DLOutputStreamTest {
             .thenCompose(w -> w.writeAsync(new ByteArrayInputStream(data))
                 .thenCompose(DLOutputStream::closeAsync)).get();
 
-        verify(writer, times(1)).writeBulk(any(List.class));
+        verify(writer, times(1)).write(any(LogRecord.class));
         verify(writer, times(1)).markEndOfStream();
         verify(writer, times(1)).asyncClose();
         verify(dlm, times(1)).asyncClose();
@@ -98,12 +97,12 @@ public class DLOutputStreamTest {
 
     @Test
     public void writeLongBytesArrayData() throws ExecutionException, InterruptedException {
-        byte[] data = new byte[8192 * 3 + 4096];
+        byte[] data = new byte[1040364 * 3 + 4096];
         DLOutputStream.openWriterAsync(dlm)
                 .thenCompose(w -> w.writeAsync(new ByteArrayInputStream(data))
                         .thenCompose(DLOutputStream::closeAsync)).get();
 
-        verify(writer, times(1)).writeBulk(any(List.class));
+        verify(writer, times(4)).write(any(LogRecord.class));
         verify(writer, times(1)).markEndOfStream();
         verify(writer, times(1)).asyncClose();
         verify(dlm, times(1)).asyncClose();
@@ -122,7 +121,7 @@ public class DLOutputStreamTest {
 
     @Test
     public void writeRecordFailed() {
-        when(writer.writeBulk(any(List.class)))
+        when(writer.writeBulk(anyList()))
             .thenReturn(failedFuture(new Exception("Write data was failed")));
 
         byte[] data = "test-write".getBytes();

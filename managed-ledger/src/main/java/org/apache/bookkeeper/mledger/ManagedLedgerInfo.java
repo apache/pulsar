@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -45,6 +45,7 @@ public class ManagedLedgerInfo {
         public Long size;
         public Long timestamp;
         public boolean isOffloaded;
+        public String offloadedContextUuid;
     }
 
     public static class CursorInfo {

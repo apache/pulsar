@@ -19,7 +19,7 @@
 
 
 Configuration:
-  status: INFO
+  status: ERROR
   monitorInterval: 30
   name: pulsar
   packages: io.prometheus.client.log4j2
@@ -30,6 +30,8 @@ Configuration:
         value: "logs"
       - name: "pulsar.log.file"
         value: "pulsar.log"
+      - name: "pulsar.log.immediateFlush"
+        value: "false"
       - name: "pulsar.log.appender"
         value: "RoutingAppender"
       - name: "pulsar.log.root.level"
@@ -38,6 +40,10 @@ Configuration:
         value: "info"
       - name: "pulsar.routing.appender.default"
         value: "Console"
+      - name: "pulsar.log.format"
+        value: "text"
+      - name: "pulsar.log.json.template"
+        value: "file:conf/OtelLogLayout.json"
 
   # Example: logger-filter script
 #  Scripts:
@@ -53,17 +59,31 @@ Configuration:
     Console:
       name: Console
       target: SYSTEM_OUT
-      PatternLayout:
-        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
+      SystemPropertyArbiter:
+        - propertyName: pulsar.log.format
+          propertyValue: json
+          JsonTemplateLayout:
+            eventTemplateUri: ${sys:pulsar.log.json.template}
+        - propertyName: pulsar.log.format
+          propertyValue: text
+          PatternLayout:
+            Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%equals{ %X}{ {}}{}%n"
 
     # Rolling file appender configuration
     RollingFile:
       name: RollingFile
       fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
       filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
-      immediateFlush: false
-      PatternLayout:
-        Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%n"
+      immediateFlush: ${sys:pulsar.log.immediateFlush}
+      SystemPropertyArbiter:
+        - propertyName: pulsar.log.format
+          propertyValue: json
+          JsonTemplateLayout:
+            eventTemplateUri: ${sys:pulsar.log.json.template}
+        - propertyName: pulsar.log.format
+          propertyValue: text
+          PatternLayout:
+            Pattern: "%d{ISO8601_OFFSET_DATE_TIME_HHMM} [%t] %-5level %logger{36} - %msg%equals{ %X}{ {}}{}%n"
       Policies:
         TimeBasedTriggeringPolicy:
           interval: 1
@@ -76,7 +96,7 @@ Configuration:
             basePath: ${sys:pulsar.log.dir}
             maxDepth: 2
             IfFileName:
-              glob: "*/${sys:pulsar.log.file}*log.gz"
+              glob: "${sys:pulsar.log.file}*log.gz"
             IfLastModified:
               age: 30d
 
@@ -100,8 +120,15 @@ Configuration:
                       name: "Rolling-${ctx:function}"
                       fileName : "${sys:pulsar.log.dir}/functions/${ctx:function}/${ctx:functionname}-${ctx:instance}.log"
                       filePattern : "${sys:pulsar.log.dir}/functions/${sys:pulsar.log.file}-${ctx:instance}-%d{MM-dd-yyyy}-%i.log.gz"
-                      PatternLayout:
-                        Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg%n"
+                      SystemPropertyArbiter:
+                        - propertyName: pulsar.log.format
+                          propertyValue: json
+                          JsonTemplateLayout:
+                            eventTemplateUri: ${sys:pulsar.log.json.template}
+                        - propertyName: pulsar.log.format
+                          propertyValue: text
+                          PatternLayout:
+                            Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg%equals{ %X}{ {}}{}%n"
                       Policies:
                         TimeBasedTriggeringPolicy:
                           interval: 1
@@ -118,7 +145,7 @@ Configuration:
                             basePath: ${sys:pulsar.log.dir}
                             maxDepth: 2
                             IfFileName:
-                              glob: "*/${sys:pulsar.log.file}*log.gz"
+                              glob: "${sys:pulsar.log.file}*log.gz"
                             IfLastModified:
                               age: 30d
                   - ref: "${sys:pulsar.routing.appender.default}"

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.broker.resources.PulsarResources;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.resources.PulsarResources;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class BacklogQuotaManagerConfigurationTest {
@@ -42,6 +40,7 @@ public class BacklogQuotaManagerConfigurationTest {
         pulsarService = getPulsarService();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testBacklogQuotaDefaultLimitGBConversion() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
@@ -51,6 +50,7 @@ public class BacklogQuotaManagerConfigurationTest {
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testBacklogQuotaDefaultLimitPrecedence() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(1.6);
@@ -61,6 +61,7 @@ public class BacklogQuotaManagerConfigurationTest {
         assertEquals(backlogQuotaManager.getDefaultQuota().getLimitSize(), 1717986918);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testBacklogQuotaDefaultLimitBytes() {
         serviceConfiguration.setBacklogQuotaDefaultLimitGB(0);
@@ -73,12 +74,11 @@ public class BacklogQuotaManagerConfigurationTest {
 
     private void initializeServiceConfiguration() {
         serviceConfiguration.setClusterName("test");
-        serviceConfiguration.setZookeeperServers("localhost:2181");
+        serviceConfiguration.setMetadataStoreUrl("zk:localhost:2181");
     }
 
     private PulsarService getPulsarService() {
         PulsarService pulsarService = mock(PulsarService.class);
-        ConfigurationCacheService configurationCacheService = mock(ConfigurationCacheService.class);
         when(pulsarService.getConfiguration()).thenReturn(serviceConfiguration);
         when(pulsarService.getPulsarResources()).thenReturn(mock(PulsarResources.class));
         return pulsarService;

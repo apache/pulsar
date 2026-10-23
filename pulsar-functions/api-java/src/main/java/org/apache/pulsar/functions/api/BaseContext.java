@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,14 @@
  */
 package org.apache.pulsar.functions.api;
 
+import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 import org.slf4j.Logger;
-
-import java.nio.ByteBuffer;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * BaseContext provides base contextual information to the executing function/source/sink.
@@ -81,13 +81,13 @@ public interface BaseContext {
      * Get the state store with the provided store name in the tenant & namespace.
      *
      * @param name the state store name
-     * @param <S> the type of interface of the store to return
+     * @param <X> the type of interface of the store to return
      * @return the state store instance.
      *
      * @throws ClassCastException if the return type isn't a type
      * or interface of the actual returned store.
      */
-    default <S extends StateStore> S getStateStore(String name) {
+    default <X extends StateStore> X getStateStore(String name) {
         throw new UnsupportedOperationException("Component cannot get state store");
     }
 
@@ -97,13 +97,13 @@ public interface BaseContext {
      * @param tenant the state tenant name
      * @param ns the state namespace name
      * @param name the state store name
-     * @param <S> the type of interface of the store to return
+     * @param <X> the type of interface of the store to return
      * @return the state store instance.
      *
      * @throws ClassCastException if the return type isn't a type
      * or interface of the actual returned store.
      */
-    default <S extends StateStore> S getStateStore(String tenant, String ns, String name) {
+    default <X extends StateStore> X getStateStore(String tenant, String ns, String name) {
         throw new UnsupportedOperationException("Component cannot get state store");
     }
 
@@ -116,7 +116,7 @@ public interface BaseContext {
     void putState(String key, ByteBuffer value);
 
     /**
-     * Update the state value for the key, but don't wait for the operation to be completed
+     * Update the state value for the key, but don't wait for the operation to be completed.
      *
      * @param key   name of the key
      * @param value state value of the key
@@ -132,7 +132,7 @@ public interface BaseContext {
     ByteBuffer getState(String key);
 
     /**
-     * Retrieve the state value for the key, but don't wait for the operation to be completed
+     * Retrieve the state value for the key, but don't wait for the operation to be completed.
      *
      * @param key name of the key
      * @return the state value for the key.
@@ -147,7 +147,7 @@ public interface BaseContext {
     void deleteState(String key);
 
     /**
-     * Delete the state value for the key, but don't wait for the operation to be completed
+     * Delete the state value for the key, but don't wait for the operation to be completed.
      *
      * @param key   name of the key
      */
@@ -163,7 +163,7 @@ public interface BaseContext {
 
     /**
      * Increment the builtin distributed counter referred by key
-     * but dont wait for the completion of the increment operation
+     * but dont wait for the completion of the increment operation.
      *
      * @param key    The name of the key
      * @param amount The amount to be incremented
@@ -180,7 +180,7 @@ public interface BaseContext {
 
     /**
      * Retrieve the counter value for the key, but don't wait
-     * for the operation to be completed
+     * for the operation to be completed.
      *
      * @param key name of the key
      * @return the amount of the counter value for this key
@@ -188,7 +188,7 @@ public interface BaseContext {
     CompletableFuture<Long> getCounterAsync(String key);
 
     /**
-     * Record a user defined metric
+     * Record a user defined metric.
      * @param metricName The name of the metric
      * @param value The value of the metric
      */
@@ -218,4 +218,36 @@ public interface BaseContext {
         throw new UnsupportedOperationException("not implemented");
     }
 
+    /**
+     * Get the pre-configured pulsar admin client.
+     *
+     * You can use this admin client to administrate a Pulsar cluster. It is only available when the function
+     * worker sets {@code exposeAdminClientEnabled}; otherwise this method throws an exception.
+     *
+     * @return The instance of pulsar admin client
+     */
+    default PulsarAdmin getPulsarAdmin() {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
+    /**
+     * Get the pre-configured Pulsar V5 client.
+     *
+     * <p>Use it to reach {@code topic://} (scalable) topics, which only the V5 client supports. To publish to a
+     * {@code topic://} topic, {@code newOutputMessage} is enough: it uses the V5 client for such topics. The runtime
+     * creates the client on first use and shares it with the other instances it runs, so the function must not close
+     * it.
+     *
+     * @return the instance of the Pulsar V5 client
+     */
+    default org.apache.pulsar.client.api.v5.PulsarClient getPulsarClientV5() {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
+    /**
+     * Terminate the function instance with a fatal exception.
+     *
+     * @param t the fatal exception to be raised
+     */
+    void fatal(Throwable t);
 }

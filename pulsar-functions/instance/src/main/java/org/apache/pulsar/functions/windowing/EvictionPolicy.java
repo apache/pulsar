@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,9 +23,9 @@ package org.apache.pulsar.functions.windowing;
  * an event should be evicted from the window or not.
  *
  * @param <T> the type of event that is tracked.
- * @param <S> the type of state that is used
+ * @param <X> the type of state that is used
  */
-public interface EvictionPolicy<T, S> {
+public interface EvictionPolicy<T, X> {
     /**
      * The action to be taken when {@link EvictionPolicy#evict(Event)} is invoked.
      */
@@ -93,12 +93,12 @@ public interface EvictionPolicy<T, S> {
      *
      * @return the state
      */
-    S getState();
+    X getState();
 
     /**
      * Restore the eviction policy from the state that was earlier checkpointed by the framework.
      *
      * @param state the state
      */
-    void restoreState(S state);
+    void restoreState(X state);
 }

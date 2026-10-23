@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,59 +18,56 @@
  */
 package org.apache.pulsar.client.impl.schema;
 
-import static com.google.common.base.Preconditions.checkState;
-
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
-import org.apache.pulsar.common.schema.SchemaInfo;
-
+import static org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl.ALWAYS_ALLOW_NULL;
+import static org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl.JSR310_CONVERSION_ENABLED;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * Schema from a native Apache Avro schema.
- * This class is supposed to be used on the producer side for working with existing data serialized in Avro, 
+ * This class is supposed to be used on the producer side for working with existing data serialized in Avro,
  * possibly stored in another system like Kafka.
- * For this reason, it will not perform bytes validation against the schema in encoding and decoding, 
+ * For this reason, it will not perform bytes validation against the schema in encoding and decoding,
  * which are just identify functions.
- * This class also makes it possible for users to bring in their own Avro serialization method. 
+ * This class also makes it possible for users to bring in their own Avro serialization method.
  */
 public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
+    private final org.apache.avro.Schema nativeSchema;
+    private final SchemaInfo schemaInfo;
 
-    private Schema<T> schema;
-    private org.apache.avro.Schema nativeSchema;
-    
     public NativeAvroBytesSchema(org.apache.avro.Schema schema) {
-        setSchema(schema);
+        Objects.requireNonNull(schema, "Avro schema cannot be null");
+        this.nativeSchema = schema;
+        Map<String, String> properties = new HashMap<>();
+        properties.put(ALWAYS_ALLOW_NULL, "true");
+        properties.put(JSR310_CONVERSION_ENABLED, "false");
+        this.schemaInfo = SchemaInfo.builder()
+            .name("")
+            .schema(schema.toString().getBytes(StandardCharsets.UTF_8))
+            .properties(properties)
+            .type(SchemaType.AVRO)
+            .build();
     }
 
     public NativeAvroBytesSchema(Object schema) {
         this(validateSchema(schema));
     }
 
-    public void setSchema(org.apache.avro.Schema schema) {
-        SchemaDefinition schemaDefinition = SchemaDefinition.builder().withJsonDef(schema.toString(false)).build();
-        this.nativeSchema = schema;
-        this.schema = AvroSchema.of(schemaDefinition);
-    }
-
-    public boolean schemaInitialized() {
-        return schema != null;
-    }
-
     private static org.apache.avro.Schema validateSchema (Object schema) {
-        if (! (schema instanceof org.apache.avro.Schema)) 
+        if (!(schema instanceof org.apache.avro.Schema)) {
             throw new IllegalArgumentException("The input schema is not of type 'org.apache.avro.Schema'.");
+        }
         return (org.apache.avro.Schema) schema;
-    }
-
-    private void ensureSchemaInitialized() {
-        checkState(schemaInitialized(), "Schema is not initialized before used");
     }
 
     @Override
     public byte[] encode(byte[] message) {
-        ensureSchemaInitialized();
-
         return message;
     }
 
@@ -82,9 +79,7 @@ public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
 
     @Override
     public SchemaInfo getSchemaInfo() {
-        ensureSchemaInitialized();
-
-        return schema.getSchemaInfo();
+        return schemaInfo;
     }
 
     @Override
@@ -93,6 +88,7 @@ public class NativeAvroBytesSchema<T> implements Schema<byte[]> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Schema<byte[]> clone() {
         return new NativeAvroBytesSchema(nativeSchema);
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,8 +29,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.jclouds.Constants;
 import org.jclouds.aws.s3.AWSS3ProviderMetadata;
@@ -52,7 +52,7 @@ import org.jclouds.s3.reference.S3Constants;
  * properties such as region, bucket, user credentials, etc.
  * </p>
  */
-@Slf4j
+@CustomLog
 public class TieredStorageConfiguration {
 
     private static final long serialVersionUID = 1L;
@@ -329,7 +329,20 @@ public class TieredStorageConfiguration {
             overrides.setProperty(S3Constants.PROPERTY_S3_VIRTUAL_HOST_BUCKETS, "false");
         }
 
-        log.info("getOverrides: {}", overrides.toString());
+        // load more jclouds properties into the overrides
+        System.getProperties().entrySet().stream()
+            .filter(p -> p.getKey().toString().startsWith("jclouds"))
+            .forEach(jcloudsProp -> {
+                overrides.setProperty(jcloudsProp.getKey().toString(), jcloudsProp.getValue().toString());
+            });
+
+        System.getenv().entrySet().stream()
+            .filter(p -> p.getKey().toString().startsWith("jclouds"))
+            .forEach(jcloudsProp -> {
+                overrides.setProperty(jcloudsProp.getKey().toString(), jcloudsProp.getValue().toString());
+            });
+
+        log.info().attr("overrides", overrides.toString()).log("getOverrides");
         return overrides;
     }
 

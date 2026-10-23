@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,17 +19,15 @@
 package org.apache.pulsar.io.batchdatagenerator;
 
 import io.codearte.jfairy.Fairy;
-import lombok.extern.slf4j.Slf4j;
+import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.function.Consumer;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.SourceContext;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-import java.util.Optional;
-import java.util.function.Consumer;
-
-@Slf4j
+@CustomLog
 public class BatchDataGeneratorSource implements BatchSource<Person> {
 
     private Fairy fairy;
@@ -64,17 +62,7 @@ public class BatchDataGeneratorSource implements BatchSource<Person> {
     public Record<Person> readNext() throws Exception {
         if (iteration++ < maxRecordsPerCycle) {
             Thread.sleep(50);
-            return new Record<Person>() {
-                @Override
-                public Optional<String> getKey() {
-                    return Optional.empty();
-                }
-
-                @Override
-                public Person getValue() {
-                    return new Person(fairy.person());
-                }
-            };
+            return () -> new Person(fairy.person());
         }
         return null;
     }

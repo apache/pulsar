@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import lombok.extern.slf4j.Slf4j;
+import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.function.Supplier;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.Producer;
@@ -26,11 +31,11 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.common.util.PulsarExecutors;
 
-import java.util.function.Supplier;
-
-@Slf4j
+@CustomLog
 public class LeaderService implements AutoCloseable, ConsumerEventListener {
+    private static final long serialVersionUID = 1L;
 
     private final String consumerName;
     private final FunctionAssignmentTailer functionAssignmentTailer;
@@ -42,11 +47,16 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     private ConsumerImpl<byte[]> consumer;
     private final WorkerConfig workerConfig;
     private final PulsarClient pulsarClient;
-    private boolean isLeader = false;
+    private volatile boolean isLeader = false;
+    // The consumer event listener callbacks (becameActive/becameInactive) run the blocking
+    // leader-election routines on this dedicated single-threaded executor so that the Pulsar client's
+    // shared consumer-listener thread is not blocked. The single thread also preserves event ordering.
+    private final ExecutorService executor =
+            PulsarExecutors.newSingleThreadExecutor(new DefaultThreadFactory("function-worker-leader"), false);
 
     static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
-    private static String WORKER_IDENTIFIER = "id";
+    private static final String WORKER_IDENTIFIER = "id";
 
     public LeaderService(WorkerService workerService,
                          PulsarClient pulsarClient,
@@ -90,9 +100,17 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
     @Override
     public void becameActive(Consumer<?> consumer, int partitionId) {
+        // Run the (blocking) become-leader routine on a dedicated executor so the consumer
+        // event-listener thread, which is shared with the Pulsar client, is not blocked.
+        executor.execute(() -> becameActiveInternal(consumer, partitionId));
+    }
+
+    private void becameActiveInternal(Consumer<?> consumer, int partitionId) {
         synchronized (this) {
-            if (isLeader) return;
-            log.info("Worker {} became the leader.", consumerName);
+            if (isLeader) {
+                return;
+            }
+            log.info().attr("worker", consumerName).log("Worker became the leader.");
             try {
 
                 // Wait for worker to be initialized.
@@ -103,14 +121,17 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
                 // attempt to acquire exclusive publishers to both the metadata topic and assignments topic
                 // we should keep trying to acquire exclusive producers as long as we are still the leader
-                Supplier<Boolean> checkIsStillLeader = () -> membershipManager.getLeader().getWorkerId().equals(workerConfig.getWorkerId());
+                Supplier<Boolean> checkIsStillLeader = WorkerUtils.getIsStillLeaderSupplier(membershipManager,
+                        workerConfig.getWorkerId());
                 Producer<byte[]> scheduleManagerExclusiveProducer = null;
                 Producer<byte[]> functionMetaDataManagerExclusiveProducer = null;
                 try {
                     scheduleManagerExclusiveProducer = schedulerManager.acquireExclusiveWrite(checkIsStillLeader);
-                    functionMetaDataManagerExclusiveProducer = functionMetaDataManager.acquireExclusiveWrite(checkIsStillLeader);
+                    functionMetaDataManagerExclusiveProducer = functionMetaDataManager
+                            .acquireExclusiveWrite(checkIsStillLeader);
                 } catch (WorkerUtils.NotLeaderAnymore e) {
-                    log.info("Worker {} is not leader anymore. Exiting becoming leader routine.", consumer);
+                    log.info().attr("worker", consumer)
+                            .log("Worker is not leader anymore. Exiting becoming leader routine.");
                     if (scheduleManagerExclusiveProducer != null) {
                         scheduleManagerExclusiveProducer.close();
                     }
@@ -135,7 +156,8 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
 
                 isLeader = true;
             } catch (Throwable th) {
-                log.error("Encountered error when initializing to become leader", th);
+                log.error().exception(th)
+                        .log("Encountered error when initializing to become leader");
                 errorNotifier.triggerError(th);
             }
         }
@@ -145,9 +167,13 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
     }
 
     @Override
-    public synchronized void becameInactive(Consumer<?> consumer, int partitionId) {
+    public void becameInactive(Consumer<?> consumer, int partitionId) {
+        executor.execute(() -> becameInactiveInternal(consumer, partitionId));
+    }
+
+    private synchronized void becameInactiveInternal(Consumer<?> consumer, int partitionId) {
         if (isLeader) {
-            log.info("Worker {} lost the leadership.", consumerName);
+            log.info().attr("worker", consumerName).log("Worker lost the leadership.");
             isLeader = false;
             // when a worker has lost leadership it needs to start reading from the assignment topic again
             try {
@@ -163,14 +189,20 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
                 }
                 functionMetaDataManager.giveupLeadership();
             } catch (Throwable th) {
-                log.error("Encountered error in routine when worker lost leadership", th);
+                log.error().exception(th)
+                        .log("Encountered error in routine when worker lost leadership");
                 errorNotifier.triggerError(th);
             }
         }
     }
 
-    public synchronized boolean isLeader() {
+    public boolean isLeader() {
         return isLeader;
+    }
+
+    @VisibleForTesting
+    void joinPendingEventTasks() throws InterruptedException, ExecutionException {
+        executor.submit(() -> { }).get();
     }
 
     @Override
@@ -178,5 +210,6 @@ public class LeaderService implements AutoCloseable, ConsumerEventListener {
         if (consumer != null) {
             consumer.close();
         }
+        executor.shutdown();
     }
 }

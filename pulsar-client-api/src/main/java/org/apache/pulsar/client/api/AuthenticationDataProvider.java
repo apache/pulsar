@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,6 +36,8 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
 public interface AuthenticationDataProvider extends Serializable {
+
+    String PULSAR_AUTH_METHOD_NAME = "X-Pulsar-Auth-Method-Name";
     /*
      * TLS
      */
@@ -60,7 +62,7 @@ public interface AuthenticationDataProvider extends Serializable {
     /**
      * @return a client certificate file path
      */
-    default String getTlsCerificateFilePath() {
+    default String getTlsCertificateFilePath() {
         return null;
     }
 

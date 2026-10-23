@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,11 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.utils.functioncache;
-
-import com.google.common.base.Preconditions;
-import org.apache.pulsar.functions.utils.Exceptions;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,13 +25,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import org.apache.pulsar.functions.utils.Exceptions;
 
 /**
  * An implementation of {@link FunctionCacheManager}.
  */
 public class FunctionCacheManagerImpl implements FunctionCacheManager {
 
-    /** Registered Functions **/
+    /** Registered Functions. **/
     private final Map<String, FunctionCacheEntry> cacheFunctions;
 
     private ClassLoader rootClassLoader;
@@ -112,7 +109,8 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
 
     @Override
     public void registerFunctionInstanceWithArchive(String fid, String eid,
-                                                    String narArchive, String narExtractionDirectory) throws IOException {
+                                                    String narArchive, String narExtractionDirectory)
+            throws IOException {
         if (fid == null) {
             throw new NullPointerException("FunctionID not set");
         }
@@ -127,7 +125,8 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
 
             // Create new cache entry
             try {
-                cacheFunctions.put(fid, new FunctionCacheEntry(narArchive, eid, rootClassLoader, narExtractionDirectory));
+                cacheFunctions
+                        .put(fid, new FunctionCacheEntry(narArchive, eid, rootClassLoader, narExtractionDirectory));
             } catch (Throwable cause) {
                 Exceptions.rethrowIOException(cause);
             }

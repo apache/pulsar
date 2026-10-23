@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.stats;
 
-import java.util.Map;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import java.util.Map;
 
 public abstract class MetricsMixIn {
     @JsonInclude(content = JsonInclude.Include.NON_EMPTY)

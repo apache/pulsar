@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.tests.integration.io.sources;
 
+import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
@@ -35,22 +39,17 @@ import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-import static org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.JAVAJAR;
-import static org.apache.pulsar.tests.integration.suites.PulsarTestSuite.retryStrategically;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 /**
  * Source Property related test cases.
  */
-@Slf4j
+@CustomLog
 public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
     @Test(groups = {"source"})
     public void testSourceProperty() throws Exception {
         String outputTopicName = "test-source-property-input-" + randomName(8);
         String sourceName = "test-source-property-" + randomName(8);
-        submitSourceConnector(sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.TestPropertySource",  JAVAJAR);
+        submitSourceConnector(sourceName, outputTopicName, "org.apache.pulsar.tests.integration.io.TestPropertySource",
+                JAVAJAR);
 
         // get source info
         getSourceInfoSuccess(sourceName);
@@ -101,7 +100,7 @@ public class PulsarSourcePropertyTest extends PulsarStandaloneTestSuite {
                 "--archive", archive,
                 "--classname", className
         };
-        log.info("Run command : {}", StringUtils.join(commands, ' '));
+        log.info().attr("command", StringUtils.join(commands, ' ')).log("Run command");
         ContainerExecResult result = container.execCmd(commands);
         assertTrue(
                 result.getStdout().contains("Created successfully"),

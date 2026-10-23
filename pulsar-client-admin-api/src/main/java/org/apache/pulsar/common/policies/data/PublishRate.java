@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,14 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Objects;
+import lombok.SneakyThrows;
 import lombok.ToString;
 
 /**
  * Publish-rate to manage publish throttling.
  */
 @ToString
-public class PublishRate {
+public class PublishRate implements Cloneable{
 
     public int publishThrottlingRateInMsg = -1;
     public long publishThrottlingRateInByte = -1;
@@ -40,6 +41,22 @@ public class PublishRate {
         super();
         this.publishThrottlingRateInMsg = dispatchThrottlingRateInMsg;
         this.publishThrottlingRateInByte = dispatchThrottlingRateInByte;
+    }
+
+    public static PublishRate normalize(PublishRate publishRate) {
+        if (publishRate != null
+            && (publishRate.publishThrottlingRateInMsg > 0
+            || publishRate.publishThrottlingRateInByte > 0)) {
+            return publishRate;
+        } else {
+            return null;
+        }
+    }
+
+    @SneakyThrows
+    @Override
+    protected PublishRate clone() {
+        return PublishRate.class.cast(super.clone());
     }
 
     @Override

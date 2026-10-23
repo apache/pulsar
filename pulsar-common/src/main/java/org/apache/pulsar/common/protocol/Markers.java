@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,18 @@
  */
 package org.apache.pulsar.common.protocol;
 
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT;
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST;
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE;
+import static org.apache.pulsar.common.api.proto.MarkerType.REPLICATED_SUBSCRIPTION_UPDATE;
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
-
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-
 import lombok.SneakyThrows;
 import lombok.experimental.UtilityClass;
-
+import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
@@ -101,6 +102,13 @@ public class Markers {
         return msgMetadata.hasMarkerType();
     }
 
+    public static boolean isReplicationMarker(int markerType) {
+        return markerType == REPLICATED_SUBSCRIPTION_SNAPSHOT_REQUEST.getValue()
+                || markerType == REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE.getValue()
+                || markerType == REPLICATED_SUBSCRIPTION_SNAPSHOT.getValue()
+                || markerType == REPLICATED_SUBSCRIPTION_UPDATE.getValue();
+    }
+
     public static boolean isReplicatedSubscriptionSnapshotMarker(MessageMetadata msgMetadata) {
         return msgMetadata != null
                 && msgMetadata.hasMarkerType()
@@ -112,7 +120,7 @@ public class Markers {
                 .clear()
                 .setSnapshotId(snapshotId)
                 .setSourceCluster(sourceCluster);
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(req.getSerializedSize());
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(req.getSerializedSize());
 
         try {
             req.writeTo(payload);
@@ -141,7 +149,7 @@ public class Markers {
                 .setLedgerId(ledgerId)
                 .setEntryId(entryId);
 
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(response.getSerializedSize());
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(response.getSerializedSize());
         try {
             response.writeTo(payload);
             return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT_RESPONSE, Optional.of(replyToCluster),
@@ -175,7 +183,7 @@ public class Markers {
         });
 
         int size = snapshot.getSerializedSize();
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(size);
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(size);
         try {
             snapshot.writeTo(payload);
             return newMessage(MarkerType.REPLICATED_SUBSCRIPTION_SNAPSHOT, Optional.of(sourceCluster), payload);
@@ -204,7 +212,7 @@ public class Markers {
                     .setMessageId().copyFrom(msgId);
         });
 
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(update.getSerializedSize());
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(update.getSerializedSize());
 
         try {
             update.writeTo(payload);
@@ -261,7 +269,7 @@ public class Markers {
                 .setTxnidMostBits(txnMostBits)
                 .setTxnidLeastBits(txnLeastBits);
 
-        ByteBuf payload = PooledByteBufAllocator.DEFAULT.buffer(0);
+        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.buffer(0);
 
         try {
             return Commands.serializeMetadataAndPayload(ChecksumType.Crc32c,

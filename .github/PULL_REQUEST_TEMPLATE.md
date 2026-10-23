@@ -1,37 +1,46 @@
 <!--
 ### Contribution Checklist
-  
-  - Name the pull request in the form "[Issue XYZ][component] Title of the pull request", where *XYZ* should be replaced by the actual issue number.
-    Skip *Issue XYZ* if there is no associated github issue for this pull request.
-    Skip *component* if you are unsure about which is the best component. E.g. `[docs] Fix typo in produce method`.
+
+  - PR title format should be *[type][component] summary*. The valid `[type]` and `[component]`/scope
+    prefixes are enforced by CI (see `.github/workflows/ci-semantic-pull-request.yml`); for details,
+    see *[Guideline - Pulsar PR Naming Convention](https://pulsar.apache.org/contribute/develop-semantic-title/)*.
 
   - Fill out the template below to describe the changes contributed by the pull request. That will give reviewers the context they need to do the review.
-  
+
+  - The **Motivation** and **Modifications** sections are required: explain *why* (the problem/context)
+    and *what/how* (the change). A title alone, or a description that only restates the title, is not enough.
+
   - Each pull request should address only one issue, not mix up code from multiple issues.
-  
+
   - Each commit in the pull request has a meaningful commit message
 
-  - Once all items of the checklist are addressed, remove the above text and this checklist, leaving only the filled out template below.
+  - For the local build/test/PR workflow see `CONTRIBUTING.md`, and for coding conventions see
+    `CODING.md`. If you use an AI coding assistant, see `AGENTS.md`.
 
-**(The sections below can be removed for hotfixes of typos)**
+  - Once all items of the checklist are addressed, remove the above text and this checklist, leaving only the filled out template below.
 -->
 
-*(If this PR fixes a github issue, please add `Fixes #<xyz>`.)*
+<!-- Either this PR fixes/closes an issue — use "Fixes #xyz" or, equivalently, "Closes #xyz", -->
 
-Fixes #<xyz>
+Fixes #xyz
 
-*(or if this PR is one task of a github issue, please add `Master Issue: #<xyz>` to link to the master issue.)*
+<!-- or this PR is one task of an issue -->
 
-Master Issue: #<xyz>
+Main Issue: #xyz
+
+<!-- If the PR belongs to a PIP, please add the PIP link here -->
+
+PIP: #xyz 
+
+<!-- Details of when a PIP is required and how the PIP process work, please see: https://github.com/apache/pulsar/blob/master/pip/README.md -->
 
 ### Motivation
 
-
-*Explain here the context, and why you're making that change. What is the problem you're trying to solve.*
+<!-- Explain here the context, and why you're making that change. What is the problem you're trying to solve. -->
 
 ### Modifications
 
-*Describe the modifications you've done.*
+<!-- Describe the modifications you've done. -->
 
 ### Verifying this change
 
@@ -55,33 +64,17 @@ This change added tests and can be verified as follows:
 
 ### Does this pull request potentially affect one of the following parts:
 
-*If `yes` was chosen, please highlight the changes*
+<!-- DO NOT REMOVE THIS SECTION. CHECK THE PROPER BOX ONLY. -->
 
-  - Dependencies (does it add or upgrade a dependency): (yes / no)
-  - The public API: (yes / no)
-  - The schema: (yes / no / don't know)
-  - The default values of configurations: (yes / no)
-  - The wire protocol: (yes / no)
-  - The rest endpoints: (yes / no)
-  - The admin cli options: (yes / no)
-  - Anything that affects deployment: (yes / no / don't know)
+*If the box was checked, please highlight the changes*
 
-### Documentation
-
-Check the box below and label this PR (if you have committer privilege).
-
-Need to update docs? 
-
-- [ ] `doc-required` 
-  
-  (If you need help on updating docs, create a doc issue)
-  
-- [ ] `no-need-doc` 
-  
-  (Please explain why)
-  
-- [ ] `doc` 
-  
-  (If this PR contains doc changes)
-
-
+- [ ] Dependencies (add or upgrade a dependency)
+- [ ] The public API
+- [ ] The schema
+- [ ] The default values of configurations
+- [ ] The threading model
+- [ ] The binary protocol
+- [ ] The REST endpoints
+- [ ] The admin CLI options
+- [ ] The metrics
+- [ ] Anything that affects deployment

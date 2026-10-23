@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,22 +27,25 @@ import static org.apache.bookkeeper.net.CommonConfigurationKeys.NET_TOPOLOGY_SCR
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import java.util.function.Consumer;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.bookkeeper.meta.MetadataDrivers;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.metadata.api.MetadataStore;
@@ -50,44 +53,61 @@ import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.bookkeeper.AbstractMetadataDriver;
 import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
-@SuppressWarnings("deprecation")
-@Slf4j
+@CustomLog
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
+    // The callbacks that unregister the metadata store listeners of the BookieRackAffinityMapping instances of the
+    // created clients. Guarded by this
+    private final List<Runnable> metadataStoreListenerCleanups = new ArrayList<>();
+    // Guarded by this
+    private boolean closed;
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
-                             EventLoopGroup eventLoopGroup,
-                             Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties) throws IOException {
-        return create(conf, store, eventLoopGroup, ensemblePlacementPolicyClass, properties,
+    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
+                                                EventLoopGroup eventLoopGroup,
+                                                Optional<Class<? extends EnsemblePlacementPolicy>> policyClass,
+                                                Map<String, Object> properties) {
+        return create(conf, store, eventLoopGroup, policyClass, properties,
                 NullStatsLogger.INSTANCE);
     }
 
     @Override
-    public BookKeeper create(ServiceConfiguration conf, MetadataStoreExtended store,
+    public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
                              EventLoopGroup eventLoopGroup,
                              Optional<Class<? extends EnsemblePlacementPolicy>> ensemblePlacementPolicyClass,
-                             Map<String, Object> properties, StatsLogger statsLogger) throws IOException {
-        MetadataDrivers.registerClientDriver("metadata-store", PulsarMetadataClientDriver.class);
+                             Map<String, Object> properties, StatsLogger statsLogger) {
+        PulsarMetadataClientDriver.init();
 
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
+        bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP,
+                (Consumer<Runnable>) this::addMetadataStoreListenerCleanup);
         if (properties != null) {
-            properties.forEach((key, value) -> bkConf.setProperty(key, value));
+            properties.forEach(bkConf::setProperty);
         }
         if (ensemblePlacementPolicyClass.isPresent()) {
             setEnsemblePlacementPolicy(bkConf, conf, store, ensemblePlacementPolicyClass.get());
         } else {
             setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
-        try {
-            return BookKeeper.forConfig(bkConf)
-                    .allocator(PulsarByteBufAllocator.DEFAULT)
-                    .eventLoopGroup(eventLoopGroup)
-                    .statsLogger(statsLogger)
-                    .build();
-        } catch (InterruptedException | BKException e) {
-            throw new IOException(e);
+
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
+            } catch (InterruptedException | BKException | IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    @VisibleForTesting
+    BookKeeper.Builder getBookKeeperBuilder(ServiceConfiguration conf, EventLoopGroup eventLoopGroup,
+                                            StatsLogger statsLogger, ClientConfiguration bkConf) {
+        BookKeeper.Builder builder = BookKeeper.forConfig(bkConf)
+                .allocator(PulsarByteBufAllocator.DEFAULT)
+                .statsLogger(statsLogger);
+        if (!conf.isBookkeeperClientSeparatedIoThreadsEnabled()) {
+            builder.eventLoopGroup(eventLoopGroup);
         }
+        return builder;
     }
 
     @VisibleForTesting
@@ -116,6 +136,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setBusyWaitEnabled(conf.isEnableBusyWait());
         bkConf.setNumWorkerThreads(conf.getBookkeeperClientNumWorkerThreads());
         bkConf.setThrottleValue(conf.getBookkeeperClientThrottleValue());
+        bkConf.setZkTimeout((int) conf.getMetadataStoreSessionTimeoutMillis());
         bkConf.setAddEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setReadEntryTimeout((int) conf.getBookkeeperClientTimeoutInSeconds());
         bkConf.setSpeculativeReadTimeout(conf.getBookkeeperClientSpeculativeReadTimeoutInMillis());
@@ -125,8 +146,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setStickyReadsEnabled(conf.isBookkeeperEnableStickyReads());
         bkConf.setNettyMaxFrameSizeBytes(conf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING);
         bkConf.setDiskWeightBasedPlacementEnabled(conf.isBookkeeperDiskWeightBasedPlacementEnabled());
-
         bkConf.setMetadataServiceUri(conf.getBookkeeperMetadataStoreUrl());
+        bkConf.setLimitStatsLogging(conf.isBookkeeperClientLimitStatsLogging());
 
         if (!conf.isBookkeeperMetadataStoreSeparated()) {
             // If we're connecting to the same metadata service, with same config, then
@@ -150,15 +171,15 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 conf.getBookkeeperClientGetBookieInfoIntervalSeconds(), TimeUnit.SECONDS);
         bkConf.setGetBookieInfoRetryIntervalSeconds(
                 conf.getBookkeeperClientGetBookieInfoRetryIntervalSeconds(), TimeUnit.SECONDS);
-        Properties allProps = conf.getProperties();
-        allProps.forEach((key, value) -> {
-            String sKey = key.toString();
-            if (sKey.startsWith("bookkeeper_") && value != null) {
-                String bkExtraConfigKey = sKey.substring(11);
-                log.info("Extra BookKeeper client configuration {}, setting {}={}", sKey, bkExtraConfigKey, value);
-                bkConf.setProperty(bkExtraConfigKey, value);
-            }
-        });
+        bkConf.setNumIOThreads(conf.getBookkeeperClientNumIoThreads());
+        PropertiesUtils.filterAndMapProperties(conf.getProperties(), "bookkeeper_")
+                .forEach((key, value) -> {
+                    log.info()
+                            .attr("key", key)
+                            .attr("value", value)
+                            .log("Applying BookKeeper client configuration setting");
+                    bkConf.setProperty(key, value);
+                });
         return bkConf;
     }
 
@@ -216,13 +237,16 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
     }
 
-    private void setEnsemblePlacementPolicy(ClientConfiguration bkConf, ServiceConfiguration conf, MetadataStore store,
+    static void setEnsemblePlacementPolicy(ClientConfiguration bkConf, ServiceConfiguration conf, MetadataStore store,
                                             Class<? extends EnsemblePlacementPolicy> policyClass) {
         bkConf.setEnsemblePlacementPolicy(policyClass);
         bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
         if (conf.isBookkeeperClientRackawarePolicyEnabled() || conf.isBookkeeperClientRegionawarePolicyEnabled()) {
             bkConf.setProperty(REPP_DNS_RESOLVER_CLASS, conf.getProperties().getProperty(REPP_DNS_RESOLVER_CLASS,
                     BookieRackAffinityMapping.class.getName()));
+
+            bkConf.setMinNumRacksPerWriteQuorum(conf.getBookkeeperClientMinNumRacksPerWriteQuorum());
+            bkConf.setEnforceMinNumRacksPerWriteQuorum(conf.isBookkeeperClientEnforceMinNumRacksPerWriteQuorum());
 
             bkConf.setProperty(NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
                 conf.getProperties().getProperty(
@@ -233,6 +257,23 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     @Override
     public void close() {
-        // Nothing to do
+        List<Runnable> cleanups;
+        synchronized (this) {
+            closed = true;
+            cleanups = new ArrayList<>(metadataStoreListenerCleanups);
+            metadataStoreListenerCleanups.clear();
+        }
+        cleanups.forEach(Runnable::run);
+    }
+
+    // A client can still be building when the factory is closed: its listener is then unregistered right away
+    private void addMetadataStoreListenerCleanup(Runnable cleanup) {
+        synchronized (this) {
+            if (!closed) {
+                metadataStoreListenerCleanups.add(cleanup);
+                return;
+            }
+        }
+        cleanup.run();
     }
 }

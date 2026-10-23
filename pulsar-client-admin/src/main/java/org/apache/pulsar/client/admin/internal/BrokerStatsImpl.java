@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,8 @@ package org.apache.pulsar.client.admin.internal;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import jakarta.ws.rs.client.WebTarget;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -36,37 +35,22 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
  */
 public class BrokerStatsImpl extends BaseResource implements BrokerStats {
 
-    private final WebTarget adminBrokerStats;
     private final WebTarget adminV2BrokerStats;
 
-    public BrokerStatsImpl(WebTarget target, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
-        adminBrokerStats = target.path("/admin/broker-stats");
+    public BrokerStatsImpl(WebTarget target, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminV2BrokerStats = target.path("/admin/v2/broker-stats");
     }
 
     @Override
     public String getMetrics() throws PulsarAdminException {
-        return sync(() -> getMetricsAsync());
+        return sync(this::getMetricsAsync);
     }
 
     @Override
     public CompletableFuture<String> getMetricsAsync() {
         WebTarget path = adminV2BrokerStats.path("/metrics");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(s);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
@@ -77,123 +61,58 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     @Override
     public CompletableFuture<AllocatorStats> getAllocatorStatsAsync(String allocatorName) {
         WebTarget path = adminV2BrokerStats.path("/allocator-stats").path(allocatorName);
-        final CompletableFuture<AllocatorStats> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<AllocatorStats>() {
-                    @Override
-                    public void completed(AllocatorStats allocatorStats) {
-                        future.complete(allocatorStats);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<AllocatorStats>(){});
     }
 
     @Override
     public String getMBeans() throws PulsarAdminException {
-        return sync(() -> getMBeansAsync());
+        return sync(this::getMBeansAsync);
     }
 
     @Override
     public CompletableFuture<String> getMBeansAsync() {
         WebTarget path = adminV2BrokerStats.path("/mbeans");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(s);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
     public String getTopics() throws PulsarAdminException {
-        return sync(() -> getTopicsAsync());
+        return sync(this::getTopicsAsync);
     }
 
     @Override
     public CompletableFuture<String> getTopicsAsync() {
         WebTarget path = adminV2BrokerStats.path("/topics");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(s);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     @Override
     public LoadManagerReport getLoadReport() throws PulsarAdminException {
-        return sync(() -> getLoadReportAsync());
+        return sync(this::getLoadReportAsync);
     }
 
     @Override
     public CompletableFuture<LoadManagerReport> getLoadReportAsync() {
         WebTarget path = adminV2BrokerStats.path("/load-report");
-        final CompletableFuture<LoadManagerReport> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<LoadManagerReport>() {
-                    @Override
-                    public void completed(LoadManagerReport loadManagerReport) {
-                        future.complete(loadManagerReport);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<LoadManagerReport>(){});
     }
 
     @Override
     public String getPendingBookieOpsStats() throws PulsarAdminException {
-        return sync(() -> getPendingBookieOpsStatsAsync());
+        return sync(this::getPendingBookieOpsStatsAsync);
     }
 
     @Override
     public CompletableFuture<String> getPendingBookieOpsStatsAsync() {
         WebTarget path = adminV2BrokerStats.path("/bookieops");
-        final CompletableFuture<String> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<String>() {
-                    @Override
-                    public void completed(String s) {
-                        future.complete(s);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<String>(){});
     }
 
     public JsonObject getBrokerResourceAvailability(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget admin = ns.isV2() ? adminV2BrokerStats : adminBrokerStats;
-            String json = request(admin.path("/broker-resource-availability").path(ns.toString())).get(String.class);
+            String json = request(adminV2BrokerStats.path("/broker-resource-availability").path(ns.toString()))
+                    .get(String.class);
             return new Gson().fromJson(json, JsonObject.class);
         } catch (Exception e) {
             throw getApiException(e);

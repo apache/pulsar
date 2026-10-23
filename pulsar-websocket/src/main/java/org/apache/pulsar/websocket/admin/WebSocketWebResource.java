@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,24 +19,24 @@
 package org.apache.pulsar.websocket.admin;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriInfo;
 import javax.naming.AuthenticationException;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriInfo;
-
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.websocket.WebSocketService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class WebSocketWebResource {
 
     public static final String ATTRIBUTE_PROXY_SERVICE_NAME = "webProxyService";
-    public static final String ADMIN_PATH_V1 = "/admin";
     public static final String ADMIN_PATH_V2 = "/admin/v2";
 
     @Context
@@ -51,7 +51,7 @@ public class WebSocketWebResource {
     private WebSocketService socketService;
 
     private String clientId;
-    private AuthenticationDataHttps authData;
+    private AuthenticationDataSource authenticationDataSource;
 
     protected WebSocketService service() {
         if (socketService == null) {
@@ -61,14 +61,26 @@ public class WebSocketWebResource {
     }
 
     /**
-     * Gets a caller id (IP + role)
+     * Gets a caller id (IP + role).
      *
      * @return the web service caller identification
      */
+    @SuppressWarnings("deprecation")
     public String clientAppId() {
         if (isBlank(clientId)) {
             try {
-                clientId = service().getAuthenticationService().authenticateHttpRequest(httpRequest);
+                String authMethodName = httpRequest.getHeader(AuthenticationFilter.PULSAR_AUTH_METHOD_NAME);
+                if (authMethodName != null
+                    && service().getAuthenticationService().getAuthenticationProvider(authMethodName) != null) {
+                    authenticationDataSource = service().getAuthenticationService()
+                            .getAuthenticationProvider(authMethodName)
+                            .newHttpAuthState(httpRequest).getAuthDataSource();
+                    clientId = service().getAuthenticationService().authenticateHttpRequest(
+                            httpRequest, authenticationDataSource);
+                } else {
+                    clientId = service().getAuthenticationService().authenticateHttpRequest(httpRequest);
+                    authenticationDataSource = new AuthenticationDataHttps(httpRequest);
+                }
             } catch (AuthenticationException e) {
                 if (service().getConfig().isAuthenticationEnabled()) {
                     throw new RestException(Status.UNAUTHORIZED, "Failed to get clientId from request");
@@ -82,11 +94,8 @@ public class WebSocketWebResource {
         return clientId;
     }
 
-    public AuthenticationDataHttps authData() {
-        if (authData == null) {
-            authData = new AuthenticationDataHttps(httpRequest);
-        }
-        return authData;
+    public AuthenticationDataSource authData() throws AuthenticationException {
+        return authenticationDataSource;
     }
 
     /**
@@ -98,10 +107,11 @@ public class WebSocketWebResource {
     protected void validateSuperUserAccess() {
         if (service().getConfig().isAuthenticationEnabled()) {
             String appId = clientAppId();
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Check super user access: Authenticated: {} -- Role: {}", uri.getRequestUri(),
-                        clientAppId(), appId);
-            }
+            log.debug()
+                    .attr("requestUri", uri.getRequestUri())
+                    .attr("authenticated", clientAppId())
+                    .attr("role", appId)
+                    .log("Check super user access: Authenticated: -- Role");
             if (!service().getConfig().getSuperUserRoles().contains(appId)) {
                 throw new RestException(Status.UNAUTHORIZED, "This operation requires super-user access");
             }
@@ -109,7 +119,7 @@ public class WebSocketWebResource {
     }
 
     /**
-     * Checks if user has super-user access or user is authorized to produce/consume on a given topic
+     * Checks if user has super-user access or user is authorized to produce/consume on a given topic.
      *
      * @param topic
      * @throws RestException
@@ -134,7 +144,7 @@ public class WebSocketWebResource {
     }
 
     /**
-     * Checks if user is authorized to produce/consume on a given topic
+     * Checks if user is authorized to produce/consume on a given topic.
      *
      * @param topic
      * @return
@@ -146,6 +156,4 @@ public class WebSocketWebResource {
         }
         return true;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(WebSocketWebResource.class);
 }

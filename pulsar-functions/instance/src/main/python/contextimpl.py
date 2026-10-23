@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -90,6 +89,19 @@ class ContextImpl(pulsar.Context):
   def get_current_message_topic_name(self):
     return self.message.topic_name()
 
+  def get_message_sequence_id(self):
+    if not self.get_message_id():
+      return None
+    ledger_id = self.get_message_id().ledger_id()
+    entry_id = self.get_message_id().entry_id()
+    offset = (ledger_id << 28) | entry_id
+    return offset
+
+  def get_message_partition_index(self):
+    if not self.get_message_id():
+      return None
+    return self.get_message_id().partition()
+
   def get_partition_key(self):
     return self.message.partition_key()
 
@@ -139,10 +151,10 @@ class ContextImpl(pulsar.Context):
     return list(self.instance_config.function_details.source.inputSpecs.keys())
 
   def get_output_topic(self):
-    return self.instance_config.function_details.output
+    return self.instance_config.function_details.sink.topic
 
   def get_output_serde_class_name(self):
-    return self.instance_config.function_details.outputSerdeClassName
+    return self.instance_config.function_details.sink.serDeClassName
 
   def callback_wrapper(self, callback, topic, message_id, result, msg):
     if result != pulsar.Result.Ok:
@@ -160,17 +172,19 @@ class ContextImpl(pulsar.Context):
     if compression_type is not None:
       pulsar_compression_type = compression_type
     if topic_name not in self.publish_producers:
+      # Honour the batching / pending-queue settings configured on the function's producerSpec, the
+      # same ones the sink producer uses, so that context.publish() is not pinned to the defaults.
+      producer_config = util.producer_config_from_function_details(self.instance_config.function_details)
       self.publish_producers[topic_name] = self.pulsar_client.create_producer(
         topic_name,
         block_if_queue_full=True,
-        batching_enabled=True,
-        batching_max_publish_delay_ms=10,
         compression_type=pulsar_compression_type,
         properties=util.get_properties(util.getFullyQualifiedFunctionName(
           self.instance_config.function_details.tenant,
           self.instance_config.function_details.namespace,
           self.instance_config.function_details.name),
-          self.instance_config.instance_id)
+          self.instance_config.instance_id),
+        **producer_config
       )
 
     if serde_class_name not in self.publish_serializers:
@@ -198,7 +212,7 @@ class ContextImpl(pulsar.Context):
       topic_consumer = self.consumers[topic]
     else:
       # if this topic is a partitioned topic
-      m = re.search('(.+)-partition-(\d+)', topic)
+      m = re.search(r'(.+)-partition-(\d+)', topic)
       if not m:
         raise ValueError('Invalid topicname %s' % topic)
       elif m.group(1) in self.consumers:
@@ -234,10 +248,13 @@ class ContextImpl(pulsar.Context):
     return self.state_context.get_amount(key)
 
   def del_counter(self, key):
-    return self.state_context.delete(key)
+    return self.state_context.delete_key(key)
 
   def put_state(self, key, value):
     return self.state_context.put(key, value)
 
   def get_state(self, key):
     return self.state_context.get_value(key)
+
+  def get_pulsar_client(self):
+    return self.pulsar_client

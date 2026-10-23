@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.util;
 
 import java.io.IOException;
@@ -24,7 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
-
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -33,6 +32,41 @@ public class FileModifiedTimeUpdaterTest {
     @DataProvider(name = "files")
     Object[] getFiles() {
         return new Object[] { "/tmp/file.ini", "/tmp/file.log", "/tmp/f3/notes.txt" };
+    }
+
+    public static class BasicAuthenticationData implements AuthenticationDataProvider {
+        public String authParam;
+        public String certFilePath;
+        public String keyFilePath;
+
+        public BasicAuthenticationData(String authParam) {
+            this.authParam = authParam;
+        }
+
+        @Override
+        public boolean hasDataForTls() {
+            return true;
+        }
+
+        public boolean hasDataFromCommand() {
+            return true;
+        }
+
+        public String getCommandData() {
+            return authParam;
+        }
+
+        public boolean hasDataForHttp() {
+            return true;
+        }
+
+        public String getTlsCertificateFilePath() {
+            return certFilePath;
+        }
+
+        public String getTlsPrivateKeyFilePath() {
+            return keyFilePath;
+        }
     }
 
     @Test(dataProvider = "files")
@@ -65,4 +99,5 @@ public class FileModifiedTimeUpdaterTest {
         Assert.assertFalse(fileModifiedTimeUpdater.checkAndRefresh());
         Assert.assertEquals(fileTime, fileModifiedTimeUpdater.getLastModifiedTime());
     }
+
 }

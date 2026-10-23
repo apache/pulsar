@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,12 +20,12 @@ package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -35,13 +35,19 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * Util class for processing key/value schema info.
  */
-@Slf4j
+@CustomLog
 public final class KeyValueSchemaInfo {
 
     private static final Schema<SchemaInfo> SCHEMA_INFO_WRITER = new Schema<SchemaInfo>() {
+
+        @Override
+        public EncodeData encode(String topic, SchemaInfo si) {
+            return new EncodeData(si.getSchema());
+        }
+
         @Override
         public byte[] encode(SchemaInfo si) {
-            return si.getSchema();
+            return encode(null, si).data();
         }
 
         @Override

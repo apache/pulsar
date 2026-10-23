@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import java.io.Serializable;
 import java.util.Map;
-
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 

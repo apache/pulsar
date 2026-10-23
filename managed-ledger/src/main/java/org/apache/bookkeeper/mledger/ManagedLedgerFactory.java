@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,11 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -26,6 +30,9 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyCursorCallback;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -88,10 +95,10 @@ public interface ManagedLedgerFactory {
      *            opaque context
      */
     void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback,
-            Supplier<Boolean> mlOwnershipChecker, Object ctx);
+            Supplier<CompletableFuture<Boolean>> mlOwnershipChecker, Object ctx);
 
     /**
-     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
+     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
      *
      * @param managedLedgerName
      * @param startPosition
@@ -103,7 +110,7 @@ public interface ManagedLedgerFactory {
             throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger
+     * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
      *
      * @param managedLedgerName
      * @param startPosition
@@ -114,6 +121,17 @@ public interface ManagedLedgerFactory {
      */
     void asyncOpenReadOnlyCursor(String managedLedgerName, Position startPosition, ManagedLedgerConfig config,
             OpenReadOnlyCursorCallback callback, Object ctx);
+
+    /**
+     * Asynchronous open a Read-only managedLedger.
+     * @param managedLedgerName the unique name that identifies the managed ledger
+     * @param callback
+     * @param config the managed ledger configuration.
+     * @param ctx opaque context
+     */
+    void asyncOpenReadOnlyManagedLedger(String managedLedgerName,
+                                AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
+                                ManagedLedgerConfig config, Object ctx);
 
     /**
      * Get the current metadata info for a managed ledger.
@@ -151,7 +169,27 @@ public interface ManagedLedgerFactory {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
+    void delete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture)
+            throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Delete a managed ledger. If it's not open, it's metadata will get regardless deleted.
+     *
+     * @param name
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
     void asyncDelete(String name, DeleteLedgerCallback callback, Object ctx);
+
+    /**
+     * Delete a managed ledger. If it's not open, it's metadata will get regardless deleted.
+     *
+     * @param name
+     * @throws InterruptedException
+     * @throws ManagedLedgerException
+     */
+    void asyncDelete(String name, CompletableFuture<ManagedLedgerConfig> mlConfigFuture,
+                             DeleteLedgerCallback callback, Object ctx);
 
     /**
      * Releases all the resources maintained by the ManagedLedgerFactory.
@@ -179,4 +217,100 @@ public interface ManagedLedgerFactory {
      */
     CompletableFuture<Boolean> asyncExists(String ledgerName);
 
+    /**
+     * @return return EntryCacheManager.
+     */
+    EntryCacheManager getEntryCacheManager();
+
+    /**
+     * update cache evictionTimeThreshold dynamically. Similar as
+     * {@link ManagedLedgerFactoryConfig#setCacheEvictionTimeThresholdMillis(long)}
+     * but the value is in nanos. This inconsistency is kept for backwards compatibility.
+     * @param cacheEvictionTimeThresholdNanos time threshold in nanos for eviction.
+     */
+    void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos);
+
+    /**
+     * time threshold for eviction. Similar as
+     * {@link ManagedLedgerFactoryConfig#getCacheEvictionTimeThresholdMillis()}
+     * but the value is in nanos.
+     * @return time threshold for eviction.
+     */
+    long getCacheEvictionTimeThreshold();
+
+    /**
+     * Update extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes. Similar as
+     * {@link ManagedLedgerFactoryConfig#setCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(int)}.
+     * @param extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes max times to extend TTL for entries with remaining
+     *                                                            expected reads.
+     */
+    default void updateCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(
+            int extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes) {
+        // Default implementation does nothing for backwards compatibility of the ManagedLedgerFactory interface.
+        // Subclasses can override this method to provide specific behavior.
+    }
+
+    /**
+     * Update cacheEvictionExtendTTLOfRecentlyAccessed. Similar as
+     * {@link ManagedLedgerFactoryConfig#setCacheEvictionExtendTTLOfRecentlyAccessed(boolean)}.
+     * @param cacheEvictionExtendTTLOfRecentlyAccessed whether to extend TTL of recently accessed entries.
+     */
+    default void updateCacheEvictionExtendTTLOfRecentlyAccessed(boolean cacheEvictionExtendTTLOfRecentlyAccessed) {
+        // Default implementation does nothing for backwards compatibility of the ManagedLedgerFactory interface.
+        // Subclasses can override this method to provide specific behavior.
+    }
+
+    /**
+     * @return properties of this managedLedger.
+     */
+    CompletableFuture<Map<String, String>> getManagedLedgerPropertiesAsync(String name);
+
+    Map<String, ManagedLedger> getManagedLedgers();
+
+    ManagedLedgerFactoryMXBean getCacheStats();
+
+
+    void estimateUnloadedTopicBacklog(PersistentOfflineTopicStats offlineTopicStats, TopicName topicName,
+                                      boolean accurate, Object ctx) throws Exception;
+
+    /**
+     * Asynchronously estimate backlog without loading the topic. Implementations should override this method
+     * with non-blocking metadata and ledger reads. The default preserves compatibility with synchronous
+     * implementations by running them on the supplied executor.
+     *
+     * @param blockingExecutor executor for legacy blocking implementations
+     * @return a future completed after all statistics have been collected
+     */
+    default CompletableFuture<Void> estimateUnloadedTopicBacklogAsync(PersistentOfflineTopicStats offlineTopicStats,
+            TopicName topicName, boolean accurate, Object ctx, Executor blockingExecutor) {
+        try {
+            Objects.requireNonNull(offlineTopicStats, "offlineTopicStats");
+            Objects.requireNonNull(topicName, "topicName");
+            Objects.requireNonNull(blockingExecutor, "blockingExecutor");
+            PersistentOfflineTopicStats collectedStats = new PersistentOfflineTopicStats(
+                    offlineTopicStats.topicName, offlineTopicStats.brokerName);
+            return CompletableFuture.runAsync(() -> {
+                try {
+                    estimateUnloadedTopicBacklog(collectedStats, topicName, accurate, ctx);
+                } catch (Exception e) {
+                    throw new CompletionException(e);
+                }
+            }, blockingExecutor).thenRun(() -> {
+                offlineTopicStats.storageSize = collectedStats.storageSize;
+                offlineTopicStats.totalMessages = collectedStats.totalMessages;
+                offlineTopicStats.messageBacklog = collectedStats.messageBacklog;
+                offlineTopicStats.statGeneratedAt.setTime(collectedStats.statGeneratedAt.getTime());
+                offlineTopicStats.dataLedgerDetails.clear();
+                collectedStats.dataLedgerDetails.forEach(ledger -> offlineTopicStats.addLedgerDetails(
+                        ledger.entries, ledger.timestamp, ledger.size, ledger.ledgerId));
+                offlineTopicStats.cursorDetails.clear();
+                collectedStats.cursorDetails.forEach((name, cursor) -> offlineTopicStats.addCursorDetails(
+                        name, cursor.cursorBacklog, cursor.cursorLedgerId));
+            });
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    ManagedLedgerFactoryConfig getConfig();
 }

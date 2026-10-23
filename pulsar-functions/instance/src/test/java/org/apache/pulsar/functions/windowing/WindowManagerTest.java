@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,10 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.windowing;
 
-import lombok.extern.slf4j.Slf4j;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.windowing.evictors.CountEvictionPolicy;
 import org.apache.pulsar.functions.windowing.evictors.TimeEvictionPolicy;
 import org.apache.pulsar.functions.windowing.evictors.WatermarkCountEvictionPolicy;
@@ -32,23 +41,11 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
 
 /**
- * Unit tests for {@link WindowManager}
+ * Unit tests for {@link WindowManager}.
  */
-@Slf4j
+@CustomLog
 public class WindowManagerTest {
     private WindowManager<Integer> windowManager;
     private Listener listener;
@@ -150,6 +147,7 @@ public class WindowManagerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testExpireThreshold() throws Exception {
         int threshold = WindowManager.EXPIRE_EVENTS_THRESHOLD;
         int windowLength = 5;
@@ -174,6 +172,7 @@ public class WindowManagerTest {
         assertEquals(seq(1, threshold - windowLength), listener.onExpiryEvents);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private void testEvictBeforeWatermarkForWatermarkEvictionPolicy(EvictionPolicy
                                                                             watermarkEvictionPolicy,
                                                                     int windowLength) throws
@@ -194,8 +193,8 @@ public class WindowManagerTest {
         for (Event<Integer> i : seqThreshold(1, threshold)) {
             windowManager.add(i);
         }
-        assertTrue(listener.onExpiryEvents.isEmpty(), "The watermark eviction policies should never evict events " +
-                "before the first "
+        assertTrue(listener.onExpiryEvents.isEmpty(), "The watermark eviction policies should never evict events "
+                + "before the first "
                 + "watermark is received");
         windowManager.add(new WaterMarkEvent<>(threshold));
         // The events should be put in a window when the first watermark is received
@@ -207,8 +206,8 @@ public class WindowManagerTest {
         windowManager.add(new WaterMarkEvent<>(threshold + windowLength + 1));
         //All the events should be expired when the next watermark is received
         assertEquals(listener
-                .onExpiryEvents, seqThreshold(1, threshold), "All the events should be expired after the second " +
-                "watermark");
+                .onExpiryEvents, seqThreshold(1, threshold), "All the events should be expired after the second "
+                + "watermark");
     }
 
     @Test
@@ -389,43 +388,43 @@ public class WindowManagerTest {
         windowManager.add(new WaterMarkEvent<Integer>(631));
 
         assertEquals(3, listener.allOnActivationEvents.size());
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null)
         }), listener.allOnActivationEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null),
                 new EventImpl<>(4, 618, null)
         }), listener.allOnActivationEvents.get(1));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(4, 618, null),
                 new EventImpl<>(5, 626, null)
         }), listener.allOnActivationEvents.get(2));
 
         assertEquals(Collections.emptyList(), listener.allOnActivationExpiredEvents.get(0));
         assertEquals(Collections.emptyList(), listener.allOnActivationExpiredEvents.get(1));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null)
         }), listener.allOnActivationExpiredEvents.get(2));
 
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null)
         }), listener.allOnActivationNewEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(4, 618, null)
         }), listener.allOnActivationNewEvents.get(1));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(5, 626, null)
         }), listener.allOnActivationNewEvents.get(2));
 
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null)
@@ -441,44 +440,44 @@ public class WindowManagerTest {
         windowManager.add(new WaterMarkEvent<Integer>(834));
 
         assertEquals(3, listener.allOnActivationEvents.size());
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(5, 626, null),
                 new EventImpl<>(6, 636, null)
         }), listener.allOnActivationEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(6, 636, null)
         }), listener.allOnActivationEvents.get(1));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(7, 825, null),
                 new EventImpl<>(8, 826, null),
                 new EventImpl<>(9, 827, null)
         }), listener.allOnActivationEvents.get(2));
 
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(4, 618, null)
         }), listener.allOnActivationExpiredEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(5, 626, null)
         }), listener.allOnActivationExpiredEvents.get(1));
         assertEquals(Collections.emptyList(), listener.allOnActivationExpiredEvents.get(2));
 
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(6, 636, null)
         }), listener.allOnActivationNewEvents.get(0));
         assertEquals(Collections.emptyList(), listener.allOnActivationNewEvents.get(1));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(7, 825, null),
                 new EventImpl<>(8, 826, null),
                 new EventImpl<>(9, 827, null)
         }), listener.allOnActivationNewEvents.get(2));
 
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(4, 618, null)
         }), listener.allOnExpiryEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(5, 626, null)
         }), listener.allOnExpiryEvents.get(1));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(6, 636, null)
         }), listener.allOnExpiryEvents.get(2));
     }
@@ -487,8 +486,8 @@ public class WindowManagerTest {
     public void testCountBasedWindowWithEventTs() throws Exception {
         EvictionPolicy<Integer, ?> evictionPolicy = new WatermarkCountEvictionPolicy<>(3);
         windowManager.setEvictionPolicy(evictionPolicy);
-        TriggerPolicy<Integer, ?> triggerPolicy
-                = new WatermarkTimeTriggerPolicy<Integer>(10, windowManager, evictionPolicy, windowManager);
+        TriggerPolicy<Integer, ?> triggerPolicy =
+                new WatermarkTimeTriggerPolicy<Integer>(10, windowManager, evictionPolicy, windowManager);
         triggerPolicy.start();
         windowManager.setTriggerPolicy(triggerPolicy);
 
@@ -502,17 +501,17 @@ public class WindowManagerTest {
         windowManager.add(new WaterMarkEvent<Integer>(631));
 
         assertEquals(3, listener.allOnActivationEvents.size());
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null)
         }), listener.allOnActivationEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null),
                 new EventImpl<>(4, 618, null)
         }), listener.allOnActivationEvents.get(1));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(3, 607, null),
                 new EventImpl<>(4, 618, null),
                 new EventImpl<>(5, 626, null)
@@ -528,22 +527,22 @@ public class WindowManagerTest {
         windowManager.add(new WaterMarkEvent<Integer>(674));
         assertEquals(4, listener.allOnActivationEvents.size());
         // same set of events part of three windows
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(4, 618, null),
                 new EventImpl<>(5, 626, null),
                 new EventImpl<>(6, 636, null)
         }), listener.allOnActivationEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(4, 618, null),
                 new EventImpl<>(5, 626, null),
                 new EventImpl<>(6, 636, null)
         }), listener.allOnActivationEvents.get(1));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(4, 618, null),
                 new EventImpl<>(5, 626, null),
                 new EventImpl<>(6, 636, null)
         }), listener.allOnActivationEvents.get(2));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(7, 665, null),
                 new EventImpl<>(8, 666, null),
                 new EventImpl<>(9, 667, null)
@@ -554,8 +553,8 @@ public class WindowManagerTest {
     public void testCountBasedTriggerWithEventTs() throws Exception {
         EvictionPolicy<Integer, ?> evictionPolicy = new WatermarkTimeEvictionPolicy<Integer>(20);
         windowManager.setEvictionPolicy(evictionPolicy);
-        TriggerPolicy<Integer, ?> triggerPolicy
-                = new WatermarkCountTriggerPolicy<Integer>(3, windowManager, evictionPolicy, windowManager);
+        TriggerPolicy<Integer, ?> triggerPolicy =
+                new WatermarkCountTriggerPolicy<Integer>(3, windowManager, evictionPolicy, windowManager);
         triggerPolicy.start();
         windowManager.setTriggerPolicy(triggerPolicy);
 
@@ -571,12 +570,12 @@ public class WindowManagerTest {
         windowManager.add(new WaterMarkEvent<Integer>(631));
 
         assertEquals(2, listener.allOnActivationEvents.size());
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null)
         }), listener.allOnActivationEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(3, 607, null),
                 new EventImpl<>(4, 618, null),
                 new EventImpl<>(5, 625, null),
@@ -595,10 +594,10 @@ public class WindowManagerTest {
         windowManager.add(new WaterMarkEvent<Integer>(674));
         assertEquals(2, listener.allOnActivationEvents.size());
         // same set of events part of three windows
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(9, 665, null)
         }), listener.allOnActivationEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(9, 665, null),
                 new EventImpl<>(10, 666, null),
                 new EventImpl<>(11, 667, null),
@@ -610,8 +609,8 @@ public class WindowManagerTest {
     public void testCountBasedTumblingWithSameEventTs() throws Exception {
         EvictionPolicy<Integer, ?> evictionPolicy = new WatermarkCountEvictionPolicy<>(2);
         windowManager.setEvictionPolicy(evictionPolicy);
-        TriggerPolicy<Integer, ?> triggerPolicy
-                = new WatermarkCountTriggerPolicy<Integer>(2, windowManager, evictionPolicy, windowManager);
+        TriggerPolicy<Integer, ?> triggerPolicy =
+                new WatermarkCountTriggerPolicy<Integer>(2, windowManager, evictionPolicy, windowManager);
         triggerPolicy.start();
         windowManager.setTriggerPolicy(triggerPolicy);
 
@@ -628,23 +627,23 @@ public class WindowManagerTest {
 
         windowManager.add(new WaterMarkEvent<Integer>(20));
         assertEquals(5, listener.allOnActivationEvents.size());
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 10, null),
                 new EventImpl<>(2, 10, null)
         }), listener.allOnActivationEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(3, 11, null),
                 new EventImpl<>(4, 12, null)
         }), listener.allOnActivationEvents.get(1));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(5, 12, null),
                 new EventImpl<>(6, 12, null)
         }), listener.allOnActivationEvents.get(2));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(7, 12, null),
                 new EventImpl<>(8, 13, null)
         }), listener.allOnActivationEvents.get(3));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(9, 14, null),
                 new EventImpl<>(10, 15, null)
         }), listener.allOnActivationEvents.get(4));
@@ -654,8 +653,8 @@ public class WindowManagerTest {
     public void testCountBasedSlidingWithSameEventTs() throws Exception {
         EvictionPolicy<Integer, ?> evictionPolicy = new WatermarkCountEvictionPolicy<>(5);
         windowManager.setEvictionPolicy(evictionPolicy);
-        TriggerPolicy<Integer, ?> triggerPolicy
-                = new WatermarkCountTriggerPolicy<Integer>(2, windowManager, evictionPolicy, windowManager);
+        TriggerPolicy<Integer, ?> triggerPolicy =
+                new WatermarkCountTriggerPolicy<Integer>(2, windowManager, evictionPolicy, windowManager);
         triggerPolicy.start();
         windowManager.setTriggerPolicy(triggerPolicy);
 
@@ -672,31 +671,31 @@ public class WindowManagerTest {
 
         windowManager.add(new WaterMarkEvent<Integer>(20));
         assertEquals(5, listener.allOnActivationEvents.size());
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 10, null),
                 new EventImpl<>(2, 10, null)
         }), listener.allOnActivationEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 10, null),
                 new EventImpl<>(2, 10, null),
                 new EventImpl<>(3, 11, null),
                 new EventImpl<>(4, 12, null)
         }), listener.allOnActivationEvents.get(1));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(2, 10, null),
                 new EventImpl<>(3, 11, null),
                 new EventImpl<>(4, 12, null),
                 new EventImpl<>(5, 12, null),
                 new EventImpl<>(6, 12, null)
         }), listener.allOnActivationEvents.get(2));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(4, 12, null),
                 new EventImpl<>(5, 12, null),
                 new EventImpl<>(6, 12, null),
                 new EventImpl<>(7, 12, null),
                 new EventImpl<>(8, 13, null)
         }), listener.allOnActivationEvents.get(3));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(6, 12, null),
                 new EventImpl<>(7, 12, null),
                 new EventImpl<>(8, 13, null),
@@ -709,8 +708,8 @@ public class WindowManagerTest {
     public void testEventTimeLag() throws Exception {
         EvictionPolicy<Integer, ?> evictionPolicy = new WatermarkTimeEvictionPolicy<>(20, 5);
         windowManager.setEvictionPolicy(evictionPolicy);
-        TriggerPolicy<Integer, ?> triggerPolicy
-                = new WatermarkTimeTriggerPolicy<Integer>(10, windowManager, evictionPolicy, windowManager);
+        TriggerPolicy<Integer, ?> triggerPolicy =
+                new WatermarkTimeTriggerPolicy<Integer>(10, windowManager, evictionPolicy, windowManager);
         triggerPolicy.start();
         windowManager.setTriggerPolicy(triggerPolicy);
 
@@ -725,19 +724,19 @@ public class WindowManagerTest {
         // send a watermark event, which should trigger three windows.
         windowManager.add(new WaterMarkEvent<Integer>(631));
         assertEquals(3, listener.allOnActivationEvents.size());
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null),
         }), listener.allOnActivationEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null),
                 new EventImpl<>(4, 618, null),
         }), listener.allOnActivationEvents.get(1));
         // out of order events should be processed upto the lag
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(4, 618, null),
                 new EventImpl<>(5, 626, null),
                 new EventImpl<>(7, 629, null)
@@ -757,8 +756,8 @@ public class WindowManagerTest {
 
         };
         windowManager.setEvictionPolicy(evictionPolicy);
-        TriggerPolicy<Integer, ?> triggerPolicy
-                = new WatermarkTimeTriggerPolicy<Integer>(10, windowManager, evictionPolicy, windowManager);
+        TriggerPolicy<Integer, ?> triggerPolicy =
+                new WatermarkTimeTriggerPolicy<Integer>(10, windowManager, evictionPolicy, windowManager);
         triggerPolicy.start();
         windowManager.setTriggerPolicy(triggerPolicy);
 
@@ -777,12 +776,12 @@ public class WindowManagerTest {
         windowManager.add(new WaterMarkEvent<Integer>(631));
 
         assertEquals(3, listener.allOnActivationEvents.size());
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null),
         }), listener.allOnActivationEvents.get(0));
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null),
@@ -790,7 +789,7 @@ public class WindowManagerTest {
         }), listener.allOnActivationEvents.get(1));
 
         // out of order events should be processed upto the lag
-        assertEquals(Arrays.asList(new Event[]{
+        assertEquals(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(4, 618, null),
                 new EventImpl<>(5, 626, null),
                 new EventImpl<>(6, 629, null)
@@ -798,7 +797,7 @@ public class WindowManagerTest {
 
         // events 8, 9, 10 should not be scanned at all since TimeEvictionPolicy lag 5s should break
         // the WindowManager scan loop early.
-        assertEquals(new HashSet<>(Arrays.asList(new Event[]{
+        assertEquals(new HashSet<>(Arrays.asList(new Event<?>[]{
                 new EventImpl<>(1, 603, null),
                 new EventImpl<>(2, 605, null),
                 new EventImpl<>(3, 607, null),

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-
 import org.testng.annotations.Test;
 
 /**
@@ -32,8 +31,9 @@ import org.testng.annotations.Test;
  */
 public class MessageRouterTest {
 
-    private static class TestMessageRouter implements MessageRouter {
+    public static class TestMessageRouter implements MessageRouter {
 
+        @SuppressWarnings("deprecation")
         @Override
         public int choosePartition(Message<?> msg) {
             return 1234;
@@ -43,7 +43,7 @@ public class MessageRouterTest {
     @SuppressWarnings("deprecation")
     @Test
     public void testChoosePartition() {
-        MessageRouter router = spy(new TestMessageRouter());
+        MessageRouter router = spy(TestMessageRouter.class);
         Message<?> mockedMsg = mock(Message.class);
         TopicMetadata mockedMetadata = mock(TopicMetadata.class);
 

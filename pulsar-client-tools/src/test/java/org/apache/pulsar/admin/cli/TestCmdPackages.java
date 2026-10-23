@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,7 +26,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,7 +34,6 @@ import org.apache.pulsar.client.admin.Packages;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
-import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -43,7 +41,6 @@ import org.testng.annotations.Test;
 /**
  * Unit test for packages commands.
  */
-@PrepareForTest(CmdPackages.class)
 public class TestCmdPackages {
 
     private PulsarAdmin pulsarAdmin;
@@ -139,7 +136,8 @@ public class TestCmdPackages {
             "--path", "/path/to/package"});
         assertTrue(result);
         verify(packages, times(1)).upload(
-            eq(PackageMetadata.builder().description("tests").contact("test@apache.org").properties(properties).build()),
+            eq(PackageMetadata.builder().description("tests")
+                    .contact("test@apache.org").properties(properties).build()),
             eq(packageName),
             eq("/path/to/package"));
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,19 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import org.apache.pulsar.common.util.SimpleTextOutputStream;
-import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
-import org.apache.pulsar.functions.runtime.Runtime;
-import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.IOException;
 import java.util.Map;
+import lombok.CustomLog;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
+import org.apache.pulsar.functions.runtime.Runtime;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.runtime.kubernetes.KubernetesRuntimeFactory;
 
 /**
- * A class to generate stats for pulsar functions running on this broker
+ * A class to generate stats for pulsar functions running on this broker.
  */
+@CustomLog
 public class FunctionsStatsGenerator {
-
-    private static final Logger log = LoggerFactory.getLogger(FunctionsStatsGenerator.class);
 
     public static void generate(PulsarWorkerService workerService, SimpleTextOutputStream out) {
         // only when worker service is initialized, we generate the stats. otherwise we will get bunch of NPE.
@@ -44,8 +41,10 @@ public class FunctionsStatsGenerator {
             try {
                 out.write(workerService.getWorkerStatsManager().getStatsAsString());
             } catch (IOException e) {
-                log.warn("Encountered error when generating metrics for worker {}",
-                  workerService.getWorkerConfig().getWorkerId(), e);
+                log.warn().attr("workerId",
+                        workerService.getWorkerConfig().getWorkerId())
+                        .exception(e)
+                        .log("Encountered error when generating metrics");
             }
 
             /* function stats */
@@ -55,8 +54,8 @@ public class FunctionsStatsGenerator {
                 return;
             }
 
-            Map<String, FunctionRuntimeInfo> functionRuntimes
-                    = workerService.getFunctionRuntimeManager().getFunctionRuntimeInfos();
+            Map<String, FunctionRuntimeInfo> functionRuntimes =
+                    workerService.getFunctionRuntimeManager().getFunctionRuntimeInfos();
 
             for (Map.Entry<String, FunctionRuntimeInfo> entry : functionRuntimes.entrySet()) {
                 String fullyQualifiedInstanceName = entry.getKey();
@@ -68,11 +67,16 @@ public class FunctionsStatsGenerator {
                     if (functionRuntime != null) {
                         try {
 
-                            out.write(functionRuntime.getPrometheusMetrics());
+                            String prometheusMetrics = functionRuntime.getPrometheusMetrics();
+                            if (prometheusMetrics != null) {
+                                out.write(prometheusMetrics);
+                            }
 
                         } catch (IOException e) {
-                            log.warn("Failed to collect metrics for function instance {}",
-                                    fullyQualifiedInstanceName, e);
+                            log.warn().attr("instance",
+                                    fullyQualifiedInstanceName)
+                                    .exception(e)
+                                    .log("Failed to collect metrics for function instance");
                         }
                     }
                 }

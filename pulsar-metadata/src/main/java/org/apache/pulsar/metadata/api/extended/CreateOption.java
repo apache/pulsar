@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,16 +19,16 @@
 package org.apache.pulsar.metadata.api.extended;
 
 /**
- * Options to use when creating key-value pairs on the {@link MetadataStoreExtended}
+ * Options to use when creating key-value pairs on the {@link MetadataStoreExtended}.
  */
 public enum CreateOption {
     /**
-     * The key-value pair will automatically expires when the session is terminated
+     * The key-value pair will automatically expires when the session is terminated.
      */
     Ephemeral,
 
     /**
-     * Create a sequential unique key
+     * Create a sequential unique key.
      */
     Sequential
 }

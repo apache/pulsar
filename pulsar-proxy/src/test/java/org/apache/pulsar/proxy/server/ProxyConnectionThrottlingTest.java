@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,48 +19,59 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
-
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
-
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
+import org.apache.pulsar.broker.limiter.ConnectionController;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
-    private final int NUM_CONCURRENT_LOOKUP = 3;
-    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 2;
+    private static final int NUM_CONCURRENT_LOOKUP = 3;
+    private static final int NUM_CONCURRENT_INBOUND_CONNECTION = 4;
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
+    private Authentication proxyClientAuthentication;
 
     @Override
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
 
         proxyConfig.setServicePort(Optional.of(0));
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        proxyConfig.setBrokerProxyAllowedTargetPorts("*");
+        proxyConfig.setMetadataStoreUrl(DUMMY_VALUE);
+        proxyConfig.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
         proxyConfig.setMaxConcurrentLookupRequests(NUM_CONCURRENT_LOOKUP);
         proxyConfig.setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
+        proxyConfig.setMaxConcurrentInboundConnectionsPerIp(NUM_CONCURRENT_INBOUND_CONNECTION);
+        proxyConfig.setClusterName(configClusterName);
+        proxyClientAuthentication = AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
+                proxyConfig.getBrokerClientAuthenticationParameters());
+        proxyClientAuthentication.start();
         proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
-                                                            PulsarConfigurationLoader.convertFrom(proxyConfig))));
-        doReturn(new ZKMetadataStore(mockZooKeeper)).when(proxyService).createLocalMetadataStore();
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(proxyService).createConfigurationMetadataStore();
+                PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
+                .createConfigurationMetadataStore();
 
         proxyService.start();
     }
@@ -70,39 +81,75 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
     protected void cleanup() throws Exception {
         internalCleanup();
         proxyService.close();
+        if (proxyClientAuthentication != null) {
+            proxyClientAuthentication.close();
+        }
     }
 
     @Test
     public void testInboundConnection() throws Exception {
-        LOG.info("Creating producer 1");
-        @Cleanup
+        log.info("Creating producer 1");
         PulsarClient client1 = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrl())
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .build();
 
-        @Cleanup
-        Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
+        Producer<byte[]> producer1 = client1.newProducer(Schema.BYTES)
+                .topic("persistent://public/default/producer-topic-1").create();
 
-        LOG.info("Creating producer 2");
-        @Cleanup
+        log.info("Creating producer 2");
         PulsarClient client2 = PulsarClient.builder()
                 .serviceUrl(proxyService.getServiceUrl())
                 .operationTimeout(1000, TimeUnit.MILLISECONDS)
                 .build();
 
-        Assert.assertEquals(ProxyService.rejectedConnections.get(), 0.0d);
+        Producer<byte[]> producer2 = client2.newProducer(Schema.BYTES)
+                .topic("persistent://public/default/producer-topic-1").create();
+
+        log.info("Creating producer 3");
+        @Cleanup
+        PulsarClient client3 = PulsarClient.builder()
+                .serviceUrl(proxyService.getServiceUrl())
+                .operationTimeout(1000, TimeUnit.MILLISECONDS)
+                .build();
         try {
-            @Cleanup
-            Producer<byte[]> producer2 = client2.newProducer(Schema.BYTES).topic("persistent://sample/test/local/producer-topic-1").create();
-            producer2.send("Message 1".getBytes());
-            Assert.fail("Should have failed since max num of connections is 2 and the first producer used them all up - one for discovery and other for producing.");
+            Producer<byte[]> producer3 = client3.newProducer(Schema.BYTES)
+                    .topic("persistent://public/default/producer-topic-1").create();
+            producer3.send("Message 1".getBytes());
+            Assert.fail("Should have failed since max num of connections is 2 and the first"
+                    + " producer used them all up - one for discovery and other for producing.");
         } catch (Exception ex) {
             // OK
         }
-        // should add retry count since retry every 100ms and operation timeout is set to 1000ms
-        Assert.assertEquals(ProxyService.rejectedConnections.get(), 5.0d);
-    }
+        Awaitility.await().untilAsserted(() ->{
+            Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 4);
+        });
+        Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
+        Set<String> keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
+        for (String key : keys) {
+            Assert.assertEquals((int) ConnectionController.DefaultConnectionController
+                    .getConnections().get(key).toInteger(), 4);
+        }
+        Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 4.0d);
 
-    private static final Logger LOG = LoggerFactory.getLogger(ProxyConnectionThrottlingTest.class);
+        client1.close();
+
+        Awaitility.await().untilAsserted(() ->{
+            Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 2);
+        });
+        Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 1);
+        keys = ConnectionController.DefaultConnectionController.getConnections().keySet();
+        for (String key : keys) {
+            Assert.assertEquals((int) ConnectionController.DefaultConnectionController
+                    .getConnections().get(key).toInteger(), 2);
+        }
+        Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 2.0d);
+
+        client2.close();
+        Awaitility.await().untilAsserted(() ->{
+            Assert.assertEquals(ConnectionController.DefaultConnectionController.getTotalConnectionNum(), 0);
+        });
+        Assert.assertEquals(ConnectionController.DefaultConnectionController.getConnections().size(), 0);
+        Assert.assertEquals(ProxyService.ACTIVE_CONNECTIONS.get(), 0.0d);
+    }
 }

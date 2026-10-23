@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,12 +26,12 @@ import org.apache.pulsar.common.configuration.FieldContext;
 @Accessors(chain = true)
 public class ThreadRuntimeFactoryConfig {
 
-    @Data
-    @Accessors(chain = true)
     /**
      * Memory limit set for the pulsar client used by all instances
      * If `absoluteValue` and `percentOfMaxDirectMemory` are both set, then the min of the two will be used.
      */
+    @Data
+    @Accessors(chain = true)
     public static class MemoryLimit {
         @FieldContext(
                 doc = "The max memory in bytes the pulsar client can use"

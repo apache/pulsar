@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
@@ -35,9 +34,12 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
@@ -45,7 +47,36 @@ import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.api.schema.SchemaDefinitionBuilder;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
-import org.apache.pulsar.client.impl.schema.*;
+import org.apache.pulsar.client.impl.schema.AutoConsumeSchema;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
+import org.apache.pulsar.client.impl.schema.AvroSchema;
+import org.apache.pulsar.client.impl.schema.BooleanSchema;
+import org.apache.pulsar.client.impl.schema.ByteBufferSchema;
+import org.apache.pulsar.client.impl.schema.ByteSchema;
+import org.apache.pulsar.client.impl.schema.BytesSchema;
+import org.apache.pulsar.client.impl.schema.DateSchema;
+import org.apache.pulsar.client.impl.schema.DoubleSchema;
+import org.apache.pulsar.client.impl.schema.FloatSchema;
+import org.apache.pulsar.client.impl.schema.InstantSchema;
+import org.apache.pulsar.client.impl.schema.IntSchema;
+import org.apache.pulsar.client.impl.schema.JSONSchema;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
+import org.apache.pulsar.client.impl.schema.KeyValueSchemaInfo;
+import org.apache.pulsar.client.impl.schema.LocalDateSchema;
+import org.apache.pulsar.client.impl.schema.LocalDateTimeSchema;
+import org.apache.pulsar.client.impl.schema.LocalTimeSchema;
+import org.apache.pulsar.client.impl.schema.LongSchema;
+import org.apache.pulsar.client.impl.schema.NativeAvroBytesSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
+import org.apache.pulsar.client.impl.schema.ProtobufSchema;
+import org.apache.pulsar.client.impl.schema.RecordSchemaBuilderImpl;
+import org.apache.pulsar.client.impl.schema.SchemaDefinitionBuilderImpl;
+import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
+import org.apache.pulsar.client.impl.schema.ShortSchema;
+import org.apache.pulsar.client.impl.schema.StringSchema;
+import org.apache.pulsar.client.impl.schema.TimeSchema;
+import org.apache.pulsar.client.impl.schema.TimestampSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.client.internal.PulsarClientImplementationBinding;
@@ -175,20 +206,24 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return LocalDateTimeSchema.of();
     }
 
+    @SuppressWarnings("rawtypes")
     public <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition) {
         return AvroSchema.of(schemaDefinition);
     }
 
-    public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(
+    @SuppressWarnings("rawtypes")
+    public <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufSchema.of(schemaDefinition);
     }
 
-    public <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+    @SuppressWarnings("rawtypes")
+    public <T extends com.google.protobuf.Message> Schema<T> newProtobufNativeSchema(
             SchemaDefinition schemaDefinition) {
         return ProtobufNativeSchema.of(schemaDefinition);
     }
 
+    @SuppressWarnings("rawtypes")
     public <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition) {
         return JSONSchema.of(schemaDefinition);
     }
@@ -211,10 +246,6 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
 
     public Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema() {
         return KeyValueSchemaImpl.kvBytes();
-    }
-
-    public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema) {
-        return KeyValueSchemaImpl.of(keySchema, valueSchema);
     }
 
     public <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
@@ -301,7 +332,7 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @return the jsonified schema info
      */
     public String jsonifySchemaInfo(SchemaInfo schemaInfo) {
-        return SchemaUtils.jsonifySchemaInfo(schemaInfo);
+        return SchemaUtils.jsonifySchemaInfo(schemaInfo, true);
     }
 
     /**
@@ -330,7 +361,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @param kvSchemaInfo the key/value schema info
      * @return the convert key/value schema data string
      */
-    public String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo) throws IOException {
+    public String convertKeyValueSchemaInfoDataToString(KeyValue<SchemaInfo, SchemaInfo> kvSchemaInfo)
+            throws IOException {
         return SchemaUtils.convertKeyValueSchemaInfoDataToString(kvSchemaInfo);
     }
 
@@ -340,7 +372,8 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
      * @param keyValueSchemaInfoDataJsonBytes the key/value schema info data json bytes
      * @return the key/value schema info data bytes
      */
-    public byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes) throws IOException {
+    public byte[] convertKeyValueDataStringToSchemaInfoSchema(byte[] keyValueSchemaInfoDataJsonBytes)
+            throws IOException {
         return SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(keyValueSchemaInfoDataJsonBytes);
     }
 
@@ -356,7 +389,28 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return new MessagePayloadFactoryImpl();
     }
 
-    public SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, Map<String, String> propertiesValue) {
-        return new SchemaInfoImpl(name, schema, type, propertiesValue);
+    public SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
+                                        Map<String, String> propertiesValue) {
+        return new SchemaInfoImpl(name, schema, type, timestamp, propertiesValue);
+    }
+
+    @Override
+    public TopicMessageId newTopicMessageId(String topic, MessageId messageId) {
+        final MessageIdAdv messageIdAdv;
+        if (messageId instanceof MessageIdAdv) {
+            messageIdAdv = (MessageIdAdv) messageId;
+        } else {
+            try {
+                messageIdAdv = (MessageIdAdv) MessageId.fromByteArray(messageId.toByteArray());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return new TopicMessageIdImpl(topic, messageIdAdv);
+    }
+
+    @Override
+    public PulsarClientSharedResourcesBuilder newSharedResourcesBuilder() {
+        return new PulsarClientSharedResourcesBuilderImpl();
     }
 }

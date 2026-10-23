@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,7 +24,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 public class SinkStatusUtil {
 
     public static SinkStatus decode(String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, SinkStatus.class);
+        return ObjectMapperFactory.getMapper().reader().readValue(json, SinkStatus.class);
     }
 
 }

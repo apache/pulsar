@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,31 +18,39 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.avro.AvroRuntimeException;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.impl.schema.AvroBaseStructSchema;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
-import java.util.List;
-import java.util.stream.Collectors;
-
 /**
  * A generic schema representation for AvroBasedGenericSchema .
  * warning :
- * we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
+ * we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method
+ * (e.g. GenericJsonSchema 、GenericAvroSchema )
  */
-public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericRecord> implements GenericSchema<GenericRecord> {
+public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericRecord>
+        implements GenericSchema<GenericRecord> {
 
     protected final List<Field> fields;
 
     protected GenericSchemaImpl(SchemaInfo schemaInfo) {
         super(schemaInfo);
 
-        this.fields = schema.getFields()
-                .stream()
-                .map(f -> new Field(f.name(), f.pos()))
-                .collect(Collectors.toList());
+        try {
+            this.fields = schema.getFields()
+                    .stream()
+                    .map(f -> new Field(f.name(), f.pos()))
+                    .collect(Collectors.toList());
+        } catch (AvroRuntimeException avroRuntimeException) {
+            // Rewrite error log.
+            throw new AvroRuntimeException("Schema typed [" + schema.getClass().getName() + "], simple-type:["
+                    + schema.getType() + "] is not supported. schema-content: " + schema);
+        }
     }
 
     @Override
@@ -52,7 +60,8 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
 
     /**
      * Create a generic schema out of a <tt>SchemaInfo</tt>.
-     *  warning : we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
+     *  warning : we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method
+     *  (e.g. GenericJsonSchema 、GenericAvroSchema )
      * @param schemaInfo schema info
      * @return a generic schema instance
      */
@@ -62,7 +71,8 @@ public abstract class GenericSchemaImpl extends AvroBaseStructSchema<GenericReco
 
     /**
      * warning :
-     * we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method (e.g. GenericJsonSchema 、GenericAvroSchema )
+     * we suggest migrate GenericSchemaImpl.of() to  <GenericSchema Implementor>.of() method
+     * (e.g. GenericJsonSchema 、GenericAvroSchema )
      * @param schemaInfo {@link SchemaInfo}
      * @param useProvidedSchemaAsReaderSchema {@link Boolean}
      * @return generic schema implementation

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,18 +21,16 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
-import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
-
-import org.apache.pulsar.broker.BrokerData;
-import org.apache.pulsar.broker.BundleData;
+import java.util.List;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
+import org.apache.pulsar.policies.data.loadbalancer.BrokerData;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
+import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -148,7 +146,45 @@ public class OverloadShedderTest {
 
         Multimap<String, String> bundlesToUnload = os.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
-        assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-10", "bundle-9"));
+        assertEquals(bundlesToUnload.get("broker-1"), List.of("bundle-10", "bundle-9"));
+    }
+
+    @Test
+    public void testBrokerWithResourceWeight() {
+        int numBundles = 10;
+        LoadData loadData = new LoadData();
+        LocalBrokerData broker1 = new LocalBrokerData();
+
+        double brokerThroghput = 0;
+        for (int i = 1; i <= numBundles; i++) {
+            broker1.getBundles().add("bundle-" + i);
+            BundleData bundle = new BundleData();
+            TimeAverageMessageData db = new TimeAverageMessageData();
+            double throughput = i * 1024 * 1024;
+            db.setMsgThroughputIn(throughput);
+            db.setMsgThroughputOut(throughput);
+            bundle.setShortTermData(db);
+            loadData.getBundleData().put("bundle-" + i, bundle);
+            brokerThroghput += throughput;
+        }
+        broker1.setMsgThroughputIn(brokerThroghput);
+        broker1.setMsgThroughputOut(brokerThroghput);
+
+        loadData.getBrokerData().put("broker-1", new BrokerData(broker1));
+
+        // set bandwidth usage to 99.9% so that it is considered overloaded
+        broker1.setBandwidthIn(new ResourceUsage(999, 1000));
+        broker1.setBandwidthOut(new ResourceUsage(999, 1000));
+        assertFalse(os.findBundlesForUnloading(loadData, conf).isEmpty());
+
+        // set bandwidth resource weight to 0 so that it is not considered overloaded
+        conf.setLoadBalancerBandwidthInResourceWeight(0);
+        conf.setLoadBalancerBandwidthOutResourceWeight(0);
+        assertTrue(os.findBundlesForUnloading(loadData, conf).isEmpty());
+
+        // set bandwidth resource weight back to 1, or it will affect other tests
+        conf.setLoadBalancerBandwidthInResourceWeight(1);
+        conf.setLoadBalancerBandwidthOutResourceWeight(1);
     }
 
     @Test
@@ -187,7 +223,7 @@ public class OverloadShedderTest {
 
         Multimap<String, String> bundlesToUnload = os.findBundlesForUnloading(loadData, conf);
         assertFalse(bundlesToUnload.isEmpty());
-        assertEquals(bundlesToUnload.get("broker-1"), Lists.newArrayList("bundle-8", "bundle-7"));
+        assertEquals(bundlesToUnload.get("broker-1"), List.of("bundle-8", "bundle-7"));
     }
 
     @Test

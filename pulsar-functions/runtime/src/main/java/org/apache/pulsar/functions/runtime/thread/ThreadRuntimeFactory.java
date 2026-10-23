@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,41 +16,42 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.runtime.thread;
 
-import com.google.common.base.Preconditions;
-import io.netty.util.internal.PlatformDependent;
+import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.common.util.DirectMemoryUtils.jvmMaxDirectMemoryPercentage;
+import java.util.Optional;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.functions.MemoryLimit;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.auth.FunctionAuthProvider;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceCache;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.instance.InstanceUtils;
 import org.apache.pulsar.functions.instance.stats.FunctionCollectorRegistry;
+import org.apache.pulsar.functions.instance.v5.LazyPulsarClientV5;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeUtils;
 import org.apache.pulsar.functions.secretsprovider.SecretsProvider;
 import org.apache.pulsar.functions.secretsproviderconfigurator.SecretsProviderConfigurator;
-import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
 import org.apache.pulsar.functions.worker.ConnectorsManager;
+import org.apache.pulsar.functions.worker.FunctionsManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
-
-import java.util.Optional;
 
 /**
  * Thread based function container factory implementation.
  */
-@Slf4j
+@CustomLog
 @NoArgsConstructor
 public class ThreadRuntimeFactory implements RuntimeFactory {
 
@@ -59,6 +60,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private FunctionCacheManager fnCache;
     private ClientBuilder clientBuilder;
     private PulsarClient pulsarClient;
+    // created on first use by a component whose topics use the V5 client
+    private LazyPulsarClientV5 pulsarClientV5;
     private PulsarAdmin pulsarAdmin;
     private String stateStorageImplClass;
     private String storageServiceUrl;
@@ -69,9 +72,11 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     private SecretsProviderConfigurator secretsProviderConfigurator;
     private ClassLoader rootClassLoader;
     private Optional<ConnectorsManager> connectorsManager;
+    private Optional<FunctionsManager> functionsManager;
 
     /**
-     * This constructor is used by other runtimes (e.g. ProcessRuntime and KubernetesRuntime) that rely on ThreadRuntime to actually run an instance of the function.
+     * This constructor is used by other runtimes (e.g. ProcessRuntime and KubernetesRuntime)
+     * that rely on ThreadRuntime to actually run an instance of the function.
      * When used by other runtimes, the arguments such as secretsProvider and rootClassLoader will be provided.
      */
     public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl,
@@ -80,20 +85,37 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
                                 AuthenticationConfig authConfig, SecretsProvider secretsProvider,
                                 FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                                 ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
-                                String pulsarWebServiceUrl) throws Exception {
-        initialize(threadGroupName, Optional.empty(), pulsarServiceUrl, authConfig,
+                                String pulsarWebServiceUrl, Optional<MemoryLimit> memoryLimit) throws Exception {
+        initialize(threadGroupName, memoryLimit, pulsarServiceUrl, authConfig,
                 stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
                 narExtractionDirectory,
-                rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty());
+                rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
+                Optional.empty(), null);
     }
 
-    private void initialize(String threadGroupName, Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit,
+    public ThreadRuntimeFactory(String threadGroupName, String pulsarServiceUrl,
+                                String stateStorageImplClass,
+                                String storageServiceUrl,
+                                AuthenticationConfig authConfig, SecretsProvider secretsProvider,
+                                FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
+                                ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
+                                String pulsarWebServiceUrl, FunctionCacheManager fnCache,
+                                Optional<MemoryLimit> memoryLimit) throws Exception {
+        initialize(threadGroupName, memoryLimit, pulsarServiceUrl, authConfig,
+                stateStorageImplClass, storageServiceUrl, null, secretsProvider, collectorRegistry,
+                narExtractionDirectory,
+                rootClassLoader, exposePulsarAdminClientEnabled, pulsarWebServiceUrl, Optional.empty(),
+                Optional.empty(), fnCache);
+    }
+
+    private void initialize(String threadGroupName, Optional<MemoryLimit> memoryLimit,
                             String pulsarServiceUrl, AuthenticationConfig authConfig, String stateStorageImplClass,
                             String storageServiceUrl,
                             SecretsProviderConfigurator secretsProviderConfigurator, SecretsProvider secretsProvider,
                             FunctionCollectorRegistry collectorRegistry, String narExtractionDirectory,
                             ClassLoader rootClassLoader, boolean exposePulsarAdminClientEnabled,
-                            String pulsarWebServiceUrl, Optional<ConnectorsManager> connectorsManager)
+                            String pulsarWebServiceUrl, Optional<ConnectorsManager> connectorsManager,
+                            Optional<FunctionsManager> functionsManager, FunctionCacheManager fnCache)
             throws PulsarClientException {
 
         if (rootClassLoader == null) {
@@ -103,32 +125,43 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         this.rootClassLoader = rootClassLoader;
         this.secretsProviderConfigurator = secretsProviderConfigurator;
         this.defaultSecretsProvider = secretsProvider;
-        this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
+        this.fnCache = fnCache;
+        if (fnCache == null) {
+            this.fnCache = new FunctionCacheManagerImpl(rootClassLoader);
+        }
         this.threadGroup = new ThreadGroup(threadGroupName);
-        this.pulsarAdmin = exposePulsarAdminClientEnabled ? InstanceUtils.createPulsarAdminClient(pulsarWebServiceUrl, authConfig) : null;
-        this.clientBuilder = InstanceUtils.createPulsarClientBuilder(pulsarServiceUrl, authConfig, calculateClientMemoryLimit(memoryLimit));
+        this.pulsarAdmin =
+                exposePulsarAdminClientEnabled ? InstanceUtils.createPulsarAdminClient(pulsarWebServiceUrl, authConfig)
+                        : null;
+        Optional<Long> clientMemoryLimit = calculateClientMemoryLimit(memoryLimit);
+        this.clientBuilder = InstanceUtils
+                .createPulsarClientBuilder(pulsarServiceUrl, authConfig, clientMemoryLimit);
         this.pulsarClient = this.clientBuilder.build();
+        this.pulsarClientV5 = new LazyPulsarClientV5(
+                () -> InstanceUtils.createPulsarClientV5Builder(pulsarServiceUrl, authConfig, clientMemoryLimit));
         this.stateStorageImplClass = stateStorageImplClass;
         this.storageServiceUrl = storageServiceUrl;
         this.collectorRegistry = collectorRegistry;
         this.narExtractionDirectory = narExtractionDirectory;
         this.connectorsManager = connectorsManager;
+        this.functionsManager = functionsManager;
     }
 
-    private Optional<Long> calculateClientMemoryLimit(Optional<ThreadRuntimeFactoryConfig.MemoryLimit> memoryLimit) {
+    private Optional<Long> calculateClientMemoryLimit(Optional<MemoryLimit> memoryLimit) {
         if (memoryLimit.isPresent()) {
 
-            Long absolute = memoryLimit.get().getAbsoluteValue();
+            Long absolute = memoryLimit.get().getLimitInBytes();
             Double percentOfDirectMem = memoryLimit.get().getPercentOfMaxDirectMemory();
             if (absolute != null) {
-                Preconditions.checkArgument(absolute > 0, "Absolute memory limit for Pulsar client has to be positive");
+                checkArgument(absolute > 0, "Absolute memory limit for Pulsar client has to be positive");
             }
             if (percentOfDirectMem != null) {
-                Preconditions.checkArgument(percentOfDirectMem > 0 && percentOfDirectMem <= 100, "Percent of max direct memory limit for Pulsar client must be between 0 and 100");
+                checkArgument(percentOfDirectMem > 0 && percentOfDirectMem <= 100,
+                        "Percent of max direct memory limit for Pulsar client must be between 0 and 100");
             }
 
             if (absolute != null && percentOfDirectMem != null) {
-                return Optional.of(Math.min(absolute, getBytesPercentDirectMem(percentOfDirectMem)));
+                return Optional.of(Math.min(absolute, jvmMaxDirectMemoryPercentage(percentOfDirectMem)));
             }
 
             if (absolute != null) {
@@ -136,14 +169,21 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             }
 
             if (percentOfDirectMem != null) {
-                return Optional.of(getBytesPercentDirectMem(percentOfDirectMem));
+                return Optional.of(jvmMaxDirectMemoryPercentage(percentOfDirectMem));
             }
         }
         return Optional.empty();
     }
 
-    private long getBytesPercentDirectMem(double percent) {
-        return (long) (PlatformDependent.maxDirectMemory() * (percent / 100));
+    private static Optional<MemoryLimit> getPulsarClientMemoryLimit(ThreadRuntimeFactoryConfig factoryConfig,
+                                                                    WorkerConfig workerConfig) {
+        ThreadRuntimeFactoryConfig.MemoryLimit memoryLimit = factoryConfig.getPulsarClientMemoryLimit();
+        if (memoryLimit == null) {
+            return Optional.ofNullable(workerConfig.getPulsarClientMemoryLimit());
+        }
+        return Optional.of(new MemoryLimit()
+                .setLimitInBytes(memoryLimit.getAbsoluteValue())
+                .setPercentOfMaxDirectMemory(memoryLimit.getPercentOfMaxDirectMemory()));
     }
 
 
@@ -151,30 +191,40 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
     public void initialize(WorkerConfig workerConfig, AuthenticationConfig authenticationConfig,
                            SecretsProviderConfigurator secretsProviderConfigurator,
                            ConnectorsManager connectorsManager,
+                           FunctionsManager functionsManager,
                            Optional<FunctionAuthProvider> functionAuthProvider,
                            Optional<RuntimeCustomizer> runtimeCustomizer) throws Exception {
         ThreadRuntimeFactoryConfig factoryConfig = RuntimeUtils.getRuntimeFunctionConfig(
                 workerConfig.getFunctionRuntimeFactoryConfigs(), ThreadRuntimeFactoryConfig.class);
 
-        initialize(factoryConfig.getThreadGroupName(), Optional.ofNullable(factoryConfig.getPulsarClientMemoryLimit()),
+        initialize(factoryConfig.getThreadGroupName(), getPulsarClientMemoryLimit(factoryConfig, workerConfig),
                 workerConfig.getPulsarServiceUrl(), authenticationConfig,
                 workerConfig.getStateStorageProviderImplementation(),
                 workerConfig.getStateStorageServiceUrl(), secretsProviderConfigurator, null,
                 null, workerConfig.getNarExtractionDirectory(), null,
-                workerConfig.isExposeAdminClientEnabled(), workerConfig.getPulsarWebServiceUrl(), Optional.of(connectorsManager));
+                workerConfig.isExposeAdminClientEnabled(),
+                workerConfig.getPulsarWebServiceUrl(), Optional.of(connectorsManager), Optional.of(functionsManager),
+                null);
     }
 
     @Override
     public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile,
                                          String originalCodeFileName,
+                                         String transformFunctionFile,
+                                         String originalTransformFunctionFileName,
                                          Long expectedHealthCheckInterval) {
         SecretsProvider secretsProvider = defaultSecretsProvider;
         if (secretsProvider == null) {
-            String secretsProviderClassName = secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
-            secretsProvider = (SecretsProvider) Reflections.createInstance(secretsProviderClassName, this.rootClassLoader);
-            log.info("Initializing secrets provider {} with configs: {}",
-              secretsProvider.getClass().getName(), secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
-            secretsProvider.init(secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
+            String secretsProviderClassName =
+                    secretsProviderConfigurator.getSecretsProviderClassName(instanceConfig.getFunctionDetails());
+            secretsProvider =
+                    (SecretsProvider) Reflections.createInstance(secretsProviderClassName, this.rootClassLoader);
+            log.info().attr("className", secretsProvider.getClass().getName())
+                    .attr("config", secretsProviderConfigurator
+                            .getSecretsProviderConfig(instanceConfig.getFunctionDetails()))
+                    .log("Initializing secrets provider");
+            secretsProvider
+                    .init(secretsProviderConfigurator.getSecretsProviderConfig(instanceConfig.getFunctionDetails()));
         }
 
         return new ThreadRuntime(
@@ -182,7 +232,9 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             fnCache,
             threadGroup,
             jarFile,
+            transformFunctionFile,
             pulsarClient,
+            pulsarClientV5,
             clientBuilder,
             pulsarAdmin,
             stateStorageImplClass,
@@ -190,7 +242,8 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
             secretsProvider,
             collectorRegistry,
             narExtractionDirectory,
-            connectorsManager);
+            connectorsManager,
+            functionsManager);
     }
 
     @Override
@@ -205,8 +258,10 @@ public class ThreadRuntimeFactory implements RuntimeFactory {
         try {
             pulsarClient.close();
         } catch (PulsarClientException e) {
-            log.warn("Failed to close pulsar client when closing function container factory", e);
+            log.warn().exception(e)
+                    .log("Failed to close pulsar client when closing function container factory");
         }
+        pulsarClientV5.close();
         if (pulsarAdmin != null) {
             pulsarAdmin.close();
         }

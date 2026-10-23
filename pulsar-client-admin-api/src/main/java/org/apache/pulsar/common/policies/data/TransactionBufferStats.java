@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Map;
+
 public class TransactionBufferStats {
 
     /** The state of this transaction buffer. */
@@ -28,4 +30,27 @@ public class TransactionBufferStats {
 
     /** The last snapshot timestamps of this transaction buffer. */
     public long lastSnapshotTimestamps;
+
+    /**
+     * (Optional) The lowWaterMark details of the transaction buffer.
+     */
+    public Map<Long, Long> lowWaterMarks;
+    /**
+     * The total number of ongoing transactions in this transaction buffer.
+     */
+    public long ongoingTxnSize;
+
+    //Start timestamp of  transaction buffer recovery. 0L means no startup.
+    public long recoverStartTime;
+    //End timestamp of transaction buffer recovery. 0L means no startup.
+    public long recoverEndTime;
+
+    // The total number of aborted transactions.
+    public long totalAbortedTransactions;
+
+    // The type of snapshot being used: either "Single" or "Segment"
+    public String snapshotType;
+
+    // If snapshotType is "Segment", this field will provide additional segment-related statistics
+    public SegmentsStats segmentsStats;
 }

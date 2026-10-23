@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,7 @@ public interface ByteBufferStateStore extends StateStore {
     void put(String key, ByteBuffer value);
 
     /**
-     * Update the state value for the key, but don't wait for the operation to be completed
+     * Update the state value for the key, but don't wait for the operation to be completed.
      *
      * @param key   name of the key
      * @param value state value of the key
@@ -51,7 +51,7 @@ public interface ByteBufferStateStore extends StateStore {
     void delete(String key);
 
     /**
-     * Delete the state value for the key, but don't wait for the operation to be completed
+     * Delete the state value for the key, but don't wait for the operation to be completed.
      *
      * @param key   name of the key
      */
@@ -66,11 +66,38 @@ public interface ByteBufferStateStore extends StateStore {
     ByteBuffer get(String key);
 
     /**
-     * Retrieve the state value for the key, but don't wait for the operation to be completed
+     * Retrieve the state value for the key, but don't wait for the operation to be completed.
      *
      * @param key name of the key
      * @return the state value for the key.
      */
     CompletableFuture<ByteBuffer> getAsync(String key);
 
+    /**
+     * Retrieve the StateValue for the key.
+     *
+     * @param key name of the key
+     * @return the StateValue.
+     */
+    default StateValue getStateValue(String key) {
+        return getStateValueAsync(key).join();
+    }
+
+    /**
+     * Retrieve the StateValue for the key, but don't wait for the operation to be completed.
+     *
+     * @param key name of the key
+     * @return the StateValue.
+     */
+    default CompletableFuture<StateValue> getStateValueAsync(String key) {
+        return getAsync(key).thenApply(val -> {
+            if (val != null && val.remaining() >= 0) {
+                byte[] data = new byte[val.remaining()];
+                val.get(data);
+                return new StateValue(data, null, null);
+            } else {
+                return null;
+            }
+        });
+    }
 }

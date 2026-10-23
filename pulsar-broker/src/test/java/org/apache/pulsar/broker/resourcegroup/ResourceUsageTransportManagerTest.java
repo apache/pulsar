@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,21 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.resource.usage.NetworkUsage;
 import org.apache.pulsar.broker.service.resource.usage.ResourceUsage;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTest {
 
@@ -55,12 +55,12 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
 
     @Test
     public void testNamespaceCreation() throws Exception {
-        TopicName topicName = TopicName.get(ResourceUsageTopicTransportManager.RESOURCE_USAGE_TOPIC_NAME);
+        TopicName topicName = SystemTopicNames.RESOURCE_USAGE_TOPIC;
 
         assertTrue(admin.tenants().getTenants().contains(topicName.getTenant()));
         assertTrue(admin.namespaces().getNamespaces(topicName.getTenant()).contains(topicName.getNamespace()));
     }
-    
+
     @Test
     public void testPublish() throws Exception {
         ResourceUsage recvdUsage = new ResourceUsage();
@@ -115,7 +115,8 @@ public class ResourceUsageTransportManagerTest extends MockedPulsarServiceBaseTe
     }
 
     private void prepareData() throws PulsarServerException, PulsarAdminException, PulsarClientException {
-        this.conf.setResourceUsageTransportClassName("org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager");
+        this.conf.setResourceUsageTransportClassName(
+                "org.apache.pulsar.broker.resourcegroup.ResourceUsageTopicTransportManager");
         this.conf.setResourceUsageTransportPublishIntervalInSecs(PUBLISH_INTERVAL_SECS);
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         tManager = new ResourceUsageTopicTransportManager(pulsar);

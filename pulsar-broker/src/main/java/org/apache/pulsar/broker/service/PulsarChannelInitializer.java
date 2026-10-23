@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,31 +18,31 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.apache.bookkeeper.util.SafeRunnable.safeRun;
-import com.github.benmanes.caffeine.cache.Cache;
-import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.flow.FlowControlHandler;
+import io.netty.handler.flush.FlushConsolidationHandler;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslHandler;
-import java.net.SocketAddress;
-import java.util.concurrent.TimeUnit;
 import lombok.Builder;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.tls.DefaultBrokerTlsFactory;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.common.protocol.ByteBufPair;
-import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
-import org.apache.pulsar.common.util.NettyServerSslContextBuilder;
-import org.apache.pulsar.common.util.SslContextAutoRefreshBuilder;
-import org.apache.pulsar.common.util.keystoretls.NettySSLContextAutoRefreshBuilder;
+import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
+import org.apache.pulsar.common.tls.impl.TlsSynthesisSpec;
+import org.apache.pulsar.common.util.netty.PulsarFlowControlHandler;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsHandle;
+import org.apache.pulsar.tls.TlsPurpose;
 
-@Slf4j
+@CustomLog
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
 
     public static final String TLS_HANDLER = "tls";
@@ -50,18 +50,11 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     private final PulsarService pulsar;
     private final String listenerName;
     private final boolean enableTls;
-    private final boolean tlsEnabledWithKeyStore;
-    private SslContextAutoRefreshBuilder<SslContext> sslCtxRefresher;
     private final ServiceConfiguration brokerConf;
-    private NettySSLContextAutoRefreshBuilder nettySSLContextAutoRefreshBuilder;
-
-    // This cache is used to maintain a list of active connections to iterate over them
-    // We keep weak references to have the cache to be auto cleaned up when the connections
-    // objects are GCed.
-    private final Cache<SocketAddress, ServerCnx> connections = Caffeine.newBuilder()
-            .weakKeys()
-            .weakValues()
-            .build();
+    // PIP-478 TLS SPI factory (the only server TLS path since PIP-337 removal).
+    private PulsarTlsFactory tlsFactory;
+    private TlsHandle<SslContext> tlsSubscription;
+    private volatile SslContext tlsServerContext;
 
     /**
      * @param pulsar
@@ -75,79 +68,87 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         this.listenerName = opts.getListenerName();
         this.enableTls = opts.isEnableTLS();
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
-        this.tlsEnabledWithKeyStore = serviceConfig.isTlsEnabledWithKeyStore();
         if (this.enableTls) {
-            if (tlsEnabledWithKeyStore) {
-                nettySSLContextAutoRefreshBuilder = new NettySSLContextAutoRefreshBuilder(
-                        serviceConfig.getTlsProvider(),
-                        serviceConfig.getTlsKeyStoreType(),
-                        serviceConfig.getTlsKeyStore(),
-                        serviceConfig.getTlsKeyStorePassword(),
-                        serviceConfig.isTlsAllowInsecureConnection(),
-                        serviceConfig.getTlsTrustStoreType(),
-                        serviceConfig.getTlsTrustStore(),
-                        serviceConfig.getTlsTrustStorePassword(),
-                        serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
-                        serviceConfig.getTlsCiphers(),
-                        serviceConfig.getTlsProtocols(),
-                        serviceConfig.getTlsCertRefreshCheckDurationSec());
-            } else {
-                sslCtxRefresher = new NettyServerSslContextBuilder(serviceConfig.isTlsAllowInsecureConnection(),
-                        serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
-                        serviceConfig.getTlsKeyFilePath(),
-                        serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                        serviceConfig.isTlsRequireTrustedClientCertOnConnect(),
-                        serviceConfig.getTlsCertRefreshCheckDurationSec());
-            }
-        } else {
-            this.sslCtxRefresher = null;
+            initializeTlsFactory(serviceConfig);
         }
         this.brokerConf = pulsar.getConfiguration();
+    }
 
-        pulsar.getExecutor().scheduleAtFixedRate(safeRun(this::refreshAuthenticationCredentials),
-                pulsar.getConfig().getAuthenticationRefreshCheckSeconds(),
-                pulsar.getConfig().getAuthenticationRefreshCheckSeconds(), TimeUnit.SECONDS);
+    // PIP-478: build the PulsarTlsFactory, initialize it, and subscribe to the BROKER purpose. A volatile
+    // Netty SslContext holds the latest instance; rotation is delivered by the subscription (no refresh
+    // task). The subscription's first delivery happens-before its future completes, so tlsServerContext is
+    // set by the time this returns.
+    private void initializeTlsFactory(ServiceConfiguration serviceConfig) throws Exception {
+        this.tlsFactory = TlsFactorySupport.createFactory(serviceConfig.getTlsFactoryClassName(),
+                DefaultBrokerTlsFactory.class,
+                () -> DefaultBrokerTlsFactory.fromServiceConfiguration(serviceConfig));
+        try {
+            TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
+                    TlsFactorySupport.parseFactoryConfig(serviceConfig.getTlsFactoryConfig()),
+                    pulsar.getExecutor(), pulsar.getExecutor(), pulsar.getOpenTelemetry().getOpenTelemetry());
+            TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
+            this.tlsSubscription = TlsContextAcquisition.acquireNettyContext(this.tlsFactory, TlsPurpose.BROKER,
+                            TlsSynthesisSpec.server(serviceConfig.isTlsRequireTrustedClientCertOnConnect()),
+                            ctx -> this.tlsServerContext = ctx)
+                    .get()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "TLS factory supplied no Netty SslContext for purpose " + TlsPurpose.BROKER));
+        } catch (Exception e) {
+            // Ctor-throw cleanup: the factory was created (and possibly initialized, its rotation
+            // scheduler running) but the subscription failed; close() will not be called on a half-constructed
+            // initializer, so release it here. close() is null-safe and idempotent.
+            close();
+            throw e;
+        }
+    }
+
+    /** Dispose the PIP-478 TLS factory and its subscription, if any. Safe to call more than once. */
+    public void close() {
+        TlsHandle<SslContext> subscription = this.tlsSubscription;
+        if (subscription != null) {
+            this.tlsSubscription = null;
+            subscription.dispose();
+        }
+        PulsarTlsFactory factory = this.tlsFactory;
+        if (factory != null) {
+            this.tlsFactory = null;
+            factory.close();
+        }
     }
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
+        // disable auto read explicitly so that requests aren't served until auto read is enabled
+        // ServerCnx must enable auto read in channelActive after PulsarService is ready to accept incoming requests
+        ch.config().setAutoRead(false);
+        ch.config().setWriteBufferHighWaterMark(pulsar.getConfig().getPulsarChannelWriteBufferHighWaterMark());
+        ch.config().setWriteBufferLowWaterMark(pulsar.getConfig().getPulsarChannelWriteBufferLowWaterMark());
+        ch.pipeline().addLast("consolidation", new FlushConsolidationHandler(1024, true));
         if (this.enableTls) {
-            if (this.tlsEnabledWithKeyStore) {
-                ch.pipeline().addLast(TLS_HANDLER,
-                        new SslHandler(nettySSLContextAutoRefreshBuilder.get().createSSLEngine()));
-            } else {
-                ch.pipeline().addLast(TLS_HANDLER, sslCtxRefresher.get().newHandler(ch.alloc()));
-            }
-            ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.COPYING_ENCODER);
-        } else {
-            ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
+            // PIP-478: build the handler from the current (possibly rotated) factory-owned SslContext, pinning
+            // it across newHandler so a concurrent rotation cannot free the native OpenSSL context mid-build
+            // (use-after-free guard).
+            ch.pipeline().addLast(TLS_HANDLER, TlsContextAcquisition.withPinnedContext(
+                    () -> this.tlsServerContext, ctx -> ctx.newHandler(ch.alloc())));
         }
+        ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.getEncoder(this.enableTls));
 
         if (pulsar.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
         }
-        ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(
-            brokerConf.getMaxMessageSize() + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4));
+        FrameDecoderUtil.addFrameDecoder(ch.pipeline(), brokerConf.getMaxMessageSize());
         // https://stackoverflow.com/questions/37535482/netty-disabling-auto-read-doesnt-work-for-bytetomessagedecoder
         // Classes such as {@link ByteToMessageDecoder} or {@link MessageToByteEncoder} are free to emit as many events
         // as they like for any given input. so, disabling auto-read on `ByteToMessageDecoder` doesn't work properly and
         // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
         // auto-read.
-        ch.pipeline().addLast("flowController", new FlowControlHandler());
-        ServerCnx cnx = newServerCnx(pulsar, listenerName);
+        // PulsarFlowControlHandler is used instead of Netty's FlowControlHandler since Netty 4.2.15 changed the
+        // behavior to ignore setAutoRead(false) made by a downstream handler while queued messages are being
+        // delivered, which breaks throttling of already buffered messages. See PulsarFlowControlHandler javadoc.
+        ch.pipeline().addLast("flowController", new PulsarFlowControlHandler());
+        // using "ChannelHandler" type to workaround an IntelliJ bug that shows a false positive error
+        ChannelHandler cnx = newServerCnx(pulsar, listenerName);
         ch.pipeline().addLast("handler", cnx);
-
-        connections.put(ch.remoteAddress(), cnx);
-    }
-
-    private void refreshAuthenticationCredentials() {
-        connections.asMap().values().forEach(cnx -> {
-            try {
-                cnx.refreshAuthenticationCredentials();
-            } catch (Throwable t) {
-                log.warn("[{}] Failed to refresh auth credentials", cnx.clientAddress());
-            }
-        });
     }
 
     @VisibleForTesting

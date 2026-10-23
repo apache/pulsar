@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -26,27 +27,28 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.functions.auth.FunctionAuthProvider;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
-import org.apache.pulsar.functions.runtime.Runtime;
-import org.apache.pulsar.functions.runtime.RuntimeFactory;
-import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
-import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
-import org.testng.annotations.Test;
-
-import java.util.Map;
-import java.util.Optional;
-
-import static org.apache.pulsar.common.functions.Utils.FILE;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.fail;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.admin.Packages;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.functions.MemoryLimit;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.functions.auth.FunctionAuthProvider;
+import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Instance;
+import org.apache.pulsar.functions.runtime.Runtime;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionActioner}.
@@ -59,14 +61,16 @@ public class FunctionActionerTest {
      * @throws Exception
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testStartFunctionWithDLNamespace() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
-                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));        workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
 
@@ -78,14 +82,14 @@ public class FunctionActionerTest {
 
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
-        Runtime runtime = mock(Runtime.class);
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .build();
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
-                .build();
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class),
+                mock(PackageUrlValidator.class));
+        FunctionMetaData function1 = new FunctionMetaData();
+        function1.setFunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-namespace").setName("func-1");
+        Instance instance = new Instance();
+        instance.setFunctionMetaData().copyFrom(function1);
+        instance.setInstanceId(0);
         FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
         doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
         doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
@@ -100,23 +104,26 @@ public class FunctionActionerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testStartFunctionWithPkgUrl() throws Exception {
 
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
+        workerConfig.setAdditionalEnabledFunctionsUrlPatterns(List.of("file:///user/.*", "http://invalid/.*"));
+        workerConfig.setAdditionalEnabledConnectorUrlPatterns(List.of("file:///user/.*", "http://invalid/.*"));
         String downloadDir = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
         workerConfig.setDownloadDirectory(downloadDir);
 
         RuntimeFactory factory = mock(RuntimeFactory.class);
         Runtime runtime = mock(Runtime.class);
-        doReturn(runtime).when(factory).createContainer(any(), any(), any(), any());
+        doReturn(runtime).when(factory).createContainer(any(), any(), any(), any(), any(), any());
         doNothing().when(runtime).start();
         Namespace dlogNamespace = mock(Namespace.class);
         final String exceptionMsg = "dl namespace not-found";
@@ -124,51 +131,57 @@ public class FunctionActionerTest {
 
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class),
+                new PackageUrlValidator(workerConfig));
 
         // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
         // RuntimeSpawner
-        String pkgPathLocation = FILE + ":/user/my-file.jar";
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
-                .build();
-        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
-                .build();
-        FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
-        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
-
-        actioner.startFunction(functionRuntimeInfo);
+        String pkgPathLocation = FILE + ":///user/my-file.jar";
+        startFunction(actioner, pkgPathLocation, pkgPathLocation);
         verify(runtime, times(1)).start();
 
         // (2) test with http-url, downloading file from http should fail with UnknownHostException due to invalid url
-        pkgPathLocation = "http://invalid/my-file.jar";
-        function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
-                .build();
-        instance = Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0).build();
-        functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
-        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
-        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
+        String invalidPkgPathLocation = "http://invalid/my-file.jar";
 
         try {
-            actioner.startFunction(functionRuntimeInfo);
+            startFunction(actioner, invalidPkgPathLocation, pkgPathLocation);
+            fail();
+        } catch (IllegalStateException ex) {
+            assertEquals(ex.getMessage(), "StartupException");
+        }
+
+        try {
+            startFunction(actioner, pkgPathLocation, invalidPkgPathLocation);
             fail();
         } catch (IllegalStateException ex) {
             assertEquals(ex.getMessage(), "StartupException");
         }
     }
 
+    private void startFunction(FunctionActioner actioner, String pkgPathLocation, String extraPkgPathLocation) {
+        FunctionMetaData function = new FunctionMetaData();
+        function.setFunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-namespace").setName("func-1");
+        function.setPackageLocation().setPackagePath(pkgPathLocation);
+        function.setTransformFunctionPackageLocation().setPackagePath(extraPkgPathLocation);
+        Instance instance = new Instance();
+        instance.setFunctionMetaData().copyFrom(function);
+        instance.setInstanceId(0);
+        FunctionRuntimeInfo functionRuntimeInfo = mock(FunctionRuntimeInfo.class);
+        doReturn(instance).when(functionRuntimeInfo).getFunctionInstance();
+        doThrow(new IllegalStateException("StartupException")).when(functionRuntimeInfo).setStartupException(any());
+
+        actioner.startFunction(functionRuntimeInfo);
+    }
+
     @Test
+    @SuppressWarnings("unchecked")
     public void testFunctionAuthDisabled() throws Exception {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
@@ -178,7 +191,7 @@ public class FunctionActionerTest {
 
         RuntimeFactory factory = mock(RuntimeFactory.class);
         Runtime runtime = mock(Runtime.class);
-        doReturn(runtime).when(factory).createContainer(any(), any(), any(), any());
+        doReturn(runtime).when(factory).createContainer(any(), any(), any(), any(), any(), any());
         doNothing().when(runtime).start();
         Namespace dlogNamespace = mock(Namespace.class);
         final String exceptionMsg = "dl namespace not-found";
@@ -186,20 +199,20 @@ public class FunctionActionerTest {
 
         @SuppressWarnings("resource")
         FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
-                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class));
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), mock(PulsarAdmin.class),
+                mock(PackageUrlValidator.class));
 
 
         String pkgPathLocation = "http://invalid/my-file.jar";
-        Function.FunctionMetaData functionMeta = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                        .setNamespace("test-namespace").setName("func-1"))
-                .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath(pkgPathLocation).build())
-                .build();
+        FunctionMetaData functionMeta = new FunctionMetaData();
+        functionMeta.setFunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-namespace").setName("func-1");
+        functionMeta.setPackageLocation().setPackagePath(pkgPathLocation);
 
-        Function.Instance instance = Function.Instance.newBuilder()
-                .setFunctionMetaData(functionMeta).build();
+        Instance instance = new Instance();
+        instance.setFunctionMetaData().copyFrom(functionMeta);
 
-        RuntimeSpawner runtimeSpawner = spy(actioner.getRuntimeSpawner(instance, "foo"));
+        RuntimeSpawner runtimeSpawner = spy(actioner.getRuntimeSpawner(instance, "foo", "bar"));
 
         assertNull(runtimeSpawner.getInstanceConfig().getFunctionAuthenticationSpec());
 
@@ -220,4 +233,68 @@ public class FunctionActionerTest {
         verify(functionAuthProvider.get(), times(0)).cleanUpAuthData(any(), any());
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testStartFunctionWithPackageUrl() throws Exception {
+
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
+        workerConfig.setFunctionRuntimeFactoryConfigs(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
+                        new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
+        workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
+        workerConfig.setStateStorageServiceUrl("foo");
+        workerConfig.setFunctionAssignmentTopicName("assignments");
+        String downloadDir = this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+        workerConfig.setDownloadDirectory(downloadDir);
+
+        RuntimeFactory factory = mock(RuntimeFactory.class);
+        Runtime runtime = mock(Runtime.class);
+        doReturn(runtime).when(factory).createContainer(any(), any(), any(), any(), any(), any());
+        doNothing().when(runtime).start();
+        Namespace dlogNamespace = mock(Namespace.class);
+        final String exceptionMsg = "dl namespace not-found";
+        doThrow(new IllegalArgumentException(exceptionMsg)).when(dlogNamespace).openLog(any());
+        PulsarAdmin pulsarAdmin = mock(PulsarAdmin.class);
+        Packages packages = mock(Packages.class);
+        doReturn(packages).when(pulsarAdmin).packages();
+        doNothing().when(packages).download(any(), any());
+
+        @SuppressWarnings("resource")
+        FunctionActioner actioner = new FunctionActioner(workerConfig, factory, dlogNamespace,
+                new ConnectorsManager(workerConfig), new FunctionsManager(workerConfig), pulsarAdmin,
+                mock(PackageUrlValidator.class));
+
+        // (1) test with file url. functionActioner should be able to consider file-url and it should be able to call
+        // RuntimeSpawner
+        String pkgPathLocation = "function://public/default/test-function@latest";
+        startFunction(actioner, pkgPathLocation, pkgPathLocation);
+        verify(runtime, times(1)).start();
+    }
+
+    @Test
+    public void testCreateInstanceConfigPulsarClientMemoryLimit() {
+        WorkerConfig workerConfig = new WorkerConfig();
+        @SuppressWarnings("resource")
+        FunctionActioner actioner = new FunctionActioner(workerConfig, mock(RuntimeFactory.class),
+                mock(Namespace.class), mock(ConnectorsManager.class), mock(FunctionsManager.class),
+                mock(PulsarAdmin.class), mock(PackageUrlValidator.class));
+
+        // neither the worker nor the function sets a limit
+        InstanceConfig instanceConfig = actioner.createInstanceConfig(new FunctionDetails(), null, 0, "c");
+        assertNull(instanceConfig.getPulsarClientMemoryLimit());
+
+        // the worker default applies to a function without its own limit
+        workerConfig.setPulsarClientMemoryLimit(new MemoryLimit().setPercentOfMaxDirectMemory(50.0));
+        instanceConfig = actioner.createInstanceConfig(new FunctionDetails(), null, 0, "c");
+        assertEquals(instanceConfig.getPulsarClientMemoryLimit(),
+                new MemoryLimit().setPercentOfMaxDirectMemory(50.0));
+
+        // the function's own limit overrides the worker default
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.setPulsarClientMemoryLimit().setLimitInBytes(1024);
+        instanceConfig = actioner.createInstanceConfig(functionDetails, null, 0, "c");
+        assertEquals(instanceConfig.getPulsarClientMemoryLimit(), new MemoryLimit().setLimitInBytes(1024L));
+    }
 }

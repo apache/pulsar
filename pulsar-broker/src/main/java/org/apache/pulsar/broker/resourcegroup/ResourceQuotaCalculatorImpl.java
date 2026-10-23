@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,31 +20,30 @@ package org.apache.pulsar.broker.resourcegroup;
 
 import static java.lang.Float.max;
 import static java.lang.Math.abs;
+import lombok.CustomLog;
 import lombok.val;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
     @Override
     public long computeLocalQuota(long confUsage, long myUsage, long[] allUsages) throws PulsarAdminException {
         // ToDo: work out the initial conditions: we may allow a small number of "first few iterations" to go
         // unchecked as we get some history of usage, or follow some other "TBD" method.
 
-        long totalUsage = 0;
-
-        for (long usage : allUsages) {
-            totalUsage += usage;
-        }
-
         if (confUsage < 0) {
             // This can happen if the RG is not configured with this particular limit (message or byte count) yet.
             val retVal = -1;
-            if (log.isDebugEnabled()) {
-                log.debug("Configured usage ({}) is not set; returning a special value ({}) for calculated quota",
-                        confUsage, retVal);
-            }
-            return retVal;
+                log.debug()
+                        .attr("usage", confUsage)
+                        .attr("value", retVal)
+                        .log("Configured usage is not set; returning a special value for calculated quota");
+                        return retVal;
+        }
+
+        long totalUsage = 0;
+        for (long usage : allUsages) {
+            totalUsage += usage;
         }
 
         if (myUsage < 0 || totalUsage < 0) {
@@ -58,12 +57,11 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
         // The caller is expected to check the value returned, or not call here with a zero global usage.
         // [This avoids a division by zero when calculating the local share.]
         if (totalUsage == 0) {
-            if (log.isDebugEnabled()) {
-                log.debug("computeLocalQuota: totalUsage is zero; "
-                        + "returning the configured usage ({}) as new local quota",
-                        confUsage);
-            }
-            return confUsage;
+                log.debug()
+                        .attr("usage", confUsage)
+                        .log("computeLocalQuota: totalUsage is zero; returning the configured usage as new local"
+                                + " quota");
+                        return confUsage;
         }
 
         if (myUsage > totalUsage) {
@@ -85,10 +83,14 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
         float calculatedQuota = max(myUsage + residual * myUsageFraction, 1);
 
         val longCalculatedQuota = (long) calculatedQuota;
-        log.info("computeLocalQuota: myUsage={}, totalUsage={}, myFraction={}; newQuota returned={} [long: {}]",
-                myUsage, totalUsage, myUsageFraction, calculatedQuota, longCalculatedQuota);
-
-        return longCalculatedQuota;
+            log.debug()
+                    .attr("myUsage", myUsage)
+                    .attr("totalUsage", totalUsage)
+                    .attr("myFraction", myUsageFraction)
+                    .attr("newQuota", calculatedQuota)
+                    .attr("longQuota", longCalculatedQuota)
+                    .log("computeLocalQuota");
+                return longCalculatedQuota;
     }
 
     @Override
@@ -108,7 +110,7 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
         final float toleratedDriftPercentage = ResourceGroupService.UsageReportSuppressionTolerancePercentage;
         if (currentBytesUsed > 0) {
             long diff = abs(currentBytesUsed - lastReportedBytes);
-            float diffPercentage = (diff / currentBytesUsed) * 100;
+            float diffPercentage = (float) diff * 100 / lastReportedBytes;
             if (diffPercentage > toleratedDriftPercentage) {
                 return true;
             }
@@ -116,7 +118,7 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
 
         if (currentMessagesUsed > 0) {
             long diff = abs(currentMessagesUsed - lastReportedMessages);
-            float diffPercentage = (diff / currentMessagesUsed) * 100;
+            float diffPercentage = (float) diff * 100 / lastReportedMessages;
             if (diffPercentage > toleratedDriftPercentage) {
                 return true;
             }
@@ -124,6 +126,4 @@ public class ResourceQuotaCalculatorImpl implements ResourceQuotaCalculator {
 
         return false;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ResourceQuotaCalculatorImpl.class);
 }

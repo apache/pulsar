@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import io.opentelemetry.api.OpenTelemetry;
 import java.net.InetSocketAddress;
 import java.time.Clock;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
@@ -32,15 +34,19 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.Socks5ProxyScope;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
-
-import static com.google.common.base.Preconditions.checkArgument;
+import org.apache.pulsar.common.tls.InetAddressUtils;
 
 public class ClientBuilderImpl implements ClientBuilder {
+    private static final long serialVersionUID = 1L;
     ClientConfigurationData conf;
+    private transient PulsarClientSharedResourcesImpl sharedResources;
 
     public ClientBuilderImpl() {
         this(new ClientConfigurationData());
@@ -52,43 +58,53 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public PulsarClient build() throws PulsarClientException {
-        if (StringUtils.isBlank(conf.getServiceUrl()) && conf.getServiceUrlProvider() == null) {
-            throw new IllegalArgumentException("service URL or service URL provider needs to be specified on the ClientBuilder object.");
-        }
-        if (StringUtils.isNotBlank(conf.getServiceUrl()) && conf.getServiceUrlProvider() != null) {
-            throw new IllegalArgumentException("Can only chose one way service URL or service URL provider.");
-        }
+        checkArgument(StringUtils.isNotBlank(conf.getServiceUrl()) || conf.getServiceUrlProvider() != null,
+                "service URL or service URL provider needs to be specified on the ClientBuilder object.");
+        checkArgument(StringUtils.isBlank(conf.getServiceUrl())  || conf.getServiceUrlProvider() == null,
+                "Can only chose one way service URL or service URL provider.");
+
         if (conf.getServiceUrlProvider() != null) {
-            if (StringUtils.isBlank(conf.getServiceUrlProvider().getServiceUrl())) {
-                throw new IllegalArgumentException("Cannot get service url from service url provider.");
-            } else {
-                conf.setServiceUrl(conf.getServiceUrlProvider().getServiceUrl());
-            }
+            checkArgument(StringUtils.isNotBlank(conf.getServiceUrlProvider().getServiceUrl()),
+                    "Cannot get service url from service url provider.");
+            conf.setServiceUrl(conf.getServiceUrlProvider().getServiceUrl());
         }
-        PulsarClient client = new PulsarClientImpl(conf);
-        if (conf.getServiceUrlProvider() != null) {
-            conf.getServiceUrlProvider().initialize(client);
+        if (conf.getAuthentication() == null || conf.getAuthentication() == AuthenticationDisabled.INSTANCE) {
+            setAuthenticationFromPropsIfAvailable(conf);
         }
-        return client;
+        PulsarClientImpl.PulsarClientImplBuilder instanceBuilder = PulsarClientImpl.builder();
+        // PIP-478: hand the client its own configuration object. The client stores the TLS factory it
+        // composes back onto this object (PulsarClientImpl.setupClientTlsFactory), so sharing the
+        // builder's instance would make a second build() adopt — and re-initialize — the first client's
+        // live factory, and closing either client would then close TLS for the other. Building more than
+        // one client from a builder is ordinary usage, so the configuration must not be shared state.
+        // Callers that mutate the builder's configuration (BrokerService, WorkerUtils, CompactorTool,
+        // NamespaceService) all do so before build(), so the copy carries their changes.
+        instanceBuilder.conf(conf.clone());
+        if (sharedResources != null) {
+            sharedResources.applyTo(instanceBuilder);
+        }
+        return instanceBuilder.build();
     }
 
     @Override
     public ClientBuilder clone() {
-        return new ClientBuilderImpl(conf.clone());
+        ClientBuilderImpl clientBuilder = new ClientBuilderImpl(conf.clone());
+        clientBuilder.sharedResources = sharedResources;
+        return clientBuilder;
     }
 
     @Override
     public ClientBuilder loadConf(Map<String, Object> config) {
-        conf = ConfigurationDataUtils.loadData(
-            config, conf, ClientConfigurationData.class);
+        // PIP-478: reject a stale, removed PIP-337 sslFactoryPlugin key with an actionable message.
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(config);
+        conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
+        setAuthenticationFromPropsIfAvailable(conf);
         return this;
     }
 
     @Override
     public ClientBuilder serviceUrl(String serviceUrl) {
-        if (StringUtils.isBlank(serviceUrl)) {
-            throw new IllegalArgumentException("Param serviceUrl must not be blank.");
-        }
+        checkArgument(StringUtils.isNotBlank(serviceUrl), "Param serviceUrl must not be blank.");
         conf.setServiceUrl(serviceUrl);
         if (!conf.isUseTls()) {
             enableTls(serviceUrl.startsWith("pulsar+ssl") || serviceUrl.startsWith("https"));
@@ -98,25 +114,61 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider) {
-        if (serviceUrlProvider == null) {
-            throw new IllegalArgumentException("Param serviceUrlProvider must not be null.");
-        }
+        checkArgument(serviceUrlProvider != null, "Param serviceUrlProvider must not be null.");
         conf.setServiceUrlProvider(serviceUrlProvider);
         return this;
     }
 
     @Override
+    public ClientBuilder serviceUrlQuarantineInitDuration(long serviceUrlQuarantineInitDuration,
+                                                          TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineInitDuration >= 0,
+                "serviceUrlQuarantineInitDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineInitDurationMs(unit.toMillis(serviceUrlQuarantineInitDuration));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlQuarantineMaxDuration(long serviceUrlQuarantineMaxDuration,
+                                                         TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineMaxDuration >= 0,
+                "serviceUrlQuarantineMaxDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineMaxDurationMs(unit.toMillis(serviceUrlQuarantineMaxDuration));
+        return this;
+    }
+
+    @Override
     public ClientBuilder listenerName(String listenerName) {
-        if (StringUtils.isBlank(listenerName)) {
-            throw new IllegalArgumentException("Param listenerName must not be blank.");
-        }
+        checkArgument(StringUtils.isNotBlank(listenerName), "Param listenerName must not be blank.");
         conf.setListenerName(StringUtils.trim(listenerName));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds) {
+        checkArgument(connectionMaxIdleSeconds < 0
+                        || connectionMaxIdleSeconds >= ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN,
+                "Connection idle detect interval seconds at least "
+                        + ConnectionPool.IDLE_DETECTION_INTERVAL_SECONDS_MIN + ".");
+        conf.setConnectionMaxIdleSeconds(connectionMaxIdleSeconds);
         return this;
     }
 
     @Override
     public ClientBuilder authentication(Authentication authentication) {
         conf.setAuthentication(authentication);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder openTelemetry(OpenTelemetry openTelemetry) {
+        conf.setOpenTelemetry(openTelemetry);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder enableTracing(boolean tracingEnabled) {
+        conf.setTracingEnabled(tracingEnabled);
         return this;
     }
 
@@ -138,6 +190,29 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setAuthParams(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
         return this;
+    }
+
+    public ClientBuilderImpl originalPrincipal(String originalPrincipal) {
+        conf.setOriginalPrincipal(originalPrincipal);
+        return this;
+    }
+
+    private void setAuthenticationFromPropsIfAvailable(ClientConfigurationData clientConfig) {
+        String authPluginClass = clientConfig.getAuthPluginClassName();
+        String authParams = clientConfig.getAuthParams();
+        Map<String, String> authParamMap = clientConfig.getAuthParamMap();
+        if (StringUtils.isBlank(authPluginClass) || (StringUtils.isBlank(authParams) && authParamMap == null)) {
+            return;
+        }
+        try {
+            if (StringUtils.isNotBlank(authParams)) {
+                authentication(authPluginClass, authParams);
+            } else if (authParamMap != null) {
+                authentication(authPluginClass, authParamMap);
+            }
+        } catch (UnsupportedAuthenticationException ex) {
+            throw new RuntimeException("Failed to create authentication: " + ex.getMessage(), ex);
+        }
     }
 
     @Override
@@ -180,9 +255,22 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public ClientBuilder enableTls(boolean useTls) {
         conf.setUseTls(useTls);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsKeyFilePath(String tlsKeyFilePath) {
+        conf.setTlsKeyFilePath(tlsKeyFilePath);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsCertificateFilePath(String tlsCertificateFilePath) {
+        conf.setTlsCertificateFilePath(tlsCertificateFilePath);
         return this;
     }
 
@@ -217,6 +305,24 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder tlsKeyStoreType(String tlsKeyStoreType) {
+        conf.setTlsKeyStoreType(tlsKeyStoreType);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsKeyStorePath(String tlsTrustStorePath) {
+        conf.setTlsKeyStorePath(tlsTrustStorePath);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsKeyStorePassword(String tlsKeyStorePassword) {
+        conf.setTlsKeyStorePassword(tlsKeyStorePassword);
+        return this;
+    }
+
+    @Override
     public ClientBuilder tlsTrustStoreType(String tlsTrustStoreType) {
         conf.setTlsTrustStoreType(tlsTrustStoreType);
         return this;
@@ -246,6 +352,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public ClientBuilder statsInterval(long statsInterval, TimeUnit unit) {
         conf.setStatsIntervalSeconds(unit.toSeconds(statsInterval));
@@ -278,26 +385,26 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder keepAliveInterval(int keepAliveInterval, TimeUnit unit) {
-        conf.setKeepAliveIntervalSeconds((int)unit.toSeconds(keepAliveInterval));
+        conf.setKeepAliveIntervalSeconds((int) unit.toSeconds(keepAliveInterval));
         return this;
     }
 
     @Override
     public ClientBuilder connectionTimeout(int duration, TimeUnit unit) {
-        conf.setConnectionTimeoutMs((int)unit.toMillis(duration));
+        conf.setConnectionTimeoutMs((int) unit.toMillis(duration));
         return this;
     }
 
     @Override
     public ClientBuilder startingBackoffInterval(long duration, TimeUnit unit) {
-    	conf.setInitialBackoffIntervalNanos(unit.toNanos(duration));
-    	return this;
+        conf.setInitialBackoffIntervalNanos(unit.toNanos(duration));
+        return this;
     }
 
     @Override
     public ClientBuilder maxBackoffInterval(long duration, TimeUnit unit) {
-    	conf.setMaxBackoffIntervalNanos(unit.toNanos(duration));
-    	return this;
+        conf.setMaxBackoffIntervalNanos(unit.toNanos(duration));
+        return this;
     }
 
     @Override
@@ -318,14 +425,15 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder clock(Clock clock) {
+        checkArgument(clock != null, "clock must not be null");
         conf.setClock(clock);
         return this;
     }
 
     @Override
     public ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol) {
-        if (StringUtils.isNotBlank(proxyServiceUrl) && proxyProtocol == null) {
-            throw new IllegalArgumentException("proxyProtocol must be present with proxyServiceUrl");
+        if (StringUtils.isNotBlank(proxyServiceUrl)) {
+            checkArgument(proxyProtocol != null, "proxyProtocol must be present with proxyServiceUrl");
         }
         conf.setProxyServiceUrl(proxyServiceUrl);
         conf.setProxyProtocol(proxyProtocol);
@@ -335,6 +443,25 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder enableTransaction(boolean enableTransaction) {
         conf.setEnableTransaction(enableTransaction);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder dnsLookupBind(String address, int port) {
+        checkArgument(port >= 0 && port <= 65535, "DnsLookBindPort need to be within the range of 0 and 65535");
+        conf.setDnsLookupBindAddress(address);
+        conf.setDnsLookupBindPort(port);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder dnsServerAddresses(List<InetSocketAddress> addresses) {
+        for (InetSocketAddress address : addresses) {
+            String ip = address.getHostString();
+            checkArgument(InetAddressUtils.isIPv4Address(ip) || InetAddressUtils.isIPv6Address(ip),
+                    "DnsServerAddresses need to be valid IPv4 or IPv6 addresses");
+        }
+        conf.setDnsServerAddresses(addresses);
         return this;
     }
 
@@ -353,6 +480,51 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder socks5ProxyPassword(String socks5ProxyPassword) {
         conf.setSocks5ProxyPassword(socks5ProxyPassword);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder socks5ProxyScope(Socks5ProxyScope socks5ProxyScope) {
+        conf.setSocks5ProxyScope(socks5ProxyScope);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsFactoryClassName(String tlsFactoryClassName) {
+        conf.setTlsFactoryClassName(StringUtils.isBlank(tlsFactoryClassName) ? "" : tlsFactoryClassName);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsFactoryConfig(String tlsFactoryConfig) {
+        conf.setTlsFactoryConfig(StringUtils.isBlank(tlsFactoryConfig) ? "" : tlsFactoryConfig);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder autoCertRefreshSeconds(int autoCertRefreshSeconds) {
+        conf.setAutoCertRefreshSeconds(autoCertRefreshSeconds);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder description(String description) {
+        if (description != null && description.length() > 64) {
+            throw new IllegalArgumentException("description should be at most 64 characters");
+        }
+        conf.setDescription(description);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder sharedResources(PulsarClientSharedResources sharedResources) {
+        this.sharedResources = (PulsarClientSharedResourcesImpl) sharedResources;
+        return this;
+    }
+
+    @Override
+    public ClientBuilder lookupProperties(Map<String, String> properties) {
+        conf.setLookupProperties(properties);
         return this;
     }
 }

@@ -42,13 +42,10 @@
 # PULSAR_GLOBAL_ZK_CONF=
 
 # Extra options to be passed to the jvm
-PULSAR_MEM="-Xmx128m -XX:MaxDirectMemorySize=128m"
+PULSAR_MEM=${PULSAR_MEM:-"-Xmx128m -XX:MaxDirectMemorySize=128m"}
 
-# Garbage collection options
-PULSAR_GC=" -client "
-
-# Extra options to be passed to the jvm
-PULSAR_EXTRA_OPTS="${PULSAR_EXTRA_OPTS} ${PULSAR_MEM} ${PULSAR_GC} ${PULSAR_GC_LOG} -Dio.netty.leakDetectionLevel=disabled"
+# Override any broker-sized initial heap setting inherited through PULSAR_MEM.
+PULSAR_EXTRA_OPTS="${PULSAR_MEM} ${PULSAR_GC} ${PULSAR_GC_LOG} ${PULSAR_EXTRA_OPTS} -Xms128m"
 
 # Add extra paths to the bookkeeper classpath
 # PULSAR_EXTRA_CLASSPATH=

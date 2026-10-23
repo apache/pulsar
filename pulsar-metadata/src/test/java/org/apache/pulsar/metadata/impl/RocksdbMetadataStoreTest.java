@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.metadata.impl;
 
 import java.nio.charset.StandardCharsets;
@@ -25,7 +24,7 @@ import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -37,7 +36,7 @@ import org.apache.pulsar.metadata.api.Stat;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class RocksdbMetadataStoreTest {
 
     @Test
@@ -49,6 +48,7 @@ public class RocksdbMetadataStoreTest {
         Assert.assertEquals(l, RocksdbMetadataStore.toLong(RocksdbMetadataStore.toBytes(l)));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testMetaValue() throws Exception {
         RocksdbMetadataStore.MetaValue metaValue = new RocksdbMetadataStore.MetaValue();
@@ -66,11 +66,11 @@ public class RocksdbMetadataStoreTest {
         MetadataStore store;
         Path tempDir;
         tempDir = Files.createTempDirectory("RocksdbMetadataStoreTest");
-        log.info("Temp dir:{}", tempDir.toAbsolutePath());
+        log.info().attr("tempDir", tempDir.toAbsolutePath()).log("Temp dir");
         String optionFilePath =
                 getClass().getClassLoader().getResource("rocksdb_option_file_example.ini").getPath();
-        log.info("optionFilePath={}", optionFilePath);
-        store = MetadataStoreFactory.create("rocksdb://" + tempDir.toAbsolutePath(),
+        log.info().attr("optionFilePath", optionFilePath).log("Option file path");
+        store = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().configFilePath(optionFilePath).build());
         Assert.assertTrue(store instanceof RocksdbMetadataStore);
 
@@ -90,14 +90,14 @@ public class RocksdbMetadataStoreTest {
         });
 
         Assert.assertNotNull(f.get());
-        log.info("put result:{}", f.get());
+        log.info().attr("result", f.get()).log("put result");
         Assert.assertNotNull(store.put(path + "/a", data, Optional.of(-1L)));
         Assert.assertNotNull(store.put(path + "/b", data, Optional.of(-1L)));
         Assert.assertNotNull(store.put(path + "/c", data, Optional.of(-1L)));
 
         //reopen db
         store.close();
-        store = MetadataStoreFactory.create("rocksdb://" + tempDir.toAbsolutePath(),
+        store = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
                 MetadataStoreConfig.builder().configFilePath(optionFilePath).build());
 
         //test get
@@ -110,6 +110,31 @@ public class RocksdbMetadataStoreTest {
         Assert.assertEquals(data, r.getValue());
 
         store.close();
+        FileUtils.deleteQuietly(tempDir.toFile());
+    }
+
+    @Test
+    public void testMultipleInstances() throws Exception {
+
+        Path tempDir = Files.createTempDirectory("RocksdbMetadataStoreTest");
+        log.info().attr("tempDir", tempDir.toAbsolutePath()).log("Temp dir");
+        MetadataStore store1 = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
+                MetadataStoreConfig.builder().build());
+
+        MetadataStore store2 = MetadataStoreFactory.create("rocksdb:" + tempDir.toAbsolutePath(),
+                MetadataStoreConfig.builder().build());
+
+        // We should get the same instance
+        Assert.assertTrue(store1 == store2);
+
+        store1.put("/test", new byte[0], Optional.empty()).join();
+        Assert.assertTrue(store2.exists("/test").join());
+
+        store1.close();
+        store2.put("/test-2", new byte[0], Optional.empty()).join();
+        Assert.assertTrue(store2.exists("/test-2").join());
+        store2.close();
+
         FileUtils.deleteQuietly(tempDir.toFile());
     }
 }

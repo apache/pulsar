@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,68 +16,74 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.common.util;
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.databind.module.SimpleAbstractTypeResolver;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import io.netty.util.concurrent.FastThreadLocal;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.ClassUtils;
+import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
+import java.util.concurrent.atomic.AtomicReference;
+import lombok.CustomLog;
+import lombok.Getter;
 import org.apache.pulsar.client.admin.internal.data.AuthPoliciesImpl;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionState;
 import org.apache.pulsar.common.functions.JsonIgnorePropertiesMixIn;
 import org.apache.pulsar.common.policies.data.AuthPolicies;
-import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
+import org.apache.pulsar.common.policies.data.AutoFailoverPolicyDataImpl;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.BacklogQuotaMixIn;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesClusterInfo;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
-import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.BrokerNamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
 import org.apache.pulsar.common.policies.data.BundlesData;
-import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
-import org.apache.pulsar.common.policies.data.FailureDomainImpl;
+import org.apache.pulsar.common.policies.data.DrainingHash;
 import org.apache.pulsar.common.policies.data.FailureDomain;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBaseImpl;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBase;
-import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FailureDomainImpl;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStats;
-import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsData;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBase;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataBaseImpl;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
+import org.apache.pulsar.common.policies.data.FunctionInstanceStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
-import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
+import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
-import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.policies.data.ResourceQuotaMixIn;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.impl.AutoSubscriptionCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
@@ -91,6 +97,7 @@ import org.apache.pulsar.common.policies.data.impl.BundlesDataImpl;
 import org.apache.pulsar.common.policies.data.impl.DelayedDeliveryPoliciesImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.DrainingHashImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPublisherStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentReplicatorStatsImpl;
@@ -107,48 +114,103 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReportDeserializer;
 
 @SuppressWarnings("checkstyle:JavadocType")
-@Slf4j
+@CustomLog
 public class ObjectMapperFactory {
+    public static class MapperReference {
+        @Getter
+        private final ObjectMapper objectMapper;
+        private final ObjectWriter objectWriter;
+        private final ObjectReader objectReader;
+
+        MapperReference(ObjectMapper objectMapper) {
+            this.objectMapper = objectMapper;
+            this.objectWriter = objectMapper.writer();
+            this.objectReader = objectMapper.reader();
+        }
+
+        public ObjectWriter writer() {
+            return objectWriter;
+        }
+
+        public ObjectReader reader() {
+            return objectReader;
+        }
+    }
+
+    private static final AtomicReference<MapperReference> MAPPER_REFERENCE =
+            new AtomicReference<>(new MapperReference(createObjectMapperInstance()));
+
+    private static final AtomicReference<MapperReference> INSTANCE_WITH_INCLUDE_ALWAYS =
+            new AtomicReference<>(new MapperReference(createObjectMapperWithIncludeAlways()));
+
+    private static final AtomicReference<MapperReference> YAML_MAPPER_REFERENCE =
+            new AtomicReference<>(new MapperReference(createYamlInstance()));
+
+    private static ObjectMapper createObjectMapperInstance() {
+        return ProtectedObjectMapper.protectedCopyOf(configureObjectMapper(new ObjectMapper()));
+    }
+
+    private static ObjectMapper createObjectMapperWithIncludeAlways() {
+        return MAPPER_REFERENCE
+                .get().getObjectMapper().copy()
+                .setDefaultPropertyInclusion(Include.ALWAYS);
+    }
+
     public static ObjectMapper create() {
-        ObjectMapper mapper = new ObjectMapper();
+        return getMapper().getObjectMapper().copy();
+    }
+
+    private static ObjectMapper createYamlInstance() {
+        return ProtectedObjectMapper.protectedCopyOf(configureObjectMapper(new ObjectMapper(new YAMLFactory())));
+    }
+
+    private static ObjectMapper configureObjectMapper(ObjectMapper mapper) {
         // forward compatibility for the properties may go away in the future
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
-        mapper.setSerializationInclusion(Include.NON_NULL);
+        mapper.setDefaultPropertyInclusion(Include.NON_NULL);
+
+        // enable Jackson Java 8 support modules
+        // https://github.com/FasterXML/jackson-modules-java8
+        mapper.registerModule(new ParameterNamesModule())
+            .registerModule(new Jdk8Module())
+            .registerModule(new JavaTimeModule());
+
         setAnnotationsModule(mapper);
         return mapper;
     }
 
     public static ObjectMapper createYaml() {
-        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-        // forward compatibility for the properties may go away in the future
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        mapper.configure(DeserializationFeature.READ_UNKNOWN_ENUM_VALUES_AS_NULL, true);
-        mapper.setSerializationInclusion(Include.NON_NULL);
-        setAnnotationsModule(mapper);
-        return mapper;
+        return getYamlMapper().getObjectMapper().copy();
     }
 
-    private static final FastThreadLocal<ObjectMapper> JSON_MAPPER = new FastThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() throws Exception {
-            return create();
-        }
-    };
+    public static MapperReference getMapper() {
+        return MAPPER_REFERENCE.get();
+    }
 
-    private static final FastThreadLocal<ObjectMapper> YAML_MAPPER = new FastThreadLocal<ObjectMapper>() {
-        @Override
-        protected ObjectMapper initialValue() throws Exception {
-            return createYaml();
-        }
-    };
 
+    public static MapperReference getMapperWithIncludeAlways() {
+        return INSTANCE_WITH_INCLUDE_ALWAYS.get();
+    }
+
+    /**
+     * This method is deprecated. Use {@link #getMapper()} and {@link MapperReference#getObjectMapper()}
+     */
+    @Deprecated
     public static ObjectMapper getThreadLocal() {
-        return JSON_MAPPER.get();
+        return getMapper().getObjectMapper();
     }
 
+    public static MapperReference getYamlMapper() {
+        return YAML_MAPPER_REFERENCE.get();
+    }
+
+    /**
+     * This method is deprecated. Use {@link #getYamlMapper()} and {@link MapperReference#getObjectMapper()}
+     */
+    @Deprecated
     public static ObjectMapper getThreadLocalYaml() {
-        return YAML_MAPPER.get();
+        return getYamlMapper().getObjectMapper();
     }
 
     private static void setAnnotationsModule(ObjectMapper mapper) {
@@ -180,6 +242,7 @@ public class ObjectMapperFactory {
         resolver.addMapping(DispatchRate.class, DispatchRateImpl.class);
         resolver.addMapping(TopicStats.class, TopicStatsImpl.class);
         resolver.addMapping(ConsumerStats.class, ConsumerStatsImpl.class);
+        resolver.addMapping(DrainingHash.class, DrainingHashImpl.class);
         resolver.addMapping(NonPersistentPublisherStats.class, NonPersistentPublisherStatsImpl.class);
         resolver.addMapping(NonPersistentReplicatorStats.class, NonPersistentReplicatorStatsImpl.class);
         resolver.addMapping(NonPersistentSubscriptionStats.class, NonPersistentSubscriptionStatsImpl.class);
@@ -192,26 +255,40 @@ public class ObjectMapperFactory {
         resolver.addMapping(AutoSubscriptionCreationOverride.class, AutoSubscriptionCreationOverrideImpl.class);
 
         // we use MixIn class to add jackson annotations
-        mapper.addMixIn(BacklogQuotaImpl.class, BacklogQuotaMixIn.class);
         mapper.addMixIn(ResourceQuota.class, ResourceQuotaMixIn.class);
         mapper.addMixIn(FunctionConfig.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(FunctionState.class, JsonIgnorePropertiesMixIn.class);
         mapper.addMixIn(Metrics.class, MetricsMixIn.class);
 
-        try {
-            // We look for LoadManagerReport first, then add deserializer to the module
-            // With shaded client, org.apache.pulsar.policies is relocated to
-            // org.apache.pulsar.shade.org.apache.pulsar.policies
-            ClassUtils.getClass("org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport");
-            module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
-        } catch (ClassNotFoundException e) {
-            log.debug("Add LoadManagerReport deserializer failed because LoadManagerReport.class has been shaded", e);
-        }
+        module.addDeserializer(LoadManagerReport.class, new LoadReportDeserializer());
 
         module.setAbstractTypes(resolver);
 
         mapper.registerModule(module);
     }
 
+    /**
+     * Clears the caches tied to the ObjectMapper instances and replaces the singleton ObjectMapper instance.
+     * This can be used in tests to ensure that classloaders and class references don't leak across tests.
+     */
+    public static void clearCaches() {
+        clearTypeFactoryCache(getMapper().getObjectMapper());
+        clearTypeFactoryCache(getYamlMapper().getObjectMapper());
+        clearTypeFactoryCache(getMapperWithIncludeAlways().getObjectMapper());
+        replaceSingletonInstances();
+    }
 
+    private static void clearTypeFactoryCache(ObjectMapper objectMapper) {
+        objectMapper.getTypeFactory().clearCache();
+    }
+
+    /*
+     * Replaces the existing singleton ObjectMapper instances with new instances.
+     * This is used in tests to ensure that classloaders and class references don't leak between tests.
+     */
+    private static void replaceSingletonInstances() {
+        MAPPER_REFERENCE.set(new MapperReference(createObjectMapperInstance()));
+        INSTANCE_WITH_INCLUDE_ALWAYS.set(new MapperReference(createObjectMapperWithIncludeAlways()));
+        YAML_MAPPER_REFERENCE.set(new MapperReference(createYamlInstance()));
+    }
 }

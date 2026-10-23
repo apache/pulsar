@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,7 +28,7 @@ import org.apache.pulsar.common.schema.KeyValueEncodingType;
  * @param <K> the type of the Key
  * @param <V> the type of the Value.
  */
-public interface KeyValueSchema<K,V> extends Schema<KeyValue<K,V>> {
+public interface KeyValueSchema<K, V> extends Schema<KeyValue<K, V>> {
 
     /**
      * Get the Schema of the Key.

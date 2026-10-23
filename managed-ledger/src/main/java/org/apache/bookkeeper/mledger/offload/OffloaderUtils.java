@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,19 +24,19 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
- * Utils to load offloaders
+ * Utils to load offloaders.
  */
-@Slf4j
+@CustomLog
 public class OffloaderUtils {
 
     private static final String PULSAR_OFFLOADER_SERVICE_NAME = "pulsar-offloader.yaml";
@@ -48,15 +48,19 @@ public class OffloaderUtils {
      * @return the offloader class name
      * @throws IOException when fail to retrieve the pulsar offloader class
      */
-    static Pair<NarClassLoader, LedgerOffloaderFactory> getOffloaderFactory(String narPath, String narExtractionDirectory) throws IOException {
+    static Pair<NarClassLoader, LedgerOffloaderFactory<?>> getOffloaderFactory(String narPath,
+                                                                              String narExtractionDirectory)
+            throws IOException {
         // need to load offloader NAR to the classloader that also loaded LedgerOffloaderFactory in case
         // LedgerOffloaderFactory is loaded by a classloader that is not the default classloader
-        // as is the case for the pulsar presto plugin
-        NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
-                LedgerOffloaderFactory.class.getClassLoader(), narExtractionDirectory);
+        NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(new File(narPath))
+                .parentClassLoader(LedgerOffloaderFactory.class.getClassLoader())
+                .extractionDirectory(narExtractionDirectory)
+                .build();
         String configStr = ncl.getServiceDefinition(PULSAR_OFFLOADER_SERVICE_NAME);
 
-        OffloaderDefinition conf = ObjectMapperFactory.getThreadLocalYaml()
+        OffloaderDefinition conf = ObjectMapperFactory.getYamlMapper().getObjectMapper()
             .readValue(configStr, OffloaderDefinition.class);
         if (StringUtils.isEmpty(conf.getOffloaderFactoryClass())) {
             throw new IOException(
@@ -66,17 +70,17 @@ public class OffloaderUtils {
 
         try {
             // Try to load offloader factory class and check it implements Offloader interface
-            Class factoryClass = ncl.loadClass(conf.getOffloaderFactoryClass());
-            CompletableFuture<LedgerOffloaderFactory> loadFuture = new CompletableFuture<>();
+            Class<?> factoryClass = ncl.loadClass(conf.getOffloaderFactoryClass());
+            CompletableFuture<LedgerOffloaderFactory<?>> loadFuture = new CompletableFuture<>();
             Thread loadingThread = new Thread(() -> {
                 Thread.currentThread().setContextClassLoader(ncl);
                 try {
                     Object offloader = factoryClass.getDeclaredConstructor().newInstance();
                     if (!(offloader instanceof LedgerOffloaderFactory)) {
-                        throw new IOException("Class " + conf.getOffloaderFactoryClass() + " does not implement interface "
-                            + LedgerOffloaderFactory.class.getName());
+                        throw new IOException("Class " + conf.getOffloaderFactoryClass() + " does not implement "
+                                + "interface " + LedgerOffloaderFactory.class.getName());
                     }
-                    loadFuture.complete((LedgerOffloaderFactory) offloader);
+                    loadFuture.complete((LedgerOffloaderFactory<?>) offloader);
                 } catch (Throwable t) {
                     loadFuture.completeExceptionally(t);
                 }
@@ -106,17 +110,23 @@ public class OffloaderUtils {
         }
     }
 
-    public static OffloaderDefinition getOffloaderDefinition(String narPath, String narExtractionDirectory) throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(), narExtractionDirectory)) {
+    public static OffloaderDefinition getOffloaderDefinition(String narPath, String narExtractionDirectory)
+            throws IOException {
+        try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(new File(narPath))
+                .parentClassLoader(LedgerOffloaderFactory.class.getClassLoader())
+                .extractionDirectory(narExtractionDirectory)
+                .build()) {
             String configStr = ncl.getServiceDefinition(PULSAR_OFFLOADER_SERVICE_NAME);
 
-            return ObjectMapperFactory.getThreadLocalYaml().readValue(configStr, OffloaderDefinition.class);
+            return ObjectMapperFactory.getYamlMapper().reader().readValue(configStr, OffloaderDefinition.class);
         }
     }
 
-    public static Offloaders searchForOffloaders(String offloadersPath, String narExtractionDirectory) throws IOException {
-        Path path = Paths.get(offloadersPath).toAbsolutePath();
-        log.info("Searching for offloaders in {}", path);
+    public static Offloaders searchForOffloaders(String offloadersPath, String narExtractionDirectory)
+            throws IOException {
+        Path path = Paths.get(offloadersPath).toAbsolutePath().normalize();
+        log.info().attr("path", path).log("Searching for offloaders");
 
         Offloaders offloaders = new Offloaders();
 
@@ -129,22 +139,22 @@ public class OffloaderUtils {
             stream.forEach(archive -> {
                 try {
                     OffloaderDefinition definition = getOffloaderDefinition(archive.toString(), narExtractionDirectory);
-                    log.info("Found offloader {} from {}", definition, archive);
+                    log.info().attr("definition", definition).attr("archive", archive).log("Found offloader");
 
                     if (!StringUtils.isEmpty(definition.getOffloaderFactoryClass())) {
                         // Validate offloader factory class to be present and of the right type
-                        Pair<NarClassLoader,  LedgerOffloaderFactory> offloaderFactoryPair =
+                        Pair<NarClassLoader, LedgerOffloaderFactory<?>> offloaderFactoryPair =
                             getOffloaderFactory(archive.toString(), narExtractionDirectory);
                         if (null != offloaderFactoryPair) {
                             offloaders.getOffloaders().add(offloaderFactoryPair);
                         }
                     }
                 } catch (Throwable t) {
-                    log.warn("Failed to load offloader from {}", archive, t);
+                    log.warn().attr("archive", archive).exception(t).log("Failed to load offloader");
                 }
             });
         }
-        log.info("Found and loaded {} offloaders", offloaders.getOffloaders().size());
+        log.info().attr("count", offloaders.getOffloaders().size()).log("Found and loaded offloaders");
         return offloaders;
     }
 

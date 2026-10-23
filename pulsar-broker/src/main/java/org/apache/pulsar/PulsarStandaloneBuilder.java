@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -56,11 +56,6 @@ public final class PulsarStandaloneBuilder {
         return this;
     }
 
-    public PulsarStandaloneBuilder withBkPort(int bkPort) {
-        pulsarStandalone.setBkPort(bkPort);
-        return this;
-    }
-
     public PulsarStandaloneBuilder withZkDir(String zkDir) {
         pulsarStandalone.setZkDir(zkDir);
         return this;
@@ -100,12 +95,10 @@ public final class PulsarStandaloneBuilder {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName("standalone");
         pulsarStandalone.setConfig(config);
-        String zkServers = "127.0.0.1";
 
         if (pulsarStandalone.getAdvertisedAddress() != null) {
             // Use advertised address from command line
             pulsarStandalone.getConfig().setAdvertisedAddress(pulsarStandalone.getAdvertisedAddress());
-            zkServers = pulsarStandalone.getAdvertisedAddress();
         } else if (isBlank(pulsarStandalone.getConfig().getAdvertisedAddress())) {
             // Use advertised address as local hostname
             pulsarStandalone.getConfig().setAdvertisedAddress(ServiceConfigurationUtils.unsafeLocalhostResolve());
@@ -113,9 +106,6 @@ public final class PulsarStandaloneBuilder {
             // Use advertised address from config file
         }
 
-        // Set ZK server's host to localhost
-        pulsarStandalone.getConfig().setZookeeperServers(zkServers + ":" + pulsarStandalone.getZkPort());
-        pulsarStandalone.getConfig().setConfigurationStoreServers(zkServers + ":" + pulsarStandalone.getZkPort());
         pulsarStandalone.getConfig().setRunningStandalone(true);
         return pulsarStandalone;
     }

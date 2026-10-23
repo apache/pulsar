@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,6 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /**
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,21 +32,15 @@
  */
 package org.apache.pulsar.tests.integration.schema;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
-
-import org.apache.avro.reflect.AvroDefault;
-
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.apache.avro.reflect.AvroDefault;
 
 /**
  * Keep a list of schemas for testing.
@@ -94,12 +89,12 @@ public final class Schemas {
     @AllArgsConstructor
     @Builder
     public static class AvroLogicalType{
-        @org.apache.avro.reflect.AvroSchema("{\n" +
-                "  \"type\": \"bytes\",\n" +
-                "  \"logicalType\": \"decimal\",\n" +
-                "  \"precision\": 4,\n" +
-                "  \"scale\": 2\n" +
-                "}")
+        @org.apache.avro.reflect.AvroSchema("{\n"
+                + "  \"type\": \"bytes\",\n"
+                + "  \"logicalType\": \"decimal\",\n"
+                + "  \"precision\": 4,\n"
+                + "  \"scale\": 2\n"
+                + "}")
         BigDecimal decimal;
         @org.apache.avro.reflect.AvroSchema("{\"type\":\"int\",\"logicalType\":\"date\"}")
         LocalDate date;

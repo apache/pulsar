@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.Bookies;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -33,57 +32,31 @@ import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 public class BookiesImpl extends BaseResource implements Bookies {
     private final WebTarget adminBookies;
 
-    public BookiesImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public BookiesImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminBookies = web.path("/admin/v2/bookies");
     }
 
     @Override
     public BookiesRackConfiguration getBookiesRackInfo() throws PulsarAdminException {
-        return sync(() -> getBookiesRackInfoAsync());
+        return sync(this::getBookiesRackInfoAsync);
     }
 
     @Override
     public CompletableFuture<BookiesClusterInfo> getBookiesAsync() {
         WebTarget path = adminBookies.path("all");
-        final CompletableFuture<BookiesClusterInfo> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<BookiesClusterInfo>() {
-                    @Override
-                    public void completed(BookiesClusterInfo bookies) {
-                        future.complete(bookies);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<BookiesClusterInfo>(){});
     }
 
     @Override
     public BookiesClusterInfo getBookies() throws PulsarAdminException {
-        return sync(() -> getBookiesAsync());
+        return sync(this::getBookiesAsync);
     }
 
     @Override
     public CompletableFuture<BookiesRackConfiguration> getBookiesRackInfoAsync() {
         WebTarget path = adminBookies.path("racks-info");
-        final CompletableFuture<BookiesRackConfiguration> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<BookiesRackConfiguration>() {
-                    @Override
-                    public void completed(BookiesRackConfiguration bookiesRackConfiguration) {
-                        future.complete(bookiesRackConfiguration);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<BookiesRackConfiguration>(){});
     }
 
     @Override
@@ -94,20 +67,7 @@ public class BookiesImpl extends BaseResource implements Bookies {
     @Override
     public CompletableFuture<BookieInfo> getBookieRackInfoAsync(String bookieAddress) {
         WebTarget path = adminBookies.path("racks-info").path(bookieAddress);
-        final CompletableFuture<BookieInfo> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<BookieInfo>() {
-                    @Override
-                    public void completed(BookieInfo bookieInfo) {
-                        future.complete(bookieInfo);
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<BookieInfo>(){});
     }
 
     @Override

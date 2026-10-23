@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
+import java.io.ByteArrayOutputStream;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.BinaryEncoder;
@@ -25,8 +26,6 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.SchemaWriter;
-
-import java.io.ByteArrayOutputStream;
 
 public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
 
@@ -43,7 +42,7 @@ public class GenericAvroWriter implements SchemaWriter<GenericRecord> {
     @Override
     public synchronized byte[] write(GenericRecord message) {
         try {
-            writer.write(((GenericAvroRecord)message).getAvroRecord(), this.encoder);
+            writer.write(((GenericAvroRecord) message).getAvroRecord(), this.encoder);
             this.encoder.flush();
             return this.byteArrayOutputStream.toByteArray();
         } catch (Exception e) {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,348 +18,109 @@
  */
 package org.apache.pulsar.testclient;
 
-import org.HdrHistogram.Histogram;
-import org.HdrHistogram.Recorder;
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.RateLimiter;
-import java.io.FileInputStream;
-import java.text.DecimalFormat;
-import java.util.List;
-import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.LongAdder;
-import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.api.ReaderListener;
-import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.util.FutureUtil;
-import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import io.github.merlimat.slog.Logger;
+import org.apache.pulsar.cli.ClientApi;
+import org.apache.pulsar.cli.ClientApiOptionGroups;
+import picocli.CommandLine;
+import picocli.CommandLine.ArgGroup;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Spec;
 
-public class PerformanceReader {
-    private static final LongAdder messagesReceived = new LongAdder();
-    private static final LongAdder bytesReceived = new LongAdder();
-    private static final DecimalFormat intFormat = new PaddingDecimalFormat("0", 7);
-    private static final DecimalFormat dec = new DecimalFormat("0.000");
+/**
+ * The {@code pulsar-perf read} command: parses and validates the options, then runs the benchmark
+ * with the client the topics call for.
+ *
+ * <p>{@code topic://} (scalable) topics are read with the V5 {@code CheckpointConsumer}
+ * ({@link PerformanceReaderV5}), every other topic with the v4 {@code Reader}
+ * ({@link PerformanceReaderV4}); {@code --client-api} overrides that choice. Options that only one
+ * client supports are in their own {@code @ArgGroup}, which gives them their own {@code --help} section
+ * and makes them a usage error with the other client.
+ */
+@Command(name = "read", sortOptions = false, optionListHeading = ClientApiOptionGroups.COMMON_HEADING,
+        description = {"Test pulsar reader performance.",
+                "%nTopics with the topic:// (scalable) domain are read with the V5 client's "
+                        + "CheckpointConsumer; persistent://, non-persistent:// and unprefixed topics with "
+                        + "the v4 client's Reader. "
+                        + "Use --client-api to override the client."})
+public class PerformanceReader extends PerformanceTopicListArguments {
 
-    private static final LongAdder totalMessagesReceived = new LongAdder();
-    private static final LongAdder totalBytesReceived = new LongAdder();
+    private static final Logger log = Logger.get(PerformanceReader.class);
 
-    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
-    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    @Spec
+    CommandSpec spec;
 
-    @Parameters(commandDescription = "Test pulsar reader performance.")
-    static class Arguments {
+    @Option(names = ClientApi.OPTION_NAME, description = ClientApi.OPTION_DESCRIPTION)
+    public ClientApi clientApi;
 
-        @Parameter(names = { "-h", "--help" }, description = "Help message", help = true)
-        boolean help;
+    @Option(names = {"-r", "--rate"}, description = "Simulate a slow message reader (rate in msg/s)")
+    public double rate = 0;
 
-        @Parameter(names = { "--conf-file" }, description = "Configuration file")
-        public String confFile;
+    @Option(names = {"-m",
+            "--start-message-id"}, description = "Start message id. This can be either 'earliest', "
+            + "'latest' or, with the v4 client, a specific message id by using 'lid:eid'")
+    public String startMessageId = "earliest";
 
-        @Parameter(description = "persistent://prop/ns/my-topic", required = true)
-        public List<String> topic;
+    @Option(names = {"-n",
+            "--num-messages"}, description = "Number of messages to consume in total. If <= 0, "
+            + "it will keep consuming")
+    public long numMessages = 0;
 
-        @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics", validateWith = PositiveNumberParameterValidator.class)
-        public int numTopics = 1;
+    @Option(names = {"-time",
+            "--test-duration"}, description = "Test duration in secs. If <= 0, it will keep consuming")
+    public long testTime = 0;
 
-        @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
-        public double rate = 0;
+    @ArgGroup(exclusive = false, validate = false, order = 1, heading = ClientApiOptionGroups.V4_HEADING)
+    public V4Options v4 = new V4Options();
 
-        @Parameter(names = { "-m",
-                "--start-message-id" }, description = "Start message id. This can be either 'earliest', 'latest' or a specific message id by using 'lid:eid'")
-        public String startMessageId = "earliest";
+    /** The client picked for this invocation; set by {@link #validate()}. */
+    ClientApi resolvedClientApi;
 
-        @Parameter(names = { "-q", "--receiver-queue-size" }, description = "Size of the receiver queue")
+    /** Options that only the v4 client supports. */
+    public static class V4Options implements ClientApiOptionGroups.V4ClientOptions {
+        @Option(names = {"-q", "--receiver-queue-size"}, description = "Size of the receiver queue")
         public int receiverQueueSize = 1000;
 
-        @Parameter(names = {"-n",
-                "--num-messages"}, description = "Number of messages to consume in total. If <= 0, it will keep consuming")
-        public long numMessages = 0;
-
-        @Parameter(names = { "-c",
-                "--max-connections" }, description = "Max number of TCP connections to a single broker")
-        public int maxConnections = 100;
-
-        @Parameter(names = { "-i",
-                "--stats-interval-seconds" }, description = "Statistics Interval Seconds. If 0, statistics will be disabled")
-        public long statsIntervalSeconds = 0;
-
-        @Parameter(names = { "-u", "--service-url" }, description = "Pulsar Service URL")
-        public String serviceURL;
-
-        @Parameter(names = { "--auth-plugin" }, description = "Authentication plugin class name")
-        public String authPluginClassName;
-
-        @Parameter(names = { "--listener-name" }, description = "Listener name for the broker.")
-        String listenerName = null;
-
-        @Parameter(
-            names = { "--auth-params" },
-            description = "Authentication parameters, whose format is determined by the implementation " +
-                "of method `configure` in authentication plugin class, for example \"key1:val1,key2:val2\" " +
-                "or \"{\"key1\":\"val1\",\"key2\":\"val2\"}.")
-        public String authParams;
-
-        @Parameter(names = {
-                "--use-tls" }, description = "Use TLS encryption on the connection")
+        @Option(names = {"--use-tls"}, description = "Use TLS encryption on the connection",
+                descriptionKey = "useTls")
         public boolean useTls;
-
-        @Parameter(names = {
-                "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
-        public String tlsTrustCertsFilePath = "";
-
-        @Parameter(names = {
-                "--tls-allow-insecure" }, description = "Allow insecure TLS connection")
-        public Boolean tlsAllowInsecureConnection = null;
-
-        @Parameter(names = { "-time",
-                "--test-duration" }, description = "Test duration in secs. If <= 0, it will keep consuming")
-        public long testTime = 0;
-
-        @Parameter(names = {"-ioThreads", "--num-io-threads"}, description = "Set the number of threads to be " +
-                "used for handling connections to brokers, default is 1 thread")
-        public int ioThreads = 1;
-
-        @Parameter(names = {"-lt", "--num-listener-threads"}, description = "Set the number of threads"
-                + " to be used for message listeners")
-        public int listenerThreads = 1;
     }
 
-    public static void main(String[] args) throws Exception {
-        final Arguments arguments = new Arguments();
-        JCommander jc = new JCommander(arguments);
-        jc.setProgramName("pulsar-perf read");
-
-        try {
-            jc.parse(args);
-        } catch (ParameterException e) {
-            System.out.println(e.getMessage());
-            jc.usage();
-            PerfClientUtils.exit(-1);
-        }
-
-        if (arguments.help) {
-            jc.usage();
-            PerfClientUtils.exit(-1);
-        }
-
-        if (arguments.topic != null && arguments.topic.size() != arguments.numTopics) {
-            // keep compatibility with the previous version
-            if (arguments.topic.size() == 1) {
-                String prefixTopicName = arguments.topic.get(0);
-                List<String> defaultTopics = Lists.newArrayList();
-                for (int i = 0; i < arguments.numTopics; i++) {
-                    defaultTopics.add(String.format("%s-%d", prefixTopicName, i));
-                }
-                arguments.topic = defaultTopics;
-            } else {
-                System.out.println("The size of topics list should be equal to --num-topics");
-                jc.usage();
-                PerfClientUtils.exit(-1);
-            }
-        }
-
-        if (arguments.confFile != null) {
-            Properties prop = new Properties(System.getProperties());
-            prop.load(new FileInputStream(arguments.confFile));
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("brokerServiceUrl");
-            }
-
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("webServiceUrl");
-            }
-
-            // fallback to previous-version serviceUrl property to maintain backward-compatibility
-            if (arguments.serviceURL == null) {
-                arguments.serviceURL = prop.getProperty("serviceUrl", "http://localhost:8080/");
-            }
-
-            if (arguments.authPluginClassName == null) {
-                arguments.authPluginClassName = prop.getProperty("authPlugin", null);
-            }
-
-            if (arguments.authParams == null) {
-                arguments.authParams = prop.getProperty("authParams", null);
-            }
-
-            if (!arguments.useTls) {
-                arguments.useTls = Boolean.parseBoolean(prop.getProperty("useTls"));
-            }
-
-            if (isBlank(arguments.tlsTrustCertsFilePath)) {
-                arguments.tlsTrustCertsFilePath = prop.getProperty("tlsTrustCertsFilePath", "");
-            }
-
-            if (arguments.tlsAllowInsecureConnection == null) {
-                arguments.tlsAllowInsecureConnection = Boolean.parseBoolean(prop
-                        .getProperty("tlsAllowInsecureConnection", ""));
-            }
-        }
-
-        // Dump config variables
-        PerfClientUtils.printJVMInformation(log);
-        ObjectMapper m = new ObjectMapper();
-        ObjectWriter w = m.writerWithDefaultPrettyPrinter();
-        log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(arguments));
-
-        final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
-        long startTime = System.nanoTime();
-        long testEndTime = startTime + (long) (arguments.testTime * 1e9);
-        ReaderListener<byte[]> listener = (reader, msg) -> {
-            if (arguments.testTime > 0) {
-                if (System.nanoTime() > testEndTime) {
-                    log.info("------------- DONE (reached the maximum duration: [{} seconds] of consumption) --------------", arguments.testTime);
-                    PerfClientUtils.exit(0);
-                }
-            }
-            if (arguments.numMessages > 0 && totalMessagesReceived.sum() >= arguments.numMessages) {
-                log.info("------------- DONE (reached the maximum number: [{}] of consumption) --------------", arguments.numMessages);
-                printAggregatedStats();
-                PerfClientUtils.exit(0);
-            }
-            messagesReceived.increment();
-            bytesReceived.add(msg.getData().length);
-
-            totalMessagesReceived.increment();
-            totalBytesReceived.add(msg.getData().length);
-
-            if (limiter != null) {
-                limiter.acquire();
-            }
-
-            long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
-            if (latencyMillis >= 0) {
-                recorder.recordValue(latencyMillis);
-                cumulativeRecorder.recordValue(latencyMillis);
-            }
-        };
-
-        ClientBuilder clientBuilder = PulsarClient.builder() //
-                .serviceUrl(arguments.serviceURL) //
-                .connectionsPerBroker(arguments.maxConnections) //
-                .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
-                .ioThreads(arguments.ioThreads) //
-                .listenerThreads(arguments.listenerThreads)
-                .enableTls(arguments.useTls) //
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
-
-        if (isNotBlank(arguments.authPluginClassName)) {
-            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
-        }
-
-        if (arguments.tlsAllowInsecureConnection != null) {
-            clientBuilder.allowTlsInsecureConnection(arguments.tlsAllowInsecureConnection);
-        }
-
-        if (isNotBlank(arguments.listenerName)) {
-            clientBuilder.listenerName(arguments.listenerName);
-        }
-
-        PulsarClient pulsarClient = clientBuilder.build();
-
-        List<CompletableFuture<Reader<byte[]>>> futures = Lists.newArrayList();
-
-        MessageId startMessageId;
-        if ("earliest".equals(arguments.startMessageId)) {
-            startMessageId = MessageId.earliest;
-        } else if ("latest".equals(arguments.startMessageId)) {
-            startMessageId = MessageId.latest;
-        } else {
-            String[] parts = arguments.startMessageId.split(":");
-            startMessageId = new MessageIdImpl(Long.parseLong(parts[0]), Long.parseLong(parts[1]), -1);
-        }
-
-        ReaderBuilder<byte[]> readerBuilder = pulsarClient.newReader() //
-                .readerListener(listener) //
-                .receiverQueueSize(arguments.receiverQueueSize) //
-                .startMessageId(startMessageId);
-
-        for (int i = 0; i < arguments.numTopics; i++) {
-            final TopicName topicName = TopicName.get(arguments.topic.get(i));
-
-            futures.add(readerBuilder.clone().topic(topicName.toString()).createAsync());
-        }
-
-        FutureUtil.waitForAll(futures).get();
-
-        log.info("Start reading from {} topics", arguments.numTopics);
-
-        final long start = System.nanoTime();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            printAggregatedThroughput(start);
-            printAggregatedStats();
-        }));
-
-        long oldTime = System.nanoTime();
-        Histogram reportHistogram = null;
-
-        while (true) {
-            try {
-                Thread.sleep(10000);
-            } catch (InterruptedException e) {
-                break;
-            }
-
-            long now = System.nanoTime();
-            double elapsed = (now - oldTime) / 1e9;
-            long total = totalMessagesReceived.sum();
-            double rate = messagesReceived.sumThenReset() / elapsed;
-            double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
-
-            reportHistogram = recorder.getIntervalHistogram(reportHistogram);
-            log.info(
-                    "Read throughput: {} msg --- {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    intFormat.format(total),
-                    dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
-                    reportHistogram.getValueAtPercentile(50), reportHistogram.getValueAtPercentile(95),
-                    reportHistogram.getValueAtPercentile(99), reportHistogram.getValueAtPercentile(99.9),
-                    reportHistogram.getValueAtPercentile(99.99), reportHistogram.getMaxValue());
-
-            reportHistogram.reset();
-            oldTime = now;
-        }
-
-        pulsarClient.close();
+    public PerformanceReader() {
+        super("read");
     }
 
-    private static void printAggregatedThroughput(long start) {
-        double elapsed = (System.nanoTime() - start) / 1e9;
-        double rate = totalMessagesReceived.sum() / elapsed;
-        double throughput = totalBytesReceived.sum() / elapsed * 8 / 1024 / 1024;
-        log.info(
-                "Aggregated throughput stats --- {} records received --- {} msg/s --- {} Mbit/s",
-                totalMessagesReceived,
-                dec.format(rate),
-                dec.format(throughput));
+    @Override
+    public void validate() throws Exception {
+        super.validate();
+        resolvedClientApi = ClientApi.resolve(clientApi, topics, spec.commandLine());
+        ClientApiOptionGroups.validate(spec, resolvedClientApi);
+        if ("earliest".equals(startMessageId) || "latest".equals(startMessageId)) {
+            return;
+        }
+        if (resolvedClientApi == ClientApi.V5) {
+            // The V5 CheckpointConsumer accepts earliest / latest / a serialized Checkpoint; it does
+            // not expose the v4 "lid:eid" MessageId form.
+            throw new CommandLine.ParameterException(spec.commandLine(), String.format(
+                    "invalid start message ID '%s'. "
+                    + "The V5 client only accepts 'earliest' or 'latest'; a 'lid:eid' start message id needs "
+                    + "the v4 client (a persistent:// topic, or --client-api V4).", startMessageId));
+        }
+        if (startMessageId.split(":").length != 2) {
+            throw new CommandLine.ParameterException(spec.commandLine(), String.format(
+                    "invalid start message ID '%s', "
+                    + "must be either 'earliest', 'latest' or a specific message id by using 'lid:eid'",
+                    startMessageId));
+        }
     }
 
-    private static void printAggregatedStats() {
-        Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
-
-        log.info(
-                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean()), reportHistogram.getValueAtPercentile(50),
-                reportHistogram.getValueAtPercentile(95), reportHistogram.getValueAtPercentile(99),
-                reportHistogram.getValueAtPercentile(99.9), reportHistogram.getValueAtPercentile(99.99),
-                reportHistogram.getValueAtPercentile(99.999), reportHistogram.getMaxValue());
+    @Override
+    public void run() throws Exception {
+        log.info().attr("topics", topics).log(resolvedClientApi == ClientApi.V5
+                ? "Using the V5 client" : "Using the v4 client");
+        PerformanceReaderBase<?, ?, ?> reader = resolvedClientApi == ClientApi.V5
+                ? new PerformanceReaderV5(this) : new PerformanceReaderV4(this);
+        reader.run();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PerformanceReader.class);
 }

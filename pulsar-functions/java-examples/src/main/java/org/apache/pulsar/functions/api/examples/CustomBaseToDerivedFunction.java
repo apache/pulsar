@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,7 +28,8 @@ public class CustomBaseToDerivedFunction implements Function<CustomBaseObject, C
 
     @Override
     public CustomDerivedObject process(CustomBaseObject input, Context context) {
-        return new CustomDerivedObject(input.getBaseValue() + 100, (int)input.getBaseValue() + 50);
+        return new CustomDerivedObject(input.getBaseValue() + 100,
+                (int) input.getBaseValue() + 50);
     }
 }
 

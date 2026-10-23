@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+import org.apache.pulsar.broker.web.UnrecognizedPropertyExceptionMapper;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsMetricsResource;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionsApiV2Resource;
 import org.apache.pulsar.functions.worker.rest.api.v2.WorkerApiV2Resource;
@@ -28,10 +32,6 @@ import org.apache.pulsar.functions.worker.rest.api.v3.SinksApiV3Resource;
 import org.apache.pulsar.functions.worker.rest.api.v3.SourceApiV3Resource;
 import org.apache.pulsar.functions.worker.rest.api.v3.SourcesApiV3Resource;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
-
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
 
 public final class Resources {
 
@@ -44,14 +44,17 @@ public final class Resources {
                         FunctionsApiV2Resource.class,
                         WorkerApiV2Resource.class,
                         WorkerStatsApiV2Resource.class,
+                        UnrecognizedPropertyExceptionMapper.class,
                         MultiPartFeature.class
                 ));
     }
 
+    @SuppressWarnings("deprecation")
     public static Set<Class<?>> getApiV3Resources() {
         return new HashSet<>(
                 Arrays.asList(
                         MultiPartFeature.class,
+                        UnrecognizedPropertyExceptionMapper.class,
                         SourcesApiV3Resource.class,
                         SourceApiV3Resource.class,
                         SinksApiV3Resource.class,

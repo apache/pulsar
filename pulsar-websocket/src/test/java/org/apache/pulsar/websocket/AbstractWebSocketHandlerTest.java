@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.websocket;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import com.google.common.base.Splitter;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -31,10 +35,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import lombok.Cleanup;
 import lombok.Getter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
@@ -49,7 +53,12 @@ import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.naming.TopicName;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
+import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.http.HttpStatus;
+import org.eclipse.jetty.websocket.api.Session;
+import org.mockito.Answers;
 import org.mockito.Mock;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
@@ -74,47 +83,20 @@ public class AbstractWebSocketHandlerTest {
 
     @Test
     public void topicNameUrlEncodingTest() throws Exception {
-        String producerV1 = "/ws/producer/persistent/my-property/my-cluster/my-ns/";
-        String producerV1Topic = "my-topic[]<>";
-        String consumerV1 = "/ws/consumer/persistent/my-property/my-cluster/my-ns/";
-        String consumerV1Topic = "my-topic!@#!@@!#";
-        String consumerV1Sub = "my-subscription[]<>!@#$%^&*( )";
-
-        String readerV1 = "/ws/reader/persistent/my-property/my-cluster/my-ns/";
-        String readerV1Topic = "my-topic[]!) (*&^%$#@";
-
         String producerV2 = "/ws/v2/producer/persistent/my-property/my-ns/";
         String producerV2Topic = "my-topic[]<>";
         String consumerV2 = "/ws/v2/consumer/persistent/my-property/my-ns/";
         String consumerV2Topic = "my-topic";
         String consumerV2Sub = "my-subscription[][]<>";
         String readerV2 = "/ws/v2/reader/persistent/my-property/my-ns/";
-        String readerV2Topic = "my-topic/ / /@!$#^&*( /)1 /_、`，《》</>[]";
+        String readerV2Topic = "my-topic @!$#^&*()-_、`，《》<>[]";
 
         httpServletRequest = mock(HttpServletRequest.class);
 
-        when(httpServletRequest.getRequestURI()).thenReturn(producerV1 + URLEncoder.encode(producerV1Topic, StandardCharsets.UTF_8.name()));
-        WebSocketHandlerImpl webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
-        TopicName topicName = webSocketHandler.getTopic();
-        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/" + producerV1Topic);
-
-        when(httpServletRequest.getRequestURI()).thenReturn(consumerV1
-                + URLEncoder.encode(consumerV1Topic, StandardCharsets.UTF_8.name()) + "/"
-                + URLEncoder.encode(consumerV1Sub, StandardCharsets.UTF_8.name()));
-        webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
-        topicName = webSocketHandler.getTopic();
-        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/" + consumerV1Topic);
-
-        when(httpServletRequest.getRequestURI()).thenReturn(readerV1
-                + URLEncoder.encode(readerV1Topic, StandardCharsets.UTF_8.name()));
-        webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
-        topicName = webSocketHandler.getTopic();
-        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/" + readerV1Topic);
-
         when(httpServletRequest.getRequestURI()).thenReturn(producerV2
                 + URLEncoder.encode(producerV2Topic, StandardCharsets.UTF_8.name()));
-        webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
-        topicName = webSocketHandler.getTopic();
+        WebSocketHandlerImpl webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
+        TopicName topicName = webSocketHandler.getTopic();
         assertEquals(topicName.toString(), "persistent://my-property/my-ns/" + producerV2Topic);
 
         when(httpServletRequest.getRequestURI()).thenReturn(consumerV2
@@ -123,7 +105,7 @@ public class AbstractWebSocketHandlerTest {
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
         assertEquals(topicName.toString(), "persistent://my-property/my-ns/" + consumerV2Topic);
-        String sub = ConsumerHandler.extractSubscription(httpServletRequest);
+        String sub = extractSubscription(httpServletRequest);
         assertEquals(sub, consumerV2Sub);
 
         when(httpServletRequest.getRequestURI()).thenReturn(readerV2
@@ -133,37 +115,34 @@ public class AbstractWebSocketHandlerTest {
         assertEquals(topicName.toString(), "persistent://my-property/my-ns/" + readerV2Topic);
     }
 
+    public String extractSubscription(HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        List<String> parts = Splitter.on("/").splitToList(uri);
+
+        // Format must be like :
+        // /ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription
+        checkArgument(parts.size() == 9, "Invalid topic name format");
+        checkArgument(parts.get(1).equals("ws"));
+        checkArgument(parts.get(2).equals("v2"));
+
+        checkArgument(parts.get(4).equals("persistent")
+                || parts.get(4).equals("non-persistent"));
+        checkArgument(parts.get(8).length() > 0, "Empty subscription name");
+
+        return Codec.decode(parts.get(8));
+    }
+
     @Test
     public void parseTopicNameTest() {
-        String producerV1 = "/ws/producer/persistent/my-property/my-cluster/my-ns/my-topic";
-        String consumerV1 = "/ws/consumer/persistent/my-property/my-cluster/my-ns/my-topic/my-subscription";
-        String readerV1 = "/ws/reader/persistent/my-property/my-cluster/my-ns/my-topic";
-
         String producerV2 = "/ws/v2/producer/persistent/my-property/my-ns/my-topic";
         String consumerV2 = "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription";
-        String consumerLongTopicNameV2 = "/ws/v2/consumer/persistent/my-tenant/my-ns/some/topic/with/slashes/my-sub";
-        String readerV2 = "/ws/v2/reader/persistent/my-property/my-ns/my-topic/ / /@!$#^&*( /)1 /_、`，《》</>";
+        String readerV2 = "/ws/v2/reader/persistent/my-property/my-ns/my-topic";
 
         httpServletRequest = mock(HttpServletRequest.class);
 
-        when(httpServletRequest.getRequestURI()).thenReturn(producerV1);
+        when(httpServletRequest.getRequestURI()).thenReturn(producerV2);
         WebSocketHandlerImpl webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         TopicName topicName = webSocketHandler.getTopic();
-        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/my-topic");
-
-        when(httpServletRequest.getRequestURI()).thenReturn(consumerV1);
-        webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
-        topicName = webSocketHandler.getTopic();
-        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/my-topic");
-
-        when(httpServletRequest.getRequestURI()).thenReturn(readerV1);
-        webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
-        topicName = webSocketHandler.getTopic();
-        assertEquals(topicName.toString(), "persistent://my-property/my-cluster/my-ns/my-topic");
-
-        when(httpServletRequest.getRequestURI()).thenReturn(producerV2);
-        webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
-        topicName = webSocketHandler.getTopic();
         assertEquals(topicName.toString(), "persistent://my-property/my-ns/my-topic");
 
         when(httpServletRequest.getRequestURI()).thenReturn(consumerV2);
@@ -171,22 +150,19 @@ public class AbstractWebSocketHandlerTest {
         topicName = webSocketHandler.getTopic();
         assertEquals(topicName.toString(), "persistent://my-property/my-ns/my-topic");
 
-        when(httpServletRequest.getRequestURI()).thenReturn(consumerLongTopicNameV2);
-        webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
-        topicName = webSocketHandler.getTopic();
-        assertEquals(topicName.toString(), "persistent://my-tenant/my-ns/some/topic/with/slashes");
-
         when(httpServletRequest.getRequestURI()).thenReturn(readerV2);
         webSocketHandler = new WebSocketHandlerImpl(null, httpServletRequest, null);
         topicName = webSocketHandler.getTopic();
-        assertEquals(topicName.toString(), "persistent://my-property/my-ns/my-topic/ / /@!$#^&*( /)1 /_、`，《》</>");
+        assertEquals(topicName.toString(), "persistent://my-property/my-ns/my-topic");
 
     }
 
     static class WebSocketHandlerImpl extends AbstractWebSocketHandler {
 
-        public WebSocketHandlerImpl(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        public WebSocketHandlerImpl(WebSocketService service, HttpServletRequest request,
+                                    JettyServerUpgradeResponse response) {
             super(service, request, response);
+            allowConnect = true;
         }
 
         @Override
@@ -205,15 +181,15 @@ public class AbstractWebSocketHandlerTest {
 
     }
 
-    static class MockedServletUpgradeResponse extends ServletUpgradeResponse {
+    abstract static class MockedServletUpgradeResponse implements JettyServerUpgradeResponse {
 
         @Getter
         private int statusCode;
         @Getter
         private String message;
 
-        public MockedServletUpgradeResponse(HttpServletResponse response) {
-            super(response);
+        public MockedServletUpgradeResponse() {
+
         }
 
         public void sendError(int statusCode, String message) {
@@ -233,7 +209,8 @@ public class AbstractWebSocketHandlerTest {
 
     class MockedProducerHandler extends ProducerHandler {
 
-        public MockedProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        public MockedProducerHandler(WebSocketService service, HttpServletRequest request,
+                                     JettyServerUpgradeResponse response) {
             super(service, request, response);
         }
 
@@ -259,7 +236,7 @@ public class AbstractWebSocketHandlerTest {
             put("initialSequenceId", "1");
             put("hashingScheme", "Murmur3_32Hash");
             put("sendTimeoutMillis", "30001");
-            put("batchingEnabled", "false");
+            put("batchingEnabled", "true");
             put("batchingMaxMessages", "1001");
             put("maxPendingMessages", "1001");
             put("batchingMaxPublishDelay", "2");
@@ -276,7 +253,7 @@ public class AbstractWebSocketHandlerTest {
         when(service.isAuthorizationEnabled()).thenReturn(false);
         when(service.getPulsarClient()).thenReturn(newPulsarClient());
 
-        MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
+        MockedServletUpgradeResponse response = mock(MockedServletUpgradeResponse.class, Answers.CALLS_REAL_METHODS);
 
         MockedProducerHandler producerHandler = new MockedProducerHandler(service, httpServletRequest, response);
         assertEquals(response.getStatusCode(), 500);
@@ -287,14 +264,18 @@ public class AbstractWebSocketHandlerTest {
         assertEquals(conf.getInitialSequenceId().longValue(), 1L);
         assertEquals(conf.getHashingScheme(), HashingScheme.Murmur3_32Hash);
         assertEquals(conf.getSendTimeoutMs(), 30001);
-        assertFalse(conf.isBatchingEnabled() );
+        assertTrue(conf.isBatchingEnabled());
         assertEquals(conf.getBatchingMaxMessages(), 1001);
         assertEquals(conf.getMaxPendingMessages(), 1001);
+        assertEquals(conf.getBatchingMaxPublishDelayMicros(), 2000);
         assertEquals(conf.getMessageRoutingMode(), MessageRoutingMode.RoundRobinPartition);
         assertEquals(conf.getCompressionType(), CompressionType.LZ4);
 
         producerHandler.clearQueryParams();
         conf = producerHandler.getConf();
+        // By default batching is disabled, which is different with ProducerBuilder
+        assertFalse(conf.isBatchingEnabled());
+
         // The default message routing mode is SinglePartition, which is different with ProducerBuilder
         assertEquals(conf.getMessageRoutingMode(), MessageRoutingMode.SinglePartition);
 
@@ -306,7 +287,8 @@ public class AbstractWebSocketHandlerTest {
 
     class MockedConsumerHandler extends ConsumerHandler {
 
-        public MockedConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        public MockedConsumerHandler(WebSocketService service, HttpServletRequest request,
+                                     JettyServerUpgradeResponse response) {
             super(service, request, response);
         }
 
@@ -346,7 +328,7 @@ public class AbstractWebSocketHandlerTest {
         when(service.isAuthorizationEnabled()).thenReturn(false);
         when(service.getPulsarClient()).thenReturn(newPulsarClient());
 
-        MockedServletUpgradeResponse response = new MockedServletUpgradeResponse(null);
+        MockedServletUpgradeResponse response = mock(MockedServletUpgradeResponse.class, Answers.CALLS_REAL_METHODS);
 
         MockedConsumerHandler consumerHandler = new MockedConsumerHandler(service, httpServletRequest, response);
         assertEquals(response.getStatusCode(), 500);
@@ -368,11 +350,63 @@ public class AbstractWebSocketHandlerTest {
         consumerHandler.clearQueryParams();
         consumerHandler.putQueryParam("receiverQueueSize", "1001");
         consumerHandler.putQueryParam("deadLetterTopic", "dead-letter-topic");
+        consumerHandler.putQueryParam("maxRedeliverCount", "3");
 
         conf = consumerHandler.getConf();
         // receive queue size is the minimum value of default value (1000) and user defined value(1001)
         assertEquals(conf.getReceiverQueueSize(), 1000);
         assertEquals(conf.getDeadLetterPolicy().getDeadLetterTopic(), "dead-letter-topic");
-        assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 0);
+        assertEquals(conf.getDeadLetterPolicy().getMaxRedeliverCount(), 3);
+    }
+
+    @Test
+    public void testPingFuture() throws IOException {
+        WebSocketProxyConfiguration webSocketProxyConfiguration = new WebSocketProxyConfiguration();
+        webSocketProxyConfiguration.setWebSocketPingDurationSeconds(5);
+
+        @Cleanup
+        WebSocketService webSocketService = new WebSocketService(webSocketProxyConfiguration);
+
+        HttpServletRequest httpServletRequest = mock(HttpServletRequest.class);
+        String consumerV2 = "/ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription";
+        Map<String, String[]> queryParams = new HashMap<String, String>(){{
+            put("ackTimeoutMillis", "1001");
+            put("subscriptionType", "Key_Shared");
+            put("subscriptionMode", "NonDurable");
+            put("receiverQueueSize", "999");
+            put("consumerName", "my-consumer");
+            put("priorityLevel", "1");
+            put("maxRedeliverCount", "5");
+        }}.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, entry -> new String[]{ entry.getValue() }));
+
+        when(httpServletRequest.getRequestURI()).thenReturn(consumerV2);
+        when(httpServletRequest.getParameterMap()).thenReturn(queryParams);
+
+        MockedServletUpgradeResponse response = mock(MockedServletUpgradeResponse.class, Answers.CALLS_REAL_METHODS);
+        AbstractWebSocketHandler webSocketHandler =
+                new WebSocketHandlerImpl(webSocketService, httpServletRequest, response);
+
+        Session session = mock(Session.class);
+
+        // onWebSocketClose
+        webSocketHandler.onWebSocketOpen(session);
+
+        ScheduledFuture<?> pingFuture = webSocketHandler.getPingFuture();
+        assertNotNull(pingFuture);
+        assertFalse(pingFuture.isDone());
+
+        webSocketHandler.onWebSocketClose(HttpStatus.INTERNAL_SERVER_ERROR_500, "INTERNAL_SERVER_ERROR_500");
+        assertTrue(pingFuture.isDone());
+
+
+        // onWebSocketError
+        webSocketHandler.onWebSocketOpen(session);
+
+        pingFuture = webSocketHandler.getPingFuture();
+        assertNotNull(pingFuture);
+        assertFalse(pingFuture.isDone());
+
+        webSocketHandler.onWebSocketError(new RuntimeException("INTERNAL_SERVER_ERROR_500"));
+        assertTrue(pingFuture.isDone());
     }
 }

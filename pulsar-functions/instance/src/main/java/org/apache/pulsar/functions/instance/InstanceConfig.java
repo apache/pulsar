@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import java.util.Collections;
+import java.util.List;
 import lombok.Data;
 import lombok.Getter;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionDetails;
+import org.apache.pulsar.common.functions.MemoryLimit;
+import org.apache.pulsar.functions.proto.FunctionAuthenticationSpec;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
@@ -31,10 +34,11 @@ import org.apache.pulsar.functions.proto.Function.FunctionDetails;
 public class InstanceConfig {
     private int instanceId;
     private String functionId;
+    private String transformFunctionId;
     private String functionVersion;
     private FunctionDetails functionDetails;
     private int maxBufferedTuples;
-    private Function.FunctionAuthenticationSpec functionAuthenticationSpec;
+    private FunctionAuthenticationSpec functionAuthenticationSpec;
     private int port;
     private String clusterName;
     // Max pending async requests per instance to avoid large number of concurrent requests.
@@ -44,7 +48,9 @@ public class InstanceConfig {
     @Getter
     private boolean exposePulsarAdminClientEnabled = false;
     private int metricsPort;
-
+    private List<String> additionalJavaRuntimeArguments = Collections.emptyList();
+    private boolean ignoreUnknownConfigFields;
+    private MemoryLimit pulsarClientMemoryLimit;
     /**
      * Get the string representation of {@link #getInstanceId()}.
      *

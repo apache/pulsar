@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,14 +24,12 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.internal.junit.ArrayAsserts.assertArrayEquals;
-
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import java.nio.charset.Charset;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.DataProvider;
@@ -86,11 +84,11 @@ public class StringSchemaTest {
 
     @Test
     public void testSchemaInfoWithoutCharset() {
-        SchemaInfo si = new SchemaInfoImpl()
-            .setName("test-schema-info-without-charset")
-            .setType(SchemaType.STRING)
-            .setSchema(new byte[0])
-            .setProperties(Collections.emptyMap());
+        SchemaInfo si = SchemaInfoImpl.builder()
+            .name("test-schema-info-without-charset")
+            .type(SchemaType.STRING)
+            .schema(new byte[0])
+            .properties(Collections.emptyMap()).build();
         StringSchema schema = StringSchema.fromSchemaInfo(si);
 
         String myString = "my string for test";
@@ -121,11 +119,11 @@ public class StringSchemaTest {
     public void testSchemaInfoWithCharset(Charset charset) {
         Map<String, String> properties = new HashMap<>();
         properties.put(StringSchema.CHARSET_KEY, charset.name());
-        SchemaInfo si = new SchemaInfoImpl()
-            .setName("test-schema-info-without-charset")
-            .setType(SchemaType.STRING)
-            .setSchema(new byte[0])
-            .setProperties(properties);
+        SchemaInfo si = SchemaInfoImpl.builder()
+            .name("test-schema-info-without-charset")
+            .type(SchemaType.STRING)
+            .schema(new byte[0])
+            .properties(properties).build();
         StringSchema schema = StringSchema.fromSchemaInfo(si);
 
         String myString = "my string for test";

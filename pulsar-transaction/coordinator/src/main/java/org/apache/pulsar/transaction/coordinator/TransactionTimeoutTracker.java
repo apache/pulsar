@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,8 +20,6 @@ package org.apache.pulsar.transaction.coordinator;
 
 import com.google.common.annotations.Beta;
 
-import java.util.concurrent.CompletableFuture;
-
 /**
  * Represent the tracker for the timeout of the transaction.
  */
@@ -35,10 +33,8 @@ public interface TransactionTimeoutTracker extends AutoCloseable {
      *            the sequenceId
      * @param timeout
      *            the absolute timestamp for transaction timeout
-     *
-     * @return true if the transaction was added to the tracker or false if had timed out
      */
-    CompletableFuture<Boolean> addTransaction(long sequenceId, long timeout);
+    void addTransaction(long sequenceId, long timeout);
 
     /**
      * When replay the log, add the txnMeta to timer task queue.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl.schema.writer;
 
-public class ProtobufNativeWriter<T extends com.google.protobuf.GeneratedMessageV3> extends ProtobufWriter<T> {
+import com.google.protobuf.Message;
+
+public class ProtobufNativeWriter<T extends Message> extends ProtobufWriter<T> {
 
     public ProtobufNativeWriter() {
         super();

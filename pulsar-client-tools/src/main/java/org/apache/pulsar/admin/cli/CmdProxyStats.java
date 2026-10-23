@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,25 +18,23 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import java.io.IOException;
-import java.util.function.Supplier;
-
-import org.apache.pulsar.client.admin.PulsarAdmin;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.Parameters;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import java.io.IOException;
+import java.util.function.Supplier;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-@Parameters(commandDescription = "Operations to collect Proxy statistics")
+@Command(description = "Operations to collect Proxy statistics")
 public class CmdProxyStats extends CmdBase {
 
-    @Parameters(commandDescription = "dump connections metrics for Monitoring")
+    @Command(description = "dump connections metrics for Monitoring")
     private class CmdConnectionMetrics extends CliCommand {
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
@@ -47,9 +45,9 @@ public class CmdProxyStats extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "dump topics metrics for Monitoring")
+    @Command(description = "dump topics metrics for Monitoring")
     private class CmdTopicsMetrics extends CliCommand {
-        @Parameter(names = { "-i", "--indent" }, description = "Indent JSON output", required = false)
+        @Option(names = {"-i", "--indent"}, description = "Indent JSON output", required = false)
         private boolean indent = false;
 
         @Override
@@ -68,7 +66,7 @@ public class CmdProxyStats extends CmdBase {
 
     public CmdProxyStats(Supplier<PulsarAdmin> admin) {
         super("proxy-stats", admin);
-        jcommander.addCommand("connections", new CmdConnectionMetrics());
-        jcommander.addCommand("topics", new CmdTopicsMetrics());
+        addCommand("connections", new CmdConnectionMetrics());
+        addCommand("topics", new CmdTopicsMetrics());
     }
 }

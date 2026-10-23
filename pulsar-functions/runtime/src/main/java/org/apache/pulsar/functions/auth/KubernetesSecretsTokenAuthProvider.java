@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.functions.auth;
 
+import static java.net.HttpURLConnection.HTTP_CONFLICT;
+import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.getToken;
 import com.google.common.annotations.VisibleForTesting;
 import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -28,28 +32,23 @@ import io.kubernetes.client.openapi.models.V1SecretVolumeSource;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
 import io.kubernetes.client.openapi.models.V1Volume;
 import io.kubernetes.client.openapi.models.V1VolumeMount;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.client.impl.auth.AuthenticationToken;
-import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.utils.Actions;
-import org.apache.pulsar.functions.utils.FunctionCommon;
-
-import javax.naming.AuthenticationException;
+import java.nio.file.Paths;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
+import javax.naming.AuthenticationException;
+import lombok.CustomLog;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.client.impl.auth.AuthenticationToken;
+import org.apache.pulsar.functions.instance.AuthenticationConfig;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.utils.Actions;
+import org.apache.pulsar.functions.utils.FunctionCommon;
 
-import static java.net.HttpURLConnection.HTTP_CONFLICT;
-import static java.net.HttpURLConnection.HTTP_NOT_FOUND;
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.pulsar.broker.authentication.AuthenticationProviderToken.getToken;
-
-@Slf4j
+@CustomLog
 public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAuthProvider {
 
     private static final int NUM_RETRIES = 5;
@@ -62,7 +61,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
     private CoreV1Api coreClient;
     private byte[] caBytes;
-    private java.util.function.Function<Function.FunctionDetails, String> getNamespaceFromDetails;
+    private java.util.function.Function<FunctionDetails, String> getNamespaceFromDetails;
 
     @Override
     public void initialize(CoreV1Api coreClient) {
@@ -75,11 +74,12 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     }
 
     @Override
-    public void setNamespaceProviderFunc(java.util.function.Function<Function.FunctionDetails, String> getNamespaceFromDetails) {
+    public void setNamespaceProviderFunc(
+            java.util.function.Function<FunctionDetails, String> getNamespaceFromDetails) {
         this.getNamespaceFromDetails = getNamespaceFromDetails;
     }
 
-    private String getKubeNamespace(Function.FunctionDetails funcDetails) {
+    private String getKubeNamespace(FunctionDetails funcDetails) {
         return getNamespaceFromDetails.apply(funcDetails);
     }
 
@@ -108,14 +108,16 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     }
 
     @Override
-    public void configureAuthenticationConfig(AuthenticationConfig authConfig, Optional<FunctionAuthData> functionAuthData) {
+    public void configureAuthenticationConfig(AuthenticationConfig authConfig,
+                                              Optional<FunctionAuthData> functionAuthData) {
         if (!functionAuthData.isPresent()) {
             // if auth data is not present maybe user is trying to use anonymous role thus don't pass in any auth config
             authConfig.setClientAuthenticationPlugin(null);
             authConfig.setClientAuthenticationParameters(null);
         } else {
             authConfig.setClientAuthenticationPlugin(AuthenticationToken.class.getName());
-            authConfig.setClientAuthenticationParameters(String.format("file://%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_AUTH_TOKEN));
+            authConfig.setClientAuthenticationParameters(Paths.get(DEFAULT_SECRET_MOUNT_DIR, FUNCTION_AUTH_TOKEN)
+                    .toUri().toString());
             // if we have ca bytes, update the new path for the CA
             if (this.caBytes != null) {
                 authConfig.setTlsTrustCertsFilePath(String.format("%s/%s", DEFAULT_SECRET_MOUNT_DIR, FUNCTION_CA_CERT));
@@ -125,7 +127,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
 
     @Override
-    public Optional<FunctionAuthData> cacheAuthData(Function.FunctionDetails funcDetails,
+    public Optional<FunctionAuthData> cacheAuthData(FunctionDetails funcDetails,
                                                     AuthenticationDataSource authenticationDataSource) {
         String id = null;
         String tenant = funcDetails.getTenant();
@@ -137,7 +139,9 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 id = createSecret(token, funcDetails);
             }
         } catch (Exception e) {
-            log.warn("Failed to get token for function {}", FunctionCommon.getFullyQualifiedName(tenant, namespace, name), e);
+            log.warn().attr("function",
+                    FunctionCommon.getFullyQualifiedName(tenant, namespace, name))
+                    .exception(e).log("Failed to get token for function");
             // ignore exception and continue since anonymous user might to used
         }
 
@@ -148,17 +152,19 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     }
 
     @Override
-    public void cleanUpAuthData(Function.FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData) throws Exception {
+    public void cleanUpAuthData(FunctionDetails funcDetails, Optional<FunctionAuthData> functionAuthData)
+            throws Exception {
         if (!functionAuthData.isPresent()) {
             return;
         }
 
-        String fqfn = FunctionCommon.getFullyQualifiedName(funcDetails.getTenant(), funcDetails.getNamespace(), funcDetails.getName());
+        String fqfn = FunctionCommon
+                .getFullyQualifiedName(funcDetails.getTenant(), funcDetails.getNamespace(), funcDetails.getName());
 
         String secretId = new String(functionAuthData.get().getData());
-        // Make sure secretName is empty.  Defensive programing
+        // Make sure secretName is empty.  Defensive programming
         if (isBlank(secretId)) {
-            log.warn("Secret name for function {} is empty.", fqfn);
+            log.warn().attr("function", fqfn).log("Secret name for function is empty");
             return;
         }
 
@@ -174,13 +180,15 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                         // make sure secretName is not null or empty string.
                         // If deleteNamespacedSecret is called and secret name is null or empty string
                         // it will delete all the secrets in the namespace
-                        coreClient.deleteNamespacedSecret(secretName,
-                                kubeNamespace, null, null,
-                                0, null, "Foreground", null);
+                        coreClient.deleteNamespacedSecret(secretName, kubeNamespace)
+                                .gracePeriodSeconds(0)
+                                .propagationPolicy("Foreground")
+                                .execute();
                     } catch (ApiException e) {
                         // if already deleted
                         if (e.getCode() == HTTP_NOT_FOUND) {
-                            log.warn("Secrets for function {} does not exist", fqfn);
+                            log.warn().attr("function", fqfn)
+                                    .log("Secrets for function does not exist");
                             return Actions.ActionResult.builder().success(true).build();
                         }
 
@@ -200,9 +208,7 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
                     try {
-                        coreClient.readNamespacedSecret(secretName, kubeNamespace,
-                                null, null, null);
-
+                        coreClient.readNamespacedSecret(secretName, kubeNamespace).execute();
                     } catch (ApiException e) {
                         // statefulset is gone
                         if (e.getCode() == HTTP_NOT_FOUND) {
@@ -243,12 +249,18 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
     }
 
     @Override
-    public Optional<FunctionAuthData> updateAuthData(Function.FunctionDetails funcDetails,
+    public Optional<FunctionAuthData> updateAuthData(FunctionDetails funcDetails,
                                                      Optional<FunctionAuthData> existingFunctionAuthData,
-                                                     AuthenticationDataSource authenticationDataSource) throws Exception {
+                                                     AuthenticationDataSource authenticationDataSource)
+            throws Exception {
 
         String secretId;
-        secretId = existingFunctionAuthData.map(functionAuthData -> new String(functionAuthData.getData())).orElseGet(() -> RandomStringUtils.random(5, true, true).toLowerCase());
+        secretId = existingFunctionAuthData.map(functionAuthData -> new String(functionAuthData.getData()))
+                .orElseGet(() -> {
+                    @SuppressWarnings("deprecation")
+                    String id = RandomStringUtils.random(5, true, true).toLowerCase();
+                    return id;
+                });
 
         String token;
         try {
@@ -279,30 +291,32 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
         return valueMap;
     }
 
-    private void upsertSecret(String token, Function.FunctionDetails funcDetails, String secretName) throws InterruptedException {
+    private void upsertSecret(String token, FunctionDetails funcDetails, String secretName)
+            throws InterruptedException {
         String tenant = funcDetails.getTenant();
         String namespace = funcDetails.getNamespace();
         String name = funcDetails.getName();
 
         String kubeNamespace = getKubeNamespace(funcDetails);
         Actions.Action createAuthSecret = Actions.Action.builder()
-                .actionName(String.format("Upsert authentication secret for function %s/%s/%s", tenant, namespace, name))
+                .actionName(
+                        String.format("Upsert authentication secret for function %s/%s/%s", tenant, namespace, name))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
-                    String id =  RandomStringUtils.random(5, true, true).toLowerCase();
+                    @SuppressWarnings("deprecation")
+                    String id = RandomStringUtils.random(5, true, true).toLowerCase();
                     V1Secret v1Secret = new V1Secret()
                             .metadata(new V1ObjectMeta().name(secretName))
                             .data(buildSecretMap(token));
 
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null);
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret).execute();
                     } catch (ApiException e) {
                         if (e.getCode() == HTTP_CONFLICT) {
                             try {
-                                coreClient.replaceNamespacedSecret(secretName, kubeNamespace, v1Secret, null, null, null);
+                                coreClient.replaceNamespacedSecret(secretName, kubeNamespace, v1Secret).execute();
                                 return Actions.ActionResult.builder().success(true).build();
-
                             } catch (ApiException e1) {
                                 String errorMsg = e.getResponseBody() != null ? e.getResponseBody() : e.getMessage();
                                 return Actions.ActionResult.builder()
@@ -331,11 +345,14 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .run();
 
         if (!success.get()) {
-            throw new RuntimeException(String.format("Failed to upsert authentication secret for function %s/%s/%s", tenant, namespace, name));
+            throw new RuntimeException(
+                    String.format("Failed to upsert authentication secret for function %s/%s/%s", tenant, namespace,
+                            name));
         }
     }
 
-    private String createSecret(String token, Function.FunctionDetails funcDetails) throws ApiException, InterruptedException {
+    private String createSecret(String token, FunctionDetails funcDetails)
+            throws ApiException, InterruptedException {
         String kubeNamespace = getKubeNamespace(funcDetails);
         String tenant = funcDetails.getTenant();
         String namespace = funcDetails.getNamespace();
@@ -343,16 +360,18 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
 
         StringBuilder sb = new StringBuilder();
         Actions.Action createAuthSecret = Actions.Action.builder()
-                .actionName(String.format("Creating authentication secret for function %s/%s/%s", tenant, namespace, name))
+                .actionName(
+                        String.format("Creating authentication secret for function %s/%s/%s", tenant, namespace, name))
                 .numRetries(NUM_RETRIES)
                 .sleepBetweenInvocationsMs(SLEEP_BETWEEN_RETRIES_MS)
                 .supplier(() -> {
-                    String id =  RandomStringUtils.random(5, true, true).toLowerCase();
+                    @SuppressWarnings("deprecation")
+                    String id = RandomStringUtils.random(5, true, true).toLowerCase();
                     V1Secret v1Secret = new V1Secret()
                             .metadata(new V1ObjectMeta().name(getSecretName(id)))
                             .data(buildSecretMap(token));
                     try {
-                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret, null, null, null);
+                        coreClient.createNamespacedSecret(kubeNamespace, v1Secret).execute();
                     } catch (ApiException e) {
                         // already exists
                         if (e.getCode() == HTTP_CONFLICT) {
@@ -382,7 +401,9 @@ public class KubernetesSecretsTokenAuthProvider implements KubernetesFunctionAut
                 .run();
 
         if (!success.get()) {
-            throw new RuntimeException(String.format("Failed to create authentication secret for function %s/%s/%s", tenant, namespace, name));
+            throw new RuntimeException(
+                    String.format("Failed to create authentication secret for function %s/%s/%s", tenant, namespace,
+                            name));
         }
 
         return sb.toString();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.functions.api.examples.window;
 
-import lombok.extern.slf4j.Slf4j;
+import java.util.Collection;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
 
-import java.util.Collection;
-
 /**
  * Example Function that acts on a window of tuples at a time rather than per tuple basis.
  */
-@Slf4j
+@CustomLog
 public class ContextWindowFunction implements WindowFunction<Integer, Integer> {
     @Override
     public Integer process(Collection<Record<Integer>> integers, WindowContext context) {

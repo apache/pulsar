@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,36 +21,44 @@ package org.apache.bookkeeper.mledger.offload;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.LedgerOffloaderFactory;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
-@Slf4j
+@CustomLog
 @Data
 public class Offloaders implements AutoCloseable {
 
-    private final List<Pair<NarClassLoader, LedgerOffloaderFactory>> offloaders = new ArrayList<>();
+    private final List<Pair<NarClassLoader, LedgerOffloaderFactory<?>>> offloaders = new ArrayList<>();
 
-    public LedgerOffloaderFactory getOffloaderFactory(String driverName) throws IOException {
-        for (Pair<NarClassLoader, LedgerOffloaderFactory> factory : offloaders) {
+    public LedgerOffloaderFactory<?> getOffloaderFactory(String driverName) throws IOException {
+        for (Pair<NarClassLoader, LedgerOffloaderFactory<?>> factory : offloaders) {
             if (factory.getRight().isDriverSupported(driverName)) {
                 return factory.getRight();
             }
         }
-        throw new IOException("No offloader found for driver '" + driverName + "'." +
-            " Please make sure you dropped the offloader nar packages under `${PULSAR_HOME}/offloaders`.");
+        throw new IOException("No offloader found for driver '" + driverName + "'."
+                + " Please make sure you dropped the offloader nar packages under `${PULSAR_HOME}/offloaders`.");
     }
 
     @Override
     public void close() throws Exception {
         offloaders.forEach(offloader -> {
             try {
+                offloader.getRight().close();
+            } catch (Exception e) {
+                log.warn().attr("offloaderClass", offloader.getRight().getClass())
+                        .attr("errorMessage", e.getMessage())
+                        .log("Failed to close offloader");
+            }
+            try {
                 offloader.getLeft().close();
             } catch (IOException e) {
-                log.warn("Failed to close nar class loader for offloader '{}': {}",
-                    offloader.getRight().getClass(), e.getMessage());
+                log.warn().attr("offloaderClass", offloader.getRight().getClass())
+                        .attr("errorMessage", e.getMessage())
+                        .log("Failed to close nar class loader for offloader");
             }
         });
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,31 +27,32 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionMetaDataTopicTailer}.
  */
-@Slf4j
+@CustomLog
 public class FunctionMetaDataTopicTailerTest {
 
-    private static final String TEST_NAME = "test-fmt";
+    private Reader reader;
+    private ReaderBuilder readerBuilder;
+    private FunctionMetaDataManager fsm;
+    private FunctionMetaDataTopicTailer fsc;
 
-    private final Reader reader;
-    private final ReaderBuilder readerBuilder;
-    private final FunctionMetaDataManager fsm;
-    private final FunctionMetaDataTopicTailer fsc;
-
-    public FunctionMetaDataTopicTailerTest() throws Exception {
+    @BeforeMethod(alwaysRun = true)
+    @SuppressWarnings("unchecked")
+    public void before() throws Exception {
         this.reader = mock(Reader.class);
         this.readerBuilder = mock(ReaderBuilder.class);
         when(readerBuilder.topic(anyString())).thenReturn(readerBuilder);
@@ -73,13 +74,14 @@ public class FunctionMetaDataTopicTailerTest {
     @Test
     public void testUpdate() throws Exception {
 
-        FunctionMetaData request = FunctionMetaData.newBuilder().build();
+        FunctionMetaData request = new FunctionMetaData();
 
         Message msg = mock(Message.class);
         when(msg.getData()).thenReturn(request.toByteArray());
         CountDownLatch readLatch = new CountDownLatch(1);
         CountDownLatch processLatch = new CountDownLatch(1);
         when(reader.readNext(anyInt(), any(TimeUnit.class))).thenReturn(msg).then(new Answer<Message>() {
+            @SuppressWarnings("unchecked")
             public Message answer(InvocationOnMock invocation) {
                 try {
                     readLatch.countDown();
@@ -96,6 +98,6 @@ public class FunctionMetaDataTopicTailerTest {
         readLatch.await();
 
         verify(reader, times(2)).readNext(anyInt(), any(TimeUnit.class));
-        verify(fsm, times(1)).processMetaDataTopicMessage(any(Message.class));
+        verify(fsm, times(1)).processMetaDataTopicMessage(any());
     }
 }

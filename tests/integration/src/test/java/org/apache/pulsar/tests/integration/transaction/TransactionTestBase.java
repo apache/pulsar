@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,20 +19,19 @@
 package org.apache.pulsar.tests.integration.transaction;
 
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
-import org.testng.annotations.BeforeClass;
 
 /**
  * Transaction test base.
  */
-@Slf4j
+@CustomLog
 public abstract class TransactionTestBase extends PulsarTestSuite {
 
     @Override
@@ -40,8 +39,6 @@ public abstract class TransactionTestBase extends PulsarTestSuite {
         super.beforeStartCluster();
         for (BrokerContainer brokerContainer : pulsarCluster.getBrokers()) {
             brokerContainer.withEnv("transactionCoordinatorEnabled", "true");
-            brokerContainer.withEnv("transactionMetadataStoreProviderClassName",
-                    "org.apache.pulsar.transaction.coordinator.impl.InMemTransactionMetadataStoreProvider");
             brokerContainer.withEnv("transactionBufferProviderClassName",
                     "org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider");
             brokerContainer.withEnv("acknowledgmentAtBatchIndexLevelEnabled", "true");

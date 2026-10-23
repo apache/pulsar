@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,8 +21,10 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
@@ -30,28 +32,35 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import com.google.api.client.util.Lists;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
-import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.assertj.core.util.Sets;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
@@ -61,31 +70,41 @@ public class PartitionedProducerImplTest {
 
     private static final String TOPIC_NAME = "testTopicName";
     private PulsarClientImpl client;
+    @SuppressWarnings("rawtypes")
     private ProducerBuilderImpl producerBuilderImpl;
+    @SuppressWarnings("rawtypes")
     private Schema schema;
     private ProducerInterceptors producerInterceptors;
-    private CompletableFuture<Producer> producerCreatedFuture;
+    @SuppressWarnings("rawtypes")
+    private CompletableFuture producerCreatedFuture;
 
-    @BeforeTest
+    @BeforeMethod(alwaysRun = true)
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public void setup() {
         client = mock(PulsarClientImpl.class);
-        schema = mock(Schema.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.getCnxPool()).thenReturn(connectionPool);
+        @SuppressWarnings("unchecked")
+        Schema<byte[]> mockedSchema = mock(Schema.class);
+        schema = mockedSchema;
         producerInterceptors = mock(ProducerInterceptors.class);
         producerCreatedFuture = new CompletableFuture<>();
         ClientConfigurationData clientConfigurationData = mock(ClientConfigurationData.class);
         Timer timer = mock(Timer.class);
+        when(timer.newTimeout(any(), anyLong(), any())).thenReturn(mock(Timeout.class));
 
-        producerBuilderImpl = new ProducerBuilderImpl(client, Schema.BYTES);
+        producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
 
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getConfiguration()).thenReturn(clientConfigurationData);
         when(client.timer()).thenReturn(timer);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
-        when(client.newProducerImpl(anyString(), anyInt(), any(), any(), any(), any()))
+        when(client.newProducerImpl(anyString(), anyInt(), any(), any(), any(), any(), any()))
                 .thenAnswer(invocationOnMock -> {
             return new ProducerImpl<>(client, invocationOnMock.getArgument(0),
                     invocationOnMock.getArgument(2), invocationOnMock.getArgument(5),
                     invocationOnMock.getArgument(1), invocationOnMock.getArgument(3),
-                    invocationOnMock.getArgument(4));
+                    invocationOnMock.getArgument(4), invocationOnMock.getArgument(6));
         });
     }
 
@@ -141,14 +160,15 @@ public class PartitionedProducerImplTest {
     @Test
     public void testPartialPartitionWithKey() {
         final MessageRouter router = new PartialRoundRobinMessageRouterImpl(3);
-        final Hash hash = Murmur3_32Hash.getInstance();
-        final List<Integer> expectedHashList = Lists.newArrayList();
-        final List<Integer> actualHashList = Lists.newArrayList();
+        final Hash hash = Murmur3Hash32.getInstance();
+        final List<Integer> expectedHashList = new ArrayList<>();
+        final List<Integer> actualHashList = new ArrayList<>();
 
         for (int i = 0; i < 10; i++) {
             final String key = String.valueOf(i);
             final Message<byte[]> msg = MessageImpl
-                    .create(new MessageMetadata().setPartitionKey(key), ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
+                    .create(new MessageMetadata().setPartitionKey(key),
+                            ByteBuffer.wrap(new byte[0]), Schema.BYTES, null);
             final TopicMetadata metadata = new TopicMetadataImpl(10);
             expectedHashList.add(signSafeMod(hash.makeHash(key), 10));
             actualHashList.add(router.choosePartition(msg, metadata));
@@ -156,6 +176,7 @@ public class PartitionedProducerImplTest {
         assertNotEquals(actualHashList, expectedHashList);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private MessageRouter getMessageRouter(ProducerConfigurationData producerConfigurationData)
             throws NoSuchFieldException, IllegalAccessException {
         PartitionedProducerImpl impl = new PartitionedProducerImpl(
@@ -178,6 +199,7 @@ public class PartitionedProducerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testGetStats() throws Exception {
         String topicName = "test-stats";
         ClientConfigurationData conf = new ClientConfigurationData();
@@ -185,8 +207,10 @@ public class PartitionedProducerImplTest {
         conf.setStatsIntervalSeconds(100);
 
         ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
 
+        @Cleanup
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
         ProducerConfigurationData producerConfData = new ProducerConfigurationData();
@@ -195,7 +219,7 @@ public class PartitionedProducerImplTest {
 
         assertEquals(Long.parseLong("100"), clientImpl.getConfiguration().getStatsIntervalSeconds());
 
-        PartitionedProducerImpl impl = new PartitionedProducerImpl(
+        PartitionedProducerImpl<?> impl = new PartitionedProducerImpl<>(
             clientImpl, topicName, producerConfData,
             1, null, null, null);
 
@@ -211,9 +235,11 @@ public class PartitionedProducerImplTest {
 
         ThreadFactory threadFactory =
                 new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        @Cleanup("shutdownGracefully")
         EventLoopGroup eventLoopGroup = EventLoopUtil
                 .newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
 
+        @Cleanup
         PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
 
         ProducerConfigurationData producerConfData = new ProducerConfigurationData();
@@ -233,6 +259,178 @@ public class PartitionedProducerImplTest {
         impl.close();
         stats = impl.getStats();
         assertEquals(stats.getTotalSendFailed(), 1);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testGetNumOfPartitions() throws Exception {
+        String topicName = "test-get-num-of-partitions";
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setStatsIntervalSeconds(100);
+
+        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        @Cleanup("shutdownGracefully")
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
+
+        @Cleanup
+        PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+
+        ProducerConfigurationData producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+
+        PartitionedProducerImpl<?> partitionedProducerImpl = new PartitionedProducerImpl<>(
+                clientImpl, topicName, producerConfData, 1, null, null, null);
+
+        assertEquals(partitionedProducerImpl.getNumOfPartitions(), 1);
+
+        String nonPartitionedTopicName = "test-get-num-of-partitions-for-non-partitioned-topic";
+        ProducerConfigurationData producerConfDataNonPartitioned = new ProducerConfigurationData();
+        ProducerImpl<?> producerImpl = new ProducerImpl<>(clientImpl, nonPartitionedTopicName,
+                producerConfDataNonPartitioned, null, 0, null, null, Optional.empty());
+        assertEquals(producerImpl.getNumOfPartitions(), 0);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testMaxPendingQueueSize() throws Exception {
+        String topicName = "test-max-pending-queue-size";
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setStatsIntervalSeconds(100);
+
+        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        @Cleanup("shutdownGracefully")
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
+
+        @Cleanup
+        PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+
+        // Test set maxPendingMessage to 10
+        ProducerConfigurationData producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+        producerConfData.setMaxPendingMessages(10);
+        PartitionedProducerImpl<?> partitionedProducerImpl = new PartitionedProducerImpl<>(
+                clientImpl, topicName, producerConfData, 1, null, null, null);
+        assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 10);
+
+        // Test set MaxPendingMessagesAcrossPartitions=5 with maxPendingMessages left unset. A fresh
+        // configuration is required to express "unset": setting maxPendingMessages back to 0 would mean
+        // "no message-count limit", which is a limit of its own and would win over the budget's share.
+        producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+        producerConfData.setMaxPendingMessagesAcrossPartitions(5);
+        partitionedProducerImpl = new PartitionedProducerImpl<>(
+                clientImpl, topicName, producerConfData, 1, null, null, null);
+        assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 5);
+
+        // Test set maxPendingMessage=10 and MaxPendingMessagesAcrossPartitions=10 with 2 partitions
+        producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+        producerConfData.setMaxPendingMessages(10);
+        producerConfData.setMaxPendingMessagesAcrossPartitions(10);
+        partitionedProducerImpl = new PartitionedProducerImpl<>(
+                clientImpl, topicName, producerConfData, 2, null, null, null);
+        assertEquals(partitionedProducerImpl.getConfiguration().getMaxPendingMessages(), 5);
+    }
+
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testOnTopicsExtended() throws Exception {
+        String topicName = "test-on-topics-extended";
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        conf.setStatsIntervalSeconds(100);
+        ThreadFactory threadFactory = new DefaultThreadFactory("client-test-stats", Thread.currentThread().isDaemon());
+        @Cleanup("shutdownGracefully")
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), false, threadFactory);
+
+        @Cleanup
+        PulsarClientImpl clientImpl = new PulsarClientImpl(conf, eventLoopGroup);
+
+        ProducerConfigurationData producerConfData = new ProducerConfigurationData();
+        producerConfData.setMessageRoutingMode(MessageRoutingMode.CustomPartition);
+        producerConfData.setCustomMessageRouter(new CustomMessageRouter());
+        producerConfData.setAutoUpdatePartitionsIntervalSeconds(1, TimeUnit.MILLISECONDS);
+
+        PartitionedProducerImpl<?> impl = new PartitionedProducerImpl<>(
+                clientImpl, topicName, producerConfData, 1, null, null, null);
+
+        impl.setState(HandlerState.State.Ready);
+        Thread.sleep(1000);
+        CompletableFuture<?> future = impl.getPartitionsAutoUpdateFuture();
+
+        // When null is returned in method thenCompose we will encounter an NPE exception.
+        // Because the returned value will be applied to the next stage.
+        // We use future instead of null as the return value.
+        assertNotNull(future);
+    }
+
+    /**
+     * Captures the partition update timer tasks the producer schedules, and only those: the partition producers
+     * schedule their own tasks on the same timer.
+     */
+    private List<Timeout> capturePartitionUpdateTimeouts() {
+        List<Timeout> scheduled = new ArrayList<>();
+        when(client.timer().newTimeout(any(), anyLong(), any())).thenAnswer(invocation -> {
+            TimerTask task = invocation.getArgument(0);
+            Timeout timeout = mock(Timeout.class);
+            when(timeout.task()).thenReturn(task);
+            if (task.getClass().getEnclosingClass() == PartitionedProducerImpl.class) {
+                scheduled.add(timeout);
+            }
+            return timeout;
+        });
+        return scheduled;
+    }
+
+    private PartitionedProducerImpl<byte[]> newPartitionedProducer() {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        return new PartitionedProducerImpl<>(client, TOPIC_NAME, conf, 2, new CompletableFuture<>(), Schema.BYTES,
+                null);
+    }
+
+    /**
+     * A first partition whose connection fails at once ends the creation inside the constructor, before the
+     * partition update timer is scheduled. The close found no timer to cancel, so the constructor must cancel the
+     * timer it schedules afterwards.
+     */
+    @Test
+    public void testPartitionUpdateTimerIsCancelledWhenTheCreationEndsInTheConstructor() {
+        when(client.getConnection(anyString(), anyInt()))
+                .thenReturn(FutureUtil.failedFuture(new PulsarClientException.AuthorizationException("not allowed")));
+        List<Timeout> scheduled = capturePartitionUpdateTimeouts();
+
+        PartitionedProducerImpl<byte[]> producer = newPartitionedProducer();
+
+        assertTrue(producer.producerCreatedFuture().isCompletedExceptionally());
+        assertTrue(producer.isTerminalState(), "the producer ended in its constructor, state " + producer.getState());
+        assertEquals(scheduled.size(), 1);
+        verify(scheduled.get(0)).cancel();
+    }
+
+    /**
+     * The partition update task reschedules itself after every run. Once the producer has ended, it must stop,
+     * otherwise a timer scheduled after the producer closed keeps the producer reachable forever.
+     */
+    @Test
+    public void testPartitionUpdateTimerStopsOnceTheProducerEnded() throws Exception {
+        when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
+        List<Timeout> scheduled = capturePartitionUpdateTimeouts();
+        PartitionedProducerImpl<byte[]> producer = newPartitionedProducer();
+        assertEquals(scheduled.size(), 1, "A producer still being created schedules the timer");
+
+        producer.closeAsync();
+        assertTrue(producer.isTerminalState(), "state " + producer.getState());
+        scheduled.get(0).task().run(mock(Timeout.class));
+
+        assertEquals(scheduled.size(), 1, "An ended producer does not reschedule the partition update task");
     }
 
 }

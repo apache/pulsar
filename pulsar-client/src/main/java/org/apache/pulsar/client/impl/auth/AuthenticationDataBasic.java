@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,25 +16,31 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl.auth;
 
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
-
+import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import java.util.Base64;
+import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 public class AuthenticationDataBasic implements AuthenticationDataProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
-    private String httpAuthToken;
-    private String commandAuthToken;
+    private final String commandAuthToken;
+    private final Map<String, String> headers;
 
     public AuthenticationDataBasic(String userId, String password) {
-        httpAuthToken = "Basic " + Base64.getEncoder().encodeToString((userId + ":" + password).getBytes());
-        commandAuthToken = userId+":"+password;
+        this(userId + ":" + password);
+    }
+
+    public AuthenticationDataBasic(String userInfo) {
+        String httpAuthToken = "Basic " + Base64.getEncoder().encodeToString(userInfo.getBytes());
+        this.commandAuthToken = userInfo;
+        this.headers = Collections.unmodifiableMap(new HashMap<String, String>(){{
+            put(HTTP_HEADER_NAME, httpAuthToken);
+            put(PULSAR_AUTH_METHOD_NAME, AuthenticationBasic.AUTH_METHOD_NAME);
+        }});
     }
 
     @Override
@@ -44,9 +50,7 @@ public class AuthenticationDataBasic implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        Map<String, String> headers = new HashMap<>();
-        headers.put(HTTP_HEADER_NAME, httpAuthToken);
-        return headers.entrySet();
+        return this.headers.entrySet();
     }
 
     @Override

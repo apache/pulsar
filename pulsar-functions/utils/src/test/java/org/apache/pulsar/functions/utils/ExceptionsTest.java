@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.utils;
 
 import static org.apache.pulsar.functions.utils.Exceptions.rethrowIOException;
@@ -25,7 +24,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.io.IOException;
 import org.testng.annotations.Test;
 
@@ -91,17 +89,20 @@ public class ExceptionsTest {
 
     @Test
     public void testAreExceptionsPresentInChain3() {
-        assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalStateException()), IllegalStateException.class));
+        assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalStateException()),
+                IllegalStateException.class));
     }
 
     @Test
     public void testAreExceptionsPresentInChain4() {
-        assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalStateException()), UnsupportedOperationException.class, IllegalStateException.class));
+        assertTrue(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(
+                new IllegalStateException()), UnsupportedOperationException.class, IllegalStateException.class));
     }
 
     @Test
     public void testAreExceptionsPresentInChain5() {
-        assertFalse(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(new IllegalArgumentException()), IllegalStateException.class));
+        assertFalse(Exceptions.areExceptionsPresentInChain(new IllegalArgumentException(
+                new IllegalArgumentException()), IllegalStateException.class));
     }
 
 }

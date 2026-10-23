@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,13 +27,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 
@@ -41,7 +43,7 @@ import org.apache.pulsar.packages.management.core.PackagesStorageConfiguration;
 /**
  * Packages management storage implementation with filesystem.
  */
-@Slf4j
+@CustomLog
 public class FileSystemPackagesStorage implements PackagesStorage {
 
     private static final String STORAGE_PATH = "STORAGE_PATH";
@@ -58,10 +60,26 @@ public class FileSystemPackagesStorage implements PackagesStorage {
         }
     }
 
-    private File getPath(String path) {
-        File f = Paths.get(storagePath.toString(), path).toFile();
-        if (!f.getParentFile().exists()) {
-            if (!f.getParentFile().mkdirs()) {
+    private File getPath(String path) throws IOException {
+        Path rootPath = storagePath.toPath().toAbsolutePath().normalize();
+        Path resolvedPath;
+        try {
+            // Normalize the path to remove any redundant path elements
+            resolvedPath = Paths.get(rootPath.toString(), path).normalize();
+        } catch (InvalidPathException e) {
+            throw new IOException("Invalid path: " + path, e);
+        }
+
+        // Ensure the normalized path is still within the storagePath. Path#startsWith compares whole
+        // path elements, so a sibling directory sharing the same name prefix is not accepted.
+        if (!resolvedPath.startsWith(rootPath)) {
+            throw new IOException("Invalid path: " + path);
+        }
+
+        File f = resolvedPath.toFile();
+        File parent = f.getParentFile();
+        if (parent != null && !parent.exists()) {
+            if (!parent.mkdirs()) {
                 throw new RuntimeException("Failed to create parent dirs for " + path);
             }
         }
@@ -76,7 +94,7 @@ public class FileSystemPackagesStorage implements PackagesStorage {
             }
         }
 
-        log.info("Packages management filesystem storage initialized on {}", storagePath);
+        log.info().attr("storagePath", storagePath).log("Packages management filesystem storage initialized");
     }
 
     @Override
@@ -119,32 +137,49 @@ public class FileSystemPackagesStorage implements PackagesStorage {
 
     @Override
     public CompletableFuture<Void> deleteAsync(String path) {
-        if (getPath(path).delete()) {
-            return CompletableFuture.completedFuture(null);
-        } else {
-            CompletableFuture<Void> f = new CompletableFuture<>();
-            f.completeExceptionally(new IOException("Failed to delete file at " + path));
-            return f;
+        try {
+            if (getPath(path).delete()) {
+                return CompletableFuture.completedFuture(null);
+            } else {
+                CompletableFuture<Void> f = new CompletableFuture<>();
+                f.completeExceptionally(new IOException("Failed to delete file at " + path));
+                return f;
+            }
+        } catch (IOException e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 
     @Override
     public CompletableFuture<List<String>> listAsync(String path) {
-        String[] files = getPath(path).list();
-        if (files == null) {
-            return CompletableFuture.completedFuture(Collections.emptyList());
-        } else {
-            return CompletableFuture.completedFuture(Arrays.asList(files));
+        try {
+            String[] files = getPath(path).list();
+            if (files == null) {
+                return CompletableFuture.completedFuture(Collections.emptyList());
+            } else {
+                return CompletableFuture.completedFuture(Arrays.asList(files));
+            }
+        } catch (IOException e) {
+            return CompletableFuture.failedFuture(e);
         }
     }
 
     @Override
     public CompletableFuture<Boolean> existAsync(String path) {
-        return CompletableFuture.completedFuture(getPath(path).exists());
+        try {
+            return CompletableFuture.completedFuture(getPath(path).exists());
+        } catch (IOException e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public String dataPath() {
+        return "/data";
     }
 }

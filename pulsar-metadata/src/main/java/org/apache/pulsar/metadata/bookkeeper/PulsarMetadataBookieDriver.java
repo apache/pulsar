@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import org.apache.bookkeeper.conf.AbstractConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.discover.RegistrationManager;
 import org.apache.bookkeeper.meta.LayoutManager;
@@ -34,17 +35,25 @@ public class PulsarMetadataBookieDriver extends AbstractMetadataDriver implement
         MetadataDrivers.registerBookieDriver(METADATA_STORE_SCHEME, PulsarMetadataBookieDriver.class);
     }
 
+    public static void init() {
+        // cause <clinit> to be invoked
+    }
+
+    @SuppressWarnings("rawtypes")
     @Override
-    public MetadataBookieDriver initialize(ServerConfiguration serverConfiguration,
-                                           RegistrationManager.RegistrationListener registrationListener,
-                                           StatsLogger statsLogger) throws MetadataException {
+    protected void initialize(AbstractConfiguration serverConfiguration) throws MetadataException {
         super.initialize(serverConfiguration);
+    }
+
+    @Override
+    public MetadataBookieDriver initialize(ServerConfiguration conf, StatsLogger statsLogger) throws MetadataException {
+        super.initialize(conf);
         return this;
     }
 
     @Override
-    public RegistrationManager getRegistrationManager() {
-        return registrationManager;
+    public RegistrationManager createRegistrationManager() {
+        return super.createRegistrationManager();
     }
 
     @Override

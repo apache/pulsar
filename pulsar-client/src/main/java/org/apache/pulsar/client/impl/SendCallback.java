@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,20 +19,22 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  *
  */
+@InterfaceStability.Evolving
 public interface SendCallback {
 
     /**
-     * invoked when send operation completes
-     * 
+     * invoked when send operation completes.
+     *
      * @param e
+     * @param opSendMsgStats stats associated with the send operation
      */
-    void sendComplete(Exception e);
+    void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats);
 
     /**
      * used to specify a callback to be invoked on completion of a send operation for individual messages sent in a
@@ -50,7 +52,7 @@ public interface SendCallback {
     SendCallback getNextSendCallback();
 
     /**
-     * Return next message in chain
+     * Return next message in chain.
      *
      * @return next message in chain
      */

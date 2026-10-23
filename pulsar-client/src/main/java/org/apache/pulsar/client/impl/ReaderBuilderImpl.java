@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.client.api.KeySharedPolicy.DEFAULT_HASH_RANGE_SIZE;
-import com.google.common.base.Preconditions;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -33,11 +32,14 @@ import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.MessageCrypto;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.ReaderDecryptFailListener;
+import org.apache.pulsar.client.api.ReaderInterceptor;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
@@ -72,7 +74,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public Reader<T> create() throws PulsarClientException {
         try {
-            return createAsync().get();
+            return FutureUtil.getAndCleanupOnInterrupt(createAsync(), Reader::closeAsync);
         } catch (Exception e) {
             throw PulsarClientException.unwrap(e);
         }
@@ -85,21 +87,35 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the reader builder"));
         }
 
-        if (conf.getStartMessageId() != null && conf.getStartMessageFromRollbackDurationInSec() > 0 ||
-                conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0) {
+        boolean isStartMsgIdExist = conf.getStartMessageId() != null && conf.getStartMessageId() != MessageId.earliest;
+        if ((isStartMsgIdExist && conf.getStartMessageFromRollbackDurationInSec() > 0)
+                || (conf.getStartMessageId() == null && conf.getStartMessageFromRollbackDurationInSec() <= 0)) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException(
-                            "Start message id or start message from roll back must be specified but they cannot be specified at the same time"));
+                            "Start message id or start message from roll back must be specified but they cannot be"
+                                    + " specified at the same time. MessageId =" + conf.getStartMessageId()
+                                    + ", rollback seconds =" + conf.getStartMessageFromRollbackDurationInSec()));
         }
 
         if (conf.getStartMessageFromRollbackDurationInSec() > 0) {
             conf.setStartMessageId(MessageId.earliest);
         }
 
+        if (conf.getReaderDecryptFailListener() != null && conf.getReaderListener() == null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "readerDecryptFailListener must be set with readerListener"
+            ));
+        }
+        if (conf.getCryptoFailureAction() != null && conf.getReaderDecryptFailListener() != null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "readerDecryptFailListener cannot set with cryptoFailureAction"
+            ));
+        }
         return client.createReaderAsync(conf, schema);
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public ReaderBuilder<T> loadConf(Map<String, Object> config) {
         MessageId startMessageId = conf.getStartMessageId();
         conf = ConfigurationDataUtils.loadData(config, conf, ReaderConfigurationData.class);
@@ -149,6 +165,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
+    public ReaderBuilder<T> readerDecryptFailListener(ReaderDecryptFailListener<T> readerDecryptFailListener) {
+        conf.setReaderDecryptFailListener(readerDecryptFailListener);
+        return this;
+    }
+
+    @Override
     public ReaderBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
@@ -169,6 +191,12 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     @Override
     public ReaderBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action) {
         conf.setCryptoFailureAction(action);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto) {
+        conf.setMessageCrypto(messageCrypto);
         return this;
     }
 
@@ -205,7 +233,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
 
     @Override
     public ReaderBuilder<T> keyHashRange(Range... ranges) {
-        Preconditions.checkArgument(ranges != null && ranges.length > 0,
+        checkArgument(ranges != null && ranges.length > 0,
                 "Cannot specify a null ofr an empty key hash ranges for a reader");
         for (int i = 0; i < ranges.length; i++) {
             Range range1 = ranges[i];
@@ -229,4 +257,46 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
         conf.setPoolMessages(poolMessages);
         return this;
     }
+
+    @Override
+    public ReaderBuilder<T> autoUpdatePartitions(boolean autoUpdate) {
+        this.conf.setAutoUpdatePartitions(autoUpdate);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit) {
+        long intervalSeconds = unit.toSeconds(interval);
+        checkArgument(intervalSeconds >= 1, "Auto update partition interval needs to be >= 1 second");
+        this.conf.setAutoUpdatePartitionsIntervalSeconds(intervalSeconds);
+        return this;
+    }
+
+    @Override
+    @SafeVarargs
+    public final ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors) {
+        if (interceptors != null) {
+            this.conf.setReaderInterceptorList(Arrays.asList(interceptors));
+        }
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> maxPendingChunkedMessage(int maxPendingChunkedMessage) {
+        conf.setMaxPendingChunkedMessage(maxPendingChunkedMessage);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> autoAckOldestChunkedMessageOnQueueFull(boolean autoAckOldestChunkedMessageOnQueueFull) {
+        conf.setAutoAckOldestChunkedMessageOnQueueFull(autoAckOldestChunkedMessageOnQueueFull);
+        return this;
+    }
+
+    @Override
+    public ReaderBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit) {
+        conf.setExpireTimeOfIncompleteChunkedMessageMillis(unit.toMillis(duration));
+        return this;
+    }
+
 }

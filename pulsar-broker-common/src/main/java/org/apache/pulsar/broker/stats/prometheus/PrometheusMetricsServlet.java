@@ -1,0 +1,194 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.broker.stats.prometheus;
+
+import io.netty.util.concurrent.DefaultThreadFactory;
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.AsyncEvent;
+import jakarta.servlet.AsyncListener;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.EOFException;
+import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.CustomLog;
+
+@CustomLog
+public class PrometheusMetricsServlet extends HttpServlet {
+    public static final String DEFAULT_METRICS_PATH = "/metrics";
+    // Prometheus uses version 0.0.4 of the text format for metrics.
+    // This content-type value ensures compatibility with Prometheus 3.x and later versions.
+    // For details, refer to the Prometheus 3.x migration guide:
+    // https://prometheus.io/docs/prometheus/latest/migration/#scrape-protocols
+    public static final String PROMETHEUS_CONTENT_TYPE_004 = "text/plain; version=0.0.4; charset=utf-8";
+    private static final long serialVersionUID = 1L;
+    static final int HTTP_STATUS_OK_200 = 200;
+    static final int HTTP_STATUS_INTERNAL_SERVER_ERROR_500 = 500;
+    protected final long metricsServletTimeoutMs;
+    protected final String cluster;
+    protected List<PrometheusRawMetricsProvider> metricsProviders;
+
+    protected ExecutorService executor = null;
+    protected final int executorMaxThreads;
+
+    public PrometheusMetricsServlet(long metricsServletTimeoutMs, String cluster) {
+        this(metricsServletTimeoutMs, cluster, 1);
+    }
+
+    public PrometheusMetricsServlet(long metricsServletTimeoutMs, String cluster, int executorMaxThreads) {
+        this.metricsServletTimeoutMs = metricsServletTimeoutMs;
+        this.cluster = cluster;
+        this.executorMaxThreads = executorMaxThreads;
+    }
+
+    @Override
+    public void init() throws ServletException {
+        if (executorMaxThreads > 0) {
+            executor =
+                    Executors.newScheduledThreadPool(executorMaxThreads, new DefaultThreadFactory("prometheus-stats"));
+        }
+    }
+
+    @Override
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) {
+        AsyncContext context = request.startAsync();
+        // set hard timeout to 2 * timeout
+        if (metricsServletTimeoutMs > 0) {
+            context.setTimeout(metricsServletTimeoutMs * 2);
+        }
+        long startNanos = System.nanoTime();
+        AtomicBoolean taskStarted = new AtomicBoolean(false);
+        Future<?> future = executor.submit(() -> {
+            taskStarted.set(true);
+            long elapsedNanos = System.nanoTime() - startNanos;
+            // check if the request has been timed out, implement a soft timeout
+            // so that response writing can continue to up to 2 * timeout
+            if (metricsServletTimeoutMs > 0 && elapsedNanos > TimeUnit.MILLISECONDS.toNanos(metricsServletTimeoutMs)) {
+                log.warn()
+                        .attr("queuingTimeMillis", TimeUnit.NANOSECONDS.toMillis(elapsedNanos))
+                        .log("Prometheus metrics request was too long in queue, skipping");
+                if (!response.isCommitted()) {
+                    response.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
+                }
+                context.complete();
+                return;
+            }
+            handleAsyncMetricsRequest(context);
+        });
+        context.addListener(new AsyncListener() {
+            @Override
+            public void onComplete(AsyncEvent asyncEvent) throws IOException {
+                if (!taskStarted.get()) {
+                    future.cancel(false);
+                }
+            }
+
+            @Override
+            public void onTimeout(AsyncEvent asyncEvent) throws IOException {
+                if (!taskStarted.get()) {
+                    future.cancel(false);
+                }
+                log.warn("Prometheus metrics request timed out");
+                HttpServletResponse res = (HttpServletResponse) context.getResponse();
+                if (!res.isCommitted()) {
+                    res.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
+                }
+                context.complete();
+            }
+
+            @Override
+            public void onError(AsyncEvent asyncEvent) throws IOException {
+                if (!taskStarted.get()) {
+                    future.cancel(false);
+                }
+            }
+
+            @Override
+            public void onStartAsync(AsyncEvent asyncEvent) throws IOException {
+
+            }
+        });
+
+    }
+
+    private void handleAsyncMetricsRequest(AsyncContext context) {
+        long start = System.currentTimeMillis();
+        HttpServletResponse res = (HttpServletResponse) context.getResponse();
+        try {
+            generateMetricsSynchronously(res);
+        } catch (Exception e) {
+            long end = System.currentTimeMillis();
+            long time = end - start;
+            if (e instanceof EOFException) {
+                // NO STACKTRACE
+                log.error()
+                        .attr("elapsedMillis", time)
+                        .exceptionMessage(e)
+                        .log("Failed to send metrics, likely the client or this server"
+                                + " closed the connection due to a timeout");
+            } else {
+                log.error().attr("elapsedTimeMs", time).exception(e).log("Failed to generate prometheus stats");
+            }
+            if (!res.isCommitted()) {
+                res.setStatus(HTTP_STATUS_INTERNAL_SERVER_ERROR_500);
+            }
+        } finally {
+            long end = System.currentTimeMillis();
+            long time = end - start;
+            try {
+                context.complete();
+            } catch (IllegalStateException e) {
+                // this happens when metricsServletTimeoutMs expires
+                // java.lang.IllegalStateException: AsyncContext completed and/or Request lifecycle recycled
+                log.error()
+                        .attr("elapsedMillis", time)
+                        .exceptionMessage(e)
+                        .log("Failed to generate prometheus stats, likely due to metricsServletTimeoutMs");
+            }
+        }
+    }
+
+    private void generateMetricsSynchronously(HttpServletResponse res) throws IOException {
+        res.setStatus(HTTP_STATUS_OK_200);
+        res.setContentType(PROMETHEUS_CONTENT_TYPE_004);
+        PrometheusMetricsGeneratorUtils.generate(cluster, res.getOutputStream(), metricsProviders);
+    }
+
+    @Override
+    public void destroy() {
+        if (executor != null) {
+            executor.shutdownNow();
+        }
+    }
+
+    public void addRawMetricsProvider(PrometheusRawMetricsProvider metricsProvider) {
+        if (metricsProviders == null) {
+            metricsProviders = new LinkedList<>();
+        }
+        metricsProviders.add(metricsProvider);
+    }
+}

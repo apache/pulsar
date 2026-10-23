@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
-import org.testng.annotations.Test;
-
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
+import org.testng.annotations.Test;
 
 public class AutoTopicCreationOverrideTest {
 
@@ -32,7 +31,7 @@ public class AutoTopicCreationOverrideTest {
                 .allowAutoTopicCreation(true)
                 .topicType(TopicType.NON_PARTITIONED.toString())
                 .build();
-        assertTrue(AutoTopicCreationOverrideImpl.isValidOverride(override));
+        assertTrue(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
 
     @Test
@@ -42,7 +41,7 @@ public class AutoTopicCreationOverrideTest {
                 .topicType(TopicType.PARTITIONED.toString())
                 .defaultNumPartitions(2)
                 .build();
-        assertTrue(AutoTopicCreationOverrideImpl.isValidOverride(override));
+        assertTrue(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
 
     @Test
@@ -51,7 +50,7 @@ public class AutoTopicCreationOverrideTest {
                 .allowAutoTopicCreation(true)
                 .topicType("aaa")
                 .build();
-        assertFalse(AutoTopicCreationOverrideImpl.isValidOverride(override));
+        assertFalse(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
 
     @Test
@@ -61,7 +60,7 @@ public class AutoTopicCreationOverrideTest {
                 .topicType(TopicType.PARTITIONED.toString())
                 .defaultNumPartitions(0)
                 .build();
-        assertFalse(AutoTopicCreationOverrideImpl.isValidOverride(override));
+        assertFalse(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
 
     @Test
@@ -70,16 +69,38 @@ public class AutoTopicCreationOverrideTest {
                 .allowAutoTopicCreation(true)
                 .topicType(TopicType.PARTITIONED.toString())
                 .build();
-        assertFalse(AutoTopicCreationOverrideImpl.isValidOverride(override));
+        assertFalse(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
 
     @Test
-    public void testNumPartitionsOnNonPartitioned() {
+    public void testNumPartitionsOnNonPartitionedZeroAllowed() {
+        AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.NON_PARTITIONED.toString())
+                .defaultNumPartitions(0)
+                .build();
+        assertTrue(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
+    }
+
+    @Test
+    public void testNumPartitionsOnNonPartitionedOneAllowed() {
+        AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
+                .allowAutoTopicCreation(true)
+                .topicType(TopicType.NON_PARTITIONED.toString())
+                .defaultNumPartitions(1)
+                .build();
+        assertTrue(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
+    }
+
+
+    @Test
+    public void testNumPartitionsOnNonPartitionedTooHighRejected() {
         AutoTopicCreationOverride override = AutoTopicCreationOverride.builder()
                 .allowAutoTopicCreation(true)
                 .topicType(TopicType.NON_PARTITIONED.toString())
                 .defaultNumPartitions(2)
                 .build();
-        assertFalse(AutoTopicCreationOverrideImpl.isValidOverride(override));
+        assertFalse(AutoTopicCreationOverrideImpl.validateOverride(override).isSuccess());
     }
+
 }

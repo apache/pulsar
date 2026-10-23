@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +19,15 @@
 package org.apache.pulsar.broker.service;
 
 import io.netty.buffer.ByteBuf;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
+import org.apache.pulsar.broker.service.persistent.SubscribeRateLimiter;
+import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -33,12 +36,15 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
+import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
+import org.apache.pulsar.common.policies.data.EntryFilters;
+import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 
@@ -62,7 +68,7 @@ public interface Topic {
 
         /**
          * Return the producer name for the original producer.
-         *
+         * <p>
          * For messages published locally, this will return the same local producer name, though in case of replicated
          * messages, the original producer name will differ
          */
@@ -95,6 +101,10 @@ public interface Topic {
             return  1L;
         }
 
+        default long getMsgSize() {
+            return  -1L;
+        }
+
         default boolean isMarkerMessage() {
             return false;
         }
@@ -105,6 +115,22 @@ public interface Topic {
         default Object getProperty(String propertyName) {
             return null;
         }
+
+        default boolean isChunked() {
+            return false;
+        }
+
+        default long getEntryTimestamp() {
+            return -1L;
+        }
+
+        default void setEntryTimestamp(long entryTimestamp) {
+
+        }
+
+        default boolean supportsReplDedupByLidAndEid() {
+            return false;
+        }
     }
 
     CompletableFuture<Void> initialize();
@@ -114,7 +140,7 @@ public interface Topic {
     /**
      * Tries to add a producer to the topic. Several validations will be performed.
      *
-     * @param producer
+     * @param producer Producer to add
      * @param producerQueuedFuture
      *            a future that will be triggered if the producer is being queued up prior of getting established
      * @return the "topic epoch" if there is one or empty
@@ -124,17 +150,21 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     /**
-     * Wait TransactionBuffer Recovers completely.
-     * Take snapshot after TB Recovers completely.
-     * @param isTxnEnabled
-     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
+     * Wait TransactionBuffer recovers completely.
+     *
+     * @return a future that will be completed after the transaction buffer recover completely.
      */
-    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely(boolean isTxnEnabled);
+    CompletableFuture<Void> checkIfTransactionBufferRecoverCompletely();
 
     /**
      * record add-latency.
      */
     void recordAddLatency(long latency, TimeUnit unit);
+
+    /**
+     * increase the publishing limited times.
+     */
+    long increasePublishLimitedTimes();
 
     @Deprecated
     CompletableFuture<Consumer> subscribe(TransportCnx cnx, String subscriptionName, long consumerId, SubType subType,
@@ -153,11 +183,11 @@ public interface Topic {
     CompletableFuture<Consumer> subscribe(SubscriptionOption option);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition,
-            boolean replicateSubscriptionState);
+            boolean replicateSubscriptionState, Map<String, String> properties);
 
     CompletableFuture<Void> unsubscribe(String subName);
 
-    ConcurrentOpenHashMap<String, ? extends Subscription> getSubscriptions();
+    Map<String, ? extends Subscription> getSubscriptions();
 
     CompletableFuture<Void> delete();
 
@@ -169,7 +199,12 @@ public interface Topic {
 
     CompletableFuture<Void> close(boolean closeWithoutWaitingClientDisconnect);
 
+    CompletableFuture<Void> close(
+            boolean disconnectClients, boolean closeWithoutWaitingClientDisconnect);
+
     void checkGC();
+
+    CompletableFuture<Void> checkClusterMigration();
 
     void checkInactiveSubscriptions();
 
@@ -179,37 +214,33 @@ public interface Topic {
      */
     void checkBackloggedCursors();
 
+    void checkCursorsToCacheEntries();
+
+    /**
+     * Indicate if the current topic enabled server side deduplication.
+     * This is a dynamic configuration, user may update it by namespace/topic policies.
+     *
+     * @return whether enabled server side deduplication
+     */
+    default boolean isDeduplicationEnabled() {
+        return false;
+    }
+
     void checkDeduplicationSnapshot();
 
     void checkMessageExpiry();
 
     void checkMessageDeduplicationInfo();
 
-    void checkTopicPublishThrottlingRate();
+    void incrementPublishCount(Producer producer, int numOfMessages, long msgSizeInBytes);
 
-    void incrementPublishCount(int numOfMessages, long msgSizeInBytes);
+    boolean shouldProducerMigrate();
 
-    void resetTopicPublishCountAndEnableReadIfRequired();
-
-    void resetBrokerPublishCountAndEnableReadIfRequired(boolean doneReset);
-
-    boolean isPublishRateExceeded();
-
-    boolean isTopicPublishRateExceeded(int msgSize, int numMessages);
-
-    boolean isResourceGroupRateLimitingEnabled();
-
-    boolean isResourceGroupPublishRateExceeded(int msgSize, int numMessages);
-
-    boolean isBrokerPublishRateExceeded();
-
-    void disableCnxAutoRead();
-
-    void enableCnxAutoRead();
+    boolean isReplicationBacklogExist();
 
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
-    boolean isBacklogQuotaExceeded(String producerName, BacklogQuota.BacklogQuotaType backlogQuotaType);
+    CompletableFuture<Void> checkBacklogQuotaExceeded(String producerName, BacklogQuotaType backlogQuotaType);
 
     boolean isEncryptionRequired();
 
@@ -217,7 +248,20 @@ public interface Topic {
 
     boolean isReplicated();
 
-    BacklogQuota getBacklogQuota(BacklogQuota.BacklogQuotaType backlogQuotaType);
+    boolean isShadowReplicated();
+
+    EntryFilters getEntryFiltersPolicy();
+
+    List<EntryFilter> getEntryFilters();
+
+    BacklogQuota getBacklogQuota(BacklogQuotaType backlogQuotaType);
+
+    /**
+     * Uses the best-effort (not necessarily up-to-date) information available to return the age.
+     * @return The oldest unacknowledged message age in seconds, or -1 if not available
+     */
+    long getBestEffortOldestUnacknowledgedMessageAgeSeconds();
+
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
             StatsOutputStream topicStatsStream, ClusterReplicationMetrics clusterReplicationMetrics,
@@ -225,18 +269,32 @@ public interface Topic {
 
     Subscription getSubscription(String subscription);
 
-    ConcurrentOpenHashMap<String, ? extends Replicator> getReplicators();
+    Map<String, ? extends Replicator> getReplicators();
+
+    Map<String, ? extends Replicator> getShadowReplicators();
 
     TopicStatsImpl getStats(boolean getPreciseBacklog, boolean subscriptionBacklogSize,
                             boolean getEarliestTimeInBacklog);
+
+    TopicStatsImpl getStats(GetStatsOptions getStatsOptions);
 
     CompletableFuture<? extends TopicStatsImpl> asyncGetStats(boolean getPreciseBacklog,
                                                               boolean subscriptionBacklogSize,
                                                               boolean getEarliestTimeInBacklog);
 
+    CompletableFuture<? extends TopicStatsImpl> asyncGetStats(GetStatsOptions getStatsOptions);
+
     CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata);
 
     Position getLastPosition();
+
+    /**
+     * Get the last message position that can be dispatch.
+     */
+    default CompletableFuture<Position> getLastDispatchablePosition() {
+        return FutureUtil.failedFuture(
+                new UnsupportedOperationException("getLastDispatchablePosition is not supported by default"));
+    }
 
     CompletableFuture<MessageId> getLastMessageId();
 
@@ -250,6 +308,14 @@ public interface Topic {
      * schema.
      */
     CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
+
+    /**
+     * Add a schema to the topic, with an optional override for replication schema auto-update.
+     * The default implementation preserves existing behavior.
+     */
+    default CompletableFuture<SchemaVersion> addSchema(SchemaData schema, boolean isReplicatorProducer) {
+        return addSchema(schema);
+    }
 
     /**
      * Delete the schema if this topic has a schema defined for it.
@@ -274,9 +340,21 @@ public interface Topic {
         return Optional.empty();
     }
 
+    default Optional<SubscribeRateLimiter> getSubscribeRateLimiter() {
+        return Optional.empty();
+    }
+
+    default Optional<DispatchRateLimiter> getBrokerDispatchRateLimiter() {
+        return Optional.empty();
+    }
+
     default boolean isSystemTopic() {
         return false;
     }
+
+    boolean isPersistent();
+
+    boolean isTransferring();
 
     /* ------ Transaction related ------ */
 
@@ -312,4 +390,15 @@ public interface Topic {
      */
     BrokerService getBrokerService();
 
+    /**
+     * Get HierarchyTopicPolicies.
+     * @return
+     */
+    HierarchyTopicPolicies getHierarchyTopicPolicies();
+
+    /**
+     * Get OpenTelemetry attribute set.
+     * @return
+     */
+    TopicAttributes getTopicAttributes();
 }

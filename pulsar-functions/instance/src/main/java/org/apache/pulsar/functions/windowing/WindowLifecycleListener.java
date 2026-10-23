@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,20 +21,20 @@ package org.apache.pulsar.functions.windowing;
 import java.util.List;
 
 /**
- * A callback for expiry, activation of events tracked by the {@link WindowManager}
+ * A callback for expiry, activation of events tracked by the {@link WindowManager}.
  *
  * @param <T> The type of Event in the window (e.g. Tuple).
  */
 public interface WindowLifecycleListener<T> {
     /**
-     * Called on expiry of events from the window due to {@link EvictionPolicy}
+     * Called on expiry of events from the window due to {@link EvictionPolicy}.
      *
      * @param events the expired events
      */
     void onExpiry(List<T> events);
 
     /**
-     * Called on activation of the window due to the {@link TriggerPolicy}
+     * Called on activation of the window due to the {@link TriggerPolicy}.
      *
      * @param events the list of current events in the window.
      * @param newEvents the newly added events since last activation.

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,19 +19,19 @@
 package org.apache.pulsar.client.impl.schema.reader;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.Message;
 import com.google.protobuf.Parser;
+import java.io.IOException;
+import java.io.InputStream;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.io.InputStream;
-
-public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> implements SchemaReader<T> {
+@CustomLog
+public class ProtobufReader<T extends Message> implements SchemaReader<T> {
     private Parser<T> tParser;
 
+    @SuppressWarnings("unchecked")
     public ProtobufReader(T protoMessageInstance) {
         tParser = (Parser<T>) (protoMessageInstance).getParserForType();
     }
@@ -55,10 +55,8 @@ public class ProtobufReader<T extends com.google.protobuf.GeneratedMessageV3> im
             try {
                 inputStream.close();
             } catch (IOException e) {
-                log.error("ProtobufReader close inputStream close error", e);
+                log.error().exception(e).log("ProtobufReader close inputStream close error");
             }
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProtobufReader.class);
 }

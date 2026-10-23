@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,19 +19,23 @@
 package org.apache.pulsar.broker.intercept;
 
 import io.netty.buffer.ByteBuf;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.http.HttpStatus;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Producer;
@@ -39,25 +43,50 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.BaseCommand;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.CommandAck;
-import org.apache.pulsar.common.stats.Rate;
-import org.eclipse.jetty.server.Response;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.common.intercept.InterceptException;
 
 
-@Slf4j
+@CustomLog
 public class CounterBrokerInterceptor implements BrokerInterceptor {
 
-    int beforeSendCount = 0;
-    int count = 0;
-    int connectionCreationCount = 0;
-    int producerCount = 0;
-    int consumerCount = 0;
-    int messageCount = 0;
-    int messageDispatchCount = 0;
-    int messageAckCount = 0;
+    private final AtomicInteger beforeSendCount = new AtomicInteger();
+    private final AtomicInteger beforeSendCountAtConsumerLevel = new AtomicInteger();
+    private final AtomicInteger count = new AtomicInteger();
+    private final AtomicInteger connectionCreationCount = new AtomicInteger();
+    private final AtomicInteger producerCount = new AtomicInteger();
+    private final AtomicInteger consumerCount = new AtomicInteger();
+    private final AtomicInteger messagePublishCount = new AtomicInteger();
+    private final AtomicInteger messageCount = new AtomicInteger();
+    private final AtomicInteger messageDispatchCount = new AtomicInteger();
+    private final AtomicInteger messageAckCount = new AtomicInteger();
+    private final AtomicInteger handleAckCount = new AtomicInteger();
+    @Getter
+    private final AtomicInteger handleNackCount = new AtomicInteger();
+    private final AtomicInteger txnCount = new AtomicInteger();
+    private final AtomicInteger committedTxnCount = new AtomicInteger();
+    private final AtomicInteger abortedTxnCount = new AtomicInteger();
+    public static final String NAME = "COUNTER-BROKER-INTERCEPTOR";
 
-    private List<ResponseEvent> responseList = new ArrayList<>();
+    public void reset() {
+        beforeSendCount.set(0);
+        count.set(0);
+        connectionCreationCount.set(0);
+        producerCount.set(0);
+        consumerCount.set(0);
+        messageCount.set(0);
+        messageDispatchCount.set(0);
+        messageAckCount.set(0);
+        handleAckCount.set(0);
+        txnCount.set(0);
+        committedTxnCount.set(0);
+        abortedTxnCount.set(0);
+        handleNackCount.set(0);
+    }
+
+    private final List<ResponseEvent> responseList = new CopyOnWriteArrayList<>();
 
     @Data
     @AllArgsConstructor
@@ -67,65 +96,110 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void onConnectionCreated(ServerCnx cnx){
-        log.info("Connection created {}", cnx);
-        connectionCreationCount++;
+    public void onConnectionCreated(ServerCnx cnx) {
+        log.debug().attr("cnx", cnx).log("Connection created");
+        connectionCreationCount.incrementAndGet();
     }
 
     @Override
     public void producerCreated(ServerCnx cnx, Producer producer,
-                                Map<String, String> metadata){
-        log.info("Producer created with name={}, id={}",
-            producer.getProducerName(), producer.getProducerId());
-        producerCount++;
+                                Map<String, String> metadata) {
+        log.debug().attr("name", producer.getProducerName())
+                .attr("id", producer.getProducerId()).log("Producer created");
+        producerCount.incrementAndGet();
+    }
+
+    @Override
+    public void producerClosed(ServerCnx cnx, Producer producer,
+                                Map<String, String> metadata) {
+        log.debug().attr("name", producer.getProducerName())
+                .attr("id", producer.getProducerId()).log("Producer closed");
+        producerCount.decrementAndGet();
     }
 
     @Override
     public void consumerCreated(ServerCnx cnx,
                                  Consumer consumer,
                                  Map<String, String> metadata) {
-        log.info("Consumer created with name={}, id={}",
-            consumer.consumerName(), consumer.consumerId());
-        consumerCount++;
+        log.debug().attr("name", consumer.consumerName())
+                .attr("id", consumer.consumerId()).log("Consumer created");
+        consumerCount.incrementAndGet();
+    }
+
+    @Override
+    public void consumerClosed(ServerCnx cnx,
+                                Consumer consumer,
+                                Map<String, String> metadata) {
+        log.debug().attr("name", consumer.consumerName())
+                .attr("id", consumer.consumerId()).log("Consumer closed");
+        consumerCount.decrementAndGet();
+    }
+
+    @Override
+    public void onMessagePublish(Producer producer, ByteBuf headersAndPayload, Topic.PublishContext publishContext) {
+        log.debug().attr("topic", producer.getTopic().getName())
+                .attr("producer", producer.getProducerName()).log("Message broker received");
+        messagePublishCount.incrementAndGet();
     }
 
     @Override
     public void messageProduced(ServerCnx cnx, Producer producer, long startTimeNs, long ledgerId,
                                  long entryId,
                                  Topic.PublishContext publishContext) {
-        log.info("Message published topic={}, producer={}",
-            producer.getTopic().getName(), producer.getProducerName());
-        messageCount++;
+        log.debug().attr("topic", producer.getTopic().getName())
+                .attr("producer", producer.getProducerName()).log("Message published");
+        messageCount.incrementAndGet();
     }
 
     @Override
     public void messageDispatched(ServerCnx cnx, Consumer consumer, long ledgerId,
                                    long entryId, ByteBuf headersAndPayload) {
-        log.info("Message dispatched topic={}, consumer={}",
-            consumer.getSubscription().getTopic().getName(), consumer.consumerName());
-        messageDispatchCount++;
+        log.debug().attr("topic", consumer.getSubscription().getTopic().getName())
+                .attr("consumer", consumer.consumerName()).log("Message dispatched");
+        messageDispatchCount.incrementAndGet();
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void messageAcked(ServerCnx cnx, Consumer consumer,
                               CommandAck ack) {
-        messageAckCount++;
+        messageAckCount.incrementAndGet();
     }
+    @SuppressWarnings("deprecation")
 
     @Override
     public void beforeSendMessage(Subscription subscription,
                                   Entry entry,
                                   long[] ackSet,
                                   MessageMetadata msgMetadata) {
-        log.debug("Send message to topic {}, subscription {}",
-            subscription.getTopic(), subscription.getName());
-        beforeSendCount++;
+        log.debug().attr("topic", subscription.getTopic())
+                .attr("subscription", subscription.getName()).log("Send message");
+        beforeSendCount.incrementAndGet();
+    }
+
+    @Override
+    public void beforeSendMessage(Subscription subscription,
+                                  Entry entry,
+                                  long[] ackSet,
+                                  MessageMetadata msgMetadata,
+                                  Consumer consumer) {
+        log.debug().attr("topic", subscription.getTopic())
+                .attr("subscription", subscription.getName())
+                .attr("consumer", consumer.consumerName()).log("Send message");
+        beforeSendCountAtConsumerLevel.incrementAndGet();
     }
 
     @Override
     public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
-        log.debug("[{}] On [{}] Pulsar command", count, command.getType().name());
-        count ++;
+        log.debug().attr("count", count).attr("command", command.getType().name())
+                .log("On Pulsar command");
+        if (command.getType().equals(BaseCommand.Type.ACK)) {
+            handleAckCount.incrementAndGet();
+        }
+        if (command.getType().equals(BaseCommand.Type.REDELIVER_UNACKNOWLEDGED_MESSAGES)) {
+            handleNackCount.incrementAndGet();
+        }
+        count.incrementAndGet();
     }
 
     @Override
@@ -134,26 +208,51 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
     }
 
     @Override
-    public void onWebserviceRequest(ServletRequest request) {
-        count ++;
-        log.debug("[{}] On [{}] Webservice request", count, ((HttpServletRequest)request).getRequestURL().toString());
-    }
-
-    @Override
-    public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
-        count ++;
-        log.debug("[{}] On [{}] Webservice response {}", count, ((HttpServletRequest)request).getRequestURL().toString(), response);
-        if (response instanceof Response) {
-            Response res = (Response) response;
-            responseList.add(new ResponseEvent(res.getHttpChannel().getRequest().getRequestURI(), res.getStatus()));
+    public void onWebserviceRequest(ServletRequest request) throws IOException, ServletException, InterceptException {
+        count.incrementAndGet();
+        String url = ((HttpServletRequest) request).getRequestURL().toString();
+        log.debug().attr("count", count).attr("url", url).log("On Webservice request");
+        if (url.contains("/admin/v2/tenants/test-interceptor-failed-tenant")) {
+            throw new InterceptException(HttpStatus.SC_PRECONDITION_FAILED, "Create tenant failed");
+        }
+        if (url.contains("/admin/v2/namespaces/public/test-interceptor-failed-namespace")) {
+            throw new InterceptException(HttpStatus.SC_PRECONDITION_FAILED, "Create namespace failed");
+        }
+        if (url.contains("/admin/v2/persistent/public/default/test-interceptor-failed-topic")) {
+            throw new InterceptException(HttpStatus.SC_PRECONDITION_FAILED, "Create topic failed");
         }
     }
 
     @Override
+    public void onWebserviceResponse(ServletRequest request, ServletResponse response) {
+        count.incrementAndGet();
+        log.debug().attr("count", count)
+                .attr("url", ((HttpServletRequest) request).getRequestURL().toString())
+                .attr("response", response).log("On Webservice response");
+        responseList.add(new ResponseEvent(((HttpServletRequest) request).getRequestURI(),
+                ((HttpServletResponse) response).getStatus()));
+    }
+
+
+    @Override
     public void onFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
-        count = 100;
+        count.set(100);
         chain.doFilter(request, response);
+    }
+
+    @Override
+    public void txnOpened(long tcId, String txnID) {
+        txnCount.incrementAndGet();
+    }
+
+    @Override
+    public void txnEnded(String txnID, long txnAction) {
+        if (txnAction == TxnAction.COMMIT_VALUE) {
+            committedTxnCount.incrementAndGet();
+        } else {
+            abortedTxnCount.incrementAndGet();
+        }
     }
 
     @Override
@@ -166,36 +265,47 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     }
 
+    public int getHandleAckCount() {
+        return handleAckCount.get();
+    }
+
     public int getCount() {
-        return count;
+        return count.get();
     }
 
     public int getProducerCount() {
-        return producerCount;
+        return producerCount.get();
     }
 
     public int getConsumerCount() {
-        return consumerCount;
+        return consumerCount.get();
     }
 
     public int getMessagePublishCount() {
-        return messageCount;
+        return messagePublishCount.get();
+    }
+    public int getMessageProducedCount() {
+        return messageCount.get();
     }
 
     public int getMessageDispatchCount() {
-        return messageDispatchCount;
+        return messageDispatchCount.get();
     }
 
     public int getMessageAckCount() {
-        return messageAckCount;
+        return messageAckCount.get();
     }
 
     public int getBeforeSendCount() {
-        return beforeSendCount;
+        return beforeSendCount.get();
+    }
+
+    public int getBeforeSendCountAtConsumerLevel() {
+        return beforeSendCountAtConsumerLevel.get();
     }
 
     public int getConnectionCreationCount() {
-        return connectionCreationCount;
+        return connectionCreationCount.get();
     }
 
     public void clearResponseList() {
@@ -204,5 +314,17 @@ public class CounterBrokerInterceptor implements BrokerInterceptor {
 
     public List<ResponseEvent> getResponseList() {
         return responseList;
+    }
+
+    public int getTxnCount() {
+        return txnCount.get();
+    }
+
+    public int getCommittedTxnCount() {
+        return committedTxnCount.get();
+    }
+
+    public int getAbortedTxnCount() {
+        return abortedTxnCount.get();
     }
 }

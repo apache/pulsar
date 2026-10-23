@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,14 +22,14 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
 /**
- * This class serves as a copy of of io.codearte.jfairy.producer.person.Person
+ * This class serves as a copy of io.codearte.jfairy.producer.person.Person.
  * because io.codearte.jfairy.producer.person.Person does not
  * have default constructors needed to deserialize POJOs
  */
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class Person {
     private Address address;
     private String firstName;
@@ -90,7 +90,8 @@ public class Person {
         protected String city;
 
         public Address(io.codearte.jfairy.producer.person.Address address) {
-            this(address.getStreet(), address.getStreetNumber(), address.getApartmentNumber(), address.getPostalCode(), address.getCity());
+            this(address.getStreet(), address.getStreetNumber(), address.getApartmentNumber(),
+                    address.getPostalCode(), address.getCity());
         }
     }
 }

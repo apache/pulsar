@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.api.BaseContext;
 
 /**
@@ -48,23 +49,30 @@ public interface SourceContext extends BaseContext {
     String getOutputTopic();
 
     /**
-     * New output message using schema for serializing to the topic
+     * Get the source config.
+     *
+     * @return source config
+     */
+    SourceConfig getSourceConfig();
+
+    /**
+     * New output message using schema for serializing to the topic.
      *
      * @param topicName The name of the topic for output message
      * @param schema provide a way to convert between serialized data and domain objects
-     * @param <O>
+     * @param <T>
      * @return the message builder instance
      * @throws PulsarClientException
      */
-    <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException;
+    <T> TypedMessageBuilder<T> newOutputMessage(String topicName, Schema<T> schema) throws PulsarClientException;
 
     /**
      * Create a ConsumerBuilder with the schema.
      *
      * @param schema provide a way to convert between serialized data and domain objects
-     * @param <O>
+     * @param <T>
      * @return the consumer builder instance
      * @throws PulsarClientException
      */
-    <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException;
+    <T> ConsumerBuilder<T> newConsumerBuilder(Schema<T> schema) throws PulsarClientException;
 }

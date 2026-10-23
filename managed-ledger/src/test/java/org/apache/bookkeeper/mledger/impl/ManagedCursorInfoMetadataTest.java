@@ -1,0 +1,162 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.bookkeeper.mledger.impl;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
+import java.io.IOException;
+import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.MetadataCompressionConfig;
+import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+/**
+ * ManagedCursorInfo metadata test.
+ */
+@CustomLog
+public class ManagedCursorInfoMetadataTest {
+    private static final String INVALID_TYPE = "INVALID_TYPE";
+
+    @DataProvider(name = "compressionTypeProvider")
+    private Object[][] compressionTypeProvider() {
+        return new Object[][]{
+                {null},
+                {INVALID_TYPE},
+                {CompressionType.NONE.name()},
+                {CompressionType.LZ4.name()},
+                {CompressionType.ZLIB.name()},
+                {CompressionType.ZSTD.name()},
+                {CompressionType.SNAPPY.name()}
+        };
+    }
+
+    private ManagedCursorInfo generateManagedCursorInfo(long ledgerId, int positionNumber) {
+        ManagedCursorInfo cursorInfo = new ManagedCursorInfo();
+
+        cursorInfo.setCursorsLedgerId(ledgerId);
+        cursorInfo.setMarkDeleteLedgerId(ledgerId);
+
+        for (int i = 0; i < positionNumber; i++) {
+            cursorInfo.addBatchedEntryDeletionIndexInfo()
+                    .setPosition()
+                    .setEntryId(i)
+                    .setLedgerId(i);
+        }
+
+        return cursorInfo;
+    }
+
+    @Test(dataProvider = "compressionTypeProvider")
+    public void testEncodeAndDecode(String compressionType) throws Exception {
+        long ledgerId = 10000;
+        ManagedCursorInfo managedCursorInfo = generateManagedCursorInfo(ledgerId, 1000);
+        MetaStoreImpl metaStore;
+        if (INVALID_TYPE.equals(compressionType)) {
+            IllegalArgumentException compressionTypeEx = expectThrows(IllegalArgumentException.class, () -> {
+                new MetaStoreImpl(null, null, null, new MetadataCompressionConfig(compressionType));
+            });
+            assertEquals(compressionTypeEx.getMessage(),
+                    "No enum constant org.apache.bookkeeper.mledger.proto.CompressionType."
+                            + compressionType);
+            return;
+        } else {
+            metaStore = new MetaStoreImpl(null, null, null, new MetadataCompressionConfig(compressionType));
+        }
+
+        byte[] compressionBytes = metaStore.compressCursorInfo(managedCursorInfo);
+        log.info().attr("compressionType", compressionType)
+                .attr("uncompressedSize", managedCursorInfo.getSerializedSize())
+                .attr("compressedSize", compressionBytes.length)
+                .log("Encoded managed cursor info");
+        if (compressionType == null || compressionType.equals(CompressionType.NONE.name())) {
+            assertEquals(compressionBytes.length, managedCursorInfo.getSerializedSize());
+        }
+
+        // parse compression data and unCompression data, check their results.
+        ManagedCursorInfo info1 = metaStore.parseManagedCursorInfo(compressionBytes);
+        ManagedCursorInfo info2 = metaStore.parseManagedCursorInfo(managedCursorInfo.toByteArray());
+        assertEquals(info1.toByteArray(), info2.toByteArray());
+    }
+
+    @Test(dataProvider = "compressionTypeProvider")
+    public void testDecodeCursorInfoWithProperties(String compressionType) throws Exception {
+        if (INVALID_TYPE.equals(compressionType)) {
+            return;
+        }
+        ManagedCursorInfo managedCursorInfo = generateManagedCursorInfo(10000, 1000);
+        for (int i = 0; i < 100; i++) {
+            managedCursorInfo.addProperty().setName("property-" + i).setValue(i);
+            managedCursorInfo.addCursorProperty().setName("cursor-property-" + i).setValue("value-" + i);
+        }
+        MetaStoreImpl metaStore = new MetaStoreImpl(null, null, null,
+                new MetadataCompressionConfig(compressionType, 0));
+
+        // String fields must still be readable after the decompressed buffer has been released.
+        ManagedCursorInfo info = metaStore.parseManagedCursorInfo(metaStore.compressCursorInfo(managedCursorInfo));
+        assertEquals(info.getPropertiesCount(), 100);
+        assertEquals(info.getCursorPropertiesCount(), 100);
+        for (int i = 0; i < 100; i++) {
+            assertEquals(info.getPropertyAt(i).getName(), "property-" + i);
+            assertEquals(info.getPropertyAt(i).getValue(), i);
+            assertEquals(info.getCursorPropertyAt(i).getName(), "cursor-property-" + i);
+            assertEquals(info.getCursorPropertyAt(i).getValue(), "value-" + i);
+        }
+    }
+
+    @Test(dataProvider = "compressionTypeProvider")
+    public void testCompressionThreshold(String compressionType) throws IOException {
+        int compressThreshold = 512;
+
+        long ledgerId = 10000;
+        // should not compress
+        ManagedCursorInfo smallInfo = generateManagedCursorInfo(ledgerId, 1);
+        assertTrue(smallInfo.getSerializedSize() < compressThreshold);
+
+        // should compress
+        ManagedCursorInfo bigInfo = generateManagedCursorInfo(ledgerId, 1000);
+        assertTrue(bigInfo.getSerializedSize() > compressThreshold);
+
+        MetaStoreImpl metaStore;
+        if (INVALID_TYPE.equals(compressionType)) {
+            IllegalArgumentException compressionTypeEx = expectThrows(IllegalArgumentException.class, () -> {
+                new MetaStoreImpl(null, null, null,
+                        new MetadataCompressionConfig(compressionType, compressThreshold));
+            });
+            assertEquals(compressionTypeEx.getMessage(),
+                    "No enum constant org.apache.bookkeeper.mledger.proto.CompressionType."
+                            + compressionType);
+            return;
+        } else {
+            metaStore = new MetaStoreImpl(null, null, null,
+                    new MetadataCompressionConfig(compressionType, compressThreshold));
+        }
+
+        byte[] compressionBytes = metaStore.compressCursorInfo(smallInfo);
+        // not compressed
+        assertEquals(compressionBytes.length, smallInfo.getSerializedSize());
+
+
+        byte[] compressionBigBytes = metaStore.compressCursorInfo(bigInfo);
+        // compressed
+        assertTrue(compressionBigBytes.length != smallInfo.getSerializedSize());
+    }
+}

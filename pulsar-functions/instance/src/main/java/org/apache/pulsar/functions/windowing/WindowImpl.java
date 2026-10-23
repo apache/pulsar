@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -79,7 +79,7 @@ public class WindowImpl<T> implements Window<T> {
             return false;
         }
 
-        WindowImpl that = (WindowImpl) o;
+        WindowImpl<?> that = (WindowImpl<?>) o;
 
         if (tuples != null ? !tuples.equals(that.tuples) : that.tuples != null) {
             return false;

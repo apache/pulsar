@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl.schema;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.requireNonNull;
-
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.avro.JsonProperties;
@@ -47,13 +46,13 @@ class FieldSchemaBuilderImpl implements FieldSchemaBuilder<FieldSchemaBuilderImp
     private String doc;
     private String[] aliases;
 
-    private GenericSchema genericSchema;
+    private GenericSchema<?> genericSchema;
 
     FieldSchemaBuilderImpl(String fieldName) {
         this(fieldName, null);
     }
 
-    FieldSchemaBuilderImpl(String fieldName, GenericSchema genericSchema) {
+    FieldSchemaBuilderImpl(String fieldName, GenericSchema<?> genericSchema) {
         this.fieldName = fieldName;
         this.genericSchema = genericSchema;
     }

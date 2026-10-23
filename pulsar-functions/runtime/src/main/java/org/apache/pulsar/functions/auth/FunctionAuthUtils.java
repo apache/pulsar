@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,16 @@
  */
 package org.apache.pulsar.functions.auth;
 
-import org.apache.pulsar.functions.proto.Function;
-
 import java.util.Optional;
+import org.apache.pulsar.functions.proto.FunctionAuthenticationSpec;
 
 public final class FunctionAuthUtils {
 
-    public static final FunctionAuthData getFunctionAuthData(Optional<Function.FunctionAuthenticationSpec> functionAuthenticationSpec) {
+    public static FunctionAuthData getFunctionAuthData(
+            Optional<FunctionAuthenticationSpec> functionAuthenticationSpec) {
         return functionAuthenticationSpec
-                .map(authenticationSpec -> FunctionAuthData.builder().data(authenticationSpec.getData().toByteArray()).build())
+                .map(authenticationSpec -> FunctionAuthData.builder().data(authenticationSpec.getData())
+                        .build())
                 .orElse(null);
     }
 }

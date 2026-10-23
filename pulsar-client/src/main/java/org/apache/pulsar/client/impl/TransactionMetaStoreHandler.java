@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,22 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
+import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import java.io.Closeable;
+import java.io.IOException;
+import java.net.URI;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -37,29 +52,27 @@ import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.api.proto.Subscription;
 import org.apache.pulsar.common.api.proto.TxnAction;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Semaphore;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Handler for transaction meta store.
  */
-public class TransactionMetaStoreHandler extends HandlerState implements ConnectionHandler.Connection, Closeable, TimerTask {
-
-    private static final Logger LOG = LoggerFactory.getLogger(TransactionMetaStoreHandler.class);
+@CustomLog
+public class TransactionMetaStoreHandler extends HandlerState
+        implements ConnectionHandler.Connection, Closeable, TimerTask {
 
     private final long transactionCoordinatorId;
     private final ConnectionHandler connectionHandler;
     private final ConcurrentLongHashMap<OpBase<?>> pendingRequests =
-        new ConcurrentLongHashMap<>(16, 1);
+            ConcurrentLongHashMap.<OpBase<?>>newBuilder()
+                    .expectedItems(16)
+                    .concurrencyLevel(1)
+                    .build();
     private final ConcurrentLinkedQueue<RequestTime> timeoutQueue;
+
+    protected final Timer timer;
+    private final ExecutorService internalPinnedExecutor;
 
     private static class RequestTime {
         final long creationTimeMs;
@@ -77,295 +90,575 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     private Timeout requestTimeout;
 
     private final CompletableFuture<Void> connectFuture;
+    private final long lookupDeadline;
+    private final AtomicInteger previousExceptionCount = new AtomicInteger();
+
+    // Metadata-store discovery (watch mode): the elected leader broker for this coordinator and
+    // whether it must be reached through the proxy. Null leaderUri means assign-topic mode.
+    private volatile URI leaderUri;
+    private volatile boolean useProxy;
+    private final boolean scalable;
+
+
 
     public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
                                        CompletableFuture<Void> connectFuture) {
+        this(transactionCoordinatorId, pulsarClient, topic, null, false, connectFuture);
+    }
+
+    /**
+     * Construct a handler that connects to a fixed leader broker (metadata-store discovery) rather
+     * than resolving a coordinator via an assign-topic lookup. The leader address is dialled
+     * through the proxy when {@code useProxy} is true (the broker URL isn't directly reachable
+     * behind a proxy) or directly otherwise. Use {@link #retargetLeader} when the elected leader
+     * changes.
+     */
+    public TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient,
+                                       URI leaderUri, boolean useProxy,
+                                       CompletableFuture<Void> connectFuture) {
+        this(transactionCoordinatorId, pulsarClient, null, leaderUri, useProxy, connectFuture);
+    }
+
+    private TransactionMetaStoreHandler(long transactionCoordinatorId, PulsarClientImpl pulsarClient, String topic,
+                                        URI leaderUri, boolean useProxy,
+                                        CompletableFuture<Void> connectFuture) {
         super(pulsarClient, topic);
+        this.leaderUri = leaderUri;
+        this.useProxy = useProxy;
+        // A handler built with a fixed leader URI is a v5 (metadata-store discovery) handler; one
+        // built with a topic name is a legacy v4 handler. The flag routes each command to the
+        // matching coordinator on the broker so v4 and v5 clients coexist.
+        this.scalable = leaderUri != null;
         this.transactionCoordinatorId = transactionCoordinatorId;
         this.timeoutQueue = new ConcurrentLinkedQueue<>();
         this.blockIfReachMaxPendingOps = true;
         this.semaphore = new Semaphore(1000);
-        this.requestTimeout = pulsarClient.timer().newTimeout(this, pulsarClient.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
+        this.requestTimeout = pulsarClient.timer().newTimeout(this,
+                pulsarClient.getConfiguration().getOperationTimeoutMs(), TimeUnit.MILLISECONDS);
         this.connectionHandler = new ConnectionHandler(
             this,
-            new BackoffBuilder()
-                .setInitialTime(pulsarClient.getConfiguration().getInitialBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                .setMax(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos(), TimeUnit.NANOSECONDS)
-                .setMandatoryStop(100, TimeUnit.MILLISECONDS)
-                .create(),
+            Backoff.builder()
+                .initialDelay(Duration.ofNanos(pulsarClient.getConfiguration()
+                        .getInitialBackoffIntervalNanos()))
+                .maxBackoff(Duration.ofNanos(pulsarClient.getConfiguration().getMaxBackoffIntervalNanos()))
+                .mandatoryStop(Duration.ofMillis(100))
+                .build(),
             this);
         this.connectFuture = connectFuture;
-        this.connectionHandler.grabCnx();
+        this.internalPinnedExecutor = pulsarClient.getInternalExecutorService();
+        this.timer = pulsarClient.timer();
+        this.lookupDeadline = System.currentTimeMillis() + client.getConfiguration().getLookupTimeoutMs();
     }
 
-    @Override
-    public void connectionFailed(PulsarClientException exception) {
-        LOG.error("Transaction meta handler with transaction coordinator id {} connection failed.",
-            transactionCoordinatorId, exception);
-        if (!this.connectFuture.isDone()) {
-            this.connectFuture.completeExceptionally(exception);
-        }
-    }
-
-    @Override
-    public void connectionOpened(ClientCnx cnx) {
-        LOG.info("Transaction meta handler with transaction coordinator id {} connection opened.",
-            transactionCoordinatorId);
-
-        if (getState() == State.Closing || getState() == State.Closed) {
-            setState(State.Closed);
-            failPendingRequest();
-            this.pendingRequests.clear();
-            return;
-        }
-
-        connectionHandler.setClientCnx(cnx);
-        cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
-
-        // if broker protocol version < 19, don't send TcClientConnectRequest to broker.
-        if (cnx.getRemoteEndpointProtocolVersion() > ProtocolVersion.v18.getValue()) {
-            long requestId = client.newRequestId();
-            ByteBuf request = Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId);
-
-            cnx.sendRequestWithId(request, requestId).thenRun(() -> {
-                LOG.info("Transaction coordinator client connect success! tcId : {}", transactionCoordinatorId);
-                if (!changeToReadyState()) {
-                    setState(State.Closed);
-                    cnx.channel().close();
-                }
-
-                if (!this.connectFuture.isDone()) {
-                    this.connectFuture.complete(null);
-                }
-                this.connectionHandler.resetBackoff();
-            }).exceptionally((e) -> {
-                LOG.error("Transaction coordinator client connect fail! tcId : {}",
-                        transactionCoordinatorId, e.getCause());
-                if (getState() == State.Closing || getState() == State.Closed
-                        || e.getCause() instanceof PulsarClientException.NotAllowedException) {
-                    setState(State.Closed);
-                    cnx.channel().close();
-                } else {
-                    connectionHandler.reconnectLater(e.getCause());
-                }
-                return null;
-            });
+    public void start() {
+        if (leaderUri != null) {
+            // Metadata-store discovery: dial the elected leader (through the proxy if needed).
+            this.connectionHandler.grabCnx(leaderUri, useProxy);
         } else {
-            if (!changeToReadyState()) {
-                cnx.channel().close();
-            }
-            this.connectFuture.complete(null);
+            // Assign-topic discovery: resolve the coordinator via a topic lookup.
+            this.connectionHandler.grabCnx();
         }
+    }
+
+    @Override
+    public boolean connectionFailed(PulsarClientException exception) {
+        boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
+        boolean timeout = System.currentTimeMillis() > lookupDeadline;
+        if (nonRetriableError || timeout) {
+            exception.setPreviousExceptionCount(previousExceptionCount);
+            if (connectFuture.completeExceptionally(exception)) {
+                if (nonRetriableError) {
+                    log.error().attr("transactionCoordinatorId", transactionCoordinatorId)
+                            .exception(exception)
+                            .log("Transaction meta handler failed.");
+                } else {
+                    log.error().attr("transactionCoordinatorId", transactionCoordinatorId)
+                            .exception(exception)
+                            .log("Transaction meta handler with transaction"
+                                    + " coordinator id connection failed"
+                                    + " after timeout");
+                }
+                setState(State.Failed);
+                return false;
+            }
+        } else {
+            previousExceptionCount.getAndIncrement();
+        }
+        return true;
+    }
+
+    @Override
+    public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
+        final CompletableFuture<Void> future = new CompletableFuture<>();
+        internalPinnedExecutor.execute(() -> {
+            log.info().attr("transactionCoordinatorId", transactionCoordinatorId)
+                    .log("Transaction meta handler with transaction coordinator id connection opened.");
+
+            State state = getState();
+            if (state == State.Closing || state == State.Closed) {
+                setState(State.Closed);
+                failPendingRequest();
+                future.complete(null);
+                return;
+            }
+
+            // if broker protocol version < 19, don't send TcClientConnectRequest to broker.
+            if (cnx.getRemoteEndpointProtocolVersion() > ProtocolVersion.v18.getValue()) {
+                long requestId = client.newRequestId();
+                ByteBuf request =
+                        Commands.newTcClientConnectRequest(transactionCoordinatorId, requestId, scalable);
+
+                cnx.sendRequestWithId(request, requestId).thenRun(() -> {
+                    internalPinnedExecutor.execute(() -> {
+                        log.info().attr("transactionCoordinatorId", transactionCoordinatorId)
+                                .log("Transaction coordinator client connect success! tcId");
+                        if (registerToConnection(cnx)) {
+                            this.connectionHandler.resetBackoff();
+                            resendPendingRequests();
+                        }
+                        future.complete(null);
+                    });
+                }).exceptionally((e) -> {
+                    internalPinnedExecutor.execute(() -> {
+                        log.error().attr("transactionCoordinatorId", transactionCoordinatorId)
+                                .exception(e.getCause())
+                                .log("Transaction coordinator client connect fail! tcId");
+                        if (getState() == State.Closing || getState() == State.Closed
+                                || e.getCause() instanceof PulsarClientException.NotAllowedException) {
+                            setState(State.Closed);
+                            cnx.channel().close();
+                            future.complete(null);
+                        } else {
+                            future.completeExceptionally(e.getCause());
+                        }
+                    });
+                    return null;
+                });
+            } else {
+                log.warn().attr("version", cnx.getRemoteEndpointProtocolVersion())
+                        .log("Can not connect to the transaction coordinator"
+                                + " because the protocol version is"
+                                + " lower than 19");
+                registerToConnection(cnx);
+                future.complete(null);
+            }
+        });
+        return future;
+    }
+
+    private boolean registerToConnection(ClientCnx cnx) {
+        if (changeToReadyState()) {
+            connectionHandler.setClientCnx(cnx);
+            cnx.registerTransactionMetaStoreHandler(transactionCoordinatorId, this);
+            connectFuture.complete(null);
+            return true;
+        } else {
+            State state = getState();
+            cnx.channel().close();
+            connectFuture.completeExceptionally(
+                    new IllegalStateException("Failed to change the state from " + state + " to Ready"));
+            return false;
+        }
+    }
+
+    private void resendPendingRequests() {
+        // this method is executed in internalPinnedExecutor.
+        List<Long> failedRequestIds = new ArrayList<>();
+        pendingRequests.forEach((requestId, op) -> {
+            if (!checkStateAndSendRequest(op)) {
+                // The op has been completed and recycled, it must not stay in pendingRequests.
+                failedRequestIds.add(requestId);
+            }
+        });
+        failedRequestIds.forEach(pendingRequests::remove);
     }
 
     private void failPendingRequest() {
-        pendingRequests.keys().forEach(k -> {
-            OpBase<?> op = pendingRequests.remove(k);
+        // this method is executed in internalPinnedExecutor.
+        pendingRequests.forEach((k, op) -> {
             if (op != null && !op.callback.isDone()) {
                 op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
-                        "Could not get response from transaction meta store when " +
-                                "the transaction meta store has already close."));
+                        "Could not get response from transaction meta store when "
+                                + "the transaction meta store has already close."));
                 onResponse(op);
             }
         });
+        this.pendingRequests.clear();
     }
 
     public CompletableFuture<TxnID> newTransactionAsync(long timeout, TimeUnit unit) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("New transaction with timeout in ms {}", unit.toMillis(timeout));
-        }
+            log.debug().attr("timeoutMs", unit.toMillis(timeout)).log("New transaction with timeout");
         CompletableFuture<TxnID> callback = new CompletableFuture<>();
-
         if (!canSendRequest(callback)) {
             return callback;
         }
         long requestId = client.newRequestId();
-        ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout));
-        OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback);
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        cmd.retain();
-        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+        ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout), scalable);
+        String description = String.format("Create new transaction %s", transactionCoordinatorId);
+        OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback, client, description, cnx());
+        internalPinnedExecutor.execute(() -> {
+            pendingRequests.put(requestId, op);
+            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+            if (!checkStateAndSendRequest(op)) {
+                pendingRequests.remove(requestId);
+            }
+        });
         return callback;
     }
 
     void handleNewTxnResponse(CommandNewTxnResponse response) {
-        OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(response.getRequestId());
-        if (op == null) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Got new txn response for timeout {} - {}", response.getTxnidMostBits(),
-                    response.getTxnidLeastBits());
-            }
-            return;
-        }
-
-        if (!response.hasError()) {
-            TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Got new txn response {} for request {}", txnID, response.getRequestId());
-            }
-            op.callback.complete(txnID);
+        final boolean hasError = response.hasError();
+        final ServerError error;
+        final String message;
+        if (hasError) {
+             error = response.getError();
+             message = response.getMessage();
         } else {
-            LOG.error("Got new txn for request {} error {}", response.getRequestId(), response.getError());
-            handleTransactionFailOp(response.getError(), response.getMessage(), op);
+            error = null;
+            message = null;
         }
+        final TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        final long requestId = response.getRequestId();
+        internalPinnedExecutor.execute(() -> {
+            OpForTxnIdCallBack op = (OpForTxnIdCallBack) pendingRequests.remove(requestId);
+            if (op == null) {
+                    log.debug().attr("transaction", txnID).log("Got new txn response for transaction");
+                return;
+            }
 
-        onResponse(op);
+            if (!hasError) {
+                    log.debug().attr("response", txnID)
+                            .attr("request", requestId)
+                            .log("Got new txn response for request");
+                op.callback.complete(txnID);
+            } else {
+                if (checkIfNeedRetryByError(error, message, op)) {
+                        log.debug().attr("name", BaseCommand.Type.NEW_TXN)
+                                .attr("requestId", requestId)
+                                .log("Get a response for the request error"
+                                        + " TransactionCoordinatorNotFound"
+                                        + " and try it again");
+                    pendingRequests.put(requestId, op);
+                    timer.newTimeout(timeout -> {
+                                internalPinnedExecutor.execute(() -> {
+                                    if (!pendingRequests.containsKey(requestId)) {
+                                            log.debug().attr("request", requestId).log("The request already timeout");
+                                        return;
+                                    }
+                                    if (!checkStateAndSendRequest(op)) {
+                                        pendingRequests.remove(requestId);
+                                    }
+                                });
+                            }
+                            , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
+                    return;
+                }
+                log.error().attr("name", BaseCommand.Type.NEW_TXN)
+                        .attr("requestId", requestId)
+                        .attr("error", error)
+                        .log("Got for request error");
+            }
+
+            onResponse(op);
+        });
     }
 
     public CompletableFuture<Void> addPublishPartitionToTxnAsync(TxnID txnID, List<String> partitions) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Add publish partition {} to txn {}", partitions, txnID);
-        }
+            log.debug().attr("partition", partitions).attr("txn", txnID).log("Add publish partition to txn");
         CompletableFuture<Void> callback = new CompletableFuture<>();
-
         if (!canSendRequest(callback)) {
             return callback;
         }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddPartitionToTxn(
-                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions);
-        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        cmd.retain();
-        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), partitions, scalable);
+        String description = String.format("Add partition %s to TXN %s", String.valueOf(partitions),
+                String.valueOf(txnID));
+        OpForVoidCallBack op = OpForVoidCallBack
+                .create(cmd, callback, client, description, cnx());
+        internalPinnedExecutor.execute(() -> {
+            pendingRequests.put(requestId, op);
+            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+            if (!checkStateAndSendRequest(op)) {
+                pendingRequests.remove(requestId);
+            }
+        });
+
         return callback;
     }
 
     void handleAddPublishPartitionToTxnResponse(CommandAddPartitionToTxnResponse response) {
-        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
-        if (op == null) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Got add publish partition to txn response for timeout {} - {}", response.getTxnidMostBits(),
-                        response.getTxnidLeastBits());
-            }
-            return;
-        }
-
-        if (!response.hasError()) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Add publish partition for request {} success.", response.getRequestId());
-            }
-            op.callback.complete(null);
+        final boolean hasError = response.hasError();
+        final ServerError error;
+        final String message;
+        if (hasError) {
+            error = response.getError();
+            message = response.getMessage();
         } else {
-            LOG.error("Add publish partition for request {} error {}.", response.getRequestId(), response.getError());
-            handleTransactionFailOp(response.getError(), response.getMessage(), op);
+            error = null;
+            message = null;
         }
+        final TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        final long requestId = response.getRequestId();
+        internalPinnedExecutor.execute(() -> {
+            OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
+            if (op == null) {
+                    log.debug().attr("transaction", txnID)
+                            .log("Got add publish partition to txn response for transaction");
+                return;
+            }
 
-        onResponse(op);
+            if (!hasError) {
+                    log.debug().attr("request", requestId).log("Add publish partition for request success.");
+                op.callback.complete(null);
+            } else {
+                if (checkIfNeedRetryByError(error, message, op)) {
+                        log.debug().attr("name", BaseCommand.Type.ADD_PARTITION_TO_TXN.name())
+                                .attr("request", requestId)
+                                .log("Get a response for the request"
+                                        + " error TransactionCoordinatorNotFound"
+                                        + " and try it again");
+                    pendingRequests.put(requestId, op);
+                    timer.newTimeout(timeout -> {
+                                internalPinnedExecutor.execute(() -> {
+                                    if (!pendingRequests.containsKey(requestId)) {
+                                            log.debug().attr("request", requestId).log("The request already timeout");
+                                        return;
+                                    }
+                                    if (!checkStateAndSendRequest(op)) {
+                                        pendingRequests.remove(requestId);
+                                    }
+                                });
+                            }
+                            , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
+                    return;
+                }
+                log.error().attr("name", BaseCommand.Type.ADD_PARTITION_TO_TXN.name())
+                        .attr("request", requestId)
+                        .attr("transaction", txnID)
+                        .attr("error", error)
+                        .log("for request, transaction, error");
+
+            }
+
+            onResponse(op);
+        });
     }
 
     public CompletableFuture<Void> addSubscriptionToTxn(TxnID txnID, List<Subscription> subscriptionList) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Add subscription {} to txn {}.", subscriptionList, txnID);
-        }
+            log.debug().attr("subscription", subscriptionList).attr("txn", txnID).log("Add subscription to txn.");
 
         CompletableFuture<Void> callback = new CompletableFuture<>();
-
         if (!canSendRequest(callback)) {
             return callback;
         }
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newAddSubscriptionToTxn(
-                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList);
-        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback);
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        cmd.retain();
-        cnx().ctx().writeAndFlush(cmd, cnx().ctx().voidPromise());
+                requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), subscriptionList, scalable);
+        String description = String.format("Add subscription %s to TXN %s", toStringSubscriptionList(subscriptionList),
+                String.valueOf(txnID));
+        OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, client, description, cnx());
+        internalPinnedExecutor.execute(() -> {
+            pendingRequests.put(requestId, op);
+            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+            if (!checkStateAndSendRequest(op)) {
+                pendingRequests.remove(requestId);
+            }
+        });
         return callback;
     }
 
-    public void handleAddSubscriptionToTxnResponse(CommandAddSubscriptionToTxnResponse response) {
-        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
-        if (op == null) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Add subscription to txn timeout for request {}.", response.getRequestId());
-            }
-            return;
+    private String toStringSubscriptionList(List<Subscription> list) {
+        if (list == null || list.isEmpty()) {
+            return "[]";
         }
+        StringBuilder builder = new StringBuilder("[");
+        for (Subscription subscription : list) {
+            builder.append(String.format("%s %s", subscription.getTopic(), subscription.getSubscription()));
+        }
+        return builder.append("]").toString();
+    }
 
-        if (!response.hasError()) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Add subscription to txn success for request {}.", response.getRequestId());
-            }
-            op.callback.complete(null);
+    public void handleAddSubscriptionToTxnResponse(CommandAddSubscriptionToTxnResponse response) {
+        final boolean hasError = response.hasError();
+        final ServerError error;
+        final String message;
+        if (hasError) {
+            error = response.getError();
+            message = response.getMessage();
         } else {
-            LOG.error("Add subscription to txn failed for request {} error {}.",
-                    response.getRequestId(), response.getError());
-            handleTransactionFailOp(response.getError(), response.getMessage(), op);
+            error = null;
+            message = null;
         }
-        onResponse(op);
+        final long requestId = response.getRequestId();
+        final TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        internalPinnedExecutor.execute(() -> {
+            OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
+            if (op == null) {
+                    log.debug().attr("request", requestId).log("Add subscription to txn timeout for request.");
+                return;
+            }
+
+            if (!hasError) {
+                    log.debug().attr("request", requestId).log("Add subscription to txn success for request.");
+                op.callback.complete(null);
+            } else {
+                log.error().attr("request", requestId)
+                        .attr("transaction", txnID)
+                        .attr("error", error)
+                        .log("Add subscription to txn failed for request, transaction, error");
+                if (checkIfNeedRetryByError(error, message, op)) {
+                        log.debug().attr("name", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name())
+                                .attr("request", requestId)
+                                .log("Get a response for request error"
+                                        + " TransactionCoordinatorNotFound"
+                                        + " and try it again");
+                    pendingRequests.put(requestId, op);
+                    timer.newTimeout(timeout -> {
+                                internalPinnedExecutor.execute(() -> {
+                                    if (!pendingRequests.containsKey(requestId)) {
+                                            log.debug().attr("request", requestId).log("The request already timeout");
+                                        return;
+                                    }
+                                    if (!checkStateAndSendRequest(op)) {
+                                        pendingRequests.remove(requestId);
+                                    }
+                                });
+                            }
+                            , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
+                    return;
+                }
+                log.error().attr("name", BaseCommand.Type.ADD_SUBSCRIPTION_TO_TXN.name())
+                        .attr("request", requestId)
+                        .attr("error", error)
+                        .log("failed for request error.");
+
+            }
+            onResponse(op);
+        });
     }
 
     public CompletableFuture<Void> endTxnAsync(TxnID txnID, TxnAction action) {
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("End txn {}, action {}", txnID, action);
-        }
+            log.debug().attr("txn", txnID).attr("action", action).log("End txn, action");
         CompletableFuture<Void> callback = new CompletableFuture<>();
-
         if (!canSendRequest(callback)) {
             return callback;
         }
         long requestId = client.newRequestId();
-        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(), action);
+        BaseCommand cmd = Commands.newEndTxn(requestId, txnID.getLeastSigBits(), txnID.getMostSigBits(),
+                action, scalable);
         ByteBuf buf = Commands.serializeWithSize(cmd);
-        OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback);
-        pendingRequests.put(requestId, op);
-        timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-        buf.retain();
-        cnx().ctx().writeAndFlush(buf, cnx().ctx().voidPromise());
+        String description = String.format("End [%s] TXN %s", String.valueOf(action), String.valueOf(txnID));
+        OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback, client, description, cnx());
+        internalPinnedExecutor.execute(() -> {
+            pendingRequests.put(requestId, op);
+            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+            if (!checkStateAndSendRequest(op)) {
+                pendingRequests.remove(requestId);
+            }
+        });
         return callback;
     }
 
     void handleEndTxnResponse(CommandEndTxnResponse response) {
-        OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(response.getRequestId());
-        if (op == null) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Got end txn response for timeout {} - {}", response.getTxnidMostBits(),
-                        response.getTxnidLeastBits());
-            }
-            return;
-        }
-
-        if (!response.hasError()) {
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("Got end txn response success for request {}", response.getRequestId());
-            }
-            op.callback.complete(null);
+        final boolean hasError = response.hasError();
+        final ServerError error;
+        final String message;
+        if (hasError) {
+            error = response.getError();
+            message = response.getMessage();
         } else {
-            LOG.error("Got end txn response for request {} error {}", response.getRequestId(), response.getError());
-            handleTransactionFailOp(response.getError(), response.getMessage(), op);
+            error = null;
+            message = null;
         }
+        final TxnID txnID = new TxnID(response.getTxnidMostBits(), response.getTxnidLeastBits());
+        final long requestId = response.getRequestId();
+        internalPinnedExecutor.execute(() -> {
+            OpForVoidCallBack op = (OpForVoidCallBack) pendingRequests.remove(requestId);
+            if (op == null) {
+                    log.debug().attr("txn", txnID)
+                            .log("Got end txn response for transaction but no requests pending for txn");
+                return;
+            }
 
-        onResponse(op);
+            if (!hasError) {
+                    log.debug().attr("request", requestId)
+                            .attr("txn", txnID)
+                            .log("Got end txn response success for request, txn");
+                op.callback.complete(null);
+            } else {
+                if (checkIfNeedRetryByError(error, message, op)) {
+                        log.debug().attr("name", BaseCommand.Type.END_TXN.name())
+                                .attr("request", requestId)
+                                .log("Get a response for the request error"
+                                        + " TransactionCoordinatorNotFound"
+                                        + " and try it again");
+                    pendingRequests.put(requestId, op);
+                    timer.newTimeout(timeout -> {
+                                internalPinnedExecutor.execute(() -> {
+                                    if (!pendingRequests.containsKey(requestId)) {
+                                            log.debug().attr("request", requestId).log("The request already timeout");
+                                        return;
+                                    }
+                                    if (!checkStateAndSendRequest(op)) {
+                                        pendingRequests.remove(requestId);
+                                    }
+                                });
+                            }
+                            , op.backoff.next().toMillis(), TimeUnit.MILLISECONDS);
+                    return;
+                }
+                log.error().attr("name", BaseCommand.Type.END_TXN.name())
+                        .attr("request", requestId)
+                        .attr("transaction", txnID)
+                        .attr("error", error)
+                        .log("Got response for request, transaction, error");
+
+            }
+            onResponse(op);
+        });
     }
 
-    private void handleTransactionFailOp(ServerError error, String message, OpBase<?> op) {
-        if (error == ServerError.TransactionCoordinatorNotFound && getState() != State.Connecting) {
-            connectionHandler.reconnectLater(new TransactionCoordinatorClientException
-                    .CoordinatorNotFoundException(message));
+
+    private boolean checkIfNeedRetryByError(ServerError error, String message, OpBase<?> op) {
+        if (error == ServerError.TransactionCoordinatorNotFound) {
+            if (getState() != State.Connecting) {
+                connectionHandler.reconnectLater(new TransactionCoordinatorClientException
+                        .CoordinatorNotFoundException(message));
+            }
+            return true;
         }
 
         if (op != null) {
             op.callback.completeExceptionally(getExceptionByServerError(error, message));
         }
+        return false;
     }
 
-    private static abstract class OpBase<T> {
+    private abstract static class OpBase<T> {
         protected ByteBuf cmd;
         protected CompletableFuture<T> callback;
+        protected Backoff backoff;
+        protected String description;
+        protected ClientCnx clientCnx;
 
         abstract void recycle();
     }
 
     private static class OpForTxnIdCallBack extends OpBase<TxnID> {
 
-        static OpForTxnIdCallBack create(ByteBuf cmd, CompletableFuture<TxnID> callback) {
+        static OpForTxnIdCallBack create(ByteBuf cmd, CompletableFuture<TxnID> callback, PulsarClientImpl client,
+                                         String description, ClientCnx clientCnx) {
             OpForTxnIdCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
+            op.backoff = Backoff.builder()
+                    .initialDelay(Duration.ofNanos(client.getConfiguration()
+                            .getInitialBackoffIntervalNanos()))
+                    .maxBackoff(Duration.ofNanos(client.getConfiguration().getMaxBackoffIntervalNanos() / 10))
+                    .build();
+            op.description = description;
+            op.clientCnx = clientCnx;
             return op;
         }
 
@@ -375,6 +668,11 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
         @Override
         void recycle() {
+            this.backoff = null;
+            this.cmd = null;
+            this.callback = null;
+            this.description = null;
+            this.clientCnx = null;
             recyclerHandle.recycle(this);
         }
 
@@ -389,18 +687,33 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
 
     private static class OpForVoidCallBack extends OpBase<Void> {
 
-        static OpForVoidCallBack create(ByteBuf cmd, CompletableFuture<Void> callback) {
+
+        static OpForVoidCallBack create(ByteBuf cmd, CompletableFuture<Void> callback, PulsarClientImpl client,
+                                        String description, ClientCnx clientCnx) {
             OpForVoidCallBack op = RECYCLER.get();
             op.callback = callback;
             op.cmd = cmd;
+            op.backoff = Backoff.builder()
+                    .initialDelay(Duration.ofNanos(client.getConfiguration()
+                            .getInitialBackoffIntervalNanos()))
+                    .maxBackoff(Duration.ofNanos(client.getConfiguration().getMaxBackoffIntervalNanos() / 10))
+                    .build();
+            op.description = description;
+            op.clientCnx = clientCnx;
             return op;
         }
+
         private OpForVoidCallBack(Recycler.Handle<OpForVoidCallBack> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
         @Override
         void recycle() {
+            this.backoff = null;
+            this.cmd = null;
+            this.callback = null;
+            this.description = null;
+            this.clientCnx = null;
             recyclerHandle.recycle(this);
         }
 
@@ -433,9 +746,6 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
     }
 
     private boolean canSendRequest(CompletableFuture<?> callback) {
-        if (!isValidHandlerState(callback)) {
-            return false;
-        }
         try {
             if (blockIfReachMaxPendingOps) {
                 semaphore.acquire();
@@ -453,95 +763,143 @@ public class TransactionMetaStoreHandler extends HandlerState implements Connect
         return true;
     }
 
-    private boolean isValidHandlerState(CompletableFuture<?> callback) {
+    private boolean checkStateAndSendRequest(OpBase<?> op) {
         switch (getState()) {
             case Ready:
+                ClientCnx cnx = cnx();
+                if (cnx != null) {
+                    op.cmd.retain();
+                    cnx.ctx().writeAndFlush(op.cmd, cnx().ctx().voidPromise());
+                } else {
+                    log.error().exception(new NullPointerException())
+                            .log("The cnx was null when the TC handler was ready");
+                }
                 return true;
             case Connecting:
-                callback.completeExceptionally(
-                        new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
-                                "Transaction meta store handler for tcId "
-                                + transactionCoordinatorId
-                                + " is connecting now, please try later."));
-                return false;
+            case Uninitialized:
+                // Not connected yet, but the handler is (or will be) establishing the connection. For
+                // the metadata-store coordinator the partition leader is still being resolved via the
+                // assignment watch, so the handler can sit in Uninitialized briefly after the client is
+                // built. Leave the op queued in pendingRequests; it is retried from connectionOpened
+                // once the handler is Ready, and the operation-timeout sweep fails it if the connection
+                // never comes. Failing fast here would make a freshly-built client's first request
+                // race the asynchronous connect.
+                return true;
             case Closing:
             case Closed:
-                callback.completeExceptionally(
+                op.callback.completeExceptionally(
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "
                                         + transactionCoordinatorId
                                         + " is closing or closed."));
+                onResponse(op);
                 return false;
             case Failed:
-            case Uninitialized:
-                callback.completeExceptionally(
+                op.callback.completeExceptionally(
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "
                                         + transactionCoordinatorId
                                         + " not connected."));
+                onResponse(op);
                 return false;
             default:
-                callback.completeExceptionally(
+                op.callback.completeExceptionally(
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 transactionCoordinatorId));
+                onResponse(op);
                 return false;
         }
     }
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        if (timeout.isCancelled()) {
-            return;
-        }
-        long timeToWaitMs;
-        if (getState() == State.Closing || getState() == State.Closed) {
-            return;
-        }
-        RequestTime peeked = timeoutQueue.peek();
-        while (peeked != null && peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()
-                - System.currentTimeMillis() <= 0) {
-            RequestTime lastPolled = timeoutQueue.poll();
-            if (lastPolled != null) {
-                OpBase<?> op = pendingRequests.remove(lastPolled.requestId);
-                if (op != null && !op.callback.isDone()) {
-                    op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
-                            "Could not get response from transaction meta store within given timeout."));
-                    if (LOG.isDebugEnabled()) {
-                        LOG.debug("Transaction coordinator request {} is timeout.", lastPolled.requestId);
-                    }
-                    onResponse(op);
-                }
-            } else {
-                break;
+        internalPinnedExecutor.execute(() -> {
+            if (timeout.isCancelled()) {
+                return;
             }
-            peeked = timeoutQueue.peek();
-        }
+            long timeToWaitMs;
+            if (getState() == State.Closing || getState() == State.Closed) {
+                return;
+            }
+            RequestTime peeked = timeoutQueue.peek();
+            while (peeked != null && peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()
+                    - System.currentTimeMillis() <= 0) {
+                RequestTime lastPolled = timeoutQueue.poll();
+                if (lastPolled != null) {
+                    OpBase<?> op = pendingRequests.remove(lastPolled.requestId);
+                    if (op != null && !op.callback.isDone()) {
+                        op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
+                            String.format("%s failed due to timeout. connection: %s. pending-queue: %s",
+                                op.description, op.clientCnx, pendingRequests.size())));
+                            log.debug().attr("request", lastPolled.requestId)
+                                    .log("Transaction coordinator request is timeout.");
+                        onResponse(op);
+                    }
+                } else {
+                    break;
+                }
+                peeked = timeoutQueue.peek();
+            }
 
-        if (peeked == null) {
-            timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
-        } else {
-            long diff = (peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs()) - System.currentTimeMillis();
-            if (diff <= 0) {
+            if (peeked == null) {
                 timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
             } else {
-                timeToWaitMs = diff;
+                long diff = (peeked.creationTimeMs + client.getConfiguration().getOperationTimeoutMs())
+                        - System.currentTimeMillis();
+                if (diff <= 0) {
+                    timeToWaitMs = client.getConfiguration().getOperationTimeoutMs();
+                } else {
+                    timeToWaitMs = diff;
+                }
             }
-        }
-        requestTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+            requestTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+        });
     }
 
     private ClientCnx cnx() {
         return this.connectionHandler.cnx();
     }
 
+    /**
+     * Point this handler at a (possibly new) elected leader broker and reconnect. Called by the
+     * metadata-store discovery when an assignment snapshot moves this coordinator's leadership to a
+     * different broker. If the leader and proxy-mode are unchanged and the handler is already
+     * connected, this is a no-op; otherwise it (re)connects to the new leader.
+     */
+    public void retargetLeader(URI newLeaderUri, boolean newUseProxy) {
+        if (newLeaderUri.equals(this.leaderUri) && newUseProxy == this.useProxy && cnx() != null) {
+            return;
+        }
+        this.leaderUri = newLeaderUri;
+        this.useProxy = newUseProxy;
+        ClientCnx current = cnx();
+        if (current != null) {
+            // Drop the current connection; connectionClosed re-grabs against the new leader.
+            current.channel().close();
+        } else {
+            connectionHandler.grabCnx(newLeaderUri, newUseProxy);
+        }
+    }
+
     void connectionClosed(ClientCnx cnx) {
-        this.connectionHandler.connectionClosed(cnx);
+        if (leaderUri != null) {
+            // Metadata-store discovery: reconnect to the elected leader (via the proxy if needed),
+            // not the configured service URL. useProxy is preserved on the ConnectionHandler.
+            this.connectionHandler.connectionClosed(cnx, Optional.empty(), Optional.of(leaderUri));
+        } else {
+            this.connectionHandler.connectionClosed(cnx);
+        }
     }
 
     @Override
     public void close() throws IOException {
         this.requestTimeout.cancel();
         this.setState(State.Closed);
+    }
+
+    @VisibleForTesting
+    int getPendingRequestsCount() {
+        return (int) pendingRequests.size();
     }
 
     @VisibleForTesting

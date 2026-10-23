@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.instance.state;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
@@ -29,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.options.Options;
 import org.apache.pulsar.functions.api.StateStoreContext;
+import org.apache.pulsar.functions.api.state.StateValue;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
 /**
@@ -115,9 +115,10 @@ public class BKStateStoreImpl implements DefaultStateStore {
 
     @Override
     public CompletableFuture<Void> putAsync(String key, ByteBuffer value) {
-        if(value != null) {
+        if (value != null) {
             // Set position to off the buffer to the beginning.
-            // If a user used an operation like ByteBuffer.allocate(4).putInt(count) to create a ByteBuffer to store to the state store
+            // If a user used an operation like ByteBuffer.allocate(4).putInt(count)
+            // to create a ByteBuffer to store to the state store
             // the position of the buffer will be at the end and nothing will be written to table service
             value.position(0);
             return table.put(
@@ -164,8 +165,10 @@ public class BKStateStoreImpl implements DefaultStateStore {
                         if (data != null) {
                             ByteBuffer result = ByteBuffer.allocate(data.readableBytes());
                             data.readBytes(result);
-                            // Set position to off the buffer to the beginning, since the position after the read is going to be end of the buffer
-                            // If we do not rewind to the begining here, users will have to explicitly do this in their function code
+                            // Set position to off the buffer to the beginning, since the position after the
+                            // read is going to be end of the buffer
+                            // If we do not rewind to the beginning here, users will have to explicitly do
+                            // this in their function code
                             // in order to use any of the ByteBuffer operations
                             result.position(0);
                             return result;
@@ -187,5 +190,34 @@ public class BKStateStoreImpl implements DefaultStateStore {
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'", e);
         }
+    }
+
+    @Override
+    public StateValue getStateValue(String key) {
+        try {
+            return result(getStateValueAsync(key));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'", e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<StateValue> getStateValueAsync(String key) {
+        return table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))).thenApply(
+                data -> {
+                    try {
+                        if (data != null && data.value() != null && data.value().readableBytes() >= 0) {
+                            byte[] result = new byte[data.value().readableBytes()];
+                            data.value().readBytes(result);
+                            return new StateValue(result, data.version(), data.isNumber());
+                        }
+                        return null;
+                    } finally {
+                        if (data != null) {
+                            ReferenceCountUtil.safeRelease(data);
+                        }
+                    }
+                }
+        );
     }
 }

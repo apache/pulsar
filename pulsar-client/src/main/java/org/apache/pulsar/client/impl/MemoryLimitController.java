@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,52 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import lombok.CustomLog;
 
+@CustomLog
 public class MemoryLimitController {
 
     private final long memoryLimit;
+    private final long triggerThreshold;
+    private final CopyOnWriteArraySet<Runnable> triggers = new CopyOnWriteArraySet<>();
     private final AtomicLong currentUsage = new AtomicLong();
     private final ReentrantLock mutex = new ReentrantLock(false);
     private final Condition condition = mutex.newCondition();
+    private final AtomicBoolean triggerRunning = new AtomicBoolean(false);
 
     public MemoryLimitController(long memoryLimitBytes) {
+        this(memoryLimitBytes, 0);
+    }
+
+    public MemoryLimitController(long memoryLimitBytes, long triggerThreshold) {
         this.memoryLimit = memoryLimitBytes;
+        this.triggerThreshold = triggerThreshold;
+    }
+
+    public MemoryLimitController(long memoryLimitBytes, long triggerThreshold, Runnable trigger) {
+        this(memoryLimitBytes, triggerThreshold);
+        this.triggers.add(trigger);
+    }
+
+    public void forceReserveMemory(long size) {
+        checkPositive(size);
+        if (size == 0) {
+            return;
+        }
+        long newUsage = currentUsage.addAndGet(size);
+        checkTrigger(newUsage - size, newUsage);
     }
 
     public boolean tryReserveMemory(long size) {
+        checkPositive(size);
+        if (size == 0) {
+            return true;
+        }
         while (true) {
             long current = currentUsage.get();
             long newUsage = current + size;
@@ -45,12 +75,40 @@ public class MemoryLimitController {
             }
 
             if (currentUsage.compareAndSet(current, newUsage)) {
+                checkTrigger(current, newUsage);
                 return true;
             }
         }
     }
 
+    private static void checkPositive(long memorySize) {
+        if (memorySize < 0) {
+            String errorMsg = String.format("Try to reserve/release memory failed, the param memorySize"
+                    + " is a negative value: %s", memorySize);
+            log.error(errorMsg);
+            throw new IllegalArgumentException(errorMsg);
+        }
+    }
+
+    private void checkTrigger(long prevUsage, long newUsage) {
+        if (newUsage >= triggerThreshold && prevUsage < triggerThreshold && !triggers.isEmpty()) {
+            if (triggerRunning.compareAndSet(false, true)) {
+                try {
+                    for (Runnable trigger : triggers) {
+                        trigger.run();
+                    }
+                } finally {
+                    triggerRunning.set(false);
+                }
+            }
+        }
+    }
+
     public void reserveMemory(long size) throws InterruptedException {
+        checkPositive(size);
+        if (size == 0) {
+            return;
+        }
         if (!tryReserveMemory(size)) {
             mutex.lock();
             try {
@@ -64,9 +122,13 @@ public class MemoryLimitController {
     }
 
     public void releaseMemory(long size) {
+        checkPositive(size);
+        if (size == 0) {
+            return;
+        }
         long newUsage = currentUsage.addAndGet(-size);
-        if (newUsage + size > memoryLimit &&
-                newUsage <= memoryLimit) {
+        if (newUsage + size > memoryLimit
+                && newUsage <= memoryLimit) {
             // We just crossed the limit. Now we have more space
             mutex.lock();
             try {
@@ -79,5 +141,28 @@ public class MemoryLimitController {
 
     public long currentUsage() {
         return currentUsage.get();
+    }
+
+    public double currentUsagePercent() {
+        if (!isMemoryLimited()) {
+            return 0.0;
+        }
+        return 1.0 * currentUsage.get() / memoryLimit;
+    }
+
+    public boolean isMemoryLimited() {
+        return memoryLimit > 0;
+    }
+
+    public long memoryLimit() {
+        return memoryLimit;
+    }
+
+    public void registerTrigger(Runnable trigger) {
+        triggers.add(trigger);
+    }
+
+    public void deregisterTrigger(Runnable trigger) {
+        triggers.remove(trigger);
     }
 }

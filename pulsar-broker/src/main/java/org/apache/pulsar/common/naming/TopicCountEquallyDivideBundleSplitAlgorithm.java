@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,7 +30,9 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 public class TopicCountEquallyDivideBundleSplitAlgorithm implements NamespaceBundleSplitAlgorithm  {
 
     @Override
-    public CompletableFuture<Long> getSplitBoundary(NamespaceService service, NamespaceBundle bundle) {
+    public CompletableFuture<List<Long>> getSplitBoundary(BundleSplitOption bundleSplitOption) {
+        NamespaceService service = bundleSplitOption.getService();
+        NamespaceBundle bundle = bundleSplitOption.getBundle();
         return service.getOwnedTopicListForNamespaceBundle(bundle).thenCompose(topics -> {
             if (topics == null || topics.size() <= 1) {
                 return CompletableFuture.completedFuture(null);
@@ -43,7 +45,7 @@ public class TopicCountEquallyDivideBundleSplitAlgorithm implements NamespaceBun
             long splitStart = topicNameHashList.get(Math.max((topicNameHashList.size() / 2) - 1, 0));
             long splitEnd = topicNameHashList.get(topicNameHashList.size() / 2);
             long splitMiddle = splitStart + (splitEnd - splitStart) / 2;
-            return CompletableFuture.completedFuture(splitMiddle);
+            return CompletableFuture.completedFuture(Collections.singletonList(splitMiddle));
         });
     }
 }

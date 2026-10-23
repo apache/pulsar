@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -51,10 +51,6 @@ public class CompactorMXBeanImpl implements CompactorMXBean {
 
     public Set<String> getTopics() {
         return compactionRecordOps.keySet();
-    }
-
-    public void reset() {
-        compactionRecordOps.values().forEach(CompactionRecord::reset);
     }
 
     public void addCompactionReadOp(String topic, long readableBytes) {

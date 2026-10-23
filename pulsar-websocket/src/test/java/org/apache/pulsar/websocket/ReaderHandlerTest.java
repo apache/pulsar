@@ -1,0 +1,317 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.websocket;
+
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
+import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsConsumerImpl;
+import org.apache.pulsar.client.impl.MultiTopicsReaderImpl;
+import org.apache.pulsar.client.impl.ReaderImpl;
+import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
+import org.testng.Assert;
+import org.testng.annotations.Test;
+
+public class ReaderHandlerTest {
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testInvalidMessageIdBase64ReturnsBadRequest() throws IOException {
+        WebSocketService wss = mock(WebSocketService.class);
+        PulsarClient mockedClient = mock(PulsarClient.class);
+        when(wss.getPulsarClient()).thenReturn(mockedClient);
+        ReaderBuilder<byte[]> mockedReaderBuilder = mock(ReaderBuilder.class);
+        when(mockedClient.newReader()).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.topic(any())).thenReturn(mockedReaderBuilder);
+        // Ensure the chain doesn't NPE after startMessageId() if parsing unexpectedly succeeds.
+        when(mockedReaderBuilder.startMessageId(any())).thenReturn(mockedReaderBuilder);
+
+        Map<String, String[]> params = new HashMap<>();
+        params.put("messageId", new String[] { "invalidMessageId" });
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
+        when(request.getParameterMap()).thenReturn(params);
+
+        JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
+        new ReaderHandler(wss, request, servletUpgradeResponse);
+
+        verify(servletUpgradeResponse, times(1))
+                .sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testInvalidMessageIdBytesReturnsBadRequest() throws IOException {
+        WebSocketService wss = mock(WebSocketService.class);
+        PulsarClient mockedClient = mock(PulsarClient.class);
+        when(wss.getPulsarClient()).thenReturn(mockedClient);
+        ReaderBuilder<byte[]> mockedReaderBuilder = mock(ReaderBuilder.class);
+        when(mockedClient.newReader()).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.topic(any())).thenReturn(mockedReaderBuilder);
+        // Ensure the chain doesn't NPE after startMessageId() if parsing unexpectedly succeeds.
+        when(mockedReaderBuilder.startMessageId(any())).thenReturn(mockedReaderBuilder);
+
+        // "AQID" is valid Base64, but it doesn't decode into a valid Pulsar MessageId structure.
+        Map<String, String[]> params = new HashMap<>();
+        params.put("messageId", new String[] { "AQID" });
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
+        when(request.getParameterMap()).thenReturn(params);
+
+        JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
+        new ReaderHandler(wss, request, servletUpgradeResponse);
+
+        verify(servletUpgradeResponse, times(1))
+                .sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testInvalidMessageIdRuntimeParseFailureReturnsBadRequest() throws IOException {
+        WebSocketService wss = mock(WebSocketService.class);
+        PulsarClient mockedClient = mock(PulsarClient.class);
+        when(wss.getPulsarClient()).thenReturn(mockedClient);
+        ReaderBuilder<byte[]> mockedReaderBuilder = mock(ReaderBuilder.class);
+        when(mockedClient.newReader()).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.topic(any())).thenReturn(mockedReaderBuilder);
+        // Ensure the chain doesn't NPE after startMessageId() if parsing unexpectedly succeeds.
+        when(mockedReaderBuilder.startMessageId(any())).thenReturn(mockedReaderBuilder);
+
+        MessageIdData invalidBatchMessageId = new MessageIdData()
+                .setLedgerId(1)
+                .setEntryId(2)
+                .setBatchIndex(0)
+                .setBatchSize(-1);
+        Map<String, String[]> params = new HashMap<>();
+        params.put("messageId", new String[] {
+                Base64.getEncoder().encodeToString(invalidBatchMessageId.toByteArray()) });
+
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
+        when(request.getParameterMap()).thenReturn(params);
+
+        JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
+        new ReaderHandler(wss, request, servletUpgradeResponse);
+
+        verify(servletUpgradeResponse, times(1))
+                .sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testCreateReaderImp() throws IOException {
+        final String subName = "readerImpSubscription";
+        // mock data
+        WebSocketService wss = mock(WebSocketService.class);
+        PulsarClient mockedClient = mock(PulsarClient.class);
+        when(wss.getPulsarClient()).thenReturn(mockedClient);
+        ReaderBuilder<byte[]> mockedReaderBuilder = mock(ReaderBuilder.class);
+        when(mockedClient.newReader()).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.topic(any())).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.startMessageId(any())).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.receiverQueueSize(anyInt())).thenReturn(mockedReaderBuilder);
+        ReaderImpl<byte[]> mockedReader = mock(ReaderImpl.class);
+        when(mockedReaderBuilder.create()).thenReturn(mockedReader);
+        ConsumerImpl<byte[]> consumerImp = mock(ConsumerImpl.class);
+        when(consumerImp.getSubscription()).thenReturn(subName);
+        when(mockedReader.getConsumer()).thenReturn(consumerImp);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
+        // create reader handler
+        JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
+        ReaderHandler readerHandler = new ReaderHandler(wss, request, servletUpgradeResponse);
+        // verify success
+        Assert.assertEquals(readerHandler.getSubscription(), subName);
+        // Verify consumer is returned
+        readerHandler.getConsumer();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testCreateMultipleTopicReaderImp() throws IOException {
+        final String subName = "multipleTopicReaderImpSubscription";
+        // mock data
+        WebSocketService wss = mock(WebSocketService.class);
+        PulsarClient mockedClient = mock(PulsarClient.class);
+        when(wss.getPulsarClient()).thenReturn(mockedClient);
+        ReaderBuilder<byte[]> mockedReaderBuilder = mock(ReaderBuilder.class);
+        when(mockedClient.newReader()).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.topic(any())).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.startMessageId(any())).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.receiverQueueSize(anyInt())).thenReturn(mockedReaderBuilder);
+        MultiTopicsReaderImpl<byte[]> mockedReader = mock(MultiTopicsReaderImpl.class);
+        when(mockedReaderBuilder.create()).thenReturn(mockedReader);
+        MultiTopicsConsumerImpl<byte[]> consumerImp = mock(MultiTopicsConsumerImpl.class);
+        when(consumerImp.getSubscription()).thenReturn(subName);
+        when(mockedReader.getMultiTopicsConsumer()).thenReturn(consumerImp);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
+        // create reader handler
+        JettyServerUpgradeResponse servletUpgradeResponse = mock(JettyServerUpgradeResponse.class);
+        ReaderHandler readerHandler = new ReaderHandler(wss, request, servletUpgradeResponse);
+        // verify success
+        Assert.assertEquals(readerHandler.getSubscription(), subName);
+        // Verify consumer is successfully returned
+        readerHandler.getConsumer();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testCreateIllegalReaderImp() throws IOException {
+        // mock data
+        WebSocketService wss = mock(WebSocketService.class);
+        PulsarClient mockedClient = mock(PulsarClient.class);
+        when(wss.getPulsarClient()).thenReturn(mockedClient);
+        ReaderBuilder<byte[]> mockedReaderBuilder = mock(ReaderBuilder.class);
+        when(mockedClient.newReader()).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.topic(any())).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.startMessageId(any())).thenReturn(mockedReaderBuilder);
+        when(mockedReaderBuilder.receiverQueueSize(anyInt())).thenReturn(mockedReaderBuilder);
+        IllegalReader illegalReader = new IllegalReader();
+        when(mockedReaderBuilder.create()).thenReturn(illegalReader);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+        when(request.getRequestURI()).thenReturn("/ws/v2/reader/persistent/my-property/my-ns/my-topic");
+        // create reader handler
+        JettyServerUpgradeResponse servletUpgradeResponse = spy(JettyServerUpgradeResponse.class);
+        new ReaderHandler(wss, request, servletUpgradeResponse);
+        // verify get error
+        verify(servletUpgradeResponse, times(1)).sendError(anyInt(), anyString());
+    }
+
+
+    static class IllegalReader implements Reader<byte[]> {
+
+        @Override
+        public String getTopic() {
+            return null;
+        }
+
+        @Override
+        public Message<byte[]> readNext() throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public Message<byte[]> readNext(int timeout, TimeUnit unit) throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Message<byte[]>> readNextAsync() {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> closeAsync() {
+            return null;
+        }
+
+        @Override
+        public boolean hasReachedEndOfTopic() {
+            return false;
+        }
+
+        @Override
+        public boolean hasMessageAvailable() {
+            return false;
+        }
+
+        @Override
+        public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+            return null;
+        }
+
+        @Override
+        public boolean isConnected() {
+            return false;
+        }
+
+        @Override
+        public void seek(MessageId messageId) throws PulsarClientException {
+
+        }
+
+        @Override
+        public void seek(long timestamp) throws PulsarClientException {
+
+        }
+
+        @Override
+        public void seek(Function<String, Object> function) throws PulsarClientException {
+
+        }
+
+        @Override
+        public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> seekAsync(MessageId messageId) {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<Void> seekAsync(long timestamp) {
+            return null;
+        }
+
+        @Override
+        public void close() throws IOException {
+
+        }
+
+        @Override
+        public List<TopicMessageId> getLastMessageIds() throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public CompletableFuture<List<TopicMessageId>> getLastMessageIdsAsync() {
+            return null;
+        }
+    }
+}

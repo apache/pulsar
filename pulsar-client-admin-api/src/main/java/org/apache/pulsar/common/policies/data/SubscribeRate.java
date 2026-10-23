@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,14 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.Objects;
+import lombok.SneakyThrows;
 import lombok.ToString;
 
 /**
  * Information about subscription rate.
  */
 @ToString
-public class SubscribeRate {
+public class SubscribeRate implements Cloneable {
 
     public int subscribeThrottlingRatePerConsumer = -1;
     public int ratePeriodInSecond = 30;
@@ -36,6 +37,22 @@ public class SubscribeRate {
     public SubscribeRate(int subscribeThrottlingRatePerConsumer, int ratePeriodInSecond) {
         this.subscribeThrottlingRatePerConsumer = subscribeThrottlingRatePerConsumer;
         this.ratePeriodInSecond = ratePeriodInSecond;
+    }
+
+    public static SubscribeRate normalize(SubscribeRate subscribeRate) {
+        if (subscribeRate != null
+            && subscribeRate.subscribeThrottlingRatePerConsumer > 0
+            && subscribeRate.ratePeriodInSecond > 0) {
+            return subscribeRate;
+        } else {
+            return null;
+        }
+    }
+
+    @SneakyThrows
+    @Override
+    protected SubscribeRate clone() {
+        return SubscribeRate.class.cast(super.clone());
     }
 
     @Override

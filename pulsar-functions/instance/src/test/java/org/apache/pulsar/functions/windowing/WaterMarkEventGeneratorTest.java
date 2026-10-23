@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,28 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.windowing;
 
-import org.apache.pulsar.functions.api.Context;
-import org.mockito.Mockito;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import org.apache.pulsar.functions.api.Context;
+import org.mockito.Mockito;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
- * Unit tests for {@link WaterMarkEventGenerator}
+ * Unit tests for {@link WaterMarkEventGenerator}.
  */
 public class WaterMarkEventGeneratorTest {
     private WaterMarkEventGenerator<Integer> waterMarkEventGenerator;
@@ -66,7 +63,7 @@ public class WaterMarkEventGeneratorTest {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
-//        waterMarkEventGenerator.shutdown();
+        waterMarkEventGenerator.shutdown();
         eventList.clear();
     }
 

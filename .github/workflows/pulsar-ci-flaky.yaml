@@ -1,0 +1,263 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+name: Pulsar CI Flaky
+on:
+  pull_request:
+    branches:
+      - master
+      - branch-*
+      - pulsar-*
+  schedule:
+    # scheduled job with JDK 25
+    - cron: '0 12 * * *'
+    # scheduled job with JDK 21
+    # if cron expression is changed, make sure to update the expression in jdk_major_version step in preconditions job
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      collect_coverage:
+        description: 'Collect test coverage and upload to Codecov'
+        required: true
+        type: boolean
+        default: true
+      jdk_major_version:
+        description: 'JDK major version to use for the build'
+        required: true
+        type: choice
+        options:
+          - '25'
+          - '21'
+          - '26'
+        default: '25'
+      trace_test_resource_cleanup:
+        description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
+        required: true
+        type: choice
+        options:
+          - 'off'
+          - 'on'
+          - 'full'
+        default: 'off'
+      thread_leak_detector_wait_millis:
+        description: 'Duration in ms to wait for threads to exit in thread leak detection between test classes. It is necessary to wait for threads to complete before they are determined to be leaked threads.'
+        required: true
+        type: number
+        default: 10000
+      netty_leak_detection:
+        description: 'Controls Netty leak detection. When set to "report", Netty leak detection is enabled. When set to "fail_on_leak", Netty leak detection is enabled and a build job will fail if leaks are detected. When set to "off", Netty leak detection is disabled.'
+        required: true
+        type: choice
+        options:
+          - 'report'
+          - 'fail_on_leak'
+          - 'off'
+        default: 'report'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '' }}
+  cancel-in-progress: true
+
+env:
+  CI_ENABLE_SSH: ${{ vars.CI_ENABLE_SSH }}
+  # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
+  # it's possible to rerun individual failed jobs when the build artifacts are available
+  # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
+  ARTIFACT_RETENTION_DAYS: 3
+  JDK_DISTRIBUTION: corretto
+
+# Do not depend on the repository or enterprise default token permissions.
+permissions:
+  contents: read
+
+jobs:
+  preconditions:
+    permissions:
+      contents: read
+      pull-requests: read # List changed files and check whether the PR is ready.
+      actions: write # Cancel scheduled runs in forks.
+    name: Preconditions
+    runs-on: ubuntu-24.04
+    outputs:
+      docs_only: ${{ steps.check_changes.outputs.docs_only }}
+      changed_tests: ${{ steps.changes.outputs.tests_files }}
+      need_owasp: ${{ steps.changes.outputs.need_owasp }}
+      collect_coverage: ${{ steps.check_coverage.outputs.collect_coverage }}
+      jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
+      java_non_tests: ${{ steps.changes.outputs.java_non_tests }}
+      netty_leak_detection: ${{ steps.netty_leak_detection.outputs.netty_leak_detection }}
+    steps:
+      - name: Cancel scheduled jobs in forks by default
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.actions.cancelWorkflowRun({owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId});
+            process.exit(1);
+
+      - name: Select JDK major version
+        id: jdk_major_version
+        run: |
+          # use JDK 21 for the scheduled build with cron expression '0 6 * * *'
+          if [[ "${{ github.event_name == 'schedule' && github.event.schedule == '0 6 * * *' && 'true' || 'false' }}" == "true" ]]; then
+            echo "jdk_major_version=21" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # use JDK 25 for build unless overridden with workflow_dispatch input
+          echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '25'}}" >> $GITHUB_OUTPUT
+
+      - name: checkout
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/checkout@v6
+
+      - name: Detect changed files
+        if: ${{ github.event_name == 'pull_request' }}
+        id:   changes
+        uses: apache/pulsar-test-infra/paths-filter@master
+        with:
+          filters: .github/changes-filter.yaml
+          list-files: csv
+
+      - name: Check changed files
+        if: ${{ github.event_name == 'pull_request' }}
+        id: check_changes
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]]; then
+            echo "docs_only=${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}" >> $GITHUB_OUTPUT
+          else
+            echo docs_only=false >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check if the PR is ready for running CI
+        if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/check-pr-ready-to-test
+
+      - name: Check if coverage should be collected
+        id: check_coverage
+        run: |
+          echo "collect_coverage=${{
+          (steps.check_changes.outputs.docs_only != 'true' && github.event_name != 'workflow_dispatch'
+            && (github.base_ref == 'master' || github.ref_name == 'master'))
+          || (github.event_name == 'workflow_dispatch' && github.event.inputs.collect_coverage == 'true')
+          }}"  >> $GITHUB_OUTPUT
+
+      - name: Set Netty leak detection mode
+        id: netty_leak_detection
+        run: |
+          echo "netty_leak_detection=${{
+          github.event_name == 'workflow_dispatch' && github.event.inputs.netty_leak_detection || 'report'
+          }}" >> $GITHUB_OUTPUT
+
+  build-and-test:
+    needs: preconditions
+    name: Flaky tests suite
+    env:
+      JOB_NAME: Flaky tests suite
+      COLLECT_COVERAGE: "${{ needs.preconditions.outputs.collect_coverage }}"
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      TRACE_TEST_RESOURCE_CLEANUP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trace_test_resource_cleanup || 'off' }}
+      TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/build/trace-test-resource-cleanup
+      THREAD_LEAK_DETECTOR_WAIT_MILLIS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.thread_leak_detector_wait_millis || 10000 }}
+      THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/build/thread-leak-dumps
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/build/netty-leak-dumps
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v6
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk when tracing test resource cleanup
+        if: ${{ env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
+        uses: ./.github/actions/clean-disk
+
+      - name: Setup ssh access to build runner VM
+        # ssh access is enabled for builds in own forks
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
+        uses: ./.github/actions/ssh-access
+        continue-on-error: true
+        with:
+          limit-access-to-actor: true
+
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
+        with:
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          cache-read-only: false
+
+      - name: Run unit test group BROKER_FLAKY
+        run: |
+          CHANGED_TESTS="${{ needs.preconditions.outputs.tests_files }}" ./pulsar-build/run_unit_group_gradle.sh BROKER_FLAKY
+
+      - name: print JVM thread dumps when cancelled
+        if: cancelled()
+        run: $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh print_thread_dumps
+
+      - name: Aggregate test reports to ./test-reports directory
+        if: ${{ always() }}
+        uses: ./.github/actions/copy-test-reports
+
+      - name: Report detected thread leaks
+        if: ${{ always() }}
+        run: |
+          if [ -d "$THREAD_LEAK_DETECTOR_DIR" ]; then
+            cd "$THREAD_LEAK_DETECTOR_DIR"
+            cat threadleak*.txt | awk '/^Summary:/ {print "::warning::" $0 "\n"; next} {print}'
+          fi
+
+      - name: Report detected Netty leaks
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
+        run: $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh report_netty_leaks
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v7
+        if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
+        with:
+          name: Unit-BROKER_FLAKY-test-reports
+          path: |
+            test-reports/
+            **/build/reports/tests/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload possible heap dump, core dump or crash files
+        uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: Unit-BROKER_FLAKY-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
+            build/threaddumps/
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
+            ${{ env.TRACE_TEST_RESOURCE_CLEANUP_DIR }}/*
+            ${{ env.THREAD_LEAK_DETECTOR_DIR }}/*
+          retention-days: 7
+          if-no-files-found: ignore

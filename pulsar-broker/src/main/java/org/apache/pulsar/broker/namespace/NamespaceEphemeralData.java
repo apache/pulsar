@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,24 @@
  */
 package org.apache.pulsar.broker.namespace;
 
-import com.google.common.collect.Maps;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
-import javax.validation.constraints.NotNull;
+import lombok.Data;
 import lombok.EqualsAndHashCode;
-import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.ToString;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
+import org.jspecify.annotations.NonNull;
 
-@Getter
+@Data
 @NoArgsConstructor
-@EqualsAndHashCode
-@ToString
 public class NamespaceEphemeralData {
+    // The brokerId field was added later. During a rolling upgrade, entries written by older brokers may not
+    // contain it (LookupResult derives it from the URL host:port in that case). Exclude it from equals/hashCode
+    // so that consumers of this object do not see spurious "changed" notifications when the same logical owner
+    // transitions from a missing brokerId to a populated one.
+    @EqualsAndHashCode.Exclude
+    private String brokerId;
     private String nativeUrl;
     private String nativeUrlTls;
     private String httpUrl;
@@ -40,29 +43,31 @@ public class NamespaceEphemeralData {
     private boolean disabled;
     private Map<String, AdvertisedListener> advertisedListeners;
 
-    public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
-            boolean disabled) {
-        this(brokerUrl, brokerUrlTls, httpUrl, httpUrlTls, disabled, null);
+    public NamespaceEphemeralData(String brokerId, String brokerUrl, String brokerUrlTls, String httpUrl,
+                                  String httpUrlTls, boolean disabled) {
+        this(brokerId, brokerUrl, brokerUrlTls, httpUrl, httpUrlTls, disabled, null);
     }
 
-    public NamespaceEphemeralData(String brokerUrl, String brokerUrlTls, String httpUrl, String httpUrlTls,
-                                  boolean disabled, Map<String, AdvertisedListener> advertisedListeners) {
+    public NamespaceEphemeralData(String brokerId, String brokerUrl, String brokerUrlTls, String httpUrl,
+                                  String httpUrlTls, boolean disabled,
+                                  Map<String, AdvertisedListener> advertisedListeners) {
+        this.brokerId = brokerId;
         this.nativeUrl = brokerUrl;
         this.nativeUrlTls = brokerUrlTls;
         this.httpUrl = httpUrl;
         this.httpUrlTls = httpUrlTls;
         this.disabled = disabled;
         if (advertisedListeners == null) {
-            this.advertisedListeners = Collections.EMPTY_MAP;
+            this.advertisedListeners = Collections.emptyMap();
         } else {
-            this.advertisedListeners = Maps.newHashMap(advertisedListeners);
+            this.advertisedListeners = new HashMap<>(advertisedListeners);
         }
     }
 
-    @NotNull
+    @NonNull
     public Map<String, AdvertisedListener> getAdvertisedListeners() {
         if (this.advertisedListeners == null) {
-            return Collections.EMPTY_MAP;
+            return Collections.emptyMap();
         }
         return Collections.unmodifiableMap(this.advertisedListeners);
     }

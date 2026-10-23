@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,15 @@
 package org.apache.pulsar.common.policies.data.stats;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.HashMap;
+import java.util.Map;
 import lombok.Getter;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentPartitionedTopicStats;
 
-import java.util.HashMap;
-import java.util.Map;
-
 /**
  * Statistics for a non-persistent partitioned topic.
+ * This class is not thread-safe.
  */
 @SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
 public class NonPersistentPartitionedTopicStatsImpl extends NonPersistentTopicStatsImpl

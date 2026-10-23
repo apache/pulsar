@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.windowing;
 
 import com.google.gson.Gson;
-
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collection;
@@ -27,16 +26,15 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
-
-import lombok.extern.slf4j.Slf4j;
-
+import lombok.CustomLog;
+import net.jodah.typetools.TypeResolver;
+import org.apache.pulsar.common.functions.WindowConfig;
+import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.api.WindowContext;
 import org.apache.pulsar.functions.api.WindowFunction;
-import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.windowing.evictors.CountEvictionPolicy;
 import org.apache.pulsar.functions.windowing.evictors.TimeEvictionPolicy;
 import org.apache.pulsar.functions.windowing.evictors.WatermarkCountEvictionPolicy;
@@ -46,29 +44,28 @@ import org.apache.pulsar.functions.windowing.triggers.TimeTriggerPolicy;
 import org.apache.pulsar.functions.windowing.triggers.WatermarkCountTriggerPolicy;
 import org.apache.pulsar.functions.windowing.triggers.WatermarkTimeTriggerPolicy;
 
-import net.jodah.typetools.TypeResolver;
-
-@Slf4j
-public class WindowFunctionExecutor<I, O> implements Function<I, O> {
+@CustomLog
+public class WindowFunctionExecutor<T, X> implements Function<T, X> {
 
     private boolean initialized;
     protected WindowConfig windowConfig;
-    private WindowManager<Record<I>> windowManager;
-    private TimestampExtractor<I> timestampExtractor;
-    protected transient WaterMarkEventGenerator<Record<I>> waterMarkEventGenerator;
+    private WindowManager<Record<T>> windowManager;
+    private TimestampExtractor<T> timestampExtractor;
+    protected transient WaterMarkEventGenerator<Record<T>> waterMarkEventGenerator;
 
-    protected java.util.function.Function<Collection<I>, O> bareWindowFunction;
-    protected WindowFunction<I, O> windowFunction;
+    protected java.util.function.Function<Collection<T>, X> bareWindowFunction;
+    protected WindowFunction<T, X> windowFunction;
 
     public void initialize(Context context) {
         this.windowConfig = this.getWindowConfigs(context);
         initializeUserFunction(this.windowConfig);
-        log.info("Window Config: {}", this.windowConfig);
+        log.info().attr("windowConfig", this.windowConfig).log("Window Config");
         this.windowManager = this.getWindowManager(this.windowConfig, context);
         this.initialized = true;
         this.start();
     }
 
+    @SuppressWarnings("unchecked")
     private void initializeUserFunction(WindowConfig windowConfig) {
         String actualWindowFunctionClassName = windowConfig.getActualWindowFunctionClassName();
         ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
@@ -79,12 +76,12 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
             Class<?>[] typeArgs = TypeResolver.resolveRawArguments(
                     java.util.function.Function.class, userClassObject.getClass());
             if (typeArgs[0].equals(Collection.class)) {
-                bareWindowFunction = (java.util.function.Function) userClassObject;
+                bareWindowFunction = (java.util.function.Function<Collection<T>, X>) userClassObject;
             } else {
                 throw new IllegalArgumentException("Window function must take a collection as input");
             }
         } else if (userClassObject instanceof WindowFunction) {
-            windowFunction = (WindowFunction) userClassObject;
+            windowFunction = (WindowFunction<T, X>) userClassObject;
         } else {
             throw new IllegalArgumentException("Window function does not implement the correct interface");
         }
@@ -102,10 +99,10 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         return windowConfig;
     }
 
-    private WindowManager<Record<I>> getWindowManager(WindowConfig windowConfig, Context context) {
+    private WindowManager<Record<T>> getWindowManager(WindowConfig windowConfig, Context context) {
 
-        WindowLifecycleListener<Event<Record<I>>> lifecycleListener = newWindowLifecycleListener(context);
-        WindowManager<Record<I>> manager = new WindowManager<>(lifecycleListener, new ConcurrentLinkedQueue<>());
+        WindowLifecycleListener<Event<Record<T>>> lifecycleListener = newWindowLifecycleListener(context);
+        WindowManager<Record<T>> manager = new WindowManager<>(lifecycleListener, new ConcurrentLinkedQueue<>());
 
         if (this.windowConfig.getTimestampExtractorClassName() != null) {
             this.timestampExtractor = getTimeStampExtractor(windowConfig);
@@ -120,8 +117,8 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
             }
         }
 
-        EvictionPolicy<Record<I>, ?> evictionPolicy = getEvictionPolicy(windowConfig);
-        TriggerPolicy<Record<I>, ?> triggerPolicy = getTriggerPolicy(windowConfig, manager,
+        EvictionPolicy<Record<T>, ?> evictionPolicy = getEvictionPolicy(windowConfig);
+        TriggerPolicy<Record<T>, ?> triggerPolicy = getTriggerPolicy(windowConfig, manager,
                 evictionPolicy, context);
         manager.setEvictionPolicy(evictionPolicy);
         manager.setTriggerPolicy(triggerPolicy);
@@ -129,7 +126,8 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         return manager;
     }
 
-    private TimestampExtractor<I> getTimeStampExtractor(WindowConfig windowConfig) {
+    @SuppressWarnings("unchecked")
+    private TimestampExtractor<T> getTimeStampExtractor(WindowConfig windowConfig) {
 
         Class<?> theCls;
         try {
@@ -164,11 +162,11 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
                             + " function type = " + typeArgs[0] + ", timestamp extractor type = "
                             + timestampExtractorTypeArgs[0]);
         }
-        return (TimestampExtractor<I>) result;
+        return (TimestampExtractor<T>) result;
     }
 
-    private TriggerPolicy<Record<I>, ?> getTriggerPolicy(WindowConfig windowConfig, WindowManager<Record<I>> manager,
-                                                 EvictionPolicy<Record<I>, ?> evictionPolicy, Context context) {
+    private TriggerPolicy<Record<T>, ?> getTriggerPolicy(WindowConfig windowConfig, WindowManager<Record<T>> manager,
+                                                         EvictionPolicy<Record<T>, ?> evictionPolicy, Context context) {
         if (windowConfig.getSlidingIntervalCount() != null) {
             if (this.isEventTime()) {
                 return new WatermarkCountTriggerPolicy<>(
@@ -186,7 +184,7 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         }
     }
 
-    private EvictionPolicy<Record<I>, ?> getEvictionPolicy(WindowConfig windowConfig) {
+    private EvictionPolicy<Record<T>, ?> getEvictionPolicy(WindowConfig windowConfig) {
         if (windowConfig.getWindowLengthCount() != null) {
             if (this.isEventTime()) {
                 return new WatermarkCountEvictionPolicy<>(windowConfig.getWindowLengthCount());
@@ -203,18 +201,16 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         }
     }
 
-    protected WindowLifecycleListener<Event<Record<I>>> newWindowLifecycleListener(Context context) {
-        return new WindowLifecycleListener<Event<Record<I>>>() {
+    protected WindowLifecycleListener<Event<Record<T>>> newWindowLifecycleListener(Context context) {
+        return new WindowLifecycleListener<Event<Record<T>>>() {
             @Override
-            public void onExpiry(List<Event<Record<I>>> events) {
-                for (Event<Record<I>> event : events) {
-                    event.getRecord().ack();
-                }
+            public void onExpiry(List<Event<Record<T>>> events) {
             }
 
             @Override
-            public void onActivation(List<Event<Record<I>>> tuples, List<Event<Record<I>>> newTuples, List<Event<Record<I>>>
-                    expiredTuples, Long referenceTime) {
+            public void onActivation(List<Event<Record<T>>> tuples, List<Event<Record<T>>> newTuples,
+                                     List<Event<Record<T>>>
+                                             expiredTuples, Long referenceTime) {
                 processWindow(
                         context,
                         tuples.stream().map(event -> event.get()).collect(Collectors.toList()),
@@ -225,10 +221,11 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         };
     }
 
-    private void processWindow(Context context, List<Record<I>> tuples, List<Record<I>> newTuples, List<Record<I>>
+    @SuppressWarnings("deprecation")
+    private void processWindow(Context context, List<Record<T>> tuples, List<Record<T>> newTuples, List<Record<T>>
             expiredTuples, Long referenceTime) {
 
-        O output = null;
+        X output = null;
         try {
             output = this.process(
                     new WindowImpl<>(tuples, newTuples, expiredTuples, getWindowStartTs(referenceTime), referenceTime),
@@ -237,7 +234,20 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
             throw new RuntimeException(e);
         }
         if (output != null) {
-            context.publish(context.getOutputTopic(), output, context.getOutputSchemaType());
+            context.publish(context.getOutputTopic(), output, context.getOutputSchemaType()).thenAccept(__ -> {
+                if (windowConfig.getProcessingGuarantees() == WindowConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                    for (Record<T> record : tuples) {
+                        record.ack();
+                    }
+                }
+            });
+        } else {
+            // When window function return null, needs to be acked directly.
+            if (windowConfig.getProcessingGuarantees() == WindowConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                for (Record<T> record : tuples) {
+                    record.ack();
+                }
+            }
         }
     }
 
@@ -272,13 +282,20 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         return this.timestampExtractor != null;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public O process(I input, Context context) throws Exception {
+    public X process(T input, Context context) throws Exception {
         if (!this.initialized) {
             initialize(context);
         }
 
-        Record<I> record = (Record<I>)context.getCurrentRecord();
+        // record must be PulsarFunctionRecord.
+        Record<T> record = (Record<T>) context.getCurrentRecord();
+
+        // windows function processing semantics requires separate processing
+        if (windowConfig.getProcessingGuarantees() == WindowConfig.ProcessingGuarantees.ATMOST_ONCE) {
+            record.ack();
+        }
 
         if (isEventTime()) {
             long ts = this.timestampExtractor.extractTimestamp(record.getValue());
@@ -288,11 +305,11 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
                 if (this.windowConfig.getLateDataTopic() != null) {
                     context.newOutputMessage(this.windowConfig.getLateDataTopic(), null).value(input).sendAsync();
                 } else {
-                    log.info(String.format(
-                            "Received a late tuple %s with ts %d. This will not be " + "processed"
-                                    + ".", input, ts));
+                    log.info()
+                            .attr("input", input)
+                            .attr("timestamp", ts)
+                            .log("Received a late tuple. This will not be processed");
                 }
-                record.ack();
             }
         } else {
             this.windowManager.add(record, System.currentTimeMillis(), record);
@@ -300,9 +317,9 @@ public class WindowFunctionExecutor<I, O> implements Function<I, O> {
         return null;
     }
 
-    public O process(Window<Record<I>> inputWindow, WindowContext context) throws Exception {
+    public X process(Window<Record<T>> inputWindow, WindowContext context) throws Exception {
         if (this.bareWindowFunction != null) {
-            Collection<I> newCollection = inputWindow.get().stream().map(Record::getValue).collect(Collectors.toList());
+            Collection<T> newCollection = inputWindow.get().stream().map(Record::getValue).collect(Collectors.toList());
             return this.bareWindowFunction.apply(newCollection);
         } else {
             return this.windowFunction.process(inputWindow.get(), context);

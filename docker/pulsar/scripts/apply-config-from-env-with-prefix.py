@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,85 +18,22 @@
 # under the License.
 #
 
-##
-## Edit a properties config file and replace values based on
-## the ENV variables
-## export prefix_my-key=new-value
-## ./apply-config-from-env-with-prefix prefix_ file.conf
-##
+############################################################
+# Edit a properties config file and replace values based on
+# the ENV variables
+# export prefix_my-key=new-value
+# ./apply-config-from-env-with-prefix prefix_ file.conf
+#
+# Environment variables that are prefixed with the command
+# line prefix will be used to updated file properties if
+# they exist and create new ones if they don't.
+#
+# Environment variables not prefixed will be used only to
+# update if they exist and ignored if they don't.
+############################################################
 
-import os, sys
+# DEPRECATED: Use "apply-config-from-env.py --prefix MY_PREFIX_ conf_file" instead
 
-if len(sys.argv) < 3:
-    print('Usage: %s' % (sys.argv[0]))
-    sys.exit(1)
-
-# Always apply env config to env scripts as well
-prefix = sys.argv[1]
-conf_files = sys.argv[2:]
-
-PF_ENV_DEBUG = (os.environ.get('PF_ENV_DEBUG','0') == '1')
-
-for conf_filename in conf_files:
-    lines = []  # List of config file lines
-    keys = {} # Map a key to its line number in the file
-
-    # Load conf file
-    for line in open(conf_filename):
-        lines.append(line)
-        line = line.strip()
-        if not line or line.startswith('#'):
-            continue
-
-        try:
-            k,v = line.split('=', 1)
-            keys[k] = len(lines) - 1
-        except:
-            if PF_ENV_DEBUG:
-                print("[%s] skip Processing %s" % (conf_filename, line))
-
-    # Update values from Env
-    for k in sorted(os.environ.keys()):
-        v = os.environ[k].strip()
-
-        # Hide the value in logs if is password.
-        if "password" in k:
-            displayValue = "********"
-        else:
-            displayValue = v
-
-        if k.startswith(prefix):
-            k = k[len(prefix):]
-        if k in keys:
-            print('[%s] Applying config %s = %s' % (conf_filename, k, displayValue))
-            idx = keys[k]
-            lines[idx] = '%s=%s\n' % (k, v)
-
-
-    # Add new keys from Env
-    for k in sorted(os.environ.keys()):
-        v = os.environ[k]
-        if not k.startswith(prefix):
-            continue
-
-        # Hide the value in logs if is password.
-        if "password" in k:
-            displayValue = "********"
-        else:
-            displayValue = v
-
-        k = k[len(prefix):]
-        if k not in keys:
-            print('[%s] Adding config %s = %s' % (conf_filename, k, displayValue))
-            lines.append('%s=%s\n' % (k, v))
-        else:
-            print('[%s] Updating config %s = %s' % (conf_filename, k, displayValue))
-            lines[keys[k]] = '%s=%s\n' % (k, v)
-
-
-    # Store back the updated config in the same file
-    f = open(conf_filename, 'w')
-    for line in lines:
-        f.write(line)
-    f.close()
-
+# this is not a python script, but a bash script. Call apply-config-from-env.py with the prefix argument
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+"${SCRIPT_DIR}/apply-config-from-env.py" --prefix "$1" "${@:2}"

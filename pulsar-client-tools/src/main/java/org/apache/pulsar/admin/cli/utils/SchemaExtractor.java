@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.admin.cli.utils;
 
+import java.nio.charset.StandardCharsets;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
-
-import java.nio.charset.StandardCharsets;
 
 public class SchemaExtractor {
 
@@ -31,6 +30,7 @@ public class SchemaExtractor {
                           StandardCharsets.UTF_8);
     }
 
+    @SuppressWarnings("unchecked")
     public static String getAvroSchemaInfo(SchemaDefinition schemaDefinition) {
 
         return new String(Schema.AVRO(schemaDefinition).getSchemaInfo().getSchema(),

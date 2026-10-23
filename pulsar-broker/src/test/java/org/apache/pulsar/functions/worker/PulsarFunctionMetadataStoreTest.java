@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.functions.instance.state.PulsarMetadataStateStoreProviderImpl;
 import org.testng.annotations.Test;
 
 /**
- * Test Pulsar sink on function
+ * Test Pulsar sink on function.
  */
-@Slf4j
+@CustomLog
 @Test
 public class PulsarFunctionMetadataStoreTest extends PulsarFunctionLocalRunTest {
 
@@ -34,7 +34,7 @@ public class PulsarFunctionMetadataStoreTest extends PulsarFunctionLocalRunTest 
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
         WorkerConfig wc = super.createWorkerConfig(config);
         wc.setStateStorageProviderImplementation(PulsarMetadataStateStoreProviderImpl.class.getName());
-        wc.setStateStorageServiceUrl("memory://local");
+        wc.setStateStorageServiceUrl("memory:local");
         return wc;
     }
 

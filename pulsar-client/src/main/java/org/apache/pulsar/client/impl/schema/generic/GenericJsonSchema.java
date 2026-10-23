@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.impl.schema.generic;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericRecordBuilder;
@@ -27,7 +27,7 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 /**
  * A generic json schema.
  */
-@Slf4j
+@CustomLog
 public class GenericJsonSchema extends GenericSchemaImpl {
 
     public GenericJsonSchema(SchemaInfo schemaInfo) {
@@ -51,7 +51,8 @@ public class GenericJsonSchema extends GenericSchemaImpl {
     }
 
     public Schema<GenericRecord> clone() {
-        Schema<GenericRecord> schema = of(this.schemaInfo, ((AbstractMultiVersionGenericReader)this.reader).useProvidedSchemaAsReaderSchema);
+        Schema<GenericRecord> schema = of(this.schemaInfo,
+                ((AbstractMultiVersionGenericReader) this.reader).useProvidedSchemaAsReaderSchema);
         if (this.schemaInfoProvider != null) {
             schema.setSchemaInfoProvider(this.schemaInfoProvider);
         }

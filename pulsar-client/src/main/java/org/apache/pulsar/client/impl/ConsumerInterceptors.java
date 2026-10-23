@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,26 +18,22 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.io.Closeable;
+import java.util.List;
+import java.util.Set;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerInterceptor;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.List;
-import java.util.Set;
 
 /**
  * A container that hold the list {@link org.apache.pulsar.client.api.ConsumerInterceptor} and wraps calls to the chain
  * of custom interceptors.
  */
+@CustomLog
 public class ConsumerInterceptors<T> implements Closeable {
-
-    private static final Logger log = LoggerFactory.getLogger(ConsumerInterceptors.class);
 
     private final List<ConsumerInterceptor<T>> interceptors;
 
@@ -45,13 +41,48 @@ public class ConsumerInterceptors<T> implements Closeable {
         this.interceptors = interceptors;
     }
 
+
+    /**
+     * This method is called when a message arrives in the consumer.
+     * <p>
+     * This method calls {@link ConsumerInterceptor#onArrival(Consumer, Message) method for each
+     * interceptor.
+     * <p>
+     * This method does not throw exceptions. If any of the interceptors in the chain throws an exception, it gets
+     * caught and logged, and next interceptor in int the chain is called with 'messages' returned by the previous
+     * successful interceptor beforeConsume call.
+     *
+     * @param consumer the consumer which contains the interceptors
+     * @param message message to be consume by the client.
+     * @return messages that are either modified by interceptors or same as messages passed to this method.
+     */
+    public Message<T> onArrival(Consumer<T> consumer, Message<T> message) {
+        Message<T> interceptorMessage = message;
+        for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
+            try {
+                interceptorMessage = interceptors.get(i).onArrival(consumer, interceptorMessage);
+            } catch (Throwable e) {
+                if (consumer != null) {
+                    log.warn().attr("topic", consumer.getTopic())
+                            .attr("consumerName", consumer.getConsumerName())
+                            .exception(e)
+                            .log("Error executing interceptor beforeConsume callback topic: consumerName");
+                } else {
+                    log.warn().exception(e).log("Error executing interceptor beforeConsume callback");
+                }
+            }
+        }
+        return interceptorMessage;
+    }
+
     /**
      * This is called just before the message is returned by {@link Consumer#receive()},
      * {@link MessageListener#received(Consumer, Message)} or the {@link java.util.concurrent.CompletableFuture}
      * returned by {@link Consumer#receiveAsync()} completes.
      * <p>
-     * This method calls {@link ConsumerInterceptor#beforeConsume(Consumer, Message)} for each interceptor. Messages returned
-     * from each interceptor get passed to beforeConsume() of the next interceptor in the chain of interceptors.
+     * This method calls {@link ConsumerInterceptor#beforeConsume(Consumer, Message)} for each interceptor. Messages
+     * returned from each interceptor get passed to beforeConsume() of the next interceptor in the chain of
+     * interceptors.
      * <p>
      * This method does not throw exceptions. If any of the interceptors in the chain throws an exception, it gets
      * caught and logged, and next interceptor in int the chain is called with 'messages' returned by the previous
@@ -68,9 +99,12 @@ public class ConsumerInterceptors<T> implements Closeable {
                 interceptorMessage = interceptors.get(i).beforeConsume(consumer, interceptorMessage);
             } catch (Throwable e) {
                 if (consumer != null) {
-                    log.warn("Error executing interceptor beforeConsume callback topic: {} consumerName: {}", consumer.getTopic(), consumer.getConsumerName(), e);
+                    log.warn().attr("topic", consumer.getTopic())
+                            .attr("consumerName", consumer.getConsumerName())
+                            .exception(e)
+                            .log("Error executing interceptor beforeConsume callback topic: consumerName");
                 } else {
-                    log.warn("Error executing interceptor beforeConsume callback", e);
+                    log.warn().exception(e).log("Error executing interceptor beforeConsume callback");
                 }
             }
         }
@@ -80,9 +114,11 @@ public class ConsumerInterceptors<T> implements Closeable {
     /**
      * This is called when acknowledge request return from the broker.
      * <p>
-     * This method calls {@link ConsumerInterceptor#onAcknowledge(Consumer, MessageId, Throwable)} method for each interceptor.
+     * This method calls {@link ConsumerInterceptor#onAcknowledge(Consumer, MessageId, Throwable)} method for each
+     * interceptor.
      * <p>
-     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
+     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not
+     * propagated.
      *
      * @param consumer the consumer which contains the interceptors
      * @param messageId message to acknowledge.
@@ -93,7 +129,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).onAcknowledge(consumer, messageId, exception);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onAcknowledge callback ", e);
+                log.warn().exception(e).log("Error executing interceptor onAcknowledge callback ");
             }
         }
     }
@@ -101,9 +137,11 @@ public class ConsumerInterceptors<T> implements Closeable {
     /**
      * This is called when acknowledge cumulative request return from the broker.
      * <p>
-     * This method calls {@link ConsumerInterceptor#onAcknowledgeCumulative(Consumer, MessageId, Throwable)} (Message, Throwable)} method for each interceptor.
+     * This method calls {@link ConsumerInterceptor#onAcknowledgeCumulative(Consumer, MessageId, Throwable)} method
+     * for each interceptor.
      * <p>
-     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
+     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not
+     * propagated.
      *
      * @param consumer the consumer which contains the interceptors
      * @param messageId messages to acknowledge.
@@ -114,7 +152,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).onAcknowledgeCumulative(consumer, messageId, exception);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onAcknowledgeCumulative callback ", e);
+                log.warn().exception(e).log("Error executing interceptor onAcknowledgeCumulative callback ");
             }
         }
     }
@@ -125,7 +163,8 @@ public class ConsumerInterceptors<T> implements Closeable {
      * This method calls {@link ConsumerInterceptor#onNegativeAcksSend(Consumer, Set)
      * onNegativeAcksSend(Consumer, Set&lt;MessageId&gt;)} method for each interceptor.
      * <p>
-     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
+     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not
+     * propagated.
      *
      * @param consumer the consumer which contains the interceptors.
      * @param messageIds set of message IDs being redelivery due a negative acknowledge.
@@ -135,7 +174,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).onNegativeAcksSend(consumer, messageIds);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onNegativeAcksSend callback", e);
+                log.warn().exception(e).log("Error executing interceptor onNegativeAcksSend callback");
             }
         }
     }
@@ -146,7 +185,8 @@ public class ConsumerInterceptors<T> implements Closeable {
      * This method calls {@link ConsumerInterceptor#onAckTimeoutSend(Consumer, Set)
      * onAckTimeoutSend(Consumer, Set&lt;MessageId&gt;)} method for each interceptor.
      * <p>
-     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not propagated.
+     * This method does not throw exceptions. Exceptions thrown by any of interceptors in the chain are logged, but not
+     * propagated.
      *
      * @param consumer the consumer which contains the interceptors.
      * @param messageIds set of message IDs being redelivery due an acknowledge timeout.
@@ -156,7 +196,7 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).onAckTimeoutSend(consumer, messageIds);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onAckTimeoutSend callback", e);
+                log.warn().exception(e).log("Error executing interceptor onAckTimeoutSend callback");
             }
         }
     }
@@ -166,18 +206,18 @@ public class ConsumerInterceptors<T> implements Closeable {
             try {
                 interceptors.get(i).onPartitionsChange(topicName, partitions);
             } catch (Throwable e) {
-                log.warn("Error executing interceptor onPartitionsChange callback", e);
+                log.warn().exception(e).log("Error executing interceptor onPartitionsChange callback");
             }
         }
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
             try {
                 interceptors.get(i).close();
             } catch (Throwable e) {
-                log.error("Fail to close consumer interceptor ", e);
+                log.error().exception(e).log("Fail to close consumer interceptor ");
             }
         }
     }

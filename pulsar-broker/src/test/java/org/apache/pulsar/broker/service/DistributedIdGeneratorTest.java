@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -46,7 +46,7 @@ public class DistributedIdGeneratorTest {
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
-        store  = MetadataStoreExtended.create("memory://local", MetadataStoreConfig.builder().build());
+        store  = MetadataStoreExtended.create("memory:local", MetadataStoreConfig.builder().build());
         coordinationService = new CoordinationServiceImpl(store);
     }
 
@@ -78,24 +78,25 @@ public class DistributedIdGeneratorTest {
      */
     @Test
     public void concurrent() throws Exception {
-        int Threads = 10;
-        int Iterations = 100;
+        int threads = 10;
+        int iterations = 100;
 
-        CyclicBarrier barrier = new CyclicBarrier(Threads);
-        CountDownLatch counter = new CountDownLatch(Threads);
+        CyclicBarrier barrier = new CyclicBarrier(threads);
+        CountDownLatch counter = new CountDownLatch(threads);
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
 
-        List<String> results = Collections.synchronizedList(Lists.newArrayList());
+        List<String> results = Collections.synchronizedList(new ArrayList<>());
 
-        for (int i = 0; i < Threads; i++) {
+        for (int i = 0; i < threads; i++) {
             executor.execute(() -> {
                 try {
-                    DistributedIdGenerator gen = new DistributedIdGenerator(coordinationService, "/my/test/concurrent", "prefix");
+                    DistributedIdGenerator gen = new DistributedIdGenerator(coordinationService,
+                            "/my/test/concurrent", "prefix");
 
                     barrier.await();
 
-                    for (int j = 0; j < Iterations; j++) {
+                    for (int j = 0; j < iterations; j++) {
                         results.add(gen.getNextId());
                     }
 
@@ -109,7 +110,7 @@ public class DistributedIdGeneratorTest {
 
         counter.await();
 
-        assertEquals(results.size(), Threads * Iterations);
+        assertEquals(results.size(), threads * iterations);
 
         // Check the list contains no duplicates
         Set<String> set = Sets.newHashSet(results);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.metadata.api.coordination;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 
 /**
  * Interface for the coordination service. Provides abstraction for distributed locks and leader election.
@@ -28,7 +29,17 @@ import org.apache.pulsar.metadata.api.MetadataSerde;
 public interface CoordinationService extends AutoCloseable {
 
     /**
-     * Create a new {@link LeaderElection} controller.
+     * Get the {@link LeaderElection} controller of a path.
+     *
+     * <p>While an election for the path is open, it is returned and {@code stateChangesListener} is ignored: the
+     * election reports its state changes to the listener it was created with. Once it is closed, the next call
+     * creates a new election. The closed election can still be re-opened with {@link LeaderElection#elect(Object)},
+     * which fails with {@link MetadataStoreException.AlreadyClosedException} if a new election was created for the
+     * path in the meantime.
+     *
+     * <p>Since callers of the same path share its open election, a caller can get an election that another caller
+     * closes right after: re-opening it with {@link LeaderElection#elect(Object)} keeps the listener it was created
+     * with.
      *
      * @param clazz
      *            the class type to be used for serialization/deserialization
@@ -48,7 +59,10 @@ public interface CoordinationService extends AutoCloseable {
      * Increment a counter identified by the specified path and return the current value.
      *
      * The counter value will be guaranteed to be unique within the context of the path.
+     * It will retry when {@link org.apache.pulsar.metadata.api.MetadataStoreException} happened.
      *
+     * If the maximum number of retries is reached and still failed,
+     * the feature will complete with exception {@link org.apache.pulsar.metadata.api.MetadataStoreException}.
      * @param path
      *            the path that identifies a particular counter
      * @return a future that will track the completion of the operation
@@ -56,4 +70,5 @@ public interface CoordinationService extends AutoCloseable {
      *             if there's a failure in incrementing the counter
      */
     CompletableFuture<Long> getNextCounterValue(String path);
+
 }

@@ -35,6 +35,8 @@ var (
 	metricsLabelNames          = []string{"tenant", "namespace", "name", "instance_id", "cluster", "fqfn"}
 	exceptionLabelNames        = []string{"error"}
 	exceptionMetricsLabelNames = append(metricsLabelNames, exceptionLabelNames...)
+	userLabelNames             = []string{"metric"}
+	userMetricLabelNames       = append(metricsLabelNames, userLabelNames...)
 )
 
 const (
@@ -52,6 +54,8 @@ const (
 	TotalUserExceptions1min        = "user_exceptions_total_1min"
 	ProcessLatencyMs1min           = "process_latency_ms_1min"
 	TotalReceived1min              = "received_total_1min"
+
+	UserMetric = "user_metric"
 )
 
 // Declare Prometheus
@@ -122,6 +126,18 @@ var (
 		prometheus.GaugeOpts{
 			Name: PulsarFunctionMetricsPrefix + "system_exception",
 			Help: "Exception from system code."}, exceptionMetricsLabelNames)
+
+	userMetricSummary = prometheus.NewSummaryVec(
+		prometheus.SummaryOpts{
+			Name: PulsarFunctionMetricsPrefix + UserMetric,
+			Help: "User defined metric.",
+			Objectives: map[float64]float64{
+				0.5:   0.01,
+				0.9:   0.01,
+				0.99:  0.01,
+				0.999: 0.01,
+			},
+		}, userMetricLabelNames)
 )
 
 type MetricsServicer struct {
@@ -146,6 +162,7 @@ func init() {
 	reg.MustRegister(statTotalReceived1min)
 	reg.MustRegister(userExceptions)
 	reg.MustRegister(systemExceptions)
+	reg.MustRegister(userMetricSummary)
 
 }
 
@@ -231,7 +248,7 @@ func getFirstMatch(
 
 func (stat *StatWithLabelValues) setLastInvocation() {
 	now := time.Now()
-	stat.statLastInvocation.Set(float64(now.UnixNano()))
+	stat.statLastInvocation.Set(float64(now.UnixMilli()))
 }
 
 func (stat *StatWithLabelValues) processTimeStart() {
@@ -255,9 +272,9 @@ func (stat *StatWithLabelValues) incrTotalUserExceptions(err error) {
 
 func (stat *StatWithLabelValues) addUserException(err error) {
 	now := time.Now()
-	ts := now.UnixNano()
-	errorTs := LatestException{err, ts}
-	stat.latestUserException = append(stat.latestUserException, errorTs)
+	ts := now.UnixMilli()
+	errorTS := LatestException{err, ts}
+	stat.latestUserException = append(stat.latestUserException, errorTS)
 	if len(stat.latestUserException) > 10 {
 		stat.latestUserException = stat.latestUserException[1:]
 	}
@@ -265,10 +282,10 @@ func (stat *StatWithLabelValues) addUserException(err error) {
 	stat.reportUserExceptionPrometheus(err)
 }
 
-//@limits(calls=5, period=60)
+// @limits(calls=5, period=60)
 func (stat *StatWithLabelValues) reportUserExceptionPrometheus(exception error) {
-	errorTs := []string{exception.Error()}
-	exceptionMetricLabels := append(stat.metricsLabels, errorTs...)
+	errorTS := []string{exception.Error()}
+	exceptionMetricLabels := append(stat.metricsLabels, errorTS...)
 	userExceptions.WithLabelValues(exceptionMetricLabels...).Set(1.0)
 }
 
@@ -285,9 +302,9 @@ func (stat *StatWithLabelValues) incrTotalSysExceptions(exception error) {
 
 func (stat *StatWithLabelValues) addSysException(exception error) {
 	now := time.Now()
-	ts := now.UnixNano()
-	errorTs := LatestException{exception, ts}
-	stat.latestSysException = append(stat.latestSysException, errorTs)
+	ts := now.UnixMilli()
+	errorTS := LatestException{exception, ts}
+	stat.latestSysException = append(stat.latestSysException, errorTS)
 	if len(stat.latestSysException) > 10 {
 		stat.latestSysException = stat.latestSysException[1:]
 	}
@@ -295,10 +312,10 @@ func (stat *StatWithLabelValues) addSysException(exception error) {
 	stat.reportSystemExceptionPrometheus(exception)
 }
 
-//@limits(calls=5, period=60)
+// @limits(calls=5, period=60)
 func (stat *StatWithLabelValues) reportSystemExceptionPrometheus(exception error) {
-	errorTs := []string{exception.Error()}
-	exceptionMetricLabels := append(stat.metricsLabels, errorTs...)
+	errorTS := []string{exception.Error()}
+	exceptionMetricLabels := append(stat.metricsLabels, errorTS...)
 	systemExceptions.WithLabelValues(exceptionMetricLabels...).Set(1.0)
 }
 
@@ -320,6 +337,9 @@ func NewMetricsServicer(goInstance *goInstance) *MetricsServicer {
 		reg,
 		promhttp.HandlerOpts{
 			EnableOpenMetrics: true,
+			// A failing user collector (see FunctionContext.GetMetricsRegistry)
+			// must not hide the SDK metrics from the scrape.
+			ErrorHandling: promhttp.ContinueOnError,
 		},
 	)
 	serveMux.Handle("/", pHandler)
@@ -339,7 +359,9 @@ func (s *MetricsServicer) serve() {
 		// create a listener on metrics port
 		log.Infof("Starting metrics server on port %d", s.goInstance.context.GetMetricsPort())
 		err := s.server.ListenAndServe()
-		if err != nil {
+		switch err {
+		case nil, http.ErrServerClosed:
+		default:
 			log.Fatalf("failed to start metrics server: %v", err)
 		}
 	}()

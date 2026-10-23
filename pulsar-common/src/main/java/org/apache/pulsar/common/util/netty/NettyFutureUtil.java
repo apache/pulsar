@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,22 +19,24 @@
 package org.apache.pulsar.common.util.netty;
 
 import io.netty.util.concurrent.Future;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
- * Contains utility methods for working with Netty Futures
+ * Contains utility methods for working with Netty Futures.
  */
 public class NettyFutureUtil {
     /**
-     * Converts a Netty {@link Future} to {@link CompletableFuture}
+     * Converts a Netty {@link Future} to {@link CompletableFuture}.
      *
      * @param future Netty future
      * @param <V>    value type
      * @return converted future instance
      */
     public static <V> CompletableFuture<V> toCompletableFuture(Future<V> future) {
-        Objects.requireNonNull(future, "future cannot be null");
+        if (future == null) {
+            return FutureUtil.failedFuture(new NullPointerException("future cannot be null"));
+        }
 
         CompletableFuture<V> adapter = new CompletableFuture<>();
         if (future.isDone()) {
@@ -56,13 +58,15 @@ public class NettyFutureUtil {
     }
 
     /**
-     * Converts a Netty {@link Future} to {@link CompletableFuture} with Void type
+     * Converts a Netty {@link Future} to {@link CompletableFuture} with Void type.
      *
      * @param future Netty future
      * @return converted future instance
      */
     public static CompletableFuture<Void> toCompletableFutureVoid(Future<?> future) {
-        Objects.requireNonNull(future, "future cannot be null");
+        if (future == null) {
+            return FutureUtil.failedFuture(new NullPointerException("future cannot be null"));
+        }
 
         CompletableFuture<Void> adapter = new CompletableFuture<>();
         if (future.isDone()) {

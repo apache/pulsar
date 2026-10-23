@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.common.util.collections;
 
-import com.google.common.collect.ComparisonChain;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
 import com.google.common.collect.TreeRangeSet;
-import lombok.EqualsAndHashCode;
-
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import lombok.EqualsAndHashCode;
 
 /**
  * A set comprising zero or more ranges type of key-value pair.
@@ -107,6 +106,17 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
     void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer);
 
     /**
+     * Performs the given action for each entry in this map until all entries have been processed
+     * or action returns "false". Unless otherwise specified by the implementing class,
+     * actions are performed in the order of entry set iteration (if an iteration order is specified.)
+     *
+     * This method is optimized on reducing intermediate object creation.
+     * {@param action} to do iteration jobs.
+     *
+     */
+    void forEachRawRange(RawRangeProcessor action);
+
+    /**
      * Returns total number of ranges into the set.
      *
      * @return
@@ -127,26 +137,66 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      */
     Range<T> lastRange();
 
+    default Map<Long, long[]> toRanges(int maxRanges) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Build {@link LongPairRangeSet} using internal ranges returned by {@link #toRanges(int)} .
+     *
+     * @param ranges
+     */
+    default void build(Map<Long, long[]> ranges) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Return the number bit sets to true from lower (inclusive) to upper (inclusive).
+     */
+    int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue);
+
     /**
      * Represents a function that accepts two long arguments and produces a result.
      *
      * @param <T> the type of the result.
      */
-    public interface LongPairConsumer<T> {
+    interface LongPairConsumer<T> {
         T apply(long key, long value);
+    }
+
+    /**
+     * Represents a function that accepts result and produces a LongPair.
+     * Reverse ops of `LongPairConsumer<T>`
+     * @param <T> the type of the result.
+     */
+    interface RangeBoundConsumer<T> {
+        LongPair apply(T bound);
     }
 
     /**
      * The interface exposing a method for processing of ranges.
      * @param <T> - The incoming type of data in the range object.
      */
-    public interface RangeProcessor<T extends Comparable<T>> {
+    interface RangeProcessor<T extends Comparable<T>> {
         /**
          *
          * @param range
          * @return false if there is no further processing required
          */
         boolean process(Range<T> range);
+    }
+
+    /**
+     * The interface exposing a method for processing raw form of ranges.
+     * This method will omit the process to convert (long, long) to `T`
+     * create less object during the iteration.
+     * the parameter is the same as {@linkplain RangeProcessor} which
+     * means (lowerKey,lowerValue) in open bound
+     * (upperKey, upperValue) in close bound in Range
+     */
+    interface RawRangeProcessor {
+        boolean processRawRange(long lowerKey, long lowerValue,
+                                long upperKey, long upperValue);
     }
 
     /**
@@ -177,13 +227,21 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
 
         @Override
-        public int compareTo(LongPair o) {
-            return ComparisonChain.start().compare(key, o.getKey()).compare(value, o.getValue()).result();
+        public int compareTo(LongPair that) {
+            if (this.key != that.key) {
+                return this.key < that.key ? -1 : 1;
+            }
+
+            if (this.value != that.value) {
+                return this.value < that.value ? -1 : 1;
+            }
+
+            return 0;
         }
 
         @Override
         public String toString() {
-            return String.format("%d:%d", key, value);
+            return key + ":" + value;
         }
     }
 
@@ -197,9 +255,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         RangeSet<T> set = TreeRangeSet.create();
 
         private final LongPairConsumer<T> consumer;
+        private final RangeBoundConsumer<T> rangeEndPointConsumer;
 
-        public DefaultRangeSet(LongPairConsumer<T> consumer) {
+        public DefaultRangeSet(LongPairConsumer<T> consumer, RangeBoundConsumer<T> reverseConsumer) {
             this.consumer = consumer;
+            this.rangeEndPointConsumer = reverseConsumer;
         }
 
         @Override
@@ -259,13 +319,26 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
         }
 
         @Override
-        public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer) {
+        public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> outerConsumer) {
             for (Range<T> range : asRanges()) {
                 if (!action.process(range)) {
                     break;
                 }
             }
         }
+
+        @Override
+        public void forEachRawRange(RawRangeProcessor action) {
+            for (Range<T> range : asRanges()) {
+                LongPair lowerEndpoint = this.rangeEndPointConsumer.apply(range.lowerEndpoint());
+                LongPair upperEndpoint = this.rangeEndPointConsumer.apply(range.upperEndpoint());
+                if (!action.processRawRange(lowerEndpoint.key, lowerEndpoint.value,
+                        upperEndpoint.key, upperEndpoint.value)) {
+                    break;
+                }
+            }
+        }
+
 
         @Override
         public boolean contains(long key, long value) {
@@ -288,6 +361,11 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
             }
             List<Range<T>> list = Lists.newArrayList(set.asRanges().iterator());
             return list.get(list.size() - 1);
+        }
+
+        @Override
+        public int cardinality(long lowerKey, long lowerValue, long upperKey, long upperValue) {
+            throw new UnsupportedOperationException();
         }
 
         @Override

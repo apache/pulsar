@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,25 +18,22 @@
  */
 package org.apache.pulsar.broker.web;
 
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
-
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
-import lombok.extern.slf4j.Slf4j;
-
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
 /**
- * Servlet filter that rejects HTTP requests using TRACE/TRACK methods
+ * Servlet filter that rejects HTTP requests using TRACE/TRACK methods.
  */
-@Slf4j
+@CustomLog
 public class DisableDebugHttpMethodFilter implements Filter {
 
     private final ServiceConfiguration serviceConfiguration;
@@ -51,18 +48,18 @@ public class DisableDebugHttpMethodFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
-        if (this.serviceConfiguration.isDisableHttpDebugMethods() ) {
-            if("TRACE".equalsIgnoreCase(httpRequest.getMethod())) {
+        if (this.serviceConfiguration.isDisableHttpDebugMethods()) {
+            if ("TRACE".equalsIgnoreCase(httpRequest.getMethod())) {
                 // TRACE is not allowed
                 httpResponse.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 
-                log.info("[{}] Rejected HTTP request using TRACE Method", request.getRemoteAddr());
+                log.info().attr("remoteAddr", request.getRemoteAddr()).log("Rejected HTTP request using TRACE Method");
                 return;
             } else if ("TRACK".equalsIgnoreCase(httpRequest.getMethod())) {
                 // TRACK is not allowed
                 httpResponse.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
 
-                log.info("[{}] Rejected HTTP request using TRACK Method", request.getRemoteAddr());
+                log.info().attr("remoteAddr", request.getRemoteAddr()).log("Rejected HTTP request using TRACK Method");
                 return;
             }
         }

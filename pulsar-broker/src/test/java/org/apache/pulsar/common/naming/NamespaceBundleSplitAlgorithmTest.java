@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,9 @@
  */
 package org.apache.pulsar.common.naming;
 
-
+import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE;
 import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.RANGE_EQUALLY_DIVIDE_NAME;
+import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.SPECIFIED_POSITIONS_DIVIDE;
 import static org.apache.pulsar.common.naming.NamespaceBundleSplitAlgorithm.TOPIC_COUNT_EQUALLY_DIVIDE;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -33,9 +34,17 @@ public class NamespaceBundleSplitAlgorithmTest {
         Assert.assertNull(nullValue);
         NamespaceBundleSplitAlgorithm whatever = NamespaceBundleSplitAlgorithm.of("whatever");
         Assert.assertNull(whatever);
-        NamespaceBundleSplitAlgorithm rangeEquallyDivideName = NamespaceBundleSplitAlgorithm.of(RANGE_EQUALLY_DIVIDE_NAME);
+        NamespaceBundleSplitAlgorithm rangeEquallyDivideName =
+                NamespaceBundleSplitAlgorithm.of(RANGE_EQUALLY_DIVIDE_NAME);
         Assert.assertTrue(rangeEquallyDivideName instanceof RangeEquallyDivideBundleSplitAlgorithm);
-        NamespaceBundleSplitAlgorithm topicCountEquallyDivide = NamespaceBundleSplitAlgorithm.of(TOPIC_COUNT_EQUALLY_DIVIDE);
+        NamespaceBundleSplitAlgorithm topicCountEquallyDivide =
+                NamespaceBundleSplitAlgorithm.of(TOPIC_COUNT_EQUALLY_DIVIDE);
         Assert.assertTrue(topicCountEquallyDivide instanceof TopicCountEquallyDivideBundleSplitAlgorithm);
+        NamespaceBundleSplitAlgorithm specifiedTopicCountEquallyDivide =
+                NamespaceBundleSplitAlgorithm.of(SPECIFIED_POSITIONS_DIVIDE);
+        Assert.assertTrue(specifiedTopicCountEquallyDivide instanceof SpecifiedPositionsBundleSplitAlgorithm);
+        NamespaceBundleSplitAlgorithm flowOrQPSEquallyDivide =
+                NamespaceBundleSplitAlgorithm.of(FLOW_OR_QPS_EQUALLY_DIVIDE);
+        Assert.assertTrue(flowOrQPSEquallyDivide instanceof FlowOrQpsEquallyDivideBundleSplitAlgorithm);
     }
 }

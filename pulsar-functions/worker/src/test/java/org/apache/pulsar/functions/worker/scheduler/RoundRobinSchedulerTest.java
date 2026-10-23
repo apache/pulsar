@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,37 +18,35 @@
  */
 package org.apache.pulsar.functions.worker.scheduler;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.Function;
-import org.testng.Assert;
-import org.testng.annotations.Test;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.CustomLog;
+import org.apache.pulsar.functions.proto.Assignment;
+import org.apache.pulsar.functions.proto.FunctionMetaData;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class RoundRobinSchedulerTest {
 
     @Test
     public void testRebalance() {
-        Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
-                .setFunctionDetails(Function.FunctionDetails.newBuilder().setName("func-1")
-                        .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1)).setVersion(0)
-                .build();
+        FunctionMetaData function1 = new FunctionMetaData();
+        function1.setFunctionDetails().setName("func-1")
+                .setNamespace("namespace-1").setTenant("tenant-1").setParallelism(1);
+        function1.setVersion(0);
 
-        List<Function.Assignment> assignments = new LinkedList<>();
+        List<Assignment> assignments = new LinkedList<>();
         for (int i = 0; i < 10; i++) {
-            Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                    .setWorkerId("worker-1")
-                    .setInstance(Function.Instance.newBuilder()
-                            .setFunctionMetaData(function1).setInstanceId(i).build())
-                    .build();
-
-            assignments.add(assignment1);
+            Assignment assignment = new Assignment();
+            assignment.setWorkerId("worker-1");
+            assignment.setInstance().setFunctionMetaData().copyFrom(function1);
+            assignment.getInstance().setInstanceId(i);
+            assignments.add(assignment);
         }
 
         Set<String> workers = new HashSet<>();
@@ -58,10 +56,10 @@ public class RoundRobinSchedulerTest {
 
         RoundRobinScheduler roundRobinScheduler = new RoundRobinScheduler();
 
-        List<Function.Assignment> newAssignments = roundRobinScheduler.rebalance(assignments, workers);
+        List<Assignment> newAssignments = roundRobinScheduler.rebalance(assignments, workers);
 
         Map<String, Integer> workerAssignments = new HashMap<>();
-        for (Function.Assignment assignment : newAssignments) {
+        for (Assignment assignment : newAssignments) {
             Integer count = workerAssignments.get((assignment.getWorkerId()));
             if (count == null) {
                 count = 0;

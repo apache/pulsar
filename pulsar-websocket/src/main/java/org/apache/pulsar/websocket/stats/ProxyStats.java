@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,41 +20,38 @@ package org.apache.pulsar.websocket.stats;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import static org.apache.pulsar.websocket.ProducerHandler.ENTRY_LATENCY_BUCKETS_USEC;
-
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-
+import lombok.CustomLog;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.websocket.WebSocketService;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
- * It periodically generates stats metrics of proxy service,
+ * It periodically generates stats metrics of proxy service.
  *
  */
+@CustomLog
 public class ProxyStats {
 
     private final WebSocketService service;
     private final JvmMetrics jvmMetrics;
-    private ConcurrentOpenHashMap<String, ProxyNamespaceStats> topicStats;
+    private final Map<String, ProxyNamespaceStats> topicStats = new ConcurrentHashMap<>();
     private List<Metrics> metricsCollection;
     private List<Metrics> tempMetricsCollection;
 
     public ProxyStats(WebSocketService service) {
         super();
         this.service = service;
-        this.jvmMetrics = new JvmMetrics(service);
-        this.topicStats = new ConcurrentOpenHashMap<>();
-        this.metricsCollection = Lists.newArrayList();
-        this.tempMetricsCollection = Lists.newArrayList();
+        this.jvmMetrics = JvmMetrics.create(
+                service.getExecutor(), "prx", service.getConfig().getJvmGCMetricsLoggerClassName());
+        this.metricsCollection = new ArrayList<>();
+        this.tempMetricsCollection = new ArrayList<>();
         // schedule stat generation task every 1 minute
         service.getExecutor()
                 .scheduleAtFixedRate(catchingAndLoggingThrowables(this::generate), 120, 60, TimeUnit.SECONDS);
@@ -64,16 +61,15 @@ public class ProxyStats {
      * generates stats-metrics of proxy service and updates metricsCollection cache with latest stats.
      */
     public synchronized void generate() {
-        if (log.isDebugEnabled()) {
-            log.debug("Start generating proxy metrics");
-        }
+        log.debug("Start generating proxy metrics");
 
         topicStats.clear();
 
         service.getProducers().forEach((topic, handlers) -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Collect stats from {} producer handlers for topic {}", handlers.size(), topic);
-            }
+            log.debug()
+                    .attr("stats", handlers.size())
+                    .attr("topic", topic)
+                    .log("Collect stats from producer handlers for topic");
 
             final String namespaceName = TopicName.get(topic).getNamespace();
             ProxyNamespaceStats nsStat = topicStats.computeIfAbsent(namespaceName, ns -> new ProxyNamespaceStats());
@@ -86,9 +82,10 @@ public class ProxyStats {
             });
         });
         service.getConsumers().forEach((topic, handlers) -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Collect stats from {} consumer handlers for topic {}", handlers.size(), topic);
-            }
+            log.debug()
+                    .attr("stats", handlers.size())
+                    .attr("topic", topic)
+                    .log("Collect stats from consumer handlers for topic");
 
             final String namespaceName = TopicName.get(topic).getNamespace();
             ProxyNamespaceStats nsStat = topicStats.computeIfAbsent(namespaceName, ns -> new ProxyNamespaceStats());
@@ -101,26 +98,20 @@ public class ProxyStats {
 
         tempMetricsCollection.clear();
         topicStats.forEach((namespace, stats) -> {
-            if (log.isDebugEnabled()) {
-                log.debug("Add ns-stats of namespace {} to metrics", namespace);
-            }
+            log.debug().attr("namespace", namespace).log("Add ns-stats of namespace to metrics");
             tempMetricsCollection.add(stats.add(namespace));
         });
 
         // add jvm-metrics
-        if (log.isDebugEnabled()) {
-            log.debug("Add jvm-stats to metrics");
-        }
-        tempMetricsCollection.add(jvmMetrics.generate());
+        log.debug("Add jvm-stats to metrics");
+        tempMetricsCollection.add(jvmMetrics.generate().get(0));
 
         // swap tempmetrics to stat-metrics
         List<Metrics> tempRef = metricsCollection;
         metricsCollection = tempMetricsCollection;
         tempMetricsCollection = tempRef;
 
-        if (log.isDebugEnabled()) {
-            log.debug("Complete generating proxy metrics");
-        }
+        log.debug("Complete generating proxy metrics");
     }
 
     public List<Metrics> getMetrics() {
@@ -147,7 +138,7 @@ public class ProxyStats {
             publishMsgLatency.refresh();
             long[] latencyBuckets = publishMsgLatency.getBuckets();
 
-            Map<String, String> dimensionMap = Maps.newHashMap();
+            Map<String, String> dimensionMap = new HashMap<>();
             dimensionMap.put("namespace", namespace);
             Metrics dMetrics = Metrics.create(dimensionMap);
             dMetrics.put("ns_msg_publish_rate", numberOfMsgPublished);
@@ -165,7 +156,5 @@ public class ProxyStats {
             return dMetrics;
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyStats.class);
 
 }

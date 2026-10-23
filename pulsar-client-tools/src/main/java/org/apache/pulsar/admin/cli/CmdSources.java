@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,18 +22,13 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.naming.TopicName.DEFAULT_NAMESPACE;
 import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
-
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
-import com.beust.jcommander.converters.StringConverter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -46,28 +41,29 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
+import org.apache.pulsar.cli.ClientApi;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
+import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.BatchSourceConfig;
 import org.apache.pulsar.common.io.ConnectorDefinition;
-import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.io.SourceConfig;
-import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 @Getter
-@Parameters(commandDescription = "Interface for managing Pulsar IO Sources (ingress data into Pulsar)")
-@Slf4j
+@Command(description = "Interface for managing Pulsar IO Sources (ingress data into Pulsar)", aliases = "source")
+@CustomLog
 public class CmdSources extends CmdBase {
 
     private final CreateSource createSource;
@@ -94,37 +90,29 @@ public class CmdSources extends CmdBase {
         startSource = new StartSource();
         localSourceRunner = new LocalSourceRunner();
 
-        jcommander.addCommand("create", createSource);
-        jcommander.addCommand("update", updateSource);
-        jcommander.addCommand("delete", deleteSource);
-        jcommander.addCommand("get", getSource);
+        addCommand("create", createSource);
+        addCommand("update", updateSource);
+        addCommand("delete", deleteSource);
+        addCommand("get", getSource);
         // TODO depecreate getstatus
-        jcommander.addCommand("status", getSourceStatus, "getstatus");
-        jcommander.addCommand("list", listSources);
-        jcommander.addCommand("stop", stopSource);
-        jcommander.addCommand("start", startSource);
-        jcommander.addCommand("restart", restartSource);
-        jcommander.addCommand("localrun", localSourceRunner);
-        jcommander.addCommand("available-sources", new ListBuiltInSources());
-        jcommander.addCommand("reload", new ReloadBuiltInSources());
+        addCommand("status", getSourceStatus, "getstatus");
+        addCommand("list", listSources);
+        addCommand("stop", stopSource);
+        addCommand("start", startSource);
+        addCommand("restart", restartSource);
+        addCommand("localrun", localSourceRunner);
+        addCommand("available-sources", new ListBuiltInSources());
+        addCommand("reload", new ReloadBuiltInSources());
     }
 
     /**
-     * Base command
+     * Base command.
      */
     @Getter
     abstract class BaseCommand extends CliCommand {
         @Override
         void run() throws Exception {
-            try {
-                processArguments();
-            } catch (Exception e) {
-                System.err.println(e.getMessage());
-                System.err.println();
-                String chosenCommand = jcommander.getParsedCommand();
-                getUsageFormatter().usage(chosenCommand);
-                return;
-            }
+            processArguments();
             runCmd();
         }
 
@@ -134,96 +122,111 @@ public class CmdSources extends CmdBase {
         abstract void runCmd() throws Exception;
     }
 
-    @Parameters(commandDescription = "Run a Pulsar IO source connector locally (rather than deploying it to the Pulsar cluster)")
+    @Command(description = "Run a Pulsar IO source connector locally "
+            + "(rather than deploying it to the Pulsar cluster)")
     protected class LocalSourceRunner extends CreateSource {
 
-        @Parameter(names = "--state-storage-service-url", description = "The URL for the state storage service (the default is Apache BookKeeper)")
+        @Option(names = "--state-storage-service-url",
+                description = "The URL for the state storage service (the default is Apache BookKeeper)")
         protected String stateStorageServiceUrl;
-        @Parameter(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
-        protected String DEPRECATED_brokerServiceUrl;
-        @Parameter(names = "--broker-service-url", description = "The URL for the Pulsar broker")
+        @Option(names = "--brokerServiceUrl", description = "The URL for the Pulsar broker", hidden = true)
+        protected String deprecatedBrokerServiceUrl;
+        @Option(names = "--broker-service-url", description = "The URL for the Pulsar broker")
         protected String brokerServiceUrl;
 
-        @Parameter(names = "--clientAuthPlugin", description = "Client authentication plugin using which function-process can connect to broker", hidden = true)
-        protected String DEPRECATED_clientAuthPlugin;
-        @Parameter(names = "--client-auth-plugin", description = "Client authentication plugin using which function-process can connect to broker")
+        @Option(names = "--clientAuthPlugin",
+                description = "Client authentication plugin using which function-process can connect to broker",
+                hidden = true)
+        protected String deprecatedClientAuthPlugin;
+        @Option(names = "--client-auth-plugin",
+                description = "Client authentication plugin using which function-process can connect to broker")
         protected String clientAuthPlugin;
 
-        @Parameter(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
-        protected String DEPRECATED_clientAuthParams;
-        @Parameter(names = "--client-auth-params", description = "Client authentication param")
+        @Option(names = "--clientAuthParams", description = "Client authentication param", hidden = true)
+        protected String deprecatedClientAuthParams;
+        @Option(names = "--client-auth-params", description = "Client authentication param")
         protected String clientAuthParams;
 
-        @Parameter(names = "--use_tls", description = "Use tls connection", hidden = true)
-        protected Boolean DEPRECATED_useTls;
-        @Parameter(names = "--use-tls", description = "Use tls connection")
+        @Option(names = "--use_tls", description = "Use tls connection", hidden = true)
+        protected Boolean deprecatedUseTls;
+        @Option(names = "--use-tls", description = "Use tls connection")
         protected boolean useTls;
 
-        @Parameter(names = "--tls_allow_insecure", description = "Allow insecure tls connection", hidden = true)
-        protected Boolean DEPRECATED_tlsAllowInsecureConnection;
-        @Parameter(names = "--tls-allow-insecure", description = "Allow insecure tls connection")
+        @Option(names = "--tls_allow_insecure", description = "Allow insecure tls connection", hidden = true)
+        protected Boolean deprecatedTlsAllowInsecureConnection;
+        @Option(names = "--tls-allow-insecure", description = "Allow insecure tls connection")
         protected boolean tlsAllowInsecureConnection;
 
-        @Parameter(names = "--hostname_verification_enabled", description = "Enable hostname verification", hidden = true)
-        protected Boolean DEPRECATED_tlsHostNameVerificationEnabled;
-        @Parameter(names = "--hostname-verification-enabled", description = "Enable hostname verification")
+        @Option(names = "--hostname_verification_enabled",
+                description = "Enable hostname verification", hidden = true)
+        protected Boolean deprecatedTlsHostNameVerificationEnabled;
+        @Option(names = "--hostname-verification-enabled", description = "Enable hostname verification")
         protected boolean tlsHostNameVerificationEnabled;
 
-        @Parameter(names = "--tls_trust_cert_path", description = "tls trust cert file path", hidden = true)
-        protected String DEPRECATED_tlsTrustCertFilePath;
-        @Parameter(names = "--tls-trust-cert-path", description = "tls trust cert file path")
+        @Option(names = "--tls_trust_cert_path", description = "tls trust cert file path", hidden = true)
+        protected String deprecatedTlsTrustCertFilePath;
+        @Option(names = "--tls-trust-cert-path", description = "tls trust cert file path")
         protected String tlsTrustCertFilePath;
 
-        @Parameter(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider")
+        @Option(names = "--secrets-provider-classname", description = "Whats the classname for secrets provider")
         protected String secretsProviderClassName;
-        @Parameter(names = "--secrets-provider-config", description = "Config that needs to be passed to secrets provider")
+        @Option(names = "--secrets-provider-config",
+                description = "Config that needs to be passed to secrets provider")
         protected String secretsProviderConfig;
-        @Parameter(names = "--metrics-port-start", description = "The starting port range for metrics server")
+        @Option(names = "--metrics-port-start", description = "The starting port range for metrics server")
         protected String metricsPortStart;
 
         private void mergeArgs() {
-            if (isBlank(brokerServiceUrl) && !isBlank(DEPRECATED_brokerServiceUrl)) {
-                brokerServiceUrl = DEPRECATED_brokerServiceUrl;
+            if (isBlank(brokerServiceUrl) && !isBlank(deprecatedBrokerServiceUrl)) {
+                brokerServiceUrl = deprecatedBrokerServiceUrl;
             }
-            if (isBlank(clientAuthPlugin) && !isBlank(DEPRECATED_clientAuthPlugin)) {
-                clientAuthPlugin = DEPRECATED_clientAuthPlugin;
+            if (isBlank(clientAuthPlugin) && !isBlank(deprecatedClientAuthPlugin)) {
+                clientAuthPlugin = deprecatedClientAuthPlugin;
             }
-            if (isBlank(clientAuthParams) && !isBlank(DEPRECATED_clientAuthParams)) {
-                clientAuthParams = DEPRECATED_clientAuthParams;
+            if (isBlank(clientAuthParams) && !isBlank(deprecatedClientAuthParams)) {
+                clientAuthParams = deprecatedClientAuthParams;
             }
-            if (!useTls && DEPRECATED_useTls != null) {
-                useTls = DEPRECATED_useTls;
+            if (!useTls && deprecatedUseTls != null) {
+                useTls = deprecatedUseTls;
             }
-            if (!tlsAllowInsecureConnection && DEPRECATED_tlsAllowInsecureConnection != null) {
-                tlsAllowInsecureConnection = DEPRECATED_tlsAllowInsecureConnection;
+            if (!tlsAllowInsecureConnection && deprecatedTlsAllowInsecureConnection != null) {
+                tlsAllowInsecureConnection = deprecatedTlsAllowInsecureConnection;
             }
-            if (!tlsHostNameVerificationEnabled && DEPRECATED_tlsHostNameVerificationEnabled != null) {
-                tlsHostNameVerificationEnabled = DEPRECATED_tlsHostNameVerificationEnabled;
+            if (!tlsHostNameVerificationEnabled && deprecatedTlsHostNameVerificationEnabled != null) {
+                tlsHostNameVerificationEnabled = deprecatedTlsHostNameVerificationEnabled;
             }
-            if (isBlank(tlsTrustCertFilePath) && !isBlank(DEPRECATED_tlsTrustCertFilePath)) {
-                tlsTrustCertFilePath = DEPRECATED_tlsTrustCertFilePath;
+            if (isBlank(tlsTrustCertFilePath) && !isBlank(deprecatedTlsTrustCertFilePath)) {
+                tlsTrustCertFilePath = deprecatedTlsTrustCertFilePath;
             }
         }
 
-        @Override
-        public void runCmd() throws Exception {
+        @VisibleForTesting
+        List<String> getLocalRunArgs() throws Exception {
             // merge deprecated args with new args
             mergeArgs();
-
             List<String> localRunArgs = new LinkedList<>();
             localRunArgs.add(System.getenv("PULSAR_HOME") + "/bin/function-localrunner");
             localRunArgs.add("--sourceConfig");
             localRunArgs.add(new Gson().toJson(sourceConfig));
             for (Field field : this.getClass().getDeclaredFields()) {
-                if (field.getName().startsWith("DEPRECATED")) continue;
-                if(field.getName().contains("$")) continue;
+                if (field.getName().toUpperCase().startsWith("DEPRECATED")) {
+                    continue;
+                }
+                if (field.getName().contains("$")) {
+                    continue;
+                }
                 Object value = field.get(this);
                 if (value != null) {
                     localRunArgs.add("--" + field.getName());
                     localRunArgs.add(value.toString());
                 }
             }
-            ProcessBuilder processBuilder = new ProcessBuilder(localRunArgs).inheritIO();
+            return localRunArgs;
+        }
+
+        @Override
+        public void runCmd() throws Exception {
+            ProcessBuilder processBuilder = new ProcessBuilder(getLocalRunArgs()).inheritIO();
             Process process = processBuilder.start();
             process.waitFor();
         }
@@ -234,7 +237,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Submit a Pulsar IO source connector to run in a Pulsar cluster")
+    @Command(description = "Submit a Pulsar IO source connector to run in a Pulsar cluster")
     protected class CreateSource extends SourceDetailsCommand {
         @Override
         void runCmd() throws Exception {
@@ -247,10 +250,10 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Update a Pulsar IO source connector")
+    @Command(description = "Update a Pulsar IO source connector")
     protected class UpdateSource extends SourceDetailsCommand {
 
-        @Parameter(names = "--update-auth-data", description = "Whether or not to update the auth data")
+        @Option(names = "--update-auth-data", description = "Whether or not to update the auth data")
         protected boolean updateAuthData;
 
         @Override
@@ -276,93 +279,118 @@ public class CmdSources extends CmdBase {
     }
 
     abstract class SourceDetailsCommand extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The source's tenant")
+        @Option(names = "--tenant", description = "The source's tenant")
         protected String tenant;
-        @Parameter(names = "--namespace", description = "The source's namespace")
+        @Option(names = "--namespace", description = "The source's namespace")
         protected String namespace;
-        @Parameter(names = "--name", description = "The source's name")
+        @Option(names = "--name", description = "The source's name")
         protected String name;
 
-        @Parameter(names = { "-t", "--source-type" }, description = "The source's connector provider")
+        @Option(names = {"-t", "--source-type"}, description = "The source's connector provider")
         protected String sourceType;
 
-        @Parameter(names = "--processingGuarantees", description = "The processing guarantees (aka delivery semantics) applied to the Source", hidden = true)
-        protected FunctionConfig.ProcessingGuarantees DEPRECATED_processingGuarantees;
-        @Parameter(names = "--processing-guarantees", description = "The processing guarantees (aka delivery semantics) applied to the source")
+        @Option(names = "--processingGuarantees",
+                description = "The processing guarantees (aka delivery semantics) applied to the Source", hidden = true)
+        protected FunctionConfig.ProcessingGuarantees deprecatedProcessingGuarantees;
+        @Option(names = "--processing-guarantees",
+                description = "The processing guarantees (as known as delivery semantics) applied to the source."
+                    + " A source connector receives messages from external system and writes messages to a Pulsar"
+                    + " topic. The '--processing-guarantees' is used to ensure the processing guarantees for writing"
+                    + " messages to the Pulsar topic. The available values are `ATLEAST_ONCE`, `ATMOST_ONCE`,"
+                    + " `EFFECTIVELY_ONCE`. If it is not specified, `ATLEAST_ONCE` delivery guarantee is used.")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
 
-        @Parameter(names = { "-o", "--destinationTopicName" }, description = "The Pulsar topic to which data is sent", hidden = true)
-        protected String DEPRECATED_destinationTopicName;
-        @Parameter(names = "--destination-topic-name", description = "The Pulsar topic to which data is sent")
+        @Option(names = { "-o", "--destinationTopicName" },
+                description = "The Pulsar topic to which data is sent", hidden = true)
+        protected String deprecatedDestinationTopicName;
+        @Option(names = "--destination-topic-name", description = "The Pulsar topic to which data is sent")
         protected String destinationTopicName;
-        @Parameter(names = "--producer-config", description = "The custom producer configuration (as a JSON string)")
+        @Option(names = "--producer-config", description = "The custom producer configuration (as a JSON string)")
         protected String producerConfig;
 
-        @Parameter(names = "--batch-builder", description = "BatchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
+        @Option(names = "--batch-builder", description = "BatchBuilder provides two types of "
+                + "batch construction methods, DEFAULT and KEY_BASED. The default value is: DEFAULT")
         protected String batchBuilder;
 
-        @Parameter(names = "--deserializationClassName", description = "The SerDe classname for the source", hidden = true)
-        protected String DEPRECATED_deserializationClassName;
-        @Parameter(names = "--deserialization-classname", description = "The SerDe classname for the source")
+        @Option(names = "--deserializationClassName",
+                description = "The SerDe classname for the source", hidden = true)
+        protected String deprecatedDeserializationClassName;
+        @Option(names = "--deserialization-classname", description = "The SerDe classname for the source")
         protected String deserializationClassName;
 
-        @Parameter(names = { "-st",
+        @Option(names = { "-st",
                 "--schema-type" }, description = "The schema type (either a builtin schema like 'avro', 'json', etc.."
-                        + " or custom Schema class name to be used to encode messages emitted from the source")
+                + " or custom Schema class name to be used to encode messages emitted from the source")
         protected String schemaType;
 
-        @Parameter(names = "--parallelism", description = "The source's parallelism factor (i.e. the number of source instances to run)")
+        @Option(names = "--parallelism",
+                description = "The source's parallelism factor (i.e. the number of source instances to run)")
         protected Integer parallelism;
-        @Parameter(names = { "-a", "--archive" },
-                description = "The path to the NAR archive for the Source. It also supports url-path [http/https/file (file protocol assumes that file already exists on worker host)] from which worker can download the package.", listConverter = StringConverter.class)
+        @Option(names = { "-a", "--archive" },
+                description = "The path to the NAR archive for the Source. It also supports url-path "
+                        + "[http/https/file (file protocol assumes that file already exists on worker host)] "
+                        + "from which worker can download the package.")
         protected String archive;
-        @Parameter(names = "--className", description = "The source's class name if archive is file-url-path (file://)", hidden = true)
-        protected String DEPRECATED_className;
-        @Parameter(names = "--classname", description = "The source's class name if archive is file-url-path (file://)")
+        @Option(names = "--className",
+                description = "The source's class name if archive is file-url-path (file://)", hidden = true)
+        protected String deprecatedClassName;
+        @Option(names = "--classname", description = "The source's class name if archive is file-url-path (file://)")
         protected String className;
-        @Parameter(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
+        @Option(names = "--sourceConfigFile", description = "The path to a YAML config file specifying the "
                 + "source's configuration", hidden = true)
-        protected String DEPRECATED_sourceConfigFile;
-        @Parameter(names = "--source-config-file", description = "The path to a YAML config file specifying the "
+        protected String deprecatedSourceConfigFile;
+        @Option(names = "--source-config-file", description = "The path to a YAML config file specifying the "
                 + "source's configuration")
         protected String sourceConfigFile;
-        @Parameter(names = "--cpu", description = "The CPU (in cores) that needs to be allocated per source instance (applicable only to Docker runtime)")
+        @Option(names = "--cpu", description = "The CPU (in cores) that needs to be allocated "
+                + "per source instance (applicable only to Docker runtime)")
         protected Double cpu;
-        @Parameter(names = "--ram", description = "The RAM (in bytes) that need to be allocated per source instance (applicable only to the process and Docker runtimes)")
+        @Option(names = "--ram", description = "The RAM (in bytes) that need to be allocated "
+                + "per source instance (applicable only to the process and Docker runtimes)")
         protected Long ram;
-        @Parameter(names = "--disk", description = "The disk (in bytes) that need to be allocated per source instance (applicable only to Docker runtime)")
+        @Option(names = "--disk", description = "The disk (in bytes) that need to be allocated "
+                + "per source instance (applicable only to Docker runtime)")
         protected Long disk;
-        @Parameter(names = "--sourceConfig", description = "Source config key/values", hidden = true)
-        protected String DEPRECATED_sourceConfigString;
-        @Parameter(names = "--source-config", description = "Source config key/values")
+        @Option(names = "--sourceConfig", description = "Source config key/values", hidden = true)
+        protected String deprecatedSourceConfigString;
+        @Option(names = "--source-config", description = "Source config key/values")
         protected String sourceConfigString;
-        @Parameter(names = "--batch-source-config", description = "Batch source config key/values")
+        @Option(names = "--batch-source-config", description = "Batch source config key/values")
         protected String batchSourceConfigString;
-        @Parameter(names = "--custom-runtime-options", description = "A string that encodes options to customize the runtime, see docs for configured runtime for details")
+        @Option(names = "--custom-runtime-options", description = "A string that encodes options to "
+                + "customize the runtime, see docs for configured runtime for details")
         protected String customRuntimeOptions;
-        @Parameter(names = "--secrets", description = "The map of secretName to an object that encapsulates how the secret is fetched by the underlying secrets provider")
+        @Option(names = "--secrets", description = "The map of secretName to an object that encapsulates "
+                + "how the secret is fetched by the underlying secrets provider")
         protected String secretsString;
+        @Option(names = "--log-topic", description = "The topic to which the logs of a Pulsar Sink are produced")
+        protected String logTopic;
+        @Option(names = ClientApi.OPTION_NAME, description = CmdFunctions.CLIENT_API_DESCRIPTION)
+        protected FunctionConfig.ClientApi clientApi;
+        @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
+                + " (for process & Kubernetes runtime only).")
+        protected String runtimeFlags;
 
         protected SourceConfig sourceConfig;
 
         private void mergeArgs() {
-            if (processingGuarantees == null && DEPRECATED_processingGuarantees != null) {
-                processingGuarantees = DEPRECATED_processingGuarantees;
+            if (processingGuarantees == null && deprecatedProcessingGuarantees != null) {
+                processingGuarantees = deprecatedProcessingGuarantees;
             }
-            if (isBlank(destinationTopicName) && !isBlank(DEPRECATED_destinationTopicName)) {
-                destinationTopicName = DEPRECATED_destinationTopicName;
+            if (isBlank(destinationTopicName) && !isBlank(deprecatedDestinationTopicName)) {
+                destinationTopicName = deprecatedDestinationTopicName;
             }
-            if (isBlank(deserializationClassName) && !isBlank(DEPRECATED_deserializationClassName)) {
-                deserializationClassName = DEPRECATED_deserializationClassName;
+            if (isBlank(deserializationClassName) && !isBlank(deprecatedDeserializationClassName)) {
+                deserializationClassName = deprecatedDeserializationClassName;
             }
-            if (isBlank(className) && !isBlank(DEPRECATED_className)) {
-                className = DEPRECATED_className;
+            if (isBlank(className) && !isBlank(deprecatedClassName)) {
+                className = deprecatedClassName;
             }
-            if (isBlank(sourceConfigFile) && !isBlank(DEPRECATED_sourceConfigFile)) {
-                sourceConfigFile = DEPRECATED_sourceConfigFile;
+            if (isBlank(sourceConfigFile) && !isBlank(deprecatedSourceConfigFile)) {
+                sourceConfigFile = deprecatedSourceConfigFile;
             }
-            if (isBlank(sourceConfigString) && !isBlank(DEPRECATED_sourceConfigString)) {
-                sourceConfigString = DEPRECATED_sourceConfigString;
+            if (isBlank(sourceConfigString) && !isBlank(deprecatedSourceConfigString)) {
+                sourceConfigString = deprecatedSourceConfigString;
             }
         }
 
@@ -414,7 +442,7 @@ public class CmdSources extends CmdBase {
                 sourceConfig.setParallelism(parallelism);
             }
 
-            if (archive != null && sourceType != null) {
+            if (archive != null && (sourceType != null || sourceConfig.getSourceType() != null)) {
                 throw new ParameterException("Cannot specify both archive and source-type");
             }
 
@@ -424,6 +452,8 @@ public class CmdSources extends CmdBase {
 
             if (sourceType != null) {
                 sourceConfig.setArchive(validateSourceType(sourceType));
+            } else if (sourceConfig.getSourceType() != null) {
+                sourceConfig.setArchive(validateSourceType(sourceConfig.getSourceType()));
             }
 
             Resources resources = sourceConfig.getResources();
@@ -458,9 +488,9 @@ public class CmdSources extends CmdBase {
             } catch (Exception ex) {
                 throw new ParameterException("Cannot parse source-config", ex);
             }
-            
+
             if (null != batchSourceConfigString) {
-            	sourceConfig.setBatchSourceConfig(parseBatchSourceConfigs(batchSourceConfigString));
+                sourceConfig.setBatchSourceConfig(parseBatchSourceConfigs(batchSourceConfigString));
             }
 
             if (customRuntimeOptions != null) {
@@ -475,21 +505,29 @@ public class CmdSources extends CmdBase {
                 }
                 sourceConfig.setSecrets(secretsMap);
             }
-            
+            if (null != logTopic) {
+                sourceConfig.setLogTopic(logTopic);
+            }
+            if (null != clientApi) {
+                sourceConfig.setClientApi(clientApi);
+            }
+            if (null != runtimeFlags) {
+                sourceConfig.setRuntimeFlags(runtimeFlags);
+            }
+
             // check if source configs are valid
             validateSourceConfigs(sourceConfig);
         }
 
         protected Map<String, Object> parseConfigs(String str) throws JsonProcessingException {
-            ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
-            TypeReference<HashMap<String,Object>> typeRef
-                    = new TypeReference<HashMap<String,Object>>() {};
+            ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+            TypeReference<HashMap<String, Object>> typeRef = new TypeReference<HashMap<String, Object>>() {};
 
             return mapper.readValue(str, typeRef);
         }
 
-            protected BatchSourceConfig parseBatchSourceConfigs(String str) {
-        	return new Gson().fromJson(str, BatchSourceConfig.class);
+        protected BatchSourceConfig parseBatchSourceConfigs(String str) {
+            return new Gson().fromJson(str, BatchSourceConfig.class);
         }
 
         protected void validateSourceConfigs(SourceConfig sourceConfig) {
@@ -497,31 +535,33 @@ public class CmdSources extends CmdBase {
                 throw new ParameterException("Source archive not specified");
             }
             org.apache.pulsar.common.functions.Utils.inferMissingArguments(sourceConfig);
-            if (!Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive()) &&
-                !sourceConfig.getArchive().startsWith(Utils.BUILTIN)) {
+            if (!Utils.isFunctionPackageUrlSupported(sourceConfig.getArchive())
+                    && !sourceConfig.getArchive().startsWith(Utils.BUILTIN)) {
                 if (!new File(sourceConfig.getArchive()).exists()) {
-                    throw new IllegalArgumentException(String.format("Source Archive %s does not exist", sourceConfig.getArchive()));
+                    throw new IllegalArgumentException(String.format("Source Archive %s does not exist",
+                            sourceConfig.getArchive()));
                 }
             }
             if (isBlank(sourceConfig.getName())) {
                 throw new IllegalArgumentException("Source name not specified");
             }
-            
+
             if (sourceConfig.getBatchSourceConfig() != null) {
-            	validateBatchSourceConfigs(sourceConfig.getBatchSourceConfig());
+                validateBatchSourceConfigs(sourceConfig.getBatchSourceConfig());
             }
         }
-        
+
         protected void validateBatchSourceConfigs(BatchSourceConfig batchSourceConfig) {
-           if (isBlank(batchSourceConfig.getDiscoveryTriggererClassName())) {
-             throw new IllegalArgumentException("Discovery Triggerer not specified");
-           } 
+            if (isBlank(batchSourceConfig.getDiscoveryTriggererClassName())) {
+                throw new IllegalArgumentException("Discovery Triggerer not specified");
+            }
         }
 
         protected String validateSourceType(String sourceType) throws IOException {
             Set<String> availableSources;
             try {
-                availableSources = getAdmin().sources().getBuiltInSources().stream().map(ConnectorDefinition::getName).collect(Collectors.toSet());
+                availableSources = getAdmin().sources().getBuiltInSources().stream()
+                        .map(ConnectorDefinition::getName).collect(Collectors.toSet());
             } catch (PulsarAdminException e) {
                 throw new IOException(e);
             }
@@ -537,17 +577,17 @@ public class CmdSources extends CmdBase {
     }
 
     /**
-     * Function level command
+     * Function level command.
      */
     @Getter
     abstract class SourceCommand extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The source's tenant")
+        @Option(names = "--tenant", description = "The source's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The source's namespace")
+        @Option(names = "--namespace", description = "The source's namespace")
         protected String namespace;
 
-        @Parameter(names = "--name", description = "The source's name")
+        @Option(names = "--name", description = "The source's name")
         protected String sourceName;
 
         @Override
@@ -566,7 +606,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Stops a Pulsar IO source connector")
+    @Command(description = "Stops a Pulsar IO source connector")
     protected class DeleteSource extends SourceCommand {
 
         @Override
@@ -576,7 +616,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Gets the information about a Pulsar IO source connector")
+    @Command(description = "Gets the information about a Pulsar IO source connector")
     protected class GetSource extends SourceCommand {
 
         @Override
@@ -588,14 +628,14 @@ public class CmdSources extends CmdBase {
     }
 
     /**
-     * List Sources command
+     * List Sources command.
      */
-    @Parameters(commandDescription = "List all running Pulsar IO source connectors")
+    @Command(description = "List all running Pulsar IO source connectors")
     protected class ListSources extends BaseCommand {
-        @Parameter(names = "--tenant", description = "The sink's tenant")
+        @Option(names = "--tenant", description = "The source's tenant")
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "The sink's namespace")
+        @Option(names = "--namespace", description = "The source's namespace")
         protected String namespace;
 
         @Override
@@ -616,10 +656,11 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Check the current status of a Pulsar Source")
+    @Command(description = "Check the current status of a Pulsar Source")
     class GetSourceStatus extends SourceCommand {
 
-        @Parameter(names = "--instance-id", description = "The source instanceId (Get-status of all instances if instance-id is not provided")
+        @Option(names = "--instance-id",
+                description = "The source instanceId (Get-status of all instances if instance-id is not provided")
         protected String instanceId;
 
         @Override
@@ -627,15 +668,17 @@ public class CmdSources extends CmdBase {
             if (isBlank(instanceId)) {
                 print(getAdmin().sources().getSourceStatus(tenant, namespace, sourceName));
             } else {
-                print(getAdmin().sources().getSourceStatus(tenant, namespace, sourceName, Integer.parseInt(instanceId)));
+                print(getAdmin().sources()
+                        .getSourceStatus(tenant, namespace, sourceName, Integer.parseInt(instanceId)));
             }
         }
     }
 
-    @Parameters(commandDescription = "Restart source instance")
+    @Command(description = "Restart source instance")
     class RestartSource extends SourceCommand {
 
-        @Parameter(names = "--instance-id", description = "The source instanceId (restart all instances if instance-id is not provided")
+        @Option(names = "--instance-id",
+                description = "The source instanceId (restart all instances if instance-id is not provided")
         protected String instanceId;
 
         @Override
@@ -653,10 +696,11 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Stop source instance")
+    @Command(description = "Stop source instance")
     class StopSource extends SourceCommand {
 
-        @Parameter(names = "--instance-id", description = "The source instanceId (stop all instances if instance-id is not provided")
+        @Option(names = "--instance-id",
+                description = "The source instanceId (stop all instances if instance-id is not provided")
         protected String instanceId;
 
         @Override
@@ -674,10 +718,11 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Start source instance")
+    @Command(description = "Start source instance")
     class StartSource extends SourceCommand {
 
-        @Parameter(names = "--instance-id", description = "The source instanceId (start all instances if instance-id is not provided")
+        @Option(names = "--instance-id",
+                description = "The source instanceId (start all instances if instance-id is not provided")
         protected String instanceId;
 
         @Override
@@ -695,9 +740,10 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the list of Pulsar IO connector sources supported by Pulsar cluster")
+    @Command(description = "Get the list of Pulsar IO connector sources supported by Pulsar cluster")
     public class ListBuiltInSources extends BaseCommand {
         @Override
+        @SuppressWarnings("deprecation")
         void runCmd() throws Exception {
             getAdmin().sources().getBuiltInSources().stream().filter(x -> !StringUtils.isEmpty(x.getSourceClass()))
                     .forEach(connector -> {
@@ -708,7 +754,7 @@ public class CmdSources extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Reload the available built-in connectors")
+    @Command(description = "Reload the available built-in connectors")
     public class ReloadBuiltInSources extends BaseCommand {
 
         @Override

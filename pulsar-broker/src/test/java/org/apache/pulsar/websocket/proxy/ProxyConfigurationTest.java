@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
+import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgs;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
-
 import java.util.Optional;
-
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
@@ -48,7 +47,7 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
         config = new WebSocketProxyConfiguration();
         config.setWebServicePort(Optional.of(0));
         config.setClusterName("test");
-        config.setConfigurationStoreServers(GLOBAL_DUMMY_VALUE);
+        config.setConfigurationMetadataStoreUrl(GLOBAL_DUMMY_VALUE);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -65,13 +64,20 @@ public class ProxyConfigurationTest extends ProducerConsumerBase {
     public void configTest(int numIoThreads, int connectionsPerBroker) throws Exception {
         config.setWebSocketNumIoThreads(numIoThreads);
         config.setWebSocketConnectionsPerBroker(connectionsPerBroker);
-        WebSocketService service = spy(new WebSocketService(config));
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service).createMetadataStore(anyString(), anyInt());
+        config.getProperties().setProperty("brokerClient_serviceUrl", "https://broker.com:8080");
+        config.setServiceUrl("http://localhost:8080");
+        config.getProperties().setProperty("brokerClient_lookupTimeoutMs", "100");
+        WebSocketService service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
+                .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         service.start();
 
         PulsarClientImpl client = (PulsarClientImpl) service.getPulsarClient();
         assertEquals(client.getConfiguration().getNumIoThreads(), numIoThreads);
         assertEquals(client.getConfiguration().getConnectionsPerBroker(), connectionsPerBroker);
+        assertEquals(client.getConfiguration().getServiceUrl(), "http://localhost:8080",
+                "brokerClient_ configs take precedence");
+        assertEquals(client.getConfiguration().getLookupTimeoutMs(), 100);
 
         service.close();
     }

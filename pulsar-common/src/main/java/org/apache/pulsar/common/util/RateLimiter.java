@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,12 +21,14 @@ package org.apache.pulsar.common.util;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.MoreObjects;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Builder;
+import lombok.CustomLog;
 
 /**
  * A Rate Limiter that distributes permits at a configurable rate. Each {@link #acquire()} blocks if necessary until a
@@ -49,6 +51,7 @@ import lombok.Builder;
  * <li><b>Faster: </b>RateLimiter is light-weight and faster than Guava-RateLimiter</li>
  * </ul>
  */
+@CustomLog
 public class RateLimiter implements AutoCloseable{
     private final ScheduledExecutorService executorService;
     private long rateTime;
@@ -80,7 +83,8 @@ public class RateLimiter implements AutoCloseable{
             this.executorService = scheduledExecutorService;
             this.externalExecutor = true;
         } else {
-            final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+            final ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1,
+                    new DefaultThreadFactory("pulsar-rate-limiter"));
             executor.setContinueExistingPeriodicTasksAfterShutdownPolicy(false);
             executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
             this.executorService = executor;
@@ -173,7 +177,10 @@ public class RateLimiter implements AutoCloseable{
      * @return {@code true} if the permits were acquired, {@code false} otherwise
      */
     public synchronized boolean tryAcquire(long acquirePermit) {
-        checkArgument(!isClosed(), "Rate limiter is already shutdown");
+        if (isClosed()) {
+            log.info("The current rate limiter is already shutdown, acquire permits directly.");
+            return true;
+        }
         // lazy init and start task only once application start using it
         if (renewTask == null) {
             renewTask = createTask();
@@ -189,8 +196,7 @@ public class RateLimiter implements AutoCloseable{
             canAcquire = acquirePermit < 0 || acquiredPermits < this.permits;
         } else {
             // acquired-permits can't be larger than the rate
-            if (acquirePermit > this.permits) {
-                acquiredPermits = this.permits;
+            if (acquirePermit + acquiredPermits > this.permits) {
                 return false;
             }
 

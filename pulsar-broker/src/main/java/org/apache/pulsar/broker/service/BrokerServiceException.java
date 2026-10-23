@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import lombok.Getter;
 import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.transaction.common.exception.TransactionConflictException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 
@@ -69,12 +71,23 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    /**
+     * A service unit can't be acquired, or looked up without waiting for the metadata store, while the broker's
+     * metadata session is lost. The client looks the topic up again, possibly at another broker.
+     */
+    public static class MetadataSessionLostException extends ServiceUnitNotReadyException {
+        public MetadataSessionLostException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class TopicClosedException extends BrokerServiceException {
         public TopicClosedException(Throwable t) {
             super(t);
         }
     }
 
+    @Deprecated
     public static class AddEntryMetadataException extends BrokerServiceException {
         public AddEntryMetadataException(Throwable t) {
             super(t);
@@ -85,6 +98,10 @@ public class BrokerServiceException extends Exception {
         public PersistenceException(Throwable t) {
             super(t);
         }
+
+        public PersistenceException(String msg) {
+            super(msg);
+        }
     }
 
     public static class TopicTerminatedException extends BrokerServiceException {
@@ -93,6 +110,16 @@ public class BrokerServiceException extends Exception {
         }
 
         public TopicTerminatedException(Throwable t) {
+            super(t);
+        }
+    }
+
+    public static class TopicMigratedException extends BrokerServiceException {
+        public TopicMigratedException(String msg) {
+            super(msg);
+        }
+
+        public TopicMigratedException(Throwable t) {
             super(t);
         }
     }
@@ -129,6 +156,10 @@ public class BrokerServiceException extends Exception {
         public TopicBusyException(String msg) {
             super(msg);
         }
+
+        public TopicBusyException(String msg, Throwable t) {
+            super(msg, t);
+        }
     }
 
     public static class TopicNotFoundException extends BrokerServiceException {
@@ -143,6 +174,18 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class UnsupportedSubscriptionException extends BrokerServiceException {
+        public UnsupportedSubscriptionException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class SubscriptionConflictUnloadException extends BrokerServiceException {
+        public SubscriptionConflictUnloadException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class SubscriptionBusyException extends BrokerServiceException {
         public SubscriptionBusyException(String msg) {
             super(msg);
@@ -151,6 +194,12 @@ public class BrokerServiceException extends Exception {
 
     public static class NotAllowedException extends BrokerServiceException {
         public NotAllowedException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class NotAuthorizedException extends BrokerServiceException {
+        public NotAuthorizedException(String msg) {
             super(msg);
         }
     }
@@ -185,9 +234,19 @@ public class BrokerServiceException extends Exception {
         }
     }
 
-    public static class TopicPoliciesCacheNotInitException extends BrokerServiceException {
-        public TopicPoliciesCacheNotInitException() {
-            super("Topic policies cache have not init.");
+    public static class ConnectionClosedException extends BrokerServiceException {
+        public ConnectionClosedException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class TopicBacklogQuotaExceededException extends BrokerServiceException {
+        @Getter
+        private final BacklogQuota.RetentionPolicy retentionPolicy;
+
+        public TopicBacklogQuotaExceededException(BacklogQuota.RetentionPolicy retentionPolicy) {
+            super("Cannot create producer on topic with backlog quota exceeded");
+            this.retentionPolicy = retentionPolicy;
         }
     }
 
@@ -219,6 +278,8 @@ public class BrokerServiceException extends Exception {
             return ServerError.ServiceNotReady;
         } else if (t instanceof TopicNotFoundException) {
             return ServerError.TopicNotFound;
+        } else if (t instanceof SubscriptionNotFoundException) {
+            return ServerError.SubscriptionNotFound;
         } else if (t instanceof IncompatibleSchemaException
             || t instanceof InvalidSchemaDataException) {
             // for backward compatible with old clients, invalid schema data
@@ -232,6 +293,8 @@ public class BrokerServiceException extends Exception {
             return ServerError.InvalidTxnStatus;
         } else if (t instanceof NotAllowedException) {
             return ServerError.NotAllowedError;
+        } else if (t instanceof NotAuthorizedException) {
+            return ServerError.AuthorizationError;
         } else if (t instanceof ProducerFencedException) {
             return ServerError.ProducerFenced;
         } else if (t instanceof TransactionConflictException) {

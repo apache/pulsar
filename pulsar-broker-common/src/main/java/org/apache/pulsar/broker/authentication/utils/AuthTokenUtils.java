@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.broker.authentication.utils;
 
-import com.google.common.io.ByteStreams;
-
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -27,9 +25,7 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.io.DecodingException;
 import io.jsonwebtoken.io.Encoders;
 import io.jsonwebtoken.security.Keys;
-
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.Key;
@@ -38,18 +34,42 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Collection;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.Optional;
-
+import java.util.Set;
 import javax.crypto.SecretKey;
-
 import lombok.experimental.UtilityClass;
-
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.url.URL;
 
+@SuppressWarnings("deprecation")
 @UtilityClass
 public class AuthTokenUtils {
+
+    /**
+     * Interpret a role claim as a string or a collection of strings.
+     * Missing claims and other value types do not supply any roles.
+     */
+    public static Set<String> rolesFromClaim(Object claim) {
+        if (claim instanceof String role) {
+            return Set.of(role);
+        }
+        if (claim instanceof Collection<?> values) {
+            Set<String> roles = new HashSet<>();
+            for (Object value : values) {
+                if (!(value instanceof String role)) {
+                    return Set.of();
+                }
+                roles.add(role);
+            }
+            return Set.copyOf(roles);
+        }
+        return Set.of();
+    }
 
     public static SecretKey createSecretKey(SignatureAlgorithm signatureAlgorithm) {
         return Keys.secretKeyFor(signatureAlgorithm);
@@ -95,30 +115,37 @@ public class AuthTokenUtils {
         return Encoders.BASE64.encode(key.getEncoded());
     }
 
-    public static String createToken(Key signingKey, String subject, Optional<Date> expiryTime) {
+    public static String createToken(Key signingKey, String subject, Optional<Date> expiryTime,
+                                     Optional<Map<String, Object>> headers) {
         JwtBuilder builder = Jwts.builder()
                 .setSubject(subject)
                 .signWith(signingKey);
 
         expiryTime.ifPresent(builder::setExpiration);
+        headers.ifPresent(builder::setHeaderParams);
 
         return builder.compact();
+    }
+
+    public static String createToken(Key signingKey, String subject, Optional<Date> expiryTime) {
+        return createToken(signingKey, subject, expiryTime, Optional.empty());
     }
 
     public static byte[] readKeyFromUrl(String keyConfUrl) throws IOException {
         if (keyConfUrl.startsWith("data:") || keyConfUrl.startsWith("file:")) {
             try {
-                return ByteStreams.toByteArray((InputStream) new URL(keyConfUrl).getContent());
+                if (keyConfUrl.startsWith("file:")) {
+                    keyConfUrl = keyConfUrl.trim();
+                }
+                return IOUtils.toByteArray(URL.createURL(keyConfUrl));
+            } catch (IOException e) {
+                throw e;
             } catch (Exception e) {
                 throw new IOException(e);
             }
         } else if (Files.exists(Paths.get(keyConfUrl))) {
             // Assume the key content was passed in a valid file path
-            try {
-                return Files.readAllBytes(Paths.get(keyConfUrl));
-            } catch (IOException e) {
-                throw new IOException(e);
-            }
+            return Files.readAllBytes(Paths.get(keyConfUrl));
         } else if (Base64.isBase64(keyConfUrl.getBytes())) {
             // Assume the key content was passed in base64
             try {

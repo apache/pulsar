@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,59 +19,68 @@
 package org.apache.pulsar.websocket;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.common.naming.Constants.WEBSOCKET_DUMMY_ORIGINAL_PRINCIPLE;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import jakarta.servlet.ServletException;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.servlet.ServletException;
-import javax.websocket.DeploymentException;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
+import lombok.CustomLog;
+import lombok.Getter;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
+import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.apache.pulsar.websocket.stats.ProxyStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Socket proxy server which initializes other dependent services and starts server by opening web-socket end-point url.
  *
  */
+@CustomLog
 public class WebSocketService implements Closeable {
 
     AuthenticationService authenticationService;
     AuthorizationService authorizationService;
     PulsarClient pulsarClient;
 
-    private final ScheduledExecutorService executor = Executors
-            .newScheduledThreadPool(WebSocketProxyConfiguration.WEBSOCKET_SERVICE_THREADS,
-                    new DefaultThreadFactory("pulsar-websocket"));
-    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder()
-            .numThreads(WebSocketProxyConfiguration.GLOBAL_ZK_THREADS).name("pulsar-websocket-ordered").build();
+    private final ScheduledExecutorService executor;
     private PulsarResources pulsarResources;
     private MetadataStoreExtended configMetadataStore;
     private ServiceConfiguration config;
 
+    @Getter
+    private Optional<CryptoKeyReader> cryptoKeyReader = Optional.empty();
+
     private ClusterData localCluster;
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> topicProducerMap;
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> topicConsumerMap;
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> topicReaderMap;
+    private final Map<String, Set<ProducerHandler>> topicProducerMap = new ConcurrentHashMap<>();
+    private final Map<String, Set<ConsumerHandler>> topicConsumerMap = new ConcurrentHashMap<>();
+    private final Map<String, Set<ReaderHandler>> topicReaderMap = new ConcurrentHashMap<>();
     private final ProxyStats proxyStats;
 
     public WebSocketService(WebSocketProxyConfiguration config) {
@@ -79,43 +88,67 @@ public class WebSocketService implements Closeable {
     }
 
     public WebSocketService(ClusterData localCluster, ServiceConfiguration config) {
+        this(localCluster, config, null);
+    }
+
+    /**
+     * @param pulsarResources resources to share, such as the broker's, so that no configuration metadata store is
+     *                        opened by this service; {@code null} to open one in {@link #start()}
+     */
+    public WebSocketService(ClusterData localCluster, ServiceConfiguration config, PulsarResources pulsarResources) {
         this.config = config;
+        this.executor = Executors
+                .newScheduledThreadPool(config.getWebSocketNumServiceThreads(),
+                        new DefaultThreadFactory("pulsar-websocket"));
         this.localCluster = localCluster;
-        this.topicProducerMap = new ConcurrentOpenHashMap<>();
-        this.topicConsumerMap = new ConcurrentOpenHashMap<>();
-        this.topicReaderMap = new ConcurrentOpenHashMap<>();
+        this.pulsarResources = pulsarResources;
         this.proxyStats = new ProxyStats(this);
     }
 
-    public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
-            DeploymentException {
+    public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException {
 
-        if (isNotBlank(config.getConfigurationMetadataStoreUrl())) {
+        if (pulsarResources == null && isNotBlank(config.getConfigurationMetadataStoreUrl())) {
             try {
-                configMetadataStore = createMetadataStore(config.getConfigurationMetadataStoreUrl(),
-                        (int) config.getZooKeeperSessionTimeoutMillis());
+                configMetadataStore = createConfigMetadataStore(config.getConfigurationMetadataStoreUrl(),
+                        (int) config.getMetadataStoreSessionTimeoutMillis(),
+                        config.isMetadataStoreAllowReadOnlyOperations());
             } catch (MetadataStoreException e) {
                 throw new PulsarServerException(e);
             }
             pulsarResources = new PulsarResources(null, configMetadataStore);
         }
 
+        // Start authentication first so authorization can reuse the initialized token provider.
+        authenticationService = new AuthenticationService(this.config);
         // start authorizationService
         if (config.isAuthorizationEnabled()) {
             if (pulsarResources == null) {
                 throw new PulsarServerException(
                         "Failed to initialize authorization manager due to empty ConfigurationStoreServers");
             }
-            authorizationService = new AuthorizationService(this.config, pulsarResources);
+            authorizationService = new AuthorizationService(this.config, pulsarResources,
+                    authenticationService);
         }
-        // start authentication service
-        authenticationService = new AuthenticationService(this.config);
+        // initialize crypto key reader
+        String cryptoFactoryClassName = (String) config.getProperties().get("cryptoKeyReaderFactoryClassName");
+        if (StringUtils.isNotBlank(cryptoFactoryClassName)) {
+            try {
+                CryptoKeyReaderFactory factoryInstance = (CryptoKeyReaderFactory) Class.forName(cryptoFactoryClassName)
+                        .getDeclaredConstructor().newInstance();
+                cryptoKeyReader = Optional.ofNullable(factoryInstance.create());
+            } catch (Exception e) {
+                log.info().exception(e).log("Failed to initialize crypto-key reader");
+                throw new PulsarServerException(e);
+            }
+        }
+
         log.info("Pulsar WebSocket Service started");
     }
 
-    public MetadataStoreExtended createMetadataStore(String serverUrls, int sessionTimeoutMs)
+    public MetadataStoreExtended createConfigMetadataStore(String serverUrls, int sessionTimeoutMs, boolean
+            isAllowReadOnlyOperations)
             throws MetadataStoreException {
-        return PulsarResources.createMetadataStore(serverUrls, sessionTimeoutMs);
+        return PulsarResources.createConfigMetadataStore(serverUrls, sessionTimeoutMs, isAllowReadOnlyOperations);
     }
 
     @Override
@@ -137,7 +170,6 @@ public class WebSocketService implements Closeable {
         }
 
         executor.shutdown();
-        orderedExecutor.shutdown();
     }
 
     public AuthenticationService getAuthenticationService() {
@@ -164,14 +196,28 @@ public class WebSocketService implements Closeable {
         this.localCluster = clusterData;
     }
 
+    @SuppressWarnings("deprecation")
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
+                .memoryLimit(SizeUnit.MEGA_BYTES.toBytes(config.getWebSocketPulsarClientMemoryLimitInMB()),
+                        SizeUnit.BYTES)
                 .statsInterval(0, TimeUnit.SECONDS) //
                 .enableTls(config.isTlsEnabled()) //
                 .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection()) //
+                .enableTlsHostnameVerification(config.isTlsHostnameVerificationEnabled())
                 .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath()) //
                 .ioThreads(config.getWebSocketNumIoThreads()) //
                 .connectionsPerBroker(config.getWebSocketConnectionsPerBroker());
+        if (clientBuilder instanceof  ClientBuilderImpl) {
+            ((ClientBuilderImpl) clientBuilder).originalPrincipal(WEBSOCKET_DUMMY_ORIGINAL_PRINCIPLE);
+        }
+
+        // Apply all arbitrary configuration. This must be called before setting any fields annotated as
+        // @Secret on the ClientConfigurationData object because of the way they are serialized.
+        // See https://github.com/apache/pulsar/issues/8509 for more information.
+        clientBuilder.loadConf(PropertiesUtils.filterAndMapProperties(config.getProperties(), "brokerClient_"));
+        // Disabled auto release useless connection.
+        clientBuilder.connectionMaxIdleSeconds(-1);
 
         if (isNotBlank(config.getBrokerClientAuthenticationPlugin())
                 && isNotBlank(config.getBrokerClientAuthenticationParameters())) {
@@ -180,18 +226,66 @@ public class WebSocketService implements Closeable {
         }
 
         if (config.isBrokerClientTlsEnabled()) {
-			if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
-					clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
-			} else if (isNotBlank(clusterData.getServiceUrlTls())) {
-					clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
-			}
+            if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
+                clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
+            } else if (isNotBlank(clusterData.getServiceUrlTls())) {
+                clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
+            }
         } else if (isNotBlank(clusterData.getBrokerServiceUrl())) {
             clientBuilder.serviceUrl(clusterData.getBrokerServiceUrl());
         } else {
             clientBuilder.serviceUrl(clusterData.getServiceUrl());
         }
-
+        applyBrokerClientProviders(clientBuilder);
+        applyBrokerClientTlsFactory(clientBuilder);
         return clientBuilder.build();
+    }
+
+    /**
+     * PIP-478: route the WebSocket proxy's own outbound (websocket-to-broker) Pulsar client onto the new TLS
+     * SPI (purpose {@code BROKER_CLIENT}) when opted in via {@code brokerClientTlsFactoryClassName}. Mirrors
+     * the broker's {@code PulsarService.maybeApplyBrokerClientTlsFactory}: the broker-client {@code tls*}
+     * material is already on the client configuration, so this only attaches a per-client
+     * {@link org.apache.pulsar.tls.PulsarTlsFactory} (default file-based, or the named custom factory) that the
+     * transport reads for {@code CLIENT_DEFAULT}. Leaves the client on the built-in TLS path when the gate is
+     * off, when the client is not TLS, or when it is already on the new path.
+     */
+    /**
+     * PIP-478: pin the proxy's own outbound (proxy-to-broker) client onto the configured engine and JSSE
+     * providers. Applied independently of {@code brokerClientTlsFactoryClassName} — the providers describe
+     * how TLS is built, not which factory builds it — mirroring the broker, the proxy and the functions
+     * worker. The listener-side {@code tlsProvider}/{@code jsseProvider} govern this service's own web
+     * server and must not leak onto this leg.
+     */
+    private void applyBrokerClientProviders(ClientBuilder clientBuilder) {
+        if (!(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getClientConfigurationData();
+        if (isNotBlank(config.getBrokerClientSslProvider())) {
+            conf.setSslProvider(config.getBrokerClientSslProvider());
+        }
+        if (isNotBlank(config.getBrokerClientJsseProvider())) {
+            conf.setJsseProvider(config.getBrokerClientJsseProvider());
+        }
+        if (isNotBlank(config.getBrokerClientJcaProvider())) {
+            conf.setJcaProvider(config.getBrokerClientJcaProvider());
+        }
+    }
+
+    private void applyBrokerClientTlsFactory(ClientBuilder clientBuilder) {
+        String factoryClassName = config.getBrokerClientTlsFactoryClassName();
+        if (!isNotBlank(factoryClassName) || !(clientBuilder instanceof ClientBuilderImpl builderImpl)) {
+            return;
+        }
+        ClientConfigurationData conf = builderImpl.getClientConfigurationData();
+        if (conf.getTlsFactory() != null || conf.getTlsPolicyMap() != null || !conf.isUseTls()) {
+            return;
+        }
+        conf.setTlsFactory(ClientTlsFactorySupport.brokerClientTlsFactory(conf, factoryClassName));
+        // PIP-478: deliver brokerClientTlsFactoryConfig to a custom factory via the init context params
+        // (parsed the same way as the server-side tlsFactoryConfig).
+        conf.setTlsFactoryParams(TlsFactorySupport.parseFactoryConfig(config.getBrokerClientTlsFactoryConfig()));
     }
 
     private static ClusterData createClusterData(WebSocketProxyConfiguration config) {
@@ -234,24 +328,27 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean isAuthenticationEnabled() {
-        if (this.config == null)
+        if (this.config == null) {
             return false;
+        }
         return this.config.isAuthenticationEnabled();
     }
 
     public boolean isAuthorizationEnabled() {
-        if (this.config == null)
+        if (this.config == null) {
             return false;
+        }
         return this.config.isAuthorizationEnabled();
     }
 
     public boolean addProducer(ProducerHandler producer) {
         return topicProducerMap
-                .computeIfAbsent(producer.getProducer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+                .computeIfAbsent(producer.getProducer().getTopic(),
+                        topic -> ConcurrentHashMap.newKeySet())
                 .add(producer);
     }
 
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ProducerHandler>> getProducers() {
+    public Map<String, Set<ProducerHandler>> getProducers() {
         return topicProducerMap;
     }
 
@@ -265,11 +362,11 @@ public class WebSocketService implements Closeable {
 
     public boolean addConsumer(ConsumerHandler consumer) {
         return topicConsumerMap
-                .computeIfAbsent(consumer.getConsumer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+                .computeIfAbsent(consumer.getConsumer().getTopic(), topic -> ConcurrentHashMap.newKeySet())
                 .add(consumer);
     }
 
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> getConsumers() {
+    public Map<String, Set<ConsumerHandler>> getConsumers() {
         return topicConsumerMap;
     }
 
@@ -282,11 +379,11 @@ public class WebSocketService implements Closeable {
     }
 
     public boolean addReader(ReaderHandler reader) {
-        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic -> new ConcurrentOpenHashSet<>())
+        return topicReaderMap.computeIfAbsent(reader.getConsumer().getTopic(), topic -> ConcurrentHashMap.newKeySet())
                 .add(reader);
     }
 
-    public ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> getReaders() {
+    public Map<String, Set<ReaderHandler>> getReaders() {
         return topicReaderMap;
     }
 
@@ -301,6 +398,4 @@ public class WebSocketService implements Closeable {
     public ServiceConfiguration getConfig() {
         return config;
     }
-
-    private static final Logger log = LoggerFactory.getLogger(WebSocketService.class);
 }

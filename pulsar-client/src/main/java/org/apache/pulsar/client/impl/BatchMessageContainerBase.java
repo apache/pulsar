@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.BatchMessageContainer;
-import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
-
 import java.io.IOException;
 import java.util.List;
+import org.apache.pulsar.client.api.BatchMessageContainer;
+import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 
 public interface BatchMessageContainerBase extends BatchMessageContainer {
 
@@ -83,4 +82,16 @@ public interface BatchMessageContainerBase extends BatchMessageContainer {
      * @return belong to the same txn or not
      */
     boolean hasSameTxn(MessageImpl<?> msg);
+
+    /**
+     * Get the timestamp in nanoseconds when the 1st message is added into the batch container.
+     *
+     * @return the timestamp in nanoseconds or 0L if the batch container is empty
+     */
+    long getFirstAddedTimestamp();
+
+    /**
+     * Clear the container's payload if build {@link OpSendMsg} failed.
+     */
+    void resetPayloadAfterFailedPublishing();
 }

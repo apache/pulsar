@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -150,7 +150,7 @@ public interface ReaderBuilder<T> extends Cloneable {
     /**
      * Set the reader to include the given position of {@link ReaderBuilder#startMessageId(MessageId)}
      *
-     * <p>This configuration option also applies for any cursor reset operation like {@link Reader#seek(MessageId)}.
+     * <p>This configuration option also applies for cursor reset operation {@link Reader#seek(MessageId)}.
      *
      * @return the reader builder instance
      */
@@ -167,6 +167,20 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @return the reader builder instance
      */
     ReaderBuilder<T> readerListener(ReaderListener<T> readerListener);
+
+    /**
+     * Sets a {@link ReaderDecryptFailListener} for the reader.
+     *
+     * <p>The application receives encrypt messages and cannot decrypt successfully will through this listener.
+     * <p>Must set with {@link ReaderBuilder#readerListener(ReaderListener)}
+     * and calls to {@link Reader#readNext()} are not allowed.
+     * This listener cannot be used with {@link ReaderBuilder#cryptoFailureAction(ConsumerCryptoFailureAction)}.
+     *
+     * @param readerDecryptFailListener
+     *            the listener object
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> readerDecryptFailListener(ReaderDecryptFailListener<T> readerDecryptFailListener);
 
     /**
      * Sets a {@link CryptoKeyReader} to decrypt the message payloads.
@@ -210,6 +224,15 @@ public interface ReaderBuilder<T> extends Cloneable {
      */
     ReaderBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action);
 
+    /**
+     * Sets a {@link MessageCrypto}.
+     *
+     * <p>Contains methods to encrypt/decrypt message for End to End Encryption.
+     *
+     * @param messageCrypto message Crypto Object
+     * @return ReaderBuilder instance
+     */
+    ReaderBuilder<T> messageCrypto(MessageCrypto<?, ?> messageCrypto);
     /**
      * Sets the size of the consumer receive queue.
      *
@@ -286,8 +309,85 @@ public interface ReaderBuilder<T> extends Cloneable {
      * <p/>
      * When pooling is enabled, the application is responsible for calling Message.release() after the handling of every
      * received message. If “release()” is not called on a received message, there will be a memory leak. If an
-     * application attempts to use and already “released” message, it might experience undefined behavior (for example, memory
-     * corruption, deserialization error, etc.).
+     * application attempts to use and already “released” message, it might experience undefined behavior (for example,
+     * memory corruption, deserialization error, etc.).
      */
     ReaderBuilder<T> poolMessages(boolean poolMessages);
+
+    /**
+     * If enabled, the reader will auto subscribe for partitions increasement.
+     * This is only for partitioned reader.
+     *
+     * @param autoUpdate
+     *            whether to auto update partition increasement
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> autoUpdatePartitions(boolean autoUpdate);
+
+    /**
+     * Set the interval of updating partitions <i>(default: 1 minute)</i>. This only works if autoUpdatePartitions is
+     * enabled.
+     *
+     * @param interval
+     *            the interval of updating partitions
+     * @param unit
+     *            the time unit of the interval.
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> autoUpdatePartitionsInterval(int interval, TimeUnit unit);
+
+    /**
+     * Intercept {@link Reader}.
+     *
+     * @param interceptors the list of interceptors to intercept the reader created by this builder.
+     * @return the reader builder instance
+     */
+    ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors);
+
+    /**
+     * Consumer buffers chunk messages into memory until it receives all the chunks of the original message. While
+     * consuming chunk-messages, chunks from same message might not be contiguous in the stream and they might be mixed
+     * with other messages' chunks. so, consumer has to maintain multiple buffers to manage chunks coming from different
+     * messages. This mainly happens when multiple publishers are publishing messages on the topic concurrently or
+     * publisher failed to publish all chunks of the messages.
+     *
+     * <pre>
+     * eg: M1-C1, M2-C1, M1-C2, M2-C2
+     * Here, Messages M1-C1 and M1-C2 belong to original message M1, M2-C1 and M2-C2 messages belong to M2 message.
+     * </pre>
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
+     * guarded by providing this @maxPendingChunkedMessage threshold. Once, consumer reaches this threshold, it drops
+     * the outstanding unchunked-messages by silently acking or asking broker to redeliver later by marking it unacked.
+     * This behavior can be controlled by configuration: @autoAckOldestChunkedMessageOnQueueFull
+     *
+     * The default value is 10.
+     *
+     * @param maxPendingChunkedMessage
+     * @return
+     */
+    ReaderBuilder<T> maxPendingChunkedMessage(int maxPendingChunkedMessage);
+
+    /**
+     * Buffering large number of outstanding uncompleted chunked messages can create memory pressure and it can be
+     * guarded by providing this @maxPendingChunkedMessage threshold. Once, consumer reaches this threshold, it drops
+     * the outstanding unchunked-messages by silently acking if autoAckOldestChunkedMessageOnQueueFull is true else it
+     * marks them for redelivery.
+     *
+     * @default false
+     *
+     * @param autoAckOldestChunkedMessageOnQueueFull
+     * @return
+     */
+    ReaderBuilder<T> autoAckOldestChunkedMessageOnQueueFull(boolean autoAckOldestChunkedMessageOnQueueFull);
+
+    /**
+     * If producer fails to publish all the chunks of a message then consumer can expire incomplete chunks if consumer
+     * won't be able to receive all chunks in expire times (default 1 minute).
+     *
+     * @param duration
+     * @param unit
+     * @return
+     */
+    ReaderBuilder<T> expireTimeOfIncompleteChunkedMessage(long duration, TimeUnit unit);
+
 }

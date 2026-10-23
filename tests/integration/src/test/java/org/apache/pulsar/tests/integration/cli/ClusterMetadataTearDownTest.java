@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,14 +25,16 @@ import static org.testng.Assert.fail;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.meta.LedgerManager;
@@ -60,14 +62,14 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class ClusterMetadataTearDownTest extends TestRetrySupport {
 
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
             .clusterName("ClusterMetadataTearDownTest-" + UUID.randomUUID().toString().substring(0, 8))
-            .numProxies(0)
+            // The client and the admin connect through the proxy
+            .numProxies(1)
             .numFunctionWorkers(0)
-            .enablePrestoWorker(false)
             .build();
 
     private PulsarCluster pulsarCluster;
@@ -86,6 +88,10 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
     @BeforeClass(alwaysRun = true)
     public final void setup() throws Exception {
         incrementSetupNumber();
+        Map<String, String> brokerEnvs = new HashMap<>();
+        brokerEnvs.put("systemTopicEnabled", "false");
+        brokerEnvs.put("topicLevelPoliciesEnabled", "false");
+        spec.brokerEnvs(brokerEnvs);
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
         metadataServiceUri = "zk+null://" + pulsarCluster.getZKConnString() + "/ledgers";
@@ -96,7 +102,8 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
                 MetadataStoreConfig.builder().build());
 
         driver = MetadataDrivers.getBookieDriver(URI.create(metadataServiceUri));
-        driver.initialize(new ServerConfiguration().setMetadataServiceUri(metadataServiceUri), () -> {}, NullStatsLogger.INSTANCE);
+        driver.initialize(new ServerConfiguration().setMetadataServiceUri(metadataServiceUri),
+                NullStatsLogger.INSTANCE);
         ledgerManager = driver.getLedgerManagerFactory().newLedgerManager();
 
         client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
@@ -117,7 +124,7 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         try {
             ledgerManager.close();
         } catch (IOException e) {
-            log.warn("Failed to close ledger manager: ", e);
+            log.warn().exception(e).log("Failed to close ledger manager");
         }
         driver.close();
         try {
@@ -179,7 +186,10 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         pulsarCluster.getBrokers().forEach(ChaosContainer::stop);
 
         assertTrue(getNumOfLedgers() > 0);
-        log.info("Before delete, cluster name: {}, num of ledgers: {}", pulsarCluster.getClusterName(), getNumOfLedgers());
+        log.info()
+                .attr("name", pulsarCluster.getClusterName())
+                .attr("ledgers", getNumOfLedgers())
+                .log("Before delete, cluster name: , num of ledgers");
 
         String[] args = { "-zk", pulsarCluster.getZKConnString(),
                 "-cs", pulsarCluster.getCSConnString(),
@@ -197,7 +207,7 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         for (String node : PulsarClusterMetadataTeardown.localZkNodes) {
             assertFalse(localNodes.contains(node));
         }
-        List<String> clusterNodes = configStore.getChildren( "/admin/clusters").join();
+        List<String> clusterNodes = configStore.getChildren("/admin/clusters").join();
         assertFalse(clusterNodes.contains(pulsarCluster.getClusterName()));
 
         // Try delete again, should not fail

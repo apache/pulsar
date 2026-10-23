@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,6 @@
  */
 package org.apache.pulsar.functions.instance.state;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import org.apache.bookkeeper.api.kv.Table;
-import org.apache.bookkeeper.api.kv.options.Options;
-import org.apache.bookkeeper.api.kv.result.DeleteResult;
-import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
-import java.nio.ByteBuffer;
-import java.util.concurrent.CompletableFuture;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyLong;
@@ -40,26 +28,39 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.nio.ByteBuffer;
+import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.api.kv.options.Options;
+import org.apache.bookkeeper.api.kv.result.DeleteResult;
+import org.apache.bookkeeper.api.kv.result.KeyValue;
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.pulsar.functions.api.state.StateValue;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * Unit test {@link BKStateStoreImpl}.
  */
 public class BKStateStoreImplTest {
 
-    private final String TENANT = "test-tenant";
-    private final String NS = "test-ns";
-    private final String NAME = "test-name";
-    private final String FQSN = "test-tenant/test-ns/test-name";
+    private static final String TENANT = "test-tenant";
+    private static final String NS = "test-ns";
+    private static final String NAME = "test-name";
+    private static final String FQSN = "test-tenant/test-ns/test-name";
 
     private Table<ByteBuf, ByteBuf> mockTable;
     private BKStateStoreImpl stateContext;
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     public void setup() {
         this.mockTable = mock(Table.class);
         this.stateContext = new BKStateStoreImpl(
-            TENANT, NS, NAME,
-            mockTable);
+                TENANT, NS, NAME,
+                mockTable);
     }
 
     @Test
@@ -93,6 +94,7 @@ public class BKStateStoreImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDelete() throws Exception {
         DeleteResult<ByteBuf, ByteBuf> result = mock(DeleteResult.class);
         when(mockTable.delete(any(ByteBuf.class), eq(Options.delete())))
@@ -117,6 +119,26 @@ public class BKStateStoreImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testGetStateValue() throws Exception {
+        @SuppressWarnings("rawtypes")
+        KeyValue returnedKeyValue = mock(KeyValue.class);
+        ByteBuf returnedValue = Unpooled.copiedBuffer("test-value", UTF_8);
+        when(returnedKeyValue.value()).thenReturn(returnedValue);
+        when(returnedKeyValue.version()).thenReturn(1L);
+        when(returnedKeyValue.isNumber()).thenReturn(false);
+        when(mockTable.getKv(any(ByteBuf.class)))
+            .thenReturn(FutureUtils.value(returnedKeyValue));
+        StateValue result = stateContext.getStateValue("test-key");
+        assertEquals("test-value", new String(result.getValue(), UTF_8));
+        assertEquals(1L, result.getVersion().longValue());
+        assertEquals(false, result.getIsNumber().booleanValue());
+        verify(mockTable, times(1)).getKv(
+            eq(Unpooled.copiedBuffer("test-key", UTF_8))
+        );
+    }
+
+    @Test
     public void testGetAmount() throws Exception {
         when(mockTable.getNumber(any(ByteBuf.class)))
             .thenReturn(FutureUtils.value(10L));
@@ -133,6 +155,12 @@ public class BKStateStoreImplTest {
         CompletableFuture<ByteBuffer> result = stateContext.getAsync("test-key");
         assertTrue(result != null);
         assertEquals(result.get(), null);
+
+        when(mockTable.getKv(any(ByteBuf.class)))
+                .thenReturn(FutureUtils.value(null));
+        CompletableFuture<StateValue> stateValueResult = stateContext.getStateValueAsync("test-key");
+        assertTrue(stateValueResult != null);
+        assertEquals(stateValueResult.get(), null);
 
     }
 

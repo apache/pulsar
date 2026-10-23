@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,23 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl.auth;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
-
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 public class AuthenticationDataToken implements AuthenticationDataProvider {
     public static final String HTTP_HEADER_NAME = "Authorization";
-
     private final Supplier<String> tokenSupplier;
+    private Map<String, String> headers = new HashMap<>();
 
     public AuthenticationDataToken(Supplier<String> tokenSupplier) {
         this.tokenSupplier = tokenSupplier;
+        headers.put(PULSAR_AUTH_METHOD_NAME, AuthenticationToken.AUTH_METHOD_NAME);
+        headers.put(HTTP_HEADER_NAME, "Bearer " + getToken());
+        this.headers = Collections.unmodifiableMap(this.headers);
     }
 
     @Override
@@ -42,7 +44,7 @@ public class AuthenticationDataToken implements AuthenticationDataProvider {
 
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
-        return Collections.singletonMap(HTTP_HEADER_NAME, "Bearer " + getToken()).entrySet();
+        return this.headers.entrySet();
     }
 
     @Override

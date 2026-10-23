@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/**
+/*
  * From Apache HTTP client
  */
 
@@ -36,9 +36,12 @@ public class InetAddressUtils {
     }
 
     private static final String IPV4_BASIC_PATTERN_STRING =
-            "(([1-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){1}" + // initial first field, 1-255
-            "(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){2}" + // following 2 fields, 0-255 followed by .
-             "([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])"; // final field, 0-255
+            // initial first field, 1-255
+            "(([1-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){1}"
+                    // following 2 fields, 0-255 followed by .
+                    + "(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){2}"
+                    // final field, 0-255
+                    + "([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])";
 
     private static final Pattern IPV4_PATTERN =
         Pattern.compile("^" + IPV4_BASIC_PATTERN_STRING + "$");
@@ -51,10 +54,9 @@ public class InetAddressUtils {
                 "^[0-9a-fA-F]{1,4}(:[0-9a-fA-F]{1,4}){7}$");
 
     private static final Pattern IPV6_HEX_COMPRESSED_PATTERN =
-        Pattern.compile(
-                "^(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)" + // 0-6 hex fields
-                 "::" +
-                 "(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)$"); // 0-6 hex fields
+            Pattern.compile("^(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)" // 0-6 hex fields
+                    + "::"  // concat
+                    + "(([0-9A-Fa-f]{1,4}(:[0-9A-Fa-f]{1,4}){0,5})?)$"); // 0-6 hex fields
 
     /*
      *  The above pattern is not totally rigorous as it allows for more than 7 hex fields in total
@@ -65,7 +67,7 @@ public class InetAddressUtils {
     private static final int MAX_COLON_COUNT = 7;
 
     /**
-     * Checks whether the parameter is a valid IPv4 address
+     * Checks whether the parameter is a valid IPv4 address.
      *
      * @param input the address string to check for validity
      * @return true if the input parameter is a valid IPv4 address
@@ -79,7 +81,7 @@ public class InetAddressUtils {
     }
 
     /**
-     * Checks whether the parameter is a valid standard (non-compressed) IPv6 address
+     * Checks whether the parameter is a valid standard (non-compressed) IPv6 address.
      *
      * @param input the address string to check for validity
      * @return true if the input parameter is a valid standard (non-compressed) IPv6 address
@@ -89,14 +91,14 @@ public class InetAddressUtils {
     }
 
     /**
-     * Checks whether the parameter is a valid compressed IPv6 address
+     * Checks whether the parameter is a valid compressed IPv6 address.
      *
      * @param input the address string to check for validity
      * @return true if the input parameter is a valid compressed IPv6 address
      */
     public static boolean isIPv6HexCompressedAddress(final String input) {
         int colonCount = 0;
-        for(int i = 0; i < input.length(); i++) {
+        for (int i = 0; i < input.length(); i++) {
             if (input.charAt(i) == COLON_CHAR) {
                 colonCount++;
             }

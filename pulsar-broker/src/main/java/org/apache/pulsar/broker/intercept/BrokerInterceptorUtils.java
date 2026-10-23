@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,18 +25,18 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.Collections;
+import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 /**
  * Util class to search and load {@link BrokerInterceptor}s.
  */
 @UtilityClass
-@Slf4j
+@CustomLog
 public class BrokerInterceptorUtils {
 
     static final String BROKER_INTERCEPTOR_DEFINITION_FILE = "broker_interceptor.yml";
@@ -50,8 +50,10 @@ public class BrokerInterceptorUtils {
      */
     public BrokerInterceptorDefinition getBrokerInterceptorDefinition(String narPath, String narExtractionDirectory)
             throws IOException {
-        try (NarClassLoader ncl = NarClassLoader.getFromArchive(new File(narPath), Collections.emptySet(),
-                narExtractionDirectory)) {
+        try (NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(new File(narPath))
+                .extractionDirectory(narExtractionDirectory)
+                .build()) {
             return getBrokerInterceptorDefinition(ncl);
         }
     }
@@ -59,7 +61,7 @@ public class BrokerInterceptorUtils {
     private BrokerInterceptorDefinition getBrokerInterceptorDefinition(NarClassLoader ncl) throws IOException {
         String configStr = ncl.getServiceDefinition(BROKER_INTERCEPTOR_DEFINITION_FILE);
 
-        return ObjectMapperFactory.getThreadLocalYaml().readValue(
+        return ObjectMapperFactory.getYamlMapper().reader().readValue(
                 configStr, BrokerInterceptorDefinition.class
         );
     }
@@ -73,8 +75,8 @@ public class BrokerInterceptorUtils {
      */
     public BrokerInterceptorDefinitions searchForInterceptors(String interceptorsDirectory,
                                                               String narExtractionDirectory) throws IOException {
-        Path path = Paths.get(interceptorsDirectory).toAbsolutePath();
-        log.info("Searching for broker interceptors in {}", path);
+        Path path = Paths.get(interceptorsDirectory).toAbsolutePath().normalize();
+        log.info().attr("path", path).log("Searching for broker interceptors");
 
         BrokerInterceptorDefinitions interceptors = new BrokerInterceptorDefinitions();
         if (!path.toFile().exists()) {
@@ -88,7 +90,7 @@ public class BrokerInterceptorUtils {
                     BrokerInterceptorDefinition def =
                             BrokerInterceptorUtils.getBrokerInterceptorDefinition(archive.toString(),
                                     narExtractionDirectory);
-                    log.info("Found broker interceptors from {} : {}", archive, def);
+                    log.info().attr("archive", archive).attr("def", def).log("Found broker interceptors");
 
                     checkArgument(StringUtils.isNotBlank(def.getName()));
                     checkArgument(StringUtils.isNotBlank(def.getInterceptorClass()));
@@ -99,10 +101,10 @@ public class BrokerInterceptorUtils {
 
                     interceptors.interceptors().put(def.getName(), metadata);
                 } catch (Throwable t) {
-                    log.warn("Failed to load broker interceptor from {}."
-                            + " It is OK however if you want to use this broker interceptor,"
-                            + " please make sure you put the correct broker interceptor NAR"
-                            + " package in the broker interceptors directory.", archive, t);
+                    log.warn()
+                            .attr("archive", archive)
+                            .exception(t)
+                            .log("Failed to load broker interceptor");
                 }
             }
         }
@@ -115,12 +117,15 @@ public class BrokerInterceptorUtils {
      *
      * @param metadata the broker interceptors definition.
      */
+    @SuppressWarnings("unchecked")
     BrokerInterceptorWithClassLoader load(BrokerInterceptorMetadata metadata, String narExtractionDirectory)
             throws IOException {
-        NarClassLoader ncl = NarClassLoader.getFromArchive(
-                metadata.getArchivePath().toAbsolutePath().toFile(),
-                Collections.emptySet(),
-                BrokerInterceptor.class.getClassLoader(), narExtractionDirectory);
+        final File narFile = metadata.getArchivePath().toAbsolutePath().normalize().toFile();
+        NarClassLoader ncl = NarClassLoaderBuilder.builder()
+                .narFile(narFile)
+                .parentClassLoader(BrokerInterceptorUtils.class.getClassLoader())
+                .extractionDirectory(narExtractionDirectory)
+                .build();
 
         BrokerInterceptorDefinition def = getBrokerInterceptorDefinition(ncl);
         if (StringUtils.isBlank(def.getInterceptorClass())) {

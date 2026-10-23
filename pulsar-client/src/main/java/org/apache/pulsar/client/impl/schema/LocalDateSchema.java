@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,9 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
+import java.time.LocalDate;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
-import java.time.LocalDate;
 
 /**
  * A schema for `java.time.LocalDate`.
@@ -32,10 +32,10 @@ public class LocalDateSchema extends AbstractSchema<LocalDate> {
    private static final SchemaInfo SCHEMA_INFO;
 
    static {
-       SCHEMA_INFO = new SchemaInfoImpl()
-             .setName("LocalDate")
-             .setType(SchemaType.LOCAL_DATE)
-             .setSchema(new byte[0]);
+       SCHEMA_INFO = SchemaInfoImpl.builder()
+             .name("LocalDate")
+             .type(SchemaType.LOCAL_DATE)
+             .schema(new byte[0]).build();
        INSTANCE = new LocalDateSchema();
    }
 

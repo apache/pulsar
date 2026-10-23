@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,12 +28,15 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -43,32 +46,30 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicReference;
-
 public class LeaderServiceTest {
 
     private final WorkerConfig workerConfig;
+    AtomicReference<ConsumerEventListener> listenerHolder;
     private LeaderService leaderService;
     private PulsarClientImpl mockClient;
-    AtomicReference<ConsumerEventListener> listenerHolder;
+    @SuppressWarnings("rawtypes")
     private ConsumerImpl mockConsumer;
     private FunctionAssignmentTailer functionAssignmentTailer;
     private SchedulerManager schedulerManager;
     private FunctionRuntimeManager functionRuntimeManager;
     private FunctionMetaDataManager functionMetadataManager;
-    private CompletableFuture metadataManagerInitFuture;
-    private CompletableFuture runtimeManagerInitFuture;
-    private CompletableFuture readToTheEndAndExitFuture;
+    private CompletableFuture<Void> metadataManagerInitFuture;
+    private CompletableFuture<Void> runtimeManagerInitFuture;
+    private CompletableFuture<Void> readToTheEndAndExitFuture;
     private MembershipManager membershipManager;
 
+    @SuppressWarnings("unchecked")
     public LeaderServiceTest() {
         this.workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(
+                ObjectMapperFactory.getMapper().getObjectMapper().convertValue(
                         new ThreadRuntimeFactoryConfig().setThreadGroupName("test"), Map.class));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
@@ -76,9 +77,11 @@ public class LeaderServiceTest {
     }
 
     @BeforeMethod
+    @SuppressWarnings("unchecked")
     public void setup() throws PulsarClientException {
         mockClient = mock(PulsarClientImpl.class);
-
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(mockClient.getCnxPool()).thenReturn(connectionPool);
         mockConsumer = mock(ConsumerImpl.class);
         ConsumerBuilder<byte[]> mockConsumerBuilder = mock(ConsumerBuilder.class);
 
@@ -93,7 +96,8 @@ public class LeaderServiceTest {
         doReturn(workerConfig).when(workerService).getWorkerConfig();
 
         listenerHolder = new AtomicReference<>();
-        when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class))).thenAnswer(invocationOnMock -> {
+        when(mockConsumerBuilder.consumerEventListener(any(ConsumerEventListener.class)))
+                .thenAnswer(invocationOnMock -> {
 
             ConsumerEventListener listener = invocationOnMock.getArgument(0);
             listenerHolder.set(listener);
@@ -121,7 +125,7 @@ public class LeaderServiceTest {
         membershipManager = mock(MembershipManager.class);
 
         leaderService = spy(new LeaderService(workerService, mockClient, functionAssignmentTailer, schedulerManager,
-          functionRuntimeManager, functionMetadataManager,  membershipManager, ErrorNotifier.getDefaultImpl()));
+                functionRuntimeManager, functionMetadataManager, membershipManager, ErrorNotifier.getDefaultImpl()));
         leaderService.start();
     }
 
@@ -134,6 +138,7 @@ public class LeaderServiceTest {
         verify(mockClient, times(1)).newConsumer();
 
         listenerHolder.get().becameActive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertTrue(leaderService.isLeader());
 
         verify(functionMetadataManager, times(1)).getIsInitialized();
@@ -149,6 +154,7 @@ public class LeaderServiceTest {
         verify(schedulerManager, times((1))).initialize(any());
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertFalse(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(1)).startFromMessage(messageId);
@@ -164,6 +170,7 @@ public class LeaderServiceTest {
         verify(mockClient, times(1)).newConsumer();
 
         listenerHolder.get().becameActive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertTrue(leaderService.isLeader());
 
         verify(functionMetadataManager, times(1)).acquireExclusiveWrite(any());
@@ -175,6 +182,7 @@ public class LeaderServiceTest {
         verify(schedulerManager, times((1))).initialize(any());
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertFalse(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(1)).start();
@@ -194,6 +202,7 @@ public class LeaderServiceTest {
         when(schedulerManager.acquireExclusiveWrite(any())).thenThrow(new WorkerUtils.NotLeaderAnymore());
 
         listenerHolder.get().becameActive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         // should have failed to become leader
         assertFalse(leaderService.isLeader());
 
@@ -210,6 +219,7 @@ public class LeaderServiceTest {
         verify(schedulerManager, times((0))).initialize(any());
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertFalse(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(0)).startFromMessage(messageId);
@@ -230,6 +240,7 @@ public class LeaderServiceTest {
         when(functionMetadataManager.acquireExclusiveWrite(any())).thenThrow(new WorkerUtils.NotLeaderAnymore());
 
         listenerHolder.get().becameActive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         // should have failed to become leader
         assertFalse(leaderService.isLeader());
 
@@ -246,6 +257,7 @@ public class LeaderServiceTest {
         verify(schedulerManager, times((0))).initialize(any());
 
         listenerHolder.get().becameInactive(mockConsumer, 0);
+        leaderService.joinPendingEventTasks();
         assertFalse(leaderService.isLeader());
 
         verify(functionAssignmentTailer, times(0)).startFromMessage(messageId);

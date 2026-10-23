@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,13 +19,12 @@
 package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
-
 import java.nio.ByteBuffer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import org.apache.pulsar.common.schema.SchemaInfo;
+import org.apache.pulsar.common.schema.SchemaType;
 
 /**
  * A schema for `java.time.LocalDateTime`.
@@ -37,10 +36,10 @@ public class LocalDateTimeSchema extends AbstractSchema<LocalDateTime> {
    public static final String DELIMITER = ":";
 
    static {
-       SCHEMA_INFO = new SchemaInfoImpl()
-             .setName("LocalDateTime")
-             .setType(SchemaType.LOCAL_DATE_TIME)
-             .setSchema(new byte[0]);
+       SCHEMA_INFO = SchemaInfoImpl.builder()
+             .name("LocalDateTime")
+             .type(SchemaType.LOCAL_DATE_TIME)
+             .schema(new byte[0]).build();
        INSTANCE = new LocalDateTimeSchema();
    }
 

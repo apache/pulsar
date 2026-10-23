@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,11 +20,10 @@ package org.apache.pulsar.functions.secretsproviderconfigurator;
 
 import com.google.gson.reflect.TypeToken;
 import io.kubernetes.client.openapi.models.V1PodSpec;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
-
 import java.lang.reflect.Type;
 import java.util.Map;
+import org.apache.pulsar.functions.proto.FunctionDetails;
+import org.apache.pulsar.functions.secretsprovider.ClearTextSecretsProvider;
 
 /**
  * This is a barebones version of a secrets provider which wires in ClearTextSecretsProvider
@@ -34,7 +33,7 @@ import java.util.Map;
  */
 public class DefaultSecretsProviderConfigurator implements SecretsProviderConfigurator {
     @Override
-    public String getSecretsProviderClassName(Function.FunctionDetails functionDetails) {
+    public String getSecretsProviderClassName(FunctionDetails functionDetails) {
         switch (functionDetails.getRuntime()) {
             case JAVA:
                 return ClearTextSecretsProvider.class.getName();
@@ -48,22 +47,25 @@ public class DefaultSecretsProviderConfigurator implements SecretsProviderConfig
     }
 
     @Override
-    public Map<String, String> getSecretsProviderConfig(Function.FunctionDetails functionDetails) {
+    public Map<String, String> getSecretsProviderConfig(FunctionDetails functionDetails) {
         return null;
     }
 
     @Override
-    public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName, Function.FunctionDetails functionDetails) {
+    public void configureKubernetesRuntimeSecretsProvider(V1PodSpec podSpec, String functionsContainerName,
+                                                          FunctionDetails functionDetails) {
         // noop
     }
 
     @Override
-    public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder, Function.FunctionDetails functionDetails) {
+    public void configureProcessRuntimeSecretsProvider(ProcessBuilder processBuilder,
+                                                       FunctionDetails functionDetails) {
         // noop
     }
 
     @Override
     public Type getSecretObjectType() {
-        return new TypeToken<String>() {}.getType();
+        return new TypeToken<String>() {
+        }.getType();
     }
 }

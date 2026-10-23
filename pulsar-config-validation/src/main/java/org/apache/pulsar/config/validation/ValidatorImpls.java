@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,21 +18,17 @@
  */
 package org.apache.pulsar.config.validation;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.lang.reflect.InvocationTargetException;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Map;
+import lombok.CustomLog;
 
 /**
  * System defined Validator Annotations.
  */
+@CustomLog
 public class ValidatorImpls {
-
-    private static final Logger log = LoggerFactory.getLogger(ValidatorImpls.class);
-
     /**
      * Validates a positive number.
      */
@@ -239,10 +235,10 @@ public class ValidatorImpls {
                     if (keyValidator instanceof Validator) {
                         ((Validator) keyValidator).validateField(name + " Map key", entry.getKey());
                     } else {
-                        log.warn(
-                                "validator: {} cannot be used in MapEntryCustomValidator to validate keys. "
-                                + " Individual entry validators must be a instance of Validator class",
-                                kv.getName());
+                        log.warn().attr("validator", kv.getName())
+                                .log("Validator cannot be used in MapEntryCustomValidator to validate"
+                                        + " keys. Individual entry validators must be an instance"
+                                        + " of Validator class");
                     }
                 }
                 for (Class<?> vv : valueValidators) {
@@ -250,10 +246,10 @@ public class ValidatorImpls {
                     if (valueValidator instanceof Validator) {
                         ((Validator) valueValidator).validateField(name + " Map value", entry.getValue());
                     } else {
-                        log.warn(
-                                "validator: {} cannot be used in MapEntryCustomValidator to validate values. "
-                                + " Individual entry validators must a instance of Validator class",
-                                vv.getName());
+                        log.warn().attr("validator", vv.getName())
+                                .log("Validator cannot be used in MapEntryCustomValidator to validate"
+                                        + " values. Individual entry validators must be an instance"
+                                        + " of Validator class");
                     }
                 }
             }
@@ -333,10 +329,10 @@ public class ValidatorImpls {
                     if (v instanceof Validator) {
                         ((Validator) v).validateField(name + " list entry", entry);
                     } else {
-                        log.warn(
-                                "validator: {} cannot be used in ListEntryCustomValidator."
-                                + " Individual entry validators must a instance of Validator class",
-                                validator.getName());
+                        log.warn().attr("validator", validator.getName())
+                                .log("Validator cannot be used in ListEntryCustomValidator."
+                                        + " Individual entry validators must be an instance"
+                                        + " of Validator class");
                     }
                 }
             }

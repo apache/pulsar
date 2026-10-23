@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,22 +21,22 @@ package org.apache.pulsar.broker.loadbalance.impl;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.Multimap;
 import java.util.Map;
+import lombok.CustomLog;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
 
 /**
  * Load shedding strategy which will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose
  * maximum system resource usage exceeds loadBalancerBrokerOverloadedThresholdPercentage. To see which resources are
- * considered when determining the maximum system resource, see {@link LocalBrokerData#getMaxResourceUsage()}. A bundle
+ * considered when determining the maximum system resource, see
+ * {@link LocalBrokerData#getMaxResourceUsageWithWeight(double, double, double, double)}. A bundle
  * is recommended for unloading off that broker if and only if the following conditions hold: The broker has at
  * least two bundles assigned and the broker has at least one bundle that has not been unloaded recently according to
  * LoadBalancerSheddingGracePeriodMinutes. The unloaded bundle will be the most expensive bundle in terms of message
@@ -44,10 +44,8 @@ import org.slf4j.LoggerFactory;
  * when determining which bundles to unload. If you are looking for a strategy that spreads load evenly across
  * all brokers, see {@link ThresholdShedder}.
  */
+@CustomLog
 public class OverloadShedder implements LoadSheddingStrategy {
-
-    private static final Logger log = LoggerFactory.getLogger(OverloadShedder.class);
-
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
 
     private static final double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
@@ -71,12 +69,14 @@ public class OverloadShedder implements LoadSheddingStrategy {
         loadData.getBrokerData().forEach((broker, brokerData) -> {
 
             final LocalBrokerData localData = brokerData.getLocalData();
-            final double currentUsage = localData.getMaxResourceUsage();
+            final double currentUsage = localData.getMaxResourceUsageWithWeight(
+                    conf.getLoadBalancerCPUResourceWeight(),
+                    conf.getLoadBalancerDirectMemoryResourceWeight(),
+                    conf.getLoadBalancerBandwidthInResourceWeight(),
+                    conf.getLoadBalancerBandwidthOutResourceWeight());
             if (currentUsage < overloadThreshold) {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Broker is not overloaded, ignoring at this point ({})", broker,
-                            localData.printResourceUsage());
-                }
+                log.debug().attr("broker", broker).attr("resourceUsage", localData.printResourceUsage())
+                        .log("Broker is not overloaded, ignoring at this point");
                 return;
             }
 
@@ -87,9 +87,9 @@ public class OverloadShedder implements LoadSheddingStrategy {
 
             double minimumThroughputToOffload = brokerCurrentThroughput * percentOfTrafficToOffload;
 
-            log.info(
-                    "Attempting to shed load on {}, which has resource usage {}% above threshold {}%"
-                            + " -- Offloading at least {} MByte/s of traffic ({})",
+            log.infof(
+                    "Attempting to shed load on %s, which has resource usage %s%% above threshold %s%%"
+                            + " -- Offloading at least %s MByte/s of traffic (%s)",
                     broker, 100 * currentUsage, 100 * overloadThreshold, minimumThroughputToOffload / 1024 / 1024,
                     localData.printResourceUsage());
 
@@ -114,9 +114,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
                 }).filter(e -> {
                     // Only consider bundles that were not already unloaded recently
                     return !recentlyUnloadedBundles.containsKey(e.getLeft());
-                }).filter(e ->
-                        localData.getBundles().contains(e.getLeft())
-                ).sorted((e1, e2) -> {
+                }).sorted((e1, e2) -> {
                     // Sort by throughput in reverse order
                     return Double.compare(e2.getRight(), e1.getRight());
                 }).forEach(e -> {
@@ -128,12 +126,12 @@ public class OverloadShedder implements LoadSheddingStrategy {
                    }
                 });
             } else if (localData.getBundles().size() == 1) {
-                log.warn(
-                        "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
+                log.warnf(
+                        "HIGH USAGE WARNING : Sole namespace bundle %s is overloading broker %s. "
                                 + "No Load Shedding will be done on this broker",
                         localData.getBundles().iterator().next(), broker);
             } else {
-                log.warn("Broker {} is overloaded despite having no bundles", broker);
+                log.warn().attr("broker", broker).log("Broker is overloaded despite having no bundles");
             }
 
         });

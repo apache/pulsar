@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -40,6 +40,9 @@ public class AggregatedReplicationStats {
 
     /** The count of replication-subscriber up and running to replicate to remote cluster. */
     public long connectedCount;
+
+    /** The count of replication-subscriber that failed to start to replicate to remote cluster. */
+    public long disconnectedCount;
 
     /** Time in seconds from the time a message was produced to the time when it is about to be replicated. */
     public long replicationDelayInSeconds;

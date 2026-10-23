@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,11 @@
  */
 package org.apache.pulsar.client.impl.schema.reader;
 
+import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Optional;
+import lombok.CustomLog;
 import org.apache.avro.Schema;
 import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
@@ -25,15 +30,9 @@ import org.apache.avro.reflect.ReflectData;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaReader;
-
 import org.apache.pulsar.client.impl.schema.AvroSchema;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.Optional;
-
+@CustomLog
 public class AvroReader<T> implements SchemaReader<T> {
 
     private ReflectDatumReader<T> reader;
@@ -41,32 +40,21 @@ public class AvroReader<T> implements SchemaReader<T> {
             new ThreadLocal<>();
     private final Schema schema;
 
+    @VisibleForTesting
     public AvroReader(Schema schema) {
-        this.reader = new ReflectDatumReader<>(schema);
-        this.schema = schema;
+        this(schema, schema, null, false);
     }
 
     public AvroReader(Schema schema, ClassLoader classLoader, boolean jsr310ConversionEnabled) {
-        this.schema = schema;
-        if (classLoader != null) {
-            ReflectData reflectData = new ReflectData(classLoader);
-            AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
-            this.reader = new ReflectDatumReader<>(schema, schema, reflectData);
-        } else {
-            this.reader = new ReflectDatumReader<>(schema);
-        }
+        this(schema, schema, classLoader, jsr310ConversionEnabled);
     }
 
     public AvroReader(Schema writerSchema, Schema readerSchema, ClassLoader classLoader,
         boolean jsr310ConversionEnabled) {
         this.schema = readerSchema;
-        if (classLoader != null) {
-            ReflectData reflectData = new ReflectData(classLoader);
-            AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
-            this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, reflectData);
-        } else {
-            this.reader = new ReflectDatumReader<>(writerSchema, readerSchema);
-        }
+        ReflectData reflectData = classLoader != null ? new ReflectData(classLoader) : new ReflectData();
+        AvroSchema.addLogicalTypeConversions(reflectData, jsr310ConversionEnabled);
+        this.reader = new ReflectDatumReader<>(writerSchema, readerSchema, reflectData);
     }
 
     @Override
@@ -98,7 +86,7 @@ public class AvroReader<T> implements SchemaReader<T> {
             try {
                 inputStream.close();
             } catch (IOException e) {
-                log.error("AvroReader close inputStream close error", e);
+                log.error().exception(e).log("AvroReader close inputStream close error");
             }
         }
     }
@@ -107,7 +95,5 @@ public class AvroReader<T> implements SchemaReader<T> {
     public Optional<Object> getNativeSchema() {
         return Optional.of(schema);
     }
-
-    private static final Logger log = LoggerFactory.getLogger(AvroReader.class);
 
 }

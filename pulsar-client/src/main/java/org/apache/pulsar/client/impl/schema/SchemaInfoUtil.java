@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
 import lombok.experimental.UtilityClass;
-
-import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.Schema;
 import org.apache.pulsar.common.protocol.Commands;

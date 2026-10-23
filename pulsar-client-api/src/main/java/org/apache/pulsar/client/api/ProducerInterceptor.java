@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,9 @@ public interface ProducerInterceptor<T> extends AutoCloseable {
 
     /**
      * Close the interceptor.
+     *
+     * <p>This method is called once when the producer that this interceptor is attached to is closed. An interceptor
+     * instance that is attached to several producers is closed once for each of them.
      */
     void close();
 

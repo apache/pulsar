@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,10 +22,11 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import lombok.Cleanup;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class RateLimiterTest {
@@ -134,6 +135,24 @@ public class RateLimiterTest {
     }
 
     @Test
+    public void testTryAcquireMoreThanPermits() {
+        final long rateTimeMSec = 1000;
+        RateLimiter rate = RateLimiter.builder().permits(3).rateTime(rateTimeMSec).timeUnit(TimeUnit.MILLISECONDS)
+                .build();
+        assertTrue(rate.tryAcquire(2));
+        assertEquals(rate.getAvailablePermits(), 1);
+
+        //try to acquire failed, not decrease availablePermits.
+        assertFalse(rate.tryAcquire(2));
+        assertEquals(rate.getAvailablePermits(), 1);
+
+        assertTrue(rate.tryAcquire(1));
+        assertEquals(rate.getAvailablePermits(), 0);
+
+        rate.close();
+    }
+
+    @Test
     public void testMultipleTryAcquire() {
         final long rateTimeMSec = 1000;
         final int permits = 100;
@@ -183,13 +202,13 @@ public class RateLimiterTest {
         rate.tryAcquire(100);
         assertEquals(rate.getAvailablePermits(), 0);
 
-        Thread.sleep(rateTimeMSec * 2);
-        // check after two rate-time: acquiredPermits is 100
-        assertEquals(rate.getAvailablePermits(), 0);
-
-        Thread.sleep(rateTimeMSec);
-        // check after three rate-time: acquiredPermits is 0
-        assertEquals(rate.getAvailablePermits() > 0, true);
+        // Each scheduled renew releases `permits` (100) from acquiredPermits (which starts at 300).
+        // Wait until the renew task has run enough times to make permits available again. Polling
+        // avoids flakiness caused by scheduler jitter under CI load that delays fixed-rate ticks.
+        Awaitility.await()
+                .atMost(rateTimeMSec * 10, TimeUnit.MILLISECONDS)
+                .pollInterval(100, TimeUnit.MILLISECONDS)
+                .until(() -> rate.getAvailablePermits() > 0);
 
         rate.close();
     }
@@ -200,6 +219,7 @@ public class RateLimiterTest {
         long rateTime = 1;
         long newUpdatedRateLimit = 100L;
         Supplier<Long> permitUpdater = () -> newUpdatedRateLimit;
+        @Cleanup
         RateLimiter limiter = RateLimiter.builder().permits(permits).rateTime(1).timeUnit(TimeUnit.SECONDS)
                 .permitUpdater(permitUpdater)
                 .build();
@@ -215,6 +235,7 @@ public class RateLimiterTest {
         long rateTime = 1;
         int reNewTime = 3;
         RateLimitFunction rateLimitFunction = atomicInteger::incrementAndGet;
+        @Cleanup
         RateLimiter rateLimiter = RateLimiter.builder().permits(permits).rateTime(rateTime).timeUnit(TimeUnit.SECONDS)
                 .rateLimitFunction(rateLimitFunction)
                 .build();

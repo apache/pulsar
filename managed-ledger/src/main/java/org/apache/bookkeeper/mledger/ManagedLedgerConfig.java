@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,22 +19,23 @@
 package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
-import com.google.common.base.Charsets;
+import io.github.merlimat.slog.Logger;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.api.DigestType;
-
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.impl.NullLedgerOffloader;
-
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenLongPairRangeSet;
+import org.apache.commons.collections4.MapUtils;
 
 /**
  * Configuration class for a ManagedLedger.
@@ -46,8 +47,9 @@ public class ManagedLedgerConfig {
     private boolean createIfMissing = true;
     private int maxUnackedRangesToPersist = 10000;
     private int maxBatchDeletedIndexToPersist = 10000;
+    private boolean persistentUnackedRangesWithMultipleEntriesEnabled = false;
     private boolean deletionAtBatchIndexLevelEnabled = true;
-    private int maxUnackedRangesToPersistInZk = 1000;
+    private int maxUnackedRangesToPersistInMetadataStore = 1000;
     private int maxEntriesPerLedger = 50000;
     private int maxSizePerLedgerMb = 100;
     private int minimumRolloverTimeMs = 0;
@@ -55,28 +57,108 @@ public class ManagedLedgerConfig {
     private int ensembleSize = 3;
     private int writeQuorumSize = 2;
     private int ackQuorumSize = 2;
-    private int metadataEnsembleSize = 3;
-    private int metadataWriteQuorumSize = 2;
-    private int metadataAckQuorumSize = 2;
     private int metadataMaxEntriesPerLedger = 50000;
     private int ledgerRolloverTimeout = 4 * 3600;
     private double throttleMarkDelete = 0;
+    private Semaphore ledgerDeletionSemaphore;
+    private ExecutorService ledgerDeleteExecutor;
+    private boolean readEntriesCallbackInline = false;
+    private int addEntryHandoverMaxBatchItems = 1024;
+    private long addEntryHandoverMaxBatchBytesSize = 5 * 1024 * 1024;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
+    private boolean ledgerForceRecovery;
     private boolean lazyCursorRecovery = false;
     private long metadataOperationsTimeoutSeconds = 60;
     private long readEntryTimeoutSeconds = 120;
     private long addEntryTimeoutSeconds = 120;
     private DigestType digestType = DigestType.CRC32C;
-    private byte[] password = "".getBytes(Charsets.UTF_8);
-    private boolean unackedRangesOpenCacheSetEnabled = true;
+    private byte[] password = "".getBytes(StandardCharsets.UTF_8);
     private Class<? extends EnsemblePlacementPolicy>  bookKeeperEnsemblePlacementPolicyClassName;
     private Map<String, Object> bookKeeperEnsemblePlacementPolicyProperties;
     private LedgerOffloader ledgerOffloader = NullLedgerOffloader.INSTANCE;
     private int newEntriesCheckDelayInMillis = 10;
     private Clock clock = Clock.systemUTC();
+    private Logger loggerContext;
     private ManagedLedgerInterceptor managedLedgerInterceptor;
+    private Map<String, String> properties;
+    private int inactiveLedgerRollOverTimeMs = 0;
+    private long inactiveOffloadedLedgerEvictionTimeMs = 0;
+    @Getter
+    @Setter
+    private boolean cacheEvictionByMarkDeletedPosition = false;
+    @Getter
+    @Setter
+    private boolean cacheEvictionByExpectedReadCount = true;
+    /**
+     * Read ahead for cursors that read ranges of entries: when a cursor reads a range, the managed ledger also reads
+     * the next range of the same ledger into the entry cache, unless it's cached, so that the cursor's next read
+     * finds it in the cache or joins the read in progress instead of waiting for storage. A cursor has at most one
+     * read ahead in progress; a read ahead doesn't move the cursor, takes no permits that reads are waiting for nor
+     * ones that would leave more than 70 % of the limit of the reads in flight in use, and is skipped when the entry
+     * cache is at its eviction watermark or wouldn't keep the entries.
+     * Enabled by default.
+     */
+    @Getter
+    @Setter
+    private boolean readAheadEnabled = true;
+
+    /**
+     * Enable the BookKeeper batch read API when reading entries from bookkeeper: a single RPC fetches multiple
+     * entries, reducing network overhead. It is only used when the BookKeeper client supports it (v2 wire protocol
+     * with batch reads enabled), which the managed ledger checks when it is opened; the client uses regular reads for
+     * striped ledgers (ensembleSize differs from writeQuorumSize) and for bookies without batch read support. Each
+     * batch read request is bounded by the size limit of the read that triggered it and by the client's max frame
+     * size, a read needing more data being split into sequential requests. Entries read this way are copied when
+     * inserted in the entry cache, since their buffers are slices of a shared response frame.
+     */
+    @Getter
+    @Setter
+    private boolean batchReadEnabled = true;
+
+    /**
+     * Whether the entries of this managed ledger are Pulsar messages, so that an entry's payload begins with the
+     * headers that parse into a {@code MessageMetadata}.
+     *
+     * <p>This holds for the managed ledger backing a topic. It doesn't hold for managed ledgers that store some
+     * other binary format, such as the transaction log and the transaction pending ack store, whose entries can
+     * never parse into valid message metadata.
+     *
+     * <p>When this is false the entry cache doesn't parse the message metadata of the entries it caches or reads.
+     * Nothing else changes: code that needs the metadata of an individual entry can still parse it on demand.
+     *
+     * <p>Set this before the managed ledger is opened for the first time, and keep it when replacing the config
+     * of an open managed ledger: {@link ManagedLedgerFactory} caches managed ledgers by name and hands back an
+     * already open one without applying the config of the later caller.
+     */
+    @Getter
+    @Setter
+    private boolean pulsarMessageEntries = true;
+    /**
+     * This setting configures the duration of continuing to cache added entries while there are no
+     * active cursors, when the last active cursor has left or immediately after initialization when
+     * the persistent topic and the managed ledger gets loaded.
+     * This setting is ignored unless cacheEvictionByExpectedReadCount is enabled.
+     */
+    @Getter
+    @Setter
+    private long continueCachingAddedEntriesAfterLastActiveCursorLeavesMillis;
+    private int minimumBacklogCursorsForCaching = 0;
+    private int minimumBacklogEntriesForCaching = 1000;
+    private int maxBacklogBetweenCursorsForCaching = 1000;
+    private boolean triggerOffloadOnTopicLoad = false;
+    @Getter
+    @Setter
+    private String storageClassName;
+    @Getter
+    @Setter
+    private NonRecoverableDataMetricsCallback nonRecoverableDataMetricsCallback;
+    @Getter
+    @Setter
+    private String shadowSourceName;
+    @Getter
+    private boolean persistIndividualAckAsLongArray;
 
     public boolean isCreateIfMissing() {
         return createIfMissing;
@@ -84,6 +166,11 @@ public class ManagedLedgerConfig {
 
     public ManagedLedgerConfig setCreateIfMissing(boolean createIfMissing) {
         this.createIfMissing = createIfMissing;
+        return this;
+    }
+
+    public ManagedLedgerConfig setPersistIndividualAckAsLongArray(boolean persistIndividualAckAsLongArray) {
+        this.persistIndividualAckAsLongArray = persistIndividualAckAsLongArray;
         return this;
     }
 
@@ -264,68 +351,7 @@ public class ManagedLedgerConfig {
      *            the password to set
      */
     public ManagedLedgerConfig setPassword(String password) {
-        this.password = password.getBytes(Charsets.UTF_8);
-        return this;
-    }
-
-    /**
-     * should use {@link ConcurrentOpenLongPairRangeSet} to store unacked ranges.
-     * @return
-     */
-    public boolean isUnackedRangesOpenCacheSetEnabled() {
-        return unackedRangesOpenCacheSetEnabled;
-    }
-
-    public ManagedLedgerConfig setUnackedRangesOpenCacheSetEnabled(boolean unackedRangesOpenCacheSetEnabled) {
-        this.unackedRangesOpenCacheSetEnabled = unackedRangesOpenCacheSetEnabled;
-        return this;
-    }
-
-    /**
-     * @return the metadataEnsemblesize
-     */
-    public int getMetadataEnsemblesize() {
-        return metadataEnsembleSize;
-    }
-
-    /**
-     * @param metadataEnsembleSize
-     *            the metadataEnsembleSize to set
-     */
-    public ManagedLedgerConfig setMetadataEnsembleSize(int metadataEnsembleSize) {
-        this.metadataEnsembleSize = metadataEnsembleSize;
-        return this;
-    }
-
-    /**
-     * @return the metadataAckQuorumSize
-     */
-    public int getMetadataAckQuorumSize() {
-        return metadataAckQuorumSize;
-    }
-
-    /**
-     * @return the metadataWriteQuorumSize
-     */
-    public int getMetadataWriteQuorumSize() {
-        return metadataWriteQuorumSize;
-    }
-
-    /**
-     * @param metadataAckQuorumSize
-     *            the metadataAckQuorumSize to set
-     */
-    public ManagedLedgerConfig setMetadataAckQuorumSize(int metadataAckQuorumSize) {
-        this.metadataAckQuorumSize = metadataAckQuorumSize;
-        return this;
-    }
-
-    /**
-     * @param metadataWriteQuorumSize
-     *            the metadataWriteQuorumSize to set
-     */
-    public ManagedLedgerConfig setMetadataWriteQuorumSize(int metadataWriteQuorumSize) {
-        this.metadataWriteQuorumSize = metadataWriteQuorumSize;
+        this.password = password.getBytes(StandardCharsets.UTF_8);
         return this;
     }
 
@@ -382,16 +408,145 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * @return the semaphore used to limit concurrent ledger deletions
+     */
+    public Semaphore getLedgerDeletionSemaphore() {
+        return ledgerDeletionSemaphore;
+    }
+
+    public ManagedLedgerConfig setLedgerDeletionSemaphore(Semaphore semaphore) {
+        this.ledgerDeletionSemaphore = semaphore;
+        return this;
+    }
+
+    /**
+     * @return the executor service to be used for deleting ledgers
+     */
+    public ExecutorService getLedgerDeleteExecutor() {
+        return ledgerDeleteExecutor;
+    }
+
+    public ManagedLedgerConfig setLedgerDeleteExecutor(ExecutorService executor) {
+        this.ledgerDeleteExecutor = executor;
+        return this;
+    }
+
+    /**
+     * Whether successful ordinary multi-entry cursor reads may complete on the current thread.
+     * Defaults to false, which retains ledger-executor affinity.
+     * Completion can still run inline when already on the ledger executor.
+     *
+     * @see #setReadEntriesCallbackInline(boolean)
+     */
+    public boolean isReadEntriesCallbackInline() {
+        return readEntriesCallbackInline;
+    }
+
+    /**
+     * Select completion on the current thread for successful {@code asyncReadEntries} and
+     * {@code asyncReadEntriesOrWait} operations. A fully cached read may invoke its callback before the read method
+     * returns. When disabled, completion is restricted to the ledger executor, as before: it runs inline when
+     * already on that executor and is queued otherwise. This also restores the Exclusive/Failover cache-hit
+     * handoff used before the per-callback inline optimization in PR #26619.
+     *
+     * <p>For callbacks that issue another read before returning, nested completion is bounded by a queued
+     * handoff to the JVM common ForkJoinPool when enabled and to the ledger executor when disabled.
+     * If common-pool parallelism is at most 1, enabled mode also uses the ledger executor. The JVM-wide system
+     * property {@code pulsar.managedLedger.maxReadCompletionDepth} controls this limit (default 10, values below
+     * 1 use 1). Values accept decimal, hexadecimal ({@code 0x10} or {@code #10}), and octal ({@code 010})
+     * notation, following {@link Integer#decode(String)}.
+     * A limit of 1 queues every subsequent read completion in a nested cached-read chain. Set the property at
+     * JVM startup; later changes have no effect.
+     *
+     * <p>This setting does not change failure callbacks, single-entry reads, or replay callbacks. The policy is
+     * captured when the ledger is opened; subsequent changes, including
+     * {@link ManagedLedger#setConfig(ManagedLedgerConfig)}, do not change the policy of an already open ledger.
+     *
+     * @param inline true to allow completion on any current thread; false to retain ledger-executor affinity
+     * @return this configuration
+     */
+    public ManagedLedgerConfig setReadEntriesCallbackInline(boolean inline) {
+        this.readEntriesCallbackInline = inline;
+        return this;
+    }
+
+    /**
+     * The maximum number of add entry requests handed over to the ledger's executor thread in one batch, or 0 or 1
+     * when batching is disabled.
+     *
+     * @see #setAddEntryHandoverMaxBatchItems(int)
+     */
+    public int getAddEntryHandoverMaxBatchItems() {
+        return addEntryHandoverMaxBatchItems;
+    }
+
+    /**
+     * Set the maximum number of add entry requests handed over to the ledger's executor thread in one batch.
+     *
+     * <p>Publishing threads queue adds for the ledger's executor, which takes them over in batches of up to this many
+     * adds and processes each batch before other tasks on that thread can run. A batch also stops before taking an
+     * entry that would exceed {@link #setAddEntryHandoverMaxBatchBytesSize(long)} bytes. A larger value reduces
+     * scheduling overhead and contention between publishing threads, but keeps the executor thread occupied for longer
+     * per batch, which can delay add completions, reads and cursor notifications for the ledgers that share the
+     * thread. 0 or 1 disables batching: each add is handed over to the executor as a task of its own.
+     *
+     * <p>The value is captured when the ledger is opened; subsequent changes, including
+     * {@link ManagedLedger#setConfig(ManagedLedgerConfig)}, do not change it for an already open ledger.
+     *
+     * @param addEntryHandoverMaxBatchItems the maximum number of adds in a handover batch, or 0 or 1 to disable
+     *                                      batching
+     * @return this configuration
+     */
+    public ManagedLedgerConfig setAddEntryHandoverMaxBatchItems(int addEntryHandoverMaxBatchItems) {
+        checkArgument(addEntryHandoverMaxBatchItems >= 0, "addEntryHandoverMaxBatchItems must not be negative");
+        this.addEntryHandoverMaxBatchItems = addEntryHandoverMaxBatchItems;
+        return this;
+    }
+
+    /**
+     * The maximum total entry size in bytes of a batch of add entry requests handed over to the ledger's executor
+     * thread, or 0 when batches are limited only by their number of adds. An oversized entry runs in its own batch.
+     *
+     * @see #setAddEntryHandoverMaxBatchBytesSize(long)
+     */
+    public long getAddEntryHandoverMaxBatchBytesSize() {
+        return addEntryHandoverMaxBatchBytesSize;
+    }
+
+    /**
+     * Set the maximum total entry size in bytes of a batch of add entry requests handed over to the ledger's executor
+     * thread.
+     *
+     * <p>This keeps a ledger with large entries from occupying the executor thread for as long as a full batch of
+     * {@link #setAddEntryHandoverMaxBatchItems(int)} adds would, which would delay add completions, reads and cursor
+     * notifications for the ledgers that share the thread. An entry larger than this runs in a batch of its own.
+     * 0 removes the limit, so that batches are limited only by their number of adds. It has no
+     * effect when batching is disabled.
+     *
+     * <p>The value is captured when the ledger is opened; subsequent changes, including
+     * {@link ManagedLedger#setConfig(ManagedLedgerConfig)}, do not change it for an already open ledger.
+     *
+     * @param addEntryHandoverMaxBatchBytesSize the maximum total entry size of a handover batch in bytes, or 0 for no
+     *                                          limit
+     * @return this configuration
+     */
+    public ManagedLedgerConfig setAddEntryHandoverMaxBatchBytesSize(long addEntryHandoverMaxBatchBytesSize) {
+        checkArgument(addEntryHandoverMaxBatchBytesSize >= 0, "addEntryHandoverMaxBatchBytesSize must not be negative");
+        this.addEntryHandoverMaxBatchBytesSize = addEntryHandoverMaxBatchBytesSize;
+        return this;
+    }
+
+    /**
      * Set the retention time for the ManagedLedger.
      * <p>
      * Retention time and retention size ({@link #setRetentionSizeInMB(long)}) are together used to retain the
-     * ledger data when when there are no cursors or when all the cursors have marked the data for deletion.
+     * ledger data when there are no cursors or when all the cursors have marked the data for deletion.
      * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
      * the data marked for deletion.
      * <p>
      * A retention time of 0 (default) will make data to be deleted immediately.
      * <p>
-     * A retention time of -1 , means to have an unlimited retention time.
+     * A retention time of -1, means to have an unlimited retention time.
      *
      * @param retentionTime
      *            duration for which messages should be retained
@@ -415,13 +570,13 @@ public class ManagedLedgerConfig {
      * The retention size is used to set a maximum retention size quota on the ManagedLedger.
      * <p>
      * Retention size and retention time ({@link #setRetentionTime(int, TimeUnit)}) are together used to retain the
-     * ledger data when when there are no cursors or when all the cursors have marked the data for deletion.
+     * ledger data when there are no cursors or when all the cursors have marked the data for deletion.
      * Data will be deleted in this case when both retention time and retention size settings don't prevent deleting
      * the data marked for deletion.
      * <p>
      * A retention size of 0 (default) will make data to be deleted immediately.
      * <p>
-     * A retention size of -1 , means to have an unlimited retention size.
+     * A retention size of -1, means to have an unlimited retention size.
      *
      * @param retentionSizeInMB
      *            quota for message retention
@@ -453,6 +608,17 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * Skip managed ledger failure to recover managed ledger forcefully.
+     */
+    public boolean isLedgerForceRecovery() {
+        return ledgerForceRecovery;
+    }
+
+    public void setLedgerForceRecovery(boolean ledgerForceRecovery) {
+        this.ledgerForceRecovery = ledgerForceRecovery;
+    }
+
+    /**
      * @return max unacked message ranges that will be persisted and recovered.
      *
      */
@@ -468,6 +634,24 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * Set max batch deleted index that will be persisted and recovered.
+     *
+     * @param maxBatchDeletedIndexToPersist
+     *            max batch deleted index that will be persisted and recovered.
+     */
+    public void setMaxBatchDeletedIndexToPersist(int maxBatchDeletedIndexToPersist) {
+        this.maxBatchDeletedIndexToPersist = maxBatchDeletedIndexToPersist;
+    }
+
+    public boolean isPersistentUnackedRangesWithMultipleEntriesEnabled() {
+        return persistentUnackedRangesWithMultipleEntriesEnabled;
+    }
+
+    public void setPersistentUnackedRangesWithMultipleEntriesEnabled(boolean multipleEntriesEnabled) {
+        this.persistentUnackedRangesWithMultipleEntriesEnabled = multipleEntriesEnabled;
+    }
+
+    /**
      * @param maxUnackedRangesToPersist
      *            max unacked message ranges that will be persisted and receverd.
      */
@@ -480,12 +664,14 @@ public class ManagedLedgerConfig {
      * @return max unacked message ranges up to which it can store in Zookeeper
      *
      */
-    public int getMaxUnackedRangesToPersistInZk() {
-        return maxUnackedRangesToPersistInZk;
+    public int getMaxUnackedRangesToPersistInMetadataStore() {
+        return maxUnackedRangesToPersistInMetadataStore;
     }
 
-    public void setMaxUnackedRangesToPersistInZk(int maxUnackedRangesToPersistInZk) {
-        this.maxUnackedRangesToPersistInZk = maxUnackedRangesToPersistInZk;
+    public ManagedLedgerConfig setMaxUnackedRangesToPersistInMetadataStore(
+            int maxUnackedRangesToPersistInMetadataStore) {
+        this.maxUnackedRangesToPersistInMetadataStore = maxUnackedRangesToPersistInMetadataStore;
+        return this;
     }
 
     /**
@@ -510,7 +696,28 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Get clock to use to time operations
+     * Get the parent logger whose context attributes are inherited by the managed ledger logger.
+     *
+     * @return the parent logger, or null if none was set
+     */
+    public Logger getLoggerContext() {
+        return loggerContext;
+    }
+
+    /**
+     * Set a parent slog {@link Logger} whose context attributes (e.g. {@code topic}, {@code subscription}) are
+     * inherited by the managed ledger logger and propagated to the BookKeeper client when ledgers are created or
+     * opened, so that log statements emitted by the BookKeeper client carry the application context.
+     *
+     * @param loggerContext logger whose context attributes to inherit; null means no extra context
+     */
+    public ManagedLedgerConfig setLoggerContext(Logger loggerContext) {
+        this.loggerContext = loggerContext;
+        return this;
+    }
+
+    /**
+     * Get clock to use to time operations.
      *
      * @return a clock
      */
@@ -519,7 +726,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Set clock to use for time operations
+     * Set clock to use for time operations.
      *
      * @param clock the clock to use
      */
@@ -530,7 +737,7 @@ public class ManagedLedgerConfig {
 
     /**
      *
-     * Ledger-Op (Create/Delete) timeout
+     * Ledger-Op (Create/Delete) timeout.
      *
      * @return
      */
@@ -539,7 +746,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure
+     * Ledger-Op (Create/Delete) timeout after which callback will be completed with failure.
      *
      * @param metadataOperationsTimeoutSeconds
      */
@@ -549,7 +756,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Ledger read-entry timeout
+     * Ledger read-entry timeout.
      *
      * @return
      */
@@ -558,7 +765,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting
+     * Ledger read entry timeout after which callback will be completed with failure. (disable timeout by setting.
      * readTimeoutSeconds <= 0)
      *
      * @param readEntryTimeoutSeconds
@@ -623,6 +830,16 @@ public class ManagedLedgerConfig {
         this.bookKeeperEnsemblePlacementPolicyProperties = bookKeeperEnsemblePlacementPolicyProperties;
     }
 
+
+    public Map<String, String> getProperties() {
+        return properties;
+    }
+
+
+    public void setProperties(Map<String, String> properties) {
+        this.properties = properties;
+    }
+
     public boolean isDeletionAtBatchIndexLevelEnabled() {
         return deletionAtBatchIndexLevelEnabled;
     }
@@ -646,4 +863,105 @@ public class ManagedLedgerConfig {
     public void setManagedLedgerInterceptor(ManagedLedgerInterceptor managedLedgerInterceptor) {
         this.managedLedgerInterceptor = managedLedgerInterceptor;
     }
+
+    public int getInactiveLedgerRollOverTimeMs() {
+        return inactiveLedgerRollOverTimeMs;
+    }
+
+    /**
+     * Set rollOver time for inactive ledgers.
+     *
+     * @param inactiveLedgerRollOverTimeMs
+     * @param unit
+     */
+    public void setInactiveLedgerRollOverTime(int inactiveLedgerRollOverTimeMs, TimeUnit unit) {
+        this.inactiveLedgerRollOverTimeMs = (int) unit.toMillis(inactiveLedgerRollOverTimeMs);
+    }
+
+    public long getInactiveOffloadedLedgerEvictionTimeMs() {
+        return inactiveOffloadedLedgerEvictionTimeMs;
+    }
+
+    public void setInactiveOffloadedLedgerEvictionTime(long inactiveOffloadedLedgerEvictionTime, TimeUnit unit) {
+        this.inactiveOffloadedLedgerEvictionTimeMs = unit.toMillis(inactiveOffloadedLedgerEvictionTime);
+    }
+
+    /**
+     * Minimum cursors with backlog after which broker is allowed to cache read entries to reuse them for other cursors'
+     * backlog reads. (Default = 0, broker will not cache backlog reads)
+     *
+     * @return
+     */
+    public int getMinimumBacklogCursorsForCaching() {
+        return minimumBacklogCursorsForCaching;
+    }
+
+    /**
+     * Set Minimum cursors with backlog after which broker is allowed to cache read entries to reuse them for other
+     * cursors' backlog reads.
+     *
+     * @param minimumBacklogCursorsForCaching
+     */
+    public void setMinimumBacklogCursorsForCaching(int minimumBacklogCursorsForCaching) {
+        this.minimumBacklogCursorsForCaching = minimumBacklogCursorsForCaching;
+    }
+
+    /**
+     * Minimum backlog should exist to leverage caching for backlog reads.
+     *
+     * @return
+     */
+    public int getMinimumBacklogEntriesForCaching() {
+        return minimumBacklogEntriesForCaching;
+    }
+
+    /**
+     * Set Minimum backlog after that broker will start caching backlog reads.
+     *
+     * @param minimumBacklogEntriesForCaching
+     */
+    public void setMinimumBacklogEntriesForCaching(int minimumBacklogEntriesForCaching) {
+        this.minimumBacklogEntriesForCaching = minimumBacklogEntriesForCaching;
+    }
+
+    /**
+     * Max backlog gap between backlogged cursors while caching to avoid caching entry which can be
+     * invalidated before other backlog cursor can reuse it from cache.
+     *
+     * @return
+     */
+    public int getMaxBacklogBetweenCursorsForCaching() {
+        return maxBacklogBetweenCursorsForCaching;
+    }
+
+    /**
+     * Set maximum backlog distance between backlogged curosr to avoid caching unused entry.
+     *
+     * @param maxBacklogBetweenCursorsForCaching
+     */
+    public void setMaxBacklogBetweenCursorsForCaching(int maxBacklogBetweenCursorsForCaching) {
+        this.maxBacklogBetweenCursorsForCaching = maxBacklogBetweenCursorsForCaching;
+    }
+
+    /**
+     * Trigger offload on topic load.
+     * @return
+     */
+    public boolean isTriggerOffloadOnTopicLoad() {
+        return triggerOffloadOnTopicLoad;
+    }
+
+    /**
+     * Set trigger offload on topic load.
+     * @param triggerOffloadOnTopicLoad
+     */
+    public void setTriggerOffloadOnTopicLoad(boolean triggerOffloadOnTopicLoad) {
+        this.triggerOffloadOnTopicLoad = triggerOffloadOnTopicLoad;
+    }
+
+    public String getShadowSource() {
+        return MapUtils.getString(properties, PROPERTY_SOURCE_TOPIC_KEY);
+    }
+
+    public static final String PROPERTY_SOURCE_TOPIC_KEY = "PULSAR.SHADOW_SOURCE";
 }

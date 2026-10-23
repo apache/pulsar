@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -96,7 +96,7 @@ public interface LongPairSet {
     /**
      * Predicate to checks for a key-value pair where both of them have long types.
      */
-    public interface LongPairPredicate {
+    interface LongPairPredicate {
         boolean test(long v1, long v2);
     }
 
@@ -106,6 +106,13 @@ public interface LongPairSet {
      * @return
      */
     long size();
+
+    /**
+     * Returns capacity of the set.
+     *
+     * @return
+     */
+    long capacity();
 
     /**
      * Checks if given (item1,item2) composite value exists into set.
@@ -125,7 +132,7 @@ public interface LongPairSet {
      *
      */
     @FunctionalInterface
-    public interface LongPairFunction<T> {
+    interface LongPairFunction<T> {
 
         /**
          * Applies this function to the given arguments.

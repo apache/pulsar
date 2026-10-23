@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.utils;
 
 import org.apache.pulsar.common.functions.Resources;
@@ -43,7 +42,8 @@ public class ResourceConfigUtils {
         }
         if (newResources.getCpu() != null) {
             mergedResources.setCpu(newResources.getCpu());
-        }if (newResources.getRam() != null) {
+        }
+        if (newResources.getRam() != null) {
             mergedResources.setRam(newResources.getRam());
         }
         if (newResources.getDisk() != null) {

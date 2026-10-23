@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.common.intercept;
 
 import java.util.concurrent.atomic.AtomicLong;
-
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 
 public class AppendIndexMetadataInterceptor implements BrokerEntryMetadataInterceptor{
@@ -50,5 +49,9 @@ public class AppendIndexMetadataInterceptor implements BrokerEntryMetadataInterc
 
     public long getIndex() {
         return indexGenerator.get();
+    }
+
+    public void decreaseWithNumberOfMessages(int numberOfMessages) {
+        indexGenerator.addAndGet(-numberOfMessages);
     }
 }

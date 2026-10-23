@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,18 +19,19 @@
 package org.apache.pulsar.client.admin.internal;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.protocol.schema.DeleteSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -44,11 +45,9 @@ import org.apache.pulsar.common.schema.SchemaType;
 public class SchemasImpl extends BaseResource implements Schemas {
 
     private final WebTarget adminV2;
-    private final WebTarget adminV1;
 
-    public SchemasImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
-        this.adminV1 = web.path("/admin/schemas");
+    public SchemasImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         this.adminV2 = web.path("/admin/v2/schemas");
     }
 
@@ -60,20 +59,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<SchemaInfo> getSchemaInfoAsync(String topic) {
         TopicName tn = TopicName.get(topic);
-        final CompletableFuture<SchemaInfo> future = new CompletableFuture<>();
-        asyncGetRequest(schemaPath(tn),
-                new InvocationCallback<GetSchemaResponse>() {
-                    @Override
-                    public void completed(GetSchemaResponse response) {
-                        future.complete(convertGetSchemaResponseToSchemaInfo(tn, response));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(schemaPath(tn), new FutureCallback<GetSchemaResponse>(){})
+                .thenApply(response -> convertGetSchemaResponseToSchemaInfo(tn, response));
     }
 
     @Override
@@ -84,20 +71,8 @@ public class SchemasImpl extends BaseResource implements Schemas {
     @Override
     public CompletableFuture<SchemaInfoWithVersion> getSchemaInfoWithVersionAsync(String topic) {
         TopicName tn = TopicName.get(topic);
-        final CompletableFuture<SchemaInfoWithVersion> future = new CompletableFuture<>();
-        asyncGetRequest(schemaPath(tn),
-                new InvocationCallback<GetSchemaResponse>() {
-                    @Override
-                    public void completed(GetSchemaResponse response) {
-                        future.complete(convertGetSchemaResponseToSchemaInfoWithVersion(tn, response));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(schemaPath(tn), new FutureCallback<GetSchemaResponse>(){})
+                .thenApply(response -> convertGetSchemaResponseToSchemaInfoWithVersion(tn, response));
     }
 
     @Override
@@ -109,33 +84,31 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<SchemaInfo> getSchemaInfoAsync(String topic, long version) {
         TopicName tn = TopicName.get(topic);
         WebTarget path = schemaPath(tn).path(Long.toString(version));
-        final CompletableFuture<SchemaInfo> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<GetSchemaResponse>() {
-                    @Override
-                    public void completed(GetSchemaResponse response) {
-                        future.complete(convertGetSchemaResponseToSchemaInfo(tn, response));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<GetSchemaResponse>(){})
+                .thenApply(response -> convertGetSchemaResponseToSchemaInfo(tn, response));
     }
 
     @Override
     public void deleteSchema(String topic) throws PulsarAdminException {
-        sync(() ->deleteSchemaAsync(topic));
+        deleteSchema(topic, false);
     }
 
     @Override
     public CompletableFuture<Void> deleteSchemaAsync(String topic) {
-        TopicName tn = TopicName.get(topic);
+        return deleteSchemaAsync(topic, false);
+    }
+
+    @Override
+    public void deleteSchema(String topic, boolean force) throws PulsarAdminException {
+        sync(() -> deleteSchemaAsync(topic, force));
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteSchemaAsync(String topic, boolean force) {
+        WebTarget path = schemaPath(TopicName.get(topic)).queryParam("force", Boolean.toString(force));
         final CompletableFuture<Void> future = new CompletableFuture<>();
         try {
-            request(schemaPath(tn)).async().delete(new InvocationCallback<DeleteSchemaResponse>() {
+            request(path).async().delete(new InvocationCallback<DeleteSchemaResponse>() {
                 @Override
                 public void completed(DeleteSchemaResponse deleteSchemaResponse) {
                     future.complete(null);
@@ -295,25 +268,25 @@ public class SchemasImpl extends BaseResource implements Schemas {
     public CompletableFuture<List<SchemaInfo>> getAllSchemasAsync(String topic) {
         WebTarget path = schemasPath(TopicName.get(topic));
         TopicName topicName = TopicName.get(topic);
-        final CompletableFuture<List<SchemaInfo>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<GetAllVersionsSchemaResponse>() {
-                    @Override
-                    public void completed(GetAllVersionsSchemaResponse response) {
-                        future.complete(
-                                response.getGetSchemaResponses().stream()
-                                        .map(getSchemaResponse ->
-                                                convertGetSchemaResponseToSchemaInfo(topicName, getSchemaResponse))
-                                        .collect(Collectors.toList()));
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new FutureCallback<GetAllVersionsSchemaResponse>() {})
+                .thenApply(response -> response.getGetSchemaResponses().stream()
+                        .map(getSchemaResponse ->
+                                convertGetSchemaResponseToSchemaInfo(topicName, getSchemaResponse))
+                        .collect(Collectors.toList()));
     }
+
+    @Override
+    public SchemaMetadata getSchemaMetadata(String topic) throws PulsarAdminException {
+        return sync(() -> getSchemaMetadataAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<SchemaMetadata> getSchemaMetadataAsync(String topic) {
+        TopicName tn = TopicName.get(topic);
+        WebTarget path = metadata(tn);
+        return asyncGetRequest(path, new FutureCallback<SchemaMetadata>(){});
+    }
+
 
     private WebTarget schemaPath(TopicName topicName) {
         return topicPath(topicName, "schema");
@@ -331,9 +304,12 @@ public class SchemasImpl extends BaseResource implements Schemas {
         return topicPath(topicName, "compatibility");
     }
 
+    private WebTarget metadata(TopicName topicName) {
+        return topicPath(topicName, "metadata");
+    }
+
     private WebTarget topicPath(TopicName topic, String... parts) {
-        final WebTarget base = topic.isV2() ? adminV2 : adminV1;
-        WebTarget topicPath = base.path(topic.getRestPath(false));
+        WebTarget topicPath = adminV2.path(topic.getRestPath(false));
         topicPath = WebTargets.addParts(topicPath, parts);
         return topicPath;
     }
@@ -357,6 +333,7 @@ public class SchemasImpl extends BaseResource implements Schemas {
         return SchemaInfo.builder()
                 .schema(schema)
                 .type(response.getType())
+                .timestamp(response.getTimestamp())
                 .properties(response.getProperties())
                 .name(tn.getLocalName())
                 .build();

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,6 +20,7 @@ package org.apache.pulsar.client.admin;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.protocol.schema.IsCompatibilityResponse;
 import org.apache.pulsar.common.protocol.schema.PostSchemaPayload;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -97,6 +98,24 @@ public interface Schemas {
      * @param topic topic name, in fully qualified format
      */
     CompletableFuture<Void> deleteSchemaAsync(String topic);
+
+    /**
+     * Delete the schema associated with a given <tt>topic</tt>.
+     *
+     * @param topic topic name, in fully qualified format
+     * @param force whether to delete schema completely.
+     *              If true, delete all resources (including metastore and ledger),
+     *              otherwise only do a mark deletion and not remove any resources indeed
+     * @throws PulsarAdminException
+     */
+    void deleteSchema(String topic, boolean force) throws PulsarAdminException;
+
+    /**
+     * Delete the schema associated with a given <tt>topic</tt> asynchronously.
+     *
+     * @param topic topic name, in fully qualified format
+     */
+    CompletableFuture<Void> deleteSchemaAsync(String topic, boolean force);
 
     /**
      * Create a schema for a given <tt>topic</tt> with the provided schema info.
@@ -215,4 +234,19 @@ public interface Schemas {
      * @param topic topic name, in fully qualified format
      */
     CompletableFuture<List<SchemaInfo>> getAllSchemasAsync(String topic);
+
+    /**
+     * Get schema metadata of the <tt>topic</tt>.
+     *
+     * @param topic topic name, in fully qualified format
+     * @throws PulsarAdminException
+     */
+    SchemaMetadata getSchemaMetadata(String topic) throws PulsarAdminException;
+
+    /**
+     * Get schema metadata of the <tt>topic</tt> asynchronously.
+     *
+     * @param topic topic name, in fully qualified format
+     */
+    CompletableFuture<SchemaMetadata> getSchemaMetadataAsync(String topic);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.KeyStoreParams;
 
-@Slf4j
+@CustomLog
 public class AuthenticationDataKeyStoreTls implements AuthenticationDataProvider {
 
     private static final long serialVersionUID = 1L;
-    private transient final KeyStoreParams keyStoreParams;
+    private final transient KeyStoreParams keyStoreParams;
 
     public AuthenticationDataKeyStoreTls(KeyStoreParams keyStoreParams) throws Exception {
         this.keyStoreParams = keyStoreParams;

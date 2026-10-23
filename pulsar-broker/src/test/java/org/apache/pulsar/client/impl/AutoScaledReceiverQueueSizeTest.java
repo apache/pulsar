@@ -1,0 +1,383 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.impl;
+
+
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.BatchReceivePolicy;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.awaitility.Awaitility;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
+
+@CustomLog
+public class AutoScaledReceiverQueueSizeTest extends MockedPulsarServiceBaseTest {
+    @BeforeMethod(alwaysRun = true)
+    @Override
+    protected void setup() throws Exception {
+        super.internalSetup();
+        setupDefaultTenantAndNamespace();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        super.internalCleanup();
+    }
+
+    @Test
+    public void testConsumerImpl() throws PulsarClientException {
+        String topic = "persistent://public/default/testConsumerImpl" + System.currentTimeMillis();
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .receiverQueueSize(3)
+                .autoScaledReceiverQueueSizeEnabled(true)
+                .subscribe();
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 1);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+        byte[] data = "data".getBytes(StandardCharsets.UTF_8);
+
+        producer.send(data);
+        Awaitility.await().until(consumer.scaleReceiverQueueHint::get);
+        Assert.assertNotNull(consumer.receive());
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
+
+        //this will trigger receiver queue size expanding.
+        Assert.assertNull(consumer.receive(0, TimeUnit.MILLISECONDS));
+
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 2);
+        Assert.assertFalse(consumer.scaleReceiverQueueHint.get());
+
+        for (int i = 0; i < 5; i++) {
+            producer.send(data);
+            producer.send(data);
+            Awaitility.await().until(consumer.scaleReceiverQueueHint::get);
+            Assert.assertNotNull(consumer.receive());
+            Assert.assertNotNull(consumer.receive());
+            // queue maybe full, but no empty receive, so no expanding
+            Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 2);
+        }
+
+        producer.send(data);
+        producer.send(data);
+        Awaitility.await().until(consumer.scaleReceiverQueueHint::get);
+        Assert.assertNotNull(consumer.receive());
+        Assert.assertNotNull(consumer.receive());
+        Assert.assertNull(consumer.receive(0, TimeUnit.MILLISECONDS));
+        // queue is full, with empty receive, expanding to max size
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 3);
+    }
+
+    @Test
+    public void testConsumerImplBatchReceive() throws PulsarClientException {
+        String topic = "persistent://public/default/testConsumerImplBatchReceive" + System.currentTimeMillis();
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .batchReceivePolicy(BatchReceivePolicy.builder().maxNumMessages(5).build())
+                .receiverQueueSize(20)
+                .autoScaledReceiverQueueSizeEnabled(true)
+                .subscribe();
+
+        int currentSize = 8;
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), currentSize);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+        byte[] data = "data".getBytes(StandardCharsets.UTF_8);
+
+        for (int i = 0; i < 10; i++) { // just run a few times.
+            for (int j = 0; j < 5; j++) {
+                producer.send(data);
+            }
+            Awaitility.await().until(() -> consumer.incomingMessages.size() == 5);
+            log.info()
+                    .attr("i", i)
+                    .attr("expandReceiverQueueHint", consumer.scaleReceiverQueueHint.get())
+                    .attr("permits", consumer.getAvailablePermits())
+                    .log("i= ,expandReceiverQueueHint: ,local permits");
+            Assert.assertEquals(consumer.batchReceive().size(), 5);
+            Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), currentSize);
+            log.info()
+                    .attr("getCurrentReceiverQueueSize", consumer.getCurrentReceiverQueueSize())
+                    .log("getCurrentReceiverQueueSize");
+        }
+
+        //clear local available permits.
+        int n = currentSize / 2 - consumer.getAvailablePermits();
+        for (int i = 0; i < n; i++) {
+            producer.send(data);
+            consumer.receive();
+        }
+        Assert.assertEquals(consumer.getAvailablePermits(), 0);
+
+        for (int i = 0; i < currentSize; i++) {
+            producer.send(data);
+        }
+
+        Awaitility.await().until(consumer.scaleReceiverQueueHint::get);
+        Assert.assertEquals(consumer.batchReceive().size(), 5);
+
+        //trigger expanding
+        consumer.batchReceiveAsync();
+        Awaitility.await().until(() -> consumer.getCurrentReceiverQueueSize() == currentSize * 2);
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
+    }
+
+    @Test
+    public void testMultiConsumerImpl() throws Exception {
+        String topic = "persistent://public/default/testMultiConsumerImpl" + System.currentTimeMillis();
+        admin.topics().createPartitionedTopic(topic, 3);
+        @Cleanup
+        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .receiverQueueSize(10)
+                .autoScaledReceiverQueueSizeEnabled(true)
+                .subscribe();
+
+        //queue size will be adjusted to partition number.
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 3));
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+        byte[] data = "data".getBytes(StandardCharsets.UTF_8);
+
+        for (int i = 0; i < 3; i++) {
+            producer.send(data);
+        }
+        Awaitility.await().until(consumer.scaleReceiverQueueHint::get);
+        for (int i = 0; i < 3; i++) {
+            Assert.assertNotNull(consumer.receive());
+        }
+        Assert.assertTrue(consumer.scaleReceiverQueueHint.get());
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 3); // queue size no change
+
+        //this will trigger receiver queue size expanding.
+        Assert.assertNull(consumer.receive(0, TimeUnit.MILLISECONDS));
+
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 6);
+        Assert.assertFalse(consumer.scaleReceiverQueueHint.get()); //expandReceiverQueueHint is reset.
+
+        for (int i = 0; i < 5; i++) {
+            for (int j = 0; j < 6; j++) {
+                producer.send(data);
+            }
+            for (int j = 0; j < 6; j++) {
+                Assert.assertNotNull(consumer.receive());
+            }
+            log.info()
+                    .attr("i", i)
+                    .attr("currentReceiverQueueSize", consumer.getCurrentReceiverQueueSize())
+                    .attr("expandReceiverQueueHint", consumer.scaleReceiverQueueHint)
+                    .log("i= ,currentReceiverQueueSize= ,expandReceiverQueueHint");
+            // queue maybe full, but no empty receive, so no expanding
+            Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 6);
+        }
+
+        for (int j = 0; j < 6; j++) {
+            producer.send(data);
+        }
+        Awaitility.await().until(() -> consumer.scaleReceiverQueueHint.get());
+        for (int j = 0; j < 6; j++) {
+            Assert.assertNotNull(consumer.receive());
+        }
+        Assert.assertNull(consumer.receive(0, TimeUnit.MILLISECONDS));
+        // queue is full, with empty receive, expanding to max size
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 10);
+    }
+
+    @Test
+    public void testMultiConsumerImplBatchReceive() throws PulsarClientException, PulsarAdminException {
+        String topic = "persistent://public/default/testMultiConsumerImplBatchReceive" + System.currentTimeMillis();
+        admin.topics().createPartitionedTopic(topic, 3);
+        @Cleanup
+        MultiTopicsConsumerImpl<byte[]> consumer = (MultiTopicsConsumerImpl<byte[]>) pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .batchReceivePolicy(BatchReceivePolicy.builder().maxNumMessages(5).build())
+                .receiverQueueSize(20)
+                .autoScaledReceiverQueueSizeEnabled(true)
+                .subscribe();
+
+        //receiver queue size init as 5.
+        int currentSize = 5;
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), currentSize);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+        byte[] data = "data".getBytes(StandardCharsets.UTF_8);
+
+        for (int i = 0; i < 10; i++) { // just run a few times.
+            for (int j = 0; j < 5; j++) {
+                producer.send(data);
+            }
+            log.info()
+                    .attr("i", i)
+                    .attr("expandReceiverQueueHint", consumer.scaleReceiverQueueHint.get())
+                    .attr("permits", consumer.getAvailablePermits())
+                    .log("i= ,expandReceiverQueueHint: ,local permits");
+            Awaitility.await().until(consumer::hasEnoughMessagesForBatchReceive);
+            Assert.assertEquals(consumer.batchReceive().size(), 5);
+            Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), currentSize);
+            log.info()
+                    .attr("getCurrentReceiverQueueSize", consumer.getCurrentReceiverQueueSize())
+                    .log("getCurrentReceiverQueueSize");
+        }
+
+        for (int i = 0; i < currentSize; i++) {
+            producer.send(data);
+        }
+
+        Awaitility.await().until(consumer.scaleReceiverQueueHint::get);
+        Assert.assertEquals(consumer.batchReceive().size(), 5);
+
+        //trigger expanding
+        consumer.batchReceiveAsync();
+        Awaitility.await().until(() -> consumer.getCurrentReceiverQueueSize() == currentSize * 2);
+        log.info()
+                .attr("queueSize", consumer.getCurrentReceiverQueueSize())
+                .log("Current receiver queue size");
+    }
+
+    @Test
+    public void testNegativeClientMemory() throws Exception {
+        final String topicName = "persistent://public/default/testMemory-"
+                + UUID.randomUUID().toString();
+        final String subName = "my-sub";
+
+        admin.topics().createPartitionedTopic(topicName, 3);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        final int messages = 1000;
+        List<CompletableFuture<MessageId>> messageIds = new ArrayList<>(messages);
+        for (int i = 0; i < messages; i++) {
+            messageIds.add(producer.newMessage().key(i + "").value(("Message-" + i).getBytes()).sendAsync());
+        }
+        FutureUtil.waitForAll(messageIds).get();
+
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .autoScaledReceiverQueueSizeEnabled(true)
+                .subscribe();
+
+
+        Awaitility.await().untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info().attr("size", size).log("Check the incoming message size should greater that 0, current size is");
+            Assert.assertTrue(size > 0);
+        });
+
+
+        for (int i = 0; i < messages; i++) {
+            consumer.receive();
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            long size = ((ConsumerBase<byte[]>) consumer).getIncomingMessageSize();
+            log.info().attr("size", size).log("Check the incoming message size should be 0, current size is");
+            Assert.assertEquals(size, 0);
+        });
+
+
+        MemoryLimitController controller = ((PulsarClientImpl) pulsarClient).getMemoryLimitController();
+        Assert.assertEquals(controller.currentUsage(), 0);
+        Assert.assertEquals(controller.currentUsagePercent(), 0);
+    }
+
+    @Test
+    public void testWithoutMemoryLimit() throws PulsarClientException {
+        @Cleanup
+        PulsarClient clientWithoutMemoryLimit = PulsarClient.builder()
+                .memoryLimit(0, SizeUnit.BYTES)
+                .serviceUrl(pulsar.getBrokerServiceUrl())
+                .build();
+
+        String topic = "persistent://public/default/testWithoutMemoryLimit";
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) clientWithoutMemoryLimit.newConsumer()
+                .topic(topic)
+                .subscriptionName("my-sub")
+                .receiverQueueSize(3)
+                .autoScaledReceiverQueueSizeEnabled(true)
+                .subscribe();
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 1);
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+        byte[] data = "data".getBytes(StandardCharsets.UTF_8);
+
+        producer.send(data);
+        Awaitility.await().until(consumer.scaleReceiverQueueHint::get);
+        Assert.assertNotNull(consumer.receive());
+
+        // this will trigger a receiver queue size expansion
+        Assert.assertNull(consumer.receive(0, TimeUnit.MILLISECONDS));
+
+        Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), 2);
+    }
+}

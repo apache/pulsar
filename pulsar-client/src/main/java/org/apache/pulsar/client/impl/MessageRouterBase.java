@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,7 +33,7 @@ public abstract class MessageRouterBase implements MessageRouter {
             break;
         case Murmur3_32Hash:
         default:
-            this.hash = Murmur3_32Hash.getInstance();
+            this.hash = Murmur3Hash32.getInstance();
         }
     }
 }
