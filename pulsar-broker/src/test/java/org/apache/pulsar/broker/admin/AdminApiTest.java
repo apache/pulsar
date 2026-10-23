@@ -66,7 +66,6 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
 import lombok.Value;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -76,6 +75,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.stats.TopicInternalInfo;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.GetStatsOptions;
@@ -1397,9 +1397,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
         partitionedManagedLedgerInfo.version = 0L;
         partitionedManagedLedgerInfo.partitions.put(partitionTopic0,
-            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic0InfoResponse, TopicInternalInfo.class));
         partitionedManagedLedgerInfo.partitions.put(partitionTopic1,
-            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic1InfoResponse, TopicInternalInfo.class));
 
         String expectedResult = ObjectMapperFactory.getMapper()
                 .writer().writeValueAsString(partitionedManagedLedgerInfo);
