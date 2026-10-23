@@ -25,6 +25,7 @@ import static org.apache.pulsar.common.naming.TopicName.PUBLIC_TENANT;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
@@ -41,10 +42,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.text.WordUtils;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
+import org.apache.pulsar.cli.ClientApi;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -61,7 +63,7 @@ import picocli.CommandLine.Option;
 
 @Getter
 @Command(description = "Interface for managing Pulsar IO sinks (egress data from Pulsar)", aliases = "sink")
-@Slf4j
+@CustomLog
 public class CmdSinks extends CmdBase {
 
     private final CreateSink createSink;
@@ -197,8 +199,8 @@ public class CmdSinks extends CmdBase {
             }
         }
 
-        @Override
-        public void runCmd() throws Exception {
+        @VisibleForTesting
+        List<String> getLocalRunArgs() throws Exception {
             // merge deprecated args with new args
             mergeArgs();
             List<String> localRunArgs = new LinkedList<>();
@@ -206,7 +208,7 @@ public class CmdSinks extends CmdBase {
             localRunArgs.add("--sinkConfig");
             localRunArgs.add(new Gson().toJson(sinkConfig));
             for (Field field : this.getClass().getDeclaredFields()) {
-                if (field.getName().startsWith("DEPRECATED")) {
+                if (field.getName().toUpperCase().startsWith("DEPRECATED")) {
                     continue;
                 }
                 if (field.getName().contains("$")) {
@@ -218,7 +220,12 @@ public class CmdSinks extends CmdBase {
                     localRunArgs.add(value.toString());
                 }
             }
-            ProcessBuilder processBuilder = new ProcessBuilder(localRunArgs).inheritIO();
+            return localRunArgs;
+        }
+
+        @Override
+        public void runCmd() throws Exception {
+            ProcessBuilder processBuilder = new ProcessBuilder(getLocalRunArgs()).inheritIO();
             Process process = processBuilder.start();
             process.waitFor();
         }
@@ -404,6 +411,11 @@ public class CmdSinks extends CmdBase {
         protected String transformFunctionConfig;
         @Option(names = "--log-topic", description = "The topic to which the logs of a Pulsar Sink are produced")
         protected String logTopic;
+        @Option(names = ClientApi.OPTION_NAME, description = CmdFunctions.CLIENT_API_DESCRIPTION)
+        protected FunctionConfig.ClientApi clientApi;
+        @Option(names = "--runtime-flags", description = "Any flags that you want to pass to a runtime"
+                + " (for process & Kubernetes runtime only).")
+        protected String runtimeFlags;
 
         protected SinkConfig sinkConfig;
 
@@ -435,6 +447,7 @@ public class CmdSinks extends CmdBase {
         }
 
         @Override
+        @SuppressWarnings("deprecation")
         void processArguments() throws Exception {
             super.processArguments();
             // merge deprecated args with new args
@@ -601,6 +614,12 @@ public class CmdSinks extends CmdBase {
             }
             if (null != logTopic) {
                 sinkConfig.setLogTopic(logTopic);
+            }
+            if (null != clientApi) {
+                sinkConfig.setClientApi(clientApi);
+            }
+            if (null != runtimeFlags) {
+                sinkConfig.setRuntimeFlags(runtimeFlags);
             }
 
             // check if configs are valid
@@ -816,6 +835,7 @@ public class CmdSinks extends CmdBase {
     @Command(description = "Get the list of Pulsar IO connector sinks supported by Pulsar cluster")
     public class ListBuiltInSinks extends BaseCommand {
         @Override
+        @SuppressWarnings("deprecation")
         void runCmd() throws Exception {
             getAdmin().sinks().getBuiltInSinks().stream().filter(x -> isNotBlank(x.getSinkClass()))
                     .forEach(connector -> {

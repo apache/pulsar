@@ -42,7 +42,7 @@ public class PrometheusMetricStreams {
         stream.write(metricName).write('{');
         for (int i = 0; i < labelsAndValuesArray.length; i += 2) {
             String labelValue = labelsAndValuesArray[i + 1];
-            if (labelValue != null) {
+            if (labelValue != null && labelValue.indexOf('"') > -1) {
                 labelValue = labelValue.replace("\"", "\\\"");
             }
             stream.write(labelsAndValuesArray[i]).write("=\"").write(labelValue).write('\"');

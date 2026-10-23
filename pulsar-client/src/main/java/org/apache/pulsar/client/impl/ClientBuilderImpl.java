@@ -34,14 +34,19 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.api.Socks5ProxyScope;
+import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
 import org.apache.pulsar.common.tls.InetAddressUtils;
 
 public class ClientBuilderImpl implements ClientBuilder {
+    private static final long serialVersionUID = 1L;
     ClientConfigurationData conf;
+    private transient PulsarClientSharedResourcesImpl sharedResources;
 
     public ClientBuilderImpl() {
         this(new ClientConfigurationData());
@@ -63,20 +68,35 @@ public class ClientBuilderImpl implements ClientBuilder {
                     "Cannot get service url from service url provider.");
             conf.setServiceUrl(conf.getServiceUrlProvider().getServiceUrl());
         }
-        PulsarClient client = new PulsarClientImpl(conf);
-        if (conf.getServiceUrlProvider() != null) {
-            conf.getServiceUrlProvider().initialize(client);
+        if (conf.getAuthentication() == null || conf.getAuthentication() == AuthenticationDisabled.INSTANCE) {
+            setAuthenticationFromPropsIfAvailable(conf);
         }
-        return client;
+        PulsarClientImpl.PulsarClientImplBuilder instanceBuilder = PulsarClientImpl.builder();
+        // PIP-478: hand the client its own configuration object. The client stores the TLS factory it
+        // composes back onto this object (PulsarClientImpl.setupClientTlsFactory), so sharing the
+        // builder's instance would make a second build() adopt — and re-initialize — the first client's
+        // live factory, and closing either client would then close TLS for the other. Building more than
+        // one client from a builder is ordinary usage, so the configuration must not be shared state.
+        // Callers that mutate the builder's configuration (BrokerService, WorkerUtils, CompactorTool,
+        // NamespaceService) all do so before build(), so the copy carries their changes.
+        instanceBuilder.conf(conf.clone());
+        if (sharedResources != null) {
+            sharedResources.applyTo(instanceBuilder);
+        }
+        return instanceBuilder.build();
     }
 
     @Override
     public ClientBuilder clone() {
-        return new ClientBuilderImpl(conf.clone());
+        ClientBuilderImpl clientBuilder = new ClientBuilderImpl(conf.clone());
+        clientBuilder.sharedResources = sharedResources;
+        return clientBuilder;
     }
 
     @Override
     public ClientBuilder loadConf(Map<String, Object> config) {
+        // PIP-478: reject a stale, removed PIP-337 sslFactoryPlugin key with an actionable message.
+        ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(config);
         conf = ConfigurationDataUtils.loadData(config, conf, ClientConfigurationData.class);
         setAuthenticationFromPropsIfAvailable(conf);
         return this;
@@ -96,6 +116,24 @@ public class ClientBuilderImpl implements ClientBuilder {
     public ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider) {
         checkArgument(serviceUrlProvider != null, "Param serviceUrlProvider must not be null.");
         conf.setServiceUrlProvider(serviceUrlProvider);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlQuarantineInitDuration(long serviceUrlQuarantineInitDuration,
+                                                          TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineInitDuration >= 0,
+                "serviceUrlQuarantineInitDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineInitDurationMs(unit.toMillis(serviceUrlQuarantineInitDuration));
+        return this;
+    }
+
+    @Override
+    public ClientBuilder serviceUrlQuarantineMaxDuration(long serviceUrlQuarantineMaxDuration,
+                                                         TimeUnit unit) {
+        checkArgument(serviceUrlQuarantineMaxDuration >= 0,
+                "serviceUrlQuarantineMaxDuration needs to be >= 0");
+        conf.setServiceUrlQuarantineMaxDurationMs(unit.toMillis(serviceUrlQuarantineMaxDuration));
         return this;
     }
 
@@ -129,6 +167,12 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
+    public ClientBuilder enableTracing(boolean tracingEnabled) {
+        conf.setTracingEnabled(tracingEnabled);
+        return this;
+    }
+
+    @Override
     public ClientBuilder authentication(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
         conf.setAuthPluginClassName(authPluginClassName);
@@ -145,6 +189,11 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setAuthParamMap(authParams);
         conf.setAuthParams(null);
         conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
+        return this;
+    }
+
+    public ClientBuilderImpl originalPrincipal(String originalPrincipal) {
+        conf.setOriginalPrincipal(originalPrincipal);
         return this;
     }
 
@@ -206,6 +255,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public ClientBuilder enableTls(boolean useTls) {
         conf.setUseTls(useTls);
@@ -302,6 +352,7 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public ClientBuilder statsInterval(long statsInterval, TimeUnit unit) {
         conf.setStatsIntervalSeconds(unit.toSeconds(statsInterval));
@@ -374,6 +425,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder clock(Clock clock) {
+        checkArgument(clock != null, "clock must not be null");
         conf.setClock(clock);
         return this;
     }
@@ -431,26 +483,48 @@ public class ClientBuilderImpl implements ClientBuilder {
         return this;
     }
 
-    /**
-     * Set the description.
-     *
-     * <p> By default, when the client connects to the broker, a version string like "Pulsar-Java-v<x.y.z>" will be
-     * carried and saved by the broker. The client version string could be queried from the topic stats.
-     *
-     * <p> This method provides a way to add more description to a specific PulsarClient instance. If it's configured,
-     * the description will be appended to the original client version string, with '-' as the separator.
-     *
-     * <p>For example, if the client version is 3.0.0, and the description is "forked", the final client version string
-     * will be "Pulsar-Java-v3.0.0-forked".
-     *
-     * @param description the description of the current PulsarClient instance
-     * @throws IllegalArgumentException if the length of description exceeds 64
-     */
+    @Override
+    public ClientBuilder socks5ProxyScope(Socks5ProxyScope socks5ProxyScope) {
+        conf.setSocks5ProxyScope(socks5ProxyScope);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsFactoryClassName(String tlsFactoryClassName) {
+        conf.setTlsFactoryClassName(StringUtils.isBlank(tlsFactoryClassName) ? "" : tlsFactoryClassName);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder tlsFactoryConfig(String tlsFactoryConfig) {
+        conf.setTlsFactoryConfig(StringUtils.isBlank(tlsFactoryConfig) ? "" : tlsFactoryConfig);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder autoCertRefreshSeconds(int autoCertRefreshSeconds) {
+        conf.setAutoCertRefreshSeconds(autoCertRefreshSeconds);
+        return this;
+    }
+
+    @Override
     public ClientBuilder description(String description) {
         if (description != null && description.length() > 64) {
             throw new IllegalArgumentException("description should be at most 64 characters");
         }
         conf.setDescription(description);
+        return this;
+    }
+
+    @Override
+    public ClientBuilder sharedResources(PulsarClientSharedResources sharedResources) {
+        this.sharedResources = (PulsarClientSharedResourcesImpl) sharedResources;
+        return this;
+    }
+
+    @Override
+    public ClientBuilder lookupProperties(Map<String, String> properties) {
+        conf.setLookupProperties(properties);
         return this;
     }
 }

@@ -26,17 +26,33 @@ public class ZKContainer extends PulsarContainer<ZKContainer> {
     public static final String NAME = "zookeeper";
 
     public ZKContainer(String clusterName) {
+        this(clusterName, DEFAULT_IMAGE_NAME);
+    }
+
+    public ZKContainer(String clusterName, String imageName) {
+        this(clusterName, NAME, imageName);
+    }
+
+    public ZKContainer(String clusterName, String hostName, String imageName) {
         super(
             clusterName,
-            NAME,
+            hostName,
             NAME,
             "bin/run-local-zk.sh",
             ZK_PORT,
-            INVALID_PORT);
+            INVALID_PORT,
+            "/metrics",
+            imageName);
     }
 
     @Override
     protected boolean isCodeCoverageEnabled() {
+        return false;
+    }
+
+
+    @Override
+    protected boolean isPassNettyLeakDetectionSystemProperties() {
         return false;
     }
 }

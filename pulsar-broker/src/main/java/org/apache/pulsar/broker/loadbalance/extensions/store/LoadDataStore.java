@@ -103,4 +103,10 @@ public interface LoadDataStore<T> extends Closeable {
      */
     void startProducer() throws LoadDataStoreException;
 
+    /**
+     * Shutdowns the data store.
+     */
+    default void shutdown() throws IOException {
+        close();
+    }
 }
