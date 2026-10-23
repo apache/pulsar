@@ -157,6 +157,22 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @SuppressWarnings("unused")
     private volatile int availablePermits = 0;
 
+    // Never acquire this or incomingQueueLock while holding receiverQueuePermitLock: memory-triggered resizes
+    // can run while incomingQueueLock is held, whereas redelivery acquires this before incomingQueueLock.
+    private final Object receiverQueuePermitLock = new Object();
+    // Guarded by receiverQueuePermitLock; capacity and its initial grant belong to one subscription attempt.
+    private ReceiverQueuePermitState receiverQueuePermitState;
+
+    private static final class ReceiverQueuePermitState {
+        private final ClientCnx cnx;
+        private boolean subscribed;
+        private boolean initialized;
+
+        private ReceiverQueuePermitState(ClientCnx cnx) {
+            this.cnx = cnx;
+        }
+    }
+
     protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
     private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
 
@@ -917,8 +933,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         + client.getConfiguration().getOperationTimeoutMs());
 
         int currentSize;
+        final ReceiverQueuePermitState newReceiverQueuePermitState = new ReceiverQueuePermitState(cnx);
         synchronized (this) {
             currentSize = incomingMessages.size();
+            synchronized (receiverQueuePermitLock) {
+                receiverQueuePermitState = newReceiverQueuePermitState;
+            }
             setClientCnx(cnx);
             clearReceiverQueue(true);
             if (possibleSendToDeadLetterTopicMessages != null) {
@@ -967,19 +987,29 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this), conf.isEntryBucketDispatch());
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
+                boolean staleSubscription;
+                boolean consumerReady = false;
                 synchronized (ConsumerImpl.this) {
-                    if (changeToReadyState()) {
-                        consumerIsReconnectedToBroker(cnx, currentSize);
-                    } else {
+                    synchronized (receiverQueuePermitLock) {
+                        staleSubscription = receiverQueuePermitState != newReceiverQueuePermitState || cnx() != cnx;
+                        if (!staleSubscription && changeToReadyState()) {
+                            consumerIsReconnectedToBroker(cnx, currentSize);
+                            newReceiverQueuePermitState.subscribed = true;
+                            consumerReady = true;
+                        }
+                    }
+                    if (!staleSubscription && !consumerReady) {
                         // Consumer was closed while reconnecting, close the connection to make sure the broker
-                        // drops the consumer on its side
+                        // drops the consumer on its side.
                         setState(State.Closed);
                         deregisterFromClientCnx();
                         client.cleanupConsumer(this);
                         cnx.channel().close();
-                        future.complete(null);
-                        return;
                     }
+                }
+                if (staleSubscription || !consumerReady) {
+                    future.complete(null);
+                    return;
                 }
 
                 resetBackoff();
@@ -987,8 +1017,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 boolean firstTimeConnect = subscribeFuture.complete(this);
                 // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
                 // command to receive messages.
-                if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
-                    increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
+                if (!(firstTimeConnect && hasParentConsumer)) {
+                    initializeReceiverQueuePermits(newReceiverQueuePermitState);
                 }
                 // send the acks that waited for the subscription
                 acknowledgmentsGroupingTracker.flush();
@@ -1087,6 +1117,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         log.info("Subscribed to topic");
 
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
+    }
+
+    void initializeReceiverQueuePermits() {
+        synchronized (receiverQueuePermitLock) {
+            initializeReceiverQueuePermits(receiverQueuePermitState);
+        }
+    }
+
+    private void initializeReceiverQueuePermits(ReceiverQueuePermitState state) {
+        synchronized (receiverQueuePermitLock) {
+            if (state == null || receiverQueuePermitState != state || !state.subscribed || state.initialized
+                    || cnx() != state.cnx || getState() != State.Ready) {
+                return;
+            }
+            // A resize before initialization is included in this snapshot; later resizes grant only their delta.
+            // Add the initial grant under the same lock as the subscription's available-permit reset.
+            int permits = getCurrentReceiverQueueSize();
+            state.initialized = true;
+            increaseAvailablePermits(state.cnx, permits);
+        }
     }
 
     /**
@@ -2132,13 +2182,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected void setCurrentReceiverQueueSize(int newSize) {
         checkArgument(newSize > 0, "receiver queue size should larger than 0");
-        int oldSize = CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.getAndSet(this, newSize);
-        int delta = newSize - oldSize;
-        log.debug().attr("oldSize", oldSize)
-                .attr("newSize", newSize)
-                .attr("delta", delta)
-                .log("update currentReceiverQueueSize from to, increaseAvailablePermits by");
-        increaseAvailablePermits(delta);
+        synchronized (receiverQueuePermitLock) {
+            int oldSize = CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.getAndSet(this, newSize);
+            int delta = newSize - oldSize;
+            log.debug().attr("oldSize", oldSize)
+                    .attr("newSize", newSize)
+                    .attr("delta", delta)
+                    .log("update currentReceiverQueueSize from to, increaseAvailablePermits by");
+            ReceiverQueuePermitState state = receiverQueuePermitState;
+            if (state != null && state.initialized && cnx() == state.cnx && getState() == State.Ready) {
+                increaseAvailablePermits(state.cnx, delta);
+            }
+        }
     }
 
     @Override

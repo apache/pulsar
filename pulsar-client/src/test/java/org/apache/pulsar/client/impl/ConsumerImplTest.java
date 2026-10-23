@@ -805,7 +805,8 @@ public class ConsumerImplTest {
         int permits = consumer.getAvailablePermits();
         consumer.setCurrentReceiverQueueSize(size + 100);
         Assert.assertEquals(consumer.getCurrentReceiverQueueSize(), size + 100);
-        Assert.assertEquals(consumer.getAvailablePermits(), permits + 100);
+        // Capacity changes before subscription are included in the initial grant, rather than added twice.
+        Assert.assertEquals(consumer.getAvailablePermits(), permits);
     }
 
     @Test
@@ -1392,9 +1393,8 @@ public class ConsumerImplTest {
         consumer.pause();
         Assert.assertTrue(consumer.paused, "consumer should be paused");
 
-        // Accumulate permits by enlarging the receiver queue
-        int queueSize = consumer.getCurrentReceiverQueueSize();
-        consumer.setCurrentReceiverQueueSize(queueSize + 100);
+        // Return consumed-message permits while paused, independently of subscription initialization.
+        consumer.increaseAvailablePermits(cnx, 100);
         int permitsBeforeResume = consumer.getAvailablePermits();
         Assert.assertTrue(permitsBeforeResume > 0,
                 "should have accumulated permits while paused, got " + permitsBeforeResume);
