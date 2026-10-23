@@ -29,6 +29,7 @@ import io.prometheus.client.exporter.HTTPServer;
 import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +38,7 @@ import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.util.Reflections;
@@ -161,6 +163,15 @@ public class JavaInstanceStarter implements AutoCloseable {
             required = false)
     public Boolean ignoreUnknownConfigFields = false;
 
+    @Option(names = "--pulsar_client_memory_limit_bytes",
+            description = "The max memory in bytes the Pulsar client can use",
+            required = false)
+    public Long pulsarClientMemoryLimitBytes;
+
+    @Option(names = "--pulsar_client_memory_limit_percent",
+            description = "The max memory the Pulsar client can use, as a percentage of the JVM max direct memory",
+            required = false)
+    public Double pulsarClientMemoryLimitPercent;
 
     private Server server;
     private RuntimeSpawner runtimeSpawner;
@@ -189,6 +200,11 @@ public class JavaInstanceStarter implements AutoCloseable {
         instanceConfig.setMaxPendingAsyncRequests(maxPendingAsyncRequests);
         instanceConfig.setExposePulsarAdminClientEnabled(exposePulsarAdminClientEnabled);
         instanceConfig.setIgnoreUnknownConfigFields(ignoreUnknownConfigFields);
+        if (pulsarClientMemoryLimitBytes != null || pulsarClientMemoryLimitPercent != null) {
+            instanceConfig.setPulsarClientMemoryLimit(new MemoryLimit()
+                    .setLimitInBytes(pulsarClientMemoryLimitBytes)
+                    .setPercentOfMaxDirectMemory(pulsarClientMemoryLimitPercent));
+        }
         if (functionDetailsJsonString.charAt(0) == '\'') {
             functionDetailsJsonString = functionDetailsJsonString.substring(1);
         }
@@ -244,7 +260,8 @@ public class JavaInstanceStarter implements AutoCloseable {
                         .tlsHostnameVerificationEnable(isTrue(tlsHostNameVerificationEnabled))
                         .tlsTrustCertsFilePath(tlsTrustCertFilePath).build(),
                 secretsProvider, collectorRegistry, narExtractionDirectory, rootClassLoader,
-                exposePulsarAdminClientEnabled, webServiceUrl, fnCache);
+                exposePulsarAdminClientEnabled, webServiceUrl, fnCache,
+                Optional.ofNullable(instanceConfig.getPulsarClientMemoryLimit()));
         runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,

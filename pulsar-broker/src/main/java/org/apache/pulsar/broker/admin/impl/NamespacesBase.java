@@ -22,7 +22,6 @@ import static org.apache.pulsar.common.policies.data.PoliciesUtil.getBundles;
 import com.google.common.collect.Sets;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.container.AsyncResponse;
-import jakarta.ws.rs.container.CompletionCallback;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.Response.Status;
 import jakarta.ws.rs.core.UriBuilder;
@@ -44,9 +43,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BooleanSupplier;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -60,6 +58,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.Subscription;
@@ -68,8 +67,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
-import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
-import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
+import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.Namespaces;
@@ -120,8 +118,6 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.policies.data.ValidateResult;
 import org.apache.pulsar.common.policies.data.impl.AutoTopicCreationOverrideImpl;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
-import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
-import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -184,74 +180,37 @@ public abstract class NamespacesBase extends AdminResource {
                                                                       CommandGetTopicsOfNamespace.Mode mode) {
         // Use maxTopicListInFlightLimiter to limit inflight get topic listing responses
         // to avoid OOME caused by a lot of clients using HTTP service lookups to list topics
-        AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter =
-                pulsar().getBrokerService().getMaxTopicListInFlightLimiter();
-        TopicListSizeResultCache.ResultHolder listSizeHolder = pulsar().getBrokerService().getTopicListSizeResultCache()
-                .getTopicListSize(namespaceName.toString(), mode);
-        // setup the permit cancellation function
-        AtomicBoolean permitRequestCancelled = new AtomicBoolean(false);
-        BooleanSupplier isPermitRequestCancelled = permitRequestCancelled::get;
-        // add callback that releases permits when the response completes
-        AtomicReference<AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit> initialPermitsRef =
-                new AtomicReference<>();
-        AtomicReference<AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit> permitsRef = new AtomicReference<>();
-        response.register(new CompletionCallback() {
-            @Override
-            public void onComplete(Throwable throwable) {
-                if (throwable != null) {
-                    // for failed request
-                    // handle resetting the TopicListSizeResultCache.ResultHolder
-                    listSizeHolder.resetIfInitializing();
-                    // cancel any pending permit request
-                    permitRequestCancelled.set(true);
-                }
-                AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit initialPermit = initialPermitsRef.get();
-                if (initialPermit != null) {
-                    maxTopicListInFlightLimiter.release(initialPermit);
-                }
-                AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit permits = permitsRef.get();
-                if (permits != null) {
-                    maxTopicListInFlightLimiter.release(permits);
-                }
-            }
-        });
-        return listSizeHolder.getSizeAsync().thenCompose(initialSize -> maxTopicListInFlightLimiter.acquire(initialSize,
-                AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY, isPermitRequestCancelled).exceptionally(t -> {
-            throw new CompletionException(
-                    new RestException(Status.TOO_MANY_REQUESTS, "Failed due to heap memory limit exceeded"));
-        }).thenCompose(initialPermits -> {
-            initialPermitsRef.set(initialPermits);
-            // perform the actual get list of topics operation
-            return doInternalGetListOfTopics(policies, mode).thenCompose(topicList -> {
-                long actualSize = TopicListMemoryLimiter.estimateTopicListSize(topicList);
-                listSizeHolder.updateSize(actualSize);
-                return maxTopicListInFlightLimiter.update(initialPermits, actualSize, isPermitRequestCancelled)
-                        .exceptionally(t -> {
-                            throw new CompletionException(new RestException(Status.TOO_MANY_REQUESTS,
-                                    "Failed due to heap memory limit exceeded"));
-                        }).thenApply(permits -> {
-                            permitsRef.set(permits);
-                            initialPermitsRef.set(null);
-                            return topicList;
-                        });
-            });
-        }));
-    }
-
-    private CompletableFuture<List<String>> doInternalGetListOfTopics(Policies policies,
-                                                                     CommandGetTopicsOfNamespace.Mode mode) {
         switch (mode) {
             case ALL:
-                return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
-                        .thenCombine(internalGetNonPersistentTopics(policies),
-                                (persistentTopics, nonPersistentTopics) ->
-                                        ListUtils.union(persistentTopics, nonPersistentTopics));
+                // The non-persistent topics are collected first from the bundle listings, which acquire permits
+                // from the same limiter, possibly on this broker, so no permits are held while waiting for them.
+                // The listing then acquires permits once, for the whole topic list, with the estimate of the ALL
+                // listing, so that it doesn't hold permits for one part while waiting for permits for the other.
+                return TopicListResponseMemoryLimiter.listTopicsAfterCollecting(pulsar().getBrokerService(),
+                        response, TopicListing.namespaceTopics(namespaceName.toString(), mode), null,
+                        () -> internalGetNonPersistentTopics(policies),
+                        nonPersistentTopics -> pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName)
+                                .thenApply(persistentTopics ->
+                                        ListUtils.union(persistentTopics, nonPersistentTopics)));
             case NON_PERSISTENT:
-                return internalGetNonPersistentTopics(policies);
+                return listNonPersistentTopicsWithMemoryLimit(response, policies);
             case PERSISTENT:
             default:
-                return pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName);
+                return listPersistentTopicsWithMemoryLimit(response);
         }
+    }
+
+    private CompletableFuture<List<String>> listPersistentTopicsWithMemoryLimit(AsyncResponse response) {
+        return TopicListResponseMemoryLimiter.listTopics(pulsar().getBrokerService(), response,
+                TopicListing.namespaceTopics(namespaceName.toString(), CommandGetTopicsOfNamespace.Mode.PERSISTENT),
+                null, () -> pulsar().getNamespaceService().getListOfPersistentTopics(namespaceName));
+    }
+
+    private CompletableFuture<List<String>> listNonPersistentTopicsWithMemoryLimit(AsyncResponse response,
+                                                                                   Policies policies) {
+        // the non-persistent topics are collected from the bundle topic listings of the bundle owners
+        return TopicListResponseMemoryLimiter.listTopicsFromOtherListings(pulsar().getBrokerService(), response,
+                () -> internalGetNonPersistentTopics(policies));
     }
 
     protected CompletableFuture<List<String>> internalGetNonPersistentTopics(Policies policies) {
@@ -302,17 +261,19 @@ public abstract class NamespacesBase extends AdminResource {
                     }
                     return topicsFuture.thenCompose(allTopics ->
                             pulsar().getNamespaceService().getFullListOfPartitionedTopic(namespaceName)
-                                    .thenCompose(allPartitionedTopics -> {
-                                        List<List<String>> topicsSum = new ArrayList<>(2);
+                                    .thenCombine(listScalableTopicsAsync(), (allPartitionedTopics, allScalable) -> {
+                                        List<List<String>> topicsSum = new ArrayList<>(3);
                                         topicsSum.add(allTopics);
                                         topicsSum.add(allPartitionedTopics);
-                                        return CompletableFuture.completedFuture(topicsSum);
+                                        topicsSum.add(allScalable);
+                                        return topicsSum;
                                     }))
                             .thenCompose(topics -> {
                                 List<String> allTopics = topics.get(0);
                                 Set<String> allUserCreatedTopics = new HashSet<>();
                                 List<String> allPartitionedTopics = topics.get(1);
                                 Set<String> allUserCreatedPartitionTopics = new HashSet<>();
+                                List<String> allScalableTopics = topics.get(2);
                                 boolean hasNonSystemTopic = false;
                                 Set<String> allSystemTopics = new HashSet<>();
                                 Set<String> allPartitionedSystemTopics = new HashSet<>();
@@ -343,7 +304,7 @@ public abstract class NamespacesBase extends AdminResource {
                                     }
                                 }
                                 if (!force) {
-                                    if (hasNonSystemTopic) {
+                                    if (hasNonSystemTopic || !allScalableTopics.isEmpty()) {
                                         throw new RestException(Status.CONFLICT, "Cannot delete non empty namespace");
                                     }
                                 }
@@ -360,6 +321,10 @@ public abstract class NamespacesBase extends AdminResource {
                                                 internalDeleteTopicsAsync(allUserCreatedTopics))
                                         .thenCompose(ignore ->
                                                 internalDeletePartitionedTopicsAsync(allUserCreatedPartitionTopics))
+                                        // Like the regular topics, before the system topics: deleting a segment
+                                        // topic deletes its topic policies
+                                        .thenCompose(ignore ->
+                                                internalDeleteScalableTopicsAsync(allScalableTopics))
                                         .thenCompose(ignore ->
                                                 internalDeleteTopicsAsync(allSystemTopics))
                                         .thenCompose(ignore ->
@@ -407,33 +372,45 @@ public abstract class NamespacesBase extends AdminResource {
                 .whenComplete((result, error) -> {
                     if (error != null) {
                         final Throwable rc = FutureUtil.unwrapCompletionException(error);
-                        if (rc instanceof MetadataStoreException) {
-                            if (rc.getCause() != null && rc.getCause() instanceof KeeperException.NotEmptyException) {
-                                KeeperException.NotEmptyException ne =
-                                        (KeeperException.NotEmptyException) rc.getCause();
-                                log.info()
-                                        .attr("namespace", namespaceName)
-                                        .attr("path", ne.getPath())
-                                        .log("In-flight topics during namespace deletion, retrying");
-                                final int next = retryTimes - 1;
-                                if (next > 0) {
-                                    // async recursive
-                                    internalRetryableDeleteNamespaceAsync0(force, next, callback);
-                                } else {
-                                    callback.completeExceptionally(
-                                            new RestException(Status.CONFLICT, "The broker still have in-flight topics"
-                                                    + " created during namespace deletion (path " + ne.getPath() + ") "
-                                                    + "is not empty on metadata store, please try again."));
-                                    // drop out recursive
-                                }
-                                return;
+                        final String notEmptyPath = getNotEmptyPath(rc);
+                        if (notEmptyPath != null) {
+                            log.info()
+                                    .attr("namespace", namespaceName)
+                                    .attr("path", notEmptyPath)
+                                    .log("In-flight topics during namespace deletion, retrying");
+                            final int next = retryTimes - 1;
+                            if (next > 0) {
+                                // async recursive
+                                internalRetryableDeleteNamespaceAsync0(force, next, callback);
+                            } else {
+                                callback.completeExceptionally(
+                                        new RestException(Status.CONFLICT, "The broker still have in-flight topics"
+                                                + " created during namespace deletion (path " + notEmptyPath + ") "
+                                                + "is not empty on metadata store, please try again."));
+                                // drop out recursive
                             }
+                            return;
                         }
                         callback.completeExceptionally(error);
                         return;
                     }
                     callback.complete(result);
                 });
+    }
+
+    /**
+     * The path of the node that a metadata store refused to delete because it has children, or null for any other
+     * error. ZooKeeper reports it as the cause of a {@link MetadataStoreException}, Oxia as a
+     * {@link MetadataStoreException.NotEmptyException}.
+     */
+    private static String getNotEmptyPath(Throwable ex) {
+        if (ex instanceof MetadataStoreException.NotEmptyException notEmpty) {
+            return notEmpty.getPath();
+        }
+        if (ex instanceof MetadataStoreException && ex.getCause() instanceof KeeperException.NotEmptyException ne) {
+            return ne.getPath();
+        }
+        return null;
     }
 
     private boolean isDeletedAlongWithUserCreatedTopic(String topic) {
@@ -473,6 +450,44 @@ public abstract class NamespacesBase extends AdminResource {
             futures.add(admin.topics().deleteAsync(topicName, true));
         }
         return FutureUtil.waitForAll(futures);
+    }
+
+    private CompletableFuture<List<String>> listScalableTopicsAsync() {
+        ScalableTopicResources resources = pulsar().getPulsarResources().getScalableTopicResources();
+        return resources != null
+                ? resources.listScalableTopicsAsync(namespaceName)
+                : CompletableFuture.completedFuture(List.of());
+    }
+
+    /**
+     * Delete the scalable topics through the scalable-topic delete, which also deletes their segment topics and
+     * their schema. Then delete the segment topics still in the namespace: the scalable-topic delete makes a single
+     * attempt at each of its segment topics, and one left behind keeps the namespace from being deleted.
+     */
+    private CompletableFuture<Void> internalDeleteScalableTopicsAsync(List<String> scalableTopics) {
+        return deleteWithAdminAsync(scalableTopics,
+                        (admin, topic) -> admin.scalableTopics().deleteScalableTopicAsync(topic, true))
+                .thenCompose(__ -> pulsar().getPulsarResources().getTopicResources()
+                        .listSegmentTopicsAsync(namespaceName))
+                .thenCompose(segmentTopics -> deleteWithAdminAsync(segmentTopics,
+                        (admin, segmentTopic) -> admin.scalableTopics().deleteSegmentAsync(segmentTopic, true)));
+    }
+
+    private CompletableFuture<Void> deleteWithAdminAsync(
+            List<String> names, BiFunction<PulsarAdmin, String, CompletableFuture<Void>> delete) {
+        if (names.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (Exception ex) {
+            log.error()
+                    .exception(ex)
+                    .log("Get admin client error when preparing to delete topics.");
+            return FutureUtil.failedFuture(ex);
+        }
+        return FutureUtil.waitForAll(names.stream().map(name -> delete.apply(admin, name)).toList());
     }
 
     private CompletableFuture<Policies> precheckWhenDeleteNamespace(NamespaceName nsName, boolean force) {
@@ -543,9 +558,19 @@ public abstract class NamespacesBase extends AdminResource {
         return namespaceResources().deleteNamespaceAsync(namespaceName)
                 .thenCompose(ignore -> namespaceResources().getPartitionedTopicResources()
                         .clearPartitionedTopicMetadataAsync(namespaceName))
+                // clear the node of the scalable topic records
+                .thenCompose(ignore -> {
+                    ScalableTopicResources scalableTopicResources =
+                            pulsar().getPulsarResources().getScalableTopicResources();
+                    return scalableTopicResources != null
+                            ? scalableTopicResources.clearNamespaceAsync(namespaceName)
+                            : CompletableFuture.completedFuture(null);
+                })
                 // clear resource for manager-ledger z-node
                 .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
                         .clearDomainPersistence(namespaceName))
+                .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
+                        .clearSegmentDomainPersistence(namespaceName))
                 .thenCompose(ignore -> pulsar().getPulsarResources().getTopicResources()
                         .clearNamespacePersistence(namespaceName))
                 // we have successfully removed all the ownership for the namespace, the policies

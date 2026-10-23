@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -55,6 +56,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -90,6 +93,7 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -169,6 +173,21 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<List<String>> internalGetListAsync(Optional<String> bundle,
                                                                    @Nullable Map<String, String> properties) {
+        return internalGetListAsync(null, bundle, properties);
+    }
+
+    /**
+     * Get the list of persistent topics in the namespace.
+     *
+     * @param asyncResponse the async response of the REST request. When provided, the topic list heap memory limit
+     *                      is applied and the permits are held until the response completes.
+     * @param bundle the optional bundle to filter the topics
+     * @param properties the topic listing properties (PIP-452)
+     * @return the list of topics
+     */
+    protected CompletableFuture<List<String>> internalGetListAsync(@Nullable AsyncResponse asyncResponse,
+                                                                   Optional<String> bundle,
+                                                                   @Nullable Map<String, String> properties) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
             .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
             .thenAccept(exists -> {
@@ -176,8 +195,18 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
                 }
             })
-            .thenCompose(__ -> pulsar().getNamespaceService().getListOfTopicsByProperties(namespaceName,
-               CommandGetTopicsOfNamespace.Mode.PERSISTENT, properties))
+            .thenCompose(__ -> {
+                Supplier<CompletableFuture<List<String>>> topicsSupplier = () -> pulsar().getNamespaceService()
+                        .getListOfTopicsByProperties(namespaceName, CommandGetTopicsOfNamespace.Mode.PERSISTENT,
+                                properties);
+                if (asyncResponse == null) {
+                    return topicsSupplier.get();
+                }
+                return TopicListResponseMemoryLimiter.listTopics(pulsar().getBrokerService(), asyncResponse,
+                        TopicListing.namespaceTopics(namespaceName.toString(),
+                                CommandGetTopicsOfNamespace.Mode.PERSISTENT),
+                        properties, topicsSupplier);
+            })
             .thenApply(topics ->
                 topics.stream()
                     .filter(topic -> {
@@ -196,6 +225,18 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<List<String>> internalGetPartitionedTopicListAsync() {
+        return internalGetPartitionedTopicListAsync(null);
+    }
+
+    /**
+     * Get the list of partitioned topics in the namespace.
+     *
+     * @param asyncResponse the async response of the REST request. When provided, the topic list heap memory limit
+     *                      is applied and the permits are held until the response completes.
+     * @return the list of partitioned topics
+     */
+    protected CompletableFuture<List<String>> internalGetPartitionedTopicListAsync(
+            @Nullable AsyncResponse asyncResponse) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
                 .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
                 .thenCompose(namespaceExists -> {
@@ -205,9 +246,17 @@ public class PersistentTopicsBase extends AdminResource {
                                 .attr("namespace", namespaceName)
                                 .log("Failed to get partitioned topic list : Namespace does not exist");
                         throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-                    } else {
-                        return getPartitionedTopicListAsync(TopicDomain.getEnum(domain()));
                     }
+                    TopicDomain topicDomain = TopicDomain.getEnum(domain());
+                    if (asyncResponse == null) {
+                        return getPartitionedTopicListAsync(topicDomain);
+                    }
+                    CommandGetTopicsOfNamespace.Mode mode = topicDomain == TopicDomain.persistent
+                            ? CommandGetTopicsOfNamespace.Mode.PERSISTENT
+                            : CommandGetTopicsOfNamespace.Mode.NON_PERSISTENT;
+                    return TopicListResponseMemoryLimiter.listTopics(pulsar().getBrokerService(), asyncResponse,
+                            TopicListing.partitionedTopics(namespaceName.toString(), mode), null,
+                            () -> getPartitionedTopicListAsync(topicDomain));
                 });
     }
 
@@ -567,23 +616,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
-        getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
-            if (metadata != null && metadata.partitions > 0) {
-                validateNamespaceOperationAsync(topicName.getNamespaceObject(),
-                        NamespaceOperation.CREATE_TOPIC)
-                .thenCompose(__ -> tryCreatePartitionsAsync(metadata.partitions)).thenAccept(v -> {
-                    asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(e -> {
-                    log.error()
-                            .attr("topic", topicName)
-                            .log("Failed to create partitions for topic");
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
-                    return null;
-                });
-            } else {
-                throw new RestException(Status.NOT_FOUND, String.format("Topic %s does not exist", topicName));
-            }
-        }).exceptionally(ex -> {
+        Consumer<Throwable> errorHandler = ex -> {
             // If the exception is not redirect exception we need to log it.
             if (!isRedirectException(ex)) {
                 log.error()
@@ -591,6 +624,37 @@ public class PersistentTopicsBase extends AdminResource {
                         .log("Failed to create partitions for topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
+        };
+        pulsar().getBrokerService().isCurrentClusterAllowed(topicName).thenAccept(allowed -> {
+            if (!allowed) {
+                resumeAsyncResponseExceptionally(asyncResponse,
+                    new RestException(Status.BAD_REQUEST, String.format("Topic [%s] is not allowed to be loaded"
+                        + " up on the current cluster, please recheck replication polices.", topicName)));
+                return;
+            }
+            getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+                if (metadata != null && metadata.partitions > 0) {
+                    validateNamespaceOperationAsync(topicName.getNamespaceObject(),
+                        NamespaceOperation.CREATE_TOPIC)
+                        .thenCompose(__ -> tryCreatePartitionsAsync(metadata.partitions)).thenAccept(v -> {
+                            asyncResponse.resume(Response.noContent().build());
+                        }).exceptionally(e -> {
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .log("Failed to create partitions for topic");
+                            resumeAsyncResponseExceptionally(asyncResponse, e);
+                            return null;
+                        });
+                } else {
+                    resumeAsyncResponseExceptionally(asyncResponse,
+                            new RestException(Status.NOT_FOUND, String.format("Topic %s does not exist", topicName)));
+                }
+            }).exceptionally(ex -> {
+                errorHandler.accept(ex);
+                return null;
+            });
+        }).exceptionally(ex -> {
+            errorHandler.accept(ex);
             return null;
         });
     }
@@ -628,9 +692,18 @@ public class PersistentTopicsBase extends AdminResource {
                         // However, when checkAllowAutoCreation is true, the client will create the topic if
                         // it doesn't exist. In this case, `partitions == 0` means the automatically created topic
                         // is a non-partitioned topic so we shouldn't check if the topic exists.
-                        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
-                                .thenCompose(brokerAllowAutoTopicCreation -> {
-                            if (checkAllowAutoCreation && brokerAllowAutoTopicCreation) {
+                        if (!checkAllowAutoCreation) {
+                            return internalCheckNonPartitionedTopicExists(topicName).thenApply(__ -> metadata);
+                        }
+                        // Only ask whether this client may create the topic when it does not exist. The existence of
+                        // a non-persistent topic is not checked, as that may need a request to its owner broker.
+                        return (topicName.isPersistent()
+                                ? pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName)
+                                : CompletableFuture.completedFuture(false))
+                                .thenCompose(exists -> exists ? CompletableFuture.completedFuture(true)
+                                        : isAllowAutoTopicCreationAsync(topicName))
+                                .thenCompose(allowAutoTopicCreation -> {
+                            if (allowAutoTopicCreation) {
                                 // Whether it exists or not, auto create a non-partitioned topic by client.
                                 return CompletableFuture.completedFuture(metadata);
                             } else {
@@ -693,9 +766,12 @@ public class PersistentTopicsBase extends AdminResource {
                                 }
                                 return namespaceResources()
                                     .getPartitionedTopicResources().updatePartitionedTopicAsync(topicName,
-                                        p -> new PartitionedTopicMetadata(p.partitions,
-                                            p.properties == null ? properties
-                                                : MapUtils.putAll(p.properties, properties.entrySet().toArray())));
+                                        p -> {
+                                            validateShadowSourcePropertyUpdate(p.properties, properties);
+                                            return new PartitionedTopicMetadata(p.partitions,
+                                                p.properties == null ? properties
+                                                    : MapUtils.putAll(p.properties, properties.entrySet().toArray()));
+                                        });
                             });
                     }
                 }).thenAccept(__ ->
@@ -703,6 +779,17 @@ public class PersistentTopicsBase extends AdminResource {
                             .attr("topic", topicName)
                             .attr("properties", properties)
                             .log("update properties success with properties"));
+    }
+
+    private static void validateShadowSourcePropertyUpdate(Map<String, String> currentProperties,
+                                                          Map<String, String> properties) {
+        // Changing a source (or adding one to a regular topic) cannot migrate its existing ledgers and cursors.
+        if (properties.containsKey(PROPERTY_SOURCE_TOPIC_KEY)
+                && !Objects.equals(MapUtils.getString(currentProperties, PROPERTY_SOURCE_TOPIC_KEY),
+                        properties.get(PROPERTY_SOURCE_TOPIC_KEY))) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "Property " + PROPERTY_SOURCE_TOPIC_KEY + " cannot be changed after topic creation");
+        }
     }
 
     private CompletableFuture<Void> internalUpdateNonPartitionedTopicProperties(Map<String, String> properties) {
@@ -716,6 +803,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return;
                 }
                 ManagedLedger managedLedger = ((PersistentTopic) opt.get()).getManagedLedger();
+                validateShadowSourcePropertyUpdate(managedLedger.getProperties(), properties);
                 managedLedger.asyncSetProperties(properties, new AsyncCallbacks.UpdatePropertiesCallback() {
 
                     @Override
@@ -903,47 +991,54 @@ public class PersistentTopicsBase extends AdminResource {
 
     private CompletableFuture<Void> internalRemovePartitionsTopicNoAutoCreationDisableAsync(int numPartitions,
                                                                                             boolean force) {
-        return FutureUtil.waitForAll(IntStream.range(0, numPartitions)
-                .mapToObj(i -> {
-                    TopicName topicNamePartition = topicName.getPartition(i);
-                    try {
-                        CompletableFuture<Void> future = new CompletableFuture<>();
-                        pulsar().getAdminClient().topics()
-                                .deleteAsync(topicNamePartition.toString(), force)
-                                .whenComplete((r, ex) -> {
-                                    if (ex != null) {
-                                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                                        if (realCause instanceof NotFoundException){
-                                            // if the sub-topic is not found, the client might not have called
-                                            // create producer or it might have been deleted earlier,
-                                            // so we ignore the 404 error.
-                                            // For all other exception,
-                                            // we fail the delete partition method even if a single
-                                            // partition is failed to be deleted
-                                                log.debug()
-                                                        .attr("topic", topicNamePartition)
-                                                        .log("Partition not found");
-                                                                                        future.complete(null);
-                                        } else {
-                                            log.error()
-                                                    .attr("partition", topicNamePartition)
-                                                    .exceptionMessage(realCause)
-                                                    .log("Failed to delete partition");
-                                            future.completeExceptionally(realCause);
-                                        }
-                                    } else {
-                                        future.complete(null);
-                                    }
-                                });
-                        return future;
-                    } catch (PulsarServerException ex) {
+        return FutureUtil.waitForAll(IntStream.range(0, numPartitions).mapToObj(i -> {
+            TopicName topicNamePartition = topicName.getPartition(i);
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            // Skip the admin call for persistent partitions that don't exist. Inactive-topic deletion deletes all
+            // the partitions first and then calls this endpoint through the broker's own admin client, so each
+            // per-partition admin call would queue behind the outer requests in the per-broker admin client
+            // pool. With enough concurrent deletions, that pool is exhausted and every request times out.
+            // See https://github.com/apache/pulsar/issues/24879
+            // Non-persistent topics have no managed ledger to check, and their inactive-topic deletion doesn't
+            // call this endpoint, so they always go through the admin client.
+            CompletableFuture<Boolean> needAdminClientCall = topicName.isPersistent()
+                    ? pulsar().getPulsarResources().getTopicResources().persistentTopicExists(topicNamePartition)
+                    : CompletableFuture.completedFuture(true);
+            needAdminClientCall.thenCompose(deleteThroughAdminClient -> {
+                if (!deleteThroughAdminClient) {
+                    log.debug()
+                            .attr("partition", topicNamePartition)
+                            .log("Partition not found, skipping its deletion");
+                    return CompletableFuture.<Void>completedFuture(null);
+                }
+                try {
+                    return pulsar().getAdminClient().topics().deleteAsync(topicNamePartition.toString(), force);
+                } catch (PulsarServerException ex) {
+                    return FutureUtil.<Void>failedFuture(ex);
+                }
+            }).whenComplete((r, ex) -> {
+                if (ex != null) {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof NotFoundException) {
+                        // The partition was deleted after the existence check, or the client never created it:
+                        // ignore the 404. Any other failure fails the whole partitioned topic deletion.
+                        log.debug()
+                                .attr("partition", topicNamePartition)
+                                .log("Partition not found");
+                        future.complete(null);
+                    } else {
                         log.error()
                                 .attr("partition", topicNamePartition)
-                                .exception(ex)
-                                .log("Failed to get admin client while delete partition");
-                        return FutureUtil.failedFuture(ex);
+                                .exceptionMessage(realCause)
+                                .log("Failed to delete partition");
+                        future.completeExceptionally(realCause);
                     }
-                }).collect(Collectors.toList()));
+                } else {
+                    future.complete(null);
+                }
+            });
+            return future;
+        }).collect(Collectors.toList()));
     }
 
     private CompletableFuture<Void> internalRemovePartitionsAuthenticationPoliciesAsync() {
@@ -2542,9 +2637,8 @@ public class PersistentTopicsBase extends AdminResource {
 
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SUBSCRIBE, subscriptionName))
-                .thenCompose(__ -> pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName))
-                .thenCompose(isAllowAutoTopicCreation -> pulsar().getBrokerService()
-                        .getTopic(topicName.toString(), isAllowAutoTopicCreation))
+                .thenCompose(__ -> pulsar().getBrokerService()
+                        .getTopicCreatingIfAllowed(topicName, newTopicCheck(topicName)))
                 .thenApply(optTopic -> {
                     if (optTopic.isPresent()) {
                         return optTopic.get();
@@ -3445,19 +3539,16 @@ public class PersistentTopicsBase extends AdminResource {
                                 ManagedLedgerOfflineBacklog offlineTopicBacklog =
                                         new ManagedLedgerOfflineBacklog(config.getDigestType(), config.getPassword(),
                                                 pulsar().getAdvertisedAddress(), false);
-                                try {
-                                    PersistentOfflineTopicStats estimateOfflineTopicStats =
-                                            offlineTopicBacklog.estimateUnloadedTopicBacklog(
-                                                    pulsar().getBrokerService()
-                                                            .getManagedLedgerFactoryForTopic(topicName,
-                                                                    config.getStorageClassName()),
-                                                    topicName);
-                                    pulsar().getBrokerService()
-                                            .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
-                                    return CompletableFuture.completedFuture(estimateOfflineTopicStats);
-                                } catch (Exception e) {
-                                    throw new RestException(e);
-                                }
+                                return offlineTopicBacklog.estimateUnloadedTopicBacklogAsync(
+                                                pulsar().getBrokerService()
+                                                        .getManagedLedgerFactoryForTopic(topicName,
+                                                                config.getStorageClassName()),
+                                                topicName, pulsar().getExecutor())
+                                        .thenApply(estimateOfflineTopicStats -> {
+                                            pulsar().getBrokerService()
+                                                    .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
+                                            return estimateOfflineTopicStats;
+                                        });
                             });
 
                 });
@@ -4719,8 +4810,10 @@ public class PersistentTopicsBase extends AdminResource {
         authorizationFuture.thenCompose(__ ->
                         checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(),
                                 SystemTopicNames.isSystemTopic(topicName)))
-                .thenCompose(res ->
-                        pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
+                .thenCompose(res -> pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
+                        topicName, () -> pulsar.getBrokerService().getAuthorizationService()
+                                .allowTopicAutoCreationAsync(topicName, originalPrincipal, clientAppId,
+                                        originalAuthenticationData, authenticationData)))
                 .thenAccept(metadata -> {
                         log.debug()
                                 .attr("topic", topicName)
@@ -4740,6 +4833,17 @@ public class PersistentTopicsBase extends AdminResource {
      */
     public static CompletableFuture<PartitionedTopicMetadata> unsafeGetPartitionedTopicMetadataAsync(
         PulsarService pulsar, TopicName topicName) {
+        return unsafeGetPartitionedTopicMetadataAsync(pulsar, topicName,
+                () -> CompletableFuture.completedFuture(true));
+    }
+
+    /**
+     * Like {@link #unsafeGetPartitionedTopicMetadataAsync(PulsarService, TopicName)}, but auto-creating a topic from
+     * nothing is also subject to {@code newTopicCheck}, see
+     * {@code BrokerService#fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(TopicName, Supplier)}.
+     */
+    public static CompletableFuture<PartitionedTopicMetadata> unsafeGetPartitionedTopicMetadataAsync(
+        PulsarService pulsar, TopicName topicName, Supplier<CompletableFuture<Boolean>> newTopicCheck) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
@@ -4751,7 +4855,7 @@ public class PersistentTopicsBase extends AdminResource {
         // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
         checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(), isSystemTopic(topicName))
             .thenCompose(res -> pulsar.getBrokerService()
-                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
+                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName, newTopicCheck))
             .thenAccept(metadata -> {
                     LOG.debug()
                             .attr("topic", topicName)

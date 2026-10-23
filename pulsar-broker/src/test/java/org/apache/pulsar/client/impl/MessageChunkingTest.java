@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
@@ -30,12 +32,17 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
@@ -45,13 +52,16 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
@@ -313,6 +323,279 @@ public class MessageChunkingTest extends ProducerConsumerBase {
     }
 
     /**
+     * Verifies that expiry of incomplete chunked messages still works after an earlier chunked
+     * message has completed.
+     *
+     * removeExpireIncompleteChunkedMessages() only peek()s the head of pendingChunkedMessageUuidQueue
+     * and bails out (else -> return) the moment the head uuid is no longer present in
+     * chunkedMessagesMap. On the original client the completion path never removed a completed uuid
+     * from the queue, so the first completed message left a permanent "ghost" uuid at the head. From
+     * then on every expiry run saw that ghost, took the else branch and returned without ever
+     * inspecting the genuinely-incomplete uuids behind it: expiry was dead for the rest of the
+     * consumer's life (an unbounded leak of incomplete contexts).
+     *
+     * Here we complete one chunked message, then leave a second one incomplete. With the queue kept
+     * in sync on completion the incomplete message is expired and chunkedMessagesMap drains to empty;
+     * without it, the completed ghost blocks expiry and the incomplete context is never removed.
+     */
+    @Test
+    public void testExpiryWorksAfterAnEarlierChunkedMessageCompletes() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/expiryAfterComplete";
+        final String subName = "my-sub";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .expireTimeOfIncompleteChunkedMessage(1, TimeUnit.SECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<String> consumerImpl = (ConsumerImpl<String>) consumer;
+
+        // 1. A complete chunked message. Receiving + acking it leaves its uuid as the head of
+        //    pendingChunkedMessageUuidQueue unless completion keeps the queue in sync.
+        sendSingleChunk(producer, "done", 0, 2);
+        sendSingleChunk(producer, "done", 1, 2);
+        Message<String> done = consumer.receive(5, TimeUnit.SECONDS);
+        assertNotNull(done);
+        assertEquals(done.getValue(), "chunk-done-0|chunk-done-1|");
+        consumer.acknowledge(done);
+
+        // 2. A second message left incomplete (only its first chunk arrives). Wait for the first
+        //    chunk to be received and its assembly context to be registered before asserting expiry.
+        sendSingleChunk(producer, "stuck", 0, 2);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(consumerImpl.chunkedMessagesMap.size(), 1));
+
+        // 3. Past the expiry window, the incomplete "stuck" context must be discarded. If the
+        //    completed "done" uuid still sits at the queue head, expiry bails and this never happens.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(consumerImpl.chunkedMessagesMap.size(), 0,
+                        "expiry did not run: a completed message's uuid is blocking the queue head"));
+    }
+
+    /**
+     * Verifies that expiry still works when the queue head is a stale uuid left behind
+     *
+     * removeExpireIncompleteChunkedMessages() must poll past that ghost head rather than returning on
+     * it, otherwise an incomplete message queued behind the ghost would never expire.
+     */
+    @Test
+    public void testExpirySkipsStaleQueueHeadFromDiscardPath() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/expirySkipsDiscardGhost";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .expireTimeOfIncompleteChunkedMessage(1, TimeUnit.SECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<String> consumerImpl = (ConsumerImpl<String>) consumer;
+
+        // "ghost": chunk 0 arrives (queues the uuid), then chunk 2 of 3 arrives non-contiguously.
+        sendSingleChunk(producer, "ghost", 0, 3);
+        sendSingleChunk(producer, "ghost", 2, 3);
+        // "stuck": a genuinely incomplete message queued behind the ghost head.
+        sendSingleChunk(producer, "stuck", 0, 2);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertNotNull(consumerImpl.chunkedMessagesMap.get("stuck")));
+
+        // Past the expiry window, "stuck" must be collected. If the expiry loop returns on the ghost
+        // head instead of polling past it, "stuck" is never reached and stays in the map forever.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertNull(consumerImpl.chunkedMessagesMap.get("stuck"),
+                        "expiry did not run: a stale discard-path uuid is blocking the queue head"));
+    }
+
+    /**
+     * Chunks are processed on the connection's IO thread while the expiry task runs on another thread.
+     * With queue [A, B], A's completion removes A's context and then A's uuid. If expiry could inspect A in
+     * between (no context, so it skips A as a stale head) and only remove it after completion already did,
+     * it might drop whatever is now at the head: dropping B would leave B's context in chunkedMessagesMap
+     * with nothing in the queue referencing it, so it could never expire or be evicted.
+     *
+     * Completion and expiry both hold chunkedMessageLock, so expiry must not observe that intermediate
+     * state at all. The test wraps chunkedMessagesMap: A's completion (map.remove("A") on the IO thread,
+     * under the lock) starts expiry and waits until expiry either blocks or inspects A (map.get("A")),
+     * and inspecting A is a failure. Either way B must stay pending and reachable for expiry.
+     */
+    @Test
+    public void testExpiryStaleHeadSkipDoesNotDropConcurrentLiveEntry() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/expiryStaleHeadRace";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                // Expiry enabled, but long enough that the scheduled task never runs during the test;
+                // it is driven manually below.
+                .expireTimeOfIncompleteChunkedMessage(1, TimeUnit.HOURS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<String> consumerImpl = (ConsumerImpl<String>) consumer;
+
+        // Queue [A, B], both incomplete.
+        sendSingleChunk(producer, "A", 0, 2);
+        sendSingleChunk(producer, "B", 0, 2);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(consumerImpl.chunkedMessagesMap.size(), 2);
+            assertEquals(consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest(), 2);
+        });
+
+        final CountDownLatch expiryInspectedA = new CountDownLatch(1);
+        final AtomicBoolean raceTriggered = new AtomicBoolean();
+        final AtomicBoolean expiryInspectedPartialRemoval = new AtomicBoolean();
+        final AtomicReference<Thread> expiryThread = new AtomicReference<>();
+        final AtomicReference<Throwable> expiryError = new AtomicReference<>();
+        Map<String, ConsumerImpl.ChunkedMessageCtx> hookedMap =
+                new ConcurrentHashMap<String, ConsumerImpl.ChunkedMessageCtx>() {
+            @Override
+            public ConsumerImpl.ChunkedMessageCtx remove(Object key) {
+                ConsumerImpl.ChunkedMessageCtx removed = super.remove(key);
+                // A's completion on the IO thread: its context is gone but its uuid is still queued.
+                // Run expiry now, and hold completion until expiry has inspected A.
+                if ("A".equals(key) && raceTriggered.compareAndSet(false, true)) {
+                    Thread t = new Thread(() -> {
+                        try {
+                            consumerImpl.removeExpireIncompleteChunkedMessages();
+                        } catch (Throwable e) {
+                            expiryError.set(e);
+                        }
+                    }, "test-chunk-expiry");
+                    expiryThread.set(t);
+                    t.start();
+                    // Completion holds chunkedMessageLock here, so expiry has to block on it instead of
+                    // inspecting A between A's map removal and its uuid removal.
+                    Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() ->
+                            t.getState() == Thread.State.BLOCKED || expiryInspectedA.getCount() == 0);
+                    expiryInspectedPartialRemoval.set(expiryInspectedA.getCount() == 0);
+                }
+                return removed;
+            }
+
+            @Override
+            public ConsumerImpl.ChunkedMessageCtx get(Object key) {
+                ConsumerImpl.ChunkedMessageCtx ctx = super.get(key);
+                // Expiry has inspected A and found no context: pause it until completion has removed
+                // A's uuid from the queue, then let it act on what it observed.
+                if ("A".equals(key) && Thread.currentThread() == expiryThread.get()) {
+                    expiryInspectedA.countDown();
+                    Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                            .until(() -> consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest() == 1);
+                }
+                return ctx;
+            }
+        };
+        hookedMap.putAll(consumerImpl.chunkedMessagesMap);
+        consumerImpl.chunkedMessagesMap = hookedMap;
+
+        try {
+            // Complete A.
+            sendSingleChunk(producer, "A", 1, 2);
+            Message<String> a = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(a);
+            assertEquals(a.getValue(), "chunk-A-0|chunk-A-1|");
+
+            assertTrue(raceTriggered.get(), "A's completion did not trigger the interleaving");
+            assertFalse(expiryInspectedPartialRemoval.get(),
+                    "expiry inspected A after its context was removed but before its uuid was");
+            expiryThread.get().join(TimeUnit.SECONDS.toMillis(10));
+            assertNull(expiryError.get());
+
+            // B is still pending, so the queue must still reference it for expiry/eviction to find it.
+            ConsumerImpl.ChunkedMessageCtx b = consumerImpl.chunkedMessagesMap.get("B");
+            assertNotNull(b);
+            assertEquals(consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest(), 1,
+                    "B's uuid was dropped from the queue while its context is still pending");
+
+            // Expire B explicitly: this proves it is still reachable for cleanup and releases its
+            // incomplete chunk buffer (closing the consumer does not release incomplete contexts).
+            ByteBuf bBuffer = b.chunkedMsgBuffer;
+            b.receivedTime = 0;
+            consumerImpl.removeExpireIncompleteChunkedMessages();
+            assertNull(consumerImpl.chunkedMessagesMap.get("B"));
+            assertEquals(consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest(), 0);
+            assertEquals(bBuffer.refCnt(), 0);
+        } finally {
+            // On failure paths, stop the helper thread first, then release whatever is still pending
+            // so the test does not leak chunk buffers.
+            Thread t = expiryThread.get();
+            if (t != null) {
+                t.join(TimeUnit.SECONDS.toMillis(15));
+            }
+            for (ConsumerImpl.ChunkedMessageCtx ctx : consumerImpl.chunkedMessagesMap.values()) {
+                if (ctx.chunkedMsgBuffer != null && ctx.chunkedMsgBuffer.refCnt() > 0) {
+                    ctx.chunkedMsgBuffer.release();
+                }
+            }
+            consumerImpl.chunkedMessagesMap.clear();
+        }
+    }
+
+    /**
+     * Completing a chunked message that is not at the head of pendingChunkedMessageUuidQueue
+     * (A0, B0, B1, with A left incomplete) must remove only that message's uuid, leaving the
+     * incomplete head A queued and still subject to expiry.
+     */
+    @Test
+    public void testNonHeadCompletionKeepsIncompleteHeadExpirable() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/nonHeadCompletion";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .expireTimeOfIncompleteChunkedMessage(5, TimeUnit.SECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<String> consumerImpl = (ConsumerImpl<String>) consumer;
+
+        sendSingleChunk(producer, "A", 0, 2);
+        sendSingleChunk(producer, "B", 0, 2);
+        sendSingleChunk(producer, "B", 1, 2);
+
+        Message<String> b = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(b);
+        assertEquals(b.getValue(), "chunk-B-0|chunk-B-1|");
+
+        // Only the incomplete A remains, in the map and in the queue.
+        assertNotNull(consumerImpl.chunkedMessagesMap.get("A"));
+        assertNull(consumerImpl.chunkedMessagesMap.get("B"));
+        assertEquals(consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest(), 1);
+
+        // A is still expired once past the expiry window.
+        Awaitility.await().atMost(20, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertNull(consumerImpl.chunkedMessagesMap.get("A"));
+            assertEquals(consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest(), 0);
+        });
+    }
+
+    /**
      * This test used to test the consumer configuration of maxPendingChunkedMessage.
      * If we set maxPendingChunkedMessage is 1 that means only one incomplete chunk message can be store in this
      * consumer.
@@ -429,6 +712,165 @@ public class MessageChunkingTest extends ProducerConsumerBase {
                 + "the broker stopped dispatching (receiverQueueSize=" + receiverQueueSize + ")");
         assertEquals(msg.getValue(), "chunk-live-0|chunk-live-1|");
         consumer.acknowledge(msg);
+    }
+
+    /**
+     * A non-persistent topic cannot carry chunked messages: the slicing block in
+     * {@code ProducerImpl.serializeAndSendMessage} is skipped for them, but {@code totalChunks} was computed
+     * from the payload size alone, so the send loop still ran once per "chunk" — publishing the whole payload
+     * that many times, and releasing the payload buffer more often than it was retained.
+     */
+    @Test
+    public void testLargeMessageOnNonPersistentTopicIsSentOnceWithoutChunking() throws Exception {
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunking";
+        final String subName = "my-subscriber-name";
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                // small enough that the payload below would otherwise be split into several chunks
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        String payload = "a".repeat(500);
+        producer.newMessage().value(payload).send();
+
+        Message<String> received = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(received, "the message was not delivered");
+        assertEquals(received.getValue(), payload);
+
+        // Without the fix the same payload is published once per computed chunk, so more messages follow.
+        assertNull(consumer.receive(3, TimeUnit.SECONDS),
+                "the payload was published more than once on a non-persistent topic");
+    }
+
+    /**
+     * The chunking flag is inert on a non-persistent topic, so the message-size checks must behave as if it were
+     * off: a payload above the broker limit is rejected locally with {@link InvalidMessageException} instead of
+     * being sent to the broker as one oversized frame.
+     */
+    @Test
+    public void testLargeMessageOnNonPersistentTopicAboveBrokerLimitIsRejectedLocally() throws Exception {
+        final int maxMessageSize = 1024;
+        this.conf.setMaxMessageSize(maxMessageSize);
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunkingAboveLimit";
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+
+        // Well above maxMessageSize plus the broker's frame padding: the payload cannot be sent as a single
+        // frame, so a local rejection is the only correct outcome.
+        byte[] payload = RandomUtils.nextBytes(maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING + 1024);
+        try {
+            producer.send(payload);
+            fail("an oversized message on a non-persistent topic must be rejected by the client");
+        } catch (InvalidMessageException expected) {
+            assertTrue(expected.getMessage().contains("exceeds"), expected.getMessage());
+        }
+    }
+
+    /**
+     * The final-size check runs on the complete frame, after the metadata has been added: a body within the limit
+     * whose metadata pushes the message over it must be rejected there on a non-persistent topic, since nothing will
+     * chunk it, and the producer must stay usable for the next valid message.
+     */
+    @Test
+    public void testNonPersistentMessageOverLimitOnlyWithMetadataIsRejectedLocally() throws Exception {
+        final int maxMessageSize = 1024;
+        final String topicName = "non-persistent://my-property/my-ns/testNonPersistentChunkingMetadataOverLimit";
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topicName)
+                .subscriptionName("my-subscriber-name")
+                .subscribe();
+
+        @Cleanup
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+        producer.getConnectionHandler().setMaxMessageSize(maxMessageSize);
+
+        // exactly at the limit, so the early check on the body passes and only the final check can reject it
+        byte[] payload = RandomUtils.nextBytes(maxMessageSize);
+        try {
+            producer.newMessage().value(payload).property("large-metadata", "y".repeat(400)).send();
+            fail("a message pushed over the limit by its metadata must be rejected by the client");
+        } catch (InvalidMessageException expected) {
+            assertTrue(expected.getMessage().contains("exceeds"), expected.getMessage());
+        }
+
+        byte[] valid = "valid".getBytes(StandardCharsets.UTF_8);
+        producer.send(valid);
+        Message<byte[]> received = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(received, "the valid message after the rejected one was not delivered");
+        assertEquals(received.getValue(), valid);
+    }
+
+    /**
+     * Verifies that pendingChunkedMessageUuidQueue does not leak entries as chunked messages
+     * complete normally. Each first chunk adds the message uuid to the queue; on completion the
+     * uuid must be removed so the queue stays in sync with chunkedMessagesMap. Without the fix the
+     * queue grew by one entry per completed chunked message unboundedly (a memory leak), since the
+     * only other removal paths (eviction/expiry) never run when maxPendingChunkedMessage is not
+     * exceeded.
+     */
+    @Test
+    public void testPendingChunkedMessageUuidQueueDoesNotLeak() throws Exception {
+        final String topicName = "persistent://my-property/my-ns/uuidQueueNoLeak";
+        final String subName = "my-sub";
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName(subName)
+                .maxPendingChunkedMessage(10)
+                .expireTimeOfIncompleteChunkedMessage(1, TimeUnit.HOURS)
+                .autoAckOldestChunkedMessageOnQueueFull(true)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .chunkMaxMessageSize(100)
+                .enableChunking(true)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<String> consumerImpl = (ConsumerImpl<String>) consumer;
+
+        final int numMessages = 50;
+        for (int i = 0; i < numMessages; i++) {
+            String uuid = String.valueOf(i);
+            // A complete 2-chunk message.
+            sendSingleChunk(producer, uuid, 0, 2);
+            sendSingleChunk(producer, uuid, 1, 2);
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertEquals(msg.getValue(), "chunk-" + uuid + "-0|chunk-" + uuid + "-1|");
+            consumer.acknowledge(msg);
+        }
+
+        // Every message completed and was removed from chunkedMessagesMap; the uuid queue must have
+        // been drained in lockstep and not accumulated one ghost entry per completed message.
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertEquals(consumerImpl.chunkedMessagesMap.size(), 0);
+            assertEquals(consumerImpl.getPendingChunkedMessageUuidQueueSizeForTest(), 0,
+                    "pendingChunkedMessageUuidQueue leaked entries for completed chunked messages");
+        });
     }
 
     @Test
@@ -667,6 +1109,92 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.close();
 
         log.info().attr("method", methodName).log("Exiting test");
+    }
+
+    @DataProvider(name = "seekInclusive")
+    public Object[][] seekInclusive() {
+        return new Object[][] { { false }, { true } };
+    }
+
+    @Test(dataProvider = "seekInclusive")
+    public void testRepeatedSeekDoesNotRetainFilteredChunkMessageIds(boolean inclusive) throws Exception {
+        final String topicName = "persistent://my-property/my-ns/seek-chunk-message-ids";
+        final int totalMessages = 4;
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableChunking(true)
+                .enableBatching(false)
+                .chunkMaxMessageSize(100)
+                .create();
+        List<MessageId> messageIds = new ArrayList<>();
+        for (int i = 0; i < totalMessages; i++) {
+            MessageId messageId = producer.send(("message-" + i).repeat(30));
+            assertThat(messageId).isInstanceOf(ChunkMessageIdImpl.class);
+            messageIds.add(messageId);
+        }
+        MessageId markerId = producer.send("marker");
+        assertThat(markerId).isNotInstanceOf(ChunkMessageIdImpl.class);
+
+        // Subscribe after publishing so no chunk mappings exist before the first seek.
+        ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("my-sub")
+                .receiverQueueSize(32)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS);
+        if (inclusive) {
+            consumerBuilder.startMessageIdInclusive();
+        }
+        @Cleanup
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) consumerBuilder.subscribe();
+        assertThat(consumer.unAckedChunkedMessageIdSequenceMap).isEmpty();
+
+        for (int boundary = 0; boundary < totalMessages; boundary++) {
+            consumer.seek(messageIds.get(boundary));
+            for (int i = inclusive ? boundary : boundary + 1; i < totalMessages; i++) {
+                Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                MessageIdAdv messageId = (MessageIdAdv) message.getMessageId();
+                assertThat(messageId).isEqualTo(messageIds.get(i));
+                assertThat(message.getValue()).isEqualTo(("message-" + i).repeat(30));
+                // Delivered messages must keep their chunk sequence until the application ACKs them.
+                assertThat(consumer.unAckedChunkedMessageIdSequenceMap).containsKey(messageId);
+                consumer.acknowledge(message);
+                assertThat(consumer.unAckedChunkedMessageIdSequenceMap).doesNotContainKey(messageId);
+            }
+            // Receiving the following marker proves the boundary has been assembled and filtered.
+            Message<String> marker = consumer.receive(5, TimeUnit.SECONDS);
+            assertThat(marker).isNotNull();
+            assertThat(marker.getMessageId()).isEqualTo(markerId);
+            consumer.acknowledge(marker);
+        }
+
+        assertThat(consumer.unAckedChunkedMessageIdSequenceMap)
+                .as("filtered seek boundaries must not accumulate chunk message ID sequences")
+                .isEmpty();
+
+        if (!inclusive) {
+            // A filtered redelivery must not remove the sequence of an earlier application-held message.
+            consumer.seek(MessageId.earliest);
+            Message<String> outstanding = consumer.receive(5, TimeUnit.SECONDS);
+            assertThat(outstanding).isNotNull();
+            MessageIdAdv outstandingId = (MessageIdAdv) outstanding.getMessageId();
+            assertThat(outstandingId).isEqualTo(messageIds.get(0));
+            consumer.seek(outstandingId);
+            for (int i = 1; i < totalMessages; i++) {
+                Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                assertThat(message.getMessageId()).isEqualTo(messageIds.get(i));
+                consumer.acknowledge(message);
+            }
+            Message<String> marker = consumer.receive(5, TimeUnit.SECONDS);
+            assertThat(marker).isNotNull();
+            assertThat(marker.getMessageId()).isEqualTo(markerId);
+            consumer.acknowledge(marker);
+            assertThat(consumer.unAckedChunkedMessageIdSequenceMap).containsOnlyKeys(outstandingId);
+            consumer.acknowledge(outstanding);
+            assertThat(consumer.unAckedChunkedMessageIdSequenceMap).isEmpty();
+        }
     }
 
     @Test

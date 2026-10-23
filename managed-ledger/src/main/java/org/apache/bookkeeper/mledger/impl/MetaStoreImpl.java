@@ -60,6 +60,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
 
     private final MetadataStore store;
     private final OrderedExecutor executor;
+    private final Runnable cancelListener;
 
     private static final int MAGIC_MANAGED_INFO_METADATA = 0x4778; // 0100 0111 0111 1000
     private final MetadataCompressionConfig ledgerInfoCompressionConfig;
@@ -81,9 +82,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         this.ledgerInfoCompressionConfig = MetadataCompressionConfig.noCompression;
         this.cursorInfoCompressionConfig = MetadataCompressionConfig.noCompression;
         managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
-        if (store != null) {
-            store.registerListener(this);
-        }
+        cancelListener = store != null ? store.registerCancellableListener(this) : () -> { };
     }
 
     public MetaStoreImpl(MetadataStore store, OrderedExecutor executor,
@@ -94,9 +93,12 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
         this.ledgerInfoCompressionConfig = ledgerInfoCompressionConfig;
         this.cursorInfoCompressionConfig = cursorInfoCompressionConfig;
         managedLedgerInfoUpdateCallbackMap = new ConcurrentHashMap<>();
-        if (store != null) {
-            store.registerListener(this);
-        }
+        cancelListener = store != null ? store.registerCancellableListener(this) : () -> { };
+    }
+
+    @Override
+    public void close() {
+        cancelListener.run();
     }
 
     @Override
@@ -355,8 +357,8 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
     }
 
     @Override
-    public void unwatchManagedLedgerInfo(String ledgerName) {
-        managedLedgerInfoUpdateCallbackMap.remove(PREFIX + ledgerName);
+    public void unwatchManagedLedgerInfo(String ledgerName, UpdateCallback<ManagedLedgerInfo> callback) {
+        managedLedgerInfoUpdateCallbackMap.remove(PREFIX + ledgerName, callback);
     }
 
     @Override
@@ -516,6 +518,7 @@ public class MetaStoreImpl implements MetaStore, Consumer<Notification> {
                 try {
                     ManagedCursorInfo info = new ManagedCursorInfo();
                     info.parseFrom(uncompressed, uncompressed.readableBytes());
+                    info.materialize();
                     return info;
                 } finally {
                     uncompressed.release();

@@ -293,7 +293,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                         Map<String, BookieInfo> bookieGroup = allGroupsBookieMapping.get(group);
                         if (bookieGroup != null && !bookieGroup.isEmpty()) {
                             for (String bookieAddress : bookieGroup.keySet()) {
-                                if (excludedBookies.remove(BookieId.parse(bookieAddress))) {
+                                BookieId bookieId = BookieId.parse(bookieAddress);
+                                if (excludedBookies.remove(bookieId) && knownBookies.containsKey(bookieId)) {
                                     totalAvailableBookiesFromPrimaryAndSecondary += 1;
                                 }
                             }

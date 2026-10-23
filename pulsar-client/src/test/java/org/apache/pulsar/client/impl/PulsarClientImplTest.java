@@ -54,17 +54,23 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
@@ -76,6 +82,7 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -106,6 +113,116 @@ public class PulsarClientImplTest {
         assertFalse(client.isClosed());
         client.close();
         assertTrue(client.isClosed());
+    }
+
+    @DataProvider
+    public Object[][] partitions() {
+        return new Object[][]{{0}, {2}};
+    }
+
+    /**
+     * Cancelling the creation future does not stop the creation: the producer still comes up, and the client keeps
+     * owning it, so it is closed with the client.
+     */
+    @Test(dataProvider = "partitions")
+    @SuppressWarnings("unchecked")
+    public void testCancelledCreationLeavesTheProducerOwnedByTheClient(int partitions) throws Exception {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        initializeEventLoopGroup(conf);
+        LookupService lookup = mock(LookupService.class);
+        CompletableFuture<PartitionedTopicMetadata> metadata = new CompletableFuture<>();
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
+                .thenReturn(metadata);
+        when(lookup.getBroker(any()))
+                .thenReturn(CompletableFuture.completedFuture(new LookupTopicResult(
+                        mock(InetSocketAddress.class), mock(InetSocketAddress.class), false)));
+        ConnectionPool pool = mock(ConnectionPool.class);
+        ClientCnx cnx = mock(ClientCnx.class);
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        Channel channel = mock(Channel.class);
+        when(channel.remoteAddress()).thenReturn(mock(SocketAddress.class));
+        when(channel.eventLoop()).thenReturn(eventLoopGroup.next());
+        when(ctx.channel()).thenReturn(channel);
+        when(ctx.writeAndFlush(any(), any(ChannelPromise.class))).thenReturn(mock(ChannelFuture.class));
+        when(ctx.voidPromise()).thenReturn(mock(ChannelPromise.class));
+        when(cnx.channel()).thenReturn(channel);
+        when(cnx.ctx()).thenReturn(ctx);
+        ProducerResponse response = mock(ProducerResponse.class);
+        when(response.getProducerName()).thenReturn("cancelled-creation-producer");
+        when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(response));
+        when(pool.getConnection(any(InetSocketAddress.class), any(InetSocketAddress.class), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(cnx));
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool);
+        client.setLookup(lookup);
+        try {
+            ProducerConfigurationData producerConf = new ProducerConfigurationData();
+            producerConf.setTopicName("persistent://public/default/cancelled-creation");
+            producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+            CompletableFuture<Producer<byte[]>> creation = client.createProducerAsync(producerConf, Schema.BYTES);
+
+            // Cancelled before the metadata is known, which is before the producer exists.
+            creation.cancel(true);
+            metadata.complete(new PartitionedTopicMetadata(partitions));
+
+            assertEquals(client.producersCount(), 1, "The client must keep owning the producer");
+        } finally {
+            client.close();
+        }
+        assertEquals(client.producersCount(), 0, "Closing the client must close the producer it kept");
+    }
+
+    @DataProvider
+    public Object[][] endedBeforeRegistration() {
+        return new Object[][]{
+                {"closed", (Consumer<ProducerImpl<?>>) ProducerImpl::closeAsync},
+                {"failed", (Consumer<ProducerImpl<?>>) producer ->
+                        producer.connectionFailed(new PulsarClientException.AuthorizationException("not allowed"))},
+        };
+    }
+
+    /**
+     * A producer whose creation fails before the client has registered it, from another thread or from a
+     * connection that fails at once, removes itself from the client while it is not there yet. The client must not
+     * keep it afterwards.
+     */
+    @Test(dataProvider = "endedBeforeRegistration")
+    @SuppressWarnings("unchecked")
+    public void testProducerEndedBeforeItIsRegisteredIsNotKept(String how, Consumer<ProducerImpl<?>> end)
+            throws Exception {
+        LookupService lookup = mock(LookupService.class);
+        when(lookup.getPartitionedTopicMetadata(any(TopicName.class), anyBoolean(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata()));
+        when(lookup.getBroker(any())).thenReturn(new CompletableFuture<>());
+        ConnectionPool pool = mock(ConnectionPool.class);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("pulsar://localhost:6650");
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoopGroup, pool) {
+            @Override
+            protected <T> ProducerImpl<T> newProducerImpl(String topic, int partitionIndex,
+                                                          ProducerConfigurationData producerConf, Schema<T> schema,
+                                                          ProducerInterceptors interceptors,
+                                                          CompletableFuture<Producer<T>> producerCreatedFuture,
+                                                          Optional<String> overrideProducerName) {
+                ProducerImpl<T> producer = super.newProducerImpl(topic, partitionIndex, producerConf, schema,
+                        interceptors, producerCreatedFuture, overrideProducerName);
+                // Before createProducerAsync() has added the producer.
+                end.accept(producer);
+                return producer;
+            }
+        };
+        client.setLookup(lookup);
+        try {
+            ProducerConfigurationData producerConf = new ProducerConfigurationData();
+            producerConf.setTopicName("persistent://public/default/closed-before-registered");
+            client.createProducerAsync(producerConf, Schema.BYTES);
+
+            assertEquals(client.producersCount(), 0,
+                    "A producer " + how + " before it was registered must not be kept");
+        } finally {
+            client.close();
+        }
     }
 
     @Test
