@@ -40,11 +40,13 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
@@ -205,7 +207,8 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
      * that the commit can otherwise overtake. The v4 client registers the send with the transaction
      * coordinator as part of {@code sendAsync} itself, and the v4 tool never awaited, so
      * {@link PerformanceProducerV4} turns this off to keep its transaction throughput comparable
-     * with what {@code pulsar-perf produce} reported before the V5 migration.
+     * with what {@code pulsar-perf produce} reported before the V5 migration. The transaction that
+     * holds the run's last message has its sends awaited either way, once per run.
      */
     protected boolean awaitSendsBeforeEndingTransaction() {
         return true;
@@ -474,20 +477,31 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
         return messagesFailed.sum();
     }
 
-    private void runProducer(int producerId,
-                             long numMessages,
-                             int msgRate,
-                             List<byte[]> payloadByteList,
-                             byte[] payloadBytes,
-                             CountDownLatch doneLatch) {
+    /** The count the summary reports as "transaction end successfully". */
+    @VisibleForTesting
+    long getTransactionsEndedSuccessfully() {
+        return totalEndTxnOpSuccessNum.sum();
+    }
+
+    @VisibleForTesting
+    void runProducer(int producerId,
+                     long numMessages,
+                     int msgRate,
+                     List<byte[]> payloadByteList,
+                     byte[] payloadBytes,
+                     CountDownLatch doneLatch) {
         ClientT client = null;
         boolean produceEnough = false;
+        // Ends of the transactions this thread has ended, which may still be in flight. They are
+        // awaited before the client is closed, which would cut them off and lose their outcome.
+        final List<CompletableFuture<Void>> pendingTxnEnds = new ArrayList<>();
         try {
             client = createClient();
 
             AtomicReference<TxnT> transactionAtomicReference;
             if (arguments.isEnableTransaction) {
                 transactionAtomicReference = new AtomicReference<>(openFirstTransaction(client));
+                totalNumTxnOpenTxnSuccess.increment();
             } else {
                 transactionAtomicReference = new AtomicReference<>(null);
             }
@@ -528,6 +542,8 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
             }
             // Send messages on all topics/producers
             AtomicLong totalSent = new AtomicLong(0);
+            // Messages handed to the client so far; totalSent only counts the acknowledged ones.
+            long totalIssued = 0;
             AtomicLong numMessageSend = new AtomicLong(0);
             Semaphore numMsgPerTxnLimit = new Semaphore(arguments.numMessagesPerTransaction);
             // Send futures of the in-flight transaction, awaited before the transaction is ended when
@@ -546,7 +562,6 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
                                     .attr("duration", arguments.testTime)
                                     .log("------------- DONE (reached the maximum duration:"
                                             + " [ seconds] of production) --------------");
-                            doneLatch.countDown();
                             produceEnough = true;
                             break;
                         }
@@ -557,7 +572,6 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
                             log.info()
                                     .attr("number", numMessages)
                                     .log("DONE (reached the maximum number: of production");
-                            doneLatch.countDown();
                             produceEnough = true;
                             break;
                         }
@@ -599,6 +613,7 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
                     CompletableFuture<?> sendFuture = trackSendCompletion(
                             sendMessage(producer, payloadData, transaction, messageKey, deliverAfterSeconds),
                             payloadData, totalSent, sendTime, warmupEndTime);
+                    totalIssued++;
                     if (arguments.isEnableTransaction) {
                         pendingTxnSends.add(sendFuture);
                     }
@@ -615,9 +630,20 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
                                     Thread.currentThread().interrupt();
                                 }
                             }
+                        } else if (numMessages > 0 && totalIssued >= numMessages) {
+                            // This transaction holds the run's last message. Await its sends, once
+                            // per run, so the check below knows whether they all made it.
+                            awaitTransactionWork(pendingTxnSends, "sends");
                         }
                         pendingTxnSends.clear();
-                        endTransaction(transaction);
+                        pendingTxnEnds.removeIf(CompletableFuture::isDone);
+                        pendingTxnEnds.add(endTransaction(transaction));
+                        if (numMessages > 0 && totalSent.get() >= numMessages) {
+                            // Every message is sent and the next check stops the run, so a new
+                            // transaction would never be used and only time out on the broker.
+                            transactionAtomicReference.set(null);
+                            continue;
+                        }
                         while (!Thread.currentThread().isInterrupted()) {
                             try {
                                 TxnT newTransaction = newTransaction(client);
@@ -638,6 +664,15 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
                     }
                 }
             }
+            // The run can also stop inside a transaction: when -m is not a multiple of -nmt, or when
+            // the test duration runs out. End that one too rather than leave it to time out.
+            TxnT openTransaction = transactionAtomicReference.get();
+            if (produceEnough && openTransaction != null) {
+                if (awaitSendsBeforeEndingTransaction()) {
+                    awaitTransactionWork(pendingTxnSends, "sends");
+                }
+                pendingTxnEnds.add(endTransaction(openTransaction));
+            }
         } catch (Throwable t) {
             if (PerfClientUtils.hasInterruptedException(t)) {
                 Thread.currentThread().interrupt();
@@ -645,10 +680,32 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
                 log.error().exception(t).log("Got error");
             }
         } finally {
-            if (!produceEnough) {
-                doneLatch.countDown();
-            }
+            awaitTransactionWork(pendingTxnEnds, "transaction ends");
+            doneLatch.countDown();
             closeClient(client);
+        }
+    }
+
+    /**
+     * Wait for the sends or ends of transactions at the end of a run. The wait is bounded by
+     * {@code --txn-timeout}, as a broker that stopped answering must not hang the tool (sends have no
+     * timeout by default), and an interrupt ends it, as it must not hold up stopping the tool either.
+     */
+    private void awaitTransactionWork(List<? extends CompletableFuture<?>> work, String description) {
+        try {
+            CompletableFuture.allOf(work.toArray(new CompletableFuture[0]))
+                    .get(arguments.transactionTimeout, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (TimeoutException e) {
+            log.warn()
+                    .attr("work", description)
+                    .attr("timeoutSeconds", arguments.transactionTimeout)
+                    .log("Gave up waiting for transactional work at the end of the run");
+        } catch (ExecutionException e) {
+            // The awaited stages handle send and end failures themselves, so only a failure of
+            // that handling lands here.
+            log.warn().exception(e).attr("work", description).log("Transactional work failed");
         }
     }
 
@@ -672,11 +729,14 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
         return null;
     }
 
-    /** Commit or abort the transaction according to {@code -abort}, counting the outcome. */
-    private void endTransaction(TxnT transaction) {
+    /**
+     * Commit or abort the transaction according to {@code -abort}, counting the outcome. The returned
+     * stage completes, normally, once the outcome is counted.
+     */
+    private CompletableFuture<Void> endTransaction(TxnT transaction) {
         final boolean abort = arguments.isAbortTransaction;
         CompletableFuture<Void> endFuture = abort ? abortTransaction(transaction) : commitTransaction(transaction);
-        endFuture.thenRun(() -> {
+        return endFuture.thenRun(() -> {
             log.debug().log(abort ? "Abort transaction" : "Committed transaction");
             totalEndTxnOpSuccessNum.increment();
             numTxnOpSuccess.increment();
