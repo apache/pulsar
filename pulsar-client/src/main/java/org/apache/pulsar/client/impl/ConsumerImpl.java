@@ -990,6 +990,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
                     increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
                 }
+                // send the acks that waited for the subscription
+                acknowledgmentsGroupingTracker.flush();
                 future.complete(null);
             }).exceptionally((e) -> {
                 deregisterFromClientCnx();
