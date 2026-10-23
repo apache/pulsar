@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -214,6 +214,14 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public static BitSetRecyclable valueOf(byte[] bytes) {
         return BitSetRecyclable.valueOf(ByteBuffer.wrap(bytes));
+    }
+
+    /**
+     * Copy a BitSetRecyclable.
+     */
+    public static BitSetRecyclable valueOf(BitSetRecyclable src) {
+        // The internal implementation will do the array-copy.
+        return valueOf(src.words);
     }
 
     /**
@@ -864,8 +872,9 @@ public class BitSetRecyclable implements Cloneable, java.io.Serializable {
      */
     public int cardinality() {
         int sum = 0;
-        for (int i = 0; i < wordsInUse; i++)
+        for (int i = 0; i < wordsInUse; i++) {
             sum += Long.bitCount(words[i]);
+        }
         return sum;
     }
 

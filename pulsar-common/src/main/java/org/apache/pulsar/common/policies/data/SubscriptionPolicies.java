@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.policies.data;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.SneakyThrows;
 import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 
 /**
@@ -32,7 +32,7 @@ import org.apache.pulsar.common.policies.data.impl.DispatchRateImpl;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SubscriptionPolicies {
+public class SubscriptionPolicies implements Cloneable {
     private DispatchRateImpl dispatchRate;
 
     /**
@@ -41,5 +41,13 @@ public class SubscriptionPolicies {
      */
     public boolean checkEmpty() {
         return dispatchRate == null;
+    }
+
+    @SneakyThrows
+    @Override
+    protected SubscriptionPolicies clone() {
+        SubscriptionPolicies cloned = SubscriptionPolicies.class.cast(super.clone());
+        cloned.dispatchRate = dispatchRate != null ? dispatchRate.clone() : null;
+        return cloned;
     }
 }

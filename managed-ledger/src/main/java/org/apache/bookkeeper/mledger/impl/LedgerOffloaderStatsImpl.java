@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,6 +54,7 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     private final Summary readLedgerLatency;
     private final Counter writeStorageError;
     private final Counter readOffloadError;
+    private final Counter readOffloadBytes;
     private final Gauge readOffloadRate;
     private final Summary readOffloadIndexLatency;
     private final Summary readOffloadDataLatency;
@@ -86,15 +87,30 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
                 .labelNames(labels).create().register();
         this.readOffloadRate = Gauge.build("brk_ledgeroffloader_read_offload_rate", "-")
                 .labelNames(labels).create().register();
+         this.readOffloadBytes = Counter.build("brk_ledgeroffloader_read_bytes", "-")
+                 .labelNames(labels).create().register();
         this.writeStorageError = Counter.build("brk_ledgeroffloader_write_storage_error", "-")
                 .labelNames(labels).create().register();
 
         this.readOffloadIndexLatency = Summary.build("brk_ledgeroffloader_read_offload_index_latency", "-")
-                .labelNames(labels).create().register();
+                .labelNames(labels).quantile(0.50, 0.01)
+                .quantile(0.95, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(1, 0.01)
+                .create().register();
         this.readOffloadDataLatency = Summary.build("brk_ledgeroffloader_read_offload_data_latency", "-")
-                .labelNames(labels).create().register();
+                .labelNames(labels)
+                .quantile(0.50, 0.01)
+                .quantile(0.95, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(1, 0.01)
+                .create().register();
         this.readLedgerLatency = Summary.build("brk_ledgeroffloader_read_ledger_latency", "-")
-                .labelNames(labels).create().register();
+                .labelNames(labels).quantile(0.50, 0.01)
+                .quantile(0.95, 0.01)
+                .quantile(0.99, 0.01)
+                .quantile(1, 0.01)
+                .create().register();
 
         String[] deleteOpsLabels = exposeTopicLevelMetrics
                 ? new String[]{NAMESPACE_LABEL, TOPIC_LABEL, STATUS} : new String[]{NAMESPACE_LABEL, STATUS};
@@ -156,6 +172,8 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
         Pair<LongAdder, LongAdder> pair = this.offloadAndReadOffloadBytesMap
                 .computeIfAbsent(topic, __ -> new ImmutablePair<>(new LongAdder(), new LongAdder()));
         pair.getRight().add(size);
+        String[] labelValues = this.labelValues(topic);
+        this.readOffloadBytes.labels(labelValues).inc(size);
         this.addOrUpdateTopicAccess(topic);
     }
 
@@ -258,17 +276,19 @@ public final class LedgerOffloaderStatsImpl implements LedgerOffloaderStats, Run
     }
 
     @Override
-    public void close() throws Exception {
+    public synchronized void close() throws Exception {
         if (instance == this && this.closed.compareAndSet(false, true)) {
             CollectorRegistry.defaultRegistry.unregister(this.offloadError);
             CollectorRegistry.defaultRegistry.unregister(this.offloadRate);
             CollectorRegistry.defaultRegistry.unregister(this.readLedgerLatency);
             CollectorRegistry.defaultRegistry.unregister(this.writeStorageError);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadError);
+            CollectorRegistry.defaultRegistry.unregister(this.readOffloadBytes);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadRate);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadIndexLatency);
             CollectorRegistry.defaultRegistry.unregister(this.readOffloadDataLatency);
-            this.offloadAndReadOffloadBytesMap.clear();
+            CollectorRegistry.defaultRegistry.unregister(this.deleteOffloadOps);
+            instance = null;
         }
     }
 

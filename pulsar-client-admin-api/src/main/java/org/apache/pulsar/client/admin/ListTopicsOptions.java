@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
 
@@ -36,5 +37,10 @@ public class ListTopicsOptions {
      * Set to true to get topics including system topic, otherwise not.
      */
     private final boolean includeSystemTopic;
+
+    /**
+     * Additional properties for listing topics.
+     */
+    private  final Map<String, String> properties;
 
 }

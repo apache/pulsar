@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,4 +42,7 @@ public class ClientCredentialsExchangeRequest {
 
     @JsonProperty("scope")
     private String scope;
+
+    @JsonProperty("token_endpoint_auth_method")
+    private TokenEndpointAuthMethod authMethod;
 }

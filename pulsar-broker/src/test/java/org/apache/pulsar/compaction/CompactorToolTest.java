@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,25 @@
  */
 package org.apache.pulsar.compaction;
 
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertTrue;
-import com.beust.jcommander.Parameter;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.Arrays;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
+import java.util.Optional;
+import java.util.Properties;
+import lombok.Cleanup;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.testng.annotations.Test;
+import picocli.CommandLine.Option;
 
 /**
  * CompactorTool Tests.
@@ -34,11 +44,12 @@ import org.testng.annotations.Test;
 public class CompactorToolTest {
 
     /**
-     * Test broker-tool generate docs
+     * Test broker-tool generate docs.
      *
      * @throws Exception
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testGenerateDocs() throws Exception {
         PrintStream oldStream = System.out;
         try {
@@ -59,9 +70,9 @@ public class CompactorToolTest {
 
             Field[] fields = argumentsClass.getDeclaredFields();
             for (Field field : fields) {
-                boolean fieldHasAnno = field.isAnnotationPresent(Parameter.class);
+                boolean fieldHasAnno = field.isAnnotationPresent(Option.class);
                 if (fieldHasAnno) {
-                    Parameter fieldAnno = field.getAnnotation(Parameter.class);
+                    Option fieldAnno = field.getAnnotation(Option.class);
                     String[] names = fieldAnno.names();
                     String nameStr = Arrays.asList(names).toString();
                     nameStr = nameStr.substring(1, nameStr.length() - 1);
@@ -71,5 +82,46 @@ public class CompactorToolTest {
         } finally {
             System.setOut(oldStream);
         }
+    }
+
+    @Test
+    public void testUseTlsUrlWithPEM() throws PulsarClientException {
+        ServiceConfiguration serviceConfiguration = spy(ServiceConfiguration.class);
+        serviceConfiguration.setBrokerServicePortTls(Optional.of(6651));
+        serviceConfiguration.setBrokerClientTlsEnabled(true);
+        serviceConfiguration.setProperties(new Properties());
+
+        @Cleanup
+        PulsarClient ignored = CompactorTool.createClient(serviceConfiguration);
+
+        verify(serviceConfiguration, times(1)).isBrokerClientTlsEnabled();
+        verify(serviceConfiguration, times(1)).isTlsAllowInsecureConnection();
+        verify(serviceConfiguration, times(1)).getBrokerClientKeyFilePath();
+        verify(serviceConfiguration, times(1)).getBrokerClientTrustCertsFilePath();
+        verify(serviceConfiguration, times(1)).getBrokerClientCertificateFilePath();
+        serviceConfiguration.setBrokerClientTlsTrustStorePassword(MockedPulsarServiceBaseTest.BROKER_KEYSTORE_PW);
+    }
+
+    @Test
+    public void testUseTlsUrlWithKeystore() throws PulsarClientException {
+        ServiceConfiguration serviceConfiguration = spy(ServiceConfiguration.class);
+        serviceConfiguration.setBrokerServicePortTls(Optional.of(6651));
+        serviceConfiguration.setBrokerClientTlsEnabled(true);
+        serviceConfiguration.setBrokerClientTlsEnabledWithKeyStore(true);
+        serviceConfiguration.setBrokerClientTlsTrustStore(MockedPulsarServiceBaseTest.BROKER_KEYSTORE_FILE_PATH);
+
+        serviceConfiguration.setProperties(new Properties());
+
+        @Cleanup
+        PulsarClient ignored = CompactorTool.createClient(serviceConfiguration);
+
+        verify(serviceConfiguration, times(1)).isBrokerClientTlsEnabled();
+        verify(serviceConfiguration, times(1)).isBrokerClientTlsEnabledWithKeyStore();
+        verify(serviceConfiguration, times(1)).getBrokerClientTlsKeyStore();
+        verify(serviceConfiguration, times(1)).getBrokerClientTlsKeyStorePassword();
+        verify(serviceConfiguration, times(1)).getBrokerClientTlsKeyStoreType();
+        verify(serviceConfiguration, times(1)).getBrokerClientTlsTrustStore();
+        verify(serviceConfiguration, times(1)).getBrokerClientTlsTrustStorePassword();
+        verify(serviceConfiguration, times(1)).getBrokerClientTlsTrustStoreType();
     }
 }

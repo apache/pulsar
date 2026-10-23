@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -90,7 +90,8 @@ public class ManagedCursorMXBeanImpl implements ManagedCursorMXBean {
 
     @Override
     public void addWriteCursorLedgerSize(final long size) {
-        writeCursorLedgerSize.add(size * ((ManagedCursorImpl) managedCursor).config.getWriteQuorumSize());
+        writeCursorLedgerSize.add(
+                size * managedCursor.getManagedLedger().getConfig().getWriteQuorumSize());
         writeCursorLedgerLogicalSize.add(size);
     }
 

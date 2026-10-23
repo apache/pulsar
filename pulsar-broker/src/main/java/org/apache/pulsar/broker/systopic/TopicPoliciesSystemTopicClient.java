@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,9 @@ package org.apache.pulsar.broker.systopic;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -28,47 +31,51 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.schema.SchemaDefinition;
+import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.events.ActionType;
 import org.apache.pulsar.common.events.PulsarEvent;
+import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * System topic for topic policy.
  */
+@CustomLog
 public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<PulsarEvent> {
+
+    static Schema<PulsarEvent> avroSchema = DefaultImplementation.getDefaultImplementation()
+            .newAvroSchema(SchemaDefinition.builder().withPojo(PulsarEvent.class).build());
 
     public TopicPoliciesSystemTopicClient(PulsarClient client, TopicName topicName) {
         super(client, topicName);
+
     }
 
     @Override
     protected  CompletableFuture<Writer<PulsarEvent>> newWriterAsyncInternal() {
-        return client.newProducer(Schema.AVRO(PulsarEvent.class))
+        return client.newProducer(avroSchema)
                 .topic(topicName.toString())
                 .enableBatching(false)
-                .createAsync().thenCompose(producer -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new writer is created", topicName);
-                    }
-                    return CompletableFuture.completedFuture(new TopicPolicyWriter(producer,
-                            TopicPoliciesSystemTopicClient.this));
+                .createAsync()
+                .thenApply(producer -> {
+                        log.debug().attr("topic", topicName).log("A new writer is created");
+                                        return new TopicPolicyWriter(producer, TopicPoliciesSystemTopicClient.this);
                 });
     }
 
     @Override
     protected CompletableFuture<Reader<PulsarEvent>> newReaderAsyncInternal() {
-        return client.newReader(Schema.AVRO(PulsarEvent.class))
+        return client.newReader(avroSchema)
                 .topic(topicName.toString())
+                .subscriptionRolePrefix(SystemTopicNames.SYSTEM_READER_PREFIX)
                 .startMessageId(MessageId.earliest)
-                .readCompacted(true).createAsync()
-                .thenCompose(reader -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] A new reader is created", topicName);
-                    }
-                    return CompletableFuture.completedFuture(new TopicPolicyReader(reader,
-                            TopicPoliciesSystemTopicClient.this));
+                .readCompacted(true)
+                .poolMessages(true)
+                .createAsync()
+                .thenApply(reader -> {
+                        log.debug().attr("topic", topicName).log("A new reader is created");
+                                        return new TopicPolicyReader(reader, TopicPoliciesSystemTopicClient.this);
                 });
     }
 
@@ -83,53 +90,53 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
         }
 
         @Override
-        public MessageId write(PulsarEvent event) throws PulsarClientException {
-            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(event);
+        public MessageId write(String key, PulsarEvent event) throws PulsarClientException {
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(event);
             setReplicateCluster(event, builder);
             return builder.send();
         }
 
         @Override
-        public CompletableFuture<MessageId> writeAsync(PulsarEvent event) {
-            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(event);
+        public CompletableFuture<MessageId> writeAsync(String key, PulsarEvent event) {
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(event);
             setReplicateCluster(event, builder);
             return builder.sendAsync();
         }
 
         @Override
-        public MessageId delete(PulsarEvent event) throws PulsarClientException {
-            validateActionType(event);
-            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(null);
+        public MessageId delete(String key, PulsarEvent event) throws PulsarClientException {
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(null);
             setReplicateCluster(event, builder);
             return builder.send();
         }
 
         @Override
-        public CompletableFuture<MessageId> deleteAsync(PulsarEvent event) {
+        public CompletableFuture<MessageId> deleteAsync(String key, PulsarEvent event) {
             validateActionType(event);
-            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(getEventKey(event)).value(null);
+            TypedMessageBuilder<PulsarEvent> builder = producer.newMessage().key(key).value(null);
             setReplicateCluster(event, builder);
             return builder.sendAsync();
-        }
-
-        private String getEventKey(PulsarEvent event) {
-            return TopicName.get(event.getTopicPoliciesEvent().getDomain(),
-                event.getTopicPoliciesEvent().getTenant(),
-                event.getTopicPoliciesEvent().getNamespace(),
-                event.getTopicPoliciesEvent().getTopic()).toString();
         }
 
         @Override
         public void close() throws IOException {
-            this.producer.close();
-            systemTopicClient.getWriters().remove(TopicPolicyWriter.this);
+            try {
+                closeAsync().get();
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof IOException) {
+                    throw (IOException) e.getCause();
+                } else {
+                    throw new PulsarServerException(e.getCause());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
         @Override
         public CompletableFuture<Void> closeAsync() {
-            return producer.closeAsync().thenCompose(v -> {
+            return producer.closeAsync().whenComplete((r, ex) -> {
                 systemTopicClient.getWriters().remove(TopicPolicyWriter.this);
-                return CompletableFuture.completedFuture(null);
             });
         }
 
@@ -184,15 +191,23 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
 
         @Override
         public void close() throws IOException {
-            this.reader.close();
-            systemTopic.getReaders().remove(TopicPolicyReader.this);
+            try {
+                closeAsync().get();
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof IOException) {
+                    throw (IOException) e.getCause();
+                } else {
+                    throw new PulsarServerException(e.getCause());
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
         @Override
         public CompletableFuture<Void> closeAsync() {
-            return reader.closeAsync().thenCompose(v -> {
+            return reader.closeAsync().whenComplete((r, ex) -> {
                 systemTopic.getReaders().remove(TopicPolicyReader.this);
-                return CompletableFuture.completedFuture(null);
             });
         }
 
@@ -201,6 +216,4 @@ public class TopicPoliciesSystemTopicClient extends SystemTopicClientBase<Pulsar
             return systemTopic;
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(TopicPoliciesSystemTopicClient.class);
 }

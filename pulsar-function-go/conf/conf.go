@@ -33,14 +33,16 @@ import (
 const ConfigPath = "conf/conf.yaml"
 
 type Conf struct {
-	PulsarServiceURL string        `json:"pulsarServiceURL" yaml:"pulsarServiceURL"`
-	InstanceID       int           `json:"instanceID" yaml:"instanceID"`
-	FuncID           string        `json:"funcID" yaml:"funcID"`
-	FuncVersion      string        `json:"funcVersion" yaml:"funcVersion"`
-	MaxBufTuples     int           `json:"maxBufTuples" yaml:"maxBufTuples"`
-	Port             int           `json:"port" yaml:"port"`
-	ClusterName      string        `json:"clusterName" yaml:"clusterName"`
-	KillAfterIdleMs  time.Duration `json:"killAfterIdleMs" yaml:"killAfterIdleMs"`
+	PulsarServiceURL       string        `json:"pulsarServiceURL" yaml:"pulsarServiceURL"`
+	StateStorageServiceURL string        `json:"stateStorageServiceUrl" yaml:"stateStorageServiceUrl"`
+	PulsarWebServiceURL    string        `json:"pulsarWebServiceUrl" yaml:"pulsarWebServiceUrl"`
+	InstanceID             int           `json:"instanceID" yaml:"instanceID"`
+	FuncID                 string        `json:"funcID" yaml:"funcID"`
+	FuncVersion            string        `json:"funcVersion" yaml:"funcVersion"`
+	MaxBufTuples           int           `json:"maxBufTuples" yaml:"maxBufTuples"`
+	Port                   int           `json:"port" yaml:"port"`
+	ClusterName            string        `json:"clusterName" yaml:"clusterName"`
+	KillAfterIdleMs        time.Duration `json:"killAfterIdleMs" yaml:"killAfterIdleMs"`
 	// function details config
 	Tenant               string `json:"tenant" yaml:"tenant"`
 	NameSpace            string `json:"nameSpace" yaml:"nameSpace"`
@@ -49,8 +51,15 @@ type Conf struct {
 	ProcessingGuarantees int32  `json:"processingGuarantees" yaml:"processingGuarantees"`
 	SecretsMap           string `json:"secretsMap" yaml:"secretsMap"`
 	Runtime              int32  `json:"runtime" yaml:"runtime"`
-	AutoACK              bool   `json:"autoAck" yaml:"autoAck"`
-	Parallelism          int32  `json:"parallelism" yaml:"parallelism"`
+	// Authentication
+	ClientAuthenticationPlugin     string `json:"clientAuthenticationPlugin" yaml:"clientAuthenticationPlugin"`
+	ClientAuthenticationParameters string `json:"clientAuthenticationParameters" yaml:"clientAuthenticationParameters"`
+	TLSTrustCertsFilePath          string `json:"tlsTrustCertsFilePath" yaml:"tlsTrustCertsFilePath"`
+	TLSAllowInsecureConnection     bool   `json:"tlsAllowInsecureConnection" yaml:"tlsAllowInsecureConnection"`
+	TLSHostnameVerificationEnable  bool   `json:"tlsHostnameVerificationEnable" yaml:"tlsHostnameVerificationEnable"`
+	// Deprecated
+	AutoACK     bool  `json:"autoAck" yaml:"autoAck"`
+	Parallelism int32 `json:"parallelism" yaml:"parallelism"`
 	//source config
 	SubscriptionType     int32  `json:"subscriptionType" yaml:"subscriptionType"`
 	TimeoutMs            uint64 `json:"timeoutMs" yaml:"timeoutMs"`
@@ -58,10 +67,16 @@ type Conf struct {
 	CleanupSubscription  bool   `json:"cleanupSubscription"  yaml:"cleanupSubscription"`
 	SubscriptionPosition int32  `json:"subscriptionPosition" yaml:"subscriptionPosition"`
 	//source input specs
-	SourceSpecTopic            string `json:"sourceSpecsTopic" yaml:"sourceSpecsTopic"`
-	SourceSchemaType           string `json:"sourceSchemaType" yaml:"sourceSchemaType"`
-	IsRegexPatternSubscription bool   `json:"isRegexPatternSubscription" yaml:"isRegexPatternSubscription"`
-	ReceiverQueueSize          int32  `json:"receiverQueueSize" yaml:"receiverQueueSize"`
+	SourceInputSpecs map[string]string `json:"sourceInputSpecs" yaml:"sourceInputSpecs"`
+	// for backward compatibility
+	// Deprecated
+	SourceSpecTopic string `json:"sourceSpecsTopic" yaml:"sourceSpecsTopic"`
+	// Deprecated
+	SourceSchemaType string `json:"sourceSchemaType" yaml:"sourceSchemaType"`
+	// Deprecated
+	IsRegexPatternSubscription bool `json:"isRegexPatternSubscription" yaml:"isRegexPatternSubscription"`
+	// Deprecated
+	ReceiverQueueSize int32 `json:"receiverQueueSize" yaml:"receiverQueueSize"`
 	//sink spec config
 	SinkSpecTopic  string `json:"sinkSpecsTopic" yaml:"sinkSpecsTopic"`
 	SinkSchemaType string `json:"sinkSchemaType" yaml:"sinkSchemaType"`
@@ -76,6 +91,8 @@ type Conf struct {
 	UserConfig                  string `json:"userConfig" yaml:"userConfig"`
 	//metrics config
 	MetricsPort int `json:"metricsPort" yaml:"metricsPort"`
+	// FunctionDetails
+	FunctionDetails string `json:"functionDetails" yaml:"functionDetails"`
 }
 
 var (

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
@@ -66,17 +67,17 @@ import org.apache.pulsar.functions.worker.PulsarWorkerService;
 import org.apache.pulsar.functions.worker.PulsarWorkerService.PulsarClientCreator;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Test Pulsar function TLS authentication
+ * Test Pulsar function TLS authentication.
  */
 @Test(groups = "broker-io")
+@CustomLog
 public class PulsarFunctionTlsTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -90,30 +91,35 @@ public class PulsarFunctionTlsTest {
     PulsarAdmin functionAdmin;
     private final List<String> namespaceList = new LinkedList<>();
 
-    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
-    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
-    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionTlsTest.class);
+    private static final String TLS_SERVER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    private static final String TLS_SERVER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+    private static final String TLS_CLIENT_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
+    private static final String TLS_CLIENT_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
+    private static final String TLS_TRUST_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod
     void setup(Method method) throws Exception {
 
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
-        config = spy(ServiceConfiguration.class);
+        config = new ServiceConfiguration();
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setClusterName("use");
         Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         config.setAuthenticationEnabled(true);
@@ -121,7 +127,7 @@ public class PulsarFunctionTlsTest {
         config.setAuthenticationProviders(providers);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        config.setTlsAllowInsecureConnection(true);
+        config.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         config.setAdvertisedAddress("localhost");
 
         PulsarAdmin admin = mock(PulsarAdmin.class);
@@ -163,7 +169,7 @@ public class PulsarFunctionTlsTest {
         authTls.configure(authParams);
 
         functionAdmin = PulsarAdmin.builder().serviceHttpUrl(functionTlsUrl)
-                .tlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH).allowTlsInsecureConnection(true)
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .authentication(authTls).build();
 
         Thread.sleep(100);
@@ -173,16 +179,29 @@ public class PulsarFunctionTlsTest {
     void shutdown() throws Exception {
         log.info("--- Shutting down ---");
         try {
-            functionAdmin.close();
-            functionsWorkerService.stop();
-            workerServer.stop();
-            bkEnsemble.stop();
+            if (functionAdmin != null) {
+                functionAdmin.close();
+                functionAdmin = null;
+            }
+            if (functionsWorkerService != null) {
+                functionsWorkerService.stop();
+                functionsWorkerService = null;
+            }
+            if (workerServer != null) {
+                workerServer.stop();
+                workerServer = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();
             }
         }
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     private PulsarWorkerService createPulsarFunctionWorker(ServiceConfiguration config,
                                                            PulsarAdmin mockPulsarAdmin) {
@@ -194,7 +213,8 @@ public class PulsarFunctionTlsTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper()
+                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName("use"), Map.class));
         // worker talks to local broker
         workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort().get());
         workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePort().get());
@@ -216,7 +236,7 @@ public class PulsarFunctionTlsTest {
                 String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH));
         workerConfig.setUseTls(true);
         workerConfig.setTlsAllowInsecureConnection(true);
-        workerConfig.setTlsTrustCertsFilePath(TLS_CLIENT_CERT_FILE_PATH);
+        workerConfig.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
 
         workerConfig.setWorkerPortTls(0);
         workerConfig.setTlsEnabled(true);
@@ -269,6 +289,7 @@ public class PulsarFunctionTlsTest {
         }
 
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String jarFile,
                                                          String tenant,

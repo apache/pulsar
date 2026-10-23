@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,174 +20,99 @@ package org.apache.pulsar.common.naming;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 import org.testng.annotations.Test;
 
 public class NamespaceNameTest {
 
-    @Test
-    public void namespace() {
-        try {
-            NamespaceName.get("namespace");
-            fail("Should have caused exception");
-        } catch (IllegalArgumentException e) {
-            // expected
-        }
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_invalidFormat() {
+        NamespaceName.get("namespace");
+    }
 
-        try {
-            NamespaceName.get("property.namespace");
-            fail("Should have caused exception");
-        } catch (IllegalArgumentException e) {
-            // expected
-        }
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_propertyNamespace() {
+        NamespaceName.get("property.namespace");
+    }
 
-        try {
-            NamespaceName.get("0.0.0.0");
-            fail("Should have caused exception");
-        } catch (IllegalArgumentException e) {
-            // expected
-        }
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_loopBackAddress() {
+        NamespaceName.get("0.0.0.0");
+    }
 
-        try {
-            NamespaceName.get("property.namespace:topic");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_propertyNamespaceTopic() {
+        NamespaceName.get("property.namespace:topic");
+    }
 
-        try {
-            NamespaceName.get("property/cluster/namespace/topic");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
+    // 3-part V1 namespace names are no longer supported
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_threePartNameRejected() {
+        NamespaceName.get("property/cluster/namespace");
+    }
 
-        try {
-            NamespaceName.get(null);
-        } catch (IllegalArgumentException e) {
-            // OK
-        }
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_fourPartNameRejected() {
+        NamespaceName.get("property/cluster/namespace/topic");
+    }
 
-        try {
-            NamespaceName.get(null, "use", "ns1");
-        } catch (IllegalArgumentException e) {
-            // OK
-        }
-
-        assertEquals(NamespaceName.get("prop/cluster/ns").getPersistentTopicName("ds"),
-                "persistent://prop/cluster/ns/ds");
-
-        try {
-            NamespaceName.get("prop/cluster/ns").getTopicName(null, "ds");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        assertEquals(NamespaceName.get("prop/cluster/ns").getTopicName(TopicDomain.persistent, "ds"),
-                "persistent://prop/cluster/ns/ds");
-        assertEquals(NamespaceName.get("prop/cluster/ns"), NamespaceName.get("prop/cluster/ns"));
-        assertEquals(NamespaceName.get("prop/cluster/ns").toString(), "prop/cluster/ns");
-        assertNotEquals(NamespaceName.get("prop/cluster/ns"), "prop/cluster/ns");
-
-        assertEquals(NamespaceName.get("prop", "cluster", "ns"), NamespaceName.get("prop/cluster/ns"));
-        assertEquals(NamespaceName.get("prop/cluster/ns").getTenant(), "prop");
-        assertEquals(NamespaceName.get("prop/cluster/ns").getCluster(), "cluster");
-        assertEquals(NamespaceName.get("prop/cluster/ns").getLocalName(), "ns");
-
-        try {
-            NamespaceName.get("ns").getTenant();
-            fail("old style namespace");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("ns").getCluster();
-            fail("old style namespace");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("ns").getLocalName();
-            fail("old style namespace");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get(null, "cluster", "namespace");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("", "cluster", "namespace");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("/cluster/namespace");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("pulsar//namespace");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("pulsar", null, "namespace");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("pulsar", "", "namespace");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("pulsar", "cluster", null);
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
-            NamespaceName.get("pulsar", "cluster", "");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        NamespaceName v2Namespace = NamespaceName.get("pulsar/colo1/testns-1");
-        assertEquals(v2Namespace.getTenant(), "pulsar");
-        assertEquals(v2Namespace.getCluster(), "colo1");
-        assertEquals(v2Namespace.getLocalName(), "testns-1");
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_null() {
+        NamespaceName.get(null);
     }
 
     @Test
-    void testNewScheme() {
+    public void namespace_persistentTopic() {
+        assertEquals(NamespaceName.get("prop/ns").getPersistentTopicName("ds"),
+                "persistent://prop/ns/ds");
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_topicNameNullDomain() {
+        NamespaceName.get("prop/ns").getTopicName(null, "ds");
+    }
+
+    @Test
+    public void namespace_persistentTopicExplicitDomain() {
+        assertEquals(NamespaceName.get("prop/ns").getTopicName(TopicDomain.persistent, "ds"),
+                "persistent://prop/ns/ds");
+    }
+
+    @Test
+    public void namespace_equals() {
+        assertEquals(NamespaceName.get("prop/ns"), NamespaceName.get("prop/ns"));
+    }
+
+    @Test
+    public void namespace_toString() {
+        assertEquals(NamespaceName.get("prop/ns").toString(), "prop/ns");
+    }
+
+    @SuppressWarnings("AssertBetweenInconvertibleTypes")
+    @Test
+    public void namespace_equalsCheckType() {
+        assertNotEquals(NamespaceName.get("prop/ns"), "prop/ns");
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_oldStyleNamespaceTenant() {
+        NamespaceName.get("ns").getTenant();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_oldStyleNamespaceLocalName() {
+        NamespaceName.get("ns").getLocalName();
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void namespace_emptyTenantElement() {
+        NamespaceName.get("/namespace");
+    }
+
+    @Test
+    void testNamespaceProperties() {
         NamespaceName ns = NamespaceName.get("my-tenant/my-namespace");
         assertEquals(ns.getTenant(), "my-tenant");
         assertEquals(ns.getLocalName(), "my-namespace");
-        assertTrue(ns.isGlobal());
-        assertNull(ns.getCluster());
         assertEquals(ns.getPersistentTopicName("my-topic"), "persistent://my-tenant/my-namespace/my-topic");
     }
 }

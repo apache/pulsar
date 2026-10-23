@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.api.proto.KeyValue;
+import org.apache.pulsar.common.schema.SchemaType;
 
 @Getter
 @Builder
@@ -45,10 +46,11 @@ public class SubscriptionOption {
     private boolean readCompacted;
     private CommandSubscribe.InitialPosition initialPosition;
     private long startMessageRollbackDurationSec;
-    private boolean replicatedSubscriptionStateArg;
+    private Boolean replicatedSubscriptionStateArg;
     private KeySharedMeta keySharedMeta;
     private Optional<Map<String, String>> subscriptionProperties;
     private long consumerEpoch;
+    private SchemaType schemaType;
 
     public static Optional<Map<String, String>> getPropertiesMap(List<KeyValue> list) {
         if (list == null) {

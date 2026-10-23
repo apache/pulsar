@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,8 +19,8 @@
 package org.apache.pulsar.broker.stats;
 
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerMBeanImpl.ENTRY_LATENCY_BUCKETS_USEC;
-import com.google.common.collect.Maps;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.common.stats.Metrics;
 
@@ -37,7 +37,7 @@ public class NamespaceStats {
     public int consumerCount;
     public int producerCount;
     public int replicatorCount;
-    public int subsCount;
+    public long subsCount;
     public static final String BRK_ADD_ENTRY_LATENCY_PREFIX = "brk_AddEntryLatencyBuckets";
     public long[] addLatencyBucket = new long[ENTRY_LATENCY_BUCKETS_USEC.length + 1];
     public static final String[] ADD_LATENCY_BUCKET_KEYS = new String[ENTRY_LATENCY_BUCKETS_USEC.length + 1];
@@ -85,7 +85,7 @@ public class NamespaceStats {
 
     public Metrics add(String namespace) {
 
-        Map<String, String> dimensionMap = Maps.newHashMap();
+        Map<String, String> dimensionMap = new HashMap<>();
         dimensionMap.put("namespace", namespace);
         Metrics dMetrics = Metrics.create(dimensionMap);
         dMetrics.put("brk_in_rate", msgRateIn);

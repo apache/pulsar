@@ -27,15 +27,17 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 )
 
 func testProcessSpawnerHealthCheckTimer(
-	tkr *time.Ticker, lastHealthCheckTs int64, expectedHealthCheckInterval int32, counter *int) {
+	tkr *time.Ticker, lastHealthCheckTS int64, expectedHealthCheckInterval int32, counter *int) {
 	fmt.Println("Starting processSpawnerHealthCheckTimer")
 	now := time.Now()
 	maxIdleTime := int64(time.Duration(expectedHealthCheckInterval) * 3 * time.Second)
 	fmt.Println("maxIdleTime is: " + strconv.FormatInt(maxIdleTime, 10))
-	timeSinceLastCheck := now.UnixNano() - lastHealthCheckTs
+	timeSinceLastCheck := now.UnixNano() - lastHealthCheckTS
 	fmt.Println("timeSinceLastCheck is: " + strconv.FormatInt(timeSinceLastCheck, 10))
 	if (timeSinceLastCheck) > (maxIdleTime) {
 		fmt.Println("Haven't received health check from spawner in a while. Stopping instance...")
@@ -49,7 +51,7 @@ func testProcessSpawnerHealthCheckTimer(
 
 func testStartScheduler(counter *int) {
 	now := time.Now()
-	lastHealthCheckTs := now.UnixNano()
+	lastHealthCheckTS := now.UnixNano()
 
 	var expectedHealthCheckInterval int32 = 1
 	if expectedHealthCheckInterval > 0 {
@@ -61,7 +63,7 @@ func testStartScheduler(counter *int) {
 			tkr := time.NewTicker(period)
 			for range tkr.C {
 				fmt.Println("Starting Timer")
-				testProcessSpawnerHealthCheckTimer(tkr, lastHealthCheckTs, expectedHealthCheckInterval, counter)
+				testProcessSpawnerHealthCheckTimer(tkr, lastHealthCheckTS, expectedHealthCheckInterval, counter)
 			}
 		}()
 	}
@@ -114,4 +116,34 @@ func Test_goInstance_handlerMsg(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "output", string(output))
 	assert.Equal(t, message, fc.record)
+}
+
+func newTestGoInstance(guarantee pb.ProcessingGuarantees) *goInstance {
+	return &goInstance{
+		context: &FunctionContext{
+			instanceConf: &instanceConf{
+				funcDetails: pb.FunctionDetails{
+					ProcessingGuarantees: guarantee,
+				},
+			},
+		},
+	}
+}
+
+func TestShouldNackInputOnFailure(t *testing.T) {
+	tests := []struct {
+		name      string
+		guarantee pb.ProcessingGuarantees
+		want      bool
+	}{
+		{"atLeastOnce", pb.ProcessingGuarantees_ATLEAST_ONCE, true},
+		{"manual", pb.ProcessingGuarantees_MANUAL, true},
+		{"atMostOnce", pb.ProcessingGuarantees_ATMOST_ONCE, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			instance := newTestGoInstance(tt.guarantee)
+			assert.Equal(t, tt.want, instance.shouldNackInputOnFailure())
+		})
+	}
 }

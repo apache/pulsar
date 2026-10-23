@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,13 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.worker;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ShutdownService;
 
-@Slf4j
+@CustomLog
 public class ErrorNotifierShutdownServiceImpl implements ErrorNotifier {
     private static final long serialVersionUID = 1L;
     private final ShutdownService shutdownService;
@@ -33,7 +32,7 @@ public class ErrorNotifierShutdownServiceImpl implements ErrorNotifier {
 
     @Override
     public void triggerError(Throwable th) {
-        log.error("Encountered fatal error. Shutting down.", th);
+        log.error().exception(th).log("Encountered fatal error. Shutting down.");
         shutdownService.shutdownNow();
     }
 

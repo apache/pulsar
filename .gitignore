@@ -5,6 +5,7 @@ test-results
 dependency-reduced-pom.xml
 logs
 /data
+packages-storage
 pulsar-broker/data/
 pulsar-broker/tmp.*
 pulsar-broker/src/test/resources/log4j2.yaml
@@ -25,10 +26,12 @@ pulsar-functions/worker/src/test/resources/
 .recommenders/
 .factorypath
 
-# Intellij
-.idea/
+# IntelliJ
+.idea/*
+!.idea/vcs.xml
 *.iml
 *.iws
+.fleet/*
 
 # NetBeans
 nb-configuration.xml
@@ -47,6 +50,7 @@ target/
 
 # Python
 *.pyc
+.python-version
 
 # Perf tools
 *.hgrm
@@ -67,11 +71,6 @@ deployment/terraform-ansible/aws/terraform.tfstate.backup
 # Vagrant
 **/.vagrant
 
-
-pulsar-client-cpp/python/pkg/osx/*/*.bak
-pulsar-client-cpp/python/pkg/osx/*/*.whl
-pulsar-client-cpp/python/wheelhouse
-
 # CI generated files
 .repository
 docker.debug-info
@@ -88,8 +87,29 @@ docker.debug-info
 **/website/brodocs/navData.js
 **/website/brodocs/documents/*.md
 
+# Gradle
+.gradle/
+.kotlin/
+build/
+
 # Avro
 examples/flink/src/main/java/org/apache/flink/avro/generated
 pulsar-flink/src/test/java/org/apache/flink/avro/generated
 pulsar-client/src/test/java/org/apache/pulsar/client/avro/generated
-/build/
+
+test-reports/
+
+# Gradle Enterprise
+.mvn/.gradle-enterprise/
+# Gradle Develocity
+.mvn/.develocity/
+.vscode
+effective-pom.xml
+
+# AI Tools
+CLAUDE.md
+# There's no need to add all AI tool directories/files to the project's .gitignore file.
+# AI tool directories/files can be ignored from git by using a global gitignore file defined with
+# "git config --global core.excludesfile $HOME/.gitignore_global"
+# and adding the AI tool directories/files to the ~/.gitignore_global file without modifying the
+# project's .gitignore file.

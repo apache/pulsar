@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -80,8 +80,22 @@ public class ManagedLedgerException extends Exception {
             super(new Exception("Attempted to use a fenced managed ledger"));
         }
 
+        public ManagedLedgerFencedException(String message) {
+            super(message);
+        }
+
         public ManagedLedgerFencedException(Exception e) {
             super(e);
+        }
+    }
+
+    /**
+     * The managed ledger was fenced because another client fenced its current ledger after the metadata store's
+     * session was lost, such as another broker that took the topic over once the session expired.
+     */
+    public static class ManagedLedgerFencedByAnotherWriterException extends ManagedLedgerFencedException {
+        public ManagedLedgerFencedByAnotherWriterException(String message) {
+            super(message);
         }
     }
 
@@ -143,6 +157,12 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    public static class LedgerNotExistException extends NonRecoverableLedgerException {
+        public LedgerNotExistException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class InvalidReplayPositionException extends ManagedLedgerException {
         public InvalidReplayPositionException(String msg) {
             super(msg);
@@ -179,6 +199,20 @@ public class ManagedLedgerException extends Exception {
 
         public ManagedLedgerFactoryClosedException(Throwable e) {
             super(e);
+        }
+    }
+
+    public static class ConcurrentWaitCallbackException extends ManagedLedgerException {
+
+        public ConcurrentWaitCallbackException() {
+            super("We can only have a single waiting callback");
+        }
+    }
+
+    public static class OffloadReadHandleClosedException extends ManagedLedgerException {
+
+        public OffloadReadHandleClosedException() {
+            super("Offload read handle already closed");
         }
     }
 

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,10 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 import java.nio.ByteBuffer;
 import java.time.Instant;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class InstantSchemaTest {
 

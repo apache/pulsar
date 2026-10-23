@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -39,6 +39,11 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
      * the schema definition class.
      */
     private  Class<T> clazz;
+
+    /**
+     * the classLoader definition class.
+     */
+    private ClassLoader classLoader;
 
     /**
      * The flag of schema type always allow null.
@@ -94,9 +99,16 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public SchemaDefinitionBuilder<T> withPojo(Class clazz) {
-        this.clazz = clazz;
+    public SchemaDefinitionBuilder<T> withPojo(Class<?> clazz) {
+        this.clazz = (Class<T>) clazz;
+        return this;
+    }
+
+    @Override
+    public SchemaDefinitionBuilder<T> withClassLoader(ClassLoader classLoader) {
+        this.classLoader = classLoader;
         return this;
     }
 
@@ -118,7 +130,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
         if (properties.containsKey(ALWAYS_ALLOW_NULL)) {
             alwaysAllowNull = Boolean.parseBoolean(properties.get(ALWAYS_ALLOW_NULL));
         }
-        if (properties.containsKey(ALWAYS_ALLOW_NULL)) {
+        if (properties.containsKey(JSR310_CONVERSION_ENABLED)) {
             jsr310ConversionEnabled = Boolean.parseBoolean(properties.get(JSR310_CONVERSION_ENABLED));
         }
         return this;
@@ -137,6 +149,7 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public  SchemaDefinition<T> build() {
         checkArgument(StringUtils.isNotBlank(jsonDef) || clazz != null,
                 "Must specify one of the pojo or jsonDef for the schema definition.");
@@ -149,8 +162,8 @@ public class SchemaDefinitionBuilderImpl<T> implements SchemaDefinitionBuilder<T
 
         properties.put(ALWAYS_ALLOW_NULL, String.valueOf(this.alwaysAllowNull));
         properties.put(JSR310_CONVERSION_ENABLED, String.valueOf(this.jsr310ConversionEnabled));
-        return new SchemaDefinitionImpl(clazz, jsonDef, alwaysAllowNull, properties, supportSchemaVersioning,
-                jsr310ConversionEnabled, reader, writer);
+        return new SchemaDefinitionImpl(clazz, jsonDef, classLoader,
+                alwaysAllowNull, properties, supportSchemaVersioning, jsr310ConversionEnabled, reader, writer);
 
     }
 }

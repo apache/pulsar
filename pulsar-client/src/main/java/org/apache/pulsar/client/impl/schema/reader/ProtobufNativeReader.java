@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.impl.schema.reader;
 
-public class ProtobufNativeReader<T extends com.google.protobuf.GeneratedMessageV3> extends ProtobufReader<T> {
+import com.google.protobuf.Message;
+
+public class ProtobufNativeReader<T extends Message> extends ProtobufReader<T> {
 
     public ProtobufNativeReader(T protoMessageInstance) {
         super(protoMessageInstance);

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.client.api;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.Map;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
@@ -28,9 +30,12 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  *
  * <p>All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
  * {@link ClientBuilder#statsInterval(long, java.util.concurrent.TimeUnit)} with a default of 1 minute.
+ *
+ * @deprecated use {@link ClientBuilder#openTelemetry(OpenTelemetry)} to enable stats
  */
 @InterfaceAudience.Public
-@InterfaceStability.Stable
+@InterfaceStability.Evolving
+@Deprecated
 public interface ConsumerStats extends Serializable {
 
     /**
@@ -44,7 +49,7 @@ public interface ConsumerStats extends Serializable {
     long getNumBytesReceived();
 
     /**
-     * @return Rate of bytes per second received in the last interval
+     * @return Rate of messages per second received in the last interval
      */
     double getRateMsgsReceived();
 
@@ -114,4 +119,21 @@ public interface ConsumerStats extends Serializable {
      * @return
      */
     Map<Long, Integer> getMsgNumInSubReceiverQueue();
+
+    /**
+     * @return stats for each partition if topic is partitioned topic
+     */
+    default Map<String, ConsumerStats> getPartitionStats() {
+        return Collections.emptyMap();
+    }
+
+    /**
+     * @return producer stats for deadLetterProducer if available
+     */
+    ProducerStats getDeadLetterProducerStats();
+
+    /**
+     * @return producer stats for retryLetterProducer if available
+     */
+    ProducerStats getRetryLetterProducerStats();
 }

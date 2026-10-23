@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -45,7 +45,7 @@ public class ProxyTopicStat {
         }
 
         public ProducerStats(ProducerHandler handler) {
-            this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
+            this.remoteConnection = handler.getSession().getRemoteSocketAddress().toString();
             this.numberOfMsgPublished = handler.getMsgPublishedCounter();
         }
 
@@ -62,14 +62,14 @@ public class ProxyTopicStat {
             this.subscriptionName = handler.getSubscription();
             this.subscriptionType = handler.getSubscriptionType();
             this.subscriptionMode = handler.getSubscriptionMode();
-            this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
+            this.remoteConnection = handler.getSession().getRemoteSocketAddress().toString();
             this.numberOfMsgDelivered = handler.getMsgDeliveredCounter();
         }
 
         public ConsumerStats(ReaderHandler handler) {
             this.subscriptionName = handler.getSubscription();
             this.subscriptionType = handler.getSubscriptionType();
-            this.remoteConnection = handler.getRemote().getInetSocketAddress().toString();
+            this.remoteConnection = handler.getSession().getRemoteSocketAddress().toString();
             this.numberOfMsgDelivered = handler.getMsgDeliveredCounter();
         }
 

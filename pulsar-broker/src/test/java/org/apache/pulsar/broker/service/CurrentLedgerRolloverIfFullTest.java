@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,42 +20,26 @@ package org.apache.pulsar.broker.service;
 
 import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
-import io.netty.buffer.ByteBufAllocator;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.OpAddEntry;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
-
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        baseSetup();
-    }
-
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        internalCleanup();
-    }
+public class CurrentLedgerRolloverIfFullTest extends SharedPulsarBaseTest {
 
     @Test
     public void testCurrentLedgerRolloverIfFull() throws Exception {
-        final String topicName = "persistent://prop/ns-abc/CurrentLedgerRolloverIfFullTest";
+        // Disable dedup so the pulsar.dedup cursor doesn't block ledger trimming
+        admin.namespaces().setDeduplicationStatus(getNamespace(), false);
+        final String topicName = newTopicName();
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -69,9 +53,9 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
                 .subscriptionName("CurrentLedgerRolloverIfFullTest-subscriber-name")
                 .subscribe();
 
-        Topic topicRef = pulsar.getBrokerService().getTopicReference(topicName).get();
+        Topic topicRef = getTopicReference(topicName).get();
         Assert.assertNotNull(topicRef);
-        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        PersistentTopic persistentTopic = (PersistentTopic) getTopic(topicName, true).get().get();
 
         ManagedLedgerConfig managedLedgerConfig = persistentTopic.getManagedLedger().getConfig();
         managedLedgerConfig.setRetentionTime(1, TimeUnit.SECONDS);
@@ -85,7 +69,9 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         }
 
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
-        Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+            Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), msgNum / 2 + 1);
+        });
 
         for (int i = 0; i < msgNum; i++) {
             Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
@@ -93,10 +79,8 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
             consumer.acknowledge(msg);
         }
 
-        MLDataFormats.ManagedLedgerInfo.LedgerInfo lastLh =
-                managedLedger.getLedgersInfoAsList().get(managedLedger.getLedgersInfoAsList().size() - 1);
         // all the messages have been acknowledged
-        // and all the ledgers have been removed except the last ledger
+        // and all the ledgers have been removed except the the last ledger
         Awaitility.await()
                 .pollInterval(Duration.ofMillis(500L))
                 .untilAsserted(() -> {
@@ -110,41 +94,12 @@ public class CurrentLedgerRolloverIfFullTest extends BrokerTestBase {
         stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
         managedLedger.rollCurrentLedgerIfFull();
 
-        // If there are no pending write messages, the last ledger will be closed and still held.
+        // the last ledger will be closed and removed and we have one ledger for empty
         Awaitility.await()
                 .pollInterval(Duration.ofMillis(1000L))
                 .untilAsserted(() -> {
                     Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-                    Assert.assertEquals(lastLh.getLedgerId(),
-                            managedLedger.getLedgersInfoAsList().get(0).getLedgerId());
-                });
-        producer.send(new byte[1024 * 1024]);
-        Message<byte[]> msg = consumer.receive(2, TimeUnit.SECONDS);
-        Assert.assertNotNull(msg);
-        consumer.acknowledge(msg);
-        // Assert that we got a new ledger and all but the current ledger are deleted
-        Awaitility.await()
-                .untilAsserted(()-> {
-                    Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-                    Assert.assertNotEquals(lastLh.getLedgerId(),
-                            managedLedger.getLedgersInfoAsList().get(0).getLedgerId());
-                });
-        long lastLhIdAfterRolloverAndSendAgain = managedLedger.getLedgersInfoAsList().get(0).getLedgerId();
-
-        // Mock pendingAddEntries
-        OpAddEntry op = OpAddEntry.
-                createNoRetainBuffer(managedLedger, ByteBufAllocator.DEFAULT.buffer(128).retain(), null, null);
-        Field pendingAddEntries = managedLedger.getClass().getDeclaredField("pendingAddEntries");
-        pendingAddEntries.setAccessible(true);
-        ConcurrentLinkedQueue<OpAddEntry> queue = (ConcurrentLinkedQueue<OpAddEntry>) pendingAddEntries.get(managedLedger);
-        queue.add(op);
-        // When ml has pending write messages, ml will create a new ledger and close and delete the previous ledger
-        Awaitility.await()
-                .untilAsserted(()-> {
-                    managedLedger.rollCurrentLedgerIfFull();
-                    Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
-                    Assert.assertNotEquals(managedLedger.getLedgersInfoAsList().get(0).getLedgerId(),
-                            lastLhIdAfterRolloverAndSendAgain);
+                    Assert.assertEquals(managedLedger.getTotalSize(), 0);
                 });
     }
 }

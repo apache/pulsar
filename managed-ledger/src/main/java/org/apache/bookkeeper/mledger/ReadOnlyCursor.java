@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,19 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Range;
 import java.util.List;
+import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 
+/**
+ * A cursor for reading a managed ledger without persisting its position.
+ *
+ * <p>Its asynchronous reads use {@link ReadEntriesCallback}; see that callback for completion threading and entry
+ * ownership requirements.
+ */
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
 public interface ReadOnlyCursor {
@@ -48,7 +53,7 @@ public interface ReadOnlyCursor {
      * @see #readEntries(int)
      */
     void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback,
-                          Object ctx, PositionImpl maxPosition);
+                          Object ctx, Position maxPosition);
 
     /**
      * Asynchronously read entries from the ManagedLedger.
@@ -60,7 +65,7 @@ public interface ReadOnlyCursor {
      * @param maxPosition           max position can read
      */
     void asyncReadEntries(int numberOfEntriesToRead, long maxSizeBytes, ReadEntriesCallback callback,
-                          Object ctx, PositionImpl maxPosition);
+                          Object ctx, Position maxPosition);
 
     /**
      * Get the read position. This points to the next message to be read from the cursor.
@@ -116,7 +121,7 @@ public interface ReadOnlyCursor {
      * @param range the range between two positions
      * @return the number of entries in range
      */
-    long getNumberOfEntries(Range<PositionImpl> range);
+    long getNumberOfEntries(Range<Position> range);
 
     /**
      * Close the cursor and releases the associated resources.

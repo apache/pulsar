@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.functions;
 
-import lombok.extern.slf4j.Slf4j;
+import java.io.ByteArrayOutputStream;
+import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumWriter;
 import org.apache.avro.io.BinaryEncoder;
@@ -33,24 +35,24 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.Record;
 
-import java.io.ByteArrayOutputStream;
-import java.util.stream.Collectors;
-
 /**
- * This function removes a "field" from a AVRO message
+ * This function removes a "field" from a AVRO message.
  */
-@Slf4j
+@CustomLog
 public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
 
     private static final String FIELD_TO_REMOVE = "age";
 
     @Override
+    @SuppressWarnings({"deprecation", "unchecked"})
     public Void process(GenericObject genericObject, Context context) throws Exception {
         Record<?> currentRecord = context.getCurrentRecord();
-        log.info("apply to {} {}", genericObject, genericObject.getNativeObject());
-        log.info("record with schema {} version {} {}", currentRecord.getSchema(),
-                currentRecord.getMessage().get().getSchemaVersion(),
-                currentRecord);
+        log.info().attr("object", genericObject)
+                .attr("nativeObject", genericObject.getNativeObject())
+                .log("apply");
+        log.info().attr("schema", currentRecord.getSchema())
+                .attr("version", currentRecord.getMessage().get().getSchemaVersion())
+                .attr("record", currentRecord).log("record with schema");
         Object nativeObject = genericObject.getNativeObject();
         Schema<?> schema = currentRecord.getSchema();
 
@@ -70,18 +72,22 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
                     org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
                     org.apache.avro.Schema originalAvroSchema = parser.parse(avroSchema.toString(false));
                     org.apache.avro.Schema modified = org.apache.avro.Schema.createRecord(
-                            originalAvroSchema.getName(), originalAvroSchema.getDoc(), originalAvroSchema.getNamespace(), originalAvroSchema.isError(),
+                            originalAvroSchema.getName(),
+                            originalAvroSchema.getDoc(),
+                            originalAvroSchema.getNamespace(),
+                            originalAvroSchema.isError(),
                             originalAvroSchema.getFields().
                                     stream()
                                     .filter(f->!f.name().equals(FIELD_TO_REMOVE))
-                                    .map(f-> new org.apache.avro.Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal(), f.order()))
+                                    .map(f-> new org.apache.avro.Schema.Field(
+                                            f.name(), f.schema(), f.doc(), f.defaultVal(), f.order()))
                                     .collect(Collectors.toList()));
 
                     KeyValue originalObject = (KeyValue) nativeObject;
 
                     GenericRecord value = (GenericRecord) originalObject.getValue();
-                    org.apache.avro.generic.GenericRecord genericRecord
-                            = (org.apache.avro.generic.GenericRecord) value.getNativeObject();
+                    org.apache.avro.generic.GenericRecord genericRecord =
+                            (org.apache.avro.generic.GenericRecord) value.getNativeObject();
 
                     org.apache.avro.generic.GenericRecord newRecord = new GenericData.Record(modified);
                     for (org.apache.avro.Schema.Field field : modified.getFields()) {
@@ -105,15 +111,19 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
                 org.apache.avro.Schema.Parser parser = new org.apache.avro.Schema.Parser();
                 org.apache.avro.Schema originalAvroSchema = parser.parse(avroSchema.toString(false));
                 org.apache.avro.Schema modified = org.apache.avro.Schema.createRecord(
-                        originalAvroSchema.getName(), originalAvroSchema.getDoc(), originalAvroSchema.getNamespace(), originalAvroSchema.isError(),
+                        originalAvroSchema.getName(),
+                        originalAvroSchema.getDoc(),
+                        originalAvroSchema.getNamespace(),
+                        originalAvroSchema.isError(),
                         originalAvroSchema.getFields().
                                 stream()
                                 .filter(f -> !f.name().equals(FIELD_TO_REMOVE))
-                                .map(f -> new org.apache.avro.Schema.Field(f.name(), f.schema(), f.doc(), f.defaultVal(), f.order()))
+                                .map(f -> new org.apache.avro.Schema.Field(
+                                        f.name(), f.schema(), f.doc(), f.defaultVal(), f.order()))
                                 .collect(Collectors.toList()));
 
-                org.apache.avro.generic.GenericRecord genericRecord
-                        = (org.apache.avro.generic.GenericRecord) nativeObject;
+                org.apache.avro.generic.GenericRecord genericRecord =
+                        (org.apache.avro.generic.GenericRecord) nativeObject;
                 org.apache.avro.generic.GenericRecord newRecord = new GenericData.Record(modified);
                 for (org.apache.avro.Schema.Field field : modified.getFields()) {
                     newRecord.put(field.name(), genericRecord.get(field.name()));
@@ -151,7 +161,8 @@ public class RemoveAvroFieldFunction implements Function<GenericObject, Void> {
                 outputObject = nativeObject;
             }
         }
-        log.info("output {} schema {}", outputObject, outputSchema);
+        log.info().attr("output", outputObject)
+                .attr("schema", outputSchema).log("output");
         context.newOutputMessage(context.getOutputTopic(), outputSchema)
                 .value(outputObject).send();
         return null;

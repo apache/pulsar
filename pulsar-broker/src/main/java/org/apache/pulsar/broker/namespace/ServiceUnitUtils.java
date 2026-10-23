@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,7 @@ public final class ServiceUnitUtils {
      */
     private static final String OWNER_INFO_ROOT = "/namespace";
 
-    static String path(NamespaceBundle suname) {
+    public static String path(NamespaceBundle suname) {
         // The ephemeral node path for new namespaces should always have bundle name appended
         return OWNER_INFO_ROOT + "/" + suname.toString();
     }
@@ -47,15 +47,9 @@ public final class ServiceUnitUtils {
         checkArgument(parts[1].equals("namespace"));
         checkArgument(parts.length > 4);
 
-        if (parts.length > 5) {
-            // this is a V1 path prop/cluster/namespace/hash
-            Range<Long> range = getHashRange(parts[5]);
-            return factory.getBundle(NamespaceName.get(parts[2], parts[3], parts[4]), range);
-        } else {
-            // this is a V2 path prop/namespace/hash
-            Range<Long> range = getHashRange(parts[4]);
-            return factory.getBundle(NamespaceName.get(parts[2], parts[3]), range);
-        }
+        // Path format: /namespace/tenant/namespace/hash
+        Range<Long> range = getHashRange(parts[4]);
+        return factory.getBundle(NamespaceName.get(parts[2], parts[3]), range);
     }
 
     private static Range<Long> getHashRange(String rangePathPart) {

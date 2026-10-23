@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,11 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Context;
 
-@Slf4j
+@CustomLog
 public class InitializableFunction extends TypedMessageBuilderPublish {
 
     private boolean initialized = false;

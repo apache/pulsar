@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -62,4 +62,13 @@ public interface ServiceNameResolver {
      */
     void updateServiceUrl(String serviceUrl) throws InvalidServiceURL;
 
+    /**
+     * Mark the availability of a host.
+     * @param address the host address to mark availability for
+     * @param isAvailable true if the host is available, false otherwise
+     */
+    default void markHostAvailability(InetSocketAddress address, boolean isAvailable){
+        // Default implementation does nothing
+        // Subclass can override this method to implement host availability tracking
+    }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,22 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.functions.source.PulsarRecord;
-import org.junit.Assert;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 public class SinkRecordTest {
 
     @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void testCustomAck() {
 
         PulsarRecord pulsarRecord = Mockito.mock(PulsarRecord.class);
-        SinkRecord sinkRecord = new SinkRecord<>(pulsarRecord, new Object());
+        SinkRecord sinkRecord = new SinkRecord(pulsarRecord, new Object());
 
         sinkRecord.cumulativeAck();
         Mockito.verify(pulsarRecord, Mockito.times(1)).cumulativeAck();
@@ -38,10 +41,10 @@ public class SinkRecordTest {
         sinkRecord = new SinkRecord(Mockito.mock(Record.class), new Object());
         try {
             sinkRecord.individualAck();
-            Assert.fail("Should throw runtime exception");
+            fail("Should throw runtime exception");
         } catch (Exception e) {
-            Assert.assertTrue(e instanceof RuntimeException);
-            Assert.assertEquals(e.getMessage(), "SourceRecord class type must be PulsarRecord");
+            assertTrue(e instanceof RuntimeException);
+            assertEquals(e.getMessage(), "SourceRecord class type must be PulsarRecord");
         }
     }
 }

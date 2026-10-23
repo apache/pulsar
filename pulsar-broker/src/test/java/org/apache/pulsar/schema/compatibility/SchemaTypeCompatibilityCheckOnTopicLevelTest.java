@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -221,6 +221,7 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
                                 .withPojo(Schemas.PersonThree.class).build()))
                 .topic(topicName).create();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testUpdateSchemaCompatibilityStrategyRepeatedly()
@@ -289,7 +290,8 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends MockedPulsarSe
                 .topic(topicName).create();
 
         // Set SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE on topic level.
-        admin.topicPolicies().setSchemaCompatibilityStrategy(topicName,SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
+        admin.topicPolicies().setSchemaCompatibilityStrategy(topicName,
+                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
         Awaitility.await().untilAsserted(
                 () -> assertEquals(admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));

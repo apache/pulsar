@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -46,7 +46,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
     }
 
     @BeforeMethod()
-    public void setup() throws Exception {
+    public void start() throws Exception {
         PackagesStorageProvider provider = PackagesStorageProvider
             .newProvider(BookKeeperPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
@@ -58,7 +58,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
     }
 
     @AfterMethod(alwaysRun = true)
-    public void teardown() throws Exception {
+    public void close() throws Exception {
         if (storage != null) {
             storage.closeAsync().get();
         }
@@ -90,6 +90,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         assertEquals(testData, readResult);
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 60000)
     public void testReadWriteLargeDataOperations() throws ExecutionException, InterruptedException {
         byte[] data = RandomUtils.nextBytes(8192 * 3 + 4096);
@@ -168,7 +169,7 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         storage.deleteAsync(testPath).get();
 
         // list again and not file under the path
-        paths= storage.listAsync("").get();
+        paths = storage.listAsync("").get();
         assertEquals(paths.size(), 0);
 
 

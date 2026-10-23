@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -54,14 +54,14 @@ public class RecordSchemaBuilderImpl implements RecordSchemaBuilder {
     }
 
     @Override
-    public FieldSchemaBuilder field(String fieldName) {
+    public FieldSchemaBuilder<?> field(String fieldName) {
         FieldSchemaBuilderImpl field = new FieldSchemaBuilderImpl(fieldName);
         fields.add(field);
         return field;
     }
 
     @Override
-    public FieldSchemaBuilder field(String fieldName, GenericSchema genericSchema) {
+    public FieldSchemaBuilder<?> field(String fieldName, GenericSchema<?> genericSchema) {
         FieldSchemaBuilderImpl field = new FieldSchemaBuilderImpl(fieldName, genericSchema);
         fields.add(field);
         return field;
@@ -108,6 +108,7 @@ public class RecordSchemaBuilderImpl implements RecordSchemaBuilder {
             name,
             baseSchema.toString().getBytes(UTF_8),
             schemaType,
+            System.currentTimeMillis(),
             properties
         );
     }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,9 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessagePayloadFactory;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResourcesBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.api.schema.GenericSchema;
 import org.apache.pulsar.client.api.schema.RecordSchemaBuilder;
@@ -112,13 +114,20 @@ public interface PulsarClientImplementationBinding {
 
     Schema<LocalDateTime> newLocalDateTimeSchema();
 
+    // SchemaDefinition is intentionally raw here because callers like Schema.AVRO(Class)
+    // build SchemaDefinition via builder().withPojo(clazz).build() which erases the type
+    @SuppressWarnings("rawtypes")
     <T> Schema<T> newAvroSchema(SchemaDefinition schemaDefinition);
 
-    <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufSchema(SchemaDefinition schemaDefinition);
-
-    <T extends com.google.protobuf.GeneratedMessageV3> Schema<T> newProtobufNativeSchema(
+    @SuppressWarnings("rawtypes")
+    <T extends com.google.protobuf.Message> Schema<T> newProtobufSchema(
             SchemaDefinition schemaDefinition);
 
+    @SuppressWarnings("rawtypes")
+    <T extends com.google.protobuf.Message> Schema<T> newProtobufNativeSchema(
+            SchemaDefinition schemaDefinition);
+
+    @SuppressWarnings("rawtypes")
     <T> Schema<T> newJSONSchema(SchemaDefinition schemaDefinition);
 
     Schema<GenericRecord> newAutoConsumeSchema();
@@ -130,8 +139,6 @@ public interface PulsarClientImplementationBinding {
     Schema<byte[]> newAutoProduceValidatedAvroSchema(Object schema);
 
     Schema<KeyValue<byte[], byte[]>> newKeyValueBytesSchema();
-
-    <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema);
 
     <K, V> Schema<KeyValue<K, V>> newKeyValueSchema(Schema<K> keySchema, Schema<V> valueSchema,
                                                            KeyValueEncodingType keyValueEncodingType);
@@ -252,5 +259,10 @@ public interface PulsarClientImplementationBinding {
         return array;
     }
 
-    SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, Map<String, String> propertiesValue);
+    SchemaInfo newSchemaInfoImpl(String name, byte[] schema, SchemaType type, long timestamp,
+                                 Map<String, String> propertiesValue);
+
+    TopicMessageId newTopicMessageId(String topic, MessageId messageId);
+
+    PulsarClientSharedResourcesBuilder newSharedResourcesBuilder();
 }

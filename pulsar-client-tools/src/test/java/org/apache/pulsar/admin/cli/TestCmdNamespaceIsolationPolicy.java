@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import org.testng.annotations.Test;
 
 public class TestCmdNamespaceIsolationPolicy {
     @Test
+    @SuppressWarnings("unchecked")
     public void testValidateListMethodToReturnNonNullStringList() {
         List<String> mockList = Lists.newArrayList("", "1", "", "", "1", "2", "3", "4", "", "", "", "1", "");
         List<String> resultList = Lists.newArrayList("1", "1", "2", "3", "4", "1");

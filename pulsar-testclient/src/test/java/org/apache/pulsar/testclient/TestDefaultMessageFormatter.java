@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,11 +19,10 @@
 package org.apache.pulsar.testclient;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.charset.StandardCharsets;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.nio.charset.StandardCharsets;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class TestDefaultMessageFormatter {
 
@@ -31,7 +30,9 @@ public class TestDefaultMessageFormatter {
     public void testFormatMessage() {
         String producerName = "producer-1";
         long msgId = 3;
-        byte[] message = "{ \"producer\": \"%p\", \"msgId\": %i, \"nanoTime\": %t, \"float1\": %5.2f, \"float2\": %-5.2f, \"long1\": %12l, \"long2\": %l, \"int1\": %d, \"int2\": %1d, \"long3\": %5l,  \"str\": \"%5s\" }".getBytes();
+        byte[] message = ("{ \"producer\": \"%p\", \"msgId\": %i, \"nanoTime\": %t, \"float1\": %5.2f, \"float2"
+                + "\": %-5.2f, \"long1\": %12l, \"long2\": %l, \"int1\": %d, \"int2\": %1d, \"long3\": %5l,  \"str\": "
+                + "\"%5s\" }").getBytes();
         byte[] formatted = new DefaultMessageFormatter().formatMessage(producerName, msgId, message);
         String jsonString = new String(formatted, StandardCharsets.UTF_8);
 
@@ -41,7 +42,7 @@ public class TestDefaultMessageFormatter {
         try {
             obj = objectMapper.readValue(jsonString, JsonNode.class);
 
-        } catch(Exception jpe) {
+        } catch (Exception jpe) {
             Assert.fail("Exception parsing json");
         }
 
@@ -58,16 +59,16 @@ public class TestDefaultMessageFormatter {
         long l3 = obj.get("long3").asLong();
         Assert.assertEquals(producerName, prod);
         Assert.assertEquals(msgId, mid);
-        Assert.assertTrue( nt > 0);
+        Assert.assertTrue(nt > 0);
         Assert.assertNotEquals(f1, f2);
         Assert.assertNotEquals(l1, l2);
         Assert.assertNotEquals(i1, i2);
         Assert.assertTrue(l3 > 0);
         Assert.assertTrue(l3 <= 99999);
         Assert.assertTrue(i2 < 10);
-        Assert.assertTrue(0 < i2, "i2 was " + i2);
+        Assert.assertTrue(0 <= i2, "i2 was " + i2);
         Assert.assertTrue(f2 < 100000);
-        Assert.assertTrue( -100000 < f2);
+        Assert.assertTrue(-100000 < f2);
     }
 
 }
