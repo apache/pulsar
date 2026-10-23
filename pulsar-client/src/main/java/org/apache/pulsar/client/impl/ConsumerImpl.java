@@ -917,9 +917,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         + client.getConfiguration().getOperationTimeoutMs());
 
         int currentSize;
+        long cnxEpoch;
         synchronized (this) {
             currentSize = incomingMessages.size();
             setClientCnx(cnx);
+            cnxEpoch = connectionHandler.getEpoch();
             clearReceiverQueue(true);
             if (possibleSendToDeadLetterTopicMessages != null) {
                 possibleSendToDeadLetterTopicMessages.clear();
@@ -968,6 +970,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
+                    if (connectionHandler.isSupersededAttempt(cnx, cnxEpoch)) {
+                        log.debug().attr("connection", cnx.channel())
+                                .log("Ignoring the response to a superseded subscribe attempt");
+                        return;
+                    }
                     if (changeToReadyState()) {
                         consumerIsReconnectedToBroker(cnx, currentSize);
                     } else {
@@ -994,6 +1001,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 acknowledgmentsGroupingTracker.flush();
                 future.complete(null);
             }).exceptionally((e) -> {
+                if (connectionHandler.isSupersededAttempt(cnx, cnxEpoch)) {
+                    // The consumer was disconnected from cnx, or subscribed again, while this attempt was pending.
+                    // Its failure must neither unregister the consumer from its current connection nor reconnect it,
+                    // so the attempt's future is left incomplete.
+                    log.debug().attr("connection", cnx.channel()).exceptionMessage(e.getCause())
+                            .log("Ignoring the failure of a superseded subscribe attempt");
+                    return null;
+                }
                 deregisterFromClientCnx();
                 if (getState() == State.Closing || getState() == State.Closed) {
                     // Consumer was closed while reconnecting, close the connection to make sure the broker
@@ -3277,7 +3292,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     void setClientCnx(ClientCnx clientCnx) {
         if (clientCnx != null) {
-            this.connectionHandler.setClientCnx(clientCnx);
+            // Starts a new connection attempt, see ConnectionHandler#isSupersededAttempt
+            this.connectionHandler.switchClientCnx(clientCnx);
             clientCnx.registerConsumer(consumerId, this);
             if (conf.isAckReceiptEnabled()
                     && !Commands.peerSupportsAckReceipt(clientCnx.getRemoteEndpointProtocolVersion())) {

@@ -2225,6 +2225,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         conf.getAccessMode(), topicEpoch, client.conf.isEnableTransaction(),
                         conf.getInitialSubscriptionName()),
                 requestId).thenAccept(response -> {
+            if (connectionHandler.isSupersededAttempt(cnx, epoch)) {
+                log.debug().attr("connection", cnx.channel())
+                        .log("Ignoring the response to a superseded create producer attempt");
+                return;
+            }
             String producerName = response.getProducerName();
             long lastSequenceId = response.getLastSequenceId();
             schemaVersion = Optional.ofNullable(response.getSchemaVersion());
@@ -2272,6 +2277,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             future.complete(null);
         }).exceptionally((e) -> {
+            if (connectionHandler.isSupersededAttempt(cnx, epoch)) {
+                // The producer was disconnected from cnx, or connected again, while this attempt was pending. Its
+                // failure must neither unregister the producer from its current connection nor reconnect it, so the
+                // attempt's future is left incomplete.
+                log.debug().attr("connection", cnx.channel()).exceptionMessage(e.getCause())
+                        .log("Ignoring the failure of a superseded create producer attempt");
+                return null;
+            }
             Throwable cause = e.getCause();
             cnx.removeProducer(producerId);
             State state = getState();
