@@ -19,11 +19,17 @@
 package org.apache.pulsar.broker.transaction.buffer;
 
 import java.util.concurrent.CompletableFuture;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 
 
 public interface AbortedTxnProcessor {
+
+    enum SnapshotType {
+        Single,
+        Segment,
+    }
 
     /**
      * After the transaction buffer writes a transaction aborted marker to the topic,
@@ -31,7 +37,7 @@ public interface AbortedTxnProcessor {
      * @param txnID aborted transaction ID.
      * @param abortedMarkerPersistentPosition the position of the abort txn marker.
      */
-    void putAbortedTxnAndPosition(TxnID txnID, PositionImpl abortedMarkerPersistentPosition);
+    void putAbortedTxnAndPosition(TxnID txnID, Position abortedMarkerPersistentPosition);
 
     /**
      * Clean up invalid aborted transactions.
@@ -50,7 +56,7 @@ public interface AbortedTxnProcessor {
      * @return a Position (startReadCursorPosition) determiner where to start to recover in the original topic.
      */
 
-    CompletableFuture<PositionImpl> recoverFromSnapshot();
+    CompletableFuture<Position> recoverFromSnapshot();
 
     /**
      * Delete the transaction buffer aborted transaction snapshot.
@@ -62,13 +68,14 @@ public interface AbortedTxnProcessor {
      * Take aborted transactions snapshot.
      * @return a completableFuture.
      */
-    CompletableFuture<Void> takeAbortedTxnsSnapshot(PositionImpl maxReadPosition);
+    CompletableFuture<Void> takeAbortedTxnsSnapshot(Position maxReadPosition);
 
     /**
      * Get the lastSnapshotTimestamps.
-     * @return the lastSnapshotTimestamps.
+     *
+     * @return a transactionBufferStats with the stats in the abortedTxnProcessor.
      */
-    long getLastSnapshotTimestamps();
+    TransactionBufferStats generateSnapshotStats(boolean segmentStats);
 
     CompletableFuture<Void> closeAsync();
 

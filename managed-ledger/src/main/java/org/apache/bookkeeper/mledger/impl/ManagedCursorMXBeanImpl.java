@@ -90,7 +90,8 @@ public class ManagedCursorMXBeanImpl implements ManagedCursorMXBean {
 
     @Override
     public void addWriteCursorLedgerSize(final long size) {
-        writeCursorLedgerSize.add(size * ((ManagedCursorImpl) managedCursor).config.getWriteQuorumSize());
+        writeCursorLedgerSize.add(
+                size * managedCursor.getManagedLedger().getConfig().getWriteQuorumSize());
         writeCursorLedgerLogicalSize.add(size);
     }
 

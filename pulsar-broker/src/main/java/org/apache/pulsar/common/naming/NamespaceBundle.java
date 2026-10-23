@@ -30,7 +30,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
     private final NamespaceBundleFactory factory;
     // Issue#596: remove this once we remove broker persistent/non-persistent mode configuration
     // it is used by load-manager while considering bundle ownership
-    private boolean hasNonPersistentTopic = false;
+    private volatile boolean hasNonPersistentTopic = false;
     private final String key;
     private final String bundleRange;
 
@@ -127,7 +127,7 @@ public class NamespaceBundle implements ServiceUnitId, Comparable<NamespaceBundl
         return String.format("%s/0x%08x_0x%08x", nsname, keyRange.lowerEndpoint(), keyRange.upperEndpoint());
     }
 
-    Range<Long> getKeyRange() {
+    public Range<Long> getKeyRange() {
         return this.keyRange;
     }
 

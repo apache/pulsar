@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.MessageId;
  * This is useful when MessageId is need for partition/multi-topics/pattern consumer.
  * e.g. seek(), ackCumulative(), getLastMessageId().
  */
+@Deprecated
 public class MultiMessageIdImpl implements MessageId {
     @Getter
     private Map<String, MessageId> map;

@@ -25,6 +25,8 @@ import java.util.Optional;
  * For backwards compatibility purposes.
  */
 public interface ServiceLookupData {
+    String getBrokerId();
+
     String getWebServiceUrl();
 
     String getWebServiceUrlTls();
@@ -47,5 +49,9 @@ public interface ServiceLookupData {
      * @return the optional protocol data advertised by the broker.
      */
     Optional<String> getProtocol(String protocol);
+
+    String getLoadManagerClassName();
+
+    long getStartTimestamp();
 
 }

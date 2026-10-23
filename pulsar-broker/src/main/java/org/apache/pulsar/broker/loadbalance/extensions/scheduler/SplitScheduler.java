@@ -22,14 +22,16 @@ import static org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecisi
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.SplitManager;
@@ -43,7 +45,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 /**
  * Service Unit(e.g. bundles) Split scheduler.
  */
-@Slf4j
+@CustomLog
 public class SplitScheduler implements LoadManagerScheduler {
 
     private final PulsarService pulsar;
@@ -98,10 +100,11 @@ public class SplitScheduler implements LoadManagerScheduler {
 
     @Override
     public void execute() {
-        boolean debugMode = conf.isLoadBalancerDebugModeEnabled() || log.isDebugEnabled();
+        boolean debugMode = ExtensibleLoadManagerImpl.debug(conf, log);
         if (debugMode) {
-            log.info("Load balancer enabled: {}, Split enabled: {}.",
-                    conf.isLoadBalancerEnabled(), conf.isLoadBalancerAutoBundleSplitEnabled());
+            log.info().attr("loadBalancerEnabled", conf.isLoadBalancerEnabled())
+                    .attr("splitEnabled", conf.isLoadBalancerAutoBundleSplitEnabled())
+                    .log("Load balancer and split enablement");
         }
 
         if (!isLoadBalancerAutoBundleSplitEnabled()) {
@@ -113,8 +116,10 @@ public class SplitScheduler implements LoadManagerScheduler {
 
         synchronized (bundleSplitStrategy) {
             final Set<SplitDecision> decisions = bundleSplitStrategy.findBundlesToSplit(context, pulsar);
+            if (debugMode) {
+                log.info().attr("decisions", decisions).log("Split Decisions");
+            }
             if (!decisions.isEmpty()) {
-
                 // currently following the unloading timeout
                 var asyncOpTimeoutMs = conf.getNamespaceBundleUnloadingTimeoutMs();
                 List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -134,7 +139,7 @@ public class SplitScheduler implements LoadManagerScheduler {
                     FutureUtil.waitForAll(futures)
                             .get(asyncOpTimeoutMs, TimeUnit.MILLISECONDS);
                 } catch (Throwable e) {
-                    log.error("Failed to wait for split events to persist.", e);
+                    log.error().exception(e).log("Failed to wait for split events to persist");
                 }
             } else {
                 if (debugMode) {
@@ -156,8 +161,16 @@ public class SplitScheduler implements LoadManagerScheduler {
         task = loadManagerExecutor.scheduleAtFixedRate(() -> {
             try {
                 execute();
+                var debugMode = ExtensibleLoadManagerImpl.debug(conf, log);
+                if (debugMode) {
+                    StringJoiner joiner = new StringJoiner("\n");
+                    joiner.add("### OwnershipEntrySet start ###");
+                    serviceUnitStateChannel.getOwnershipEntrySet().forEach(e -> joiner.add(e.toString()));
+                    joiner.add("### OwnershipEntrySet end ###");
+                    log.info(joiner.toString());
+                }
             } catch (Throwable e) {
-                log.error("Failed to run the split job.", e);
+                log.error().exception(e).log("Failed to run the split job");
             }
         }, interval, interval, TimeUnit.MILLISECONDS);
     }

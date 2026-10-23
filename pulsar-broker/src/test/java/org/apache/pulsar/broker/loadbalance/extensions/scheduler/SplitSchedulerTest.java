@@ -27,8 +27,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
-import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
@@ -38,8 +39,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.manager.SplitManager;
 import org.apache.pulsar.broker.loadbalance.extensions.models.Split;
-import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.models.SplitCounter;
+import org.apache.pulsar.broker.loadbalance.extensions.models.SplitDecision;
 import org.apache.pulsar.broker.loadbalance.extensions.strategy.NamespaceBundleSplitStrategy;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.stats.Metrics;
@@ -57,6 +58,15 @@ public class SplitSchedulerTest {
     NamespaceBundleSplitStrategy strategy;
     String bundle1 = "tenant/namespace/0x00000000_0xFFFFFFFF";
     String bundle2 = "tenant/namespace/0x00000000_0x0FFFFFFF";
+
+    String childBundle12 = "tenant/namespace/0x7fffffff_0xffffffff";
+
+    String childBundle11 = "tenant/namespace/0x00000000_0x7fffffff";
+
+    String childBundle22 = "tenant/namespace/0x7fffffff_0x0fffffff";
+
+    String childBundle21 = "tenant/namespace/0x00000000_0x7fffffff";
+
     String broker = "broker-1";
     SplitDecision decision1;
     SplitDecision decision2;
@@ -78,19 +88,24 @@ public class SplitSchedulerTest {
         doReturn(CompletableFuture.completedFuture(null)).when(channel).publishSplitEventAsync(any());
 
         decision1 = new SplitDecision();
-        decision1.setSplit(new Split(bundle1, broker, new HashMap<>()));
+        Split split = new Split(bundle1, broker, Map.of(
+                childBundle11, Optional.empty(), childBundle12, Optional.empty()));
+        decision1.setSplit(split);
         decision1.succeed(SplitDecision.Reason.MsgRate);
 
         decision2 = new SplitDecision();
-        decision2.setSplit(new Split(bundle2, broker, new HashMap<>()));
+        Split split2 = new Split(bundle2, broker, Map.of(
+                childBundle21, Optional.empty(), childBundle22, Optional.empty()));
+        decision2.setSplit(split2);
         decision2.succeed(SplitDecision.Reason.Sessions);
         Set<SplitDecision> decisions = Set.of(decision1, decision2);
         doReturn(decisions).when(strategy).findBundlesToSplit(any(), any());
     }
 
     @Test(timeOut = 30 * 1000)
+    @SuppressWarnings("unchecked")
     public void testExecuteSuccess() {
-        AtomicReference<List<Metrics>> reference = new AtomicReference();
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
         SplitCounter counter = new SplitCounter();
         SplitManager manager = mock(SplitManager.class);
         SplitScheduler scheduler = new SplitScheduler(pulsar, channel, manager, counter, reference, context, strategy);
@@ -119,8 +134,9 @@ public class SplitSchedulerTest {
     }
 
     @Test(timeOut = 30 * 1000)
+    @SuppressWarnings("unchecked")
     public void testExecuteFailure() {
-        AtomicReference<List<Metrics>> reference = new AtomicReference();
+        AtomicReference<List<Metrics>> reference = new AtomicReference<>();
         SplitCounter counter = new SplitCounter();
         SplitManager manager = new SplitManager(counter);
         SplitScheduler scheduler = new SplitScheduler(pulsar, channel, manager, counter, reference, context, strategy);
