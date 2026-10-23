@@ -321,6 +321,18 @@ public class PulsarRegistrationClient implements RegistrationClient {
         if (info != null) {
             return completedFuture(info);
         } else {
+            // The bookie can be registered and still missing here, if reading its info failed when it
+            // registered. Reload it in background, without waiting, so that a retry can find it.
+            readBookieInfoAsWritableBookie(bookieId)
+                    .thenCompose(writable -> writable.isPresent()
+                            ? completedFuture(writable)
+                            : readBookieInfoAsReadonlyBookie(bookieId))
+                    .exceptionally(ex -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("Failed to reload the bookie info for {}: {}", bookieId, ex.getMessage());
+                        }
+                        return null;
+                    });
             return FutureUtils.exception(new BKException.BKBookieHandleNotAvailableException());
         }
     }
