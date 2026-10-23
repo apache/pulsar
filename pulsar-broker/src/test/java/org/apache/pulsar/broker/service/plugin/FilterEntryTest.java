@@ -28,16 +28,20 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -645,5 +649,48 @@ public class FilterEntryTest extends BrokerTestBase {
         verify(mockFilterAccept, times(10))
                 .filterEntry(any(Entry.class), any(FilterContext.class));
 
+    }
+
+    @Test
+    public void testAnalyzeBacklogDoesNotShareDispatcherFilterContext() throws Exception {
+        conf.setAllowOverrideEntryFilters(true);
+        String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
+        String subName = "sub";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topic).create();
+
+        // The dispatcher passes the consumer to the filters, the backlog analysis passes null
+        Set<FilterContext> dispatchContexts = Collections.synchronizedSet(
+                Collections.newSetFromMap(new IdentityHashMap<>()));
+        Set<FilterContext> analyzeContexts = Collections.synchronizedSet(
+                Collections.newSetFromMap(new IdentityHashMap<>()));
+        EntryFilter recordingFilter = mock(EntryFilter.class);
+        doAnswer(invocation -> {
+            FilterContext context = invocation.getArgument(1);
+            (context.getConsumer() != null ? dispatchContexts : analyzeContexts).add(context);
+            return EntryFilter.FilterResult.ACCEPT;
+        }).when(recordingFilter).filterEntry(any(Entry.class), any(FilterContext.class));
+        setMockFilterToTopic((PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(topic).get(), List.of(recordingFilter));
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName(subName).subscribe();
+        for (int i = 0; i < 10; i++) {
+            producer.send("test");
+        }
+        // Receive without acking, so the messages stay in the backlog for the analysis
+        for (int i = 0; i < 10; i++) {
+            assertNotNull(consumer.receive(5, TimeUnit.SECONDS));
+        }
+
+        verifyBacklog(topic, subName, 10, 10, 0, 10, 10, 0, 0, 0, 0);
+
+        assertFalse(dispatchContexts.isEmpty());
+        assertFalse(analyzeContexts.isEmpty());
+        for (FilterContext context : analyzeContexts) {
+            assertFalse(dispatchContexts.contains(context));
+        }
     }
 }
