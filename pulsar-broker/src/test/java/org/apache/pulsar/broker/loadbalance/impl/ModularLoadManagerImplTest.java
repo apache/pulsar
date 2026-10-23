@@ -694,10 +694,11 @@ public class ModularLoadManagerImplTest {
 
     @Test
     public void testBrokerAffinityLookupUsesFullBundleName() throws Exception {
-        String affinityBroker1 = "affinity-broker-1";
-        String affinityBroker2 = "affinity-broker-2";
+        String affinityBroker1 = pulsar1.getBrokerId();
+        String affinityBroker2 = pulsar2.getBrokerId();
         NamespaceBundle bundle1 = makeBundle("tenant-1", "ns-1");
         NamespaceBundle bundle2 = makeBundle("tenant-1", "ns-2");
+        primaryLoadManager.updateAll();
 
         LoadManager wrapper = pulsar1.getLoadManager().get();
         wrapper.setNamespaceBundleAffinity(bundle1.toString(), affinityBroker1);
@@ -710,6 +711,37 @@ public class ModularLoadManagerImplTest {
         Assert.assertTrue(leastLoadedBroker2.isPresent());
         Assert.assertEquals(leastLoadedBroker1.get().getResourceId(), affinityBroker1);
         Assert.assertEquals(leastLoadedBroker2.get().getResourceId(), affinityBroker2);
+    }
+
+    @Test
+    public void testBrokerAffinityAppliesToEveryLookupUntilOwned() throws Exception {
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+        // A previous assignment is preallocated before the bundle is unloaded to a destination broker.
+        String preallocatedBroker = primaryLoadManager.selectBrokerForAssignment(bundle).get();
+        String affinityBroker = preallocatedBroker.equals(pulsar1.getBrokerId())
+                ? pulsar2.getBrokerId() : pulsar1.getBrokerId();
+
+        LoadManager wrapper = pulsar1.getLoadManager().get();
+        wrapper.setNamespaceBundleAffinity(bundle.toString(), affinityBroker);
+
+        for (int i = 0; i < 10; i++) {
+            assertEquals(wrapper.getLeastLoaded(bundle).get().getResourceId(), affinityBroker);
+        }
+    }
+
+    @Test
+    public void testBrokerAffinityToUnavailableBrokerIsIgnored() throws Exception {
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+
+        LoadManager wrapper = pulsar1.getLoadManager().get();
+        wrapper.setNamespaceBundleAffinity(bundle.toString(), "unavailable-broker");
+
+        String broker = wrapper.getLeastLoaded(bundle).get().getResourceId();
+        assertTrue(Set.of(pulsar1.getBrokerId(), pulsar2.getBrokerId()).contains(broker));
+        // The affinity is consumed, so the next lookup gets the same preallocated broker.
+        assertEquals(wrapper.getLeastLoaded(bundle).get().getResourceId(), broker);
     }
 
     /**

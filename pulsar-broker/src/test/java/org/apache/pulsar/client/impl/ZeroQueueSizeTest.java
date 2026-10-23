@@ -285,22 +285,30 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         }
 
         Producer<byte[]> producer = producerBuilder.create();
+        // send asynchronously so the messages are grouped into batches: a synchronous send would flush a batch
+        // with a single message, which the producer publishes as a non-batched message
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
-            producer.send(message.getBytes());
+            producer.sendAsync(message.getBytes());
         }
+        producer.flush();
 
-        try {
-            consumer.receiveAsync().handle((ok, e) -> {
-                if (e == null) {
-                    // as zero receiverQueueSize doesn't support batch message, must receive exception at callback.
-                    Assert.fail();
-                }
-                return null;
-            });
-        } finally {
-            consumer.close();
-        }
+        AtomicReference<Throwable> exceptionRef = new AtomicReference<>();
+
+        consumer.receiveAsync().handle((ok, e) -> {
+            // as zero receiverQueueSize doesn't support batch message, must receive exception at callback.
+            exceptionRef.set(e);
+            return null;
+        });
+        Awaitility.await().untilAsserted(() -> assertNotNull(exceptionRef.get()));
+        assertEquals(exceptionRef.get().getClass(), PulsarClientException.InvalidMessageException.class);
+        assertEquals(exceptionRef.get().getMessage(),
+                String.format("Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
+                        consumer.getSubscription(), consumer.getConsumerName()));
+        // zeroConsumerImpl will close when received batch message.
+        Awaitility.await().untilAsserted(()-> Assert.assertFalse(consumer.isConnected()));
+
+        producer.close();
     }
 
     @Test
