@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.conf;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.BatcherBuilder;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.testng.Assert;
@@ -202,6 +204,39 @@ public class ConfigurationDataUtilsTest {
         config.put("receiverQueueSize", 100);
         try {
             ConfigurationDataUtils.loadData(config, confData, ReaderConfigurationData.class);
+            fail("Should fail loading configuration data with unknown fields");
+        } catch (RuntimeException re) {
+            assertTrue(re.getCause() instanceof IOException);
+        }
+    }
+
+    @Test
+    public void testUpdateDataKeepsPropertiesNotInMap() {
+        ReaderConfigurationData<byte[]> confData = new ReaderConfigurationData<>();
+        confData.setTopicName("test-topic");
+        confData.setReaderName("unknown-reader");
+        confData.setStartMessageId(MessageId.earliest);
+        Map<String, Object> config = new HashMap<>();
+        config.put("readerName", "test-reader");
+        config.put("receiverQueueSize", 100);
+
+        ReaderConfigurationData<byte[]> updated = ConfigurationDataUtils.updateData(config, confData.clone());
+        assertEquals(updated.getReaderName(), "test-reader");
+        assertEquals(updated.getReceiverQueueSize(), 100);
+        assertEquals(updated.getTopicName(), "test-topic");
+        // Not serialized, so it would be lost by a round-trip through JSON
+        assertSame(updated.getStartMessageId(), MessageId.earliest);
+        // The copy was updated, not the original
+        assertEquals(confData.getReaderName(), "unknown-reader");
+    }
+
+    @Test
+    public void testUpdateDataWithUnknownFields() {
+        ReaderConfigurationData<byte[]> confData = new ReaderConfigurationData<>();
+        Map<String, Object> config = new HashMap<>();
+        config.put("unknown", "test-topic");
+        try {
+            ConfigurationDataUtils.updateData(config, confData);
             fail("Should fail loading configuration data with unknown fields");
         } catch (RuntimeException re) {
             assertTrue(re.getCause() instanceof IOException);

@@ -28,6 +28,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.annotation.JsonIgnoreType;
@@ -487,6 +488,7 @@ public class ConsumerBuilderImplTest {
         MessagePayloadProcessor payloadProcessor = createMockMessagePayloadProcessor();
         conf.put("payloadProcessor", payloadProcessor);
 
+        ConsumerConfigurationData<byte[]> original = consumerBuilder.getConf().clone();
         consumerBuilder.loadConf(conf);
 
         ConsumerConfigurationData<byte[]> configurationData = consumerBuilder.getConf();
@@ -531,22 +533,23 @@ public class ConsumerBuilderImplTest {
         assertTrue(configurationData.isStartPaused());
         assertTrue(configurationData.isAutoScaledReceiverQueueSizeEnabled());
 
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getConsumerEventListener());
-        assertNull(configurationData.getNegativeAckRedeliveryBackoff());
-        assertNull(configurationData.getAckTimeoutRedeliveryBackoff());
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getMessageCrypto());
-        assertNull(configurationData.getCryptoKeyReader());
-        assertNull(configurationData.getBatchReceivePolicy());
-        assertNull(configurationData.getKeySharedPolicy());
-        assertNull(configurationData.getPayloadProcessor());
+        // Properties that are not serialized can't be set from the map, and keep the values set on the builder
+        assertSame(configurationData.getMessageListener(), original.getMessageListener());
+        assertSame(configurationData.getConsumerEventListener(), original.getConsumerEventListener());
+        assertSame(configurationData.getNegativeAckRedeliveryBackoff(), original.getNegativeAckRedeliveryBackoff());
+        assertSame(configurationData.getAckTimeoutRedeliveryBackoff(), original.getAckTimeoutRedeliveryBackoff());
+        assertSame(configurationData.getMessageCrypto(), original.getMessageCrypto());
+        assertSame(configurationData.getCryptoKeyReader(), original.getCryptoKeyReader());
+        assertSame(configurationData.getBatchReceivePolicy(), original.getBatchReceivePolicy());
+        assertSame(configurationData.getKeySharedPolicy(), original.getKeySharedPolicy());
+        assertSame(configurationData.getPayloadProcessor(), original.getPayloadProcessor());
     }
 
     @Test
     public void testLoadConfNotModified() {
         ConsumerBuilderImpl<byte[]> consumerBuilder = createConsumerBuilder();
 
+        ConsumerConfigurationData<byte[]> original = consumerBuilder.getConf().clone();
         consumerBuilder.loadConf(new HashMap<>());
 
         ConsumerConfigurationData<byte[]> configurationData = consumerBuilder.getConf();
@@ -591,16 +594,16 @@ public class ConsumerBuilderImplTest {
         assertFalse(configurationData.isStartPaused());
         assertFalse(configurationData.isAutoScaledReceiverQueueSizeEnabled());
 
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getConsumerEventListener());
-        assertNull(configurationData.getNegativeAckRedeliveryBackoff());
-        assertNull(configurationData.getAckTimeoutRedeliveryBackoff());
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getMessageCrypto());
-        assertNull(configurationData.getCryptoKeyReader());
-        assertNull(configurationData.getBatchReceivePolicy());
-        assertNull(configurationData.getKeySharedPolicy());
-        assertNull(configurationData.getPayloadProcessor());
+        // Properties that are not serialized can't be set from the map, and keep the values set on the builder
+        assertSame(configurationData.getMessageListener(), original.getMessageListener());
+        assertSame(configurationData.getConsumerEventListener(), original.getConsumerEventListener());
+        assertSame(configurationData.getNegativeAckRedeliveryBackoff(), original.getNegativeAckRedeliveryBackoff());
+        assertSame(configurationData.getAckTimeoutRedeliveryBackoff(), original.getAckTimeoutRedeliveryBackoff());
+        assertSame(configurationData.getMessageCrypto(), original.getMessageCrypto());
+        assertSame(configurationData.getCryptoKeyReader(), original.getCryptoKeyReader());
+        assertSame(configurationData.getBatchReceivePolicy(), original.getBatchReceivePolicy());
+        assertSame(configurationData.getKeySharedPolicy(), original.getKeySharedPolicy());
+        assertSame(configurationData.getPayloadProcessor(), original.getPayloadProcessor());
     }
 
     @Test

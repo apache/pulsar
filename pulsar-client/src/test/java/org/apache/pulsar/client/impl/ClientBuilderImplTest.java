@@ -33,6 +33,7 @@ import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -159,6 +160,38 @@ public class ClientBuilderImplTest {
         confProps.put(AUTH_PARAM_MAP_PROP, secretAuthParamMap("pass2"));
         Authentication auth = createClientAndGetAuth(confProps);
         assertAuthWithSecret(auth, "pass1");
+    }
+
+    @Test
+    public void testLoadConfAfterAuthenticationWithAuthParams() throws Exception {
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParams("pass1"))
+                .loadConf(Collections.singletonMap("operationTimeoutMs", 5000));
+        assertAuthWithSecret(buildClientAndGetAuth(builder), "pass1");
+    }
+
+    @Test
+    public void testLoadConfAfterAuthenticationWithAuthParamMap() throws Exception {
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParamMap("pass1"))
+                .loadConf(Collections.singletonMap("operationTimeoutMs", 5000));
+        assertAuthWithSecret(buildClientAndGetAuth(builder), "pass1");
+    }
+
+    @Test
+    public void testLoadConfAfterAuthenticationInstance() throws Exception {
+        MockAuthenticationSecret auth = new MockAuthenticationSecret();
+        auth.configure(secretAuthParams("pass1"));
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(auth)
+                .loadConf(Collections.singletonMap("operationTimeoutMs", 5000));
+        assertAuthWithSecret(buildClientAndGetAuth(builder), "pass1");
+    }
+
+    private Authentication buildClientAndGetAuth(ClientBuilder builder) throws PulsarClientException {
+        try (PulsarClient client = builder.build()) {
+            return ((PulsarClientImpl) client).conf.getAuthentication();
+        }
     }
 
     private void assertAuthWithSecret(Authentication authentication, String secret) {

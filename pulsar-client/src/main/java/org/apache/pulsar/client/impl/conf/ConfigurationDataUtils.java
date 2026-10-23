@@ -110,5 +110,23 @@ public final class ConfigurationDataUtils {
 
     }
 
+    /**
+     * Apply the properties in {@code config} to {@code target} through its setters, leaving every other property
+     * as it is. Unlike {@link #loadData}, this keeps properties that are not serialized, such as listeners,
+     * {@code @JsonIgnore} fields and {@code @Secret} values, which would otherwise be dropped or masked.
+     *
+     * <p>{@code target} is modified in place, so callers that must not see a partial update on failure pass a
+     * copy of their configuration.
+     *
+     * @return {@code target}
+     */
+    public static <T> T updateData(Map<String, Object> config, T target) {
+        try {
+            return MAPPER.updateValue(target, config);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load config into existing configuration data", e);
+        }
+    }
+
 }
 
