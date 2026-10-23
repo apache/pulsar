@@ -18,8 +18,10 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -50,7 +52,7 @@ public class ManagedLedgerReplayTaskTest extends MockedBookKeeperTestCase {
         };
 
         final var maxEntriesPerRead = 5;
-        @Cleanup final var ml = factory.open("testNormalReplay");
+        @Cleanup final var ml = factory.open("testNormalReplay", initManagedLedgerConfig(defaultConfig()));
         final var replayTask = new ManagedLedgerReplayTask(ml.getName(), executor, maxEntriesPerRead);
         final var cursor = ml.openCursor("cursor");
         final var processor = new TestEntryProcessor();
@@ -85,7 +87,7 @@ public class ManagedLedgerReplayTaskTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 30000)
     public void testProcessFailed() throws Exception {
-        @Cleanup final var ml = factory.open("testNormalReplay");
+        @Cleanup final var ml = factory.open("testNormalReplay", initManagedLedgerConfig(defaultConfig()));
         final var positions = new ArrayList<Position>();
         for (int i = 0; i < 10; i++) {
             positions.add(ml.addEntry(("msg-" + i).getBytes(StandardCharsets.UTF_8)));
@@ -127,11 +129,11 @@ public class ManagedLedgerReplayTaskTest extends MockedBookKeeperTestCase {
             }
         }).when(cursor).hasMoreEntries();
         doAnswer(invocation -> {
-            final var callback = (AsyncCallbacks.ReadEntriesCallback) invocation.getArgument(1);
+            final var callback = (AsyncCallbacks.ReadEntriesCallback) invocation.getArgument(2);
             final var entries = List.<Entry>of(EntryImpl.create(1, 1, "msg".getBytes()));
             callback.readEntriesComplete(entries, null);
             return null;
-        }).when(cursor).asyncReadEntries(anyInt(), any(), any(), any());
+        }).when(cursor).asyncReadEntries(anyInt(), anyLong(), any(), any(), any());
 
         try {
             replayTask.replay(cursor, (__, ___) -> {

@@ -71,6 +71,16 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    /**
+     * A service unit can't be acquired, or looked up without waiting for the metadata store, while the broker's
+     * metadata session is lost. The client looks the topic up again, possibly at another broker.
+     */
+    public static class MetadataSessionLostException extends ServiceUnitNotReadyException {
+        public MetadataSessionLostException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class TopicClosedException extends BrokerServiceException {
         public TopicClosedException(Throwable t) {
             super(t);
@@ -188,6 +198,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class NotAuthorizedException extends BrokerServiceException {
+        public NotAuthorizedException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class SubscriptionInvalidCursorPosition extends BrokerServiceException {
         public SubscriptionInvalidCursorPosition(String msg) {
             super(msg);
@@ -277,6 +293,8 @@ public class BrokerServiceException extends Exception {
             return ServerError.InvalidTxnStatus;
         } else if (t instanceof NotAllowedException) {
             return ServerError.NotAllowedError;
+        } else if (t instanceof NotAuthorizedException) {
+            return ServerError.AuthorizationError;
         } else if (t instanceof ProducerFencedException) {
             return ServerError.ProducerFenced;
         } else if (t instanceof TransactionConflictException) {

@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import java.util.Arrays;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -32,13 +32,13 @@ import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.netty.NettyChannelUtil;
 
-@Slf4j
 /**
  * Channel handler for Pulsar proxy's Pulsar broker client connections for lookup requests.
  * <p>
  * Please see {@link org.apache.pulsar.common.protocol.PulsarDecoder} javadoc for important details about handle*
  * method parameter instance lifecycle.
  */
+@CustomLog
 public class ProxyClientCnx extends ClientCnx {
     private final boolean forwardClientAuthData;
     private final String clientAuthMethod;
@@ -56,12 +56,14 @@ public class ProxyClientCnx extends ClientCnx {
     }
 
     @Override
-    protected ByteBuf newConnectCommand() throws Exception {
-        if (log.isDebugEnabled()) {
-            log.debug("New Connection opened via ProxyClientCnx with params clientAuthRole = {},"
-                            + " clientAuthData = {}, clientAuthMethod = {}",
-                    clientAuthRole, proxyConnection.getClientAuthData(), clientAuthMethod);
-        }
+    protected ByteBuf buildConnectCommand(AuthData authData) throws Exception {
+        // The proxy's own broker credential ({@code authData}) is resolved and published by ClientCnx's
+        // single connect continuation (PIP-478); here we only add the forwarded client identity to the frame.
+        log.debug()
+                .attr("clientAuthRole", clientAuthRole)
+                .attr("clientAuthData", proxyConnection.getClientAuthData())
+                .attr("clientAuthMethod", clientAuthMethod)
+                .log("New Connection opened via ProxyClientCnx");
         AuthData clientAuthData = null;
         if (forwardClientAuthData) {
             // There is a chance this auth data is expired because the ProxyConnection does not do early token refresh.
@@ -69,9 +71,7 @@ public class ProxyClientCnx extends ClientCnx {
             // authentication data.
             clientAuthData = proxyConnection.getClientAuthData();
         }
-        authenticationDataProvider = authentication.getAuthData(remoteHostName);
-        AuthData authData = authenticationDataProvider.authenticate(AuthData.INIT_AUTH_DATA);
-        return Commands.newConnect(authentication.getAuthMethodName(), authData, protocolVersion,
+        return Commands.newConnect(authMethodName(), authData, protocolVersion,
                 proxyConnection.clientVersion, proxyToTargetBrokerAddress, clientAuthRole, clientAuthData,
                 clientAuthMethod, PulsarVersion.getVersion(), null);
     }
@@ -91,7 +91,7 @@ public class ProxyClientCnx extends ClientCnx {
                         return null;
                         }, ctx.executor())
                     .exceptionally(ex -> {
-                        log.warn("Failed to get valid client auth data. Closing connection.", ex);
+                        log.warn().exception(ex).log("Failed to get valid client auth data. Closing connection.");
                         ctx.close();
                         return null;
                     });

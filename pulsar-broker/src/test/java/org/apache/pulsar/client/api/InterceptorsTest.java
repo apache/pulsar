@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
-import com.google.common.collect.Sets;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,8 +38,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.commons.lang3.RandomUtils;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
@@ -42,31 +47,14 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class InterceptorsTest extends ProducerConsumerBase {
-
-    private static final Logger log = LoggerFactory.getLogger(InterceptorsTest.class);
-
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+@SuppressWarnings("unchecked")
+@CustomLog
+public class InterceptorsTest extends SharedPulsarBaseTest {
 
     @DataProvider(name = "receiverQueueSize")
     public Object[][] getReceiverQueueSize() {
@@ -81,18 +69,16 @@ public class InterceptorsTest extends ProducerConsumerBase {
         return new Object[][] {{ 0 }, { 3 }};
     }
 
-    @DataProvider(name = "topics")
-    public Object[][] getTopics() {
-        return new Object[][] {{ List.of("persistent://my-property/my-ns/my-topic") },
-                { List.of("persistent://my-property/my-ns/my-topic", "persistent://my-property/my-ns/my-topic1") }};
+    @DataProvider(name = "topicCount")
+    public Object[][] getTopicCount() {
+        return new Object[][] {{ 1 }, { 2 }};
     }
 
     @Test
     public void testProducerInterceptor() throws Exception {
         Map<MessageId, List<String>> ackCallback = new HashMap<>();
 
-        String ns = "my-property/my-ns" + RandomUtils.nextInt(999, 1999);
-        admin.namespaces().createNamespace(ns, Sets.newHashSet("test"));
+        String ns = getNamespace();
         admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
         abstract class BaseInterceptor implements
@@ -153,17 +139,19 @@ public class InterceptorsTest extends ProducerConsumerBase {
                                       .value("Hello Pulsar!").send();
         Assert.assertEquals(ackCallback.get(messageId),
                             Arrays.asList(interceptor1.tag, interceptor2.tag));
-        log.info("Send result messageId: {}", messageId);
+        log.info().attr("resultMessageId", messageId).log("Send result messageId");
         MessageId messageId2 = producer.newMessage(Schema.INT32).property("INT", "Y")
                                        .value(18).send();
         Assert.assertEquals(ackCallback.get(messageId2),
                             Arrays.asList(interceptor1.tag, interceptor3.tag));
-        log.info("Send result messageId: {}", messageId2);
+        log.info().attr("resultMessageId", messageId2).log("Send result messageId");
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testProducerInterceptorsWithExceptions() throws PulsarClientException {
+        final String topicName = newTopicName();
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
             @Override
             public void close() {
@@ -176,13 +164,14 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onSendAcknowledgement(Producer<String> producer, Message<String> message,
                                               MessageId msgId, Throwable exception) {
                 throw new IllegalArgumentException();
             }
         };
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-            .topic("persistent://my-property/my-ns/my-topic")
+            .topic(topicName)
             .intercept(interceptor)
             .create();
 
@@ -190,9 +179,11 @@ public class InterceptorsTest extends ProducerConsumerBase {
         Assert.assertNotNull(messageId);
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testProducerInterceptorsWithErrors() throws PulsarClientException {
+        final String topicName = newTopicName();
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<String>() {
             @Override
             public void close() {
@@ -205,13 +196,14 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onSendAcknowledgement(Producer<String> producer, Message<String> message,
                                               MessageId msgId, Throwable exception) {
                 throw new AbstractMethodError();
             }
         };
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .intercept(interceptor)
                 .create();
 
@@ -219,9 +211,11 @@ public class InterceptorsTest extends ProducerConsumerBase {
         Assert.assertNotNull(messageId);
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testProducerInterceptorAccessMessageData() throws PulsarClientException {
+        final String topicName = newTopicName();
         List<String> messageDataInBeforeSend = Collections.synchronizedList(new ArrayList<>());
         List<String> messageDataOnSendAcknowledgement = Collections.synchronizedList(new ArrayList<>());
         ProducerInterceptor<String> interceptor = new ProducerInterceptor<>() {
@@ -236,6 +230,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId,
                                               Throwable exception) {
                 messageDataOnSendAcknowledgement.add(new String(message.getData()));
@@ -243,7 +238,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
         };
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .intercept(interceptor)
                 .create();
 
@@ -264,6 +259,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testConsumerInterceptorWithErrors() throws PulsarClientException {
+        final String topicName = newTopicName();
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
             public void close() {
@@ -291,12 +287,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
                 throw new AbstractMethodError();
             }
         };
         Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic-exception")
+                .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription-ack-timeout")
@@ -304,14 +301,14 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .subscribe();
 
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic-exception")
+                .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription-negative")
                 .subscribe();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic-exception")
+                .topic(topicName)
                 .create();
 
         producer.newMessage().value("Hello Pulsar!").send();
@@ -337,6 +334,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "receiverQueueSize")
     public void testConsumerInterceptorWithSingleTopicSubscribe(Integer receiverQueueSize) throws Exception {
+        final String topicName = newTopicName();
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
             public void close() {
@@ -352,12 +350,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
+                log.info().attr("onacknowledgeMessageId", messageId).exception(cause).log("onAcknowledge messageId");
             }
 
             @Override
             public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
+                log.info().attr("onacknowledgecumulativeMessageIds", messageId).exception(cause)
+                        .log("onAcknowledgeCumulative messageIds");
             }
 
             @Override
@@ -366,13 +365,14 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
         };
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
@@ -380,7 +380,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .subscribe();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .enableBatching(false)
                 .create();
 
@@ -411,9 +411,10 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.acknowledge(received);
         consumer.close();
 
+        @SuppressWarnings("unchecked")
         final CompletableFuture<Message<String>> future = new CompletableFuture<>();
         consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
@@ -446,6 +447,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testConsumerInterceptorWithMultiTopicSubscribe() throws PulsarClientException {
+        final String topicName = newTopicName();
+        final String topicName1 = newTopicName();
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
@@ -462,12 +465,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
+                log.info().attr("onacknowledgeMessageId", messageId).exception(cause).log("onAcknowledge messageId");
             }
 
             @Override
             public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
+                log.info().attr("onacknowledgecumulativeMessageIds", messageId).exception(cause)
+                        .log("onAcknowledgeCumulative messageIds");
             }
 
             @Override
@@ -476,21 +480,22 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
         };
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .create();
 
         Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic1")
+                .topic(topicName1)
                 .create();
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic", "persistent://my-property/my-ns/my-topic1")
+                .topic(topicName, topicName1)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
@@ -527,7 +532,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         AtomicInteger beforeConsumeCount = new AtomicInteger(0);
         PulsarClient client = PulsarClient.builder()
-                .serviceUrl(lookupUrl.toString())
+                .serviceUrl(getBrokerServiceUrl())
                 .listenerThreads(1)
                 .build();
 
@@ -539,7 +544,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
                 beforeConsumeCount.incrementAndGet();
-                log.info("beforeConsume messageId: {}", message.getMessageId());
+                log.info().attr("beforeconsumeMessageId", message.getMessageId()).log("beforeConsume messageId");
                 return message;
             }
 
@@ -560,7 +565,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
         };
 
-        final String topicName = "persistent://my-property/my-ns/my-topic";
+        @SuppressWarnings("unchecked")
+        final String topicName = newTopicName();
 
         if (partitions > 0) {
             admin.topics().createPartitionedTopic(topicName, partitions);
@@ -584,7 +590,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 .subscribe();
 
         Producer<String> producer = client.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .create();
 
         final int messages = 10;
@@ -602,6 +608,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testConsumerInterceptorWithPatternTopicSubscribe() throws PulsarClientException {
+        final String topicName = newTopicName();
+        final String topicName1 = newTopicName();
 
         ConsumerInterceptor<String> interceptor = new ConsumerInterceptor<String>() {
             @Override
@@ -618,12 +626,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
+                log.info().attr("onacknowledgeMessageId", messageId).exception(cause).log("onAcknowledge messageId");
             }
 
             @Override
             public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
+                log.info().attr("onacknowledgecumulativeMessageIds", messageId).exception(cause)
+                        .log("onAcknowledgeCumulative messageIds");
             }
 
             @Override
@@ -632,21 +641,22 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
         };
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .create();
 
         Producer<String> producer1 = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic1")
+                .topic(topicName1)
                 .create();
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topicsPattern("persistent://my-property/my-ns/my-.*")
+                .topicsPattern("persistent://" + getNamespace() + "/.*")
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
@@ -674,6 +684,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test
     public void testConsumerInterceptorForAcknowledgeCumulative() throws PulsarClientException {
+        final String topicName = newTopicName();
 
         List<MessageId> ackHolder = new ArrayList<>();
 
@@ -692,7 +703,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
             @Override
             public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
+                log.info().attr("onacknowledgeMessageId", messageId).exception(cause).log("onAcknowledge messageId");
             }
 
             @Override
@@ -700,7 +711,8 @@ public class InterceptorsTest extends ProducerConsumerBase {
                 long acknowledged = ackHolder.stream().filter(m -> (m.compareTo(messageId) <= 0)).count();
                 Assert.assertEquals(acknowledged, 100);
                 ackHolder.clear();
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
+                log.info().attr("onacknowledgecumulativeMessageIds", messageId).exception(cause)
+                        .log("onAcknowledgeCumulative messageIds");
             }
 
             @Override
@@ -709,20 +721,21 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
         };
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .subscriptionType(SubscriptionType.Failover)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription")
                 .subscribe();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic")
+                .topic(topicName)
                 .create();
 
         for (int i = 0; i < 100; i++) {
@@ -748,9 +761,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(dataProvider = "topics")
-    public void testConsumerInterceptorForNegativeAcksSend(List<String> topics)
+    @Test(dataProvider = "topicCount")
+    public void testConsumerInterceptorForNegativeAcksSend(int topicCount)
             throws PulsarClientException, InterruptedException {
+        List<String> topics = new ArrayList<>();
+        for (int i = 0; i < topicCount; i++) {
+            topics.add(newTopicName());
+        }
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
 
@@ -782,6 +799,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
@@ -820,9 +838,13 @@ public class InterceptorsTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(dataProvider = "topics")
-    public void testConsumerInterceptorForAckTimeoutSend(List<String> topics) throws PulsarClientException,
+    @Test(dataProvider = "topicCount")
+    public void testConsumerInterceptorForAckTimeoutSend(int topicCount) throws PulsarClientException,
             InterruptedException {
+        List<String> topics = new ArrayList<>();
+        for (int i = 0; i < topicCount; i++) {
+            topics.add(newTopicName());
+        }
         final int totalNumOfMessages = 100;
         CountDownLatch latch = new CountDownLatch(totalNumOfMessages / 2);
 
@@ -852,6 +874,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
                 Assert.assertTrue(latch.getCount() > 0);
                 messageIds.forEach(messageId -> latch.countDown());
@@ -890,7 +913,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
     @Test(timeOut = 1000 * 30, dataProvider = "topicPartition")
     public void testReaderInterceptor(int topicPartition) throws Exception {
-        String topic = "reader-interceptor-" + topicPartition + "-" + RandomStringUtils.randomAlphabetic(5);
+        String topic = newTopicName();
         if (topicPartition > 0) {
             admin.topics().createPartitionedTopic(topic, topicPartition);
         }
@@ -921,6 +944,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onPartitionsChange(String topicName, int partitions) {
                 newPartition.set(partitions);
             }
@@ -992,14 +1016,16 @@ public class InterceptorsTest extends ProducerConsumerBase {
         produceAndConsume(msgCount * 2, producer, reader);
         Assert.assertFalse(interceptor1.encounterException.get());
         Assert.assertTrue(interceptor2.encounterException.get());
-        Assert.assertTrue(interceptor3.encounterException.get());
+        // interceptor3 is on reader2 (listener-based), so messages are delivered asynchronously
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertTrue(interceptor3.encounterException.get()));
         Assert.assertNull(reader.readNext(3, TimeUnit.SECONDS));
     }
 
     @Test(dataProvider = "topicPartition")
     public void testConsumerInterceptorForOnArrive(int topicPartition) throws PulsarClientException,
             InterruptedException, PulsarAdminException {
-        String topicName = "persistent://my-property/my-ns/on-arrive";
+        String topicName = newTopicName();
         if (topicPartition > 0) {
             admin.topics().createPartitionedTopic(topicName, topicPartition);
         }
@@ -1044,6 +1070,7 @@ public class InterceptorsTest extends ProducerConsumerBase {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
@@ -1090,6 +1117,88 @@ public class InterceptorsTest extends ProducerConsumerBase {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testProducerInterceptorClosedOnceOnProducerClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor =
+                mock(org.apache.pulsar.client.api.interceptor.ProducerInterceptor.class);
+        when(interceptor.eligible(any())).thenReturn(true);
+        when(interceptor.beforeSend(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .intercept(interceptor)
+                .create();
+        producer.send("msg");
+        verify(interceptor).beforeSend(any(), any());
+        verify(interceptor, never()).close();
+
+        producer.close();
+        producer.close();
+
+        verify(interceptor).close();
+    }
+
+    @Test
+    public void testProducerInterceptorSharedByTwoProducersClosedForEach() throws Exception {
+        String topic = newTopicName();
+        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor =
+                mock(org.apache.pulsar.client.api.interceptor.ProducerInterceptor.class);
+        ProducerBuilder<String> builder = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .intercept(interceptor);
+        Producer<String> producer1 = builder.create();
+        Producer<String> producer2 = builder.create();
+
+        producer1.close();
+        verify(interceptor).close();
+
+        producer2.close();
+        verify(interceptor, times(2)).close();
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testConsumerInterceptorClosedOnceOnConsumerClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+        ConsumerInterceptor<String> interceptor = mock(ConsumerInterceptor.class);
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .intercept(interceptor)
+                .subscribe();
+        verify(interceptor, never()).close();
+
+        consumer.close();
+        consumer.close();
+
+        verify(interceptor).close();
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testReaderInterceptorClosedOnceOnReaderClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+        ReaderInterceptor<String> interceptor = mock(ReaderInterceptor.class);
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .intercept(interceptor)
+                .create();
+        verify(interceptor, never()).close();
+
+        reader.close();
+        reader.close();
+
+        verify(interceptor).close();
     }
 
     private void produceAndConsume(int msgCount, Producer<byte[]> producer, Reader<byte[]> reader)

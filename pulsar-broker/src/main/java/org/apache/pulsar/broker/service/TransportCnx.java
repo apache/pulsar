@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
+import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 
 public interface TransportCnx {
 
@@ -88,22 +89,9 @@ public interface TransportCnx {
     CompletableFuture<Optional<Boolean>> checkConnectionLiveness();
 
     /**
-     * Increments the counter that controls the throttling of the connection by pausing reads.
-     * The connection will be throttled while the counter is greater than 0.
-     * <p>
-     * The caller is responsible for decrementing the counter by calling {@link #decrementThrottleCount()}  when the
-     * connection should no longer be throttled.
+     * Get the throttle tracker for this connection.
      */
-    void incrementThrottleCount();
-
-    /**
-     * Decrements the counter that controls the throttling of the connection by pausing reads.
-     * The connection will be throttled while the counter is greater than 0.
-     * <p>
-     * This method should be called when the connection should no longer be throttled. However, the caller should have
-     * previously called {@link #incrementThrottleCount()}.
-     */
-    void decrementThrottleCount();
+    ServerCnxThrottleTracker getThrottleTracker();
 
     FeatureFlags getFeatures();
 
@@ -111,4 +99,17 @@ public interface TransportCnx {
         return getFeatures() != null && getFeatures().hasSupportsReplDedupByLidAndEid()
                 && getFeatures().isSupportsReplDedupByLidAndEid();
     }
+
+    /**
+     * Send a scalable-topic consumer an assignment pushed by its controller: as the response to the
+     * consumer's subscribe while that is unanswered on this connection, as an assignment update
+     * otherwise.
+     */
+    void sendScalableConsumerAssignment(long consumerId, ScalableConsumerAssignment assignment);
+
+    /**
+     * Make a scalable-topic consumer subscribe again: the controller holding its session stopped
+     * serving as the leader, and the consumer must subscribe with the one that leads now.
+     */
+    void closeScalableConsumerSession(long consumerId);
 }

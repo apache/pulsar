@@ -18,10 +18,10 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 
 public interface EntryCacheManager {
-    EntryCache getEntryCache(ManagedLedgerImpl ml);
+    EntryCache getEntryCache(ManagedLedger ml);
 
     void removeEntryCache(String name);
 
@@ -37,5 +37,10 @@ public interface EntryCacheManager {
 
     double getCacheEvictionWatermark();
 
-    void doCacheEviction(long maxTimestamp);
+    void doCacheEviction();
+
+    void updateCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(
+            int extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes);
+
+    void updateCacheEvictionExtendTTLOfRecentlyAccessed(boolean cacheEvictionExtendTTLOfRecentlyAccessed);
 }

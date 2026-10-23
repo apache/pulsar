@@ -31,12 +31,12 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.CustomLog;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "functions-worker")
 public class TestPulsarFunctionUtils {
     public static String getPrometheusMetrics(int metricsPort) throws IOException {

@@ -87,6 +87,8 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
     public void addAddEntrySample(long size) {
         addEntryOps.recordEvent(size);
         entryStats.addValue(size);
+        managedLedger.getFactory().getOpenTelemetryManagedLedgerStats()
+                .recordEntrySize(size, managedLedger);
         addEntryWithReplicasOps.recordEvent(size * managedLedger.getConfig().getWriteQuorumSize());
     }
 
@@ -108,14 +110,20 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public void addAddEntryLatencySample(long latency, TimeUnit unit) {
         addEntryLatencyStatsUsec.addValue(unit.toMicros(latency));
+        managedLedger.getFactory().getOpenTelemetryManagedLedgerStats()
+                .recordAddEntryLatency(latency, unit, managedLedger);
     }
 
     public void addLedgerAddEntryLatencySample(long latency, TimeUnit unit) {
         ledgerAddEntryLatencyStatsUsec.addValue(unit.toMicros(latency));
+        managedLedger.getFactory().getOpenTelemetryManagedLedgerStats()
+                .recordLedgerAddEntryLatency(latency, unit, managedLedger);
     }
 
     public void addLedgerSwitchLatencySample(long latency, TimeUnit unit) {
         ledgerSwitchLatencyStatsUsec.addValue(unit.toMicros(latency));
+        managedLedger.getFactory().getOpenTelemetryManagedLedgerStats()
+                .recordLedgerSwitchLatency(latency, unit, managedLedger);
     }
 
     public void addReadEntriesSample(int count, long totalSize) {
@@ -124,6 +132,13 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
 
     public void addEntriesRead(int count) {
         entriesRead.recordEvent(count);
+    }
+
+    /**
+     * Counts the entries as read one by one, as {@code entries} calls of {@code addEntriesRead(1)} would.
+     */
+    public void addEntriesReadOneByOne(int entries) {
+        entriesRead.recordMultipleEvents(entries, entries);
     }
 
     public void startDataLedgerOpenOp() {

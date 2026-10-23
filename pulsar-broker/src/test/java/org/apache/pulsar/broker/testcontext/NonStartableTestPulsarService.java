@@ -149,7 +149,7 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         private final TopicResources topicResources;
         private final NamespaceResources namespaceResources;
 
-        public TestPulsarResources(MetadataStore localMetadataStore, MetadataStore configurationMetadataStore,
+        public TestPulsarResources(MetadataStoreExtended localMetadataStore, MetadataStore configurationMetadataStore,
                                    TopicResources topicResources, NamespaceResources namespaceResources) {
             super(localMetadataStore, configurationMetadataStore);
             this.topicResources = topicResources;
@@ -164,6 +164,14 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         @Override
         public NamespaceResources getNamespaceResources() {
             return namespaceResources;
+        }
+
+        @Override
+        public void close() {
+            super.close();
+            if (topicResources != null) {
+                topicResources.close();
+            }
         }
     }
 }

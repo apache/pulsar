@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.utils;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.common.functions.BatchingConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.BatchingSpec;
 import org.testng.annotations.Test;
 
 public class BatchingUtilsTest {
@@ -35,8 +35,8 @@ public class BatchingUtilsTest {
                 .batchingMaxMessages(1000)
                 .batchBuilder("DEFAULT")
                 .build();
-        Function.BatchingSpec spec = BatchingUtils.convert(config);
-        assertEquals(spec.getEnabled(), true);
+        BatchingSpec spec = BatchingUtils.convert(config);
+        assertEquals(spec.isEnabled(), true);
         assertEquals(spec.getBatchingMaxPublishDelayMs(), 30);
         assertEquals(spec.getRoundRobinRouterBatchingPartitionSwitchFrequency(), 10);
         assertEquals(spec.getBatchingMaxMessages(), 1000);
@@ -46,13 +46,12 @@ public class BatchingUtilsTest {
 
     @Test
     public void testConvertFromSpec() {
-        Function.BatchingSpec spec = Function.BatchingSpec.newBuilder()
+        BatchingSpec spec = new BatchingSpec()
                 .setEnabled(true)
                 .setBatchingMaxPublishDelayMs(30)
                 .setRoundRobinRouterBatchingPartitionSwitchFrequency(10)
                 .setBatchingMaxMessages(1000)
-                .setBatchBuilder("DEFAULT")
-                .build();
+                .setBatchBuilder("DEFAULT");
         BatchingConfig config = BatchingUtils.convertFromSpec(spec);
         assertEquals(config.isEnabled(), true);
         assertEquals(config.getBatchingMaxPublishDelayMs().intValue(), 30);

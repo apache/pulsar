@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.admin;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import java.util.LinkedHashSet;
@@ -95,11 +96,29 @@ public class ClusterEndpointsAuthorizationTest extends MockedPulsarStandalone {
             superUserAdmin.close();
             superUserAdmin = null;
         }
+        if (nobodyAdmin != null) {
+            nobodyAdmin.close();
+            nobodyAdmin = null;
+        }
         spyAuthorizationService = null;
         orignalAuthorizationService = null;
         super.close();
     }
 
+
+    @Test
+    public void testGetClusters() throws PulsarAdminException {
+        superUserAdmin.clusters().getClusters();
+        // test allow cluster operation
+        verify(spyAuthorizationService)
+                .allowClusterOperationAsync(isNull(), eq(ClusterOperation.LIST_CLUSTERS), any(), any(), any());
+        // fallback to superuser
+        verify(spyAuthorizationService).isSuperUser(any(), any());
+
+        // ---- test nobody
+        Assert.assertThrows(PulsarAdminException.NotAuthorizedException.class,
+                () -> nobodyAdmin.clusters().getClusters());
+    }
 
     @Test
     public void testGetCluster() throws PulsarAdminException {

@@ -25,9 +25,19 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceStability.Evolving
 public interface MessageExpirer {
 
+    /**
+     * Mark delete the largest position that is less than or equals the {@param position}.
+     */
     boolean expireMessages(Position position);
 
+    /**
+     * Mark delete the largest message that publish timestamp is less than the result of the expression
+     * "{@link System#currentTimeMillis - {@param messageTTLInSeconds})".
+     */
     boolean expireMessages(int messageTTLInSeconds);
 
+    /**
+     * Async implementation of {@link #expireMessages(int)}.
+     */
     CompletableFuture<Boolean> expireMessagesAsync(int messageTTLInSeconds);
 }

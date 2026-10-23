@@ -25,12 +25,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.annotations.DataProvider;
 
-@Slf4j
+@CustomLog
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
     protected final Map<String, String> brokerEnvs = new HashMap<>();
     protected final Map<String, String> bookkeeperEnvs = new HashMap<>();
@@ -145,8 +145,11 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     protected void setupCluster(PulsarClusterSpec spec, boolean doInit) throws Exception {
         incrementSetupNumber();
-        log.info("Setting up cluster {} with {} bookies, {} brokers",
-                spec.clusterName(), spec.numBookies(), spec.numBrokers());
+        log.info()
+                .attr("cluster", spec.clusterName())
+                .attr("with", spec.numBookies())
+                .attr("bookies", spec.numBrokers())
+                .log("Setting up cluster with bookies, brokers");
 
         pulsarCluster = PulsarCluster.forSpec(spec);
 
@@ -156,7 +159,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
         pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
 
-        log.info("Cluster {} is setup", spec.clusterName());
+        log.info().attr("cluster", spec.clusterName()).log("Cluster is setup");
     }
 
     public void tearDownCluster() throws Exception {

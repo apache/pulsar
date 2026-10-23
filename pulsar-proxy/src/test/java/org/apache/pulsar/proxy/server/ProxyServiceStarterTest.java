@@ -34,7 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
@@ -47,9 +47,9 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.util.BufferUtil;
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketAdapter;
-import org.eclipse.jetty.websocket.api.WebSocketPingPongListener;
+import org.eclipse.jetty.websocket.api.Callback;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketPong;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.testng.annotations.AfterClass;
@@ -88,6 +88,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     protected void setup() throws Exception {
         internalSetup();
+        setupDefaultTenantAndNamespace();
         serviceStarter = new ProxyServiceStarter(getArgs(), null, true);
         serviceStarter.getConfig().setBrokerServiceURL(pulsar.getBrokerServiceUrl());
         serviceStarter.getConfig().setBrokerWebServiceURL(pulsar.getWebServiceAddress());
@@ -120,7 +121,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
 
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
-                .topic("persistent://sample/test/local/websocket-topic")
+                .topic("persistent://public/default/websocket-topic")
                 .create();
 
         for (int i = 0; i < 10; i++) {
@@ -141,8 +142,9 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         WebSocketClient producerWebSocketClient = new WebSocketClient(producerClient);
         producerWebSocketClient.start();
         MyWebSocket producerSocket = new MyWebSocket();
-        String produceUri = computeWsBasePath() + "/producer/persistent/sample/test/local/websocket-topic";
-        Future<Session> producerSession = producerWebSocketClient.connect(producerSocket, URI.create(produceUri));
+        String produceUri = computeWsBasePath() + "/v2/producer/persistent/public/default/websocket-topic";
+        CompletableFuture<org.eclipse.jetty.websocket.api.Session>
+                producerSession = producerWebSocketClient.connect(producerSocket, URI.create(produceUri));
 
         ProducerMessage produceRequest = new ProducerMessage();
         produceRequest.setContext("context");
@@ -154,44 +156,28 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
         WebSocketClient consumerWebSocketClient = new WebSocketClient(consumerClient);
         consumerWebSocketClient.start();
         MyWebSocket consumerSocket = new MyWebSocket();
-        String consumeUri = computeWsBasePath() + "/consumer/persistent/sample/test/local/websocket-topic/my-sub";
-        Future<Session> consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
-        consumerSession.get().getRemote().sendPing(ByteBuffer.wrap("ping".getBytes()));
-        producerSession.get().getRemote().sendString(ObjectMapperFactory.getMapper().writer()
-                .writeValueAsString(produceRequest));
+        String consumeUri = computeWsBasePath() + "/v2/consumer/persistent/public/default/websocket-topic/my-sub";
+        CompletableFuture<org.eclipse.jetty.websocket.api.Session>
+                consumerSession = consumerWebSocketClient.connect(consumerSocket, URI.create(consumeUri));
+        consumerSession.get().sendPing(ByteBuffer.wrap("ping".getBytes()), Callback.NOOP);
+        producerSession.get()
+                .sendText(ObjectMapperFactory.getMapper().writer().writeValueAsString(produceRequest), Callback.NOOP);
         assertTrue(consumerSocket.getResponse().contains("ping"));
-        ProducerMessage message = ObjectMapperFactory.getMapper().reader().readValue(consumerSocket.getResponse(),
-                ProducerMessage.class);
+        ProducerMessage message =
+                ObjectMapperFactory.getMapper().reader().readValue(consumerSocket.getResponse(), ProducerMessage.class);
         assertEquals(new String(Base64.getDecoder().decode(message.getPayload())), "my payload");
     }
 
     @WebSocket
-    public static class MyWebSocket extends WebSocketAdapter implements WebSocketPingPongListener {
-
+    public static class MyWebSocket  {
         ArrayBlockingQueue<String> incomingMessages = new ArrayBlockingQueue<>(10);
 
-        @Override
+        @OnWebSocketMessage
         public void onWebSocketText(String message) {
             incomingMessages.add(message);
         }
 
-        @Override
-        public void onWebSocketClose(int i, String s) {
-        }
-
-        @Override
-        public void onWebSocketConnect(Session session) {
-        }
-
-        @Override
-        public void onWebSocketError(Throwable throwable) {
-        }
-
-        @Override
-        public void onWebSocketPing(ByteBuffer payload) {
-        }
-
-        @Override
+        @OnWebSocketPong
         public void onWebSocketPong(ByteBuffer payload) {
             incomingMessages.add(BufferUtil.toDetailString(payload));
         }
@@ -248,6 +234,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
             return "org.apache.pulsar.proxy.server.ProxyConfigurationTest.ExceptionAuthentication1";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void configure(Map<String, String> authParams) {
             // no-op
@@ -271,6 +258,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
             return "org.apache.pulsar.proxy.server.ProxyConfigurationTest.ExceptionAuthentication2";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void configure(Map<String, String> authParams) {
             // no-op

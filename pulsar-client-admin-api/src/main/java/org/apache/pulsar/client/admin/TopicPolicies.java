@@ -166,6 +166,83 @@ public interface TopicPolicies {
     void removeDelayedDeliveryPolicy(String topic) throws PulsarAdminException;
 
     /**
+     * Set subscription expiration time for a topic in minutes.
+     *
+     * @param topic
+     *          Topic name
+     * @param subscriptionExpirationTimeInMinutes
+     *          Subscription expiration time in minutes.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionExpirationTime(String topic, int subscriptionExpirationTimeInMinutes)
+            throws PulsarAdminException;
+
+    /**
+     * Set subscription expiration time for a topic in minutes asynchronously.
+     *
+     * @param topic
+     *          Topic name
+     * @param subscriptionExpirationTimeInMinutes
+     *          Subscription expiration time in minutes.
+     */
+    CompletableFuture<Void> setSubscriptionExpirationTimeAsync(String topic, int subscriptionExpirationTimeInMinutes);
+
+    /**
+     * Get subscription expiration time for a topic.
+     *
+     * @param topic
+     * @return Subscription expiration time in minutes.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Integer getSubscriptionExpirationTime(String topic) throws PulsarAdminException;
+
+    /**
+     * Get subscription expiration time for a topic asynchronously.
+     *
+     * @param topic
+     * @return Subscription expiration time in minutes.
+     */
+    CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String topic);
+
+    /**
+     * Get applied subscription expiration time for a topic.
+     *
+     * @param topic
+     * @param applied
+     * @return Subscription expiration time in minutes.
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    Integer getSubscriptionExpirationTime(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get applied subscription expiration time for a topic asynchronously.
+     *
+     * @param topic
+     * @param applied
+     * @return Subscription expiration time in minutes.
+     */
+    CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String topic, boolean applied);
+
+    /**
+     * Remove subscription expiration time for a topic.
+     *
+     * @param topic
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void removeSubscriptionExpirationTime(String topic) throws PulsarAdminException;
+
+    /**
+     * Remove subscription expiration time for a topic asynchronously.
+     *
+     * @param topic
+     */
+    CompletableFuture<Void> removeSubscriptionExpirationTimeAsync(String topic);
+
+    /**
      * Set message TTL for a topic.
      *
      * @param topic
@@ -1928,6 +2005,12 @@ public interface TopicPolicies {
 
     /**
      * Get the dispatcherPauseOnAckStatePersistentEnabled policy for a given topic asynchronously.
+     * When {@code applied} is true and the policy is not set for the selected local or global topic-policy scope,
+     * the namespace policy and then the broker configuration are used.
+     *
+     * @param topic topic name
+     * @param applied whether to return the applied policy including namespace and broker inheritance
+     * @return a future that completes with the policy value
      */
     CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistent(String topic, boolean applied);
 

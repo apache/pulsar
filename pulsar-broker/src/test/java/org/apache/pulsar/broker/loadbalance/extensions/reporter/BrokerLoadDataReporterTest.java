@@ -55,7 +55,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class BrokerLoadDataReporterTest {
     PulsarService pulsar;
-    LoadDataStore store;
+    LoadDataStore<BrokerLoadData> store;
     BrokerService brokerService;
     PulsarStats pulsarStats;
     ServiceConfiguration config;
@@ -70,7 +70,9 @@ public class BrokerLoadDataReporterTest {
         config = new ServiceConfiguration();
         config.setLoadBalancerDebugModeEnabled(true);
         pulsar = mock(PulsarService.class);
-        store = mock(LoadDataStore.class);
+        @SuppressWarnings("unchecked")
+        LoadDataStore<BrokerLoadData> mockedStore = mock(LoadDataStore.class);
+        store = mockedStore;
         brokerService = mock(BrokerService.class);
         pulsarStats = mock(PulsarStats.class);
         doReturn(brokerService).when(pulsar).getBrokerService();

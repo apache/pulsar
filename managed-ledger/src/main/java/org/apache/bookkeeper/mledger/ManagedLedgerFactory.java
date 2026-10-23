@@ -19,7 +19,10 @@
 package org.apache.bookkeeper.mledger;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -220,16 +223,42 @@ public interface ManagedLedgerFactory {
     EntryCacheManager getEntryCacheManager();
 
     /**
-     * update cache evictionTimeThreshold.
-     *
-     * @param cacheEvictionTimeThresholdNanos time threshold for eviction.
+     * update cache evictionTimeThreshold dynamically. Similar as
+     * {@link ManagedLedgerFactoryConfig#setCacheEvictionTimeThresholdMillis(long)}
+     * but the value is in nanos. This inconsistency is kept for backwards compatibility.
+     * @param cacheEvictionTimeThresholdNanos time threshold in nanos for eviction.
      */
     void updateCacheEvictionTimeThreshold(long cacheEvictionTimeThresholdNanos);
 
     /**
+     * time threshold for eviction. Similar as
+     * {@link ManagedLedgerFactoryConfig#getCacheEvictionTimeThresholdMillis()}
+     * but the value is in nanos.
      * @return time threshold for eviction.
-     * */
+     */
     long getCacheEvictionTimeThreshold();
+
+    /**
+     * Update extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes. Similar as
+     * {@link ManagedLedgerFactoryConfig#setCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(int)}.
+     * @param extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes max times to extend TTL for entries with remaining
+     *                                                            expected reads.
+     */
+    default void updateCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(
+            int extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes) {
+        // Default implementation does nothing for backwards compatibility of the ManagedLedgerFactory interface.
+        // Subclasses can override this method to provide specific behavior.
+    }
+
+    /**
+     * Update cacheEvictionExtendTTLOfRecentlyAccessed. Similar as
+     * {@link ManagedLedgerFactoryConfig#setCacheEvictionExtendTTLOfRecentlyAccessed(boolean)}.
+     * @param cacheEvictionExtendTTLOfRecentlyAccessed whether to extend TTL of recently accessed entries.
+     */
+    default void updateCacheEvictionExtendTTLOfRecentlyAccessed(boolean cacheEvictionExtendTTLOfRecentlyAccessed) {
+        // Default implementation does nothing for backwards compatibility of the ManagedLedgerFactory interface.
+        // Subclasses can override this method to provide specific behavior.
+    }
 
     /**
      * @return properties of this managedLedger.
@@ -243,6 +272,45 @@ public interface ManagedLedgerFactory {
 
     void estimateUnloadedTopicBacklog(PersistentOfflineTopicStats offlineTopicStats, TopicName topicName,
                                       boolean accurate, Object ctx) throws Exception;
+
+    /**
+     * Asynchronously estimate backlog without loading the topic. Implementations should override this method
+     * with non-blocking metadata and ledger reads. The default preserves compatibility with synchronous
+     * implementations by running them on the supplied executor.
+     *
+     * @param blockingExecutor executor for legacy blocking implementations
+     * @return a future completed after all statistics have been collected
+     */
+    default CompletableFuture<Void> estimateUnloadedTopicBacklogAsync(PersistentOfflineTopicStats offlineTopicStats,
+            TopicName topicName, boolean accurate, Object ctx, Executor blockingExecutor) {
+        try {
+            Objects.requireNonNull(offlineTopicStats, "offlineTopicStats");
+            Objects.requireNonNull(topicName, "topicName");
+            Objects.requireNonNull(blockingExecutor, "blockingExecutor");
+            PersistentOfflineTopicStats collectedStats = new PersistentOfflineTopicStats(
+                    offlineTopicStats.topicName, offlineTopicStats.brokerName);
+            return CompletableFuture.runAsync(() -> {
+                try {
+                    estimateUnloadedTopicBacklog(collectedStats, topicName, accurate, ctx);
+                } catch (Exception e) {
+                    throw new CompletionException(e);
+                }
+            }, blockingExecutor).thenRun(() -> {
+                offlineTopicStats.storageSize = collectedStats.storageSize;
+                offlineTopicStats.totalMessages = collectedStats.totalMessages;
+                offlineTopicStats.messageBacklog = collectedStats.messageBacklog;
+                offlineTopicStats.statGeneratedAt.setTime(collectedStats.statGeneratedAt.getTime());
+                offlineTopicStats.dataLedgerDetails.clear();
+                collectedStats.dataLedgerDetails.forEach(ledger -> offlineTopicStats.addLedgerDetails(
+                        ledger.entries, ledger.timestamp, ledger.size, ledger.ledgerId));
+                offlineTopicStats.cursorDetails.clear();
+                collectedStats.cursorDetails.forEach((name, cursor) -> offlineTopicStats.addCursorDetails(
+                        name, cursor.cursorBacklog, cursor.cursorLedgerId));
+            });
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
 
     ManagedLedgerFactoryConfig getConfig();
 }
