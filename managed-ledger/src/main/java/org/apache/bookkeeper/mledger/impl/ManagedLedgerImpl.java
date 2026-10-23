@@ -67,6 +67,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.concurrent.locks.StampedLock;
 import java.util.function.BooleanSupplier;
 import java.util.function.IntSupplier;
 import java.util.function.Predicate;
@@ -208,6 +209,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             .newUpdater(ManagedLedgerImpl.class, "entriesAddedCounter");
     @SuppressWarnings("unused")
     private volatile long entriesAddedCounter = 0;
+    // Held to update entriesAddedCounter and lastConfirmedEntry as one when an entry is added
+    private final StampedLock lastPositionAndCounterLock = new StampedLock();
 
     static final AtomicLongFieldUpdater<ManagedLedgerImpl> NUMBER_OF_ENTRIES_UPDATER = AtomicLongFieldUpdater
             .newUpdater(ManagedLedgerImpl.class, "numberOfEntries");
@@ -5049,19 +5052,39 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     /**
+     * Counts an added entry and makes it the last confirmed entry, as one update for
+     * {@link #getLastPositionAndCounter()}. The other updates of {@code lastConfirmedEntry} leave the counter
+     * unchanged, so they don't take the lock.
+     */
+    void updateLastPositionAndCounter(Position addedEntry) {
+        long stamp = lastPositionAndCounterLock.writeLock();
+        try {
+            ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(this);
+            lastConfirmedEntry = addedEntry;
+        } finally {
+            lastPositionAndCounterLock.unlockWrite(stamp);
+        }
+    }
+
+    /**
      * Get the last position written in the managed ledger, alongside with the associated counter.
      */
     Pair<Position, Long> getLastPositionAndCounter() {
-        Position pos;
-        long count;
-
-        do {
-            pos = lastConfirmedEntry;
-            count = ENTRIES_ADDED_COUNTER_UPDATER.get(this);
-
-            // Ensure no entry was written while reading the two values
-        } while (pos.compareTo(lastConfirmedEntry) != 0);
-
+        // An added entry updates the two values under the write lock: check that no add overlapped the reads, or the
+        // counter can include an entry that the position doesn't point to yet
+        long stamp = lastPositionAndCounterLock.tryOptimisticRead();
+        Position pos = lastConfirmedEntry;
+        long count = ENTRIES_ADDED_COUNTER_UPDATER.get(this);
+        if (!lastPositionAndCounterLock.validate(stamp)) {
+            // Fallback to read lock
+            stamp = lastPositionAndCounterLock.readLock();
+            try {
+                pos = lastConfirmedEntry;
+                count = ENTRIES_ADDED_COUNTER_UPDATER.get(this);
+            } finally {
+                lastPositionAndCounterLock.unlockRead(stamp);
+            }
+        }
         return Pair.of(pos, count);
     }
 
