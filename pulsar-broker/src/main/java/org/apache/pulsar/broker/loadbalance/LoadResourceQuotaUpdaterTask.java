@@ -19,14 +19,13 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import java.util.concurrent.atomic.AtomicReference;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
 /**
  * LoadManager namespace bundle quota update task.
  */
+@CustomLog
 public class LoadResourceQuotaUpdaterTask implements Runnable {
-    private static final Logger LOG = LoggerFactory.getLogger(LoadResourceQuotaUpdaterTask.class);
     private final AtomicReference<LoadManager> loadManager;
 
     public LoadResourceQuotaUpdaterTask(AtomicReference<LoadManager> loadManager) {
@@ -38,7 +37,7 @@ public class LoadResourceQuotaUpdaterTask implements Runnable {
         try {
             this.loadManager.get().writeResourceQuotasToZooKeeper();
         } catch (Exception e) {
-            LOG.warn("Error write resource quota", e);
+            log.warn().exception(e).log("Error write resource quota");
         }
     }
 }

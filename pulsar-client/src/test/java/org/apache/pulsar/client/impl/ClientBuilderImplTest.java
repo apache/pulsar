@@ -18,14 +18,18 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.testng.Assert.fail;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.testng.Assert.fail;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.Cleanup;
 import lombok.SneakyThrows;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -101,6 +105,18 @@ public class ClientBuilderImplTest {
         PulsarClient.builder().dnsLookupBind("localhost", 65536).build();
     }
 
+    @Test(expectedExceptions = IllegalArgumentException.class)
+    public void testClientBuilderWithIllegalDNSServerHostname() throws PulsarClientException {
+        PulsarClient.builder().dnsServerAddresses(
+                Arrays.asList(new InetSocketAddress("1.2.3.4", 53), new InetSocketAddress("localhost", 53)));
+    }
+
+    @Test()
+    public void testClientBuilderWithDNSServerIP() throws PulsarClientException {
+        PulsarClient.builder().dnsServerAddresses(
+                Arrays.asList(new InetSocketAddress("1.2.3.4", 53)));
+    }
+
     @Test
     public void testConnectionMaxIdleSeconds() throws Exception {
         // test config disabled.
@@ -109,7 +125,7 @@ public class ClientBuilderImplTest {
         PulsarClient.builder().connectionMaxIdleSeconds(60);
         // test config not correct.
         try {
-            PulsarClient.builder().connectionMaxIdleSeconds(30);
+            PulsarClient.builder().connectionMaxIdleSeconds(14);
             fail();
         } catch (IllegalArgumentException e){
         }
@@ -207,6 +223,21 @@ public class ClientBuilderImplTest {
         assertThatAuthIsNotSet(auth);
     }
 
+    @Test
+    public void testClientDescription() throws PulsarClientException {
+        @Cleanup PulsarClient ignored =
+                PulsarClient.builder().serviceUrl("pulsar://localhost:6650").description("forked").build();
+    }
+
+    @Test
+    public void testClientDescriptionLengthExceed64() {
+        String longDescription = "a".repeat(65);
+        assertThatThrownBy(() -> {
+            @Cleanup PulsarClient ignored =
+                    PulsarClient.builder().serviceUrl("pulsar://localhost:6650").description(longDescription).build();
+        }).isInstanceOf(IllegalArgumentException.class);
+    }
+
     private void assertThatAuthIsNotSet(Authentication authentication) {
         // getAuthentication() returns disabled when null
         assertThat(authentication).isInstanceOf(AuthenticationDisabled.class);
@@ -214,8 +245,9 @@ public class ClientBuilderImplTest {
 
     @SneakyThrows
     private Authentication createClientAndGetAuth(Map<String, Object> confProps) {
-        try (PulsarClient client = PulsarClient.builder().serviceUrl("http://localhost:8080").loadConf(confProps).build()) {
-            return ((PulsarClientImpl)client).conf.getAuthentication();
+        try (PulsarClient client = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .loadConf(confProps).build()) {
+            return ((PulsarClientImpl) client).conf.getAuthentication();
         }
     }
 
@@ -227,7 +259,7 @@ public class ClientBuilderImplTest {
         return Collections.singletonMap("secret", secret);
     }
 
-    static public class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
+    public static class MockAuthenticationSecret implements Authentication, EncodedAuthenticationParameterSupport {
 
         private String secret;
 
@@ -236,11 +268,13 @@ public class ClientBuilderImplTest {
             return "mock-secret";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public AuthenticationDataProvider getAuthData() throws PulsarClientException {
             return null;
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void configure(Map<String, String> authParams) {
             configure(new Gson().toJson(authParams));

@@ -45,8 +45,8 @@ public class NamespaceBundles {
 
     public static final Long FULL_LOWER_BOUND = 0x00000000L;
     public static final Long FULL_UPPER_BOUND = 0xffffffffL;
-    private final NamespaceBundle fullBundle;
 
+    private final NamespaceBundle fullBundle;
     private final Optional<Pair<LocalPolicies, Long>> localPolicies;
 
     public NamespaceBundles(NamespaceName nsname, NamespaceBundleFactory factory,
@@ -94,13 +94,8 @@ public class NamespaceBundles {
     }
 
     public NamespaceBundle findBundle(TopicName topicName) {
-        checkArgument(this.nsname.equals(topicName.getNamespaceObject()));
-        long hashCode = factory.getLongHashCode(topicName.toString());
-        NamespaceBundle bundle = getBundle(hashCode);
-        if (topicName.getDomain().equals(TopicDomain.non_persistent)) {
-            bundle.setHasNonPersistentTopic(true);
-        }
-        return bundle;
+        checkArgument(nsname.equals(topicName.getNamespaceObject()));
+        return factory.getTopicBundleAssignmentStrategy().findBundle(topicName, this);
     }
 
     public List<NamespaceBundle> getBundles() {
@@ -111,11 +106,13 @@ public class NamespaceBundles {
         return bundles.size();
     }
 
-    public void validateBundle(NamespaceBundle nsBundle) throws Exception {
+    public void validateBundle(NamespaceBundle nsBundle) throws IllegalArgumentException {
         int idx = Arrays.binarySearch(partitions, nsBundle.getLowerEndpoint());
-        checkArgument(idx >= 0, "Cannot find bundle in the bundles list");
-        checkArgument(nsBundle.getUpperEndpoint().equals(bundles.get(idx).getUpperEndpoint()),
-                "Invalid upper boundary for bundle");
+        checkArgument(idx >= 0, "Cannot find bundle %s in the bundles list", nsBundle);
+        NamespaceBundle foundBundle = bundles.get(idx);
+        Long upperEndpoint = foundBundle.getUpperEndpoint();
+        checkArgument(nsBundle.getUpperEndpoint().equals(upperEndpoint),
+                "Invalid upper boundary for bundle %s. Expected upper boundary of %s", nsBundle, foundBundle);
     }
 
     public NamespaceBundle getFullBundle() {
@@ -202,6 +199,7 @@ public class NamespaceBundles {
     public LocalPolicies toLocalPolicies() {
         return new LocalPolicies(this.getBundlesData(),
                 localPolicies.map(lp -> lp.getLeft().bookieAffinityGroup).orElse(null),
-                localPolicies.map(lp -> lp.getLeft().namespaceAntiAffinityGroup).orElse(null));
+                localPolicies.map(lp -> lp.getLeft().namespaceAntiAffinityGroup).orElse(null),
+                localPolicies.map(lp -> lp.getLeft().migrated).orElse(false));
     }
 }

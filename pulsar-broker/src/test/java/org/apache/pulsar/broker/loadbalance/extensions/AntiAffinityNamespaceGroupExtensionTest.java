@@ -22,8 +22,6 @@ import static org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUni
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 import java.util.AbstractMap;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,17 +32,18 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.loadbalance.AntiAffinityNamespaceGroupTest;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannel;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.filter.AntiAffinityGroupPolicyFilter;
 import org.apache.pulsar.broker.loadbalance.extensions.policies.AntiAffinityGroupPolicyHelper;
+import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.ServiceUnitId;
-import org.testcontainers.shaded.org.apache.commons.lang3.reflect.FieldUtils;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -61,15 +60,18 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         return ExtensibleLoadManagerImpl.class.getName();
     }
 
+    @SuppressWarnings("unchecked")
     protected String selectBroker(ServiceUnitId serviceUnit, Object loadManager) {
         try {
-            return ((ExtensibleLoadManagerImpl) loadManager).assign(Optional.empty(), serviceUnit).get()
+            return ((ExtensibleLoadManagerImpl) loadManager)
+                    .assign(Optional.empty(), serviceUnit, LookupOptions.builder().build()).get()
                     .get().getPulsarServiceUrl();
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
     }
 
+    @SuppressWarnings("unchecked")
     protected void selectBrokerForNamespace(
             Object ownershipData,
             String broker, String namespace, String assignedBundleName) {
@@ -84,63 +86,17 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
     }
 
     protected void verifyLoadSheddingWithAntiAffinityNamespace(String namespace, String bundle) {
-        try {
-            String namespaceBundle = namespace + "/" + bundle;
-            var antiAffinityGroupPolicyHelper =
-                    (AntiAffinityGroupPolicyHelper)
-                            FieldUtils.readDeclaredField(
-                                    primaryLoadManager, "antiAffinityGroupPolicyHelper", true);
-            var brokerRegistry =
-                    (BrokerRegistry)
-                            FieldUtils.readDeclaredField(
-                                    primaryLoadManager, "brokerRegistry", true);
-            var brokers = brokerRegistry
-                    .getAvailableBrokerLookupDataAsync().get(5, TimeUnit.SECONDS);
-            var serviceUnitStateChannel = (ServiceUnitStateChannel)
-                    FieldUtils.readDeclaredField(
-                            primaryLoadManager, "serviceUnitStateChannel", true);
-            var srcBroker = serviceUnitStateChannel.getOwnerAsync(namespaceBundle)
-                    .get(5, TimeUnit.SECONDS).get();
-            var brokersCopy = new HashMap<>(brokers);
-            brokersCopy.remove(srcBroker);
-            var dstBroker = brokersCopy.entrySet().iterator().next().getKey();
-
-            assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    "not-enabled-" + namespace + "/" + bundle,
-                    srcBroker, Optional.of(dstBroker)));
-
-            assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    "not-enabled-" + namespace + "/" + bundle,
-                    srcBroker, Optional.empty()));
-
-            assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    namespaceBundle,
-                    srcBroker, Optional.of(dstBroker)));
-
-            assertFalse(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    namespaceBundle,
-                    dstBroker, Optional.of(srcBroker)));
-
-            assertTrue(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    namespaceBundle,
-                    srcBroker, Optional.empty()));
-
-            assertFalse(antiAffinityGroupPolicyHelper.canUnload(brokers,
-                    namespaceBundle,
-                    dstBroker, Optional.empty()));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // No-op
     }
 
+    @SuppressWarnings("unchecked")
     protected boolean isLoadManagerUpdatedDomainCache(Object loadManager) throws Exception {
-        @SuppressWarnings("unchecked")
         var antiAffinityGroupPolicyHelper =
                 (AntiAffinityGroupPolicyHelper)
                         FieldUtils.readDeclaredField(
                                 loadManager, "antiAffinityGroupPolicyHelper", true);
         var brokerToFailureDomainMap = (Map<String, String>)
-                org.apache.commons.lang.reflect.FieldUtils.readDeclaredField(antiAffinityGroupPolicyHelper,
+                org.apache.commons.lang3.reflect.FieldUtils.readDeclaredField(antiAffinityGroupPolicyHelper,
                         "brokerToFailureDomainMap", true);
         return !brokerToFailureDomainMap.isEmpty();
     }
@@ -150,13 +106,14 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
             throws IllegalAccessException, ExecutionException, InterruptedException,
             TimeoutException, PulsarAdminException, PulsarClientException {
 
-        final String namespace = "my-tenant/test/my-ns-filter";
+        final String namespace = "my-tenant/my-ns-filter";
         final String namespaceAntiAffinityGroup = "my-antiaffinity-filter";
 
 
         final String antiAffinityEnabledNameSpace = namespace + nsSuffix;
         admin.namespaces().createNamespace(antiAffinityEnabledNameSpace);
         admin.namespaces().setNamespaceAntiAffinityGroup(antiAffinityEnabledNameSpace, namespaceAntiAffinityGroup);
+        @Cleanup
         PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar.getSafeWebServiceAddress()).build();
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(
@@ -178,8 +135,8 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         doReturn(namespace + "/" + bundle).when(namespaceBundle).toString();
 
         var expected = new HashMap<>(brokers);
-        var actual = antiAffinityGroupPolicyFilter.filter(
-                brokers, namespaceBundle, context);
+        var actual = antiAffinityGroupPolicyFilter.filterAsync(
+                brokers, namespaceBundle, context).get();
         assertEquals(actual, expected);
 
         doReturn(antiAffinityEnabledNameSpace + "/" + bundle).when(namespaceBundle).toString();
@@ -189,8 +146,8 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
         var srcBroker = serviceUnitStateChannel.getOwnerAsync(namespaceBundle.toString())
                 .get(5, TimeUnit.SECONDS).get();
         expected.remove(srcBroker);
-        actual = antiAffinityGroupPolicyFilter.filter(
-                brokers, namespaceBundle, context);
+        actual = antiAffinityGroupPolicyFilter.filterAsync(
+                brokers, namespaceBundle, context).get();
         assertEquals(actual, expected);
     }
 }

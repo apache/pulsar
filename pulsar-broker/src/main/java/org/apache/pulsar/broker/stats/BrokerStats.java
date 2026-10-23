@@ -20,8 +20,8 @@ package org.apache.pulsar.broker.stats;
 
 public class BrokerStats extends NamespaceStats {
 
-    public int bundleCount;
-    public int topics;
+    public long bundleCount;
+    public long topics;
     public BrokerStats(int ratePeriodInSeconds) {
         super(ratePeriodInSeconds);
     }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.runtime.kubernetes;
 
+import java.util.HashMap;
 import java.util.Map;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -46,7 +47,12 @@ public class KubernetesRuntimeFactoryConfig {
         doc = "The docker image used to run function instance. By default it is `apachepulsar/pulsar`"
     )
     protected String pulsarDockerImageName;
-
+    @FieldContext(
+        doc = "Optional domain suffix to use when the Function Worker constructs the gRPC address "
+            + "to connect to function instances. If left blank, it defaults to `.svc.cluster.local`. "
+            + "Set this if your Function Worker is outside the cluster and connects via an external Gateway/Ingress."
+    )
+    protected String kubernetesServiceDomainSuffix;
     @FieldContext(
             doc = "The function docker images used to run function instance according to different "
                     + "configurations provided by users. By default it is `apachepulsar/pulsar`"
@@ -169,4 +175,9 @@ public class KubernetesRuntimeFactoryConfig {
     )
     protected int gracePeriodSeconds = 5;
 
+    @FieldContext(
+            doc = "A map of custom configurations passed to implementations of the KubernetesFunctionAuthProvider"
+                    + " interface."
+    )
+    private Map<String, Object> kubernetesFunctionAuthProviderConfig = new HashMap<>();
 }
