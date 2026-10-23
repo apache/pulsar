@@ -34,10 +34,6 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
 
     protected String methodName;
 
-    protected final String defaultTenant = "public";
-
-    protected final String defaultNamespace = defaultTenant + "/default";
-
     @BeforeMethod(alwaysRun = true)
     public void beforeMethod(Method m) throws Exception {
         methodName = m.getName();
@@ -51,10 +47,10 @@ public abstract class ProducerConsumerBase extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceReplicationClusters("my-property/my-ns", Sets.newHashSet("test"));
 
         // so that clients can test short names
-        admin.tenants().createTenant(defaultTenant,
+        admin.tenants().createTenant("public",
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
-        admin.namespaces().createNamespace(defaultNamespace);
-        admin.namespaces().setNamespaceReplicationClusters(defaultNamespace, Sets.newHashSet("test"));
+        admin.namespaces().createNamespace("public/default");
+        admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
     }
 
     protected <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage,
