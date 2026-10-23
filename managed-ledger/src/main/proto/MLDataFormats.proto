@@ -84,6 +84,9 @@ message PositionInfo {
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 5;
     repeated LongListMap individualDeletedMessageRanges = 6;
+
+    // If the cursor was idle (e.g. its subscription had no consumers), the time since then (Unix time, milliseconds)
+    optional int64 idleSince = 7;
 }
 
 message NestedPositionInfo {
@@ -131,7 +134,7 @@ message ManagedCursorInfo {
     // the current cursor position
     repeated LongProperty properties = 5;
 
-    // deprecated, do not persist this field anymore
+    // deprecated: no longer read, but still written (as a positive time) for the older versions that read it
     optional int64 lastActive = 6 [deprecated = true];
 
     // Store which index in the batch message has been deleted
@@ -140,6 +143,9 @@ message ManagedCursorInfo {
     // Additional custom properties associated with
     // the cursor
     repeated StringProperty cursorProperties = 8;
+
+    // If the cursor was idle (e.g. its subscription had no consumers), the time since then (Unix time, milliseconds)
+    optional int64 idleSince = 9;
 }
 
 enum CompressionType {

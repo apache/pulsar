@@ -46,6 +46,9 @@ public interface ProducerInterceptor extends AutoCloseable {
 
     /**
      * Close the interceptor.
+     *
+     * <p>This method is called once when the producer that this interceptor is attached to is closed. An interceptor
+     * instance that is attached to several producers is closed once for each of them.
      */
     void close();
 

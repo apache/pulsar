@@ -21,6 +21,7 @@ package org.apache.pulsar.tests.performance.launcher;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.file.Files;
@@ -29,6 +30,8 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.function.Predicate;
@@ -52,6 +55,12 @@ import picocli.CommandLine.Option;
  * therefore still be interpreted in JDK Mission Control with the JVM flags, runtime configuration and machine details
  * that produced the measured events. Keeping the complete source recording alongside the cut recording remains useful
  * when investigating startup or shutdown behavior.
+ *
+ * <p>Each chunk of the recording is cut on its own, with the times its own header states, and the cut chunks are
+ * joined in order. JDK 22+ readers of a whole recording instead convert every chunk with the first chunk's clock, so
+ * a chunk whose clock has another origin, such as the one that async-profiler's {@code jfrsync} appends when its
+ * clock isn't aligned with the JVM's, keeps its events in the cut but still reads wrongly in those readers.
+ * {@link #clockMismatches(Path, Duration)} finds such chunks.
  *
  * <p>Boundaries can be supplied as absolute {@link Instant} values through {@link #cut(Path, Instant, Instant, Path)}.
  * {@link #cutFrom(Path, Instant, Path)} removes only the prefix before a boundary, which is appropriate when work
@@ -206,8 +215,13 @@ public final class JfrCut implements Callable<Integer> {
 
         Path temporary = normalizedOutput.resolveSibling(normalizedOutput.getFileName() + ".tmp");
         Files.deleteIfExists(temporary);
-        try (RecordingFile recording = new RecordingFile(normalizedInput)) {
-            write(recording, temporary, filter);
+        List<Chunk> chunks = chunks(normalizedInput);
+        if (chunks.size() == 1) {
+            try (RecordingFile recording = new RecordingFile(normalizedInput)) {
+                write(recording, temporary, filter);
+            }
+        } else {
+            cutChunks(normalizedInput, chunks, temporary, filter);
         }
         try {
             Files.move(temporary, normalizedOutput, StandardCopyOption.ATOMIC_MOVE,
@@ -217,6 +231,79 @@ public final class JfrCut implements Callable<Integer> {
         } finally {
             Files.deleteIfExists(temporary);
         }
+    }
+
+    // JDK 22+ readers convert the events of every chunk with the first chunk's clock, which mistimes the events of a
+    // chunk whose clock has another origin, such as the one that async-profiler's jfrsync appends when its clock isn't
+    // aligned with the JVM's. Each chunk is complete in itself, so each is cut on its own, timed by its own header.
+    private static void cutChunks(Path input, List<Chunk> chunks, Path output, Predicate<RecordedEvent> filter)
+            throws IOException {
+        Path chunkInput = output.resolveSibling(output.getFileName() + ".chunk");
+        Path chunkOutput = output.resolveSibling(output.getFileName() + ".chunk.cut");
+        try (FileChannel source = FileChannel.open(input, StandardOpenOption.READ);
+             FileChannel target = FileChannel.open(output, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE)) {
+            for (Chunk chunk : chunks) {
+                try (FileChannel chunkFile = FileChannel.open(chunkInput, StandardOpenOption.CREATE,
+                        StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE)) {
+                    transferFully(source, chunk.offset(), chunk.size(), chunkFile);
+                }
+                Files.deleteIfExists(chunkOutput);
+                try (RecordingFile recording = new RecordingFile(chunkInput)) {
+                    write(recording, chunkOutput, filter);
+                }
+                try (FileChannel cutChunk = FileChannel.open(chunkOutput, StandardOpenOption.READ)) {
+                    transferFully(cutChunk, 0, cutChunk.size(), target);
+                }
+            }
+        } finally {
+            Files.deleteIfExists(chunkInput);
+            Files.deleteIfExists(chunkOutput);
+        }
+    }
+
+    private static void transferFully(FileChannel source, long position, long size, FileChannel target)
+            throws IOException {
+        long transferred = 0;
+        while (transferred < size) {
+            long count = source.transferTo(position + transferred, size - transferred, target);
+            if (count <= 0) {
+                throw new IOException("Could not copy a JFR chunk");
+            }
+            transferred += count;
+        }
+    }
+
+    /**
+     * Finds the chunks of a recording whose events a JDK 22+ reader of the whole file mistimes by more than
+     * {@code tolerance}. Such a reader converts every chunk's ticks with the first chunk's start and frequency, so
+     * this compares the start and the end of each later chunk, converted that way, with the times its own header
+     * states. Cutting chunk by chunk keeps the right events regardless, but the whole recording and its cut still
+     * read wrongly in such readers.
+     */
+    public static List<ClockMismatch> clockMismatches(Path input, Duration tolerance) throws IOException {
+        List<Chunk> chunks = chunks(input.toAbsolutePath().normalize());
+        Chunk first = chunks.get(0);
+        List<ClockMismatch> mismatches = new ArrayList<>();
+        for (int i = 1; i < chunks.size(); i++) {
+            Chunk chunk = chunks.get(i);
+            BigInteger endTicks = BigInteger.valueOf(chunk.startTicks()).add(BigInteger.valueOf(chunk.durationNanos())
+                    .multiply(BigInteger.valueOf(chunk.ticksPerSecond())).divide(BigInteger.valueOf(NANOS_PER_SECOND)));
+            long startError = first.convert(BigInteger.valueOf(chunk.startTicks()))
+                    .subtract(BigInteger.valueOf(chunk.startNanos())).abs().min(BigInteger.valueOf(Long.MAX_VALUE))
+                    .longValue();
+            long endError = first.convert(endTicks)
+                    .subtract(BigInteger.valueOf(chunk.startNanos()).add(BigInteger.valueOf(chunk.durationNanos())))
+                    .abs().min(BigInteger.valueOf(Long.MAX_VALUE)).longValue();
+            Duration error = Duration.ofNanos(Math.max(startError, endError));
+            if (error.compareTo(tolerance) > 0) {
+                mismatches.add(new ClockMismatch(i, error));
+            }
+        }
+        return mismatches;
+    }
+
+    /** A chunk, by its index in the recording, and how far a JDK 22+ reader of the whole file mistimes its events. */
+    public record ClockMismatch(int chunk, Duration error) {
     }
 
     private static boolean isJvmContextEvent(RecordedEvent event) {
@@ -263,8 +350,32 @@ public final class JfrCut implements Callable<Integer> {
     public static RecordingInfo recordingInfo(Path input) throws IOException {
         long firstStartNanos = Long.MAX_VALUE;
         long lastEndNanos = Long.MIN_VALUE;
-        Path normalizedInput = input.toAbsolutePath().normalize();
-        try (FileChannel channel = FileChannel.open(normalizedInput, StandardOpenOption.READ)) {
+        for (Chunk chunk : chunks(input.toAbsolutePath().normalize())) {
+            final long endNanos;
+            try {
+                endNanos = Math.addExact(chunk.startNanos(), chunk.durationNanos());
+            } catch (ArithmeticException overflow) {
+                throw new IOException("JFR chunk timestamp overflow at offset " + chunk.offset() + " in " + input,
+                        overflow);
+            }
+            firstStartNanos = Math.min(firstStartNanos, chunk.startNanos());
+            lastEndNanos = Math.max(lastEndNanos, endNanos);
+        }
+        final long totalDurationNanos;
+        try {
+            totalDurationNanos = Math.subtractExact(lastEndNanos, firstStartNanos);
+        } catch (ArithmeticException overflow) {
+            throw new IOException("JFR recording duration overflow in " + input, overflow);
+        }
+        Instant start = epochNanosToInstant(firstStartNanos);
+        Instant end = epochNanosToInstant(lastEndNanos);
+        return new RecordingInfo(start, end, Duration.ofNanos(totalDurationNanos));
+    }
+
+    // The chunk headers of a recording, which must be complete: a truncated or unfinished chunk is rejected
+    private static List<Chunk> chunks(Path input) throws IOException {
+        List<Chunk> chunks = new ArrayList<>();
+        try (FileChannel channel = FileChannel.open(input, StandardOpenOption.READ)) {
             long fileSize = channel.size();
             long chunkOffset = 0;
             while (chunkOffset < fileSize) {
@@ -283,34 +394,29 @@ public final class JfrCut implements Callable<Integer> {
                 header.getLong();
                 long startNanos = header.getLong();
                 long durationNanos = header.getLong();
+                long startTicks = header.getLong();
+                long ticksPerSecond = header.getLong();
                 if (chunkSize < JFR_CHUNK_HEADER_SIZE || chunkSize > fileSize - chunkOffset
-                        || durationNanos < 0) {
+                        || durationNanos < 0 || ticksPerSecond <= 0) {
                     throw new IOException("Invalid JFR chunk header at offset " + chunkOffset + " in " + input);
                 }
-                final long endNanos;
-                try {
-                    endNanos = Math.addExact(startNanos, durationNanos);
-                } catch (ArithmeticException overflow) {
-                    throw new IOException("JFR chunk timestamp overflow at offset " + chunkOffset + " in " + input,
-                            overflow);
-                }
-                firstStartNanos = Math.min(firstStartNanos, startNanos);
-                lastEndNanos = Math.max(lastEndNanos, endNanos);
+                chunks.add(new Chunk(chunkOffset, chunkSize, startNanos, durationNanos, startTicks, ticksPerSecond));
                 chunkOffset += chunkSize;
             }
         }
-        if (firstStartNanos == Long.MAX_VALUE) {
+        if (chunks.isEmpty()) {
             throw new IOException("Cannot inspect an empty JFR recording: " + input);
         }
-        final long totalDurationNanos;
-        try {
-            totalDurationNanos = Math.subtractExact(lastEndNanos, firstStartNanos);
-        } catch (ArithmeticException overflow) {
-            throw new IOException("JFR recording duration overflow in " + input, overflow);
+        return chunks;
+    }
+
+    private record Chunk(long offset, long size, long startNanos, long durationNanos, long startTicks,
+                         long ticksPerSecond) {
+        // The epoch nanoseconds of a tick count, as this chunk's header converts it
+        BigInteger convert(BigInteger ticks) {
+            return BigInteger.valueOf(startNanos).add(ticks.subtract(BigInteger.valueOf(startTicks))
+                    .multiply(BigInteger.valueOf(NANOS_PER_SECOND)).divide(BigInteger.valueOf(ticksPerSecond)));
         }
-        Instant start = epochNanosToInstant(firstStartNanos);
-        Instant end = epochNanosToInstant(lastEndNanos);
-        return new RecordingInfo(start, end, Duration.ofNanos(totalDurationNanos));
     }
 
     private static void readFully(FileChannel channel, ByteBuffer target, long position) throws IOException {

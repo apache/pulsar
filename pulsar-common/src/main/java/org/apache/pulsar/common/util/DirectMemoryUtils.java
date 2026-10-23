@@ -34,4 +34,7 @@ public class DirectMemoryUtils {
         return JVM_MAX_DIRECT_MEMORY;
     }
 
+    public static long jvmMaxDirectMemoryPercentage(double percent) {
+        return (long) (DirectMemoryUtils.jvmMaxDirectMemory() * (percent / 100));
+    }
 }

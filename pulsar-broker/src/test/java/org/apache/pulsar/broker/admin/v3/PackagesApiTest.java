@@ -24,6 +24,10 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -35,6 +39,7 @@ import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
@@ -180,5 +185,33 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             assertEquals(412, e.getStatusCode());
         }
+    }
+
+    @DataProvider(name = "invalidPackagePaths")
+    public static Object[][] invalidPackagePaths() {
+        return new Object[][]{
+            {"GET", "function/public/default/test/%2E%2E/metadata"},
+            {"GET", "function/public/default/test/%2E/metadata"},
+            {"GET", "function/public/default/%2E%2E/v1/metadata"},
+            {"GET", "function/public/default/test/v%5C1/metadata"},
+            {"GET", "function/public/default/test/%2E%2E"},
+            {"GET", "function/public/default/%2E%2E"},
+            {"GET", "function/public/%2E%2E"},
+            {"GET", "function/public/%2E"},
+            {"GET", "function/public/n%5Cs"},
+            {"DELETE", "function/public/default/test/%2E%2E"},
+        };
+    }
+
+    @Test(timeOut = 60000, dataProvider = "invalidPackagePaths")
+    public void testInvalidPackagePathIsRejectedAsPreconditionFailed(String method, String path) throws Exception {
+        // use a plain HTTP client so that the request is not validated on the client side
+        URI uri = URI.create(brokerUrl.toString().replaceAll("/$", "") + "/admin/v3/packages/" + path);
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .method(method, HttpRequest.BodyPublishers.noBody())
+                .build();
+        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+        assertEquals(response.statusCode(), 412,
+                "Unexpected response for " + method + " " + uri + ": " + response.body());
     }
 }

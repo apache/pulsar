@@ -1013,6 +1013,12 @@ public class PulsarClientImpl implements PulsarClient {
                         Optional.empty());
             }
             producers.add(producer);
+            // The creation can fail before this line runs, from another thread or from a connection that fails at
+            // once, in which case the producer has already closed or failed and removed itself from the client. Do
+            // not keep it then.
+            if (producer.isTerminalState()) {
+                cleanupProducer(producer);
+            }
         }).exceptionally(ex -> {
             log.warn().attr("topic", topic).exceptionMessage(ex).log("Failed to get partitioned topic metadata");
             producerCreatedFuture.completeExceptionally(ex);
@@ -1496,7 +1502,9 @@ public class PulsarClientImpl implements PulsarClient {
                 conf.getServiceUrlProvider().close();
             }
 
-            if (addressResolver != null) {
+            // A DnsResolverGroupImpl hands the same resolver to every client on an event loop, so a resolver from a
+            // shared group is left to the group: closing it would break DNS for the clients that still use it.
+            if (addressResolver != null && dnsResolverGroupLocalInstance != null) {
                 try {
                     addressResolver.close();
                 } catch (Throwable t) {
@@ -1894,7 +1902,8 @@ public class PulsarClientImpl implements PulsarClient {
                     blockingAuthExecutor());
         } else {
             lookupService = new BinaryProtoLookupService(this, url, conf.getListenerName(), conf.isUseTls(),
-                    this.scheduledExecutorProvider.getExecutor(), this.lookupExecutorProvider.getExecutor());
+                    (ScheduledExecutorService) this.scheduledExecutorProvider.getExecutor(),
+                    this.lookupExecutorProvider.getExecutor());
         }
         return new InProgressDeduplicationDecoratorLookupService(lookupService,
                 () -> getConfiguration().getLookupProperties());

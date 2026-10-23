@@ -34,6 +34,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -188,6 +189,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private Map<String, String> bundleBrokerAffinityMap;
     // array used for sorting and select topK bundles
     private final List<Map.Entry<String, ? extends Comparable>> bundleArr = new ArrayList<>();
+    // The callbacks that unregister the listeners of the metadata store
+    private final List<Runnable> metadataStoreListenerCleanups = new CopyOnWriteArrayList<>();
 
 
     /**
@@ -231,8 +234,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         this.pulsar = pulsar;
         this.pulsarResources = pulsar.getPulsarResources();
         brokersData = pulsar.getCoordinationService().getLockManager(LocalBrokerData.class);
-        pulsar.getLocalMetadataStore().registerListener(this::handleDataNotification);
-        pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
+        metadataStoreListenerCleanups.add(
+                pulsar.getLocalMetadataStore().registerCancellableListener(this::handleDataNotification));
+        metadataStoreListenerCleanups.add(
+                pulsar.getLocalMetadataStore().registerCancellableSessionListener(this::handleMetadataSessionEvent));
 
         if (SystemUtils.IS_OS_LINUX) {
             brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
@@ -260,11 +265,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
         LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes
-        pulsarResources.getClusterResources().getFailureDomainResources()
-                .registerListener(__ -> {
+        metadataStoreListenerCleanups.add(pulsarResources.getClusterResources().getFailureDomainResources()
+                .registerCancellableListener(__ -> {
                     executors.execute(
                             () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
-                });
+                }));
     }
 
     /**
@@ -1160,6 +1165,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void stop() throws PulsarServerException {
+        metadataStoreListenerCleanups.forEach(Runnable::run);
+        metadataStoreListenerCleanups.clear();
         executors.shutdownNow();
 
         try {
