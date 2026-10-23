@@ -206,38 +206,17 @@ const (
 func (gi *goInstance) setupClient() error {
 	ic := gi.context.instanceConf
 
+	authentication, err := newAuthentication(ic)
+	if err != nil {
+		return err
+	}
+
 	clientOpts := pulsar.ClientOptions{
 		URL:                        ic.pulsarServiceURL,
 		TLSTrustCertsFilePath:      ic.tlsTrustCertsPath,
 		TLSAllowInsecureConnection: ic.tlsAllowInsecure,
 		TLSValidateHostname:        ic.tlsHostnameVerification,
-	}
-
-	switch ic.authPlugin {
-	case authPluginToken:
-		switch {
-		case strings.HasPrefix(ic.authParams, "file://"):
-			clientOpts.Authentication = pulsar.NewAuthenticationTokenFromFile(ic.authParams[7:])
-		case strings.HasPrefix(ic.authParams, "token:"):
-			clientOpts.Authentication = pulsar.NewAuthenticationToken(ic.authParams[6:])
-		case ic.authParams == "":
-			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
-		default:
-			return fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
-		}
-	case authPluginOAuth2:
-		if ic.authParams == "" {
-			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginOAuth2)
-		}
-		var authMap map[string]string
-		if err := json.Unmarshal([]byte(ic.authParams), &authMap); err != nil {
-			return fmt.Errorf(`unknown auth params format for OAuth2 - expecting a json string of map`)
-		}
-		clientOpts.Authentication = pulsar.NewAuthenticationOAuth2(authMap)
-	case authPluginNone:
-		clientOpts.Authentication, _ = pulsar.NewAuthentication("", "") // ret: auth.NewAuthDisabled()
-	default:
-		return fmt.Errorf("unknown auth provider: %s", ic.authPlugin)
+		Authentication:             authentication,
 	}
 
 	client, err := pulsar.NewClient(clientOpts)
@@ -248,6 +227,51 @@ func (gi *goInstance) setupClient() error {
 	}
 	gi.client = client
 	return nil
+}
+
+// newAuthentication creates the client authentication from the auth plugin and
+// params the function worker passes to the instance.
+func newAuthentication(ic *instanceConf) (pulsar.Authentication, error) {
+	switch ic.authPlugin {
+	case authPluginToken:
+		switch {
+		case strings.HasPrefix(ic.authParams, "file://"):
+			return pulsar.NewAuthenticationTokenFromFile(ic.authParams[7:]), nil
+		case strings.HasPrefix(ic.authParams, "token:"):
+			return pulsar.NewAuthenticationToken(ic.authParams[6:]), nil
+		case ic.authParams == "":
+			return nil, fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
+		default:
+			return nil, fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
+		}
+	case authPluginOAuth2:
+		var params map[string]string
+		if err := json.Unmarshal([]byte(ic.authParams), &params); err != nil {
+			return nil, fmt.Errorf("invalid authParams for auth plugin %s - expecting a JSON map: %w",
+				authPluginOAuth2, err)
+		}
+		if len(params) == 0 {
+			return nil, fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginOAuth2)
+		}
+		// The Java client defaults to the client credentials flow, the Go client requires the type
+		if _, ok := params["type"]; !ok {
+			params["type"] = "client_credentials"
+		}
+		encoded, err := json.Marshal(params)
+		if err != nil {
+			return nil, err
+		}
+		authentication, err := pulsar.NewAuthentication(authPluginOAuth2, string(encoded))
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure auth plugin %s: %w", authPluginOAuth2, err)
+		}
+		return authentication, nil
+	case authPluginNone:
+		authentication, _ := pulsar.NewAuthentication("", "") // ret: auth.NewAuthDisabled()
+		return authentication, nil
+	default:
+		return nil, fmt.Errorf("unknown auth provider: %s", ic.authPlugin)
+	}
 }
 
 func (gi *goInstance) setupProducer() error {

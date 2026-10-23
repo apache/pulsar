@@ -325,7 +325,7 @@ func TestInstanceConf_WithEmptyOrInvalidDetails(t *testing.T) {
 func TestInstanceConf_WithOAuth2Parameters(t *testing.T) {
 	cfg := &cfg.Conf{
 		AutoACK:                    true,
-		ClientAuthenticationPlugin: "org.apache.pulsar.client.impl.auth.AuthenticationOAuth2",
+		ClientAuthenticationPlugin: authPluginOAuth2,
 		ClientAuthenticationParameters: `{"issuerUrl":"https://test.com","audience":"test-audience",
 "scope":"test-scope","privateKey":"/mnt/secrets/auth.json","type":"client_credentials","clientId":"test-client-id"}`,
 	}

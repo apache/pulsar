@@ -490,7 +490,7 @@ public class ProcessRuntimeTest {
     public void testJavaConstructorWithWebServiceUrlAndExposePulsarAdminClientEnabled() throws Exception {
         InstanceConfig config = createJavaInstanceConfig(FunctionDetails.Runtime.JAVA, true);
 
-        factory = createProcessRuntimeFactory(null, null, true, null);
+        factory = createProcessRuntimeFactory(null, defaultWebServiceUrl, true, null);
 
         verifyJavaInstance(config, null, defaultWebServiceUrl);
     }
