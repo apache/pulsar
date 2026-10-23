@@ -600,13 +600,7 @@ public class MetadataTransactionBufferTest {
         TxnID txnId = new TxnID(1, 1);
         createOpenHeader(txnId);
         CompletableFuture<Void> firstOpRecordHeld = new CompletableFuture<>();
-        AtomicInteger opRecordWrites = new AtomicInteger();
-        TxnMetadataStore store = spy(txnStore);
-        doAnswer(inv -> {
-            CompletableFuture<?> written = (CompletableFuture<?>) inv.callRealMethod();
-            return opRecordWrites.getAndIncrement() == 0
-                    ? written.thenCombine(firstOpRecordHeld, (stat, __) -> stat) : written;
-        }).when(store).appendOp(any(), any());
+        TxnMetadataStore store = holdingFirstOpRecordWrite(firstOpRecordHeld);
         MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
         tb.checkIfTBRecoverCompletely().get();
 
@@ -614,7 +608,7 @@ public class MetadataTransactionBufferTest {
         CompletableFuture<Position> second = tb.appendBufferToTxn(txnId, 1, payload("b"));
 
         // The in-memory store has written the second op record, while the first one is held back.
-        assertThat(opRecordWrites).hasValue(2);
+        verify(store, times(2)).appendOp(any(), any());
         assertThat(second).as("the append whose op record is written first").isNotDone();
         verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), any(), any());
 
@@ -642,10 +636,49 @@ public class MetadataTransactionBufferTest {
         assertThat(second.get()).isEqualTo(PositionFactory.create(10, 1));
     }
 
+    @Test
+    public void publishOrdering_appendQueuedPastTheAbortOfItsTxnIsRejected() throws Exception {
+        // An append whose op record is written waits for the appends before it. An abort of its txn
+        // applied meanwhile records the positions known then (none here, so the LAC): an entry
+        // appended afterwards would sit above the aborted record, and be read as committed once the
+        // record is pruned because the ledger trimmed past it.
+        TxnID heldTxn = new TxnID(1, 1);
+        TxnID abortedTxn = new TxnID(1, 2);
+        createOpenHeader(heldTxn);
+        createOpenHeader(abortedTxn);
+        CompletableFuture<Void> firstOpRecordHeld = new CompletableFuture<>();
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic,
+                holdingFirstOpRecordWrite(firstOpRecordHeld));
+        tb.checkIfTBRecoverCompletely().get();
+
+        CompletableFuture<Position> first = tb.appendBufferToTxn(heldTxn, 0, payload("a"));
+        CompletableFuture<Position> second = tb.appendBufferToTxn(abortedTxn, 0, payload("b"));
+        abortTxn(abortedTxn);
+        txnStore.publishSegmentEvent(SEGMENT, new TxnEvent(TxnIds.toKey(abortedTxn), TxnState.ABORTED)).get();
+        Awaitility.await().untilAsserted(() -> assertThat(tb.getAbortedTxnCount()).isOne());
+
+        firstOpRecordHeld.complete(null);
+        assertThat(first.get()).isEqualTo(PositionFactory.create(10, 1));
+        assertThatThrownBy(second::get).hasCauseInstanceOf(BrokerServiceException.NotAllowedException.class);
+        verify(ledger, times(1)).asyncAddEntry(any(ByteBuf.class), any(), any());
+    }
+
     // ---- helpers -----------------------------------------------------------
 
     private static ByteBuf payload(String s) {
         return Unpooled.copiedBuffer(s.getBytes());
+    }
+
+    /** {@link #txnStore}, with the first op-record write completing only once {@code release} does. */
+    private TxnMetadataStore holdingFirstOpRecordWrite(CompletableFuture<Void> release) {
+        AtomicInteger opRecordWrites = new AtomicInteger();
+        TxnMetadataStore store = spy(txnStore);
+        doAnswer(inv -> {
+            CompletableFuture<?> written = (CompletableFuture<?>) inv.callRealMethod();
+            return opRecordWrites.getAndIncrement() == 0
+                    ? written.thenCombine(release, (stat, __) -> stat) : written;
+        }).when(store).appendOp(any(), any());
+        return store;
     }
 
     /** A non-transactional publish at {@code 10:entryId}, the last entry of the segment from then on. */
