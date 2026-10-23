@@ -37,7 +37,7 @@ public class NamespaceStats {
     public int consumerCount;
     public int producerCount;
     public int replicatorCount;
-    public int subsCount;
+    public long subsCount;
     public static final String BRK_ADD_ENTRY_LATENCY_PREFIX = "brk_AddEntryLatencyBuckets";
     public long[] addLatencyBucket = new long[ENTRY_LATENCY_BUCKETS_USEC.length + 1];
     public static final String[] ADD_LATENCY_BUCKET_KEYS = new String[ENTRY_LATENCY_BUCKETS_USEC.length + 1];

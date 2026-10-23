@@ -19,12 +19,12 @@
 package org.apache.pulsar.compaction;
 
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.topics.TopicCompactionStrategy;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class StrategicCompactionRetentionTest extends CompactionRetentionTest {
     private TopicCompactionStrategy strategy;
@@ -34,11 +34,12 @@ public class StrategicCompactionRetentionTest extends CompactionRetentionTest {
     @Override
     public void setup() throws Exception {
         super.setup();
-        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler, 1);
+        compactor = new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
         strategy = new TopicCompactionStrategyTest.DummyTopicCompactionStrategy();
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     protected long compact(String topic) throws ExecutionException, InterruptedException {
         return (long) compactor.compact(topic, strategy).get();
     }

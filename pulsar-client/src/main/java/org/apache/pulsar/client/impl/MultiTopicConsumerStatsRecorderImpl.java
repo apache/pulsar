@@ -20,17 +20,23 @@ package org.apache.pulsar.client.impl;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.MultiTopicConsumerStats;
+import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("deprecation")
+@CustomLog
 public class MultiTopicConsumerStatsRecorderImpl extends ConsumerStatsRecorderImpl implements MultiTopicConsumerStats {
 
     private static final long serialVersionUID = 1L;
     private Map<String, ConsumerStats> partitionStats = new ConcurrentHashMap<>();
+
+    private PartitionedTopicProducerStatsRecorderImpl deadLetterStats = new PartitionedTopicProducerStatsRecorderImpl();
+    private PartitionedTopicProducerStatsRecorderImpl retryLetterStats =
+            new PartitionedTopicProducerStatsRecorderImpl();
 
     public MultiTopicConsumerStatsRecorderImpl() {
         super();
@@ -55,5 +61,19 @@ public class MultiTopicConsumerStatsRecorderImpl extends ConsumerStatsRecorderIm
         return partitionStats;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(MultiTopicConsumerStatsRecorderImpl.class);
+    @Override
+    public ProducerStats getDeadLetterProducerStats() {
+        deadLetterStats.reset();
+        partitionStats.forEach((partition, consumerStats) -> deadLetterStats.updateCumulativeStats(partition,
+                consumerStats.getDeadLetterProducerStats()));
+        return deadLetterStats;
+    }
+
+    @Override
+    public ProducerStats getRetryLetterProducerStats() {
+        retryLetterStats.reset();
+        partitionStats.forEach((partition, consumerStats) -> retryLetterStats.updateCumulativeStats(partition,
+                consumerStats.getRetryLetterProducerStats()));
+        return retryLetterStats;
+    }
 }

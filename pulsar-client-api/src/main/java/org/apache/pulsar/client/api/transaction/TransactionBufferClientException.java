@@ -29,6 +29,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 @InterfaceAudience.Private
 @InterfaceStability.Evolving
 public class TransactionBufferClientException extends IOException {
+    private static final long serialVersionUID = 1L;
 
     public TransactionBufferClientException(Throwable t) {
         super(t);
@@ -42,6 +43,7 @@ public class TransactionBufferClientException extends IOException {
      * Thrown when operation timeout.
      */
     public static class RequestTimeoutException extends TransactionBufferClientException {
+        private static final long serialVersionUID = 1L;
 
         public RequestTimeoutException() {
             super("Transaction buffer request timeout.");
@@ -56,6 +58,7 @@ public class TransactionBufferClientException extends IOException {
      * Thrown when transaction buffer op over max pending numbers.
      */
     public static class ReachMaxPendingOpsException extends TransactionBufferClientException {
+        private static final long serialVersionUID = 1L;
 
         public ReachMaxPendingOpsException() {
             super("Transaction buffer op reach max pending numbers.");

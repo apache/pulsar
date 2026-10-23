@@ -27,16 +27,20 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 
 public class AuthenticationDataBasic implements AuthenticationDataProvider {
     private static final String HTTP_HEADER_NAME = "Authorization";
-    private String httpAuthToken;
-    private String commandAuthToken;
-    private Map<String, String> headers = new HashMap<>();
+    private final String commandAuthToken;
+    private final Map<String, String> headers;
 
     public AuthenticationDataBasic(String userId, String password) {
-        httpAuthToken = "Basic " + Base64.getEncoder().encodeToString((userId + ":" + password).getBytes());
-        commandAuthToken = userId + ":" + password;
-        headers.put(HTTP_HEADER_NAME, httpAuthToken);
-        headers.put(PULSAR_AUTH_METHOD_NAME, AuthenticationBasic.AUTH_METHOD_NAME);
-        this.headers = Collections.unmodifiableMap(this.headers);
+        this(userId + ":" + password);
+    }
+
+    public AuthenticationDataBasic(String userInfo) {
+        String httpAuthToken = "Basic " + Base64.getEncoder().encodeToString(userInfo.getBytes());
+        this.commandAuthToken = userInfo;
+        this.headers = Collections.unmodifiableMap(new HashMap<String, String>(){{
+            put(HTTP_HEADER_NAME, httpAuthToken);
+            put(PULSAR_AUTH_METHOD_NAME, AuthenticationBasic.AUTH_METHOD_NAME);
+        }});
     }
 
     @Override

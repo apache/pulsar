@@ -19,23 +19,27 @@
 package org.apache.pulsar.client.impl;
 
 import io.netty.channel.EventLoopGroup;
-import java.io.IOException;
+import io.netty.resolver.NameResolver;
+import io.netty.util.Timer;
+import io.opentelemetry.api.common.Attributes;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
 import org.apache.pulsar.client.impl.schema.SchemaInfoUtil;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
@@ -50,23 +54,50 @@ import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class HttpLookupService implements LookupService {
 
     private final HttpClient httpClient;
     private final boolean useTls;
     private final String listenerName;
 
-    private static final String BasePathV1 = "lookup/v2/destination/";
-    private static final String BasePathV2 = "lookup/v2/topic/";
+    private static final String BasePath = "lookup/v2/topic/";
 
-    public HttpLookupService(ClientConfigurationData conf, EventLoopGroup eventLoopGroup)
+    private final LatencyHistogram histoGetBroker;
+    private final LatencyHistogram histoGetTopicMetadata;
+    private final LatencyHistogram histoGetSchema;
+    private final LatencyHistogram histoListTopics;
+
+    @Deprecated
+    public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
+                             EventLoopGroup eventLoopGroup) throws PulsarClientException {
+        this(instrumentProvider, conf, eventLoopGroup, null, null);
+    }
+
+    public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
+                             EventLoopGroup eventLoopGroup, Timer timer,
+                             NameResolver<InetAddress> nameResolver)
             throws PulsarClientException {
-        this.httpClient = new HttpClient(conf, eventLoopGroup);
+        this(instrumentProvider, conf, eventLoopGroup, timer, nameResolver, null);
+    }
+
+    public HttpLookupService(InstrumentProvider instrumentProvider, ClientConfigurationData conf,
+                             EventLoopGroup eventLoopGroup, Timer timer,
+                             NameResolver<InetAddress> nameResolver, Executor blockingAuthExecutor)
+            throws PulsarClientException {
+        this.httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver, blockingAuthExecutor);
         this.useTls = conf.isUseTls();
         this.listenerName = conf.getListenerName();
+
+        LatencyHistogram histo = instrumentProvider.newLatencyHistogram("pulsar.client.lookup.duration",
+                "Duration of lookup operations", null,
+                Attributes.builder().put("pulsar.lookup.transport-type", "http").build());
+        histoGetBroker = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "topic").build());
+        histoGetTopicMetadata =
+                histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "metadata").build());
+        histoGetSchema = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "schema").build());
+        histoListTopics = histo.withAttributes(Attributes.builder().put("pulsar.lookup.type", "list-topics").build());
     }
 
     @Override
@@ -80,14 +111,30 @@ public class HttpLookupService implements LookupService {
      * @param topicName topic-name
      * @return broker-socket-address that serves given topic
      */
-    @Override
     @SuppressWarnings("deprecation")
-    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
-        String basePath = topicName.isV2() ? BasePathV2 : BasePathV1;
-        String path = basePath + topicName.getLookupName();
+    @Override
+    public CompletableFuture<LookupTopicResult> getBroker(TopicName topicName, Map<String, String> lookupProperties) {
+        if (lookupProperties == null) {
+            lookupProperties = httpClient.clientConf.getLookupProperties();
+        }
+        if (lookupProperties != null && !lookupProperties.isEmpty()) {
+            log.warn().attr("lookupProperties", lookupProperties)
+                    .log("Lookup properties aren't supported for http lookup service. lookupProperties");
+        }
+        String path = BasePath + topicName.getLookupName();
         path = StringUtils.isBlank(listenerName) ? path : path + "?listenerName=" + Codec.encode(listenerName);
-        return httpClient.get(path, LookupData.class)
-                .thenCompose(lookupData -> {
+
+        long startTime = System.nanoTime();
+        CompletableFuture<LookupData> httpFuture = httpClient.get(path, LookupData.class);
+
+        httpFuture.thenRun(() -> {
+            histoGetBroker.recordSuccess(System.nanoTime() - startTime);
+        }).exceptionally(x -> {
+            histoGetBroker.recordFailure(System.nanoTime() - startTime);
+            return null;
+        });
+
+        return httpFuture.thenCompose(lookupData -> {
             // Convert LookupData into as SocketAddress, handling exceptions
             URI uri = null;
             try {
@@ -102,20 +149,42 @@ public class HttpLookupService implements LookupService {
                 }
 
                 InetSocketAddress brokerAddress = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
-                return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
+                return CompletableFuture.completedFuture(new LookupTopicResult(brokerAddress, brokerAddress,
+                        false /* HTTP lookups never use the proxy */));
             } catch (Exception e) {
                 // Failed to parse url
-                log.warn("[{}] Lookup Failed due to invalid url {}, {}", topicName, uri, e.getMessage());
+                log.warn().attr("topicName", topicName)
+                        .attr("url", uri)
+                        .exceptionMessage(e)
+                        .log("Lookup Failed due to invalid url");
                 return FutureUtil.failedFuture(e);
             }
         });
     }
 
+    /**
+     * {@inheritDoc}
+     * @param useFallbackForNonPIP344Brokers HttpLookupService ignores this parameter
+     */
     @Override
-    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
-        String format = topicName.isV2() ? "admin/v2/%s/partitions" : "admin/%s/partitions";
-        return httpClient.get(String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation=true",
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(
+            TopicName topicName, boolean metadataAutoCreationEnabled, boolean useFallbackForNonPIP344Brokers) {
+        long startTime = System.nanoTime();
+
+        String format = "admin/v2/%s/partitions";
+        CompletableFuture<PartitionedTopicMetadata> httpFuture =  httpClient.get(
+                String.format(format, topicName.getLookupName()) + "?checkAllowAutoCreation="
+                        + metadataAutoCreationEnabled,
                 PartitionedTopicMetadata.class);
+
+        httpFuture.thenRun(() -> {
+            histoGetTopicMetadata.recordSuccess(System.nanoTime() - startTime);
+        }).exceptionally(x -> {
+            histoGetTopicMetadata.recordFailure(System.nanoTime() - startTime);
+            return null;
+        });
+
+        return httpFuture;
     }
 
     @Override
@@ -130,39 +199,44 @@ public class HttpLookupService implements LookupService {
 
     @Override
     public CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
-                                                                      String topicsPattern, String topicsHash) {
+                                                                      String topicsPattern, String topicsHash,
+                                                                      Map<String, String> properties) {
+        long startTime = System.nanoTime();
+
         CompletableFuture<GetTopicsResult> future = new CompletableFuture<>();
 
-        String format = namespace.isV2()
-            ? "admin/v2/namespaces/%s/topics?mode=%s" : "admin/namespaces/%s/destinations?mode=%s";
+        String format = "admin/v2/namespaces/%s/topics?mode=%s";
         httpClient
             .get(String.format(format, namespace, mode.toString()), String[].class)
             .thenAccept(topics -> {
-                List<String> result = new ArrayList<>();
-                // do not keep partition part of topic name
-                Arrays.asList(topics).forEach(topic -> {
-                    String filtered = TopicName.get(topic).getPartitionedTopicName();
-                    if (!result.contains(filtered)) {
-                        result.add(filtered);
-                    }
-                });
-                future.complete(new GetTopicsResult(result, topicsHash, false, true));
+                future.complete(new GetTopicsResult(topics));
             }).exceptionally(ex -> {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                log.warn("Failed to getTopicsUnderNamespace namespace {} {}.", namespace, cause.getMessage());
+                log.warn().attr("namespace", namespace)
+                        .exceptionMessage(cause)
+                        .log("Failed to getTopicsUnderNamespace namespace.");
                 future.completeExceptionally(cause);
                 return null;
             });
+
+        future.thenRun(() -> {
+            histoListTopics.recordSuccess(System.nanoTime() - startTime);
+        }).exceptionally(x -> {
+            histoListTopics.recordFailure(System.nanoTime() - startTime);
+            return null;
+        });
+
         return future;
     }
 
     @Override
-    public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName) {
-        return getSchema(topicName, null);
+    public boolean isBinaryProtoLookupService() {
+        return false;
     }
 
     @Override
     public CompletableFuture<Optional<SchemaInfo>> getSchema(TopicName topicName, byte[] version) {
+        long startTime = System.nanoTime();
         CompletableFuture<Optional<SchemaInfo>> future = new CompletableFuture<>();
 
         String schemaName = topicName.getSchemaName();
@@ -178,18 +252,14 @@ public class HttpLookupService implements LookupService {
         }
         httpClient.get(path, GetSchemaResponse.class).thenAccept(response -> {
             if (response.getType() == SchemaType.KEY_VALUE) {
-                try {
-                    SchemaData data = SchemaData
-                            .builder()
-                            .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
-                                    response.getData().getBytes(StandardCharsets.UTF_8)))
-                            .type(response.getType())
-                            .props(response.getProperties())
-                            .build();
-                    future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
-                } catch (IOException err) {
-                    future.completeExceptionally(err);
-                }
+                SchemaData data = SchemaData
+                        .builder()
+                        .data(SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(
+                                response.getData().getBytes(StandardCharsets.UTF_8)))
+                        .type(response.getType())
+                        .props(response.getProperties())
+                        .build();
+                future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, data)));
             } else {
                 future.complete(Optional.of(SchemaInfoUtil.newSchemaInfo(schemaName, response)));
             }
@@ -198,12 +268,19 @@ public class HttpLookupService implements LookupService {
             if (cause instanceof NotFoundException) {
                 future.complete(Optional.empty());
             } else {
-                log.warn("Failed to get schema for topic {} version {}",
-                        topicName,
-                        version != null ? Base64.getEncoder().encodeToString(version) : null,
-                        cause);
+                log.warn().attr("topic", topicName)
+                        .attr("version", version != null ? Base64.getEncoder().encodeToString(version) : null)
+                        .exception(cause)
+                        .log("Failed to get schema for topic version");
                 future.completeExceptionally(cause);
             }
+            return null;
+        });
+
+        future.thenRun(() -> {
+            histoGetSchema.recordSuccess(System.nanoTime() - startTime);
+        }).exceptionally(x -> {
+            histoGetSchema.recordFailure(System.nanoTime() - startTime);
             return null;
         });
         return future;
@@ -213,6 +290,4 @@ public class HttpLookupService implements LookupService {
     public void close() throws Exception {
         httpClient.close();
     }
-
-    private static final Logger log = LoggerFactory.getLogger(HttpLookupService.class);
 }

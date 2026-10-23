@@ -30,22 +30,22 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.naming.TopicName;
 
 /**
  * The BlockAwareSegmentInputStreamImpl for each cold storage data block.
  * It gets data from ledger, and will be read out the content for a data block.
  * DataBlockHeader + entries(each with format[[entry_size -- int][entry_id -- long][entry_data]]) + padding
  */
+@CustomLog
 public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStream {
-    private static final Logger log = LoggerFactory.getLogger(BlockAwareSegmentInputStreamImpl.class);
 
     static final int[] BLOCK_END_PADDING = new int[]{ 0xFE, 0xDC, 0xDE, 0xAD };
     static final byte[] BLOCK_END_PADDING_BYTES =  Ints.toByteArray(0xFEDCDEAD);
@@ -73,6 +73,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
     // Keep a list of all entries ByteBuf, each ByteBuf contains 2 buf: entry header and entry content.
     private List<ByteBuf> entriesByteBuf = null;
     private LedgerOffloaderStats offloaderStats;
+    private String managedLedgerName;
     private String topicName;
     private int currentOffset = 0;
     private final AtomicBoolean close = new AtomicBoolean(false);
@@ -91,7 +92,8 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
                                             LedgerOffloaderStats offloaderStats, String ledgerName) {
         this(ledger, startEntryId, blockSize);
         this.offloaderStats = offloaderStats;
-        this.topicName = ledgerName;
+        this.managedLedgerName = ledgerName;
+        this.topicName = TopicName.fromPersistenceNamingEncoding(ledgerName);
     }
 
     private ByteBuf readEntries(int len) throws IOException {
@@ -179,11 +181,10 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
         long end = Math.min(start + maxNumberEntries - 1, ledger.getLastAddConfirmed());
         long startTime = System.nanoTime();
         try (LedgerEntries ledgerEntriesOnce = ledger.readAsync(start, end).get()) {
-            if (log.isDebugEnabled()) {
-                log.debug("read ledger entries. start: {}, end: {} cost {}", start, end,
-                        TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTime));
-            }
-            if (offloaderStats != null && topicName != null) {
+            log.debug().attr("start", start).attr("end", end)
+                    .attr("costMicros", TimeUnit.NANOSECONDS.toMicros(System.nanoTime() - startTime))
+                    .log("Read ledger entries");
+            if (offloaderStats != null && managedLedgerName != null) {
                 offloaderStats.recordReadLedgerLatency(topicName, System.nanoTime() - startTime,
                         TimeUnit.NANOSECONDS);
             }
@@ -206,7 +207,7 @@ public class BlockAwareSegmentInputStreamImpl extends BlockAwareSegmentInputStre
             }
             return entries;
         } catch (InterruptedException | ExecutionException e) {
-            log.error("Exception when get CompletableFuture<LedgerEntries>. ", e);
+            log.error().exception(e).log("Exception when getting LedgerEntries");
             if (e instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
             }

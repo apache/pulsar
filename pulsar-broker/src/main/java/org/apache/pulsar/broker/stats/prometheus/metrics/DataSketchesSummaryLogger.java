@@ -18,16 +18,10 @@
  */
 package org.apache.pulsar.broker.stats.prometheus.metrics;
 
-import com.yahoo.sketches.quantiles.DoublesSketch;
-import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
-import com.yahoo.sketches.quantiles.DoublesUnion;
-import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
-import io.netty.util.concurrent.FastThreadLocal;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.DoubleAdder;
 import java.util.concurrent.atomic.LongAdder;
-import java.util.concurrent.locks.StampedLock;
+import org.apache.datasketches.kll.KllDoublesSketch;
 
 public class DataSketchesSummaryLogger {
 
@@ -40,9 +34,9 @@ public class DataSketchesSummaryLogger {
     /*
      * These are the sketches where all the aggregated results are published.
      */
-    private volatile DoublesSketch values;
+    private volatile KllDoublesSketch values;
     private final LongAdder countAdder = new LongAdder();
-    private final LongAdder sumAdder = new LongAdder();
+    private final DoubleAdder sumAdder = new DoubleAdder();
 
     public DataSketchesSummaryLogger() {
         this.current = new ThreadLocalAccessor();
@@ -53,16 +47,9 @@ public class DataSketchesSummaryLogger {
         double valueMillis = unit.toMicros(eventLatency) / 1000.0;
 
         countAdder.increment();
-        sumAdder.add((long) valueMillis);
+        sumAdder.add(valueMillis);
 
-        LocalData localData = current.localData.get();
-
-        long stamp = localData.lock.readLock();
-        try {
-            localData.successSketch.update(valueMillis);
-        } finally {
-            localData.lock.unlockRead(stamp);
-        }
+        current.getLocalData().updateSuccess(valueMillis);
     }
 
     public void rotateLatencyCollection() {
@@ -71,53 +58,22 @@ public class DataSketchesSummaryLogger {
         current = replacement;
         replacement = local;
 
-        final DoublesUnion aggregateValues = new DoublesUnionBuilder().build();
-        local.map.forEach((localData, b) -> {
-            long stamp = localData.lock.writeLock();
-            try {
-                aggregateValues.update(localData.successSketch);
-                localData.successSketch.reset();
-            } finally {
-                localData.lock.unlockWrite(stamp);
-            }
-        });
+        final KllDoublesSketch aggregateValues = KllDoublesSketch.newHeapInstance();
+        local.record(aggregateValues, null);
 
-        values = aggregateValues.getResultAndReset();
+        values = aggregateValues;
     }
 
     public long getCount() {
         return countAdder.sum();
     }
 
-    public long getSum() {
+    public double getSum() {
         return sumAdder.sum();
     }
 
     public double getQuantileValue(double quantile) {
-        DoublesSketch s = values;
-        return s != null ? s.getQuantile(quantile) : Double.NaN;
-    }
-
-    private static class LocalData {
-        private final DoublesSketch successSketch = new DoublesSketchBuilder().build();
-        private final StampedLock lock = new StampedLock();
-    }
-
-    private static class ThreadLocalAccessor {
-        private final Map<LocalData, Boolean> map = new ConcurrentHashMap<>();
-        private final FastThreadLocal<LocalData> localData = new FastThreadLocal<LocalData>() {
-
-            @Override
-            protected LocalData initialValue() throws Exception {
-                LocalData localData = new LocalData();
-                map.put(localData, Boolean.TRUE);
-                return localData;
-            }
-
-            @Override
-            protected void onRemoval(LocalData value) throws Exception {
-                map.remove(value);
-            }
-        };
+        KllDoublesSketch s = values;
+        return (s != null && !s.isEmpty()) ? s.getQuantile(quantile) : Double.NaN;
     }
 }

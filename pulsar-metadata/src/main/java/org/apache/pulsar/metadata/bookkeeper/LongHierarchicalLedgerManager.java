@@ -20,13 +20,13 @@ package org.apache.pulsar.metadata.bookkeeper;
 
 import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.proto.BookkeeperInternalCallbacks;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.zookeeper.AsyncCallback;
 
-@Slf4j
+@CustomLog
 class LongHierarchicalLedgerManager extends AbstractHierarchicalLedgerManager {
     public LongHierarchicalLedgerManager(MetadataStore store, ScheduledExecutorService scheduler,
                                          String ledgerRootPath) {

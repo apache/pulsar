@@ -60,9 +60,21 @@ public interface ExtensibleLoadManager extends Closeable {
      *              (e.g. {@link NamespaceService#internalGetWebServiceUrl(NamespaceBundle, LookupOptions)}),
      *              So the topic is optional.
      * @param serviceUnit service unit (e.g. bundle).
+     * @param options The lookup options.
      * @return The broker lookup data.
      */
-    CompletableFuture<Optional<BrokerLookupData>> assign(Optional<ServiceUnitId> topic, ServiceUnitId serviceUnit);
+    CompletableFuture<Optional<BrokerLookupData>> assign(Optional<ServiceUnitId> topic,
+                                                         ServiceUnitId serviceUnit,
+                                                         LookupOptions options);
+
+    /**
+     * Check the incoming service unit is owned by the current broker.
+     *
+     * @param topic The optional topic, some method won't provide topic var in this param.
+     * @param serviceUnit The service unit (e.g. bundle).
+     * @return The broker lookup data.
+     */
+    CompletableFuture<Boolean> checkOwnershipAsync(Optional<ServiceUnitId> topic, ServiceUnitId serviceUnit);
 
     /**
      * Close the load manager.
