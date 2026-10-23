@@ -22,9 +22,13 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import io.github.merlimat.slog.Logger;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import java.lang.management.ManagementFactory;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
@@ -388,6 +392,32 @@ public class PerfClientUtils {
                 }
                 Thread.sleep(200);
             }
+        }
+    }
+
+    /**
+     * Wait for the transaction ends a perf tool has issued before it reports the run done: the exit
+     * that follows ends the process, and closing the client would cut them off and lose their outcome.
+     * The wait is bounded by {@code --txn-timeout}, as a broker that stopped answering must not hang
+     * the tool, and an interrupt ends it.
+     *
+     * @param log the tool's logger, for the warning when the wait gives up
+     * @param ends the ends, each completing normally once its outcome is counted
+     * @param timeoutSeconds the tool's {@code --txn-timeout}
+     */
+    static void awaitTransactionEnds(Logger log, Collection<? extends CompletableFuture<?>> ends,
+                                     long timeoutSeconds) {
+        try {
+            CompletableFuture.allOf(ends.toArray(new CompletableFuture[0])).get(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (TimeoutException e) {
+            log.warn()
+                    .attr("timeoutSeconds", timeoutSeconds)
+                    .log("Gave up waiting for the transaction ends at the end of the run");
+        } catch (ExecutionException e) {
+            // The ends count their own failures, so only a failure of that counting lands here.
+            log.warn().exception(e).log("Transaction end failed");
         }
     }
 
