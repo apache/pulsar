@@ -18,24 +18,26 @@
  */
 package org.apache.pulsar.functions.auth;
 
+import java.util.Optional;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.Optional;
 
 public class ClearTextFunctionTokenAuthProviderTest {
 
     @Test
     public void testClearTextAuth() throws Exception {
 
-        ClearTextFunctionTokenAuthProvider clearTextFunctionTokenAuthProvider = new ClearTextFunctionTokenAuthProvider();
-        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant").setNamespace("test-ns").setName("test-func").build();
+        ClearTextFunctionTokenAuthProvider clearTextFunctionTokenAuthProvider =
+                new ClearTextFunctionTokenAuthProvider();
+        FunctionDetails funcDetails = new FunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-ns").setName("test-func");
 
-        Optional<FunctionAuthData> functionAuthData = clearTextFunctionTokenAuthProvider.cacheAuthData(funcDetails, new AuthenticationDataSource() {
+        Optional<FunctionAuthData> functionAuthData =
+                clearTextFunctionTokenAuthProvider.cacheAuthData(funcDetails, new AuthenticationDataSource() {
                     @Override
                     public boolean hasDataFromCommand() {
                         return true;

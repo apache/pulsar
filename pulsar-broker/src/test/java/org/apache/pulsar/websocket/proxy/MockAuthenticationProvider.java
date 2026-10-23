@@ -19,9 +19,7 @@
 package org.apache.pulsar.websocket.proxy;
 
 import java.io.IOException;
-
 import javax.naming.AuthenticationException;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
@@ -34,6 +32,7 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
 
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
 
@@ -45,6 +44,7 @@ public class MockAuthenticationProvider implements AuthenticationProvider {
         return "mockauth";
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
         // Return super user role

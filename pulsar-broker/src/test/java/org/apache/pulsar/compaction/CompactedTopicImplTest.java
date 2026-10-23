@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+import static org.mockito.Mockito.anyLong;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+import static org.testng.Assert.assertEquals;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -29,10 +31,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.common.api.proto.MessageIdData;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -60,15 +63,15 @@ public class CompactedTopicImplTest {
     @DataProvider(name = "argsForFindStartPointLoop")
     public Object[][] argsForFindStartPointLoop() {
         return new Object[][]{
-                {0, 100, 0},// first value.
-                {0, 100, 1},// second value.
-                {0, 100, 1003},// not first value.
-                {0, 100, 1015},// value not exists.
-                {3, 40, 50},// less than first value & find in a range.
-                {3, 40, 1002},// first value & find in a range.
-                {3, 40, 1003},// second value & find in a range.
-                {3, 40, 1010},// not first value & find in a range.
-                {3, 40, 1015}// value not exists & find in a range.
+                {0, 100, 0}, // first value.
+                {0, 100, 1}, // second value.
+                {0, 100, 1003}, // not first value.
+                {0, 100, 1015}, // value not exists.
+                {3, 40, 50}, // less than first value & find in a range.
+                {3, 40, 1002}, // first value & find in a range.
+                {3, 40, 1003}, // second value & find in a range.
+                {3, 40, 1010}, // not first value & find in a range.
+                {3, 40, 1015} // value not exists & find in a range.
         };
     }
 
@@ -107,7 +110,7 @@ public class CompactedTopicImplTest {
         AsyncLoadingCache<Long, MessageIdData> cache = Caffeine.newBuilder()
                 .buildAsync(mockCacheLoader(start, end, targetMessageId, bingoMarker));
         // Do test.
-        PositionImpl targetPosition = PositionImpl.get(DEFAULT_LEDGER_ID, targetMessageId);
+        Position targetPosition = PositionFactory.create(DEFAULT_LEDGER_ID, targetMessageId);
         CompletableFuture<Long> promise = new CompletableFuture<>();
         CompactedTopicImpl.findStartPointLoop(targetPosition, start, end, promise, cache);
         long result = promise.join();
@@ -115,7 +118,7 @@ public class CompactedTopicImplTest {
     }
 
     /**
-     * Why should we check the recursion number of "findStartPointLoop", see: #17976
+     * Why should we check the recursion number of "findStartPointLoop", see: #17976.
      */
     @Test
     public void testRecursionNumberOfFindStartPointLoop() {
@@ -137,7 +140,7 @@ public class CompactedTopicImplTest {
         // executed "findStartPointLoop".
         Supplier<Integer> loopCounter = () -> invokeCounterOfCacheGet.get() / 3;
         // Do test.
-        PositionImpl targetPosition = PositionImpl.get(DEFAULT_LEDGER_ID, targetMessageId);
+        Position targetPosition = PositionFactory.create(DEFAULT_LEDGER_ID, targetMessageId);
         CompletableFuture<Long> promise = new CompletableFuture<>();
         CompactedTopicImpl.findStartPointLoop(targetPosition, start, end, promise, cacheWithCounter);
         // Do verify.

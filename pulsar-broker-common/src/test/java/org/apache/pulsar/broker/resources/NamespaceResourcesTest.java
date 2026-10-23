@@ -22,8 +22,8 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
-
 public class NamespaceResourcesTest {
+
     @Test
     public void test_pathIsFromNamespace() {
         assertFalse(NamespaceResources.pathIsFromNamespace("/admin/clusters"));
@@ -31,4 +31,6 @@ public class NamespaceResourcesTest {
         assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant"));
         assertTrue(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant/my-ns"));
     }
+
+
 }

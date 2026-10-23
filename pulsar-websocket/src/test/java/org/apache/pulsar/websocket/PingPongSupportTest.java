@@ -18,50 +18,53 @@
  */
 package org.apache.pulsar.websocket;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertTrue;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.Future;
-import javax.servlet.http.HttpServletRequest;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.web.WebExecutorThreadPool;
 import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
+import org.eclipse.jetty.ee10.servlet.ServletHolder;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServlet;
+import org.eclipse.jetty.ee10.websocket.server.JettyWebSocketServletFactory;
+import org.eclipse.jetty.ee10.websocket.server.config.JettyWebSocketServletContainerInitializer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.BufferUtil;
+import org.eclipse.jetty.util.component.LifeCycle;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.WebSocketAdapter;
-import org.eclipse.jetty.websocket.api.WebSocketPingPongListener;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketPong;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertTrue;
-import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
-import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
-import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Test to ensure {@link AbstractWebSocketHandler} has ping/pong support
+ * Test to ensure {@link AbstractWebSocketHandler} has ping/pong support.
  */
 public class PingPongSupportTest {
 
-    private static Server server;
+    private Server server;
 
-    private static final WebExecutorThreadPool executor = new WebExecutorThreadPool(6, "pulsar-websocket-web-test");
+    private WebExecutorThreadPool executor;
 
     @BeforeClass
-    public static void setup() throws Exception {
+    public void setup() throws Exception {
+        executor = new WebExecutorThreadPool(6, "pulsar-websocket-web-test");
         server = new Server(executor);
         List<ServerConnector> connectors = new ArrayList<>();
         ServerConnector connector = new ServerConnector(server);
@@ -81,6 +84,8 @@ public class PingPongSupportTest {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/ws");
         context.addServlet(servletHolder, "/*");
+        JettyWebSocketServletContainerInitializer.configure(context, null);
+
         server.setHandler(context);
         try {
             server.start();
@@ -90,7 +95,7 @@ public class PingPongSupportTest {
     }
 
     @AfterClass(alwaysRun = true)
-    public static void tearDown() throws Exception {
+    public void tearDown() throws Exception {
         if (server != null) {
             server.stop();
         }
@@ -108,20 +113,27 @@ public class PingPongSupportTest {
 
     @Test(dataProvider = "endpoint")
     public void testPingPong(String endpoint) throws Exception {
+        @Cleanup("stop")
         HttpClient httpClient = new HttpClient();
-        WebSocketClient webSocketClient = new WebSocketClient(httpClient);
-        webSocketClient.start();
+        WebSocketClient container = new WebSocketClient(httpClient);
+        container.start();
+        @Cleanup("stop")
+        LifeCycle lifeCycle = (LifeCycle) container;
         MyWebSocket myWebSocket = new MyWebSocket();
         String webSocketUri = "ws://localhost:8080/ws/v2/" + endpoint + "/persistent/my-property/my-ns/my-topic";
-        Future<Session> sessionFuture = webSocketClient.connect(myWebSocket, URI.create(webSocketUri));
-        sessionFuture.get().getRemote().sendPing(ByteBuffer.wrap("test".getBytes()));
+        Session session = container.connect(myWebSocket, URI.create(webSocketUri)).get();
+        Callback.Completable callback = new Callback.Completable();
+        session.sendPing(ByteBuffer.wrap("test".getBytes()), callback);
+        callback.get();
         assertTrue(myWebSocket.getResponse().contains("test"));
     }
 
     public static class GenericWebSocketHandler extends AbstractWebSocketHandler {
 
-        public GenericWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        public GenericWebSocketHandler(WebSocketService service, HttpServletRequest request,
+                                       JettyServerUpgradeResponse response) {
             super(service, request, response);
+            allowConnect = true;
         }
 
         @Override
@@ -135,7 +147,7 @@ public class PingPongSupportTest {
         }
     }
 
-    public static class GenericWebSocketServlet extends WebSocketServlet {
+    public static class GenericWebSocketServlet extends JettyWebSocketServlet {
 
         private static final long serialVersionUID = 1L;
         private final WebSocketService service;
@@ -145,34 +157,18 @@ public class PingPongSupportTest {
         }
 
         @Override
-        public void configure(WebSocketServletFactory factory) {
+        public void configure(JettyWebSocketServletFactory factory) {
             factory.setCreator((request, response) ->
                     new GenericWebSocketHandler(service, request.getHttpServletRequest(), response));
         }
     }
 
     @WebSocket
-    public static class MyWebSocket extends WebSocketAdapter implements WebSocketPingPongListener {
+    public static class MyWebSocket {
 
         ArrayBlockingQueue<String> incomingMessages = new ArrayBlockingQueue<>(10);
 
-        @Override
-        public void onWebSocketClose(int i, String s) {
-        }
-
-        @Override
-        public void onWebSocketConnect(Session session) {
-        }
-
-        @Override
-        public void onWebSocketError(Throwable throwable) {
-        }
-
-        @Override
-        public void onWebSocketPing(ByteBuffer payload) {
-        }
-
-        @Override
+        @OnWebSocketPong
         public void onWebSocketPong(ByteBuffer payload) {
             incomingMessages.add(BufferUtil.toDetailString(payload));
         }

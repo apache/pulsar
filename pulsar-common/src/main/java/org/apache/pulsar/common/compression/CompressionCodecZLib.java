@@ -19,7 +19,9 @@
 package org.apache.pulsar.common.compression;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.util.zip.DataFormatException;
@@ -31,6 +33,17 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  * ZLib Compression.
  */
 public class CompressionCodecZLib implements CompressionCodec {
+
+    private final ByteBufAllocator allocator;
+
+    public CompressionCodecZLib() {
+        this(PulsarByteBufAllocator.DEFAULT);
+    }
+
+    @VisibleForTesting
+    CompressionCodecZLib(ByteBufAllocator allocator) {
+        this.allocator = allocator;
+    }
 
     private final FastThreadLocal<Deflater> deflater = new FastThreadLocal<Deflater>() {
         @Override
@@ -62,7 +75,7 @@ public class CompressionCodecZLib implements CompressionCodec {
         int length = source.readableBytes();
 
         int sizeEstimate = (int) Math.ceil(source.readableBytes() * 1.001) + 14;
-        ByteBuf compressed = PulsarByteBufAllocator.DEFAULT.heapBuffer(sizeEstimate);
+        ByteBuf compressed = allocator.heapBuffer(sizeEstimate);
 
         int offset = 0;
         if (source.hasArray()) {
@@ -96,35 +109,41 @@ public class CompressionCodecZLib implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.heapBuffer(uncompressedLength, uncompressedLength);
-
-        int len = encoded.readableBytes();
-
-        byte[] array;
-        int offset;
-        if (encoded.hasArray()) {
-            array = encoded.array();
-            offset = encoded.arrayOffset() + encoded.readerIndex();
-        } else {
-            array = new byte[len];
-            encoded.getBytes(encoded.readerIndex(), array);
-            offset = 0;
-        }
-
-        int resultLength;
-        Inflater inflater = this.inflater.get();
-        inflater.reset();
-        inflater.setInput(array, offset, len);
-
+        ByteBuf uncompressed = allocator.heapBuffer(uncompressedLength, uncompressedLength);
         try {
-            resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(), uncompressedLength);
-        } catch (DataFormatException e) {
-            throw new IOException(e);
+            int len = encoded.readableBytes();
+
+            byte[] array;
+            int offset;
+            if (encoded.hasArray()) {
+                array = encoded.array();
+                offset = encoded.arrayOffset() + encoded.readerIndex();
+            } else {
+                array = new byte[len];
+                encoded.getBytes(encoded.readerIndex(), array);
+                offset = 0;
+            }
+
+            int resultLength;
+            Inflater inflater = this.inflater.get();
+            inflater.reset();
+            inflater.setInput(array, offset, len);
+
+            try {
+                resultLength = inflater.inflate(uncompressed.array(), uncompressed.arrayOffset(), uncompressedLength);
+            } catch (DataFormatException e) {
+                throw new IOException(e);
+            }
+
+            checkArgument(resultLength == uncompressedLength);
+
+            uncompressed.writerIndex(uncompressedLength);
+            return uncompressed;
+        } catch (Throwable t) {
+            // The output buffer is only ever handed to the caller on success: release it on corrupt input (IOException)
+            // and on a decoded size that differs from the advertised one (IllegalArgumentException) alike.
+            uncompressed.release();
+            throw t;
         }
-
-        checkArgument(resultLength == uncompressedLength);
-
-        uncompressed.writerIndex(uncompressedLength);
-        return uncompressed;
     }
 }

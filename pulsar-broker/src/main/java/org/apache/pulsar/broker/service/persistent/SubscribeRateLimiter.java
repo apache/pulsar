@@ -19,41 +19,36 @@
 package org.apache.pulsar.broker.service.persistent;
 
 
-import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
-import org.apache.pulsar.common.util.RateLimiter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class SubscribeRateLimiter {
-
     private final String topicName;
     private final BrokerService brokerService;
-    private ConcurrentHashMap<ConsumerIdentifier, RateLimiter> subscribeRateLimiter;
-    private final ScheduledExecutorService executorService;
-    private ScheduledFuture<?> resetTask;
+    private ConcurrentHashMap<ConsumerIdentifier, AsyncTokenBucket> subscribeRateLimiter;
     private SubscribeRate subscribeRate;
 
     public SubscribeRateLimiter(PersistentTopic topic) {
         this.topicName = topic.getName();
         this.brokerService = topic.getBrokerService();
         subscribeRateLimiter = new ConcurrentHashMap<>();
-        this.executorService = brokerService.pulsar().getExecutor();
         // get subscribeRate from topic level policies
         this.subscribeRate = topic.getSubscribeRate();
         if (isSubscribeRateEnabled(this.subscribeRate)) {
-            resetTask = createTask();
-            log.info("[{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
+            log.info()
+                    .attr("topic", this.topicName)
+                    .attr("subscribeRate", subscribeRate)
+                    .log("configured subscribe-dispatch rate at broker");
         }
     }
 
@@ -64,7 +59,7 @@ public class SubscribeRateLimiter {
      */
     public long getAvailableSubscribeRateLimit(ConsumerIdentifier consumerIdentifier) {
         return subscribeRateLimiter.get(consumerIdentifier)
-                == null ? -1 : subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits();
+                == null ? -1 : subscribeRateLimiter.get(consumerIdentifier).getTokens();
     }
 
     /**
@@ -74,8 +69,15 @@ public class SubscribeRateLimiter {
      */
     public synchronized boolean tryAcquire(ConsumerIdentifier consumerIdentifier) {
         addSubscribeLimiterIfAbsent(consumerIdentifier);
-        return subscribeRateLimiter.get(consumerIdentifier)
-                == null || subscribeRateLimiter.get(consumerIdentifier).tryAcquire();
+        AsyncTokenBucket tokenBucket = subscribeRateLimiter.get(consumerIdentifier);
+        if (tokenBucket == null) {
+            return true;
+        }
+        if (!tokenBucket.containsTokens()) {
+            return false;
+        }
+        tokenBucket.consumeTokens(1);
+        return true;
     }
 
     /**
@@ -86,7 +88,7 @@ public class SubscribeRateLimiter {
      */
     public boolean subscribeAvailable(ConsumerIdentifier consumerIdentifier) {
         return (subscribeRateLimiter.get(consumerIdentifier)
-                == null || subscribeRateLimiter.get(consumerIdentifier).getAvailablePermits() > 0);
+                == null || subscribeRateLimiter.get(consumerIdentifier).containsTokens());
     }
 
     /**
@@ -98,15 +100,11 @@ public class SubscribeRateLimiter {
         if (subscribeRateLimiter.get(consumerIdentifier) != null || !isSubscribeRateEnabled(this.subscribeRate)) {
             return;
         }
-
         updateSubscribeRate(consumerIdentifier, this.subscribeRate);
     }
 
     private synchronized void removeSubscribeLimiter(ConsumerIdentifier consumerIdentifier) {
-        if (this.subscribeRateLimiter.get(consumerIdentifier) != null) {
-            this.subscribeRateLimiter.get(consumerIdentifier).close();
-            this.subscribeRateLimiter.remove(consumerIdentifier);
-        }
+        this.subscribeRateLimiter.remove(consumerIdentifier);
     }
 
     /**
@@ -117,23 +115,15 @@ public class SubscribeRateLimiter {
      */
     private synchronized void updateSubscribeRate(ConsumerIdentifier consumerIdentifier, SubscribeRate subscribeRate) {
         long ratePerConsumer = subscribeRate.subscribeThrottlingRatePerConsumer;
-        long ratePeriod = subscribeRate.ratePeriodInSecond;
+        long ratePeriodNanos = TimeUnit.SECONDS.toNanos(Math.max(subscribeRate.ratePeriodInSecond, 1));
 
         // update subscribe-rateLimiter
         if (ratePerConsumer > 0) {
-            if (this.subscribeRateLimiter.get(consumerIdentifier) == null) {
-                this.subscribeRateLimiter.put(consumerIdentifier,
-                        RateLimiter.builder()
-                                .scheduledExecutorService(brokerService.pulsar().getExecutor())
-                                .permits(ratePerConsumer)
-                                .rateTime(ratePeriod)
-                                .timeUnit(TimeUnit.SECONDS)
-                                .build());
-            } else {
-                this.subscribeRateLimiter.get(consumerIdentifier)
-                        .setRate(ratePerConsumer, ratePeriod, TimeUnit.SECONDS,
-                                null);
-            }
+            AsyncTokenBucket tokenBucket =
+                    AsyncTokenBucket.builder()
+                            .clock(brokerService.getPulsar().getMonotonicClock())
+                            .rate(ratePerConsumer).ratePeriodNanos(ratePeriodNanos).build();
+            this.subscribeRateLimiter.put(consumerIdentifier, tokenBucket);
         } else {
             // subscribe-rate should be disable and close
             removeSubscribeLimiter(consumerIdentifier);
@@ -145,7 +135,6 @@ public class SubscribeRateLimiter {
             return;
         }
         this.subscribeRate = subscribeRate;
-        stopResetTask();
         for (ConsumerIdentifier consumerIdentifier : this.subscribeRateLimiter.keySet()) {
             if (!isSubscribeRateEnabled(this.subscribeRate)) {
                 removeSubscribeLimiter(consumerIdentifier);
@@ -154,8 +143,10 @@ public class SubscribeRateLimiter {
             }
         }
         if (isSubscribeRateEnabled(this.subscribeRate)) {
-            this.resetTask = createTask();
-            log.info("[{}] configured subscribe-dispatch rate at broker {}", this.topicName, subscribeRate);
+            log.info()
+                    .attr("topic", this.topicName)
+                    .attr("subscribeRate", subscribeRate)
+                    .log("configured subscribe-dispatch rate at broker");
         }
     }
 
@@ -209,32 +200,9 @@ public class SubscribeRateLimiter {
     }
 
     public void close() {
-        closeAndClearRateLimiters();
-        stopResetTask();
+
     }
 
-    private ScheduledFuture<?> createTask() {
-        return executorService.scheduleAtFixedRate(catchingAndLoggingThrowables(this::closeAndClearRateLimiters),
-                this.subscribeRate.ratePeriodInSecond,
-                this.subscribeRate.ratePeriodInSecond,
-                TimeUnit.SECONDS);
-    }
-
-    private void stopResetTask() {
-        if (this.resetTask != null) {
-            this.resetTask.cancel(false);
-        }
-    }
-
-    private synchronized void closeAndClearRateLimiters() {
-        // close rate-limiter
-        this.subscribeRateLimiter.values().forEach(rateLimiter -> {
-            if (rateLimiter != null) {
-                rateLimiter.close();
-            }
-        });
-        this.subscribeRateLimiter.clear();
-    }
 
     public SubscribeRate getSubscribeRate() {
         return subscribeRate;
@@ -278,6 +246,4 @@ public class SubscribeRateLimiter {
                     .add("consumerId", consumerId).toString();
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(SubscribeRateLimiter.class);
 }

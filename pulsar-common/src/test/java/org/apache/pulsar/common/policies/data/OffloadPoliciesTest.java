@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import static org.apache.pulsar.common.policies.data.OffloadPoliciesImpl.EXTRA_CONFIG_PREFIX;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +29,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import org.testng.Assert;
@@ -36,8 +40,8 @@ import org.testng.annotations.Test;
  */
 public class OffloadPoliciesTest {
 
-    private final int M = 1024 * 1024;
-    private final long MIN = 1000 * 60;
+    private static final int M = 1024 * 1024;
+    private static final long MIN = 1000 * 60;
 
     private final String offloadersDirectory = "./test-offloader-directory";
     private final Integer managedLedgerOffloadMaxThreads = 10;
@@ -90,6 +94,52 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(),
                 Long.valueOf(offloadDeletionLagInMillis));
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), offloadThresholdInSeconds);
+    }
+
+    @Test
+    public void testAliyunOssConfiguration() {
+        final String driver = "aliyun-oss";
+        final String region = "test-region";
+        final String bucket = "test-bucket";
+        final String role = "test-role";
+        final String roleSessionName = "test-role-session-name";
+        final String credentialId = "test-credential-id";
+        final String credentialSecret = "test-credential-secret";
+        final String endPoint = "test-endpoint";
+        final Integer maxBlockSizeInBytes = 5 * M;
+        final Integer readBufferSizeInBytes = 2 * M;
+        final Long offloadThresholdInBytes = 10L * M;
+        final Long offloadThresholdInSeconds = 1000L;
+        final Long offloadDeletionLagInMillis = 5L * MIN;
+
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create(
+                driver,
+                region,
+                bucket,
+                endPoint,
+                role,
+                roleSessionName,
+                credentialId,
+                credentialSecret,
+                maxBlockSizeInBytes,
+                readBufferSizeInBytes,
+                offloadThresholdInBytes,
+                offloadThresholdInSeconds,
+                offloadDeletionLagInMillis,
+                OffloadedReadPriority.TIERED_STORAGE_FIRST
+        );
+
+        Assert.assertTrue(offloadPolicies.isS3Driver());
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadRegion(), region);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadBucket(), bucket);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadServiceEndpoint(), endPoint);
+        // The CLI create() path must carry the credentials under the s3-prefixed keys the
+        // S3-compatible aliyun-oss offloader reads, not silently drop them.
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadCredentialId(), credentialId);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadCredentialSecret(), credentialSecret);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadMaxBlockSizeInBytes(), maxBlockSizeInBytes);
+        Assert.assertEquals(offloadPolicies.getS3ManagedLedgerOffloadReadBufferSizeInBytes(), readBufferSizeInBytes);
     }
 
     @Test
@@ -199,7 +249,8 @@ public class OffloadPoliciesTest {
         Assert.assertEquals(offloadPolicies.getOffloadersDirectory(), offloadersDirectory);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDriver(), driver);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadMaxThreads(), managedLedgerOffloadMaxThreads);
-        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(), managedLedgerOffloadPrefetchRounds);
+        Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadPrefetchRounds(),
+                managedLedgerOffloadPrefetchRounds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInBytes(), offloadThresholdInBytes);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds(), offloadThresholdInSeconds);
         Assert.assertEquals(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis(), offloadDeletionLagInMillis);
@@ -328,6 +379,75 @@ public class OffloadPoliciesTest {
         Assert.assertNull(offloadPolicies.getS3ManagedLedgerOffloadRegion());
     }
 
+    @Test
+    public void brokerExtraConfigMergeTest() {
+        final String bucketPrefix = "o-123/c-456";
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", bucketPrefix);
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(null, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", bucketPrefix));
+    }
+
+    @Test
+    public void higherLevelExtraConfigOverridesBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "brokerOnly", "broker-value");
+
+        OffloadPoliciesImpl topicLevelPolicies = new OffloadPoliciesImpl();
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("tieredStorageBucketPrefix", "topic-prefix");
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("topicOnly", "topic-value");
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(topicLevelPolicies, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", "topic-prefix",
+                        "brokerOnly", "broker-value",
+                        "topicOnly", "topic-value"));
+    }
+
+    @Test
+    public void emptyHigherLevelExtraConfigInheritsBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+
+        OffloadPoliciesImpl nsLevelPolicies = new OffloadPoliciesImpl();
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(null, nsLevelPolicies, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", "broker-prefix"));
+    }
+
+    @Test
+    public void emptyHigherLevelExtraConfigOverridesBrokerExtraConfigMergeTest() {
+        Properties brokerProperties = new Properties();
+        brokerProperties.setProperty("managedLedgerOffloadDriver", "aws-s3");
+        brokerProperties.setProperty(EXTRA_CONFIG_PREFIX + "tieredStorageBucketPrefix", "broker-prefix");
+
+        OffloadPoliciesImpl topicLevelPolicies = new OffloadPoliciesImpl();
+        topicLevelPolicies.getManagedLedgerExtraConfigurations().put("tieredStorageBucketPrefix", "");
+
+        OffloadPoliciesImpl offloadPolicies =
+                OffloadPoliciesImpl.mergeConfiguration(topicLevelPolicies, null, brokerProperties);
+
+        Assert.assertNotNull(offloadPolicies);
+        assertEquals(offloadPolicies.getManagedLedgerExtraConfigurations(),
+                Map.of("tieredStorageBucketPrefix", ""));
+    }
+
 
     @Test
     public void brokerPropertyCompatibleTest() {
@@ -365,7 +485,8 @@ public class OffloadPoliciesTest {
         brokerProperties.setProperty("managedLedgerOffloadDeletionLagInMillis", "" + (brokerDeletionLag));
         brokerProperties.setProperty("managedLedgerOffloadedReadPriority", "" + (brokerReadPriority));
         // 2.2 offload properties name in conf file
-        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", "" + brokerOffloadThreshold + 30);
+        brokerProperties.setProperty("managedLedgerOffloadAutoTriggerSizeThresholdBytes", ""
+                + brokerOffloadThreshold + 30);
         brokerProperties.setProperty("managedLedgerOffloadDeletionLagMs", "" + brokerDeletionLag + 30);
         brokerProperties.setProperty("managedLedgerDataReadPriority", "" + "tiered-storage-first");
         offloadPolicies = OffloadPoliciesImpl.create(brokerProperties);
@@ -406,9 +527,17 @@ public class OffloadPoliciesTest {
         }
 
         private Class<?> getClass(String name) {
-            String file = name.replace('.', File.separatorChar) + ".class";
-            Path targetPath = Paths.get(getClass().getClassLoader().getResource(".").getPath()).getParent();
-            file = Paths.get(targetPath.toString(), "classes", file).toString();
+            String classFile = name.replace('.', File.separatorChar) + ".class";
+            Path testClassesDir = Paths.get(getClass().getClassLoader().getResource(".").getPath());
+            Path mainClassesDir;
+            if (testClassesDir.endsWith(Paths.get("classes", "java", "test"))) {
+                // Gradle layout: build/classes/java/test -> build/classes/java/main
+                mainClassesDir = testClassesDir.getParent().resolve("main");
+            } else {
+                // Maven layout: target/test-classes -> target/classes
+                mainClassesDir = testClassesDir.getParent().resolve("classes");
+            }
+            String file = mainClassesDir.resolve(classFile).toString();
             byte[] byteArr = null;
             try {
                 byteArr = loadClassData(file);
@@ -436,13 +565,46 @@ public class OffloadPoliciesTest {
     @Test
     public void testCreateOffloadPoliciesWithExtraConfiguration() {
         Properties properties = new Properties();
-        properties.put("managedLedgerOffloadExtraConfigKey1", "value1");
-        properties.put("managedLedgerOffloadExtraConfigKey2", "value2");
+        properties.put(EXTRA_CONFIG_PREFIX + "Key1", "value1");
+        properties.put(EXTRA_CONFIG_PREFIX + "Key2", "value2");
         OffloadPoliciesImpl policies = OffloadPoliciesImpl.create(properties);
 
         Map<String, String> extraConfigurations = policies.getManagedLedgerExtraConfigurations();
         Assert.assertEquals(extraConfigurations.size(), 2);
         Assert.assertEquals(extraConfigurations.get("Key1"), "value1");
         Assert.assertEquals(extraConfigurations.get("Key2"), "value2");
+    }
+
+    /**
+     * Test toProperties as well as create from properties.
+     * @throws Exception
+     */
+    @Test
+    public void testToProperties() throws Exception {
+        // Base information convert.
+        OffloadPoliciesImpl offloadPolicies = OffloadPoliciesImpl.create("aws-s3", "test-region", "test-bucket",
+                "http://test.endpoint", null, null, null, null, 32 * 1024 * 1024, 5 * 1024 * 1024,
+                10 * 1024 * 1024L, 100L, 10000L, OffloadedReadPriority.TIERED_STORAGE_FIRST);
+        assertEquals(offloadPolicies, OffloadPoliciesImpl.create(offloadPolicies.toProperties()));
+
+        // Set useless config to offload policies. Make sure convert conversion result is the same.
+        offloadPolicies.setFileSystemProfilePath("/test/file");
+        assertEquals(offloadPolicies, OffloadPoliciesImpl.create(offloadPolicies.toProperties()));
+
+        // Set extra config to offload policies. Make sure convert conversion result is the same.
+        Map<String, String> extraConfiguration = new HashMap<>();
+        extraConfiguration.put("key1", "value1");
+        extraConfiguration.put("key2", "value2");
+        offloadPolicies.setManagedLedgerExtraConfigurations(extraConfiguration);
+        assertEquals(offloadPolicies, OffloadPoliciesImpl.create(offloadPolicies.toProperties()));
+    }
+
+    @Test
+    public void testDefaultOffloadPolicies() {
+        OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
+        assertNull(offloadPolicies.getManagedLedgerOffloadedReadPriority());
+        assertNull(offloadPolicies.getManagedLedgerOffloadDeletionLagInMillis());
+        assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInSeconds());
+        assertNull(offloadPolicies.getManagedLedgerOffloadThresholdInBytes());
     }
 }
