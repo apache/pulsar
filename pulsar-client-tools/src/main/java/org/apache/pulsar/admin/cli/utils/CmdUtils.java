@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.admin.cli.utils;
 
-import com.beust.jcommander.ParameterException;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import java.io.File;
@@ -28,7 +27,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 public class CmdUtils {
     public static <T> T loadConfig(String file, Class<T> clazz) throws IOException {
         try {
-            return ObjectMapperFactory.getThreadLocalYaml().readValue(new File(file), clazz);
+            return ObjectMapperFactory.getYamlMapper().reader().readValue(new File(file), clazz);
         } catch (Exception ex) {
             if (ex instanceof UnrecognizedPropertyException) {
                 UnrecognizedPropertyException unrecognizedPropertyException = (UnrecognizedPropertyException) ex;
@@ -40,7 +39,7 @@ public class CmdUtils {
                         unrecognizedPropertyException.getLocation().getLineNr(),
                         unrecognizedPropertyException.getLocation().getColumnNr(),
                         unrecognizedPropertyException.getKnownPropertyIds());
-                throw new ParameterException(exceptionMessage);
+                throw new IllegalArgumentException(exceptionMessage);
             } else if (ex instanceof InvalidFormatException) {
 
                 InvalidFormatException invalidFormatException = (InvalidFormatException) ex;
@@ -50,10 +49,24 @@ public class CmdUtils {
                         invalidFormatException.getLocation().getLineNr(),
                         invalidFormatException.getLocation().getColumnNr());
 
-                throw new ParameterException(exceptionMessage);
+                throw new IllegalArgumentException(exceptionMessage);
             } else {
-                throw new ParameterException(ex.getMessage());
+                throw new IllegalArgumentException(ex.getMessage());
             }
         }
+    }
+
+    public static boolean positiveCheck(String paramName, long value) {
+        if (value <= 0) {
+            throw new IllegalArgumentException(paramName + " cannot be less than or equal to 0!");
+        }
+        return true;
+    }
+
+    public static boolean maxValueCheck(String paramName, long value, long maxValue) {
+        if (value > maxValue) {
+            throw new IllegalArgumentException(paramName + " cannot be greater than " + maxValue + "!");
+        }
+        return true;
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,15 +18,6 @@
  */
 package org.apache.pulsar.proxy.extensions;
 
-import org.apache.pulsar.common.nar.NarClassLoader;
-import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.mockito.MockedStatic;
-import org.mockito.Mockito;
-import org.testng.annotations.Test;
-import java.io.IOException;
-import java.nio.file.Paths;
-
 import static org.apache.pulsar.proxy.extensions.ProxyExtensionsUtils.PROXY_EXTENSION_DEFINITION_FILE;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_SELF;
@@ -35,11 +26,20 @@ import static org.mockito.Mockito.when;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
+import java.io.IOException;
+import java.nio.file.Paths;
+import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.nar.NarClassLoaderBuilder;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ProxyExtensionUtilsTest {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadProtocolHandler() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setExtensionClass(MockProxyExtension.class.getName());
@@ -53,7 +53,7 @@ public class ProxyExtensionUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PROXY_EXTENSION_DEFINITION_FILE)))
-            .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+            .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class handlerClass = MockProxyExtension.class;
         when(mockLoader.loadClass(eq(MockProxyExtension.class.getName())))
             .thenReturn(handlerClass);
@@ -73,6 +73,7 @@ public class ProxyExtensionUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadProtocolHandlerBlankHandlerClass() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setDescription("test-ext");
@@ -85,7 +86,7 @@ public class ProxyExtensionUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PROXY_EXTENSION_DEFINITION_FILE)))
-            .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+            .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class handlerClass = MockProxyExtension.class;
         when(mockLoader.loadClass(eq(MockProxyExtension.class.getName())))
             .thenReturn(handlerClass);
@@ -105,6 +106,7 @@ public class ProxyExtensionUtilsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testLoadProtocolHandlerWrongHandlerClass() throws Exception {
         ProxyExtensionDefinition def = new ProxyExtensionDefinition();
         def.setExtensionClass(Runnable.class.getName());
@@ -118,7 +120,7 @@ public class ProxyExtensionUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(PROXY_EXTENSION_DEFINITION_FILE)))
-            .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
+            .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
         Class handlerClass = Runnable.class;
         when(mockLoader.loadClass(eq(Runnable.class.getName())))
             .thenReturn(handlerClass);

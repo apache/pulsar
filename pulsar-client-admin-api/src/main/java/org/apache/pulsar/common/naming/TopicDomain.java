@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,8 @@ package org.apache.pulsar.common.naming;
  * Enumeration showing if a topic is persistent.
  */
 public enum TopicDomain {
-    persistent("persistent"), non_persistent("non-persistent");
+    persistent("persistent"), non_persistent("non-persistent"),
+    topic("topic"), segment("segment");
 
     private String value;
 

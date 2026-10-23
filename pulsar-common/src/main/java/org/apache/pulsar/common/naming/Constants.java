@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,7 @@ package org.apache.pulsar.common.naming;
  */
 public class Constants {
 
-    public static final String GLOBAL_CLUSTER = "global";
+    public static final String WEBSOCKET_DUMMY_ORIGINAL_PRINCIPLE = "__websocket_dummy_original_principle";
 
     private Constants() {}
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
@@ -90,7 +89,15 @@ public interface TableView<T> extends Closeable {
     void forEach(BiConsumer<String, T> action);
 
     /**
-     * Performs the give action for each entry in this map until all entries
+     * Performs the given action for each future entry in this map until all entries
+     * have been processed or the action throws an exception.
+     *
+     * @param action The action to be performed for each entry
+     */
+    void listen(BiConsumer<String, T> action);
+
+    /**
+     * Performs the given action for each entry in this map until all entries
      * have been processed or the action throws an exception.
      *
      * @param action The action to be performed for each entry
@@ -103,4 +110,38 @@ public interface TableView<T> extends Closeable {
      * @return a future that can used to track when the table view has been closed.
      */
     CompletableFuture<Void> closeAsync();
+
+    /**
+     * Refresh the table view with the latest data in the topic, ensuring that all subsequent reads are based on
+     * the refreshed data.
+     *
+     * Example usage:
+     *
+     * table.refreshAsync().thenApply(__ -> table.get(key));
+     *
+     * This function retrieves the last written message in the topic and refreshes the table view accordingly.
+     * Once the refresh is complete, all subsequent reads will be performed on the refreshed data or a combination of
+     * the refreshed data and newly published data. The table view remains synchronized with any newly published data
+     * after the refresh.
+     *
+     * |x:0|->|y:0|->|z:0|->|x:1|->|z:1|->|x:2|->|y:1|->|y:2|
+     *
+     * If a read occurs after the refresh (at the last published message |y:2|), it ensures that outdated data like x=1
+     * is not obtained. However, it does not guarantee that the values will always be x=2, y=2, z=1,
+     * as the table view may receive updates with newly published data.
+     *
+     * |x:0|->|y:0|->|z:0|->|x:1|->|z:1|->|x:2|->|y:1|->|y:2| -> |y:3|
+     *
+     * Both y=2 or y=3 are possible. Therefore, different readers may receive different values,
+     * but all values will be equal to or newer than the data refreshed from the last call to the refresh method.
+     */
+    CompletableFuture<Void> refreshAsync();
+
+    /**
+     * Refresh the table view with the latest data in the topic, ensuring that all subsequent reads are based on
+     * the refreshed data.
+     *
+     * @throws PulsarClientException if there is any error refreshing the table view.
+     */
+    void refresh() throws PulsarClientException;
 }

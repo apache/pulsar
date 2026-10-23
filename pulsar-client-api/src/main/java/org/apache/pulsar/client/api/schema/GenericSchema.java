@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -46,11 +46,11 @@ public interface GenericSchema<T extends GenericRecord> extends Schema<T> {
     GenericRecordBuilder newRecordBuilder();
 
 
-    static GenericSchema of(SchemaInfo schemaInfo) {
+    static GenericSchema<?> of(SchemaInfo schemaInfo) {
         throw new RuntimeException("GenericSchema interface implementation class must rewrite this method !");
     }
 
-    static GenericSchema of(SchemaInfo schemaInfo,
+    static GenericSchema<?> of(SchemaInfo schemaInfo,
                             boolean useProvidedSchemaAsReaderSchema) {
         throw new RuntimeException("GenericSchema interface implementation class must rewrite this method !");
     }

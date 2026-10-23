@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,13 +27,7 @@ import lombok.Data;
  */
 @Data
 public class JavaExecutionResult {
-    private Exception userException;
-    private Exception systemException;
+    private Throwable userException;
     private Object result;
-
-    public void reset() {
-        setUserException(null);
-        setSystemException(null);
-        setResult(null);
-    }
+    private final long startTime = System.nanoTime();
 }

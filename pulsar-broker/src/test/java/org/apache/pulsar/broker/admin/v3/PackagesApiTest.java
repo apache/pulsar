@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,29 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
-import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
+import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import java.io.File;
-import java.util.Collections;
-import java.util.List;
 
 @Test(groups = "broker-admin")
 public class PackagesApiTest extends MockedPulsarServiceBaseTest {
@@ -50,6 +57,23 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    public void testRepeatUploadThrowConflictException() throws Exception {
+        // create a temp file for testing
+        File file = File.createTempFile("package-api-test", ".package");
+
+        // testing upload api
+        String packageName = "function://public/default/test@v1";
+        PackageMetadata originalMetadata = PackageMetadata.builder().description("test").build();
+        admin.packages().upload(originalMetadata, packageName, file.getPath());
+        try {
+            admin.packages().upload(originalMetadata, packageName, file.getPath());
+            fail();
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 409);
+        }
     }
 
     @Test(timeOut = 60000)
@@ -101,14 +125,24 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test(timeOut = 60000)
-    public void testPackagesOperationsFailed() {
+    public void testPackagesOperationsFailed() throws IOException {
         // download a non-existent package should return not found exception
         String unknownPackageName = "function://public/default/unknown@v1";
+
+        Path tmp = Files.createTempDirectory("package-test-tmp");
         try {
-            admin.packages().download(unknownPackageName, "/test/unknown");
+            admin.packages().download(unknownPackageName, tmp.toAbsolutePath() + "/unknown");
             fail("should throw 404 error");
         } catch (PulsarAdminException e) {
             assertEquals(404, e.getStatusCode());
+        } finally {
+            Files.walk(tmp).sorted(Comparator.reverseOrder()).forEach(p -> {
+                try {
+                    Files.delete(p);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
         }
 
         // get the metadata of a non-existent package should return not found exception
@@ -151,5 +185,33 @@ public class PackagesApiTest extends MockedPulsarServiceBaseTest {
         } catch (PulsarAdminException e) {
             assertEquals(412, e.getStatusCode());
         }
+    }
+
+    @DataProvider(name = "invalidPackagePaths")
+    public static Object[][] invalidPackagePaths() {
+        return new Object[][]{
+            {"GET", "function/public/default/test/%2E%2E/metadata"},
+            {"GET", "function/public/default/test/%2E/metadata"},
+            {"GET", "function/public/default/%2E%2E/v1/metadata"},
+            {"GET", "function/public/default/test/v%5C1/metadata"},
+            {"GET", "function/public/default/test/%2E%2E"},
+            {"GET", "function/public/default/%2E%2E"},
+            {"GET", "function/public/%2E%2E"},
+            {"GET", "function/public/%2E"},
+            {"GET", "function/public/n%5Cs"},
+            {"DELETE", "function/public/default/test/%2E%2E"},
+        };
+    }
+
+    @Test(timeOut = 60000, dataProvider = "invalidPackagePaths")
+    public void testInvalidPackagePathIsRejectedAsPreconditionFailed(String method, String path) throws Exception {
+        // use a plain HTTP client so that the request is not validated on the client side
+        URI uri = URI.create(brokerUrl.toString().replaceAll("/$", "") + "/admin/v3/packages/" + path);
+        HttpRequest request = HttpRequest.newBuilder(uri)
+                .method(method, HttpRequest.BodyPublishers.noBody())
+                .build();
+        HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+        assertEquals(response.statusCode(), 412,
+                "Unexpected response for " + method + " " + uri + ": " + response.body());
     }
 }

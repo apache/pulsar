@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,12 +22,12 @@ import io.codearte.jfairy.Fairy;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.Record;
 import org.apache.pulsar.io.core.BatchSource;
 import org.apache.pulsar.io.core.SourceContext;
 
-@Slf4j
+@CustomLog
 public class BatchDataGeneratorSource implements BatchSource<Person> {
 
     private Fairy fairy;

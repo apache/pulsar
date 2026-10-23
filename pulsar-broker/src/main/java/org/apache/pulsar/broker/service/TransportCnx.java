@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,13 +21,21 @@ package org.apache.pulsar.broker.service;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.common.api.proto.FeatureFlags;
+import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 
 public interface TransportCnx {
 
     String getClientVersion();
+    String getProxyVersion();
 
     SocketAddress clientAddress();
+
+    String clientSourceAddressAndPort();
 
     BrokerService getBrokerService();
 
@@ -53,20 +61,13 @@ public interface TransportCnx {
     void removedProducer(Producer producer);
 
     void closeProducer(Producer producer);
-
-    void cancelPublishRateLimiting();
-
-    void cancelPublishBufferLimiting();
-
-    void disableCnxAutoRead();
-
-    void enableCnxAutoRead();
+    void closeProducer(Producer producer, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     void execute(Runnable runnable);
 
     void removedConsumer(Consumer consumer);
 
-    void closeConsumer(Consumer consumer);
+    void closeConsumer(Consumer consumer, Optional<BrokerLookupData> assignedBrokerLookupData);
 
     boolean isPreciseDispatcherFlowControl();
 
@@ -78,4 +79,37 @@ public interface TransportCnx {
 
     String clientSourceAddress();
 
+    /***
+     * Check if the connection is still alive
+     * by actively sending a Ping message to the client.
+     *
+     * @return a completable future where the result is true if the connection is alive, false otherwise. The result
+     * is empty if the connection liveness check is disabled.
+     */
+    CompletableFuture<Optional<Boolean>> checkConnectionLiveness();
+
+    /**
+     * Get the throttle tracker for this connection.
+     */
+    ServerCnxThrottleTracker getThrottleTracker();
+
+    FeatureFlags getFeatures();
+
+    default boolean isClientSupportsReplDedupByLidAndEid() {
+        return getFeatures() != null && getFeatures().hasSupportsReplDedupByLidAndEid()
+                && getFeatures().isSupportsReplDedupByLidAndEid();
+    }
+
+    /**
+     * Send a scalable-topic consumer an assignment pushed by its controller: as the response to the
+     * consumer's subscribe while that is unanswered on this connection, as an assignment update
+     * otherwise.
+     */
+    void sendScalableConsumerAssignment(long consumerId, ScalableConsumerAssignment assignment);
+
+    /**
+     * Make a scalable-topic consumer subscribe again: the controller holding its session stopped
+     * serving as the leader, and the consumer must subscribe with the one that leads now.
+     */
+    void closeScalableConsumerSession(long consumerId);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,91 +20,66 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.util.CmdGenerateDocs;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.policies.data.loadbalancer.AdvertisedListener;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ScopeType;
 
+@Command(name = "compact-topic", showDefaultValues = true, scope = ScopeType.INHERIT)
+@CustomLog
 public class CompactorTool {
 
     private static class Arguments {
-        @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
-        private String brokerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/broker.conf";
+        public enum CompactorType {
+            PUBLISHING,
+            EVENT_TIME
+        }
 
-        @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
+        @Option(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
+        private String brokerConfigFile = "conf/broker.conf";
+
+        @Option(names = {"-t", "--topic"}, description = "Topic to compact", required = true)
         private String topic;
 
-        @Parameter(names = {"-h", "--help"}, description = "Show this help message")
+        @Option(names = {"-h", "--help"}, usageHelp = true, description = "Show this help message")
         private boolean help = false;
 
-        @Parameter(names = {"-g", "--generate-docs"}, description = "Generate docs")
+        @Option(names = {"-g", "--generate-docs"}, description = "Generate docs")
         private boolean generateDocs = false;
+
+        @Option(names = {"-ct", "--compactor-type"}, description = "Choose compactor type, "
+                + "valid types are [PUBLISHING, EVENT_TIME]")
+        private CompactorType compactorType = CompactorType.PUBLISHING;
     }
 
-    public static void main(String[] args) throws Exception {
-        Arguments arguments = new Arguments();
-        JCommander jcommander = new JCommander(arguments);
-        jcommander.setProgramName("PulsarTopicCompactor");
-
-        // parse args by JCommander
-        jcommander.parse(args);
-        if (arguments.help) {
-            jcommander.usage();
-            System.exit(-1);
-        }
-
-        if (arguments.generateDocs) {
-            CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
-            cmd.addCommand("compact-topic", arguments);
-            cmd.run(null);
-            System.exit(-1);
-        }
-
-        // init broker config
-        ServiceConfiguration brokerConfig;
-        if (isBlank(arguments.brokerConfigFile)) {
-            jcommander.usage();
-            throw new IllegalArgumentException("Need to specify a configuration file for broker");
-        } else {
-            log.info(String.format("read configuration file %s", arguments.brokerConfigFile));
-            brokerConfig = PulsarConfigurationLoader.create(
-                    arguments.brokerConfigFile, ServiceConfiguration.class);
-        }
-
-
-        if (isBlank(brokerConfig.getMetadataStoreUrl())) {
-            throw new IllegalArgumentException(
-                    String.format("Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file \n"
-                                    + "or specify configuration file path from command line.\n"
-                                    + "now configuration file path is=[%s]\n",
-                            arguments.brokerConfigFile)
-            );
-        }
-
+    public static PulsarClient createClient(ServiceConfiguration brokerConfig) throws PulsarClientException {
         ClientBuilder clientBuilder = PulsarClient.builder()
                 .memoryLimit(0, SizeUnit.BYTES);
 
@@ -119,30 +94,102 @@ public class CompactorTool {
         }
 
         AdvertisedListener internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar+ssl");
-        if (internalListener.getBrokerServiceUrlTls() != null) {
-            log.info("Found a TLS-based advertised listener in configuration file. \n"
-                    + "Will connect pulsar use TLS.");
-            clientBuilder
-                    .serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
+        if (internalListener.getBrokerServiceUrlTls() != null && brokerConfig.isBrokerClientTlsEnabled()) {
+            clientBuilder.serviceUrl(internalListener.getBrokerServiceUrlTls().toString())
                     .allowTlsInsecureConnection(brokerConfig.isTlsAllowInsecureConnection())
-                    .tlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
-
+                    .enableTlsHostnameVerification(brokerConfig.isTlsHostnameVerificationEnabled());
+            if (brokerConfig.isBrokerClientTlsEnabledWithKeyStore()) {
+                clientBuilder.useKeyStoreTls(true)
+                        .tlsKeyStoreType(brokerConfig.getBrokerClientTlsKeyStoreType())
+                        .tlsKeyStorePath(brokerConfig.getBrokerClientTlsKeyStore())
+                        .tlsKeyStorePassword(brokerConfig.getBrokerClientTlsKeyStorePassword())
+                        .tlsTrustStoreType(brokerConfig.getBrokerClientTlsTrustStoreType())
+                        .tlsTrustStorePath(brokerConfig.getBrokerClientTlsTrustStore())
+                        .tlsTrustStorePassword(brokerConfig.getBrokerClientTlsTrustStorePassword());
+            } else {
+                clientBuilder.tlsTrustCertsFilePath(brokerConfig.getBrokerClientTrustCertsFilePath())
+                        .tlsKeyFilePath(brokerConfig.getBrokerClientKeyFilePath())
+                        .tlsCertificateFilePath(brokerConfig.getBrokerClientCertificateFilePath());
+            }
+            // PIP-478: the compactor's client is an outbound leg like the others, so it carries the same
+            // three broker-client provider pins. Only the engine axis has a builder setter; the other two
+            // are written onto the underlying configuration, as BrokerService.configTlsSettings does.
+            if (isNotBlank(brokerConfig.getBrokerClientSslProvider())) {
+                clientBuilder.sslProvider(brokerConfig.getBrokerClientSslProvider());
+            }
+            ClientConfigurationData clientConf =
+                    ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+            if (isNotBlank(brokerConfig.getBrokerClientJsseProvider())) {
+                clientConf.setJsseProvider(brokerConfig.getBrokerClientJsseProvider());
+            }
+            if (isNotBlank(brokerConfig.getBrokerClientJcaProvider())) {
+                clientConf.setJcaProvider(brokerConfig.getBrokerClientJcaProvider());
+            }
+            // PIP-478: and the broker-client TLS factory selection, mirroring BrokerService.configTlsSettings.
+            // 4.x propagated the PIP-337 equivalent here (sslFactoryPlugin / sslFactoryPluginParams); without
+            // its successor an operator who sources broker-client TLS material from an HSM/KMS factory gets a
+            // working broker and a compactor that silently falls back to the built-in file-based factory with
+            // whatever brokerClient* paths happen to be set — no client certificate, and the system trust
+            // store. The pair resolves atomically (the config follows the class name), and both are written
+            // only when configured, so an unset key cannot clobber a brokerClient_ passthrough value.
+            if (isNotBlank(brokerConfig.getBrokerClientTlsFactoryClassName())) {
+                clientBuilder.tlsFactoryClassName(brokerConfig.getBrokerClientTlsFactoryClassName())
+                        .tlsFactoryConfig(brokerConfig.getBrokerClientTlsFactoryConfig());
+            }
         } else {
             internalListener = ServiceConfigurationUtils.getInternalListener(brokerConfig, "pulsar");
             clientBuilder.serviceUrl(internalListener.getBrokerServiceUrl().toString());
+        }
+
+        return clientBuilder.build();
+    }
+
+    public static void main(String[] args) throws Exception {
+        Arguments arguments = new Arguments();
+        CommandLine commander = new CommandLine(arguments);
+        commander.setCommandName("PulsarTopicCompactor");
+        commander.parseArgs(args);
+        if (arguments.help) {
+            commander.usage(commander.getOut());
+            System.exit(0);
+        }
+
+        if (arguments.generateDocs) {
+            CmdGenerateDocs cmd = new CmdGenerateDocs("pulsar");
+            cmd.addCommand("compact-topic", arguments);
+            cmd.run(null);
+            System.exit(0);
+        }
+
+        // init broker config
+        if (isBlank(arguments.brokerConfigFile)) {
+            commander.usage(commander.getOut());
+            throw new IllegalArgumentException("Need to specify a configuration file for broker");
+        }
+
+        final String filepath = Path.of(arguments.brokerConfigFile).toAbsolutePath().normalize().toString();
+        log.info(String.format("read configuration file %s", filepath));
+        final ServiceConfiguration brokerConfig =
+                PulsarConfigurationLoader.create(filepath, ServiceConfiguration.class);
+
+        if (isBlank(brokerConfig.getMetadataStoreUrl())) {
+            final String message = String.format("""
+                    Need to specify `metadataStoreUrl` or `zookeeperServers` in configuration file
+                    or specify configuration file path from command line.
+                    now configuration file path is=[%s]
+                    """, filepath);
+            throw new IllegalArgumentException(message);
         }
 
         @Cleanup(value = "shutdownNow")
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
 
-        @Cleanup(value = "shutdownNow")
-        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
-
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(brokerConfig.getMetadataStoreUrl(),
                 MetadataStoreConfig.builder()
                         .sessionTimeoutMillis((int) brokerConfig.getMetadataStoreSessionTimeoutMillis())
+                        .metadataStoreName(MetadataStoreConfig.METADATA_STORE)
                         .build());
 
         @Cleanup
@@ -153,15 +200,26 @@ public class CompactorTool {
                 new DefaultThreadFactory("compactor-io"));
 
         @Cleanup
-        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null);
+        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null).get();
 
         @Cleanup
-        PulsarClient pulsar = clientBuilder.build();
+        PulsarClient pulsar = createClient(brokerConfig);
 
-        Compactor compactor = new TwoPhaseCompactor(brokerConfig, pulsar, bk, scheduler);
+        Compactor compactor = null;
+
+        switch (arguments.compactorType) {
+            case PUBLISHING:
+                compactor = new PublishingOrderCompactor(brokerConfig, pulsar, bk, scheduler);
+                break;
+            case EVENT_TIME:
+                compactor = new EventTimeOrderCompactor(brokerConfig, pulsar, bk, scheduler);
+                break;
+        }
+
         long ledgerId = compactor.compact(arguments.topic).get();
-        log.info("Compaction of topic {} complete. Compacted to ledger {}", arguments.topic, ledgerId);
+        log.info()
+                .attr("topic", arguments.topic)
+                .attr("ledgerId", ledgerId)
+                .log("Compaction of topic complete");
     }
-
-    private static final Logger log = LoggerFactory.getLogger(CompactorTool.class);
 }

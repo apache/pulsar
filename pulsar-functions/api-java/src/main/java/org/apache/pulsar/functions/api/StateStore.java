@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -56,7 +56,7 @@ public interface StateStore extends AutoCloseable {
     /**
      * Initialize the state store.
      *
-     * @param ctx
+     * @param ctx the state store context
      */
     void init(StateStoreContext ctx);
 

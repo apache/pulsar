@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,7 +34,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Unit tests for {@link WaterMarkEventGenerator}
+ * Unit tests for {@link WaterMarkEventGenerator}.
  */
 public class WaterMarkEventGeneratorTest {
     private WaterMarkEventGenerator<Integer> waterMarkEventGenerator;
@@ -63,7 +63,7 @@ public class WaterMarkEventGeneratorTest {
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() {
-//        waterMarkEventGenerator.shutdown();
+        waterMarkEventGenerator.shutdown();
         eventList.clear();
     }
 

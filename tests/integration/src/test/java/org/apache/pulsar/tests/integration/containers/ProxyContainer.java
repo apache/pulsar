@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
+import org.apache.pulsar.tests.integration.utils.DockerUtils;
+
 /**
  * A pulsar container that runs bookkeeper.
  */
@@ -26,15 +28,22 @@ public class ProxyContainer extends PulsarContainer<ProxyContainer> {
     public static final String NAME = "pulsar-proxy";
 
     public ProxyContainer(String clusterName, String hostName) {
-        super(
-            clusterName, hostName, hostName, "bin/run-proxy.sh", BROKER_PORT, BROKER_HTTP_PORT);
+        this(clusterName, hostName, false);
     }
 
-    public String getPlainTextServiceUrl() {
-        return "pulsar://" + getContainerIpAddress() + ":" + getMappedPort(BROKER_PORT);
+    public ProxyContainer(String clusterName, String hostName, boolean enableTls) {
+        this(clusterName, hostName, enableTls, DEFAULT_IMAGE_NAME);
     }
 
-    public String getHttpServiceUrl() {
-        return "http://" + getContainerIpAddress() + ":" + getMappedPort(BROKER_HTTP_PORT);
+    public ProxyContainer(String clusterName, String hostName, boolean enableTls, String imageName) {
+        super(clusterName, hostName, hostName, "bin/run-proxy.sh", BROKER_PORT,
+                enableTls ? BROKER_PORT_TLS : 0, BROKER_HTTP_PORT,
+                enableTls ? BROKER_HTTPS_PORT : 0, DEFAULT_HTTP_PATH, imageName);
+    }
+
+    @Override
+    protected void afterStart() {
+        DockerUtils.runCommandAsyncWithLogging(this.dockerClient, this.getContainerId(),
+                "tail", "-f", "/var/log/pulsar/proxy.log");
     }
 }

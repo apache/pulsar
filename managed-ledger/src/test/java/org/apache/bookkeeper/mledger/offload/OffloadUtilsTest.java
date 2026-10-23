@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,24 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.bookkeeper.mledger.offload;
-
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
 import java.util.HashMap;
 import java.util.Map;
-
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.OffloadDriverMetadata;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class OffloadUtilsTest {
 
     @Test
     void testOffloadMetadataShouldClearBeforeSet() {
-        MLDataFormats.ManagedLedgerInfo.LedgerInfo.Builder builder =
-                MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder();
-        builder.setLedgerId(1L);
+        LedgerInfo ledgerInfo = new LedgerInfo();
+        ledgerInfo.setLedgerId(1L);
 
         Map<String, String> map = new HashMap<>();
         map.put("key1", "value1");
@@ -41,18 +38,18 @@ public class OffloadUtilsTest {
 
         //only one copy of the offload metadata information is stored in metadata store,
         // and the original properties need to be cleared during offload
-        OffloadUtils.setOffloadDriverMetadata(builder, "offload", map);
+        OffloadUtils.setOffloadDriverMetadata(ledgerInfo, "offload", map);
 
-        OffloadUtils.setOffloadDriverMetadata(builder, "offload", map);
+        OffloadUtils.setOffloadDriverMetadata(ledgerInfo, "offload", map);
 
-        MLDataFormats.OffloadDriverMetadata offloadDriverMetadata =
-                builder.build().getOffloadContext().getDriverMetadata();
-        Assert.assertEquals(offloadDriverMetadata.getPropertiesList().size(), 2);
+        OffloadDriverMetadata offloadDriverMetadata =
+                ledgerInfo.getOffloadContext().getDriverMetadata();
+        Assert.assertEquals(offloadDriverMetadata.getPropertiesCount(), 2);
 
-        Assert.assertEquals(offloadDriverMetadata.getProperties(0).getKey(), "key1");
-        Assert.assertEquals(offloadDriverMetadata.getProperties(1).getKey(), "key2");
-        Assert.assertEquals(offloadDriverMetadata.getProperties(0).getValue(), "value1");
-        Assert.assertEquals(offloadDriverMetadata.getProperties(1).getValue(), "value2");
+        Assert.assertEquals(offloadDriverMetadata.getPropertyAt(0).getKey(), "key1");
+        Assert.assertEquals(offloadDriverMetadata.getPropertyAt(1).getKey(), "key2");
+        Assert.assertEquals(offloadDriverMetadata.getPropertyAt(0).getValue(), "value1");
+        Assert.assertEquals(offloadDriverMetadata.getPropertyAt(1).getValue(), "value2");
     }
 
 }

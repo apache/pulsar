@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,10 +24,10 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.fail;
-
+import com.google.common.collect.Sets;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -43,11 +43,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-import org.testng.collections.Lists;
 
-import com.google.common.collect.Sets;
-
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class PeerReplicatorTest extends ReplicatorTestBase {
 
     @Override
@@ -84,6 +81,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      * @param protocol
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "lookupType", timeOut = 10000)
     public void testPeerClusterTopicLookup(String protocol) throws Exception {
 
@@ -94,13 +92,13 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
         final String serviceUrl = protocol.equalsIgnoreCase("http") ? pulsar3.getWebServiceAddress()
                 : pulsar3.getBrokerServiceUrl();
-        final String namespace1 = "pulsar/global/peer1-" + protocol;
-        final String namespace2 = "pulsar/global/peer2-" + protocol;
+        final String namespace1 = "pulsar/peer1-" + protocol;
+        final String namespace2 = "pulsar/peer2-" + protocol;
         admin1.namespaces().createNamespace(namespace1);
         admin1.namespaces().createNamespace(namespace2);
         // add replication cluster
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"), false);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace2, Sets.newHashSet("r2"), false);
         admin1.clusters().updatePeerClusterNames("r3", null);
         // disable tls as redirection url is prepared according tls configuration
         pulsar1.getConfiguration().setTlsEnabled(false);
@@ -130,7 +128,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         }
 
         // set peer-clusters : r3->r1
-        admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r1")));
+        admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(List.of("r1")));
         Producer<byte[]> producer = client3.newProducer().topic(topic1).create();
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topic1).get();
         assertNotNull(topic);
@@ -145,7 +143,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         producer.close();
 
         // set peer-clusters : r3->r2
-        admin2.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r2")));
+        admin2.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(List.of("r2")));
         producer = client3.newProducer().topic(topic2).create();
         topic = (PersistentTopic) pulsar2.getBrokerService().getOrCreateTopic(topic2).get();
         assertNotNull(topic);
@@ -172,7 +170,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
         final String mainClusterName = "r1";
         assertNull(admin1.clusters().getPeerClusterNames(mainClusterName));
-        LinkedHashSet<String> peerClusters = Sets.newLinkedHashSet(Lists.newArrayList("r2", "r3"));
+        LinkedHashSet<String> peerClusters = Sets.newLinkedHashSet(List.of("r2", "r3"));
         admin1.clusters().updatePeerClusterNames(mainClusterName, peerClusters);
         retryStrategically((test) -> {
             try {
@@ -190,7 +188,8 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(groups = "broker")
+    @SuppressWarnings("deprecation")
+    @Test
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 
         // clean up peer-clusters
@@ -199,10 +198,10 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         admin1.clusters().updatePeerClusterNames("r3", null);
 
         final String serviceUrl = pulsar3.getBrokerServiceUrl();
-        final String namespace1 = BrokerTestUtil.newUniqueName("pulsar/global/peer-change-repl-ns");
+        final String namespace1 = BrokerTestUtil.newUniqueName("pulsar/peer-change-repl-ns");
         admin1.namespaces().createNamespace(namespace1);
         // add replication cluster
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r1"), false);
         admin1.clusters().updatePeerClusterNames("r3", null);
         // disable tls as redirection url is prepared according tls configuration
         pulsar1.getConfiguration().setTlsEnabled(false);
@@ -214,8 +213,8 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         @Cleanup
         PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS).build();
         // set peer-clusters : r3->r1
-        admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r1")));
-        admin1.clusters().updatePeerClusterNames("r1", Sets.newLinkedHashSet(Lists.newArrayList("r3")));
+        admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(List.of("r1")));
+        admin1.clusters().updatePeerClusterNames("r1", Sets.newLinkedHashSet(List.of("r3")));
         Producer<byte[]> producer = client3.newProducer().topic(topic1).create();
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getOrCreateTopic(topic1).get();
         assertNotNull(topic);
@@ -230,7 +229,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
         producer.close();
 
         // change the repl cluster to peer-cluster r3 from r1
-        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace1, Sets.newHashSet("r3"), false);
         NamespaceBundles bundles = pulsar1.getNamespaceService().getNamespaceBundleFactory()
                 .getBundles(NamespaceName.get(namespace1));
         NamespaceBundle bundle = bundles.getBundles().get(0);

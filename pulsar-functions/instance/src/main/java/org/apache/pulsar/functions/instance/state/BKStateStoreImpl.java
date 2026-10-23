@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.api.kv.options.Options;
 import org.apache.pulsar.functions.api.StateStoreContext;
+import org.apache.pulsar.functions.api.state.StateValue;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 
 /**
@@ -166,7 +167,7 @@ public class BKStateStoreImpl implements DefaultStateStore {
                             data.readBytes(result);
                             // Set position to off the buffer to the beginning, since the position after the
                             // read is going to be end of the buffer
-                            // If we do not rewind to the begining here, users will have to explicitly do
+                            // If we do not rewind to the beginning here, users will have to explicitly do
                             // this in their function code
                             // in order to use any of the ByteBuffer operations
                             result.position(0);
@@ -189,5 +190,34 @@ public class BKStateStoreImpl implements DefaultStateStore {
         } catch (Exception e) {
             throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'", e);
         }
+    }
+
+    @Override
+    public StateValue getStateValue(String key) {
+        try {
+            return result(getStateValueAsync(key));
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to retrieve the state value for key '" + key + "'", e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<StateValue> getStateValueAsync(String key) {
+        return table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))).thenApply(
+                data -> {
+                    try {
+                        if (data != null && data.value() != null && data.value().readableBytes() >= 0) {
+                            byte[] result = new byte[data.value().readableBytes()];
+                            data.value().readBytes(result);
+                            return new StateValue(result, data.version(), data.isNumber());
+                        }
+                        return null;
+                    } finally {
+                        if (data != null) {
+                            ReferenceCountUtil.safeRelease(data);
+                        }
+                    }
+                }
+        );
     }
 }

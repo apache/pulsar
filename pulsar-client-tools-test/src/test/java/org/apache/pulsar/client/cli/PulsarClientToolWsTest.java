@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,6 +19,12 @@
 package org.apache.pulsar.client.cli;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.Properties;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.awaitility.Awaitility;
@@ -27,36 +33,27 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.List;
-import java.util.Properties;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-
 public class PulsarClientToolWsTest extends BrokerTestBase {
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        super.internalSetup();
+        super.baseSetup();
     }
 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        super.resetConfig();
         super.internalCleanup();
     }
 
     @Test(timeOut = 30000)
     public void testWebSocketNonDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
+        final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
         {
@@ -91,6 +88,8 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
             Assert.assertFalse(future.isCompletedExceptionally());
         }
 
+        // A persistent:// topic uses the v4 client, which really creates a non-durable subscription,
+        // so it is removed once the consumer disconnects.
         Awaitility.await()
                 .ignoreExceptions().untilAsserted(() -> {
             Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 0);
@@ -100,10 +99,10 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testWebSocketDurableSubscriptionMode() throws Exception {
         Properties properties = new Properties();
-        properties.setProperty("serviceUrl", brokerUrl.toString());
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
         properties.setProperty("useTls", "false");
 
-        final String topicName = "persistent://my-property/my-ns/test/topic-" + UUID.randomUUID();
+        final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
 
         int numberOfMessages = 10;
         {
@@ -143,5 +142,53 @@ public class PulsarClientToolWsTest extends BrokerTestBase {
         List<String> subscriptions = admin.topics().getSubscriptions(topicName);
         Assert.assertNotNull(subscriptions);
         Assert.assertEquals(subscriptions.size(), 1);
+    }
+
+    @Test(timeOut = 30000)
+    public void testWebSocketReader() throws Exception {
+        Properties properties = new Properties();
+        properties.setProperty("serviceUrl", pulsar.getBrokerServiceUrl());
+        properties.setProperty("useTls", "false");
+
+        final String topicName = "persistent://my-property/my-ns/topic-" + UUID.randomUUID();
+
+        int numberOfMessages = 10;
+        {
+            @Cleanup("shutdown")
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            executor.execute(() -> {
+                try {
+                    PulsarClientTool pulsarClientToolReader = new PulsarClientTool(properties);
+                    String[] args = {"read", "-m", "latest", "-n", Integer.toString(numberOfMessages), "--hex", "-r",
+                            "30", topicName};
+                    Assert.assertEquals(pulsarClientToolReader.run(args), 0);
+                    future.complete(null);
+                } catch (Throwable t) {
+                    future.completeExceptionally(t);
+                }
+            });
+
+            // Make sure subscription has been created
+            Awaitility.await()
+                    .pollInterval(Duration.ofMillis(200))
+                    .ignoreExceptions().untilAsserted(() -> {
+                Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 1);
+                Assert.assertTrue(admin.topics().getSubscriptions(topicName).get(0).startsWith("reader-"));
+            });
+
+            PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
+
+            String[] args = {"produce", "--messages", "Have a nice day", "-n", Integer.toString(numberOfMessages), "-r",
+                    "20", "-p", "key1=value1", "-p", "key2=value2", "-k", "partition_key", topicName};
+            Assert.assertEquals(pulsarClientToolProducer.run(args), 0);
+            future.get();
+            Assert.assertFalse(future.isCompletedExceptionally());
+        }
+
+        Awaitility.await()
+                .ignoreExceptions().untilAsserted(() -> {
+            Assert.assertEquals(admin.topics().getSubscriptions(topicName).size(), 0);
+        });
     }
 }

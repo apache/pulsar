@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-
 import javax.naming.AuthenticationException;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 
 public class MockUnauthenticationProvider extends MockAuthenticationProvider {
 

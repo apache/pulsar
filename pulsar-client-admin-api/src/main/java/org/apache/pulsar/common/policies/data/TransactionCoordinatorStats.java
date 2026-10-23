@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,4 +34,13 @@ public class TransactionCoordinatorStats {
 
     /** The low water mark of transaction metadataStore. */
     public long lowWaterMark;
+
+    /**
+     *  The total number of ongoing transactions in this transaction coordinator.
+     */
+    public long ongoingTxnSize;
+    //Start timestamp of  transaction coordinator recovery. 0L means no startup.
+    public long recoverStartTime;
+    //End timestamp of transaction coordinator recovery. 0L means no startup.
+    public long recoverEndTime;
 }

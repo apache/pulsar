@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -59,6 +59,7 @@ public class SourceConfig {
     private FunctionConfig.ProcessingGuarantees processingGuarantees;
     private Resources resources;
 
+    private String sourceType;
     private String archive;
     // Any flags that you want to pass to the runtime.
     private String runtimeFlags;
@@ -71,4 +72,7 @@ public class SourceConfig {
     private BatchSourceConfig batchSourceConfig;
     // batchBuilder provides two types of batch construction methods, DEFAULT and KEY_BASED
     private String batchBuilder;
+    private String logTopic;
+    // Pulsar client API for the source's own topics; null picks it from the topic domains
+    private FunctionConfig.ClientApi clientApi;
 }

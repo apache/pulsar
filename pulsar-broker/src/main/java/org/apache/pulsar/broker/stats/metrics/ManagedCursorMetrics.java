@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,14 @@
  */
 package org.apache.pulsar.broker.stats.metrics;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
-import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
 
@@ -38,8 +36,8 @@ public class ManagedCursorMetrics extends AbstractMetrics {
 
     public ManagedCursorMetrics(PulsarService pulsar) {
         super(pulsar);
-        this.metricsCollection = Lists.newArrayList();
-        this.dimensionMap = Maps.newHashMap();
+        this.metricsCollection = new ArrayList<>();
+        this.dimensionMap = new HashMap<>();
     }
 
     @Override
@@ -55,16 +53,15 @@ public class ManagedCursorMetrics extends AbstractMetrics {
      */
     private List<Metrics> aggregate() {
         metricsCollection.clear();
-        for (Map.Entry<String, ManagedLedgerImpl> e : getManagedLedgers().entrySet()) {
+        for (Map.Entry<String, ManagedLedger> e : getManagedLedgers().entrySet()) {
             String ledgerName = e.getKey();
-            ManagedLedgerImpl ledger = e.getValue();
+            ManagedLedger ledger = e.getValue();
             String namespace = parseNamespaceFromLedgerName(ledgerName);
 
-            ManagedCursorContainer cursorContainer = ledger.getCursors();
-            Iterator<ManagedCursor> cursorIterator = cursorContainer.iterator();
+            Iterator<ManagedCursor> cursorIterator = ledger.getCursors().iterator();
 
             while (cursorIterator.hasNext()) {
-                ManagedCursorImpl cursor = (ManagedCursorImpl) cursorIterator.next();
+                ManagedCursor cursor = cursorIterator.next();
                 ManagedCursorMXBean cStats = cursor.getStats();
                 dimensionMap.clear();
                 dimensionMap.put("namespace", namespace);

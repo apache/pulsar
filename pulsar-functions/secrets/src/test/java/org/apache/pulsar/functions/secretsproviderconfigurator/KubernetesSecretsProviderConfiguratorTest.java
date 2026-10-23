@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.secretsproviderconfigurator;
 
 import com.google.gson.Gson;
-import org.apache.pulsar.functions.proto.Function;
+import java.util.HashMap;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
 
 /**
  * Unit test of {@link KubernetesSecretsProviderConfigurator}.
@@ -37,7 +35,8 @@ public class KubernetesSecretsProviderConfiguratorTest {
         try {
             HashMap<String, Object> map = new HashMap<String, Object>();
             map.put("secretname", "randomsecret");
-            Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setSecretsMap(new Gson().toJson(map)).build();
+            FunctionDetails functionDetails = new FunctionDetails()
+                    .setSecretsMap(new Gson().toJson(map));
             provider.doAdmissionChecks(null, null, null, null, functionDetails);
             Assert.fail("Non conforming secret object should not validate");
         } catch (Exception e) {
@@ -47,7 +46,8 @@ public class KubernetesSecretsProviderConfiguratorTest {
             HashMap<String, String> map1 = new HashMap<String, String>();
             map1.put("secretname", "secretvalue");
             map.put("secretname", map1);
-            Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setSecretsMap(new Gson().toJson(map)).build();
+            FunctionDetails functionDetails = new FunctionDetails()
+                    .setSecretsMap(new Gson().toJson(map));
             provider.doAdmissionChecks(null, null, null, null, functionDetails);
             Assert.fail("Non conforming secret object should not validate");
         } catch (Exception e) {
@@ -58,7 +58,8 @@ public class KubernetesSecretsProviderConfiguratorTest {
             map1.put("path", "secretvalue");
             map1.put("key", "secretvalue");
             map.put("secretname", map1);
-            Function.FunctionDetails functionDetails = Function.FunctionDetails.newBuilder().setSecretsMap(new Gson().toJson(map)).build();
+            FunctionDetails functionDetails = new FunctionDetails()
+                    .setSecretsMap(new Gson().toJson(map));
             provider.doAdmissionChecks(null, null, null, null, functionDetails);
         } catch (Exception e) {
             Assert.fail("Conforming secret object should validate");

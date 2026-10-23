@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,12 +21,13 @@ package org.apache.pulsar.client.impl.schema;
 import static com.google.common.base.Preconditions.checkState;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.avro.Schema.Type.RECORD;
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
@@ -45,7 +46,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 /**
  * Auto detect schema, returns only GenericRecord instances.
  */
-@Slf4j
+@CustomLog
 public class AutoConsumeSchema implements Schema<GenericRecord> {
 
     private final ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = initSchemaMap();
@@ -55,6 +56,12 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     private String componentName;
 
     private SchemaInfoProvider schemaInfoProvider;
+
+    public static final SchemaInfo SCHEMA_INFO = SchemaInfoImpl.builder()
+            .name("AutoConsume")
+            .type(SchemaType.AUTO_CONSUME)
+            .schema(new byte[0])
+            .build();
 
     private ConcurrentMap<SchemaVersion, Schema<?>> initSchemaMap() {
         ConcurrentMap<SchemaVersion, Schema<?>> schemaMap = new ConcurrentHashMap<>();
@@ -121,6 +128,14 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
     }
 
     @Override
+    public GenericRecord decode(ByteBuffer buffer, byte[] schemaVersion) {
+        SchemaVersion sv = getSchemaVersion(schemaVersion);
+        fetchSchemaIfNeeded(sv);
+        ensureSchemaInitialized(sv);
+        return adapt(schemaMap.get(sv).decode(buffer, schemaVersion), schemaVersion);
+    }
+
+    @Override
     public void setSchemaInfoProvider(SchemaInfoProvider schemaInfoProvider) {
         this.schemaInfoProvider = schemaInfoProvider;
         for (Schema<?> schema : schemaMap.values()) {
@@ -153,8 +168,10 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
         if (schemaInfo != null) {
             Schema<?> genericSchema = generateSchema(schemaInfo);
             setSchema(SchemaVersion.Latest, genericSchema);
-            log.info("Configure {} schema for topic {} : {}",
-                    componentName, topicName, schemaInfo.getSchemaDefinition());
+            log.info().attr("configure", componentName)
+                    .attr("topic", topicName)
+                    .attr("schemaDefinition", schemaInfo.getSchemaDefinition())
+                    .log("Configure schema for topic");
         }
     }
 
@@ -335,15 +352,18 @@ public class AutoConsumeSchema implements Schema<GenericRecord> {
                     if (e instanceof InterruptedException) {
                         Thread.currentThread().interrupt();
                     }
-                    log.error("Can't get last schema for topic {} using AutoConsumeSchema", topicName);
+                    log.error().attr("topic", topicName).log("Can't get last schema for topic using AutoConsumeSchema");
                     throw new SchemaSerializationException(e.getCause());
                 }
                 // schemaInfo null means that there is no schema attached to the topic.
                 Schema<?> schema = generateSchema(schemaInfo);
                 schema.setSchemaInfoProvider(schemaInfoProvider);
                 setSchema(schemaVersion, schema);
-                log.info("Configure {} schema {} for topic {} : {}",
-                        componentName, schemaVersion, topicName, schemaInfo.getSchemaDefinition());
+                log.info().attr("configure", componentName)
+                        .attr("schema", schemaVersion)
+                        .attr("topic", topicName)
+                        .attr("schemaDefinition", schemaInfo.getSchemaDefinition())
+                        .log("Configure schema for topic");
             }
         }
     }

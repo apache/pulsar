@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,10 +26,12 @@ import org.apache.pulsar.common.policies.data.impl.DelayedDeliveryPoliciesImpl;
 public interface DelayedDeliveryPolicies {
     long getTickTime();
     boolean isActive();
+    long getMaxDeliveryDelayInMillis();
 
     interface Builder {
         Builder tickTime(long tickTime);
         Builder active(boolean active);
+        Builder maxDeliveryDelayInMillis(long maxDeliveryDelayInMillis);
         DelayedDeliveryPolicies build();
     }
 

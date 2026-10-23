@@ -19,7 +19,7 @@
 syntax = "proto2";
 
 import "pulsar-common/src/main/proto/PulsarApi.proto";
-package pulsar.proto;
+package pulsar.proto.pendingack;
 option java_package = "org.apache.pulsar.broker.transaction.pendingack.proto";
 option optimize_for = LITE_RUNTIME;
 
@@ -42,4 +42,9 @@ message PendingAckMetadataEntry {
     optional uint64 txnid_least_bits = 3;
     optional uint64 txnid_most_bits = 4;
     repeated PendingAckMetadata pending_ack_metadata = 5;
+}
+
+message BatchedPendingAckMetadataEntry{
+    // Array for buffer pending ack data.
+    repeated PendingAckMetadataEntry pending_ack_logs = 1;
 }

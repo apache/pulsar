@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -56,11 +56,12 @@ public interface TransactionMetadataStore {
      * Create a new transaction in the transaction metadata store.
      *
      * @param timeoutInMills the timeout duration of the transaction in mills
+*      @param owner the role which is the owner of the transaction
      * @return a future represents the result of creating a new transaction.
      *         it returns {@link TxnID} as the identifier for identifying the
      *         transaction.
      */
-    CompletableFuture<TxnID> newTransaction(long timeoutInMills);
+    CompletableFuture<TxnID> newTransaction(long timeoutInMills, String owner);
 
     /**
      * Add the produced partitions to transaction identified by <tt>txnid</tt>.
@@ -131,6 +132,15 @@ public interface TransactionMetadataStore {
      * @return TransactionMetadataStoreStats {@link TransactionMetadataStoreStats}
      */
     TransactionMetadataStoreStats getMetadataStoreStats();
+
+    /**
+     * Get the transaction metadata store OpenTelemetry attributes.
+     *
+     * @return TransactionMetadataStoreAttributes {@link TransactionMetadataStoreAttributes}
+     */
+    default TransactionMetadataStoreAttributes getAttributes() {
+        return new TransactionMetadataStoreAttributes(this);
+    }
 
     /**
      * Get the transactions witch timeout is bigger than given timeout.

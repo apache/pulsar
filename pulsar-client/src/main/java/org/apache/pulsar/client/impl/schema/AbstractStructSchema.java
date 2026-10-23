@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,9 +20,15 @@ package org.apache.pulsar.client.impl.schema;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import lombok.CustomLog;
+import org.apache.avro.util.ByteBufferInputStream;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
@@ -31,15 +37,12 @@ import org.apache.pulsar.client.api.schema.SchemaWriter;
 import org.apache.pulsar.client.impl.schema.reader.AbstractMultiVersionReader;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * minimal abstract StructSchema.
  */
+@CustomLog
 public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
-
-    protected static final Logger LOG = LoggerFactory.getLogger(AbstractStructSchema.class);
 
     protected final SchemaInfo schemaInfo;
     protected SchemaReader<T> reader;
@@ -64,6 +67,25 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
     @Override
     public T decode(byte[] bytes, byte[] schemaVersion) {
         return reader.read(bytes, schemaVersion);
+    }
+
+    @Override
+    public T decode(ByteBuffer buffer) {
+        if (buffer == null) {
+            return null;
+        }
+        List<ByteBuffer> buffers = Collections.singletonList(buffer);
+        return this.reader.read(new ByteBufferInputStream(buffers));
+    }
+
+    @Override
+    public T decode(ByteBuffer buffer, byte[] schemaVersion) {
+        if (buffer == null) {
+            return null;
+        }
+        List<ByteBuffer> buffers = Collections.singletonList(buffer);
+        InputStream input = new ByteBufferInputStream(buffers);
+        return this.reader.read(input, schemaVersion);
     }
 
     @Override
@@ -144,6 +166,7 @@ public abstract class AbstractStructSchema<T> extends AbstractSchema<T> {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public Optional<Object> getNativeSchema() {
             if (reader instanceof AbstractMultiVersionReader) {
                 AbstractMultiVersionReader abstractMultiVersionReader = (AbstractMultiVersionReader) reader;

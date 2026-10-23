@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.functions.api.BaseContext;
 
 /**
@@ -46,6 +47,13 @@ public interface SourceContext extends BaseContext {
      * @return output topic name
      */
     String getOutputTopic();
+
+    /**
+     * Get the source config.
+     *
+     * @return source config
+     */
+    SourceConfig getSourceConfig();
 
     /**
      * New output message using schema for serializing to the topic.

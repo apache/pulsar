@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -49,7 +49,7 @@ public interface EntryFilter {
          */
         REJECT,
         /**
-         * postpone message, it should not go to this conmumer.
+         * postpone message, it should not go to this consumer.
          */
         RESCHEDULE
     }

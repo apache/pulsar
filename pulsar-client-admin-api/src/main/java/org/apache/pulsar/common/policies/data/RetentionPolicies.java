@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,16 +18,18 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import lombok.SneakyThrows;
+
 /**
  * Definition of the retention policy.
  *
  * <p>When you set a retention policy you must set **both** a *size limit* and a *time limit*.
- * In the case where you don't want to limit by either time or set, the value must be set to `-1`.
+ * In the case where you don't want to limit by either time or size, the value must be set to `-1`.
  * Retention policy will be effectively disabled and it won't prevent the deletion of acknowledged
  * messages when either size or time limit is set to `0`.
  * Infinite retention can be achieved by setting both time and size limits to `-1`.
  */
-public class RetentionPolicies {
+public class RetentionPolicies implements Cloneable {
     private int retentionTimeInMinutes;
     private long retentionSizeInMB;
 
@@ -35,7 +37,7 @@ public class RetentionPolicies {
         this(0, 0);
     }
 
-    public RetentionPolicies(int retentionTimeInMinutes, int retentionSizeInMB) {
+    public RetentionPolicies(int retentionTimeInMinutes, long retentionSizeInMB) {
         this.retentionSizeInMB = retentionSizeInMB;
         this.retentionTimeInMinutes = retentionTimeInMinutes;
     }
@@ -46,6 +48,12 @@ public class RetentionPolicies {
 
     public long getRetentionSizeInMB() {
         return retentionSizeInMB;
+    }
+
+    @SneakyThrows
+    @Override
+    protected RetentionPolicies clone() {
+        return RetentionPolicies.class.cast(super.clone());
     }
 
     @Override

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,10 +18,10 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 
 public interface EntryCacheManager {
-    EntryCache getEntryCache(ManagedLedgerImpl ml);
+    EntryCache getEntryCache(ManagedLedger ml);
 
     void removeEntryCache(String name);
 
@@ -36,4 +36,11 @@ public interface EntryCacheManager {
     void updateCacheEvictionWatermark(double cacheEvictionWatermark);
 
     double getCacheEvictionWatermark();
+
+    void doCacheEviction();
+
+    void updateCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes(
+            int extendTTLOfEntriesWithRemainingExpectedReadsMaxTimes);
+
+    void updateCacheEvictionExtendTTLOfRecentlyAccessed(boolean cacheEvictionExtendTTLOfRecentlyAccessed);
 }
