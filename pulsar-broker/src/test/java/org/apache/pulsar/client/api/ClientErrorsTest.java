@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,16 +22,15 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import io.netty.channel.ChannelHandlerContext;
-
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
 import lombok.Cleanup;
+import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerBase;
@@ -50,7 +49,7 @@ public class ClientErrorsTest {
     MockBrokerService mockBrokerService;
     private static final int ASYNC_EVENT_COMPLETION_WAIT = 100;
 
-    private final String ASSERTION_ERROR = "AssertionError";
+    private static final String ASSERTION_ERROR = "AssertionError";
 
     @BeforeClass(alwaysRun = true)
     public void setup() {
@@ -71,10 +70,10 @@ public class ClientErrorsTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
         try {
-            Consumer<byte[]> consumer = client.newConsumer().topic("persistent://prop/use/ns/t1")
+            Consumer<byte[]> consumer = client.newConsumer().topic("persistent://prop/ns/t1")
                     .subscriptionName("sub1").subscribe();
 
-            Producer<byte[]> producer = client.newProducer().topic("persistent://prop/use/ns/t1").create();
+            Producer<byte[]> producer = client.newProducer().topic("persistent://prop/ns/t1").create();
             Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
             producer.send("message".getBytes());
             Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
@@ -90,12 +89,12 @@ public class ClientErrorsTest {
 
     @Test
     public void testProducerCreateFailWithoutRetry() throws Exception {
-        producerCreateFailWithoutRetry("persistent://prop/use/ns/t1");
+        producerCreateFailWithoutRetry("persistent://prop/ns/t1");
     }
 
     @Test
     public void testPartitionedProducerCreateFailWithoutRetry() throws Exception {
-        producerCreateFailWithoutRetry("persistent://prop/use/ns/part-t1");
+        producerCreateFailWithoutRetry("persistent://prop/ns/part-t1");
     }
 
     private void producerCreateFailWithoutRetry(String topic) throws Exception {
@@ -126,12 +125,12 @@ public class ClientErrorsTest {
 
     @Test
     public void testProducerCreateSuccessAfterRetry() throws Exception {
-        producerCreateSuccessAfterRetry("persistent://prop/use/ns/t1");
+        producerCreateSuccessAfterRetry("persistent://prop/ns/t1");
     }
 
     @Test
     public void testPartitionedProducerCreateSuccessAfterRetry() throws Exception {
-        producerCreateSuccessAfterRetry("persistent://prop/use/ns/part-t1");
+        producerCreateSuccessAfterRetry("persistent://prop/ns/part-t1");
     }
 
     private void producerCreateSuccessAfterRetry(String topic) throws Exception {
@@ -141,7 +140,8 @@ public class ClientErrorsTest {
 
         mockBrokerService.setHandleProducer((ctx, producer) -> {
             if (counter.incrementAndGet() == 2) {
-                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                        SchemaVersion.Empty));
                 return;
             }
             ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.ServiceNotReady, "msg"));
@@ -158,12 +158,12 @@ public class ClientErrorsTest {
 
     @Test
     public void testProducerCreateFailAfterRetryTimeout() throws Exception {
-        producerCreateFailAfterRetryTimeout("persistent://prop/use/ns/t1");
+        producerCreateFailAfterRetryTimeout("persistent://prop/ns/t1");
     }
 
     @Test
     public void testPartitionedProducerCreateFailAfterRetryTimeout() throws Exception {
-        producerCreateFailAfterRetryTimeout("persistent://prop/use/ns/part-t1");
+        producerCreateFailAfterRetryTimeout("persistent://prop/ns/part-t1");
     }
 
     private void producerCreateFailAfterRetryTimeout(String topic) throws Exception {
@@ -204,12 +204,12 @@ public class ClientErrorsTest {
 
     @Test
     public void testCreatedProducerSendsCloseProducerAfterTimeout() throws Exception {
-        producerCreatedThenFailsRetryTimeout("persistent://prop/use/ns/t1");
+        producerCreatedThenFailsRetryTimeout("persistent://prop/ns/t1");
     }
 
     @Test
     public void testCreatedPartitionedProducerSendsCloseProducerAfterTimeout() throws Exception {
-        producerCreatedThenFailsRetryTimeout("persistent://prop/use/ns/part-t1");
+        producerCreatedThenFailsRetryTimeout("persistent://prop/ns/part-t1");
     }
 
     private void producerCreatedThenFailsRetryTimeout(String topic) throws Exception {
@@ -240,7 +240,7 @@ public class ClientErrorsTest {
         });
 
         // Create producer should succeed then upon closure, it should reattempt creation. The first request will
-        // timeout, which triggers CloseProducer. The client might send send the third Producer command before the
+        // time out, which triggers CloseProducer. The client might send the third Producer command before the
         // below assertion, so we pass with 2 or 3.
         client.newProducer().topic(topic).create();
         Awaitility.await().until(() -> closeProducerCounter.get() == 1);
@@ -250,13 +250,58 @@ public class ClientErrorsTest {
     }
 
     @Test
+    public void testCreatedConsumerSendsCloseConsumerAfterTimeout() throws Exception {
+        consumerCreatedThenFailsRetryTimeout("persistent://prop/ns/t1");
+    }
+
+    @Test
+    public void testCreatedPartitionedConsumerSendsCloseConsumerAfterTimeout() throws Exception {
+        consumerCreatedThenFailsRetryTimeout("persistent://prop/ns/part-t1");
+    }
+
+    private void consumerCreatedThenFailsRetryTimeout(String topic) throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress())
+                .operationTimeout(1, TimeUnit.SECONDS).build();
+        final AtomicInteger subscribeCounter = new AtomicInteger(0);
+        final AtomicInteger closeConsumerCounter = new AtomicInteger(0);
+
+        mockBrokerService.setHandleSubscribe((ctx, subscribe) -> {
+            int subscribeCount = subscribeCounter.incrementAndGet();
+            if (subscribeCount == 1) {
+                ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
+                // Trigger reconnect
+                ctx.writeAndFlush(Commands.newCloseConsumer(subscribe.getConsumerId(), -1, null, null));
+            } else if (subscribeCount != 2) {
+                // Respond to subsequent requests to prevent timeouts
+                ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
+            }
+            // Don't respond to the second Subscribe command to ensure timeout
+        });
+
+        mockBrokerService.setHandleCloseConsumer((ctx, closeConsumer) -> {
+            closeConsumerCounter.incrementAndGet();
+            ctx.writeAndFlush(Commands.newSuccess(closeConsumer.getRequestId()));
+        });
+
+        // Create consumer (subscribe) should succeed then upon closure, it should reattempt creation. The first
+        // request will time out, which triggers CloseConsumer. The client might send the third Subscribe command before
+        // the below assertion, so we pass with 2 or 3.
+        client.newConsumer().topic(topic).subscriptionName("test").subscribe();
+        Awaitility.await().until(() -> closeConsumerCounter.get() == 1);
+        Awaitility.await().until(() -> subscribeCounter.get() == 2 || subscribeCounter.get() == 3);
+        mockBrokerService.resetHandleSubscribe();
+        mockBrokerService.resetHandleCloseConsumer();
+    }
+
+    @Test
     public void testProducerFailDoesNotFailOtherProducer() throws Exception {
-        producerFailDoesNotFailOtherProducer("persistent://prop/use/ns/t1", "persistent://prop/use/ns/t2");
+        producerFailDoesNotFailOtherProducer("persistent://prop/ns/t1", "persistent://prop/ns/t2");
     }
 
     @Test
     public void testPartitionedProducerFailDoesNotFailOtherProducer() throws Exception {
-        producerFailDoesNotFailOtherProducer("persistent://prop/use/ns/part-t1", "persistent://prop/use/ns/part-t2");
+        producerFailDoesNotFailOtherProducer("persistent://prop/ns/part-t1", "persistent://prop/ns/part-t2");
     }
 
     private void producerFailDoesNotFailOtherProducer(String topic1, String topic2) throws Exception {
@@ -270,7 +315,8 @@ public class ClientErrorsTest {
                 ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
 
         });
 
@@ -292,12 +338,12 @@ public class ClientErrorsTest {
 
     @Test
     public void testProducerContinuousRetryAfterSendFail() throws Exception {
-        producerContinuousRetryAfterSendFail("persistent://prop/use/ns/t1");
+        producerContinuousRetryAfterSendFail("persistent://prop/ns/t1");
     }
 
     @Test
     public void testPartitionedProducerContinuousRetryAfterSendFail() throws Exception {
-        producerContinuousRetryAfterSendFail("persistent://prop/use/ns/part-t1");
+        producerContinuousRetryAfterSendFail("persistent://prop/ns/part-t1");
     }
 
     private void producerContinuousRetryAfterSendFail(String topic) throws Exception {
@@ -309,7 +355,8 @@ public class ClientErrorsTest {
             int i = counter.incrementAndGet();
             if (i == 1 || i == 5) {
                 // succeed on 1st and 5th attempts
-                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                        SchemaVersion.Empty));
                 return;
             }
             ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.PersistenceError, "msg"));
@@ -338,12 +385,12 @@ public class ClientErrorsTest {
 
     @Test
     public void testSubscribeFailWithoutRetry() throws Exception {
-        subscribeFailWithoutRetry("persistent://prop/use/ns/t1");
+        subscribeFailWithoutRetry("persistent://prop/ns/t1");
     }
 
     @Test
     public void testPartitionedSubscribeFailWithoutRetry() throws Exception {
-        subscribeFailWithoutRetry("persistent://prop/use/ns/part-t1");
+        subscribeFailWithoutRetry("persistent://prop/ns/part-t1");
     }
 
     @Test
@@ -351,7 +398,7 @@ public class ClientErrorsTest {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
         final AtomicInteger counter = new AtomicInteger(0);
-        String topic = "persistent://prop/use/ns/t1";
+        String topic = "persistent://prop/ns/t1";
 
         mockBrokerService.setHandlePartitionLookup((ctx, lookup) -> {
             ctx.writeAndFlush(Commands.newPartitionMetadataResponse(0, lookup.getRequestId()));
@@ -410,12 +457,12 @@ public class ClientErrorsTest {
 
     @Test
     public void testSubscribeSuccessAfterRetry() throws Exception {
-        subscribeSuccessAfterRetry("persistent://prop/use/ns/t1");
+        subscribeSuccessAfterRetry("persistent://prop/ns/t1");
     }
 
     @Test
     public void testPartitionedSubscribeSuccessAfterRetry() throws Exception {
-        subscribeSuccessAfterRetry("persistent://prop/use/ns/part-t1");
+        subscribeSuccessAfterRetry("persistent://prop/ns/part-t1");
     }
 
     private void subscribeSuccessAfterRetry(String topic) throws Exception {
@@ -442,12 +489,12 @@ public class ClientErrorsTest {
 
     @Test
     public void testSubscribeFailAfterRetryTimeout() throws Exception {
-        subscribeFailAfterRetryTimeout("persistent://prop/use/ns/t1");
+        subscribeFailAfterRetryTimeout("persistent://prop/ns/t1");
     }
 
     @Test
     public void testPartitionedSubscribeFailAfterRetryTimeout() throws Exception {
-        subscribeFailAfterRetryTimeout("persistent://prop/use/ns/part-t1");
+        subscribeFailAfterRetryTimeout("persistent://prop/ns/part-t1");
     }
 
     private void subscribeFailAfterRetryTimeout(String topic) throws Exception {
@@ -480,12 +527,12 @@ public class ClientErrorsTest {
 
     @Test
     public void testSubscribeFailDoesNotFailOtherConsumer() throws Exception {
-        subscribeFailDoesNotFailOtherConsumer("persistent://prop/use/ns/t1", "persistent://prop/use/ns/t2");
+        subscribeFailDoesNotFailOtherConsumer("persistent://prop/ns/t1", "persistent://prop/ns/t2");
     }
 
     @Test
     public void testPartitionedSubscribeFailDoesNotFailOtherConsumer() throws Exception {
-        subscribeFailDoesNotFailOtherConsumer("persistent://prop/use/ns/part-t1", "persistent://prop/use/ns/part-t2");
+        subscribeFailDoesNotFailOtherConsumer("persistent://prop/ns/part-t1", "persistent://prop/ns/part-t2");
     }
 
     private void subscribeFailDoesNotFailOtherConsumer(String topic1, String topic2) throws Exception {
@@ -532,14 +579,15 @@ public class ClientErrorsTest {
                 ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
         });
 
         try {
             client.newProducer()
                     .enableLazyStartPartitionedProducers(true)
                     .accessMode(ProducerAccessMode.Shared)
-                    .topic("persistent://prop/use/ns/multi-part-t1").create();
+                    .topic("persistent://prop/ns/multi-part-t1").create();
             fail("Should have failed with an authorization error");
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.AuthorizationException);
@@ -549,6 +597,7 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleProducer();
         mockBrokerService.resetHandleCloseProducer();
     }
+    @SuppressWarnings("deprecation")
 
     // failed to connect to partition at sending step if a producer which connects to broker as lazy-loading mode
     @Test
@@ -557,18 +606,20 @@ public class ClientErrorsTest {
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getHttpAddress()).build();
         final AtomicInteger producerCounter = new AtomicInteger(0);
         final AtomicInteger closeCounter = new AtomicInteger(0);
-        final String topicName = "persistent://prop/use/ns/multi-part-t1";
+        final String topicName = "persistent://prop/ns/multi-part-t1";
 
         mockBrokerService.setHandleProducer((ctx, producer) -> {
             if (producerCounter.incrementAndGet() == 2) {
                 ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
         });
 
         mockBrokerService.setHandleSend((ctx, send, headersAndPayload) ->
-            ctx.writeAndFlush(Commands.newSendReceipt(send.getProducerId(), send.getSequenceId(), send.getHighestSequenceId(), 0L, 0L))
+            ctx.writeAndFlush(Commands.newSendReceipt(send.getProducerId(), send.getSequenceId(),
+                    send.getHighestSequenceId(), 0L, 0L))
         );
 
         mockBrokerService.setHandleCloseProducer((ctx, closeProducer) -> {
@@ -624,7 +675,8 @@ public class ClientErrorsTest {
                 ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
         });
 
         mockBrokerService.setHandleCloseProducer((ctx, closeProducer) -> {
@@ -633,7 +685,7 @@ public class ClientErrorsTest {
         });
 
         try {
-            client.newProducer().topic("persistent://prop/use/ns/multi-part-t1").create();
+            client.newProducer().topic("persistent://prop/ns/multi-part-t1").create();
             fail("Should have failed with an authorization error");
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.AuthorizationException);
@@ -669,7 +721,7 @@ public class ClientErrorsTest {
         });
 
         try {
-            client.newConsumer().topic("persistent://prop/use/ns/multi-part-t1").subscriptionName("sub1").subscribe();
+            client.newConsumer().topic("persistent://prop/ns/multi-part-t1").subscriptionName("sub1").subscribe();
             fail("Should have failed with an authorization error");
         } catch (PulsarClientException.AuthorizationException e) {
         }
@@ -701,7 +753,7 @@ public class ClientErrorsTest {
             }
         });
 
-        client.newConsumer().topic("persistent://prop/use/ns/multi-part-t1").subscriptionName("sub1").subscribe();
+        client.newConsumer().topic("persistent://prop/ns/multi-part-t1").subscriptionName("sub1").subscribe();
 
         if (fail.get()) {
             fail("Flow command should have been sent after all 4 partitions subscribe successfully");
@@ -719,7 +771,7 @@ public class ClientErrorsTest {
         AtomicBoolean msgSent = new AtomicBoolean();
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channelCtx.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false, false));
             if (numOfConnections.incrementAndGet() == 2) {
                 // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();
@@ -727,7 +779,8 @@ public class ClientErrorsTest {
         });
 
         mockBrokerService.setHandleProducer((ctx, produce) -> {
-            ctx.writeAndFlush(Commands.newProducerSuccess(produce.getRequestId(), "default-producer", SchemaVersion.Empty));
+            ctx.writeAndFlush(Commands.newProducerSuccess(produce.getRequestId(), "default-producer",
+                    SchemaVersion.Empty));
         });
 
         mockBrokerService.setHandleSend((ctx, sendCmd, headersAndPayload) -> {
@@ -737,7 +790,7 @@ public class ClientErrorsTest {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
-        Producer<byte[]> producer = client.newProducer().topic("persistent://prop/use/ns/t1").create();
+        Producer<byte[]> producer = client.newProducer().topic("persistent://prop/ns/t1").create();
 
         // close the cnx after creating the producer
         channelCtx.get().channel().close().get();
@@ -759,7 +812,7 @@ public class ClientErrorsTest {
         CountDownLatch latch = new CountDownLatch(1);
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channelCtx.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false, false));
             if (numOfConnections.incrementAndGet() == 2) {
                 // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();
@@ -775,7 +828,7 @@ public class ClientErrorsTest {
 
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
-        client.newConsumer().topic("persistent://prop/use/ns/t1").subscriptionName("sub1").subscribe();
+        client.newConsumer().topic("persistent://prop/ns/t1").subscriptionName("sub1").subscribe();
 
         // close the cnx after creating the producer
         channelCtx.get().channel().close();
@@ -785,5 +838,30 @@ public class ClientErrorsTest {
 
         mockBrokerService.resetHandleConnect();
         mockBrokerService.resetHandleSubscribe();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testCommandErrorMessageIsNull() throws Exception {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();
+
+        mockBrokerService.setHandleProducer((ctx, producer) -> {
+            try {
+                ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, null));
+            } catch (Exception e) {
+                fail("Send error command failed", e);
+            }
+        });
+
+        try {
+            client.newProducer().topic("persistent://prop/ns/t1").create();
+            fail();
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.AuthorizationException);
+            Map<String, String> map = JsonUtil.fromJson(e.getMessage(), Map.class);
+            assertEquals(map.get("errorMsg"), "");
+        }
+        mockBrokerService.resetHandleProducer();
     }
 }

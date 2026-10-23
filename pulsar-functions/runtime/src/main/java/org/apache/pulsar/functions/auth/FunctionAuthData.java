@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,11 +21,11 @@ package org.apache.pulsar.functions.auth;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * A wrapper for authentication data for functions.
+ */
 @Data
 @Builder
-/**
- * A wrapper for authentication data for functions
- */
 public class FunctionAuthData {
     /**
      * function authentication related data that the function authentication provider

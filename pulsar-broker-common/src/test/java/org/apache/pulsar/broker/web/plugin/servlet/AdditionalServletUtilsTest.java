@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.broker.web.plugin.servlet;
 
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_SELF;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.AssertJUnit.assertSame;
+import static org.testng.AssertJUnit.assertTrue;
 import java.io.IOException;
 import java.nio.file.Paths;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -26,13 +33,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
-
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.RETURNS_SELF;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.AssertJUnit.assertSame;
-import static org.testng.AssertJUnit.assertTrue;
 
 public class AdditionalServletUtilsTest {
 
@@ -50,10 +50,9 @@ public class AdditionalServletUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
-        Class listenerClass = MockAdditionalServlet.class;
-        when(mockLoader.loadClass(eq(MockAdditionalServlet.class.getName())))
-                .thenReturn(listenerClass);
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+        Class<?> listenerClass = MockAdditionalServlet.class;
+        doReturn(listenerClass).when(mockLoader).loadClass(eq(MockAdditionalServlet.class.getName()));
 
         final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
         when(mockedBuilder.build()).thenReturn(mockLoader);
@@ -68,7 +67,7 @@ public class AdditionalServletUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadEventListenerWithBlankListerClass() throws Exception {
+    public void testLoadEventListenerWithBlankListenerClass() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setDescription("test-proxy-listener");
 
@@ -80,10 +79,9 @@ public class AdditionalServletUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
-        Class listenerClass = MockAdditionalServlet.class;
-        when(mockLoader.loadClass(eq(MockAdditionalServlet.class.getName())))
-                .thenReturn(listenerClass);
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+        Class<?> listenerClass = MockAdditionalServlet.class;
+        doReturn(listenerClass).when(mockLoader).loadClass(eq(MockAdditionalServlet.class.getName()));
 
         final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
         when(mockedBuilder.build()).thenReturn(mockLoader);
@@ -95,7 +93,7 @@ public class AdditionalServletUtilsTest {
     }
 
     @Test(expectedExceptions = IOException.class)
-    public void testLoadEventListenerWithWrongListerClass() throws Exception {
+    public void testLoadEventListenerWithWrongListenerClass() throws Exception {
         AdditionalServletDefinition def = new AdditionalServletDefinition();
         def.setAdditionalServletClass(Runnable.class.getName());
         def.setDescription("test-proxy-listener");
@@ -108,10 +106,9 @@ public class AdditionalServletUtilsTest {
 
         NarClassLoader mockLoader = mock(NarClassLoader.class);
         when(mockLoader.getServiceDefinition(eq(AdditionalServletUtils.ADDITIONAL_SERVLET_FILE)))
-                .thenReturn(ObjectMapperFactory.getThreadLocalYaml().writeValueAsString(def));
-        Class listenerClass = Runnable.class;
-        when(mockLoader.loadClass(eq(Runnable.class.getName())))
-                .thenReturn(listenerClass);
+                .thenReturn(ObjectMapperFactory.getYamlMapper().writer().writeValueAsString(def));
+        Class<?> listenerClass = Runnable.class;
+        doReturn(listenerClass).when(mockLoader).loadClass(eq(Runnable.class.getName()));
 
         final NarClassLoaderBuilder mockedBuilder = mock(NarClassLoaderBuilder.class, RETURNS_SELF);
         when(mockedBuilder.build()).thenReturn(mockLoader);

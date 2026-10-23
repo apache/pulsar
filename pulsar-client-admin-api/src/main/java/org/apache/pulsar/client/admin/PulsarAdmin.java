@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -56,13 +56,6 @@ public interface PulsarAdmin extends Closeable {
      * @return the resourcegroups managements object
      */
     ResourceGroups resourcegroups();
-
-    /**
-     *
-     * @deprecated since 2.0. See {@link #tenants()}
-     */
-    @Deprecated
-    Properties properties();
 
     /**
      * @return the namespaces management object
@@ -173,6 +166,13 @@ public interface PulsarAdmin extends Closeable {
      * @return the transactions management object
      */
     Transactions transactions();
+
+    MetadataMigration metadataMigration();
+
+    /**
+     * @return the scalable topics management object
+     */
+    ScalableTopics scalableTopics();
 
     /**
      * Close the PulsarAdminClient and release all the resources.

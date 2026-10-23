@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,10 +29,11 @@ import org.testng.annotations.Test;
 public class SinkRecordTest {
 
     @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public void testCustomAck() {
 
         PulsarRecord pulsarRecord = Mockito.mock(PulsarRecord.class);
-        SinkRecord sinkRecord = new SinkRecord<>(pulsarRecord, new Object());
+        SinkRecord sinkRecord = new SinkRecord(pulsarRecord, new Object());
 
         sinkRecord.cumulativeAck();
         Mockito.verify(pulsarRecord, Mockito.times(1)).cumulativeAck();

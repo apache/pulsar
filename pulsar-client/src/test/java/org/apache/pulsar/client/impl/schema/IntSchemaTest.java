@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -63,7 +63,7 @@ public class IntSchemaTest {
                42
         };
         ByteBuf byteBuf = ByteBufAllocator.DEFAULT.buffer(4);
-        Integer expected = 10*65536 + 24*256 + 42;
+        Integer expected = 10 * 65536 + 24 * 256 + 42;
         IntSchema schema = IntSchema.of();
         byteBuf.writeBytes(byteData);
         Assert.assertEquals(expected, schema.decode(byteData));

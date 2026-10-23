@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -114,13 +113,6 @@ public interface Context extends BaseContext {
     Object getUserConfigValueOrDefault(String key, Object defaultValue);
 
     /**
-     * Get the pulsar admin client.
-     *
-     * @return The instance of pulsar admin client
-     */
-    PulsarAdmin getPulsarAdmin();
-
-    /**
      * Publish an object using serDe or schema class for serializing to the topic.
      *
      * @param topicName              The name of the topic for publishing
@@ -130,6 +122,7 @@ public interface Context extends BaseContext {
      * @return A future that completes when the framework is done publishing the message
      * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
+    @Deprecated
     <X> CompletableFuture<Void> publish(String topicName, X object, String schemaOrSerdeClassName);
 
     /**
@@ -140,6 +133,7 @@ public interface Context extends BaseContext {
      * @return A future that completes when the framework is done publishing the message
      * @deprecated in favor of using {@link #newOutputMessage(String, Schema)}
      */
+    @Deprecated
     <X> CompletableFuture<Void> publish(String topicName, X object);
 
     /**
@@ -167,8 +161,10 @@ public interface Context extends BaseContext {
      * Creates a FunctionRecordBuilder initialized with values from this Context.
      * It can be used in Functions to prepare a Record to return with default values taken from the Context and the
      * input Record.
-     *
+
+     * @param schema provide a way to convert between serialized data and domain objects
+     * @param <X> the message type of record builder
      * @return the record builder instance
      */
-    <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder();
+    <X> FunctionRecord.FunctionRecordBuilder<X> newOutputRecordBuilder(Schema<X> schema);
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.broker.authentication;
 
+import jakarta.servlet.http.HttpServletRequest;
 import java.security.cert.X509Certificate;
-import javax.servlet.http.HttpServletRequest;
 
 public class AuthenticationDataHttps extends AuthenticationDataHttp {
 
@@ -27,7 +27,7 @@ public class AuthenticationDataHttps extends AuthenticationDataHttp {
 
     public AuthenticationDataHttps(HttpServletRequest request) {
         super(request);
-        certificates = (X509Certificate[]) request.getAttribute("javax.servlet.request.X509Certificate");
+        certificates = (X509Certificate[]) request.getAttribute("jakarta.servlet.request.X509Certificate");
     }
 
     /*

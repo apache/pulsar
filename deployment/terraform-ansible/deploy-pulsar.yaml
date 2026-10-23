@@ -145,15 +145,14 @@
 #        - dynamodb
 #        - elastic-search
 #        - file
-#        - flume
 #        - hbase
-#        - hdfs2
 #        - hdfs3
 #        - influxdb
 #        - jdbc-clickhouse
 #        - jdbc-mariadb
 #        - jdbc-postgres
 #        - jdbc-sqlite
+#        - http
         - kafka
 #        - kafka-connect-adaptor
 #        - kinesis
@@ -162,7 +161,6 @@
 #        - rabbitmq
 #        - redis
 #        - solr
-#        - twitter
     - name: Set up broker
       template:
         src: "../templates/broker.conf"

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,28 +18,28 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.base.Charsets;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class SimpleBookKeeperTest extends MockedBookKeeperTestCase {
 
     private static final String SECRET = "secret";
-    private static final Charset Encoding = Charsets.UTF_8;
+    private static final Charset Encoding = StandardCharsets.UTF_8;
 
     @Test
     public void simpleTest() throws Exception {
 
         LedgerHandle ledger = bkc.createLedger(DigestType.MAC, SECRET.getBytes());
         long ledgerId = ledger.getId();
-        log.info("Writing to ledger: {}", ledgerId);
+        log.info().attr("ledgerId", ledgerId).log("Writing to ledger");
 
         for (int i = 0; i < 10; i++) {
             String content = "entry-" + i;
@@ -54,12 +54,11 @@ public class SimpleBookKeeperTest extends MockedBookKeeperTestCase {
         while (entries.hasMoreElements()) {
             LedgerEntry entry = entries.nextElement();
             String content = new String(entry.getEntry(), Encoding);
-            log.info("Entry {}  lenght={} content='{}'", entry.getEntryId(), entry.getLength(), content);
+            log.info().attr("entryId", entry.getEntryId()).attr("length", entry.getLength())
+                    .attr("content", content).log("Entry read");
         }
 
         ledger.close();
     }
-
-    private static Logger log = LoggerFactory.getLogger(SimpleBookKeeperTest.class);
 
 }

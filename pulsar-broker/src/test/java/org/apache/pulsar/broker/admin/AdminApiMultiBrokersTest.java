@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,24 +18,32 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.testng.Assert.assertFalse;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.pulsar.broker.MultiBrokerBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.internal.TopicsImpl;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -43,7 +51,7 @@ import org.testng.annotations.Test;
 /**
  * Test multi-broker admin api.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
     @Override
@@ -54,6 +62,7 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
+        this.conf.setManagedLedgerMaxEntriesPerLedger(10);
     }
 
     @Override
@@ -68,11 +77,10 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         Optional<LeaderBroker> leaderBroker =
                 allBrokers.get(0).getLeaderElectionService().readCurrentLeader().get();
         assertTrue(leaderBroker.isPresent());
-        log.info("Leader broker is {}", leaderBroker);
+        log.info().attr("leaderBroker", leaderBroker).log("Leader broker");
         for (PulsarAdmin admin : getAllAdmins()) {
-            String serviceUrl = admin.brokers().getLeaderBroker().getServiceUrl();
-            log.info("Pulsar admin get leader broker is {}", serviceUrl);
-            assertEquals(leaderBroker.get().getServiceUrl(), serviceUrl);
+            String brokerId = admin.brokers().getLeaderBroker().getBrokerId();
+            assertEquals(leaderBroker.get().getBrokerId(), brokerId);
         }
     }
 
@@ -89,12 +97,13 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
         };
     }
 
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30 * 1000, dataProvider = "topicTypes")
     public void testTopicLookup(TopicDomain topicDomain, boolean isPartition) throws Exception {
         PulsarAdmin admin0 = getAllAdmins().get(0);
 
         String namespace = RandomStringUtils.randomAlphabetic(5);
-        admin0.namespaces().createNamespace( "public/" + namespace, 3);
+        admin0.namespaces().createNamespace("public/" + namespace, 3);
         admin0.namespaces().setAutoTopicCreation("public/" + namespace,
                 AutoTopicCreationOverride.builder().allowAutoTopicCreation(false).build());
 
@@ -115,11 +124,89 @@ public class AdminApiMultiBrokersTest extends MultiBrokerBaseTest {
                     lookupResultSet.add(pulsarAdmin.lookups().lookupTopic(topic.getPartitionedTopicName()));
                 }
             } catch (Exception e) {
-                log.error(pulsarAdmin.getServiceUrl() + " - Failed to execute lookup for topic {} .", topic, e);
+                log.error().attr("serviceUrl", pulsarAdmin.getServiceUrl()).attr("topic", topic)
+                        .exception(e).log("Failed to execute lookup for topic");
                 Assert.fail("Failed to execute lookup by PulsarAdmin(" + pulsarAdmin.getServiceUrl() + ").");
             }
         }
         Assert.assertEquals(lookupResultSet.size(), 1);
     }
 
+    @SuppressWarnings("deprecation")
+    @Test(groups = "flaky")
+    public void testForceDeletePartitionedTopicWithSub() throws Exception {
+        final int numPartitions = 10;
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+        admin.tenants().createTenant("tenant-xyz", tenantInfo);
+        admin.namespaces().createNamespace("tenant-xyz/ns-abc", Set.of("test"));
+
+        admin.namespaces().setAutoTopicCreation("tenant-xyz/ns-abc",
+                AutoTopicCreationOverride.builder()
+                        .allowAutoTopicCreation(true)
+                        .topicType("partitioned")
+                        .defaultNumPartitions(5)
+                        .build());
+
+        RetentionPolicies retention = new RetentionPolicies(10, 10);
+        admin.namespaces().setRetention("tenant-xyz/ns-abc", retention);
+        final String topic = "persistent://tenant-xyz/ns-abc/topic-"
+                + RandomStringUtils.randomAlphabetic(5)
+                + "-testDeletePartitionedTopicWithSub";
+        final String subscriptionName = "sub";
+        ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+
+        log.info("Creating producer and consumer");
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName(subscriptionName)
+                .subscribe();
+
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).enableBatching(false).topic(topic).create();
+
+        log.info("producing messages");
+        for (int i = 0; i < numPartitions * 100; ++i) {
+            producer.newMessage()
+                    .key("" + i)
+                    .value("value-" + i)
+                    .send();
+        }
+        producer.flush();
+
+        log.info("consuming some messages");
+        for (int i = 0; i < numPartitions * 5; i++) {
+            Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
+        }
+
+        log.info().attr("topic", topic).log("trying to delete the topic");
+        admin.topics().deletePartitionedTopic(topic, true);
+
+        log.info("closing producer and consumer");
+        producer.close();
+        consumer.close();
+
+        // topic autocreate might sneak in after the delete / before close
+        // but the topic metadata should be consistent to go through deletion again
+        if (admin.topics().getList("tenant-xyz/ns-abc")
+                .stream().anyMatch(t -> t.contains(topic))) {
+            try {
+                admin.topics().deletePartitionedTopic(topic, true);
+            } catch (PulsarAdminException.NotFoundException nfe) {
+                // pass
+            }
+
+            assertEquals(0, admin.topics().getList("tenant-xyz/ns-abc")
+                    .stream().filter(t -> t.contains(topic)).count());
+            assertEquals(0,
+                    pulsar.getPulsarResources().getTopicResources()
+                            .getExistingPartitions(TopicName.getPartitionedTopicName(topic))
+                            .get()
+                            .stream().filter(t -> t.contains(topic)).count());
+            assertFalse(admin.topics()
+                    .getPartitionedTopicList("tenant-xyz/ns-abc")
+                    .contains(topic));
+        } else {
+            log.info("trying to create the topic again");
+            ((TopicsImpl) admin.topics()).createPartitionedTopicAsync(topic, numPartitions, true, null).get();
+        }
+    }
 }

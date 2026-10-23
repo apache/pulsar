@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,6 +31,9 @@ public interface ReaderInterceptor<T> {
 
     /**
      * Close the interceptor.
+     *
+     * <p>This method is called once when the reader that this interceptor is attached to is closed. An interceptor
+     * instance that is attached to several readers is closed once for each of them.
      */
     void close();
 

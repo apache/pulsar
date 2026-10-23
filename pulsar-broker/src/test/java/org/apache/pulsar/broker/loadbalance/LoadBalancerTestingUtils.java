@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Range;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Range;
-
 public class LoadBalancerTestingUtils {
-    public static NamespaceBundle[] makeBundles(final NamespaceBundleFactory nsFactory, final String property,
-            final String cluster, final String namespace, final int numBundles) {
+    public static NamespaceBundle[] makeBundles(final NamespaceBundleFactory nsFactory, final String tenant,
+            final String namespace, final int numBundles) {
         final NamespaceBundle[] result = new NamespaceBundle[numBundles];
-        final NamespaceName namespaceName = NamespaceName.get(property, cluster, namespace);
+        final NamespaceName namespaceName = NamespaceName.get(tenant, namespace);
         for (int i = 0; i < numBundles - 1; ++i) {
             final long lower = NamespaceBundles.FULL_UPPER_BOUND * i / numBundles;
             final long upper = NamespaceBundles.FULL_UPPER_BOUND * (i + 1) / numBundles;

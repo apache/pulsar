@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,14 @@ package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
 import java.util.Map;
+import lombok.AccessLevel;
+import lombok.Getter;
+
 
 /**
  * ManagedLedger internal statistics.
  */
+@Getter(AccessLevel.PUBLIC)
 public class ManagedLedgerInternalStats {
 
     /** Messages published since this broker loaded this managedLedger. */
@@ -67,6 +71,9 @@ public class ManagedLedgerInternalStats {
     /** The list of all cursors on this topic. Each subscription in the topic stats has a cursor. */
     public Map<String, CursorStats> cursors;
 
+    /** The properties map of the managed ledger. */
+    public Map<String, String> properties;
+
     /**
      * Ledger information.
      */
@@ -77,11 +84,13 @@ public class ManagedLedgerInternalStats {
         public boolean offloaded;
         public String metadata;
         public boolean underReplicated;
+        public Map<String, String> properties;
     }
 
     /**
      * Pulsar cursor statistics.
      */
+    @Getter(AccessLevel.PUBLIC)
     public static class CursorStats {
         public String markDeletePosition;
         public String readPosition;
@@ -94,6 +103,7 @@ public class ManagedLedgerInternalStats {
         public String individuallyDeletedMessages;
         public String lastLedgerSwitchTimestamp;
         public String state;
+        public boolean active;
         public long numberOfEntriesSinceFirstNotAckedMessage;
         public int totalNonContiguousDeletedMessagesRange;
         public boolean subscriptionHavePendingRead;

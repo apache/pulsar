@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,22 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.collect.Sets;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.Base64;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.crypto.SecretKey;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -64,10 +64,14 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     private final String testTenant = "my-tenant";
     private final String testNamespace = "my-namespace";
     private final String testTopicName = "my-topic";
+@SuppressWarnings("deprecation")
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    @SuppressWarnings("deprecation")
     private static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
     private static final String PRODUCE_TOKEN = Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
+    @SuppressWarnings("deprecation")
     private static final String CONSUME_TOKEN = Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
 
     @Override
@@ -84,17 +88,21 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
         conf.setAuthenticationProviders(providers);
+        conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
+        conf.setBrokerClientAuthenticationParameters("token:" + ADMIN_TOKEN);
         super.internalSetup();
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder().serviceHttpUrl(brokerUrl != null
                 ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(),
                         ADMIN_TOKEN);
+        closeAdmin();
         admin = Mockito.spy(pulsarAdminBuilder.build());
         admin.clusters().createCluster(testLocalCluster, new ClusterDataImpl());
-        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Sets.newHashSet("role1", "role2"),
-                Sets.newHashSet(testLocalCluster)));
+        admin.tenants().createTenant(testTenant, new TenantInfoImpl(Set.of("role1", "role2"),
+                Set.of(testLocalCluster)
+        ));
         admin.namespaces().createNamespace(testTenant + "/" + testNamespace,
-                Sets.newHashSet(testLocalCluster));
+                Set.of(testLocalCluster));
         admin.namespaces().grantPermissionOnNamespace(testTenant + "/" + testNamespace, "producer",
                 EnumSet.of(AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(testTenant + "/" + testNamespace, "consumer",
@@ -138,12 +146,12 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
     private void innerTestProduce(String createTopicName, boolean isPersistent, boolean isPartition,
                                   String token, int status) throws Exception {
         String topicPrefix = null;
-        if (isPersistent == true) {
+        if (isPersistent) {
             topicPrefix = "persistent";
         } else {
             topicPrefix = "non-persistent";
         }
-        if (isPartition == true) {
+        if (isPartition) {
             admin.topics().createPartitionedTopic(topicPrefix + "://" + testTenant + "/"
                     + testNamespace + "/" + createTopicName, 5);
         } else {
@@ -152,20 +160,18 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         }
         Schema<String> schema = StringSchema.utf8();
         ProducerMessages producerMessages = new ProducerMessages();
-        producerMessages.setKeySchema(ObjectMapperFactory.getThreadLocal().
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
-        producerMessages.setValueSchema(ObjectMapperFactory.getThreadLocal().
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
                 writeValueAsString(schema.getSchemaInfo()));
-        String message = "[" +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1}," +
-                "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
-        producerMessages.setMessages(ObjectMapperFactory.getThreadLocal().readValue(message,
-                new TypeReference<List<ProducerMessage>>() {
-                }));
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
+        producerMessages.setMessages(createMessages(message));
 
         WebTarget root = buildWebClient();
         String requestPath = null;
-        if (isPartition == true) {
+        if (isPartition) {
             requestPath = "/topics/" + topicPrefix + "/" + testTenant + "/" + testNamespace + "/"
                     + createTopicName + "/partitions/2";
         } else {
@@ -179,13 +185,19 @@ public class TopicsAuthTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(response.getStatus(), status);
     }
 
+    private static List<ProducerMessage> createMessages(String message) throws JsonProcessingException {
+        return ObjectMapperFactory.getMapper().reader()
+                .forType(new TypeReference<List<ProducerMessage>>() {
+                }).readValue(message);
+    }
+
     WebTarget buildWebClient() throws Exception {
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
         httpConfig.register(MultiPartFeature.class);
 
-        javax.ws.rs.client.ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig);
+        jakarta.ws.rs.client.ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig);
         Client client = clientBuilder.build();
         return client.target(brokerUrl.toString());
     }

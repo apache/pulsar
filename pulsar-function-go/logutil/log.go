@@ -27,11 +27,13 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 )
 
 const (
+	logLevelEnvName      = "LOGGING_LEVEL"
 	defaultLogLevel      = log.InfoLevel
 	defaultLogTimeFormat = "2006/01/02 15:04:05.000"
 )
@@ -86,7 +88,21 @@ func Fatalf(format string, v ...interface{}) {
 	log.Fatalf(format, v...)
 }
 
-var StrEntry []string
+// entries holds the formatted log entries that have not been sent to the log topic yet.
+// The hook appends to it from any goroutine, so it is guarded by entriesMutex.
+var (
+	entriesMutex sync.Mutex
+	entries      []string
+)
+
+// DrainEntries returns the log entries captured since the previous call and clears the buffer.
+func DrainEntries() []string {
+	entriesMutex.Lock()
+	defer entriesMutex.Unlock()
+	drained := entries
+	entries = nil
+	return drained
+}
 
 // modifyHook injects file name and line pos into log entry.
 type contextHook struct{}
@@ -113,7 +129,9 @@ func (hook *contextHook) Fire(entry *log.Entry) error {
 		fmt.Fprintf(os.Stderr, "Unable to read entry, %v", err)
 		return err
 	}
-	StrEntry = append(StrEntry, strEntry)
+	entriesMutex.Lock()
+	entries = append(entries, strEntry)
+	entriesMutex.Unlock()
 	return nil
 }
 
@@ -175,6 +193,12 @@ func (f *TextFormatter) Format(entry *log.Entry) ([]byte, error) {
 
 func init() {
 	log.SetLevel(defaultLogLevel)
+	// lookup and parse the logLevel variable
+	if logLevelStr, exist := os.LookupEnv(logLevelEnvName); exist {
+		if logLevel, err := log.ParseLevel(logLevelStr); err == nil {
+			log.SetLevel(logLevel)
+		}
+	}
 	log.AddHook(&contextHook{})
 	log.SetFormatter(&TextFormatter{})
 }

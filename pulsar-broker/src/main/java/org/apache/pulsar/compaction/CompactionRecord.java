@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -30,32 +30,26 @@ public class CompactionRecord {
             200_000, 1000_000 };
 
     @Getter
-    private long lastCompactionRemovedEventCount = 0L;
+    private volatile long lastCompactionRemovedEventCount = 0L;
     @Getter
-    private long lastCompactionSucceedTimestamp = 0L;
+    private volatile long lastCompactionSucceedTimestamp = 0L;
     @Getter
-    private long lastCompactionFailedTimestamp = 0L;
+    private volatile long lastCompactionFailedTimestamp = 0L;
     @Getter
-    private long lastCompactionDurationTimeInMills = 0L;
+    private volatile long lastCompactionDurationTimeInMills = 0L;
 
     private LongAdder lastCompactionRemovedEventCountOp = new LongAdder();
-    private long lastCompactionStartTimeOp;
+    private volatile long lastCompactionStartTimeOp;
 
     private final LongAdder compactionRemovedEventCount = new LongAdder();
     private final LongAdder compactionSucceedCount = new LongAdder();
     private final LongAdder compactionFailedCount = new LongAdder();
     private final LongAdder compactionDurationTimeInMills = new LongAdder();
+    private final LongAdder compactionReadBytes = new LongAdder();
+    private final LongAdder compactionWriteBytes = new LongAdder();
     public final StatsBuckets writeLatencyStats = new StatsBuckets(WRITE_LATENCY_BUCKETS_USEC);
     public final Rate writeRate = new Rate();
     public final Rate readRate = new Rate();
-
-    public void reset() {
-        compactionRemovedEventCount.reset();
-        compactionSucceedCount.reset();
-        compactionFailedCount.reset();
-        compactionDurationTimeInMills.reset();
-        writeLatencyStats.reset();
-    }
 
     public void addCompactionRemovedEvent() {
         lastCompactionRemovedEventCountOp.increment();
@@ -83,10 +77,12 @@ public class CompactionRecord {
 
     public void addCompactionReadOp(long readableBytes) {
         readRate.recordEvent(readableBytes);
+        compactionReadBytes.add(readableBytes);
     }
 
     public void addCompactionWriteOp(long writeableBytes) {
         writeRate.recordEvent(writeableBytes);
+        compactionWriteBytes.add(writeableBytes);
     }
 
     public void addCompactionLatencyOp(long latency, TimeUnit unit) {
@@ -115,6 +111,7 @@ public class CompactionRecord {
     }
 
     public StatsBuckets getCompactionLatencyStats() {
+        writeLatencyStats.refresh();
         return writeLatencyStats;
     }
 
@@ -123,8 +120,16 @@ public class CompactionRecord {
         return readRate.getValueRate();
     }
 
+    public long getCompactionReadBytes() {
+        return compactionReadBytes.sum();
+    }
+
     public double getCompactionWriteThroughput() {
         writeRate.calculateRate();
         return writeRate.getValueRate();
+    }
+
+    public long getCompactionWriteBytes() {
+        return compactionWriteBytes.sum();
     }
 }

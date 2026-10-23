@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.tests.integration;
 
+import static java.time.temporal.ChronoUnit.SECONDS;
+import java.time.Duration;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.HttpWaitStrategy;
-
-import java.time.Duration;
-
-import static java.time.temporal.ChronoUnit.SECONDS;
 
 public class PulsarContainer extends GenericContainer<PulsarContainer> {
 

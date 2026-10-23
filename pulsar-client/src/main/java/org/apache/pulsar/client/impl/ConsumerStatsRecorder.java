@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,7 +22,9 @@ import io.netty.util.Timeout;
 import java.util.Optional;
 import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.ProducerStats;
 
+@SuppressWarnings("deprecation")
 public interface ConsumerStatsRecorder extends ConsumerStats {
     void updateNumMsgsReceived(Message<?> message);
 
@@ -39,4 +41,8 @@ public interface ConsumerStatsRecorder extends ConsumerStats {
     void reset();
 
     void updateCumulativeStats(ConsumerStats stats);
+
+    void setDeadLetterProducerStats(ProducerStats producerStats);
+
+    void setRetryLetterProducerStats(ProducerStats producerStats);
 }

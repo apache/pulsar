@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 /*
  * The original MurmurHash3 was written by Austin Appleby, and is placed in the
  * public domain. This source code, implemented by Licht Takeuchi, is based on
- * the orignal MurmurHash3 source code.
+ * the original MurmurHash3 source code.
  */
 package org.apache.pulsar.client.impl;
 

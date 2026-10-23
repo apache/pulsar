@@ -1,0 +1,342 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.impl;
+
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import lombok.AllArgsConstructor;
+import lombok.Cleanup;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerInterceptor;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Messages;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.awaitility.Awaitility;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+import org.testng.collections.Sets;
+
+@CustomLog
+@Test(groups = "broker-impl")
+public class ConsumerAckTest extends SharedPulsarBaseTest {
+
+    private PulsarClient clientWithStats;
+
+    @SuppressWarnings("deprecation")
+    @BeforeMethod(alwaysRun = true)
+    public void setupConsumerAckTest() throws Exception {
+        this.clientWithStats = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .statsInterval(30, TimeUnit.SECONDS)
+                .build();
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void cleanupConsumerAckTest() throws Exception {
+        if (this.clientWithStats != null) {
+            this.clientWithStats.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testAckReceipt() throws Exception {
+        String topic = newTopicName();
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+        @Cleanup
+        ConsumerImpl<Integer> consumer = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .isAckReceiptEnabled(true)
+                .subscribe();
+        for (int i = 0; i < 10; i++) {
+            producer.send(i);
+        }
+        Message<Integer> message = consumer.receive();
+        MessageId messageId = message.getMessageId();
+        consumer.acknowledgeCumulativeAsync(messageId).get();
+        consumer.acknowledgeCumulativeAsync(messageId).get();
+        consumer.close();
+        @Cleanup
+        ConsumerImpl<Integer> consumer2 = (ConsumerImpl<Integer>) pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("sub")
+                .isAckReceiptEnabled(true)
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscribe();
+        message = consumer2.receive();
+        messageId = message.getMessageId();
+        consumer2.acknowledgeCumulativeAsync(messageId).get();
+        consumer2.acknowledgeCumulativeAsync(messageId).get();
+    }
+
+    @Test
+    public void testIndividualAck() throws Exception {
+        @Cleanup AckTestData data = prepareDataForAck(newTopicName());
+        for (MessageId messageId : data.messageIds) {
+            data.consumer.acknowledge(messageId);
+        }
+        assertEquals(data.interceptor.individualAckedMessageIdList, data.messageIds);
+        assertEquals(data.consumer.getStats().getNumAcksSent(), data.size());
+        assertTrue(data.consumer.getUnAckedMessageTracker().isEmpty());
+    }
+
+    @Test
+    public void testIndividualAckList() throws Exception {
+        @Cleanup AckTestData data = prepareDataForAck(newTopicName());
+        data.consumer.acknowledge(data.messageIds);
+        assertEquals(data.interceptor.individualAckedMessageIdList, data.messageIds);
+        assertEquals(data.consumer.getStats().getNumAcksSent(), data.size());
+        assertTrue(data.consumer.getUnAckedMessageTracker().isEmpty());
+    }
+
+    @Test(timeOut = 10000)
+    public void testAcknowledgeWithNullMessageId() throws Exception {
+        final String topic = newTopicName();
+        @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .subscribe();
+        List<MessageId> messageIdList = null;
+
+        // 1.pass null messageIdList to acknowledgeAsync(messageIdList, txn) will trigger
+        // PulsarClientException.InvalidMessageException
+        assertThatThrownBy(
+                () -> consumer.acknowledgeAsync(messageIdList, null).get()
+        )
+                .isInstanceOf(ExecutionException.class)
+                .hasMessageContaining("Cannot handle messages with null messageIdList")
+                .hasCauseInstanceOf(PulsarClientException.InvalidMessageException.class);
+
+        // 2. pass null messageIdList to acknowledge(messageIdList) will trigger PulsarClientException
+        assertThatThrownBy(
+                () -> consumer.acknowledge(messageIdList)
+        ).isInstanceOf(PulsarClientException.class)
+                .hasMessage("Cannot handle messages with null messageIdList");
+
+        // 3. pass null messages to acknowledge(messages) will trigger PulsarClientException
+        Messages<?> messages = null;
+        assertThatThrownBy(
+                () -> consumer.acknowledge(messages)
+        ).isInstanceOf(PulsarClientException.class)
+                .hasMessage("Cannot handle messages with null messages");
+
+        // 4. pass null messageId to acknowledgeCumulativeAsync(messageId, txn) will trigger
+        // PulsarClientException.InvalidMessageException
+        MessageId messageId = null;
+        assertThatThrownBy(
+                () -> consumer.acknowledgeCumulativeAsync(messageId, null).get()
+        )
+                .isInstanceOf(ExecutionException.class)
+                .hasMessageContaining("Cannot handle message with null messageId")
+                .hasCauseInstanceOf(PulsarClientException.InvalidMessageException.class);
+
+    }
+
+
+    @Test
+    public void testCumulativeAck() throws Exception {
+        @Cleanup AckTestData data = prepareDataForAck(newTopicName());
+        System.out.println(data.size());
+        data.consumer.acknowledgeCumulative(data.messageIds.get(data.size() - 1));
+        assertEquals(data.interceptor.cumulativeAckedMessageIdList.get(0),
+                data.messageIds.get(data.messageIds.size() - 1));
+        assertEquals(data.consumer.getStats().getNumAcksSent(), 2);
+        assertTrue(data.consumer.getUnAckedMessageTracker().isEmpty());
+    }
+
+    @DataProvider
+    public Object[][] cumulative() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(timeOut = 30000, dataProvider = "cumulative")
+    public void testAckWithoutGroupingWhileReconnecting(boolean cumulative) throws Exception {
+        final String topic = newTopicName();
+        // Leaves the consumer without a connection for a while after the unload
+        @Cleanup
+        PulsarClient slowReconnectClient = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .startingBackoffInterval(3, TimeUnit.SECONDS)
+                .maxBackoffInterval(3, TimeUnit.SECONDS)
+                .build();
+        @Cleanup
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) slowReconnectClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .subscribe();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+        producer.send("msg");
+        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message);
+
+        admin.topics().unload(topic);
+        Awaitility.await().until(() -> !consumer.isConnected());
+        // Without a connection, the ack waits for the subscription instead of failing
+        if (cumulative) {
+            consumer.acknowledgeCumulative(message.getMessageId());
+        } else {
+            consumer.acknowledge(message.getMessageId());
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(consumer.isConnected());
+            assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub").getMsgBacklog(), 0);
+        });
+    }
+
+    // Send 1 non-batched message, then send N-1 messages that are in the same batch
+    @SuppressWarnings("unchecked")
+    private AckTestData prepareDataForAck(String topic) throws PulsarClientException {
+        final int numMessages = 10;
+        @Cleanup Producer<String> batchProducer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(true)
+                .batchingMaxMessages(numMessages - 1)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS)
+                .create();
+        @Cleanup Producer<String> nonBatchProducer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .create();
+        AckStatsInterceptor interceptor = new AckStatsInterceptor();
+        ConsumerImpl<String> consumer = (ConsumerImpl<String>) clientWithStats.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName("sub").intercept(interceptor).ackTimeout(10, TimeUnit.SECONDS).subscribe();
+
+        nonBatchProducer.send("msg-0");
+        for (int i = 1; i < numMessages; i++) {
+            batchProducer.sendAsync("msg-" + i);
+        }
+        List<MessageId> messageIds = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            assertNotNull(message);
+            messageIds.add(message.getMessageId());
+        }
+        MessageId firstEntryMessageId = messageIds.get(0);
+        MessageId secondEntryMessageId = MessageIdAdvUtils.discardBatch(messageIds.get(1));
+        // Verify messages 2 to N must be in the same entry
+        for (int i = 2; i < messageIds.size(); i++) {
+            assertEquals(MessageIdAdvUtils.discardBatch(messageIds.get(i)), secondEntryMessageId);
+        }
+
+        assertTrue(interceptor.individualAckedMessageIdList.isEmpty());
+        assertTrue(interceptor.cumulativeAckedMessageIdList.isEmpty());
+        assertEquals(consumer.getStats().getNumAcksSent(), 0);
+        assertNotNull(consumer.getUnAckedMessageTracker().messageIdPartitionMap);
+        assertEquals(consumer.getUnAckedMessageTracker().messageIdPartitionMap.keySet(),
+                Sets.newHashSet(firstEntryMessageId, secondEntryMessageId));
+        return new AckTestData(consumer, interceptor, messageIds);
+    }
+
+    // Send 10 messages, the 1st message is a non-batched message, the other messages are in the same batch
+    @AllArgsConstructor
+    private static class AckTestData implements Closeable {
+
+        private final ConsumerImpl<String> consumer;
+        private final AckStatsInterceptor interceptor;
+        private final List<MessageId> messageIds;
+
+        public int size() {
+            return messageIds.size();
+        }
+
+        @Override
+        public void close() throws IOException {
+            interceptor.close();
+            consumer.close();
+        }
+    }
+
+    private static class AckStatsInterceptor implements ConsumerInterceptor<String> {
+
+        private final List<MessageId> individualAckedMessageIdList = new CopyOnWriteArrayList<>();
+        private final List<MessageId> cumulativeAckedMessageIdList = new CopyOnWriteArrayList<>();
+
+        @Override
+        public void close() {
+            // No ops
+        }
+
+        @Override
+        public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
+            return message;
+        }
+
+        @Override
+        public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable exception) {
+            if (exception != null) {
+                log.error()
+                        .attr("consumerName", consumer.getConsumerName())
+                        .attr("acknowledge", messageId)
+                        .log("Failed to acknowledge");
+                return;
+            }
+            individualAckedMessageIdList.add(messageId);
+        }
+
+        @Override
+        public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable exception) {
+            if (exception != null) {
+                log.error()
+                        .attr("consumerName", consumer.getConsumerName())
+                        .attr("acknowledge", messageId)
+                        .log("Failed to acknowledge");
+                return;
+            }
+            cumulativeAckedMessageIdList.add(messageId);
+        }
+
+        @Override
+        public void onNegativeAcksSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+            // No ops
+        }
+
+        @Override
+        public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
+            // No ops
+        }
+    }
+}

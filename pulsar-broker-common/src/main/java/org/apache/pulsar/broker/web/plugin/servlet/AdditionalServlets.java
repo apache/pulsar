@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,15 +21,16 @@ package org.apache.pulsar.broker.web.plugin.servlet;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
 import java.util.Map;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
 /**
  * A collection of loaded additional servlets.
  */
-@Slf4j
+@CustomLog
 public class AdditionalServlets implements AutoCloseable {
 
     private static final String ADDITIONAL_SERVLET_DIRECTORY = "additionalServletDirectory";
@@ -70,11 +71,16 @@ public class AdditionalServlets implements AutoCloseable {
         }
 
         String narExtractionDirectory = conf.getProperties().getProperty(NAR_EXTRACTION_DIRECTORY);
-        if (narExtractionDirectory == null) {
+        if (StringUtils.isBlank(narExtractionDirectory)) {
             narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
         }
 
         if (additionalServletDirectory == null || additionalServlets == null) {
+            return null;
+        }
+
+        String[] additionalServletsList = additionalServlets.split(",");
+        if (additionalServletsList.length == 0) {
             return null;
         }
 
@@ -83,7 +89,6 @@ public class AdditionalServlets implements AutoCloseable {
                         , narExtractionDirectory);
         ImmutableMap.Builder<String, AdditionalServletWithClassLoader> builder = ImmutableMap.builder();
 
-        String[] additionalServletsList = additionalServlets.split(",");
         for (String servletName : additionalServletsList) {
             AdditionalServletMetadata definition = definitions.servlets().get(servletName);
             if (null == definition) {
@@ -97,15 +102,15 @@ public class AdditionalServlets implements AutoCloseable {
                 if (servletWithClassLoader != null) {
                     builder.put(servletName, servletWithClassLoader);
                 }
-                log.info("Successfully loaded additional servlet for name `{}`", servletName);
+                log.info().attr("servlet", servletName).log("Successfully loaded additional servlet");
             } catch (IOException e) {
-                log.error("Failed to load the additional servlet for name `" + servletName + "`", e);
+                log.error().attr("servlet", servletName).exception(e).log("Failed to load the additional servlet");
                 throw new RuntimeException("Failed to load the additional servlet for name `" + servletName + "`");
             }
         }
 
         Map<String, AdditionalServletWithClassLoader> servlets = builder.build();
-        if (servlets != null && !servlets.isEmpty()) {
+        if (!servlets.isEmpty()) {
             return new AdditionalServlets(servlets);
         }
 

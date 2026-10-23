@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,11 +20,14 @@ package org.apache.pulsar.broker.loadbalance;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.ConcurrentHashMap;
+import lombok.CustomLog;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.impl.PulsarResourceDescription;
@@ -36,46 +39,41 @@ import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
-@Slf4j
+@CustomLog
 public class NoopLoadManager implements LoadManager {
 
     private PulsarService pulsar;
-    private String lookupServiceAddress;
+    private String brokerId;
     private ResourceUnit localResourceUnit;
     private LockManager<LocalBrokerData> lockManager;
+    private Map<String, String> bundleBrokerAffinityMap;
 
     @Override
     public void initialize(PulsarService pulsar) {
         this.pulsar = pulsar;
         this.lockManager = pulsar.getCoordinationService().getLockManager(LocalBrokerData.class);
+        this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
     }
 
     @Override
     public void start() throws PulsarServerException {
-        lookupServiceAddress = getBrokerAddress();
-        localResourceUnit = new SimpleResourceUnit(String.format("http://%s", lookupServiceAddress),
-                new PulsarResourceDescription());
+        brokerId = pulsar.getBrokerId();
+        localResourceUnit = new SimpleResourceUnit(brokerId, new PulsarResourceDescription());
 
-        LocalBrokerData localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(),
+        LocalBrokerData localData = new LocalBrokerData(pulsar.getBrokerId(), pulsar.getWebServiceAddress(),
                 pulsar.getWebServiceAddressTls(),
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
         localData.setProtocols(pulsar.getProtocolDataToAdvertise());
-        String brokerReportPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
+        localData.setLoadManagerClassName(this.pulsar.getConfig().getLoadManagerClassName());
+        String brokerReportPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + brokerId;
 
         try {
-            log.info("Acquiring broker resource lock on {}", brokerReportPath);
+            log.info().attr("broker", brokerReportPath).log("Acquiring broker resource lock");
             lockManager.acquireLock(brokerReportPath, localData).join();
-            log.info("Acquired broker resource lock on {}", brokerReportPath);
+            log.info().attr("broker", brokerReportPath).log("Acquired broker resource lock");
         } catch (CompletionException ce) {
             throw new PulsarServerException(MetadataStoreException.unwrap(ce));
         }
-    }
-
-    private String getBrokerAddress() {
-        return String.format("%s:%s", pulsar.getAdvertisedAddress(),
-                pulsar.getConfiguration().getWebServicePort().isPresent()
-                        ? pulsar.getConfiguration().getWebServicePort().get()
-                        : pulsar.getConfiguration().getWebServicePortTls().get());
     }
 
     @Override
@@ -130,12 +128,12 @@ public class NoopLoadManager implements LoadManager {
 
     @Override
     public Set<String> getAvailableBrokers() throws Exception {
-        return Collections.singleton(lookupServiceAddress);
+        return Collections.singleton(brokerId);
     }
 
     @Override
     public CompletableFuture<Set<String>> getAvailableBrokersAsync() {
-        return CompletableFuture.completedFuture(Collections.singleton(lookupServiceAddress));
+        return CompletableFuture.completedFuture(Collections.singleton(brokerId));
     }
 
     @Override
@@ -149,4 +147,11 @@ public class NoopLoadManager implements LoadManager {
         }
     }
 
+    @Override
+    public String setNamespaceBundleAffinity(String bundle, String broker) {
+        if (StringUtils.isBlank(broker)) {
+            return this.bundleBrokerAffinityMap.remove(bundle);
+        }
+        return this.bundleBrokerAffinityMap.put(bundle, broker);
+    }
 }

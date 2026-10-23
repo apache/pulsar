@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.UnaryOperator;
+import org.apache.commons.lang3.StringUtils;
 
 abstract class HandlerState {
     protected final PulsarClientImpl client;
     protected final String topic;
+    protected volatile URI redirectedClusterURI;
 
     private static final AtomicReferenceFieldUpdater<HandlerState, State> STATE_UPDATER =
             AtomicReferenceFieldUpdater.newUpdater(HandlerState.class, State.class, "state");
@@ -49,6 +53,18 @@ abstract class HandlerState {
         STATE_UPDATER.set(this, State.Uninitialized);
     }
 
+    protected void setRedirectedClusterURI(String serviceUrl, String serviceUrlTls) throws URISyntaxException {
+        String url = client.conf.isUseTls() && StringUtils.isNotBlank(serviceUrlTls) ? serviceUrlTls : serviceUrl;
+        if (StringUtils.isBlank(url)) {
+            // e.g. a non-TLS client given a TLS-only endpoint (or vice versa). Surface a clear,
+            // catchable error rather than letting new URI(null) throw an NPE.
+            throw new URISyntaxException(String.valueOf(url),
+                    "No usable service URL (useTls=" + client.conf.isUseTls()
+                            + ", serviceUrl=" + serviceUrl + ", serviceUrlTls=" + serviceUrlTls + ")");
+        }
+        this.redirectedClusterURI = new URI(url);
+    }
+
     // moves the state to ready if it wasn't closed
     protected boolean changeToReadyState() {
         if (STATE_UPDATER.get(this) == State.Ready) {
@@ -57,6 +73,10 @@ abstract class HandlerState {
         return (STATE_UPDATER.compareAndSet(this, State.Uninitialized, State.Ready)
                 || STATE_UPDATER.compareAndSet(this, State.Connecting, State.Ready)
                 || STATE_UPDATER.compareAndSet(this, State.RegisteringSchema, State.Ready));
+    }
+
+    protected boolean compareAndSetState(State expect, State update) {
+        return STATE_UPDATER.compareAndSet(this, expect, update);
     }
 
     protected boolean changeToRegisteringSchemaState() {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,10 +20,13 @@ package org.apache.pulsar.client.util;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
-@Slf4j
+@CustomLog
 public class ScheduledExecutorProvider extends ExecutorProvider {
+    public ScheduledExecutorProvider(int numThreads, String poolName, boolean daemon) {
+        super(numThreads, poolName, daemon);
+    }
 
     public ScheduledExecutorProvider(int numThreads, String poolName) {
         super(numThreads, poolName);

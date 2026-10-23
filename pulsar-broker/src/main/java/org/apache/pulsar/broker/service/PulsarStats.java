@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,36 +18,41 @@
  */
 package org.apache.pulsar.broker.service;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 import java.io.Closeable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import lombok.CustomLog;
+import lombok.Getter;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics;
+import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
+import org.apache.pulsar.broker.stats.BrokerStats;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.stats.Metrics;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class PulsarStats implements Closeable {
-    private static final Logger log = LoggerFactory.getLogger(PulsarStats.class);
-
     private volatile ByteBuf topicStatsBuf;
     private volatile ByteBuf tempTopicStatsBuf;
+
+    @Getter
+    private BrokerStats brokerStats;
     private NamespaceStats nsStats;
+
     private final ClusterReplicationMetrics clusterReplicationMetrics;
     private Map<String, NamespaceBundleStats> bundleStats;
     private List<Metrics> tempMetricsCollection;
@@ -58,21 +63,26 @@ public class PulsarStats implements Closeable {
 
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
 
+    @Getter
+    private long updatedAt;
+
     public PulsarStats(PulsarService pulsar) {
         this.topicStatsBuf = Unpooled.buffer(16 * 1024);
         this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
         this.nsStats = new NamespaceStats(pulsar.getConfig().getStatsUpdateFrequencyInSecs());
+        this.brokerStats = new BrokerStats(pulsar.getConfig().getStatsUpdateFrequencyInSecs());
         this.clusterReplicationMetrics = new ClusterReplicationMetrics(pulsar.getConfiguration().getClusterName(),
                 pulsar.getConfiguration().isReplicationMetricsEnabled());
-        this.bundleStats = Maps.newConcurrentMap();
-        this.tempMetricsCollection = Lists.newArrayList();
-        this.metricsCollection = Lists.newArrayList();
-        this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar.getConfiguration().getClusterName(),
-                pulsar.getAdvertisedAddress());
-        this.tempNonPersistentTopics = Lists.newArrayList();
+        this.bundleStats = new ConcurrentHashMap<>();
+        this.tempMetricsCollection = new ArrayList<>();
+        this.metricsCollection = new ArrayList<>();
+        this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar);
+        this.tempNonPersistentTopics = new ArrayList<>();
 
         this.exposePublisherStats = pulsar.getConfiguration().isExposePublisherStats();
+        this.updatedAt = 0;
+
     }
 
     @Override
@@ -90,9 +100,7 @@ public class PulsarStats implements Closeable {
         return clusterReplicationMetrics;
     }
 
-    public synchronized void updateStats(
-            ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>>
-                    topicsMap) {
+    public synchronized void updateStats(Map<String, Map<String, Map<String, Topic>>> topicsMap) {
 
         StatsOutputStream topicStatsStream = new StatsOutputStream(tempTopicStatsBuf);
 
@@ -100,6 +108,7 @@ public class PulsarStats implements Closeable {
             tempMetricsCollection.clear();
             bundleStats.clear();
             brokerOperabilityMetrics.reset();
+            brokerStats.reset();
 
             // Json begin
             topicStatsStream.startObject();
@@ -119,6 +128,7 @@ public class PulsarStats implements Closeable {
                                 k -> new NamespaceBundleStats());
                         currentBundleStats.reset();
                         currentBundleStats.topics = topics.size();
+                        brokerStats.topics += topics.size();
 
                         topicStatsStream.startObject(NamespaceBundle.getBundleRange(bundle));
 
@@ -131,18 +141,21 @@ public class PulsarStats implements Closeable {
                                     topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
                                             clusterReplicationMetrics, namespaceName, exposePublisherStats);
                                 } catch (Exception e) {
-                                    log.error("Failed to generate topic stats for topic {}: {}",
-                                            name, e.getMessage(), e);
+                                    log.error()
+                                            .attr("topic", name)
+                                            .exception(e)
+                                            .log("Failed to generate topic stats");
                                 }
                                 // this task: helps to activate inactive-backlog-cursors which have caught up and
                                 // connected, also deactivate active-backlog-cursors which has backlog
                                 topic.checkBackloggedCursors();
+                                topic.checkCursorsToCacheEntries();
                                 // check if topic is inactive and require ledger rollover
                                 ((PersistentTopic) topic).checkInactiveLedgers();
                             } else if (topic instanceof NonPersistentTopic) {
                                 tempNonPersistentTopics.add((NonPersistentTopic) topic);
                             } else {
-                                log.warn("Unsupported type of topic {}", topic.getClass().getName());
+                                log.warn().attr("type", topic.getClass().getName()).log("Unsupported type of topic");
                             }
                         });
                         // end persistent topics section
@@ -156,8 +169,10 @@ public class PulsarStats implements Closeable {
                                     topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
                                             clusterReplicationMetrics, namespaceName, exposePublisherStats);
                                 } catch (Exception e) {
-                                    log.error("Failed to generate topic stats for topic {}: {}",
-                                            topic.getName(), e.getMessage(), e);
+                                    log.error()
+                                            .attr("topic", topic.getName())
+                                            .exception(e)
+                                            .log("Failed to generate topic stats");
                                 }
                             });
                             // end non-persistent topics section
@@ -168,25 +183,38 @@ public class PulsarStats implements Closeable {
                         topicStatsStream.endObject();
                     });
 
+                    brokerStats.bundleCount += bundles.size();
+                    brokerStats.producerCount += nsStats.producerCount;
+                    brokerStats.replicatorCount += nsStats.replicatorCount;
+                    brokerStats.subsCount += nsStats.subsCount;
+                    brokerStats.consumerCount += nsStats.consumerCount;
+                    brokerStats.msgBacklog += nsStats.msgBacklog;
+                    brokerStats.msgRateIn += nsStats.msgRateIn;
+                    brokerStats.msgRateOut += nsStats.msgRateOut;
+                    brokerStats.msgThroughputIn += nsStats.msgThroughputIn;
+                    brokerStats.msgThroughputOut += nsStats.msgThroughputOut;
+                    NamespaceStats.add(nsStats.addLatencyBucket, brokerStats.addLatencyBucket);
+
                     topicStatsStream.endObject();
                     // Update metricsCollection with namespace stats
                     tempMetricsCollection.add(nsStats.add(namespaceName));
                 } catch (Exception e) {
-                    log.error("Failed to generate namespace stats for namespace {}: {}", namespaceName, e.getMessage(),
-                            e);
+                    log.error()
+                            .attr("namespace", namespaceName)
+                            .exception(e)
+                            .log("Failed to generate namespace stats");
                 }
             });
             if (clusterReplicationMetrics.isMetricsEnabled()) {
-                clusterReplicationMetrics.get().forEach(clusterMetric -> tempMetricsCollection.add(clusterMetric));
+                tempMetricsCollection.addAll(clusterReplicationMetrics.get());
                 clusterReplicationMetrics.reset();
             }
-            brokerOperabilityMetrics.getMetrics()
-                    .forEach(brokerOperabilityMetric -> tempMetricsCollection.add(brokerOperabilityMetric));
+            tempMetricsCollection.addAll(brokerOperabilityMetrics.getMetrics());
 
             // json end
             topicStatsStream.endObject();
         } catch (Exception e) {
-            log.error("Unable to update topic stats", e);
+            log.error().exception(e).log("Unable to update topic stats");
         }
 
         // swap metricsCollection and tempMetricsCollection
@@ -203,9 +231,10 @@ public class PulsarStats implements Closeable {
         } finally {
             bufferLock.writeLock().unlock();
         }
+        updatedAt = System.currentTimeMillis();
     }
 
-    public NamespaceBundleStats invalidBundleStats(String bundleName) {
+    public synchronized NamespaceBundleStats invalidBundleStats(String bundleName) {
         return bundleStats.remove(bundleName);
     }
 
@@ -226,7 +255,7 @@ public class PulsarStats implements Closeable {
         return brokerOperabilityMetrics;
     }
 
-    public Map<String, NamespaceBundleStats> getBundleStats() {
+    public synchronized Map<String, NamespaceBundleStats> getBundleStats() {
         return bundleStats;
     }
 
@@ -234,8 +263,15 @@ public class PulsarStats implements Closeable {
         try {
             brokerOperabilityMetrics.recordTopicLoadTimeValue(topicLoadLatencyMs);
         } catch (Exception ex) {
-            log.warn("Exception while recording topic load time for topic {}, {}", topic, ex.getMessage());
+            log.warn()
+                    .attr("topic", topic)
+                    .exceptionMessage(ex)
+                    .log("Exception while recording topic load time");
         }
+    }
+
+    public void recordTopicLoadFailed(TopicLoadFailureReason reason) {
+        brokerOperabilityMetrics.recordTopicLoadFailed(reason);
     }
 
     public void recordConnectionCreate() {
@@ -252,5 +288,9 @@ public class PulsarStats implements Closeable {
 
     public void recordConnectionCreateFail() {
         brokerOperabilityMetrics.recordConnectionCreateFail();
+    }
+
+    public void recordPublishLatency(long latency, TimeUnit unit) {
+        brokerOperabilityMetrics.recordPublishLatency(latency, unit);
     }
 }

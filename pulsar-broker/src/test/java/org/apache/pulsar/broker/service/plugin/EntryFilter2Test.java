@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,7 @@ public class EntryFilter2Test implements EntryFilter {
         PersistentSubscription subscription = (PersistentSubscription) context.getSubscription();
         if (!MapUtils.isEmpty(subscription.getSubscriptionProperties())) {
             for (KeyValue keyValue : list) {
-                if(subscription.getSubscriptionProperties().containsKey(keyValue.getKey())){
+                if (subscription.getSubscriptionProperties().containsKey(keyValue.getKey())){
                     return FilterResult.ACCEPT;
                 }
             }

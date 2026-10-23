@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,24 +22,25 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
-import com.google.common.collect.Lists;
+import jakarta.ws.rs.ClientErrorException;
+import jakarta.ws.rs.core.Response.Status;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.io.IOException;
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.core.Response.Status;
+import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
@@ -48,7 +49,6 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -57,30 +57,16 @@ import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.eclipse.jetty.http.HttpStatus;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-public class CreateSubscriptionTest extends ProducerConsumerBase {
-
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.internalSetup();
-        producerBaseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+@CustomLog
+public class CreateSubscriptionTest extends SharedPulsarBaseTest {
 
     @Test
     public void createSubscriptionSingleTopic() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-topic";
+        String topic = newTopicName();
         admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
 
         // Create should fail if the subscription already exists
@@ -92,7 +78,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
                     Status.CONFLICT.getStatusCode());
         }
 
-        assertEquals(admin.topics().getSubscriptions(topic), Lists.newArrayList("sub-1"));
+        assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
 
         Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic).create();
         p1.send("test-1".getBytes());
@@ -113,7 +99,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void createSubscriptionOnPartitionedTopic() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-partitioned-topic";
+        String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 10);
 
         admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
@@ -128,17 +114,17 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
         for (int i = 0; i < 10; i++) {
             assertEquals(admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
-                    Lists.newArrayList("sub-1"));
+                    List.of("sub-1"));
         }
     }
 
     @Test
     public void createSubscriptionOnPartitionedTopicWithPartialFailure() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-partitioned-topic";
+        String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 10);
 
         // create subscription for one partition
-        final String partitionedTopic0 = topic+"-partition-0";
+        final String partitionedTopic0 = topic + "-partition-0";
         admin.topics().createSubscription(partitionedTopic0, "sub-1", MessageId.latest);
 
         admin.topics().createSubscription(topic, "sub-1", MessageId.latest);
@@ -154,7 +140,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             assertEquals(
                     admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
-                    Lists.newArrayList("sub-1"));
+                    List.of("sub-1"));
         }
     }
 
@@ -166,7 +152,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
     @Test(dataProvider = "subscriptionMode")
     public void testSubscriptionPropertiesStats(SubscriptionMode subscriptionMode) throws Exception {
         // test non-partitioned topic
-        final String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
+        final String topic = newTopicName();
         admin.topics().createNonPartitionedTopic(topic);
         Map<String, String> map = new HashMap<>();
         map.put("test-topic", "tag1");
@@ -178,7 +164,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         assertEquals(subProperties, map);
 
         // test partitioned-topic
-        final String partitionedTopic  = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
+        final String partitionedTopic = newTopicName();
         admin.topics().createPartitionedTopic(partitionedTopic, 10);
         Map<String, String> pMap = new HashMap<>();
         pMap.put("topic1", "tag1");
@@ -201,7 +187,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "subscriptionMode")
     public void addSubscriptionPropertiesTest(SubscriptionMode subscriptionMode) throws Exception {
-        String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
+        String topic = newTopicName();
         admin.topics().createNonPartitionedTopic(topic);
         Map<String, String> map = new HashMap<>();
         map.put("1", "1");
@@ -210,8 +196,8 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .subscriptionMode(subscriptionMode)
                 .topic(topic).receiverQueueSize(1).subscriptionProperties(map).subscriptionName(subName).subscribe();
-        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
-                .getTopicReference(topic).get().getSubscription(subName);
+        PersistentSubscription subscription = (PersistentSubscription) getTopicReference(topic)
+                .get().getSubscription(subName);
         Map<String, String> properties = subscription.getSubscriptionProperties();
         assertEquals(properties, map);
 
@@ -220,7 +206,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             producer.send("msg".getBytes(StandardCharsets.UTF_8));
         }
-        Message message = consumer.receive(1, TimeUnit.SECONDS);
+        Message<?> message = consumer.receive(1, TimeUnit.SECONDS);
         assertNotNull(message);
         consumer.acknowledge(message);
         MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
@@ -233,14 +219,14 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
         consumer.close();
         producer.close();
-        // restart broker, consumer use old properties
-        restartBroker();
+        // unload topic to simulate restart broker behavior
+        admin.topics().unload(topic);
 
         Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topic)
                 .subscriptionMode(subscriptionMode).receiverQueueSize(1)
                 .subscriptionProperties(map).subscriptionName(subName).subscribe();
-        PersistentSubscription subscription2 = (PersistentSubscription) pulsar.getBrokerService()
-                .getTopicReference(topic).get().getSubscription(subName);
+        PersistentSubscription subscription2 = (PersistentSubscription) getTopicReference(topic)
+                .get().getSubscription(subName);
         Awaitility.await().untilAsserted(() -> {
             Map<String, String> properties2 = subscription2.getSubscriptionProperties();
             assertEquals(properties2, map);
@@ -248,24 +234,31 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         consumer2.close();
 
         // create a new consumer with new properties, the new properties should be ignored
+        // (for Durable subscriptions, the original properties are preserved)
         Map<String, String> map3 = new HashMap<>();
         map3.put("3", "3");
         map3.put("4", "4");
         Consumer<byte[]> consumer3 = pulsarClient.newConsumer().topic(topic).subscriptionMode(subscriptionMode)
                 .receiverQueueSize(1)
                 .subscriptionProperties(map3).subscriptionName(subName).subscribe();
-        Map<String, String> properties3 = subscription.getSubscriptionProperties();
-        assertEquals(properties3, map);
+        PersistentSubscription subscription3 = (PersistentSubscription) getTopicReference(topic)
+                .get().getSubscription(subName);
+        Map<String, String> properties3 = subscription3.getSubscriptionProperties();
+        if (subscriptionMode == SubscriptionMode.Durable) {
+            assertEquals(properties3, map);
+        } else {
+            assertEquals(properties3, map3);
+        }
         consumer3.close();
 
-        //restart and create a new consumer with new properties, the new properties must not be updated
+        //unload topic and create a new consumer with new properties, the new properties must not be updated
         // for a Durable subscription, but for a NonDurable subscription we pick up the new values
-        restartBroker();
+        admin.topics().unload(topic);
         Consumer<byte[]> consumer4 = pulsarClient.newConsumer().subscriptionMode(subscriptionMode)
                 .topic(topic).receiverQueueSize(1)
                 .subscriptionProperties(map3).subscriptionName(subName).subscribe();
-        PersistentSubscription subscription4 = (PersistentSubscription) pulsar.getBrokerService()
-                .getTopicReference(topic).get().getSubscription(subName);
+        PersistentSubscription subscription4 = (PersistentSubscription) getTopicReference(topic)
+                .get().getSubscription(subName);
         Map<String, String> properties4 = subscription4.getSubscriptionProperties();
         if (subscriptionMode == SubscriptionMode.Durable) {
             assertEquals(properties4, map);
@@ -281,8 +274,8 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         // so for Non-Durable subscriptions you have always to re-connect with the same properties
         consumer4 = pulsarClient.newConsumer().topic(topic).subscriptionMode(subscriptionMode).receiverQueueSize(1)
                 .subscriptionName(subName).subscribe();
-        subscription4 = (PersistentSubscription) pulsar.getBrokerService()
-                .getTopicReference(topic).get().getSubscription(subName);
+        subscription4 = (PersistentSubscription) getTopicReference(topic)
+                .get().getSubscription(subName);
         properties4 = subscription4.getSubscriptionProperties();
         if (subscriptionMode == SubscriptionMode.Durable) {
             assertEquals(properties4, map);
@@ -291,13 +284,13 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         }
         consumer4.close();
 
-        //restart broker, properties for Durable subscription are reloaded from Metadata
-        restartBroker();
+        //unload topic, properties for Durable subscription are reloaded from Metadata
+        admin.topics().unload(topic);
         consumer4 = pulsarClient.newConsumer().topic(topic).subscriptionMode(subscriptionMode)
                 .receiverQueueSize(1)
                 .subscriptionName(subName).subscribe();
-        subscription4 = (PersistentSubscription) pulsar.getBrokerService()
-                .getTopicReference(topic).get().getSubscription(subName);
+        subscription4 = (PersistentSubscription) getTopicReference(topic)
+                .get().getSubscription(subName);
         properties4 = subscription4.getSubscriptionProperties();
         if (subscriptionMode == SubscriptionMode.Durable) {
             assertEquals(properties4, map);
@@ -306,14 +299,14 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         }
         consumer4.close();
 
-        //restart broker and create a new consumer with new properties, the properties will not be updated
-        restartBroker();
+        //unload topic and create a new consumer with new properties, the properties will not be updated
+        admin.topics().unload(topic);
         consumer4 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
                 .subscriptionMode(subscriptionMode)
                 .subscriptionProperties(map)
                 .subscriptionName(subName).subscribe();
-        PersistentSubscription subscription5 = (PersistentSubscription) pulsar.getBrokerService()
-                .getTopicReference(topic).get().getSubscription(subName);
+        PersistentSubscription subscription5 = (PersistentSubscription) getTopicReference(topic)
+                .get().getSubscription(subName);
         properties4 = subscription5.getSubscriptionProperties();
 
         // for the NonDurable subscription here we have the same properties because they
@@ -326,20 +319,20 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         Map<String, String> mapShared = new HashMap<>();
         mapShared.put("6", "7");
         // open two consumers with a Shared Subscription
-        Consumer consumerShared1 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+        Consumer<?> consumerShared1 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
                 .subscriptionMode(subscriptionMode)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionProperties(mapShared)
                 .subscriptionName(subNameShared).subscribe();
-        PersistentSubscription subscriptionShared = (PersistentSubscription) pulsar.getBrokerService()
-                .getTopicReference(topic).get().getSubscription(subNameShared);
+        PersistentSubscription subscriptionShared = (PersistentSubscription) getTopicReference(topic)
+                .get().getSubscription(subNameShared);
         properties = subscriptionShared.getSubscriptionProperties();
         assertEquals(properties, mapShared);
 
         // add a new consumer, the properties are not updated
         Map<String, String> mapShared2 = new HashMap<>();
         mapShared2.put("8", "9");
-        Consumer consumerShared2 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+        Consumer<?> consumerShared2 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
                 .subscriptionMode(subscriptionMode)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionProperties(mapShared2)
@@ -351,7 +344,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
         // add a third consumer, the properties are NOT updated
         Map<String, String> mapShared3 = new HashMap<>();
         mapShared3.put("10", "11");
-        Consumer consumerShared3 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
+        Consumer<?> consumerShared3 = pulsarClient.newConsumer().topic(topic).receiverQueueSize(1)
                 .subscriptionMode(subscriptionMode)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionProperties(mapShared3)
@@ -368,7 +361,7 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void subscriptionModePersistedTest() throws Exception {
-        String topic = "persistent://my-property/my-ns/topic" + UUID.randomUUID();
+        String topic = newTopicName();
         admin.topics().createNonPartitionedTopic(topic);
         Map<String, String> map = new HashMap<>();
         map.put("1", "1");
@@ -381,8 +374,8 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionName(subName)
                 .subscribe()
                 .close();
-        PersistentSubscription subscription = (PersistentSubscription) pulsar.getBrokerService()
-                .getTopicReference(topic).get().getSubscription(subName);
+        PersistentSubscription subscription = (PersistentSubscription) getTopicReference(topic)
+                .get().getSubscription(subName);
         Map<String, String> properties = subscription.getSubscriptionProperties();
         assertTrue(properties.containsKey("1"));
         assertTrue(properties.containsKey("2"));
@@ -428,8 +421,10 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void createSubscriptionBySpecifyingStringPosition() throws IOException, PulsarAdminException {
         final int numberOfMessages = 5;
-        String topic = "persistent://my-property/my-ns/my-topic";
+        String topic = newTopicName();
+        TopicName topicName = TopicName.get(topic);
         RequestConfig requestConfig = RequestConfig.custom().setConnectTimeout(30 * 1000).build();
+        @Cleanup
         CloseableHttpClient httpClient = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig).build();
 
         // Produce some messages to pulsar
@@ -440,8 +435,9 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
         // Create a subscription from the latest position
         String latestSubName = "sub-latest";
-        HttpPut request = new HttpPut(String.format("%s/admin/v2/persistent/my-property/my-ns/my-topic/subscription/%s",
-                admin.getServiceUrl(), latestSubName));
+        HttpPut request = new HttpPut(String.format("%s/admin/v2/persistent/%s/%s/%s/subscription/%s",
+                admin.getServiceUrl(), topicName.getTenant(), topicName.getNamespacePortion(),
+                topicName.getLocalName(), latestSubName));
         request.setHeader("Content-Type", "application/json");
         request.setEntity(new StringEntity("\"latest\""));
 
@@ -453,8 +449,9 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
         // Create a subscription from the earliest position
         String earliestSubName = "sub-earliest";
-        request = new HttpPut(String.format("%s/admin/v2/persistent/my-property/my-ns/my-topic/subscription/%s",
-                admin.getServiceUrl(), earliestSubName));
+        request = new HttpPut(String.format("%s/admin/v2/persistent/%s/%s/%s/subscription/%s",
+                admin.getServiceUrl(), topicName.getTenant(), topicName.getNamespacePortion(),
+                topicName.getLocalName(), earliestSubName));
         request.setHeader("Content-Type", "application/json");
         request.setEntity(new StringEntity("\"earliest\""));
 
@@ -469,15 +466,16 @@ public class CreateSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void testWaitingCurosrCausedMemoryLeak() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-topic";
-        for (int i = 0; i < 10; i ++) {
+        String topic = newTopicName();
+        for (int i = 0; i < 10; i++) {
             Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
                     .subscriptionType(SubscriptionType.Failover).subscriptionName("test" + i).subscribe();
             Awaitility.await().untilAsserted(() -> assertTrue(consumer.isConnected()));
             consumer.close();
         }
-        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
-        ManagedLedgerImpl ml = (ManagedLedgerImpl)(topicRef.getManagedLedger());
+        PersistentTopic topicRef = (PersistentTopic) getTopicReference(topic).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) (topicRef.getManagedLedger());
         assertEquals(ml.getWaitingCursorsCount(), 0);
     }
+
 }

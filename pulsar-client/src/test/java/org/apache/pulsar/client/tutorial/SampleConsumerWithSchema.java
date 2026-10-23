@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -33,7 +33,7 @@ public class SampleConsumerWithSchema {
 
         Consumer<JsonPojo> consumer = pulsarClient.newConsumer(JSONSchema.of
                 (SchemaDefinition.<JsonPojo>builder().withPojo(JsonPojo.class).build())) //
-                .topic("persistent://my-property/use/my-ns/my-topic") //
+                .topic("persistent://my-property/my-ns/my-topic") //
                 .subscriptionName("my-subscription-name").subscribe();
 
         Message<JsonPojo> msg = null;

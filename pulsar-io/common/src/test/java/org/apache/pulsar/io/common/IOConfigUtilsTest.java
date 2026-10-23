@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,14 +18,21 @@
  */
 package org.apache.pulsar.io.common;
 
+import java.nio.ByteBuffer;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.io.SinkConfig;
+import org.apache.pulsar.common.io.SourceConfig;
 import org.apache.pulsar.io.core.SinkContext;
 import org.apache.pulsar.io.core.SourceContext;
 import org.apache.pulsar.io.core.annotations.FieldDoc;
@@ -33,19 +40,89 @@ import org.slf4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.nio.ByteBuffer;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-
-@Slf4j
+@CustomLog
 public class IOConfigUtilsTest {
+
+    @Data
+    static class TestDefaultConfig {
+
+        @FieldDoc(
+                required = true,
+                defaultValue = "",
+                sensitive = true,
+                help = "testRequired"
+        )
+        protected String testRequired;
+
+        @FieldDoc(
+                required = true,
+                defaultValue = "defaultRequired",
+                sensitive = true,
+                help = "testRequired"
+        )
+        protected String testDefaultRequired;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "defaultStr",
+                sensitive = false,
+                help = "defaultStr"
+        )
+        protected String defaultStr;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "true",
+                sensitive = false,
+                help = "defaultBool"
+        )
+        protected boolean defaultBool;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "100",
+                sensitive = false,
+                help = "defaultInt"
+        )
+        protected int defaultInt;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "100",
+                sensitive = false,
+                help = "defaultLong"
+        )
+        protected long defaultLong;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "100.12",
+                sensitive = false,
+                help = "defaultDouble"
+        )
+        protected double defaultDouble;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "100.10",
+                sensitive = false,
+                help = "defaultFloat"
+        )
+        protected float defaultFloat;
+
+        @FieldDoc(
+                required = false,
+                defaultValue = "",
+                sensitive = false,
+                help = "noDefault"
+        )
+        protected int noDefault;
+    }
 
     @Data
     static class TestConfig {
         @FieldDoc(
-                required = true,
+                required = false,
                 defaultValue = "",
                 sensitive = true,
                 help = "password"
@@ -61,10 +138,10 @@ public class IOConfigUtilsTest {
         protected String notSensitive;
 
         /**
-         * Non-string secrets are not supported at this moment
+         * Non-string secrets are not supported at this moment.
          */
         @FieldDoc(
-                required = true,
+                required = false,
                 defaultValue = "",
                 sensitive = true,
                 help = ""
@@ -73,6 +150,7 @@ public class IOConfigUtilsTest {
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = false)
     static class DerivedConfig extends TestConfig {
         @FieldDoc(
                 required = true,
@@ -84,6 +162,7 @@ public class IOConfigUtilsTest {
     }
 
     @Data
+    @EqualsAndHashCode(callSuper = false)
     static class DerivedDerivedConfig extends DerivedConfig {
         @FieldDoc(
                 required = true,
@@ -120,6 +199,11 @@ public class IOConfigUtilsTest {
 
         @Override
         public String getOutputTopic() {
+            return null;
+        }
+
+        @Override
+        public SourceConfig getSourceConfig() {
             return null;
         }
 
@@ -185,24 +269,25 @@ public class IOConfigUtilsTest {
         public CompletableFuture<ByteBuffer> getStateAsync(String key) {
             return null;
         }
-        
+
         @Override
         public void deleteState(String key) {
-        	
-        }
-        
-        @Override
-        public CompletableFuture<Void> deleteStateAsync(String key) {
-        	return null;
+
         }
 
         @Override
-        public <O> TypedMessageBuilder<O> newOutputMessage(String topicName, Schema<O> schema) throws PulsarClientException {
+        public CompletableFuture<Void> deleteStateAsync(String key) {
             return null;
         }
 
         @Override
-        public <O> ConsumerBuilder<O> newConsumerBuilder(Schema<O> schema) throws PulsarClientException {
+        public <T> TypedMessageBuilder<T> newOutputMessage(String topicName, Schema<T> schema)
+                throws PulsarClientException {
+            return null;
+        }
+
+        @Override
+        public <T> ConsumerBuilder<T> newConsumerBuilder(Schema<T> schema) throws PulsarClientException {
             return null;
         }
 
@@ -210,6 +295,36 @@ public class IOConfigUtilsTest {
         public PulsarClient getPulsarClient() {
             return null;
         }
+
+        @Override
+        public void fatal(Throwable t) {
+
+        }
+    }
+
+    @Test
+    public void testDefaultValue() {
+
+        // test required field.
+        Assert.expectThrows(IllegalArgumentException.class,
+                () -> IOConfigUtils.loadWithSecrets(new HashMap<>(), TestDefaultConfig.class, new TestSinkContext()));
+
+
+        // test all default value.
+        Map<String, Object> configMap = new HashMap<>();
+        configMap.put("testRequired", "test");
+        TestDefaultConfig testDefaultConfig =
+                IOConfigUtils.loadWithSecrets(configMap, TestDefaultConfig.class, new TestSinkContext());
+        // if there is default value for a required field and no value provided when load config,
+        // it should not throw exception but use the default value.
+        Assert.assertEquals(testDefaultConfig.getTestDefaultRequired(), "defaultRequired");
+        Assert.assertEquals(testDefaultConfig.getDefaultStr(), "defaultStr");
+        Assert.assertEquals(testDefaultConfig.isDefaultBool(), true);
+        Assert.assertEquals(testDefaultConfig.getDefaultInt(), 100);
+        Assert.assertEquals(testDefaultConfig.getDefaultLong(), 100);
+        Assert.assertEquals(testDefaultConfig.getDefaultDouble(), 100.12, 0.00001);
+        Assert.assertEquals(testDefaultConfig.getDefaultFloat(), 100.10, 0.00001);
+        Assert.assertEquals(testDefaultConfig.getNoDefault(), 0);
     }
 
     @Test
@@ -237,7 +352,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedConfig derivedConfig = IOConfigUtils.loadWithSecrets(configMap, DerivedConfig.class, new TestSourceContext());
+        DerivedConfig derivedConfig = IOConfigUtils.loadWithSecrets(configMap, DerivedConfig.class,
+                new TestSourceContext());
 
         Assert.assertEquals(derivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedConfig.password, "my-source-password");
@@ -248,7 +364,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedDerivedConfig derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(configMap, DerivedDerivedConfig.class, new TestSourceContext());
+        DerivedDerivedConfig derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(configMap,
+                DerivedDerivedConfig.class, new TestSourceContext());
 
         Assert.assertEquals(derivedDerivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedDerivedConfig.password, "my-source-password");
@@ -353,20 +470,25 @@ public class IOConfigUtilsTest {
         public CompletableFuture<ByteBuffer> getStateAsync(String key) {
             return null;
         }
-        
+
         @Override
         public void deleteState(String key) {
-        	
+
         }
-        
+
         @Override
         public CompletableFuture<Void> deleteStateAsync(String key) {
-        	return null;
+            return null;
         }
 
         @Override
         public PulsarClient getPulsarClient() {
             return null;
+        }
+
+        @Override
+        public void fatal(Throwable t) {
+
         }
     }
 
@@ -396,7 +518,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedConfig derivedConfig = IOConfigUtils.loadWithSecrets(configMap, DerivedConfig.class, new TestSinkContext());
+        DerivedConfig derivedConfig = IOConfigUtils.loadWithSecrets(configMap, DerivedConfig.class,
+                new TestSinkContext());
 
         Assert.assertEquals(derivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedConfig.password, "my-sink-password");
@@ -407,7 +530,8 @@ public class IOConfigUtilsTest {
         configMap.put("notSensitive", "foo");
         configMap.put("sensitiveLong", 5L);
 
-        DerivedDerivedConfig derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(configMap, DerivedDerivedConfig.class, new TestSinkContext());
+        DerivedDerivedConfig derivedDerivedConfig  = IOConfigUtils.loadWithSecrets(configMap,
+                DerivedDerivedConfig.class, new TestSinkContext());
 
         Assert.assertEquals(derivedDerivedConfig.notSensitive, "foo");
         Assert.assertEquals(derivedDerivedConfig.password, "my-sink-password");

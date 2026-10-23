@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,7 @@ import lombok.ToString;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.functions.api.Record;
+import org.apache.pulsar.functions.source.PulsarRecord;
 
 @EqualsAndHashCode(callSuper = true)
 @ToString
@@ -91,5 +92,10 @@ public class SinkRecord<T> extends AbstractSinkRecord<T> {
     @Override
     public boolean shouldAlwaysSetMessageProperties() {
         return false;
+    }
+
+    @Override
+    public boolean shouldSetSchema() {
+        return !(sourceRecord instanceof PulsarRecord);
     }
 }

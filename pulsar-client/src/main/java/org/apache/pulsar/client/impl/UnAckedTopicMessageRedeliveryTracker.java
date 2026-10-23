@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedeliveryTracker {
@@ -41,9 +42,8 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
                 Entry<UnackMessageIdWrapper, HashSet<UnackMessageIdWrapper>> entry = iterator.next();
                 UnackMessageIdWrapper messageIdWrapper = entry.getKey();
                 MessageId messageId = messageIdWrapper.getMessageId();
-                if (messageId instanceof TopicMessageIdImpl
-                        && ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
-                    HashSet<UnackMessageIdWrapper> exist = redeliveryMessageIdPartitionMap.get(messageIdWrapper);
+                if (messageId instanceof TopicMessageId topicMessageId
+                        && topicMessageId.hasSameBasePartitionedTopic(topicName)) {
                     entry.getValue().remove(messageIdWrapper);
                     iterator.remove();
                     messageIdWrapper.recycle();
@@ -52,14 +52,16 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
             }
 
             Iterator<MessageId> iteratorAckTimeOut = ackTimeoutMessages.keySet().iterator();
-            while (iterator.hasNext()) {
+            while (iteratorAckTimeOut.hasNext()) {
                 MessageId messageId = iteratorAckTimeOut.next();
-                if (messageId instanceof TopicMessageIdImpl
-                        && ((TopicMessageIdImpl) messageId).getTopicPartitionName().contains(topicName)) {
-                    iterator.remove();
+                if (messageId instanceof TopicMessageId topicMessageId
+                        && topicMessageId.hasSameBasePartitionedTopic(topicName)) {
+                    iteratorAckTimeOut.remove();
                     removed++;
                 }
             }
+            localRedeliveryCounts.keySet().removeIf(messageId -> messageId instanceof TopicMessageId topicMessageId
+                    && topicMessageId.hasSameBasePartitionedTopic(topicName));
             return removed;
         } finally {
             writeLock.unlock();

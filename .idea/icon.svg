@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="1080" height="800" viewBox="0 0 1080 800" xml:space="preserve">
+<g transform="matrix(1 0 0 1 540 400)" id="e5a0cfc8-fca0-468e-83fb-6b437563c3c2"  >
+<rect style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1; visibility: hidden;" vector-effect="non-scaling-stroke"  x="-540" y="-400" rx="0" ry="0" width="1080" height="800" />
+</g>
+<g transform="matrix(0.74 0 0 0.74 1294.25 989.91)"  >
+<rect style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(255,255,255); fill-rule: nonzero; opacity: 1; visibility: hidden;" vector-effect="non-scaling-stroke"  x="-540" y="-540" rx="0" ry="0" width="1080" height="1080" />
+</g>
+<g transform="matrix(17.4 0 0 17.4 539.82 400.05)"  >
+<path style="stroke: none; stroke-width: 1; stroke-dasharray: none; stroke-linecap: butt; stroke-dashoffset: 0; stroke-linejoin: miter; stroke-miterlimit: 4; fill: rgb(24,143,255); fill-rule: nonzero; opacity: 1;" vector-effect="non-scaling-stroke"  transform=" translate(-30.5, -21.55)" d="M 61 13.73 L 46.09 13.73 C 42.06 6 37.8 0 32 0 C 24.45 0 20.9 6.59 17.47 13 L 17.169999999999998 13.56 L 0 13.56 L 0 17.37 L 10 17.37 C 13.53 17.37 14.25 18.560000000000002 14.25 18.560000000000002 C 11.48 22.860000000000003 8.15 27.110000000000003 2.5999999999999996 27.110000000000003 L 0 27.110000000000003 L 0 31.110000000000003 L 2.62 31.110000000000003 C 13.379999999999999 31.110000000000003 18.080000000000002 22.380000000000003 21.85 15.370000000000003 C 25.31 8.91 27.72 5 32 5 C 36.44 5 41.11 14.66 45.22 23.19 C 45.82 24.43 46.43 25.700000000000003 47.05 26.96 C 31.29 27.46 23.779999999999998 31.150000000000002 17.669999999999998 34.160000000000004 C 13.2 36.36000000000001 9.669999999999998 39.09 3.8599999999999977 39.09 L 0 39.09 L 0 43.09 L 3.83 43.09 C 10.83 43.09 15.19 40.93000000000001 19.83 38.64 C 26.259999999999998 35.480000000000004 33.55 31.9 50.73 31.9 L 60.66 31.9 L 60.66 27.9 L 55.05 27.9 C 54.11567948867348 27.970685072504352 53.2019903446118 27.600770439281003 52.58 26.9 C 51.6 25 50.64 23 49.7 21 L 48.4 18.34 C 48.4 18.34 49.33 17.34 51.91 17.34 L 61 17.34 Z" stroke-linecap="round" />
+</g>
+</svg>

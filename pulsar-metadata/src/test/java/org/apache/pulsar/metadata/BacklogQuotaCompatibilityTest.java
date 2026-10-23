@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,12 +19,10 @@
 package org.apache.pulsar.metadata;
 
 import static org.testng.Assert.assertEquals;
-
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import java.io.IOException;
 import java.util.HashMap;
-
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.impl.BacklogQuotaImpl;
@@ -40,6 +38,8 @@ public class BacklogQuotaCompatibilityTest {
 
     private final BacklogQuota.RetentionPolicy testPolicy = BacklogQuota.RetentionPolicy.consumer_backlog_eviction;
 
+    // Deprecation warning suppressed as this test targets deprecated methods
+    @SuppressWarnings("deprecation")
     @Test
     public void testV27ClientSetV28BrokerRead() throws Exception {
         Policies writePolicy = new Policies();
@@ -52,12 +52,14 @@ public class BacklogQuotaCompatibilityTest {
         writePolicy.backlog_quota_map = quotaHashMap;
         byte[] serialize = simpleType.serialize("/path", writePolicy);
         Policies policies = simpleType.deserialize("/path", serialize, null);
-        BacklogQuota readBacklogQuota = policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
+        BacklogQuota readBacklogQuota =
+                policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
         Assert.assertEquals(readBacklogQuota.getLimitSize(), 1024);
         Assert.assertEquals(readBacklogQuota.getLimitTime(), 60);
         Assert.assertEquals(readBacklogQuota.getPolicy(), testPolicy);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testV28ClientSetV28BrokerRead() throws Exception {
         Policies writePolicy = new Policies();
@@ -70,12 +72,15 @@ public class BacklogQuotaCompatibilityTest {
         writePolicy.backlog_quota_map = quotaHashMap;
         byte[] serialize = simpleType.serialize("/path", writePolicy);
         Policies policies = simpleType.deserialize("/path", serialize, null);
-        BacklogQuota readBacklogQuota = policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
+        BacklogQuota readBacklogQuota =
+                policies.backlog_quota_map.get(BacklogQuota.BacklogQuotaType.destination_storage);
         Assert.assertEquals(readBacklogQuota.getLimit(), 1024);
         Assert.assertEquals(readBacklogQuota.getLimitTime(), 60);
         Assert.assertEquals(readBacklogQuota.getPolicy(), testPolicy);
     }
 
+    // Deprecation warning suppressed as this test targets deprecated methods
+    @SuppressWarnings("deprecation")
     @Test
     public void testV28ClientSetV27BrokerRead() {
         BacklogQuotaImpl writeBacklogQuota = new BacklogQuotaImpl();

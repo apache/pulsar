@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,15 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.resources;
 
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import org.testng.annotations.Test;
 
-
 public class NamespaceResourcesTest {
+
     @Test
     public void test_pathIsFromNamespace() {
         assertFalse(NamespaceResources.pathIsFromNamespace("/admin/clusters"));
@@ -32,4 +31,6 @@ public class NamespaceResourcesTest {
         assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant"));
         assertTrue(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant/my-ns"));
     }
+
+
 }

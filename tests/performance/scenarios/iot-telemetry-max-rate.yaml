@@ -1,0 +1,45 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# The 500 gateways of iot-telemetry-high-rate.yaml sending to one topic at the maximum rate: without a rate limit,
+# the gateways publish as fast as the cluster takes the messages, unbatched and with up to 100,000 in flight, and one
+# application consumes them with twenty pods on its Key_Shared subscription. It measures the most telemetry that one
+# application takes in, when one topic's dispatcher and managed ledger carry all of the traffic. Ledgers keep a
+# single copy (ensemble, write and ack quorum 1), so that each entry is written once, and the three bookies share the
+# ledgers, which balances the write load between them; the results aren't capacity guidance for a durable deployment.
+# It is the launcher's counterpart of the legacy TestNG runner's key-shared-500x20.yaml.
+
+extends: iot-telemetry-high-rate.yaml
+cluster:
+  brokers:
+    env:
+      managedLedgerDefaultEnsembleSize: "1"
+      managedLedgerDefaultWriteQuorum: "1"
+      managedLedgerDefaultAckQuorum: "1"
+workloads:
+  iotTelemetry:
+    rate: 0
+    measurement:
+      messages: 4000000
+    payload:
+      size: 128
+    gateways:
+      producer:
+        maxOutstanding: 100000
+        batchingEnabled: false
+    applications:
+      count: 1
+      podsPerApplication: 20

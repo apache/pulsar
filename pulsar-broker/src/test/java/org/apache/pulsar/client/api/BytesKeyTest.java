@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,39 +20,25 @@ package org.apache.pulsar.client.api;
 
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
-
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class BytesKeyTest extends ProducerConsumerBase {
-
-    @BeforeMethod
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class BytesKeyTest extends SharedPulsarBaseTest {
 
     private void byteKeysTest(boolean batching) throws Exception {
         Random r = new Random(0);
+        String topic = newTopicName();
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-            .topic("persistent://my-property/my-ns/my-topic1")
+            .topic(topic)
             .subscriptionName("my-subscriber-name").subscribe();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
             .enableBatching(batching)
             .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.SECONDS)
             .batchingMaxMessages(Integer.MAX_VALUE)
-            .topic("persistent://my-property/my-ns/my-topic1").create();
+            .topic(topic).create();
 
         byte[] byteKey = new byte[1000];
         r.nextBytes(byteKey);
