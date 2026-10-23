@@ -38,6 +38,7 @@ public class InmemoryTopicPoliciesServiceServiceTest extends MockedPulsarService
     @Override
     protected void setup() throws Exception {
         conf.setTopicPoliciesServiceClassName(InmemoryTopicPoliciesService.class.getName());
+        conf.setEnableShadowTopics(true);
         conf.setSystemTopicEnabled(false); // verify topic policies don't rely on system topics
         super.internalSetup();
         super.setupDefaultTenantAndNamespace();
@@ -69,7 +70,8 @@ public class InmemoryTopicPoliciesServiceServiceTest extends MockedPulsarService
 
         final var persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(sourceTopic).get()
                 .orElseThrow();
-        Assert.assertEquals(TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getShadowTopics(), List.of(shadowTopic));
+        Assert.assertEquals(TopicPolicyTestUtils.getTopicPolicies(persistentTopic).getShadowTopics(),
+                List.of(shadowTopic));
         Assert.assertEquals(persistentTopic.getShadowReplicators().size(), 1);
     }
 

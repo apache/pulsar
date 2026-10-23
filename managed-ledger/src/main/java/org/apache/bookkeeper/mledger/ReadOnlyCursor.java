@@ -25,6 +25,12 @@ import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 
+/**
+ * A cursor for reading a managed ledger without persisting its position.
+ *
+ * <p>Its asynchronous reads use {@link ReadEntriesCallback}; see that callback for completion threading and entry
+ * ownership requirements.
+ */
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Stable
 public interface ReadOnlyCursor {

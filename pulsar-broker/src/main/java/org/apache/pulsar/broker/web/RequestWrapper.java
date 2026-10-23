@@ -18,15 +18,15 @@
  */
 package org.apache.pulsar.broker.web;
 
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
-import javax.servlet.ReadListener;
-import javax.servlet.ServletInputStream;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletRequestWrapper;
 import org.apache.commons.io.IOUtils;
 
 /**
@@ -36,36 +36,63 @@ import org.apache.commons.io.IOUtils;
  */
 public class RequestWrapper extends HttpServletRequestWrapper {
 
-    private final byte[] body;
+    private byte[] body;
+    private ServletInputStream inputStream;
 
     public RequestWrapper(HttpServletRequest request) throws IOException {
         super(request);
-        body = IOUtils.toByteArray(new InputStreamReader(request.getInputStream()), Charset.defaultCharset());
+    }
+
+    /**
+     * Buffers the request body on first access. Buffering is lazy on purpose: an interceptor that
+     * does not read the body (the common case) must not cause the body to be buffered at all, so the
+     * underlying request stream is consumed only once, by the downstream resource (Jersey). The read
+     * is bounded to Content-Length so it never reads past the request body.
+     */
+    private byte[] body() throws IOException {
+        if (body == null) {
+            HttpServletRequest request = (HttpServletRequest) getRequest();
+            int contentLength = request.getContentLength();
+            if (contentLength >= 0) {
+                body = IOUtils.toByteArray(request.getInputStream(), contentLength);
+            } else {
+                body = IOUtils.toByteArray(request.getInputStream());
+            }
+        }
+        return body;
     }
 
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(body);
-        return new ServletInputStream() {
-            @Override
-            public boolean isFinished() {
-                return false;
-            }
+        if (inputStream == null) {
+            // Return a single, stable stream over the buffered body. Repeated getInputStream() calls
+            // must return the same stream (per the Servlet contract); returning a fresh stream each
+            // time lets a reader that re-fetches the stream after EOF read the body's first byte
+            // again, surfacing as a spurious "Trailing token" error.
+            final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(body());
+            inputStream = new ServletInputStream() {
+                @Override
+                public boolean isFinished() {
+                    return byteArrayInputStream.available() == 0;
+                }
 
-            @Override
-            public boolean isReady() {
-                return true;
-            }
+                @Override
+                public boolean isReady() {
+                    return true;
+                }
 
-            @Override
-            public void setReadListener(ReadListener readListener) {
+                @Override
+                public void setReadListener(ReadListener readListener) {
 
-            }
+                }
 
-            public int read() {
-                return byteArrayInputStream.read();
-            }
-        };
+                @Override
+                public int read() {
+                    return byteArrayInputStream.read();
+                }
+            };
+        }
+        return inputStream;
     }
 
     @Override
@@ -74,7 +101,7 @@ public class RequestWrapper extends HttpServletRequestWrapper {
     }
 
     //Use this method to read the request body N times
-    public byte[] getBody() {
-        return this.body;
+    public byte[] getBody() throws IOException {
+        return body();
     }
 }

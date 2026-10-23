@@ -22,8 +22,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -34,10 +35,12 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class ExtensibleLoadManagerCloseTest {
 
@@ -47,16 +50,15 @@ public class ExtensibleLoadManagerCloseTest {
 
     @BeforeClass(alwaysRun = true)
     public void setup() throws Exception {
-        bk = new LocalBookkeeperEnsemble(1, 0, () -> 0);
+        bk = new LocalBookkeeperEnsemble(1, 0);
         bk.start();
     }
 
-    private void setupBrokers(int numBrokers) throws Exception {
-        brokers.clear();
+    private void setupBrokers(int numBrokers, boolean topicPoliciesEnabled) throws Exception {
         for (int i = 0; i < numBrokers; i++) {
-            final var broker = new PulsarService(brokerConfig());
-            broker.start();
+            final var broker = new PulsarService(brokerConfig(topicPoliciesEnabled));
             brokers.add(broker);
+            broker.start();
         }
         final var admin = brokers.get(0).getAdminClient();
         if (!admin.clusters().getClusters().contains(clusterName)) {
@@ -68,12 +70,21 @@ public class ExtensibleLoadManagerCloseTest {
     }
 
 
+    @AfterMethod(alwaysRun = true, timeOut = 30000)
+    public void cleanupBrokers() throws Exception {
+        try {
+            FutureUtil.waitForAll(brokers.stream().map(PulsarService::closeAsync).toList()).get();
+        } finally {
+            brokers.clear();
+        }
+    }
+
     @AfterClass(alwaysRun = true, timeOut = 30000)
     public void cleanup() throws Exception {
         bk.stop();
     }
 
-    private ServiceConfiguration brokerConfig() {
+    private ServiceConfiguration brokerConfig(boolean topicPoliciesEnabled) {
         final var config = new ServiceConfiguration();
         config.setClusterName(clusterName);
         config.setAdvertisedAddress("localhost");
@@ -85,17 +96,27 @@ public class ExtensibleLoadManagerCloseTest {
         config.setManagedLedgerDefaultEnsembleSize(1);
         config.setDefaultNumberOfNamespaceBundles(16);
         config.setLoadBalancerAutoBundleSplitEnabled(false);
+        config.setTopicLevelPoliciesEnabled(topicPoliciesEnabled);
         config.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         config.setLoadBalancerDebugModeEnabled(true);
         config.setBrokerShutdownTimeoutMs(100);
+
+        // Reduce these timeout configs to avoid failed tests being blocked too long
+        config.setMetadataStoreOperationTimeoutSeconds(5);
+        config.setNamespaceBundleUnloadingTimeoutMs(5000);
         return config;
     }
 
 
-    @Test
-    public void testCloseAfterLoadingBundles() throws Exception {
-        setupBrokers(3);
-        final var topic = "test";
+    @DataProvider
+    public Object[][] topicPoliciesEnabled() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(invocationCount = 10, dataProvider = "topicPoliciesEnabled")
+    public void testCloseAfterLoadingBundles(boolean topicPoliciesEnabled) throws Exception {
+        setupBrokers(3, topicPoliciesEnabled);
+        final var topic = "test-" + System.currentTimeMillis();
         final var admin = brokers.get(0).getAdminClient();
         admin.topics().createPartitionedTopic(topic, 20);
         admin.lookups().lookupPartitionedTopic(topic);
@@ -110,16 +131,16 @@ public class ExtensibleLoadManagerCloseTest {
             broker.close();
             closeTimeMsList.add(System.currentTimeMillis() - startTimeMs);
         }
-        log.info("Brokers close time: {}", closeTimeMsList);
+        log.info().attr("closeTimeMsList", closeTimeMsList).log("Brokers close time");
         for (var closeTimeMs : closeTimeMsList) {
             Assert.assertTrue(closeTimeMs < 5000L);
         }
     }
 
-    @Test
-    public void testLookup() throws Exception {
-        setupBrokers(1);
-        final var topic = "test-lookup";
+    @Test(dataProvider = "topicPoliciesEnabled")
+    public void testLookup(boolean topicPoliciesEnabled) throws Exception {
+        setupBrokers(1, topicPoliciesEnabled);
+        final var topic = "test-lookup-" + UUID.randomUUID();
         final var numPartitions = 16;
         final var admin = brokers.get(0).getAdminClient();
         admin.topics().createPartitionedTopic(topic, numPartitions);
@@ -133,7 +154,7 @@ public class ExtensibleLoadManagerCloseTest {
         final var start = System.currentTimeMillis();
         brokers.get(0).close();
         final var closeTimeMs = System.currentTimeMillis() - start;
-        log.info("Broker close time: {}", closeTimeMs);
+        log.info().attr("closeTimeMs", closeTimeMs).log("Broker close time");
         Assert.assertTrue(closeTimeMs < 5000L);
     }
 }

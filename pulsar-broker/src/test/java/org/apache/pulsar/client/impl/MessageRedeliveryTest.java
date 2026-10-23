@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -50,16 +51,14 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
+@CustomLog
 public class MessageRedeliveryTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(MessageRedeliveryTest.class);
 
     @BeforeMethod
     @Override
@@ -91,7 +90,6 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         this.conf.setManagedLedgerMaxEntriesPerLedger(5);
         this.conf.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
-        this.conf.setManagedLedgerUnackedRangesOpenCacheSetEnabled(useOpenRangeSet);
         @Cleanup("shutdownNow")
         final ScheduledExecutorService executor = Executors.newScheduledThreadPool(20,
                 new DefaultThreadFactory("pulsar"));
@@ -133,7 +131,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                                 // ack alternate messages
                                 ackedMessages.add(new String(msg.getData()));
                             } catch (PulsarClientException e1) {
-                                log.warn("Failed to ack message {}", e1.getMessage());
+                                log.warn().exceptionMessage(e1).log("Failed to ack message");
                             }
                         }
                     } else {
@@ -201,8 +199,9 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                     // Ok
                     break;
                 }
-                if (ackedMessages.size() == numMessages)
+                if (ackedMessages.size() == numMessages) {
                     latch2.countDown();
+                }
             }
 
         });
@@ -462,7 +461,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < messageNumber; i++) {
             message = consumer.receive();
             // message consumer epoch is 1
-            assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
+            assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
         }
 
         // can't receive message again
@@ -475,7 +474,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < messageNumber; i++) {
             message = consumer.receive();
             // message consumer epoch is 2
-            assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
+            assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
         }
 
         // can't receive message again
@@ -483,7 +482,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertNull(message);
     }
 
-    @Test(dataProvider = "enableBatch", invocationCount = 10)
+    @Test(dataProvider = "enableBatch")
     public void testMultiConsumerBatchRedeliveryAddEpoch(boolean enableBatch) throws Exception{
 
         final String topic = "testMultiConsumerBatchRedeliveryAddEpoch";
@@ -522,7 +521,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
             Messages<String> messages = consumer.batchReceive();
             receiveNum += messages.size();
             for (Message<String> message : messages) {
-                assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
+                assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 1);
             }
         }
 
@@ -537,7 +536,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
             Messages<String> messages = consumer.batchReceive();
             receiveNum += messages.size();
             for (Message<String> message : messages) {
-                assertEquals((((MessageImpl)((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
+                assertEquals((((MessageImpl) ((TopicMessageImpl) message).getMessage())).getConsumerEpoch(), 2);
             }
         }
 

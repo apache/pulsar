@@ -18,14 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -33,6 +32,7 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
@@ -42,11 +42,13 @@ import org.testng.annotations.Test;
 public class UnAckedMessageTrackerTest  {
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAddAndRemove() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getCnxPool()).thenReturn(connectionPool);
+        @Cleanup("stop")
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
                 1, TimeUnit.MILLISECONDS);
         when(client.timer()).thenReturn(timer);
@@ -78,16 +80,16 @@ public class UnAckedMessageTrackerTest  {
         assertTrue(tracker.remove(mid));
         assertTrue(tracker.isEmpty());
         assertEquals(tracker.size(), 0);
-
-        timer.stop();
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testTrackChunkedMessageId() {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         ConnectionPool connectionPool = mock(ConnectionPool.class);
         when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         when(client.getCnxPool()).thenReturn(connectionPool);
+        @Cleanup("stop")
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
                 1, TimeUnit.MILLISECONDS);
         when(client.timer()).thenReturn(timer);
@@ -124,8 +126,6 @@ public class UnAckedMessageTrackerTest  {
 
         // Assert that all chunk message ID are removed from unAckedChunkedMessageIdSequenceMap
         assertEquals(consumer.unAckedChunkedMessageIdSequenceMap.size(), 0);
-
-        timer.stop();
     }
 
 }

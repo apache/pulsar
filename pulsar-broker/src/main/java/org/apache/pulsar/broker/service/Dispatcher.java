@@ -41,6 +41,15 @@ public interface Dispatcher {
      */
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
+    /**
+     * Called on the connection's event loop when its write buffer becomes writable again.
+     * Writability is only a hint and must be checked again before reading. Implementations must
+     * defer work that can write to the channel, avoiding recursive writability callbacks, and
+     * must not block the event loop while resuming dispatch.
+     */
+    default void notifyChannelWritable(Consumer consumer) {
+    }
+
     boolean isConsumerConnected();
 
     List<Consumer> getConsumers();
@@ -131,6 +140,15 @@ public interface Dispatcher {
         //No-op
     }
 
+    /**
+     * This hook is invoked after cursor mark-delete operations triggered by
+     * message removal flows such as expiry, skip, or clear backlog, but not for
+     * regular ack-driven mark-delete operations due to their higher frequency.
+     *
+     * <p>Since the cursor ack set may no longer be available after mark-delete,
+     * the cleanup logic relies on the remaining unacked count stored in
+     * {@code PendingAcksMap} entries.
+     */
     default void markDeletePositionMoveForward() {
         // No-op
     }
@@ -153,8 +171,8 @@ public interface Dispatcher {
 
     /**
      * Trigger a new "readMoreEntries" if the dispatching has been paused before. This method is only implemented in
-     * {@link org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers} right now, other
-     * implements are not necessary to implement this method.
+     * {@link org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers} right now,
+     * other implementations do not necessary implement this method.
      * @return did a resume.
      */
     default boolean checkAndResumeIfPaused(){
@@ -174,6 +192,54 @@ public interface Dispatcher {
     }
 
     default long getFilterRescheduledMsgCount() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled message events by subscription limit, default is 0.
+     */
+    default long getDispatchThrottledMsgEventsBySubscriptionLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled bytes by subscription limit, default is 0.
+     */
+    default long getDispatchThrottledBytesBySubscriptionLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to topic rate limits.
+     * @return the count of throttled message events by topic limit, default is 0.
+     */
+    default long getDispatchThrottledMsgEventsByTopicLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to topic rate limits.
+     * @return the count of throttled bytes events by topic limit, default is 0.
+     */
+    default long getDispatchThrottledBytesEventsByTopicLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times message dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled message events by broker limit, default is 0.
+     */
+    default long getDispatchThrottledMsgEventsByBrokerLimit() {
+        return 0;
+    }
+
+    /**
+     * Gets the total number of times bytes dispatching was throttled on a subscription due to broker rate limits.
+     * @return the count of throttled bytes count by broker limit, default is 0.
+     */
+    default long getDispatchThrottledBytesEventsByBrokerLimit() {
         return 0;
     }
 

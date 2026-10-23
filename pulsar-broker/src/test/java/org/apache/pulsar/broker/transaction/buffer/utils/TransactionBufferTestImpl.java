@@ -18,28 +18,23 @@
  */
 package org.apache.pulsar.broker.transaction.buffer.utils;
 
+import io.netty.buffer.ByteBuf;
+import java.util.concurrent.CompletableFuture;
 import lombok.Setter;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
-
-import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.api.transaction.TxnID;
 
 public class TransactionBufferTestImpl extends TopicTransactionBuffer {
     @Setter
-    public CompletableFuture<Void> transactionBufferFuture = null;
-    @Setter
     public State state = null;
+
     @Setter
-    public CompletableFuture<Position> publishFuture = null;
+    private boolean followingInternalAppendBufferToTxnFail;
 
     public TransactionBufferTestImpl(PersistentTopic topic) {
         super(topic);
-    }
-
-    @Override
-    public CompletableFuture<Void> getTransactionBufferFuture() {
-        return transactionBufferFuture == null ? super.getTransactionBufferFuture() : transactionBufferFuture;
     }
 
     @Override
@@ -48,7 +43,10 @@ public class TransactionBufferTestImpl extends TopicTransactionBuffer {
     }
 
     @Override
-    public CompletableFuture<Position> getPublishFuture() {
-       return publishFuture == null ? super.getPublishFuture() : publishFuture;
+    protected CompletableFuture<Position> internalAppendBufferToTxn(TxnID txnId, ByteBuf buffer, long seq) {
+        if (followingInternalAppendBufferToTxnFail) {
+            return CompletableFuture.failedFuture(new RuntimeException("failed because an injected error for test"));
+        }
+        return super.internalAppendBufferToTxn(txnId, buffer, seq);
     }
 }
