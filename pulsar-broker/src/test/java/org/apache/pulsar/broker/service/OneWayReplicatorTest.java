@@ -1378,6 +1378,26 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         admin2.topics().deletePartitionedTopic(topicName);
     }
 
+    @Test
+    public void testNamespaceLevelReplicationRemoteConflictTopicExist() throws Exception {
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
+        admin2.topics().createPartitionedTopic(topicName, 1);
+        try {
+            admin1.topics().createPartitionedTopic(topicName, 2);
+            fail("Expected error due to a conflict partitioned topic already exists.");
+        } catch (PulsarAdminException.PreconditionFailedException ex) {
+            assertTrue(ex.getMessage().contains("with different partitions"));
+        }
+        // The topic is created on the local cluster, and the remote topic is unchanged.
+        assertEquals(admin1.topics().getPartitionedTopicMetadata(topicName).partitions, 2);
+        assertEquals(admin2.topics().getPartitionedTopicMetadata(topicName).partitions, 1);
+        // cleanup.
+        cleanupTopics(() -> {
+            admin1.topics().deletePartitionedTopic(topicName);
+            admin2.topics().deletePartitionedTopic(topicName);
+        });
+    }
+
     /**
      * See the description and execution flow: https://github.com/apache/pulsar/pull/21948.
      * Steps:
