@@ -18,83 +18,64 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
-import org.testng.annotations.Test;
-
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
-import java.net.URLStreamHandler;
-import java.net.URLStreamHandlerFactory;
-
-import static org.testng.Assert.assertEquals;
+import org.testng.annotations.Test;
 
 public class ClientCredentialsFlowTest {
 
-    private static void testLoadPrivateKeyFile(String keyFileUrl) {
-        try {
-            KeyFile keyFile = ClientCredentialsFlow.loadPrivateKey(keyFileUrl);
-            assertEquals(keyFile.getType(), "type");
-            assertEquals(keyFile.getClientId(), "client-id");
-            assertEquals(keyFile.getClientSecret(), "client-secret");
-            assertEquals(keyFile.getClientEmail(), "client-email");
-            assertEquals(keyFile.getIssuerUrl(), "https://issuer-url/");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    private static final String KEY_JSON_BASE64 = "ewogICJ0eXBlIjogInR5cGUiLAogICJjbGllbnRfaWQiOiAiY2xpZW50LWlkIiwKICAi"
+            + "Y2xpZW50X3NlY3JldCI6ICJjbGllbnQtc2VjcmV0IiwKICAiY2xpZW50X2VtYWlsIjogImNsaWVudC1lbWFpbCIsCiAgImlzc3Vl"
+            + "cl91cmwiOiAiaHR0cHM6Ly9pc3N1ZXItdXJsLyIKfQ==";
+
+    private static void assertKeyFile(KeyFile keyFile) {
+        assertEquals(keyFile.getType(), "type");
+        assertEquals(keyFile.getClientId(), "client-id");
+        assertEquals(keyFile.getClientSecret(), "client-secret");
+        assertEquals(keyFile.getClientEmail(), "client-email");
+        assertEquals(keyFile.getIssuerUrl(), "https://issuer-url/");
+    }
+
+    private static URL keyResource() {
+        return ClientCredentialsFlowTest.class.getResource("/oauth2_key.json");
     }
 
     @Test
-    public void testLoadPrivateKeyFromResourceUrl() {
-        testLoadPrivateKeyFile(ClientCredentialsFlowTest.class.getResource("/oauth2_key.json").toString());
+    public void testLoadPrivateKeyFromFileUrl() throws Exception {
+        assertKeyFile(ClientCredentialsFlow.loadPrivateKey(keyResource().toString()));
     }
 
     @Test
-    public void testLoadPrivateKeyFromUrlHandlerUrl() {
-        ClasspathURLStreamHandler.register();
-        testLoadPrivateKeyFile("resource:oauth2_key.json");
+    public void testLoadPrivateKeyFromPath() throws Exception {
+        assertKeyFile(ClientCredentialsFlow.loadPrivateKey(new File(keyResource().toURI()).getAbsolutePath()));
     }
 
     @Test
-    public void testLoadPrivateKeyFromDataUrl() {
-        testLoadPrivateKeyFile("data:application/json;base64,ewogICJ0eXBlIjogInR5cGUiLAogICJjbGllbnRfaWQiOiAiY2xpZW50LWlkIiwKICAiY2xpZW50X3NlY3JldCI6ICJjbGllbnQtc2VjcmV0IiwKICAiY2xpZW50X2VtYWlsIjogImNsaWVudC1lbWFpbCIsCiAgImlzc3Vlcl91cmwiOiAiaHR0cHM6Ly9pc3N1ZXItdXJsLyIKfQ==");
+    public void testLoadPrivateKeyFromDataUrl() throws Exception {
+        assertKeyFile(ClientCredentialsFlow.loadPrivateKey("data:application/json;base64," + KEY_JSON_BASE64));
     }
 
-    public static class ClasspathURLStreamHandler implements URLStreamHandlerFactory {
-        private static final URLStreamHandlerFactory INSTANCE = new ClasspathURLStreamHandler();
+    @Test
+    public void testLoadPrivateKeyRejectsDataUrlWithoutJsonContentType() {
+        assertThrows(IllegalArgumentException.class,
+                () -> ClientCredentialsFlow.loadPrivateKey("data:;base64," + KEY_JSON_BASE64));
+    }
 
-        public ClasspathURLStreamHandler() {
-        }
-
-        public static void register() {
-            URL.setURLStreamHandlerFactory(INSTANCE);
-        }
-
-        public URLStreamHandler createURLStreamHandler(String protocol) {
-            return "resource".equals(protocol) ? new URLStreamHandler() {
-                protected URLConnection openConnection(URL u) throws IOException {
-                    String path = u.getPath();
-                    ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
-                    URL resource = classLoader == null ? null : classLoader.getResource(path);
-                    if (resource == null) {
-                        resource = ClassLoader.getSystemClassLoader().getResource(path);
-                    }
-
-                    return resource != null ? new NoContentTypeResourceUrlConnection(resource) : null;
-                }
-            } : null;
-        }
-
-        static class NoContentTypeResourceUrlConnection extends URLConnection {
-
-            public NoContentTypeResourceUrlConnection(URL url) {
-                super(url);
-                this.url = url;
-            }
-
+    @Test
+    public void testLoadPrivateKeyFromConnectionWithoutContentType() throws Exception {
+        URL resource = keyResource();
+        // Stands in for a connection from a custom URL handler that does not report a content type,
+        // for which URLConnection.getContent() fails with "no content-type"
+        URLConnection connection = new URLConnection(URI.create("http://localhost/oauth2_key.json").toURL()) {
             @Override
-            public void connect() throws IOException {
-
+            public void connect() {
             }
 
             @Override
@@ -103,16 +84,11 @@ public class ClientCredentialsFlowTest {
             }
 
             @Override
-            public String getContentEncoding() {
-                return "identity";
-            }
-
-            @Override
             public InputStream getInputStream() throws IOException {
-                return url.openStream();
+                return resource.openStream();
             }
-        }
-
+        };
+        assertNull(connection.getContentType());
+        assertKeyFile(ClientCredentialsFlow.loadPrivateKey(connection));
     }
-
 }
