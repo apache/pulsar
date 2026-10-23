@@ -82,6 +82,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandMessage;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.apache.pulsar.common.api.proto.MessageIdData;
@@ -119,9 +120,14 @@ public class ConsumerImplTest {
         createConsumer(consumerConf, topicName, null);
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked"})
     private void createConsumer(ConsumerConfigurationData consumerConf, String topicName,
                                 ConsumerInterceptor<byte[]> interceptor) {
+        createConsumer(consumerConf, topicName, interceptor, null);
+    }
+
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    private void createConsumer(ConsumerConfigurationData consumerConf, String topicName,
+                                ConsumerInterceptor<byte[]> interceptor, Schema<byte[]> schema) {
         cleanup();
         executorProvider = new ExecutorProvider(1, "ConsumerImplTest");
         internalExecutor = Executors.newSingleThreadScheduledExecutor();
@@ -136,7 +142,7 @@ public class ConsumerImplTest {
         ConsumerInterceptors<byte[]> interceptors =
                 interceptor == null ? null : new ConsumerInterceptors<>(Collections.singletonList(interceptor));
         consumer = ConsumerImpl.newConsumerImpl(client, topicName, consumerConf,
-                executorProvider, -1, false, subscribeFuture, null, null, interceptors,
+                executorProvider, -1, false, subscribeFuture, null, schema, interceptors,
                 true);
         consumer.setState(HandlerState.State.Ready);
     }
@@ -610,6 +616,46 @@ public class ConsumerImplTest {
         // Only the two subscribes: no close consumer request
         verify(cnx, times(2)).sendRequestWithId(any(), anyLong());
         assertThat(subscriber.isConnected()).isTrue();
+    }
+
+    @Test
+    public void testReconnectSendsPendingAcksBeforeFlowPermits() {
+        // The acks grouped before the reconnection must reach the broker before the permits. The broker dispatches
+        // as soon as it has permits, and the flush empties the pending acks that the duplicate check uses, so the
+        // messages it would redeliver before the acks arrive would reach the application again.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        createConsumer(consumerConf, PERSISTENT_TOPIC, null, Schema.BYTES);
+        consumer.acknowledgeAsync(new MessageIdImpl(1, 1, -1)).join();
+
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        doReturn(Commands.getCurrentProtocolVersion()).when(cnx).getRemoteEndpointProtocolVersion();
+        ChannelHandlerContext ctx = cnx.ctx();
+        List<BaseCommand.Type> written = new ArrayList<>();
+        ChannelHandlerContext recordingCtx = mock(ChannelHandlerContext.class);
+        doAnswer(invocation -> {
+            written.add(commandType(invocation.getArgument(0)));
+            return ctx.writeAndFlush(invocation.getArgument(0));
+        }).when(recordingCtx).writeAndFlush(any());
+        doAnswer(invocation -> {
+            written.add(commandType(invocation.getArgument(0)));
+            return ctx.writeAndFlush(invocation.getArgument(0), invocation.getArgument(1));
+        }).when(recordingCtx).writeAndFlush(any(), any());
+        doReturn(recordingCtx).when(cnx).ctx();
+
+        consumer.setState(HandlerState.State.Connecting);
+        consumer.connectionOpened(cnx).join();
+
+        assertThat(written).containsExactly(BaseCommand.Type.ACK, BaseCommand.Type.FLOW);
+    }
+
+    private static BaseCommand.Type commandType(ByteBuf frame) {
+        ByteBuf view = frame.duplicate();
+        view.skipBytes(4); // total frame size
+        int commandSize = view.readInt();
+        BaseCommand command = new BaseCommand();
+        command.parseFrom(view, commandSize);
+        return command.getType();
     }
 
     @DataProvider

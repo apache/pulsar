@@ -992,13 +992,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 resetBackoff();
 
                 boolean firstTimeConnect = subscribeFuture.complete(this);
+                // Send the acks that waited for the subscription before the flow command, so the broker has them
+                // when it starts dispatching and does not redeliver the acknowledged messages.
+                acknowledgmentsGroupingTracker.flush();
                 // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
                 // command to receive messages.
                 if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
                     increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
                 }
-                // send the acks that waited for the subscription
-                acknowledgmentsGroupingTracker.flush();
                 future.complete(null);
             }).exceptionally((e) -> {
                 if (connectionHandler.isSupersededAttempt(cnx, cnxEpoch)) {
