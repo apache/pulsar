@@ -298,13 +298,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout), scalable);
         String description = String.format("Create new transaction %s", transactionCoordinatorId);
         OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
-            pendingRequests.put(requestId, op);
-            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            if (!checkStateAndSendRequest(op)) {
-                pendingRequests.remove(requestId);
-            }
-        });
+        registerAndSend(requestId, op);
         return callback;
     }
 
@@ -378,13 +372,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                 String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack
                 .create(cmd, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
-            pendingRequests.put(requestId, op);
-            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            if (!checkStateAndSendRequest(op)) {
-                pendingRequests.remove(requestId);
-            }
-        });
+        registerAndSend(requestId, op);
 
         return callback;
     }
@@ -460,13 +448,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         String description = String.format("Add subscription %s to TXN %s", toStringSubscriptionList(subscriptionList),
                 String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
-            pendingRequests.put(requestId, op);
-            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            if (!checkStateAndSendRequest(op)) {
-                pendingRequests.remove(requestId);
-            }
-        });
+        registerAndSend(requestId, op);
         return callback;
     }
 
@@ -552,13 +534,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         ByteBuf buf = Commands.serializeWithSize(cmd);
         String description = String.format("End [%s] TXN %s", String.valueOf(action), String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
-            pendingRequests.put(requestId, op);
-            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            if (!checkStateAndSendRequest(op)) {
-                pendingRequests.remove(requestId);
-            }
-        });
+        registerAndSend(requestId, op);
         return callback;
     }
 
@@ -765,6 +741,18 @@ public class TransactionMetaStoreHandler extends HandlerState
         return true;
     }
 
+    // The op owns its buffer and a semaphore permit. As a cleanup task, this still runs if the client shuts the
+    // executor down while it's busy, and then fails the op, the handler being closed by then.
+    private void registerAndSend(long requestId, OpBase<?> op) {
+        internalPinnedExecutor.execute((ExecutorProvider.CleanupTask) () -> {
+            pendingRequests.put(requestId, op);
+            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+            if (!checkStateAndSendRequest(op)) {
+                pendingRequests.remove(requestId);
+            }
+        });
+    }
+
     private boolean checkStateAndSendRequest(OpBase<?> op) {
         switch (getState()) {
             case Ready:
@@ -907,6 +895,11 @@ public class TransactionMetaStoreHandler extends HandlerState
     @VisibleForTesting
     int getPendingRequestsCount() {
         return (int) pendingRequests.size();
+    }
+
+    @VisibleForTesting
+    int getAvailableRequestPermits() {
+        return semaphore.availablePermits();
     }
 
     @VisibleForTesting

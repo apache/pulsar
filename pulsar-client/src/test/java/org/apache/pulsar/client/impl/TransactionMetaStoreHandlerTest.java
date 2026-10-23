@@ -183,6 +183,47 @@ public class TransactionMetaStoreHandlerTest {
         assertThat(request.refCnt()).as("reference held by the pending request").isEqualTo(1);
         // Occupy the executor until the client's shutdown interrupts it, so failing the pending request on close is
         // still queued when the shutdown stops the executor.
+        occupyInternalExecutorUntilShutdown(client);
+
+        handler.close();
+        client.close();
+
+        assertThat(commitFuture).failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        awaitReleased(handler, request);
+    }
+
+    @Test
+    public void testClientCloseFailsRequestsQueuedBeforeBeingSent() throws Exception {
+        // A single internal executor, so the helper below occupies the handler's.
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .ioThreads(1)
+                .build();
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                0L, client, "topic", new CompletableFuture<>());
+        final List<ByteBuf> sentRequests = connectToSilentCoordinator(handler);
+        final int availablePermits = handler.getAvailableRequestPermits();
+        // Occupy the executor until the client's shutdown interrupts it, so the commit below is still queued, neither
+        // pending nor sent, when the shutdown stops the executor.
+        occupyInternalExecutorUntilShutdown(client);
+
+        final CompletableFuture<Void> commitFuture = handler.endTxnAsync(new TxnID(1, 1), TxnAction.COMMIT);
+        handler.close();
+        client.close();
+
+        assertThat(commitFuture).failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException.class);
+        assertThat(sentRequests).as("sent requests").isEmpty();
+        // The op released its permit, and its buffer with it.
+        assertThat(handler.getAvailableRequestPermits()).isEqualTo(availablePermits);
+        assertThat(handler.getPendingRequestsCount()).isZero();
+    }
+
+    // Occupies the client's internal executor until the client's shutdown interrupts it.
+    private static void occupyInternalExecutorUntilShutdown(PulsarClientImpl client) throws InterruptedException {
         final CountDownLatch executorBusy = new CountDownLatch(1);
         client.getInternalExecutorService().execute(() -> {
             executorBusy.countDown();
@@ -193,14 +234,6 @@ public class TransactionMetaStoreHandlerTest {
             }
         });
         assertThat(executorBusy.await(10, TimeUnit.SECONDS)).isTrue();
-
-        handler.close();
-        client.close();
-
-        assertThat(commitFuture).failsWithin(Duration.ofSeconds(10))
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
-        awaitReleased(handler, request);
     }
 
     /**
