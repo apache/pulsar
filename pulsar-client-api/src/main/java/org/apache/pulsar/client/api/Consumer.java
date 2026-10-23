@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Closeable;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -72,18 +73,51 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      */
     CompletableFuture<Void> unsubscribeAsync();
 
+
     /**
-     * Receives a single message.
+     * Unsubscribe the consumer.
      *
-     * <p>This calls blocks until a message is available.
+     * <p>This call blocks until the consumer is unsubscribed.
      *
-     * <p>When thread is Interrupted, return a null value and reset interrupted flag.
+     * <p>Unsubscribing will the subscription to be deleted and all the
+     * data retained can potentially be deleted as well.
      *
-     * @return the received message
-     * @throws PulsarClientException.AlreadyClosedException
-     *             if the consumer was already closed
-     * @throws PulsarClientException.InvalidConfigurationException
-     *             if a message listener was defined in the configuration
+     * <p>The operation will fail when performed on a shared subscription
+     * where multiple consumers are currently connected.
+     *
+     * @param force forcefully unsubscribe by disconnecting connected consumers.
+     * @throws PulsarClientException if the operation fails
+     */
+    void unsubscribe(boolean force) throws PulsarClientException;
+
+    /**
+     * Asynchronously unsubscribe the consumer.
+     *
+     * @see Consumer#unsubscribe()
+     * @param force forcefully unsubscribe by disconnecting connected consumers.
+     * @return {@link CompletableFuture} to track the operation
+     */
+    CompletableFuture<Void> unsubscribeAsync(boolean force);
+    /**
+     * Receives a single message in blocking mode.
+     *
+     * <p>This method blocks until a message is available or the consumer is closed.
+     *
+     * <p>Behavior when interrupted:
+     * <ul>
+     *   <li>If the thread is interrupted while waiting: returns null and resets the interrupted flag</li>
+     *   <li>If the consumer is closed while waiting: throws {@link PulsarClientException} with the cause
+     *       {@code InterruptedException("Queue is terminated")}</li>
+     * </ul>
+     *
+     * @return the received message, or null if the thread was interrupted
+     * @throws PulsarClientException if the consumer is closed while waiting for a message.
+     *         The exception will contain an {@link InterruptedException} with the message
+     *         "Queue is terminated" as its cause.
+     * @throws PulsarClientException.AlreadyClosedException if the consumer was already closed
+     *         before this method was called
+     * @throws PulsarClientException.InvalidConfigurationException if a message listener
+     *         was defined in the configuration
      */
     Message<T> receive() throws PulsarClientException;
 
@@ -109,6 +143,7 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      * Receive a single message.
      *
      * <p>Retrieves a message, waiting up to the specified wait time if necessary.
+     * <p>If consumer closes during wait: returns null immediately.
      *
      * @param timeout
      *            0 or less means immediate rather than infinite
@@ -431,6 +466,7 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      *
      * @return statistic for the consumer
      */
+    @SuppressWarnings("deprecation")
     ConsumerStats getStats();
 
     /**
@@ -464,12 +500,18 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
 
     /**
      * Reset the subscription associated with this consumer to a specific message id.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and
+     * return a future completed exceptionally.
      *
      * <p>The message id can either be a specific message or represent the first or last messages in the topic.
      * <ul>
      * <li><code>MessageId.earliest</code> : Reset the subscription on the earliest message available in the topic
      * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
      * </ul>
+     * <p>
+     * This effectively resets the acknowledgement state of the subscription: all messages up to and
+     * <b>including</b> <code>messageId</code> will be marked as acknowledged and the rest unacknowledged.
      *
      * <p>Note: For multi-topics consumer, if `messageId` is a {@link TopicMessageId}, the seek operation will happen
      * on the owner topic of the message, which is returned by {@link TopicMessageId#getOwnerTopic()}. Otherwise, you
@@ -482,6 +524,9 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
 
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and
+     * return a future completed exceptionally.
      *
      * @param timestamp
      *            the message publish time where to reposition the subscription
@@ -491,6 +536,10 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
 
     /**
      * Reset the subscription associated with this consumer to a specific message ID or message publish time.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and
+     * return a future completed exceptionally.
+     *
      * <p>
      * The Function input is topic+partition. It returns only timestamp or MessageId.
      * <p>
@@ -522,11 +571,17 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
 
     /**
      * The asynchronous version of {@link Consumer#seek(MessageId)}.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and
+     * return a future completed exceptionally.
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
 
     /**
      * Reset the subscription associated with this consumer to a specific message publish time.
+     * <p>
+     * If there is already a seek operation in progress, the method will log a warning and
+     * return a future completed exceptionally.
      *
      * @param timestamp
      *            the message publish time where to reposition the subscription
@@ -539,15 +594,35 @@ public interface Consumer<T> extends Closeable, MessageAcknowledger {
      * Get the last message id available for consume.
      *
      * @return the last message id.
+     * @apiNote If the consumer is a multi-topics consumer, the returned value cannot be used anywhere.
+     * @deprecated Use {@link Consumer#getLastMessageIds()} instead.
      */
+    @Deprecated
     MessageId getLastMessageId() throws PulsarClientException;
 
     /**
      * Get the last message id available for consume.
      *
      * @return a future that can be used to track the completion of the operation.
+     * @deprecated Use {@link Consumer#getLastMessageIdsAsync()}} instead.
      */
+    @Deprecated
     CompletableFuture<MessageId> getLastMessageIdAsync();
+
+    /**
+     * Get all the last message id of the topics the consumer subscribed.
+     *
+     * @return the list of TopicMessageId instances of all the topics that the consumer subscribed
+     * @throws PulsarClientException if failed to get last message id.
+     * @apiNote It's guaranteed that the owner topic of each TopicMessageId in the returned list is different from owner
+     *   topics of other TopicMessageId instances
+     */
+    List<TopicMessageId> getLastMessageIds() throws PulsarClientException;
+
+    /**
+     * The asynchronous version of {@link Consumer#getLastMessageIds()}.
+     */
+    CompletableFuture<List<TopicMessageId>> getLastMessageIdsAsync();
 
     /**
      * @return Whether the consumer is connected to the broker

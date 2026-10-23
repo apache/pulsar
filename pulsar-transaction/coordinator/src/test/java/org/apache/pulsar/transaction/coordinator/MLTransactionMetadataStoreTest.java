@@ -18,9 +18,21 @@
  */
 package org.apache.pulsar.transaction.coordinator;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
+import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -35,41 +47,34 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException.TransactionNotFoundException;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionLogImpl;
-import org.apache.pulsar.transaction.coordinator.impl.MLTransactionSequenceIdGenerator;
 import org.apache.pulsar.transaction.coordinator.impl.MLTransactionMetadataStore;
+import org.apache.pulsar.transaction.coordinator.impl.MLTransactionSequenceIdGenerator;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriterConfig;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
 import org.apache.pulsar.transaction.coordinator.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.State.WriteFailed;
-import static org.apache.pulsar.transaction.coordinator.impl.DisabledTxnLogBufferedWriterMetricsStats.DISABLED_BUFFERED_WRITER_METRICS;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
-
 public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
 
-    private HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
-            1, TimeUnit.MILLISECONDS);
+    private HashedWheelTimer transactionTimer;
 
     public MLTransactionMetadataStoreTest() {
         super(3);
     }
 
+    @BeforeClass
+    public void initTimer() {
+        transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+    }
+
     @AfterClass
-    public void cleanup(){
+    public void cleanupTimer(){
         transactionTimer.stop();
     }
 
@@ -84,9 +89,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
+        @Cleanup("closeAsync")
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(),
@@ -118,7 +125,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 subscriptions.add(new TransactionSubscription("topic1", "sub1"));
                 subscriptions.add(new TransactionSubscription("topic2", "sub2"));
                 transactionMetadataStore.addAckedPartitionToTxn(txnID, subscriptions).get();
-                Assert.assertTrue(transactionMetadataStore.getTxnMeta(txnID).get().ackedPartitions().containsAll(subscriptions));
+                Assert.assertTrue(transactionMetadataStore.getTxnMeta(txnID).get()
+                        .ackedPartitions().containsAll(subscriptions));
 
                 transactionMetadataStore.addAckedPartitionToTxn(txnID, subscriptions).get();
                 assertEquals(transactionMetadataStore.getTxnMeta(txnID).get().producedPartitions(),
@@ -175,6 +183,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig, disabledBufferedWriter, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
@@ -183,23 +192,30 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         Awaitility.await().until(transactionMetadataStore::checkIfReady);
         TxnID txnID = transactionMetadataStore.newTransaction(20000, null).get();
         transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTING, TxnStatus.OPEN, false).get();
+        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) mlTransactionLog.getManagedLedger();
+        long originalLedgerId = managedLedger.getLastConfirmedEntry().getLedgerId();
         if (isUseManagedLedgerProperties) {
             transactionMetadataStore.updateTxnStatus(txnID, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false).get();
         }
         assertEquals(txnID.getLeastSigBits(), 0);
-        Field field = MLTransactionLogImpl.class.getDeclaredField("managedLedger");
-        field.setAccessible(true);
-        ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) field.get(mlTransactionLog);
-        Position position = managedLedger.getLastConfirmedEntry();
         if (isUseManagedLedgerProperties) {
-            Field stateUpdater = ManagedLedgerImpl.class.getDeclaredField("state");
-            stateUpdater.setAccessible(true);
-            stateUpdater.set(managedLedger, ManagedLedgerImpl.State.LedgerOpened);
-            managedLedger.rollCurrentLedgerIfFull();
-            //There is new ledger been created
-            Awaitility.await().until(() -> managedLedger.getLedgersInfo().ceilingEntry(position.getLedgerId()) != null);
+            // The third append starts rollover automatically; do not initiate another rollover while it is pending.
+            Awaitility.await().until(() -> managedLedger.getLedgersInfo().higherEntry(originalLedgerId) != null
+                    && managedLedger.getState() == ManagedLedgerImpl.State.LedgerOpened);
+            // Completing the transaction does not wait for its log positions to be deleted.
+            Position lastTransactionEntry = managedLedger.getLastConfirmedEntry();
+            ManagedCursor cursor = managedLedger.getCursors().iterator().next();
+            Awaitility.await().until(() -> cursor.getMarkDeletedPosition().compareTo(lastTransactionEntry) >= 0);
+            CompletableFuture<Void> trimmed = new CompletableFuture<>();
+            managedLedger.trimConsumedLedgersInBackground(trimmed);
+            trimmed.get(2, TimeUnit.SECONDS);
+            assertFalse(managedLedger.getLedgersInfo().containsKey(originalLedgerId),
+                    "Sequence recovery must use properties after the transaction ledger is trimmed");
         }
-        mlTransactionLog.closeAsync().get(2, TimeUnit.SECONDS);
+        // The metadata store owns the log. Close it before opening a replacement.
+        transactionMetadataStore.closeAsync().get(2, TimeUnit.SECONDS);
+        mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
+        managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
         mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig, disabledBufferedWriter, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
@@ -229,10 +245,12 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         managedLedgerConfig.setMaxEntriesPerLedger(2);
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
+        @Cleanup("closeAsync")
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
 
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
@@ -284,6 +302,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                         DISABLED_BUFFERED_WRITER_METRICS);
                 txnLog2.initialize().get(2, TimeUnit.SECONDS);
 
+                @Cleanup("closeAsync")
                 MLTransactionMetadataStore transactionMetadataStoreTest =
                         new MLTransactionMetadataStore(transactionCoordinatorID,
                                 txnLog2, new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
@@ -357,9 +376,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
+        @Cleanup("closeAsync")
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
@@ -400,11 +421,15 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
                 futureList.add(transactionMetadataStore.addAckedPartitionToTxn(txnID2, subscriptions1));
                 FutureUtil.waitForAll(futureList).get();
 
-                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING, TxnStatus.OPEN, false));
-                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING, TxnStatus.OPEN, false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTING,
+                        TxnStatus.OPEN, false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTING,
+                        TxnStatus.OPEN, false));
 
-                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTED, TxnStatus.COMMITTING, false));
-                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED, TxnStatus.ABORTING, false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID1, TxnStatus.COMMITTED,
+                        TxnStatus.COMMITTING, false));
+                futureList.add(transactionMetadataStore.updateTxnStatus(txnID2, TxnStatus.ABORTED,
+                        TxnStatus.ABORTING, false));
                 FutureUtil.waitForAll(futureList).get();
 
                 Field field = mlTransactionLog.getClass().getDeclaredField("cursor");
@@ -425,7 +450,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
      * TODO After the batch feature is dynamically switched，append tests that contain both batch and non-batch data.
      */
     @Test(dataProvider = "bufferedWriterConfigDataProvider")
-    public void testRecoverWhenDeleteFromCursor(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig) throws Exception {
+    public void testRecoverWhenDeleteFromCursor(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig)
+            throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
 
@@ -435,9 +461,12 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
+        @Cleanup("closeAsync")
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
-                managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
+                managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer,
+                DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
@@ -456,6 +485,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
+        transactionMetadataStore.closeAsync();
         transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
@@ -465,6 +495,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     }
 
     @Test(dataProvider = "bufferedWriterConfigDataProvider")
+    @SuppressWarnings("unchecked")
     public void testManageLedgerWriteFailState(TxnLogBufferedWriterConfig txnLogBufferedWriterConfig) throws Exception {
         ManagedLedgerFactoryConfig factoryConf = new ManagedLedgerFactoryConfig();
         factoryConf.setMaxCacheSize(0);
@@ -475,9 +506,11 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
         ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
         MLTransactionSequenceIdGenerator mlTransactionSequenceIdGenerator = new MLTransactionSequenceIdGenerator();
         managedLedgerConfig.setManagedLedgerInterceptor(mlTransactionSequenceIdGenerator);
+        @Cleanup("closeAsync")
         MLTransactionLogImpl mlTransactionLog = new MLTransactionLogImpl(transactionCoordinatorID, factory,
                 managedLedgerConfig, txnLogBufferedWriterConfig, transactionTimer, DISABLED_BUFFERED_WRITER_METRICS);
         mlTransactionLog.initialize().get(2, TimeUnit.SECONDS);
+        @Cleanup("closeAsync")
         MLTransactionMetadataStore transactionMetadataStore =
                 new MLTransactionMetadataStore(transactionCoordinatorID, mlTransactionLog,
                         new TransactionTimeoutTrackerImpl(), mlTransactionSequenceIdGenerator, 0L);
@@ -505,8 +538,7 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     public class TransactionTimeoutTrackerImpl implements TransactionTimeoutTracker {
 
         @Override
-        public CompletableFuture<Boolean> addTransaction(long sequenceId, long timeout) {
-            return null;
+        public void addTransaction(long sequenceId, long timeout) {
         }
 
         @Override
@@ -528,7 +560,8 @@ public class MLTransactionMetadataStoreTest extends MockedBookKeeperTestCase {
     public static class TransactionRecoverTrackerImpl implements TransactionRecoverTracker {
 
         @Override
-        public void updateTransactionStatus(long sequenceId, TxnStatus txnStatus) throws CoordinatorException.InvalidTxnStatusException {
+        public void updateTransactionStatus(long sequenceId, TxnStatus txnStatus)
+                throws CoordinatorException.InvalidTxnStatusException {
 
         }
 

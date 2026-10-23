@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl.schema.generic;
 import static org.apache.pulsar.client.impl.schema.util.SchemaUtil.parseAvroSchema;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import org.apache.avro.Schema;
 import org.apache.pulsar.client.api.schema.Field;
 import org.apache.pulsar.client.api.schema.GenericRecord;
@@ -28,12 +29,11 @@ import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * A multi version generic json reader.
  */
+@CustomLog
 public class MultiVersionGenericJsonReader extends AbstractMultiVersionGenericReader {
 
     public MultiVersionGenericJsonReader(boolean useProvidedSchemaAsReaderSchema, Schema readerSchema,
@@ -45,9 +45,9 @@ public class MultiVersionGenericJsonReader extends AbstractMultiVersionGenericRe
     protected SchemaReader<GenericRecord> loadReader(BytesSchemaVersion schemaVersion) {
         SchemaInfo schemaInfo = getSchemaInfoByVersion(schemaVersion.get());
         if (schemaInfo != null) {
-            LOG.info("Load schema reader for version({}), schema is : {}",
-                    SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                    schemaInfo.getSchemaDefinition());
+            log.info().attr("version", SchemaUtils.getStringSchemaVersion(schemaVersion.get()))
+                    .attr("schema", schemaInfo.getSchemaDefinition())
+                    .log("Load schema reader for version");
             Schema readerSchema;
             if (useProvidedSchemaAsReaderSchema) {
                 readerSchema = this.readerSchema;
@@ -60,12 +60,10 @@ public class MultiVersionGenericJsonReader extends AbstractMultiVersionGenericRe
                             .map(f -> new Field(f.name(), f.pos()))
                             .collect(Collectors.toList()), schemaInfo);
         } else {
-            LOG.warn("No schema found for version({}), use latest schema : {}",
-                    SchemaUtils.getStringSchemaVersion(schemaVersion.get()),
-                    this.readerSchema);
+            log.warn().attr("version", SchemaUtils.getStringSchemaVersion(schemaVersion.get()))
+                    .attr("schema", this.readerSchema)
+                    .log("No schema found for version(), use latest schema");
             return providerSchemaReader;
         }
     }
-
-    protected static final Logger LOG = LoggerFactory.getLogger(MultiVersionGenericAvroReader.class);
 }

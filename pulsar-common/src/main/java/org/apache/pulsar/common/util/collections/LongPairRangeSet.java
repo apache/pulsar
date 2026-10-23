@@ -25,6 +25,7 @@ import com.google.common.collect.TreeRangeSet;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import lombok.EqualsAndHashCode;
@@ -135,6 +136,19 @@ public interface LongPairRangeSet<T extends Comparable<T>> {
      * @return last biggest range into the set
      */
     Range<T> lastRange();
+
+    default Map<Long, long[]> toRanges(int maxRanges) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Build {@link LongPairRangeSet} using internal ranges returned by {@link #toRanges(int)} .
+     *
+     * @param ranges
+     */
+    default void build(Map<Long, long[]> ranges) {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Return the number bit sets to true from lower (inclusive) to upper (inclusive).
