@@ -25,6 +25,9 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.json.JSONException;
+import org.skyscreamer.jsonassert.JSONAssert;
+import org.skyscreamer.jsonassert.JSONCompareMode;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -39,6 +42,16 @@ public class SchemaInfoTest {
         + "  \"type\": \"INT32\",\n"
         + "  \"timestamp\": 0,\n"
         + "  \"properties\": {}\n"
+        + "}";
+
+    private static final String INT32_SCHEMA_INFO_WITH_NULL_PROPERTY = "{\n"
+        + "  \"name\": \"INT32\",\n"
+        + "  \"schema\": \"\",\n"
+        + "  \"type\": \"INT32\",\n"
+        + "  \"timestamp\": 0,\n"
+        + "  \"properties\": {\n"
+        + "    \"key\": null\n"
+        + "  }\n"
         + "}";
 
     private static final String UTF8_SCHEMA_INFO = "{\n"
@@ -92,21 +105,24 @@ public class SchemaInfoTest {
         + "              \"BLUE\"\n"
         + "            ]\n"
         + "          }\n"
-        + "        ]\n"
+        + "        ],\n"
+        + "        \"default\": null\n"
         + "      },\n"
         + "      {\n"
         + "        \"name\": \"field1\",\n"
         + "        \"type\": [\n"
         + "          \"null\",\n"
         + "          \"string\"\n"
-        + "        ]\n"
+        + "        ],\n"
+        + "        \"default\": null\n"
         + "      },\n"
         + "      {\n"
         + "        \"name\": \"field2\",\n"
         + "        \"type\": [\n"
         + "          \"null\",\n"
         + "          \"string\"\n"
-        + "        ]\n"
+        + "        ],\n"
+        + "        \"default\": null\n"
         + "      },\n"
         + "      {\n"
         + "        \"name\": \"field3\",\n"
@@ -126,7 +142,8 @@ public class SchemaInfoTest {
         + "              }\n"
         + "            ]\n"
         + "          }\n"
-        + "        ]\n"
+        + "        ],\n"
+        + "        \"default\": null\n"
         + "      },\n"
         + "      {\n"
         + "        \"name\": \"fieldUnableNull\",\n"
@@ -168,21 +185,24 @@ public class SchemaInfoTest {
         + "                  \"BLUE\"\n"
         + "                ]\n"
         + "              }\n"
-        + "            ]\n"
+        + "            ],\n"
+        + "            \"default\": null\n"
         + "          },\n"
         + "          {\n"
         + "            \"name\": \"field1\",\n"
         + "            \"type\": [\n"
         + "              \"null\",\n"
         + "              \"string\"\n"
-        + "            ]\n"
+        + "            ],\n"
+        + "            \"default\": null\n"
         + "          },\n"
         + "          {\n"
         + "            \"name\": \"field2\",\n"
         + "            \"type\": [\n"
         + "              \"null\",\n"
         + "              \"string\"\n"
-        + "            ]\n"
+        + "            ],\n"
+        + "            \"default\": null\n"
         + "          },\n"
         + "          {\n"
         + "            \"name\": \"field3\",\n"
@@ -202,7 +222,8 @@ public class SchemaInfoTest {
         + "                  }\n"
         + "                ]\n"
         + "              }\n"
-        + "            ]\n"
+        + "            ],\n"
+        + "            \"default\": null\n"
         + "          },\n"
         + "          {\n"
         + "            \"name\": \"fieldUnableNull\",\n"
@@ -249,11 +270,15 @@ public class SchemaInfoTest {
         + "  \"timestamp\": 0,\n"
         + "  \"properties\": {\n"
         + "    \"key.schema.name\": \"\",\n"
-        + "    \"key.schema.properties\": \"{\\\"__alwaysAllowNull\\\":\\\"false\\\",\\\"__jsr310ConversionEnabled\\\":\\\"false\\\",\\\"foo1\\\":\\\"foo-value1\\\",\\\"foo2\\\":\\\"foo-value2\\\",\\\"foo3\\\":\\\"foo-value3\\\"}\",\n"
+        + "    \"key.schema.properties\": \"{\\\"__alwaysAllowNull\\\":\\\"false\\\",\\\"__jsr310ConversionEnabled\\"
+            + "\":\\\"false\\\",\\\"foo1\\\":\\\"foo-value1\\\",\\\"foo2\\\":\\\"foo-value2\\\",\\\"foo3\\\":\\"
+            + "\"foo-value3\\\"}\",\n"
         + "    \"key.schema.type\": \"AVRO\",\n"
         + "    \"kv.encoding.type\": \"SEPARATED\",\n"
         + "    \"value.schema.name\": \"\",\n"
-        + "    \"value.schema.properties\": \"{\\\"__alwaysAllowNull\\\":\\\"true\\\",\\\"__jsr310ConversionEnabled\\\":\\\"false\\\",\\\"bar1\\\":\\\"bar-value1\\\",\\\"bar2\\\":\\\"bar-value2\\\",\\\"bar3\\\":\\\"bar-value3\\\"}\",\n"
+        + "    \"value.schema.properties\": \"{\\\"__alwaysAllowNull\\\":\\\"true\\\",\\\"__jsr310ConversionEnabled\\"
+            + "\":\\\"false\\\",\\\"bar1\\\":\\\"bar-value1\\\",\\\"bar2\\\":\\\"bar-value2\\\",\\\"bar3\\\":\\"
+            + "\"bar-value3\\\"}\",\n"
         + "    \"value.schema.type\": \"JSON\"\n"
         + "  }\n"
         + "}";
@@ -285,8 +310,8 @@ public class SchemaInfoTest {
     }
 
     @Test(dataProvider = "schemas")
-    public void testSchemaInfoToString(SchemaInfo si, String jsonifiedStr) {
-        assertEquals(si.toString(), jsonifiedStr);
+    public void testSchemaInfoToString(SchemaInfo si, String jsonifiedStr) throws JSONException {
+        JSONAssert.assertEquals(si.toString(), jsonifiedStr, JSONCompareMode.NON_EXTENSIBLE);
     }
 
     public static class SchemaInfoBuilderTest {
@@ -323,7 +348,7 @@ public class SchemaInfoTest {
         }
 
         @Test
-        public void testNullPropertyValue() {
+        public void testNullPropertyValue() throws JSONException {
             final Map<String, String> map = new HashMap<>();
             map.put("key", null);
 
@@ -334,8 +359,8 @@ public class SchemaInfoTest {
                     .properties(map)
                     .build();
 
-            // null key will be skipped by Gson when serializing JSON to String
-            assertEquals(si.toString(), INT32_SCHEMA_INFO);
+            JSONAssert.assertEquals(si.toString(), INT32_SCHEMA_INFO_WITH_NULL_PROPERTY,
+                    JSONCompareMode.NON_EXTENSIBLE);
         }
     }
 }

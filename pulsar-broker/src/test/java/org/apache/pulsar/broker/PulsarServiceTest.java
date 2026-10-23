@@ -18,23 +18,63 @@
  */
 package org.apache.pulsar.broker;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertSame;
+import io.prometheus.client.CollectorRegistry;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.BiConsumer;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateMetadataStoreTableViewImpl;
+import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
+import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.metadata.api.MetadataCacheConfig;
+import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Stat;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.utils.TestLogAppender;
+import org.apache.pulsar.zookeeper.ZookeeperServerTest;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.Op;
+import org.apache.zookeeper.ZooDefs.Ids;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
 
     private boolean useStaticPorts = false;
@@ -54,12 +94,19 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
+        conf.setBrokerServicePortTls(Optional.of(0));
+        conf.setWebServicePortTls(Optional.of(0));
+        conf.setTopicNameCacheMaxCapacity(5000);
+        conf.setMaxSecondsToClearTopicNameCache(5);
         if (useStaticPorts) {
             conf.setBrokerServicePortTls(Optional.of(6651));
             conf.setBrokerServicePort(Optional.of(6660));
             conf.setWebServicePort(Optional.of(8081));
             conf.setWebServicePortTls(Optional.of(8082));
         }
+        conf.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
+        conf.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
     }
 
     @Test
@@ -142,6 +189,20 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testScalableConsumerMetricsReleasedOnBrokerShutdown() throws Exception {
+        restartBroker(config -> config.setScalableTopicsEnabled(true));
+        assertThat(pulsar.getBrokerService().getScalableTopicService()).isNotNull();
+        String name = "pulsar_scalable_topic_consumer_count";
+        String[] labels = {"cluster", "consumer_state"};
+        String[] values = {conf.getClusterName(), "active"};
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(name, labels, values)).isEqualTo(0.0);
+
+        pulsar.closeAsync().get(30, TimeUnit.SECONDS);
+
+        assertThat(CollectorRegistry.defaultRegistry.getSampleValue(name, labels, values)).isNull();
+    }
+
+    @Test
     public void testAdvertisedAddress() throws Exception {
         cleanup();
         useStaticPorts = true;
@@ -179,14 +240,46 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(conf, pulsar.getConfiguration());
         assertEquals(conf.getBrokerServicePortTls(), pulsar.getBrokerListenPortTls());
         assertEquals(conf.getBrokerServicePort(), pulsar.getBrokerListenPort());
-        assertEquals(pulsar.getBrokerServiceUrlTls(), "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
-        assertEquals(pulsar.getBrokerServiceUrl(), "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
-        assertEquals(pulsar.getWebServiceAddress(), "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
-        assertEquals(pulsar.getWebServiceAddressTls(), "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
+        assertEquals(pulsar.getBrokerServiceUrlTls(),
+                "pulsar+ssl://localhost:" + pulsar.getBrokerListenPortTls().get());
+        assertEquals(pulsar.getBrokerServiceUrl(),
+                "pulsar://localhost:" + pulsar.getBrokerListenPort().get());
+        assertEquals(pulsar.getWebServiceAddress(),
+                "http://localhost:" + pulsar.getWebService().getListenPortHTTP().get());
+        assertEquals(pulsar.getWebServiceAddressTls(),
+                "https://localhost:" + pulsar.getWebService().getListenPortHTTPS().get());
     }
 
     @Test
-    public void testBacklogAndRetentionCheck() {
+    public void testTopicCacheConfiguration() throws Exception {
+        cleanup();
+        setup();
+        assertEquals(conf.getTopicNameCacheMaxCapacity(), 5000);
+        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 5);
+
+        List<TopicName> topicNameCached = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            topicNameCached.add(TopicName.get("public/default/tp_" + i));
+        }
+
+        // Verify: the cache does not clear since it is not larger than max capacity.
+        Thread.sleep(10 * 1000);
+        for (int i = 0; i < 20; i++) {
+            assertTrue(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
+        }
+
+        // Update max capacity.
+        admin.brokers().updateDynamicConfiguration("topicNameCacheMaxCapacity", "10");
+
+        // Verify: the cache were cleared.
+        Thread.sleep(10 * 1000);
+        for (int i = 0; i < 20; i++) {
+            assertFalse(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
+        }
+    }
+
+    @Test
+    public void testBacklogAndRetentionCheck() throws PulsarServerException {
         ServiceConfiguration config = new ServiceConfiguration();
         config.setClusterName("test");
         config.setMetadataStoreUrl("memory:local");
@@ -198,6 +291,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertFalse(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
 
         // Only set retention
@@ -210,6 +305,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertFalse(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
 
         // Set both retention and backlog quota
@@ -222,6 +319,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertFalse(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
 
         // Set invalidated retention and backlog quota
@@ -233,6 +332,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
 
         config.setBacklogQuotaDefaultLimitBytes(4 * 1024 * 1024);
@@ -244,6 +345,8 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
         }
 
         // Only set backlog quota
@@ -256,6 +359,199 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
             pulsarService.start();
         } catch (Exception e) {
             assertFalse(e.getCause() instanceof IllegalArgumentException);
+        } finally {
+            pulsarService.close();
+        }
+    }
+
+    @Test
+    public void testShutdownViaAdminApi() throws Exception {
+        super.internalSetup();
+        super.setupDefaultTenantAndNamespace();
+        String topic = "persistent://public/default/testShutdownViaAdminApi";
+        admin.topics().createNonPartitionedTopic(topic);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .sendTimeout(5, TimeUnit.SECONDS)
+                .create();
+        producer.send("message 1".getBytes());
+        admin.brokers()
+                .shutDownBrokerGracefully(0, false)
+                .get(30, TimeUnit.SECONDS);
+        try {
+            producer.send("message 2".getBytes());
+            fail("sending msg should timeout, because broker is down and there is only one broker");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException.TimeoutException);
+        }
+    }
+
+    @DataProvider
+    public Object[][] loadManagers() {
+        return new Object[][] {{ModularLoadManagerImpl.class.getName()}, {ExtensibleLoadManagerImpl.class.getName()}};
+    }
+
+    @Test(dataProvider = "loadManagers")
+    public void testCloseUnregistersMetadataStoreListeners(String loadManagerClassName) throws Exception {
+        // Like the tests that restart brokers on a shared metadata store: the brokers that are closed must not
+        // stay registered with the store
+        @Cleanup
+        LocalMemoryMetadataStore store =
+                new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build());
+        int listenerCount = store.getListenerCount();
+        int sessionListenerCount = store.getSessionListenerCount();
+        for (int i = 0; i < 2; i++) {
+            PulsarTestContext context = PulsarTestContext.builder()
+                    .localMetadataStore(store)
+                    .configurationMetadataStore(store)
+                    .configCustomizer(config -> {
+                        config.setLoadManagerClassName(loadManagerClassName);
+                        // The tableview that is kept in the metadata store, which the store must not keep reachable
+                        config.setLoadManagerServiceUnitStateTableViewClassName(
+                                ServiceUnitStateMetadataStoreTableViewImpl.class.getName());
+                    })
+                    .build();
+            assertThat(store.getListenerCount()).as("listeners of a running broker").isGreaterThan(listenerCount);
+            context.close();
+
+            assertThat(store.getListenerCount()).as("listeners after closing broker %d", i)
+                    .isEqualTo(listenerCount);
+            assertThat(store.getSessionListenerCount()).as("session listeners after closing broker %d", i)
+                    .isEqualTo(sessionListenerCount);
+        }
+    }
+
+    @DataProvider
+    public Object[][] ownershipLockExpiryScenarios() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "ownershipLockExpiryScenarios")
+    public void testOwnershipLockExpiryLogging(boolean shuttingDown) throws Exception {
+        @Cleanup
+        ZookeeperServerTest zk = new ZookeeperServerTest(0);
+        zk.start();
+        @Cleanup
+        ZKMetadataStore store = new ZKMetadataStore(zk.getHostPort(),
+                MetadataStoreConfig.builder().build(), true);
+        FaultInjectionMetadataStore faultStore = new FaultInjectionMetadataStore(store);
+        @Cleanup
+        PulsarTestContext context = PulsarTestContext.builder()
+                .localMetadataStore(faultStore)
+                .configurationMetadataStore(store)
+                .build();
+        PulsarService broker = context.getPulsarService();
+        OwnershipCache ownershipCache = broker.getNamespaceService().getOwnershipCache();
+        var bundle = broker.getNamespaceService().getNamespaceBundleFactory()
+                .getFullBundle(NamespaceName.get("public/shutdown-ownership"));
+        ownershipCache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+        var lock = ownershipCache.getLocallyAcquiredLocks().get(bundle);
+        assertThat(lock).isNotNull();
+
+        @Cleanup
+        TestLogAppender logAppender = TestLogAppender.create(OwnershipCache.class);
+
+        if (shuttingDown) {
+            // Failing broker deregistration skips graceful bundle unloading. The real coordination-service
+            // shutdown must then release the still-registered ownership lock directly through LockManager.
+            AtomicBoolean failureInjected = new AtomicBoolean();
+            String brokerPath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + broker.getBrokerId();
+            faultStore.failConditional(new MetadataStoreException("Broker deregistration failed"),
+                    (operation, path) -> {
+                        if (operation == OperationType.DELETE && path.equals(brokerPath)) {
+                            failureInjected.set(true);
+                            return true;
+                        }
+                        return false;
+                    });
+            broker.closeAsync().get(30, TimeUnit.SECONDS);
+
+            assertThat(failureInjected).isTrue();
+            assertThat(broker.isRunning()).isFalse();
+            assertThat(store.get(lock.getPath()).get(10, TimeUnit.SECONDS)).isEmpty();
+        } else {
+            // Replace the ephemeral lock atomically so revalidation sees a persistent node and expires
+            // the lock. This exercises the real metadata notification and revalidation path, not release().
+            byte[] data = store.get(lock.getPath()).get(10, TimeUnit.SECONDS).orElseThrow().getValue();
+            store.getZkClient().multi(List.of(Op.delete(lock.getPath(), -1),
+                    Op.create(lock.getPath(), data, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)));
+            lock.getLockExpiredFuture().get(10, TimeUnit.SECONDS);
+            Awaitility.await().untilAsserted(() -> assertThat(ownershipCache.getOwnedBundle(bundle)).isNull());
+            assertThat(broker.isRunning()).isTrue();
+        }
+        assertThat(lock.getLockExpiredFuture()).isDone().isNotCompletedExceptionally();
+        assertThat(ownershipCache.getLocallyAcquiredLocks()).doesNotContainKey(bundle);
+        assertThat(ownershipCache.getOwnedBundle(bundle)).isNull();
+        boolean expiryLogged = logAppender.getEvents().stream().anyMatch(event -> event.getLevel() == Level.INFO
+                && event.getLoggerName().equals(OwnershipCache.class.getName())
+                && event.getMessage().getFormattedMessage().contains("Resource lock has expired"));
+        assertThat(expiryLogged).as("INFO expiry while shuttingDown=%s", shuttingDown).isEqualTo(!shuttingDown);
+    }
+
+    @Test
+    public void testWebSocketServiceSharesBrokerConfigurationStore() throws Exception {
+        // Only the broker's own (here mocked) client reaches the configuration store, as with a TLS store set up
+        // through configurationStoreConfigPath; a WebSocket service opening its own client fails the startup.
+        conf.setWebSocketServiceEnabled(true);
+        setup();
+        assertThat(pulsar.getWebSocketService()).as("embedded WebSocket service").isNotNull();
+    }
+
+    @Test
+    public void testMetadataSerDesThreads() throws Exception {
+        final var numSerDesThreads = 5;
+        final var config = new ServiceConfiguration();
+        config.setMetadataStoreSerDesThreads(numSerDesThreads);
+        config.setClusterName("test");
+        config.setMetadataStoreUrl("memory:local");
+        config.setConfigurationMetadataStoreUrl("memory:local");
+
+        @Cleanup final var pulsar = new PulsarService(config);
+        pulsar.start();
+
+        BiConsumer<MetadataStore, String> verifier = (store, prefix) -> {
+            final var serDes = new CustomMetadataSerDes();
+            final var cache = store.getMetadataCache(prefix, serDes, MetadataCacheConfig.builder().build());
+            for (int i = 0; i < 100 && serDes.threadNameToSerializedPaths.size() < numSerDesThreads; i++) {
+                cache.create(prefix + i, "value-" + i).join();
+                final var value = cache.get(prefix + i).join();
+                assertEquals(value.orElseThrow(), "value-" + i);
+                final var newValue = cache.readModifyUpdate(prefix + i, s -> s + "-updated").join();
+                assertEquals(newValue, "value-" + i + "-updated");
+                // Verify the serialization and deserialization are handled by the same thread
+                assertEquals(serDes.threadNameToSerializedPaths, serDes.threadNameToDeserializedPaths);
+            }
+            log.info().attr("threadMapping", serDes.threadNameToSerializedPaths)
+                    .log("SerDes thread mapping");
+            assertEquals(serDes.threadNameToSerializedPaths.keySet().size(), numSerDesThreads);
+            // Verify a path cannot be handled by multiple threads
+            final var paths = serDes.threadNameToSerializedPaths.values().stream()
+                .flatMap(Set::stream).sorted().toList();
+            assertEquals(paths.stream().distinct().toList(), paths);
+        };
+
+        verifier.accept(pulsar.getLocalMetadataStore(), "/test-local/");
+        verifier.accept(pulsar.getConfigurationMetadataStore(), "/test-config/");
+    }
+
+    private static class CustomMetadataSerDes implements MetadataSerde<String> {
+
+        final Map<String, Set<String>> threadNameToSerializedPaths = new ConcurrentHashMap<>();
+        final Map<String, Set<String>> threadNameToDeserializedPaths = new ConcurrentHashMap<>();
+
+        @Override
+        public byte[] serialize(String path, String value) throws IOException{
+            threadNameToSerializedPaths.computeIfAbsent(Thread.currentThread().getName(),
+                    __ -> ConcurrentHashMap.newKeySet()).add(path);
+            return value.getBytes();
+        }
+
+        @Override
+        public String deserialize(String path, byte[] data, Stat stat) throws IOException {
+            threadNameToDeserializedPaths.computeIfAbsent(Thread.currentThread().getName(),
+                    __ -> ConcurrentHashMap.newKeySet()).add(path);
+            return new String(data);
         }
     }
 }

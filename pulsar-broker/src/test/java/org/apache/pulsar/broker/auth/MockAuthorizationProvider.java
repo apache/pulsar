@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.auth;
 
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationProvider;
@@ -32,11 +33,9 @@ import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class MockAuthorizationProvider implements AuthorizationProvider {
-    private static final Logger log = LoggerFactory.getLogger(MockAuthorizationProvider.class);
 
     @Override
     public void close() {}
@@ -45,11 +44,6 @@ public class MockAuthorizationProvider implements AuthorizationProvider {
     public CompletableFuture<Boolean> isSuperUser(String role,
                                                   AuthenticationDataSource authenticationData,
                                                   ServiceConfiguration serviceConfiguration) {
-        return roleAuthorizedAsync(role);
-    }
-
-    @Override
-    public CompletableFuture<Boolean> isSuperUser(String role, ServiceConfiguration serviceConfiguration) {
         return roleAuthorizedAsync(role);
     }
 
@@ -129,27 +123,12 @@ public class MockAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public Boolean allowTenantOperation(String tenantName, String role, TenantOperation operation,
-                                        AuthenticationDataSource authData) {
-        return roleAuthorized(role);
-    }
-
-    @Override
     public CompletableFuture<Boolean> allowNamespaceOperationAsync(NamespaceName namespaceName,
                                                                    String role,
                                                                    NamespaceOperation operation,
                                                                    AuthenticationDataSource authData) {
         return roleAuthorizedAsync(role);
     }
-
-    @Override
-    public Boolean allowNamespaceOperation(NamespaceName namespaceName,
-                                           String role,
-                                           NamespaceOperation operation,
-                                           AuthenticationDataSource authData) {
-        return roleAuthorized(role);
-    }
-
 
     @Override
     public CompletableFuture<Boolean> allowNamespacePolicyOperationAsync(NamespaceName namespaceName,
@@ -161,28 +140,11 @@ public class MockAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public Boolean allowNamespacePolicyOperation(NamespaceName namespaceName,
-                                                 PolicyName policy,
-                                                 PolicyOperation operation,
-                                                 String role,
-                                                 AuthenticationDataSource authData) {
-        return roleAuthorized(role);
-    }
-
-    @Override
     public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topic,
                                                                 String role,
                                                                 TopicOperation operation,
                                                                 AuthenticationDataSource authData) {
         return roleAuthorizedAsync(role);
-    }
-
-    @Override
-    public Boolean allowTopicOperation(TopicName topicName,
-                                        String role,
-                                        TopicOperation operation,
-                                        AuthenticationDataSource authData) {
-        return roleAuthorized(role);
     }
 
     CompletableFuture<Boolean> roleAuthorizedAsync(String role) {
