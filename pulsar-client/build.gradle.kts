@@ -107,6 +107,50 @@ dependencies {
     testImplementation(project(":pulsar-functions:pulsar-functions-proto"))
 }
 
+// Optional concurrency tests. These dependencies and classes are never published with the client.
+val jcstress = sourceSets.create("jcstress") {
+    compileClasspath += sourceSets.main.get().output
+}
+configurations[jcstress.implementationConfigurationName].extendsFrom(configurations.implementation.get())
+configurations[jcstress.compileOnlyConfigurationName].extendsFrom(configurations.compileOnly.get())
+configurations[jcstress.runtimeOnlyConfigurationName].extendsFrom(configurations.runtimeOnly.get())
+listOf(jcstress.compileClasspathConfigurationName, jcstress.runtimeClasspathConfigurationName,
+    jcstress.annotationProcessorConfigurationName).forEach {
+    configurations[it].extendsFrom(configurations["internalPlatform"])
+}
+dependencies {
+    add(jcstress.implementationConfigurationName, libs.jcstress.core)
+    add(jcstress.implementationConfigurationName, libs.mockito.core)
+    add(jcstress.annotationProcessorConfigurationName, libs.jcstress.core)
+}
+
+val jcstressJar = tasks.register<Jar>("jcstressJar") {
+    archiveClassifier.set("jcstress")
+    from(sourceSets.main.map { it.output })
+    from(jcstress.output)
+}
+
+// jcstress scans classpath JARs for padding; directories and native .nar files need JAR paths.
+val jcstressRuntime = tasks.register<Sync>("jcstressRuntime") {
+    from(jcstressJar)
+    from(configurations[jcstress.runtimeClasspathConfigurationName])
+    into(layout.buildDirectory.dir("jcstress/lib"))
+    rename("(.+)\\.nar", "$1.nar.jar")
+}
+
+tasks.register<JavaExec>("jcstress") {
+    group = "verification"
+    description = "Runs the optional client concurrency tests; override jcstress options with --args."
+    classpath = files(jcstressRuntime).asFileTree.matching { include("*.jar") }
+    mainClass.set("org.openjdk.jcstress.Main")
+    workingDir(layout.buildDirectory.dir("jcstress"))
+    args("-t", "org.apache.pulsar.client.impl.MultiTopics.*Stress", "-m", "quick",
+        "-f", "1", "-fsm", "1", "-iters", "3", "-time", "200", "-c", "4", "-sc", "false",
+        "-af", "NONE", "-hs", "256", "-strideSize", "1", "-strideCount", "1",
+        "-jvmArgsPrepend", "-Xms64m -Xmx256m -XX:+EnableDynamicAgentLoading",
+        "-r", "../reports/jcstress")
+}
+
 protobuf {
     protoc {
         val protocVersion = providers.gradleProperty("protobufVersion").getOrElse(libs.versions.protobuf.get())
