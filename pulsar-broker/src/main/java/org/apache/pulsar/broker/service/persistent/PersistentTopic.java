@@ -733,7 +733,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void asyncAddEntry(ByteBuf headersAndPayload, PublishContext publishContext) {
-        ledger.asyncAddEntry(headersAndPayload,
+        // The transaction buffer can be holding back transactional messages published before this one: it adds the
+        // entry after theirs.
+        transactionBuffer.addEntryInPublishOrder(ledger, headersAndPayload,
             (int) publishContext.getNumberOfMessages(), this, publishContext);
     }
 

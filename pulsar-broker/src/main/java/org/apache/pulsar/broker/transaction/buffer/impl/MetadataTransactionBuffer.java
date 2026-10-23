@@ -79,7 +79,9 @@ import org.apache.pulsar.metadata.api.Stat;
  * time of append</i> lets recovery scan {@code /txn/op} authoritatively without segment-replay.
  * The op records of concurrent appends can be written in any order, but their entries go to the
  * ledger in publish order, so that publishes are acknowledged in the order they were made: a
- * producer acknowledged out of order drops its connection and re-sends its pending messages.
+ * producer acknowledged out of order drops its connection and re-sends its pending messages. For
+ * the same reason, a non-transactional publish made while appends are pending goes to the ledger
+ * after their entries (see {@link #addEntryInPublishOrder}).
  *
  * <p><b>Durable visibility state.</b> The TB persists a per-segment
  * {@code /txn/segment-state/<segment>/watermark} record (the resolved-below mark) plus one
@@ -148,10 +150,12 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     /**
      * Tail of the chain that hands the entries of {@link #appendBufferToTxn} to the managed ledger in
      * publish order: each entry goes once its op record is written and the appends before it handed
-     * theirs over. Never completes exceptionally, so an append that fails before the ledger doesn't
-     * hold up the ones behind it.
+     * theirs over. Non-transactional entries published while it's pending join the chain (see
+     * {@link #addEntryInPublishOrder}). Never completes exceptionally, so an append that fails before
+     * the ledger doesn't hold up the ones behind it. Replaced under {@link #lock}; volatile so that a
+     * non-transactional publish sees without the lock whether anything is pending.
      */
-    private CompletableFuture<Void> appendTail = CompletableFuture.completedFuture(null);
+    private volatile CompletableFuture<Void> appendTail = CompletableFuture.completedFuture(null);
 
     private final LongAdder committedCount = new LongAdder();
     private final LongAdder abortedCount = new LongAdder();
@@ -422,6 +426,29 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         } catch (RuntimeException e) {
             // Only this append fails: the ones behind it still go to the ledger.
             result.completeExceptionally(e);
+        }
+    }
+
+    @Override
+    public void addEntryInPublishOrder(ManagedLedger ledger, ByteBuf headersAndPayload, int numberOfMessages,
+                                       AsyncCallbacks.AddEntryCallback callback, Object ctx) {
+        if (appendTail.isDone()) {
+            // The entries published before this one were all handed to the ledger.
+            ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
+            return;
+        }
+        headersAndPayload.retain();
+        synchronized (lock) {
+            appendTail = appendTail.thenRun(() -> {
+                try {
+                    ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
+                } catch (RuntimeException e) {
+                    // Only this publish fails: the ones behind it still go to the ledger.
+                    callback.addFailed(ManagedLedgerException.getManagedLedgerException(e), ctx);
+                } finally {
+                    headersAndPayload.release();
+                }
+            });
         }
     }
 

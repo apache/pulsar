@@ -21,10 +21,13 @@ package org.apache.pulsar.broker.transaction.buffer.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -40,10 +43,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.pulsar.broker.service.BrokerServiceException;
@@ -642,10 +647,101 @@ public class MetadataTransactionBufferTest {
         assertThat(second.get()).isEqualTo(PositionFactory.create(10, 1));
     }
 
+    @Test
+    public void publishOrdering_plainEntriesLandAfterTheTransactionalAppendsPublishedBeforeThem() throws Exception {
+        // A transactional append writes its op record before its entry goes to the ledger, while a non-transactional
+        // entry would go right away. One published after a pending append must still land, and its publish be
+        // acknowledged, after it: a producer acknowledged out of order drops its connection and re-sends.
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Void> opRecordHeld = new CompletableFuture<>();
+        TxnMetadataStore store = spy(txnStore);
+        doAnswer(inv -> {
+            CompletableFuture<?> written = (CompletableFuture<?>) inv.callRealMethod();
+            return written.thenCombine(opRecordHeld, (stat, __) -> stat);
+        }).when(store).appendOp(any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+
+        CompletableFuture<Position> txnAppend = tb.appendBufferToTxn(txnId, 0, payload("a"));
+        ByteBuf plain = payload("b");
+        CompletableFuture<Position> plainAdd = addPlainEntry(tb, plain);
+        CompletableFuture<Position> laterPlainAdd = addPlainEntry(tb, payload("c"));
+        // The publisher releases the entry once the publish call returns: the buffer holds it until it adds it.
+        plain.release();
+        assertThat(plain.refCnt()).isOne();
+        assertThat(plainAdd).isNotDone();
+        verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), anyInt(), any(), any());
+
+        opRecordHeld.complete(null);
+        assertThat(txnAppend.get()).isEqualTo(PositionFactory.create(10, 1));
+        assertThat(plainAdd).isCompletedWithValue(PositionFactory.create(10, 2));
+        assertThat(laterPlainAdd).isCompletedWithValue(PositionFactory.create(10, 3));
+        assertThat(plain.refCnt()).isZero();
+    }
+
+    @Test
+    public void publishOrdering_plainEntryGoesStraightToTheLedgerWhenNoAppendIsPending() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, txnStore);
+        tb.checkIfTBRecoverCompletely().get();
+
+        ByteBuf plain = payload("a");
+        assertThat(addPlainEntry(tb, plain)).isCompletedWithValue(PositionFactory.create(10, 1));
+        assertThat(plain.refCnt()).as("not retained by the buffer").isOne();
+        // The in-memory store writes the op record right away, so the append's entry is already in the ledger.
+        assertThat(tb.appendBufferToTxn(txnId, 0, payload("b"))).isCompletedWithValue(PositionFactory.create(10, 2));
+        assertThat(addPlainEntry(tb, payload("c"))).isCompletedWithValue(PositionFactory.create(10, 3));
+    }
+
+    @Test
+    public void publishOrdering_failuresDoNotHoldUpThePlainEntriesBehindThem() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Stat> opRecordWrite = new CompletableFuture<>();
+        TxnMetadataStore store = spy(txnStore);
+        doReturn(opRecordWrite).when(store).appendOp(any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+        ByteBuf rejected = payload("rejected");
+        doThrow(new RejectedExecutionException("injected"))
+                .when(ledger).asyncAddEntry(same(rejected), anyInt(), any(), any());
+
+        CompletableFuture<Position> txnAppend = tb.appendBufferToTxn(txnId, 0, payload("a"));
+        CompletableFuture<Position> rejectedAdd = addPlainEntry(tb, rejected);
+        CompletableFuture<Position> plainAdd = addPlainEntry(tb, payload("b"));
+        assertThat(plainAdd).isNotDone();
+
+        // The transactional append fails before the ledger, and the ledger rejects the first plain entry: each
+        // fails alone, and the entry behind them still lands.
+        opRecordWrite.completeExceptionally(new MetadataStoreException("injected"));
+        assertThatThrownBy(txnAppend::get).hasCauseInstanceOf(MetadataStoreException.class);
+        assertThatThrownBy(rejectedAdd::get).hasCauseInstanceOf(ManagedLedgerException.class);
+        assertThat(plainAdd).isCompletedWithValue(PositionFactory.create(10, 1));
+    }
+
     // ---- helpers -----------------------------------------------------------
 
     private static ByteBuf payload(String s) {
         return Unpooled.copiedBuffer(s.getBytes());
+    }
+
+    /** Add a non-transactional entry through the buffer, as a publish on the topic does. */
+    private CompletableFuture<Position> addPlainEntry(MetadataTransactionBuffer tb, ByteBuf entry) {
+        CompletableFuture<Position> added = new CompletableFuture<>();
+        tb.addEntryInPublishOrder(ledger, entry, 1, new AsyncCallbacks.AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                added.complete(position);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                added.completeExceptionally(exception);
+            }
+        }, null);
+        return added;
     }
 
     /** A non-transactional publish at {@code 10:entryId}, the last entry of the segment from then on. */
@@ -687,6 +783,12 @@ public class MetadataTransactionBufferTest {
             cb.addComplete(p, inv.getArgument(0), inv.getArgument(2));
             return null;
         }).when(ml).asyncAddEntry(any(ByteBuf.class), any(), any());
+        doAnswer(inv -> {
+            AsyncCallbacks.AddEntryCallback cb = inv.getArgument(2);
+            Position p = PositionFactory.create(10, nextEntryId.getAndIncrement());
+            cb.addComplete(p, inv.getArgument(0), inv.getArgument(3));
+            return null;
+        }).when(ml).asyncAddEntry(any(ByteBuf.class), anyInt(), any(), any());
         when(ml.getPreviousPosition(any())).thenAnswer(inv -> {
             Position p = inv.getArgument(0);
             return PositionFactory.create(p.getLedgerId(), p.getEntryId() - 1);
