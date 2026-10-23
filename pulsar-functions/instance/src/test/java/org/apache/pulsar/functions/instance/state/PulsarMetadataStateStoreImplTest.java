@@ -24,6 +24,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.functions.api.state.StateValue;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -101,6 +102,10 @@ public class PulsarMetadataStateStoreImplTest {
         CompletableFuture<ByteBuffer> result = stateContext.getAsync("test-key");
         assertTrue(result != null);
         assertEquals(result.get(), null);
+
+        CompletableFuture<StateValue> stateValueResult = stateContext.getStateValueAsync("test-key");
+        assertTrue(stateValueResult != null);
+        assertEquals(stateValueResult.get(), null);
     }
 
 }

@@ -28,7 +28,7 @@ import static org.mockito.Mockito.doReturn;
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.Future;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -44,7 +44,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "websocket")
-@Slf4j
+@CustomLog
 public class ProxyPingTest extends ProducerConsumerBase {
     protected String methodName;
 
@@ -67,7 +67,7 @@ public class ProxyPingTest extends ProducerConsumerBase {
         config.setWebSocketSessionIdleTimeoutMillis(3 * 1000);
         config.setWebSocketPingDurationSeconds(2);
         service = spyWithClassAndConstructorArgs(WebSocketService.class, config);
-        doReturn(new ZKMetadataStore(mockZooKeeperGlobal)).when(service)
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
                 .createConfigMetadataStore(anyString(), anyInt(), anyBoolean());
         proxyServer = new ProxyServer(config);
         WebSocketServiceStarter.start(proxyServer, service);
@@ -88,8 +88,8 @@ public class ProxyPingTest extends ProducerConsumerBase {
 
     @Test
     public void testPing() throws Exception {
-        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get() +
-                "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
+        String producerUri = "ws://localhost:" + proxyServer.getListenPortHTTP().get()
+                + "/ws/v2/producer/persistent/my-property/my-ns/my-topic1/";
 
         URI produceUri = URI.create(producerUri);
         WebSocketClient produceClient = new WebSocketClient();
@@ -97,8 +97,8 @@ public class ProxyPingTest extends ProducerConsumerBase {
 
         try {
             produceClient.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             assertThat(producerFuture).succeedsWithin(2, SECONDS);
             Session session = producerFuture.get();
             Awaitility.await().during(5, SECONDS).untilAsserted(() -> assertThat(session.isOpen()).isTrue());

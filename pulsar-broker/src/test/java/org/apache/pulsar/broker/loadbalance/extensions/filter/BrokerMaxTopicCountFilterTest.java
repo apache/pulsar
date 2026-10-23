@@ -18,18 +18,17 @@
  */
 package org.apache.pulsar.broker.loadbalance.extensions.filter;
 
-import org.apache.commons.lang.reflect.FieldUtils;
+import static org.testng.Assert.assertEquals;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.loadbalance.BrokerFilterException;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import static org.testng.Assert.assertEquals;
 
 /**
  * Unit test for {@link BrokerMaxTopicCountFilter}.
@@ -38,7 +37,7 @@ import static org.testng.Assert.assertEquals;
 public class BrokerMaxTopicCountFilterTest extends BrokerFilterTestBase {
 
     @Test
-    public void test() throws IllegalAccessException, BrokerFilterException {
+    public void test() throws IllegalAccessException, BrokerFilterException, ExecutionException, InterruptedException {
         LoadManagerContext context = getContext();
         LoadDataStore<BrokerLoadData> store = context.brokerLoadDataStore();
         BrokerLoadData maxTopicLoadData = new BrokerLoadData();
@@ -58,7 +57,8 @@ public class BrokerMaxTopicCountFilterTest extends BrokerFilterTestBase {
                 "broker3", getLookupData(),
                 "broker4", getLookupData()
         );
-        Map<String, BrokerLookupData> result = filter.filter(new HashMap<>(originalBrokers), null, context);
+        Map<String, BrokerLookupData> result =
+                filter.filterAsync(new HashMap<>(originalBrokers), null, context).get();
         assertEquals(result, Map.of(
                 "broker2", getLookupData(),
                 "broker4", getLookupData()

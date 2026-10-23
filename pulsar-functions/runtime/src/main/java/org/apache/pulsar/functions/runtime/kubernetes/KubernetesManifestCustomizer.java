@@ -20,24 +20,24 @@ package org.apache.pulsar.functions.runtime.kubernetes;
 
 import io.kubernetes.client.openapi.models.V1Service;
 import io.kubernetes.client.openapi.models.V1StatefulSet;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.apache.pulsar.functions.runtime.RuntimeCustomizer;
 
 public interface KubernetesManifestCustomizer extends RuntimeCustomizer {
 
-    default V1StatefulSet customizeStatefulSet(Function.FunctionDetails funcDetails, V1StatefulSet statefulSet) {
+    default V1StatefulSet customizeStatefulSet(FunctionDetails funcDetails, V1StatefulSet statefulSet) {
         return statefulSet;
     }
 
-    default V1Service customizeService(Function.FunctionDetails funcDetails, V1Service service) {
+    default V1Service customizeService(FunctionDetails funcDetails, V1Service service) {
         return service;
     }
 
-    default String customizeNamespace(Function.FunctionDetails funcDetails, String currentNamespace) {
+    default String customizeNamespace(FunctionDetails funcDetails, String currentNamespace) {
         return currentNamespace;
     }
 
-    default String customizeName(Function.FunctionDetails funcDetails, String currentName) {
+    default String customizeName(FunctionDetails funcDetails, String currentName) {
         return currentName;
     }
 }

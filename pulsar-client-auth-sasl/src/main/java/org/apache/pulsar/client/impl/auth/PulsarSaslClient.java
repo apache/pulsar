@@ -32,7 +32,7 @@ import javax.security.sasl.AuthorizeCallback;
 import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslClient;
 import javax.security.sasl.SaslException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.api.AuthData;
 import org.apache.pulsar.common.sasl.KerberosName;
 import org.apache.pulsar.common.sasl.SaslConstants;
@@ -41,7 +41,7 @@ import org.apache.pulsar.common.sasl.SaslConstants;
  * A SASL Client object.
  * This is added for support Kerberos authentication.
  */
-@Slf4j
+@CustomLog
 public class PulsarSaslClient {
     private final SaslClient saslClient;
     private final Subject clientSubject;
@@ -51,7 +51,7 @@ public class PulsarSaslClient {
         checkArgument(!Strings.isNullOrEmpty(serverHostname), "Cannot create SASL client with NUll server name");
         if (!serverType.equals(SaslConstants.SASL_BROKER_PROTOCOL) && !serverType
                                                                            .equals(SaslConstants.SASL_PROXY_PROTOCOL)) {
-            log.warn("The server type {} is not recommended", serverType);
+            log.warn().attr("serverType", serverType).log("The server type is not recommended");
         }
 
         String serverPrincipal = serverType.toLowerCase() + "/" + serverHostname;
@@ -68,8 +68,8 @@ public class PulsarSaslClient {
         final String serviceName = serviceKerberosName.getServiceName();
         final String serviceHostname = serviceKerberosName.getHostName();
         final String clientPrincipalName = clientKerberosName.toString();
-        log.info("Using JAAS/SASL/GSSAPI auth to connect to server Principal {},",
-            serverPrincipal);
+        log.info().attr("serverPrincipal", serverPrincipal)
+                .log("Using JAAS/SASL/GSSAPI auth to connect to server");
 
         try {
             this.saslClient = Subject.doAs(clientSubject, new PrivilegedExceptionAction<SaslClient>() {
@@ -81,7 +81,7 @@ public class PulsarSaslClient {
                 }
             });
         } catch (PrivilegedActionException err) {
-            log.error("GSSAPI client error", err.getCause());
+            log.error().exception(err.getCause()).log("GSSAPI client error");
             throw new SaslException("error while booting GSSAPI client", err.getCause());
         }
 
@@ -109,7 +109,7 @@ public class PulsarSaslClient {
                 return AuthData.of(saslClient.evaluateChallenge(saslToken.getBytes()));
             }
         } catch (Exception e) {
-            log.error("SASL error", e.getCause());
+            log.error().exception(e.getCause()).log("SASL error");
             throw new AuthenticationException("SASL/JAAS error" + e.getCause());
         }
     }
@@ -141,8 +141,8 @@ public class PulsarSaslClient {
             if (ac.isAuthorized()) {
                 ac.setAuthorizedID(authzid);
             }
-            log.info("Successfully authenticated. authenticationID: {};  authorizationID: {}.",
-                authid, authzid);
+            log.info().attr("authenticationID", authid).attr("authorizationID", authzid)
+                    .log("Successfully authenticated");
         }
     }
 

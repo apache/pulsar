@@ -18,7 +18,7 @@
 @REM
 
 @echo off
-
+setlocal enabledelayedexpansion
 for %%i in ("%~dp0.") do SET "SCRIPT_PATH=%%~fi"
 set "PULSAR_HOME_DIR=%SCRIPT_PATH%\..\"
 for %%i in ("%PULSAR_HOME_DIR%.") do SET "PULSAR_HOME=%%~fi"
@@ -26,9 +26,9 @@ call "%PULSAR_HOME%\bin\pulsar-admin-common.cmd"
 if ERRORLEVEL 1 (
   exit /b 1
 )
-
 set "OPTS=%OPTS% -Dorg.jline.terminal.jansi=false"
 set "OPTS=%OPTS% -Dpulsar.shell.config.default=%cd%"
 set "DEFAULT_CONFIG=-Dpulsar.shell.config.default="%PULSAR_CLIENT_CONF%""
 cd "%PULSAR_HOME%"
 "%JAVACMD%" %OPTS%  %DEFAULT_CONFIG%  org.apache.pulsar.shell.PulsarShell %*
+endlocal

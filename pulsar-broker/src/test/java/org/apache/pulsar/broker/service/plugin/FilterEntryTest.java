@@ -22,6 +22,7 @@ import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructor
 import static org.apache.pulsar.broker.BrokerTestUtil.spyWithClassAndConstructorArgsRecordingInvocations;
 import static org.apache.pulsar.client.api.SubscriptionInitialPosition.Earliest;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -30,8 +31,9 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
-
+import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,13 +41,12 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.commons.lang.reflect.FieldUtils;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.service.AbstractTopic;
 import org.apache.pulsar.broker.service.BrokerTestBase;
@@ -58,11 +59,15 @@ import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.nar.NarClassLoader;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
+import org.apache.pulsar.compaction.Compactor;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -71,7 +76,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-@Slf4j
+@CustomLog
 public class FilterEntryTest extends BrokerTestBase {
     @BeforeMethod
     @Override
@@ -84,7 +89,6 @@ public class FilterEntryTest extends BrokerTestBase {
     protected void cleanup() throws Exception {
         internalCleanup();
     }
-
 
     @Test
     public void testOverride() throws Exception {
@@ -128,7 +132,6 @@ public class FilterEntryTest extends BrokerTestBase {
         // All normal messages can be received
         assertEquals(0, counter);
 
-
         conf.setAllowOverrideEntryFilters(false);
         consumer.close();
         consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
@@ -148,6 +151,58 @@ public class FilterEntryTest extends BrokerTestBase {
         assertEquals(10, counter1);
         conf.setAllowOverrideEntryFilters(false);
         consumer.close();
+    }
+
+    @Test
+    public void testEntryFilterWithCompactor() throws Exception {
+        conf.setAllowOverrideEntryFilters(true);
+        String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
+
+        List<String> messages = new ArrayList<>();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topic).create();
+        producer.newMessage().key("K1").value("V1").send();
+        producer.newMessage().key("K2").value("V2").send();
+        producer.newMessage().key("K3").value("V3").send();
+        producer.newMessage().key("K4").value("V4").send();
+        messages.add("V2");
+        messages.add("V4");
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+
+        // set topic level entry filters
+        EntryFilter mockFilter = mock(EntryFilter.class);
+        doAnswer(invocationOnMock -> {
+            FilterContext filterContext = invocationOnMock.getArgument(1);
+            String partitionKey = filterContext.getMsgMetadata().getPartitionKey();
+            if (partitionKey.equals("K1") || partitionKey.equals("K3")) {
+                return EntryFilter.FilterResult.REJECT;
+            } else {
+                return EntryFilter.FilterResult.ACCEPT;
+            }
+        }).when(mockFilter).filterEntry(any(Entry.class), any(FilterContext.class));
+        setMockFilterToTopic(topicRef, List.of(mockFilter));
+
+        List<String> results = new ArrayList<>();
+        RawReader rawReader = RawReader.create(pulsarClient, topic, Compactor.COMPACTION_SUBSCRIPTION).get();
+        while (true) {
+            boolean hasMsg = rawReader.hasMessageAvailableAsync().get();
+            if (hasMsg) {
+                try (RawMessage m = rawReader.readNextAsync().get()) {
+                    ByteBuf headersAndPayload = m.getHeadersAndPayload();
+                    Commands.skipMessageMetadata(headersAndPayload);
+                    byte[] bytes = new byte[headersAndPayload.readableBytes()];
+                    headersAndPayload.readBytes(bytes);
+
+                    results.add(new String(bytes));
+                }
+            } else {
+                break;
+            }
+        }
+        rawReader.closeAsync().get();
+
+        Assert.assertEquals(messages, results);
     }
 
     @SneakyThrows
@@ -182,9 +237,11 @@ public class FilterEntryTest extends BrokerTestBase {
         hasFilterField.setAccessible(true);
         NarClassLoader narClassLoader = mock(NarClassLoader.class);
         EntryFilter filter1 = new EntryFilterTest();
-        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+        EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgsRecordingInvocations(
+                EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
         EntryFilter filter2 = new EntryFilter2Test();
-        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+        EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgsRecordingInvocations(
+                EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
         field.set(dispatcher, List.of(loader1, loader2));
         hasFilterField.set(dispatcher, true);
 
@@ -194,11 +251,11 @@ public class FilterEntryTest extends BrokerTestBase {
             producer.send("test");
         }
 
-        verifyBacklog(topic, subName, 10, 10, 10, 10, 0, 0, 0, 0);
+        verifyBacklog(topic, subName, 10, 10, 0, 10, 10, 0, 0, 0, 0);
 
         int counter = 0;
         while (true) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             if (message != null) {
                 counter++;
                 consumer.acknowledge(message);
@@ -209,7 +266,7 @@ public class FilterEntryTest extends BrokerTestBase {
         // All normal messages can be received
         assertEquals(10, counter);
 
-        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0);
+        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         // stop the consumer
         consumer.close();
@@ -221,7 +278,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
         // analyze the subscription and predict that
         // 10 messages will be rejected by the filter
-        verifyBacklog(topic, subName, 10, 10, 0, 0, 10, 10, 0, 0);
+        verifyBacklog(topic, subName, 10, 10, 0, 0, 0, 10, 10, 0, 0);
 
         consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
@@ -232,7 +289,7 @@ public class FilterEntryTest extends BrokerTestBase {
 
         counter = 0;
         while (true) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             if (message != null) {
                 counter++;
                 consumer.acknowledge(message);
@@ -245,13 +302,13 @@ public class FilterEntryTest extends BrokerTestBase {
 
         // now the Filter acknoledged the messages on behalf of the Consumer
         // backlog is now zero again
-        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0);
+        verifyBacklog(topic, subName, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
         // All messages should be acked, check the MarkDeletedPosition
         assertNotNull(lastMsgId);
         MessageIdImpl finalLastMsgId = lastMsgId;
         Awaitility.await().untilAsserted(() -> {
-            PositionImpl position = (PositionImpl) subscription.getCursor().getMarkDeletedPosition();
+            Position position = subscription.getCursor().getMarkDeletedPosition();
             assertEquals(position.getLedgerId(), finalLastMsgId.getLedgerId());
             assertEquals(position.getEntryId(), finalLastMsgId.getEntryId());
         });
@@ -264,7 +321,7 @@ public class FilterEntryTest extends BrokerTestBase {
         }
         counter = 0;
         while (true) {
-            Message<String> message = consumer.receive(1, TimeUnit.SECONDS);
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
             if (message != null) {
                 counter++;
                 consumer.acknowledge(message);
@@ -314,9 +371,11 @@ public class FilterEntryTest extends BrokerTestBase {
             hasFilterField.setAccessible(true);
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
-            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+            EntryFilterWithClassLoader loader1 = spyWithClassAndConstructorArgs(
+                    EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             EntryFilter filter2 = new EntryFilter2Test();
-            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+            EntryFilterWithClassLoader loader2 = spyWithClassAndConstructorArgs(
+                    EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
             field.set(dispatcher, List.of(loader1, loader2));
             hasFilterField.set(dispatcher, true);
 
@@ -327,7 +386,6 @@ public class FilterEntryTest extends BrokerTestBase {
             for (int i = 0; i < 10; i++) {
                 assertNotNull(producer.newMessage().property("REJECT", "").value("1").send());
             }
-
 
             int counter = 0;
             while (true) {
@@ -347,7 +405,6 @@ public class FilterEntryTest extends BrokerTestBase {
             assertEquals(filtered, 10);
         }
     }
-
 
     @Override
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
@@ -406,10 +463,10 @@ public class FilterEntryTest extends BrokerTestBase {
             NarClassLoader narClassLoader = mock(NarClassLoader.class);
             EntryFilter filter1 = new EntryFilterTest();
             EntryFilterWithClassLoader loader1 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter1, narClassLoader, false);
             EntryFilter filter2 = new EntryFilterTest();
             EntryFilterWithClassLoader loader2 =
-                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader);
+                    spyWithClassAndConstructorArgs(EntryFilterWithClassLoader.class, filter2, narClassLoader, false);
             field.set(dispatcher, List.of(loader1, loader2));
             hasFilterField.set(dispatcher, true);
 
@@ -440,7 +497,8 @@ public class FilterEntryTest extends BrokerTestBase {
                         Message<String> message = consumer1.receive(1, TimeUnit.MINUTES);
                         if (message != null) {
                             counter++;
-                            log.info("received1 {} - {} - {}", message.getValue(), message.getProperties(), counter);
+                            log.info().attr("received1", message.getValue()).attr("properties", message.getProperties())
+                                    .attr("counter", counter).log("received1");
                             assertTrue(message.getValue().startsWith("consumer-1 "), message.getValue());
                             consumer1.acknowledgeAsync(message);
                         } else {
@@ -464,7 +522,8 @@ public class FilterEntryTest extends BrokerTestBase {
                         Message<String> message = consumer2.receive(1, TimeUnit.MINUTES);
                         if (message != null) {
                             counter++;
-                            log.info("received2 {} - {} - {}", message.getValue(), message.getProperties(), counter);
+                            log.info().attr("received2", message.getValue()).attr("properties", message.getProperties())
+                                    .attr("counter", counter).log("received2");
                             assertTrue(message.getValue().startsWith("consumer-2 "), message.getValue());
                             consumer2.acknowledgeAsync(message);
                         } else {
@@ -482,15 +541,14 @@ public class FilterEntryTest extends BrokerTestBase {
         }
     }
 
-
     private void verifyBacklog(String topic, String subscription,
-                               int numEntries, int numMessages,
+                               int numEntries, int numMessages, int numMarkerMessages,
                                int numEntriesAccepted, int numMessagesAccepted,
                                int numEntriesRejected, int numMessagesRejected,
                                int numEntriesRescheduled, int numMessagesRescheduled
     ) throws Exception {
-        AnalyzeSubscriptionBacklogResult a1
-                = admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
+        AnalyzeSubscriptionBacklogResult a1 =
+                admin.topics().analyzeSubscriptionBacklog(topic, subscription, Optional.empty());
 
         Assert.assertEquals(numEntries, a1.getEntries());
         Assert.assertEquals(numEntriesAccepted, a1.getFilterAcceptedEntries());
@@ -498,17 +556,16 @@ public class FilterEntryTest extends BrokerTestBase {
         Assert.assertEquals(numEntriesRescheduled, a1.getFilterRescheduledEntries());
 
         Assert.assertEquals(numMessages, a1.getMessages());
+        Assert.assertEquals(numMarkerMessages, a1.getMarkerMessages());
         Assert.assertEquals(numMessagesAccepted, a1.getFilterAcceptedMessages());
         Assert.assertEquals(numMessagesRejected, a1.getFilterRejectedMessages());
         Assert.assertEquals(numMessagesRescheduled, a1.getFilterRescheduledMessages());
     }
 
-
     @DataProvider(name = "overrideBrokerEntryFilters")
     public static Object[][] overrideBrokerEntryFilters() {
         return new Object[][]{ {true}, {false} };
     }
-
 
     @Test(dataProvider = "overrideBrokerEntryFilters")
     public void testExecuteInOrder(boolean overrideBrokerEntryFilters) throws Exception {
@@ -535,7 +592,6 @@ public class FilterEntryTest extends BrokerTestBase {
                     .getTopicReference(topic).get(), List.of());
             setMockBrokerFilter(List.of(mockFilterReject, mockFilterAccept));
         }
-
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
                 .subscriptionInitialPosition(Earliest)
@@ -588,7 +644,6 @@ public class FilterEntryTest extends BrokerTestBase {
                 .filterEntry(any(Entry.class), any(FilterContext.class));
         verify(mockFilterAccept, times(10))
                 .filterEntry(any(Entry.class), any(FilterContext.class));
-
 
     }
 }
