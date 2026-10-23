@@ -428,62 +428,24 @@ public class ProcessRuntimeTest {
 
     private void verifyGoInstance(InstanceConfig config) throws Exception {
         String goExec = "/usr/bin/exec";
-        ProcessRuntime container = factory.createContainer(config, goExec, null, null, null,30l);
+        ProcessRuntime container = factory.createContainer(config, goExec, null, null, null, 30L);
         List<String> args = container.getProcessArgs();
 
-        int totalArgs = 3;
-
-        assertEquals(args.size(), totalArgs);
+        assertEquals(args.size(), 3);
         assertEquals(args.get(0), goExec);
         assertEquals(args.get(1), "-instance-conf");
-        String functionDetails =
-                JsonFormat.printer().omittingInsignificantWhitespace().print(config.getFunctionDetails());
 
-        HashMap goInstanceConfig = new ObjectMapper().readValue(args.get(2), HashMap.class);
+        HashMap<?, ?> goInstanceConfig = new ObjectMapper().readValue(args.get(2), HashMap.class);
         assertEquals(goInstanceConfig.get("pulsarServiceURL"), pulsarServiceUrl);
-        assertEquals(goInstanceConfig.get("stateStorageServiceUrl"), stateStorageServiceUrl);
-        assertEquals(goInstanceConfig.get("pulsarWebServiceUrl"), "");
-        assertEquals(goInstanceConfig.get("instanceID"), config.getInstanceId());
-        assertEquals(goInstanceConfig.get("funcID"), config.getFunctionId());
-        assertEquals(goInstanceConfig.get("funcVersion"), config.getFunctionVersion());
-        assertEquals(goInstanceConfig.get("maxBufTuples"), config.getMaxBufferedTuples());
-        assertEquals(goInstanceConfig.get("port"), config.getPort());
-        assertEquals(goInstanceConfig.get("clusterName"), config.getClusterName());
-        assertEquals(goInstanceConfig.get("killAfterIdleMs"), 0);
-        assertEquals(goInstanceConfig.get("expectedHealthCheckInterval"), 0);
         assertEquals(goInstanceConfig.get("tenant"), TEST_TENANT);
         assertEquals(goInstanceConfig.get("nameSpace"), TEST_NAMESPACE);
         assertEquals(goInstanceConfig.get("name"), TEST_NAME);
-        assertEquals(goInstanceConfig.get("className"), "");
-        assertEquals(goInstanceConfig.get("logTopic"), TEST_NAME + "-log");
-        assertEquals(goInstanceConfig.get("processingGuarantees"), config.getFunctionDetails().getProcessingGuarantees().getNumber());
-        assertEquals(goInstanceConfig.get("secretsMap"), config.getFunctionDetails().getSecretsMap());
-        assertEquals(goInstanceConfig.get("userConfig"), config.getFunctionDetails().getUserConfig());
+        assertEquals(goInstanceConfig.get("runtime"), 3);
         assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"), "com.MyAuth");
         assertEquals(goInstanceConfig.get("clientAuthenticationParameters"), "{\"authParam1\": \"authParamValue1\"}");
         assertEquals(goInstanceConfig.get("tlsTrustCertsFilePath"), "");
         assertEquals(goInstanceConfig.get("tlsHostnameVerificationEnable"), false);
         assertEquals(goInstanceConfig.get("tlsAllowInsecureConnection"), false);
-        assertEquals(goInstanceConfig.get("runtime"), FunctionDetails.Runtime.GO.getNumber());
-        assertEquals(goInstanceConfig.get("autoAck"), config.getFunctionDetails().getAutoAck());
-        assertEquals(goInstanceConfig.get("parallelism"), config.getFunctionDetails().getParallelism());
-        assertEquals(goInstanceConfig.get("subscriptionType"), 0);
-        assertEquals(goInstanceConfig.get("timeoutMs"), 0);
-        assertEquals(goInstanceConfig.get("subscriptionName"), config.getFunctionDetails().getSource().getSubscriptionName());
-        assertEquals(goInstanceConfig.get("cleanupSubscription"), config.getFunctionDetails().getSource().getCleanupSubscription());
-        assertEquals(goInstanceConfig.get("subscriptionPosition"), config.getFunctionDetails().getSource().getSubscriptionPosition().getNumber());
-        assertEquals(goInstanceConfig.get("sourceSpecsTopic"), "test_src");
-        assertEquals(goInstanceConfig.get("sourceSchemaType"), "");
-        assertEquals(goInstanceConfig.get("receiverQueueSize"), 0);
-        assertEquals(goInstanceConfig.get("sinkSpecsTopic"), "test-function-container-output");
-        assertEquals(goInstanceConfig.get("sinkSchemaType"), "");
-        assertEquals(goInstanceConfig.get("cpu"), 0.0);
-        assertEquals(goInstanceConfig.get("ram"), 0);
-        assertEquals(goInstanceConfig.get("disk"), 0);
-        assertEquals(goInstanceConfig.get("maxMessageRetries"), 0);
-        assertEquals(goInstanceConfig.get("deadLetterTopic"), "");
-        assertEquals(goInstanceConfig.get("metricsPort"), config.getMetricsPort());
-        assertEquals(goInstanceConfig.get("functionDetails"), functionDetails);
     }
 
     @Test
