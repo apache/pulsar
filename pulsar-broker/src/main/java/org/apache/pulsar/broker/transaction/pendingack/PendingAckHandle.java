@@ -146,6 +146,13 @@ public interface PendingAckHandle {
     TransactionPendingAckStats getStats(boolean lowWaterMarks);
 
     /**
+     * Get the raw pending ack handle stats.
+     *
+     * @return the raw stats of this pending ack handle.
+     */
+    PendingAckHandleStats getPendingAckHandleStats();
+
+    /**
      * Close the pending ack handle.
      *
      * @return the future of this operation.

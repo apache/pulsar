@@ -72,8 +72,37 @@ public interface ConsumerStats {
     /** Flag to verify if consumer is blocked due to reaching threshold of unacked messages. */
     boolean isBlockedConsumerOnUnackedMsgs();
 
-    /** The read position of the cursor when the consumer joining. */
-    String getReadPositionWhenJoining();
+    /**
+     * For Key_Shared subscription in AUTO_SPLIT ordered mode:
+     * Retrieves the current number of hashes in the draining state for this consumer.
+     *
+     * @return the current number of hashes in the draining state for this consumer
+     */
+    int getDrainingHashesCount();
+
+    /**
+     * For Key_Shared subscription in AUTO_SPLIT ordered mode:
+     * Retrieves the total number of hashes cleared from the draining state since the consumer connected.
+     *
+     * @return the total number of hashes cleared from the draining state since the consumer connected
+     */
+    long getDrainingHashesClearedTotal();
+
+    /**
+     * For Key_Shared subscription in AUTO_SPLIT ordered mode:
+     * Retrieves the total number of unacked messages for all draining hashes for this consumer.
+     *
+     * @return the total number of unacked messages for all draining hashes for this consumer
+     */
+    int getDrainingHashesUnackedMessages();
+
+    /**
+     * For Key_Shared subscription in AUTO_SPLIT ordered mode:
+     * Retrieves the draining hashes for this consumer.
+     *
+     * @return a list of draining hashes for this consumer
+     */
+    List<DrainingHash> getDrainingHashes();
 
     /** Address of this consumer. */
     String getAddress();
@@ -87,9 +116,11 @@ public interface ConsumerStats {
     long getLastAckedTimestamp();
     long getLastConsumedTimestamp();
     long getLastConsumedFlowTimestamp();
+    long getFirstMessagesSentTimestamp();
+    long getFirstConsumedFlowTimestamp();
 
-    /** Hash ranges assigned to this consumer if is Key_Shared sub mode. **/
-    List<String> getKeyHashRanges();
+    /** Hash ranges assigned to this consumer if in Key_Shared subscription mode. */
+    List<int[]> getKeyHashRangeArrays();
 
     /** Metadata (key/value strings) associated with this consumer. */
     Map<String, String> getMetadata();

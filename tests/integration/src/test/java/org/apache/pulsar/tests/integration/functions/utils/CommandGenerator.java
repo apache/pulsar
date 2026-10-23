@@ -26,6 +26,8 @@ import lombok.Setter;
 import lombok.ToString;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.common.functions.ConsumerConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 
 @Getter
@@ -66,6 +68,8 @@ public class CommandGenerator {
     private SubscriptionInitialPosition subscriptionInitialPosition;
     private Boolean retainOrdering;
     private Boolean retainKeyOrdering;
+    private ProducerConfig producerConfig;
+    private ConsumerConfig consumerConfig;
 
     private Map<String, String> userConfig = new HashMap<>();
     public static final String JAVAJAR = "/pulsar/examples/java-test-functions.jar";
@@ -103,11 +107,16 @@ public class CommandGenerator {
         if (functionName != null) {
             commandBuilder.append(" --name " + functionName);
         }
-        if(runtime != Runtime.GO){
+        if (runtime != Runtime.GO){
             commandBuilder.append(" --className " + functionClassName);
         }
         if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
+            if (consumerConfig != null) {
+                Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+                inputSpecs.put(sourceTopic, consumerConfig);
+                commandBuilder.append(" --input-specs \'" + new Gson().toJson(inputSpecs) + "\'");
+            }
         }
         if (sinkTopic != null) {
             commandBuilder.append(" --output " + sinkTopic);
@@ -174,6 +183,11 @@ public class CommandGenerator {
         }
         if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
+            if (consumerConfig != null) {
+                Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+                inputSpecs.put(sourceTopic, consumerConfig);
+                commandBuilder.append(" --input-specs \'" + new Gson().toJson(inputSpecs) + "\'");
+            }
         }
         if (sourceTopicPattern != null) {
             commandBuilder.append(" --topics-pattern " + sourceTopicPattern);
@@ -209,7 +223,7 @@ public class CommandGenerator {
             commandBuilder.append(" --windowLengthDurationMs " + windowLengthDurationMs);
         }
         if (slidingIntervalCount != null)  {
-            commandBuilder.append( " --slidingIntervalCount " + slidingIntervalCount);
+            commandBuilder.append(" --slidingIntervalCount " + slidingIntervalCount);
         }
         if (slidingIntervalDurationMs != null)  {
             commandBuilder.append(" --slidingIntervalDurationMs " + slidingIntervalDurationMs);
@@ -256,6 +270,9 @@ public class CommandGenerator {
                 }
                 break;
         }
+        if (producerConfig != null) {
+            commandBuilder.append(" --producer-config \'" + new Gson().toJson(producerConfig) + "\'");
+        }
         return commandBuilder.toString();
     }
 
@@ -287,6 +304,11 @@ public class CommandGenerator {
         }
         if (StringUtils.isNotEmpty(sourceTopic)) {
             commandBuilder.append(" --inputs " + sourceTopic);
+            if (consumerConfig != null) {
+                Map<String, ConsumerConfig> inputSpecs = new HashMap<>();
+                inputSpecs.put(sourceTopic, consumerConfig);
+                commandBuilder.append(" --input-specs \'" + new Gson().toJson(inputSpecs) + "\'");
+            }
         }
         if (customSerDeSourceTopics != null && !customSerDeSourceTopics.isEmpty()) {
             commandBuilder.append(" --customSerdeInputs \'" + new Gson().toJson(customSerDeSourceTopics) + "\'");

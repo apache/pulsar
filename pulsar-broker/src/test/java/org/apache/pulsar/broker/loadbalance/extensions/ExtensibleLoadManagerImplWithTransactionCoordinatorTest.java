@@ -21,13 +21,15 @@ package org.apache.pulsar.broker.loadbalance.extensions;
 import static org.testng.Assert.assertEquals;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.awaitility.Awaitility;
+import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class ExtensibleLoadManagerImplWithTransactionCoordinatorTest extends ExtensibleLoadManagerImplBaseTest {
 
-    public ExtensibleLoadManagerImplWithTransactionCoordinatorTest() {
-        super("public/test-elb-with-tx");
+    @Factory(dataProvider = "serviceUnitStateTableViewClassName")
+    public ExtensibleLoadManagerImplWithTransactionCoordinatorTest(String serviceUnitStateTableViewClassName) {
+        super("public/test-elb-with-tx", serviceUnitStateTableViewClassName);
     }
 
     @Override

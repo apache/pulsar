@@ -19,6 +19,7 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerInterceptException;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -31,9 +32,9 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -54,7 +55,7 @@ import org.apache.pulsar.common.util.FutureUtil;
  * maximum latency, we will mark the first request time for each batch, and additional timing triggers writes.
  * You can enable or disabled the batch feature, will use Managed Ledger directly and without batching when disabled.
  */
-@Slf4j
+@CustomLog
 public class TxnLogBufferedWriter<T> {
 
     public static final short BATCHED_ENTRY_DATA_PREFIX_MAGIC_NUMBER = 0x0e01;
@@ -68,6 +69,7 @@ public class TxnLogBufferedWriter<T> {
                     new Exception("Transaction log buffered write has closed")
             );
 
+    @SuppressWarnings("rawtypes")
     private static final AtomicReferenceFieldUpdater<TxnLogBufferedWriter, TxnLogBufferedWriter.State> STATE_UPDATER =
             AtomicReferenceFieldUpdater
                     .newUpdater(TxnLogBufferedWriter.class, TxnLogBufferedWriter.State.class, "state");
@@ -145,9 +147,11 @@ public class TxnLogBufferedWriter<T> {
                                 boolean batchEnabled, TxnLogBufferedWriterMetricsStats metrics){
         if (batchedWriteMaxRecords <= 1 && batchEnabled){
             if (metrics != null){
-                log.warn("Transaction Log Buffered Writer with the metrics name beginning with {} has batching enabled"
-                        + " yet the maximum batch size was configured to less than or equal to 1 record, hence due to"
-                        + " performance reasons batching is disabled", metrics.getMetricsPrefix());
+                log.warn().attr("metricsPrefix", metrics.getMetricsPrefix())
+                        .log("Transaction Log Buffered Writer has batching enabled"
+                                + " yet the maximum batch size was configured to less than or"
+                                + " equal to 1 record, hence due to performance reasons"
+                                + " batching is disabled");
             } else {
                 log.warn("Transaction Log Buffered Writer has batching enabled"
                         + " yet the maximum batch size was configured to less than or equal to 1 record, hence due to"
@@ -188,8 +192,8 @@ public class TxnLogBufferedWriter<T> {
             }
             timeout = timer.newTimeout(timingFlushTask, batchedWriteMaxDelayInMillis, TimeUnit.MILLISECONDS);
         } catch (Exception e){
-            log.error("Start timing flush trigger failed."
-                    + " managedLedger: " + managedLedger.getName(), e);
+            log.error().attr("managedLedger", managedLedger.getName())
+                    .exception(e).log("Start timing flush trigger failed");
         }
     }
 
@@ -219,7 +223,7 @@ public class TxnLogBufferedWriter<T> {
                 .runAsync(
                         () -> internalAsyncAddData(data, callback, ctx), singleThreadExecutorForWrite)
                 .exceptionally(e -> {
-                    log.warn("Execute 'internalAsyncAddData' fail", e);
+                    log.warn().exception(e).log("Execute 'internalAsyncAddData' fail");
                     return null;
                 });
     }
@@ -271,9 +275,15 @@ public class TxnLogBufferedWriter<T> {
         trigFlushIfReachMaxRecordsOrMaxSize();
     }
 
-    private void trigFlushByTimingTask(){
+    @VisibleForTesting
+    void trigFlushByTimingTask(){
         CompletableFuture
                 .runAsync(() -> {
+                    // A timing flush that was queued before "close()" may run after the close task has recycled the
+                    // flush context, which may already be reused by another writer that shares this executor.
+                    if (state == State.CLOSING || state == State.CLOSED) {
+                        return;
+                    }
                     if (flushContext.asyncAddArgsList.isEmpty()) {
                         return;
                     }
@@ -283,7 +293,7 @@ public class TxnLogBufferedWriter<T> {
                 }, singleThreadExecutorForWrite)
                 .whenComplete((ignore, e) -> {
                     if (e != null) {
-                        log.warn("Execute 'trigFlushByTimingTask' fail", e);
+                        log.warn().exception(e).log("Execute 'trigFlushByTimingTask' fail");
                     }
                     nextTimingTrigger();
                 });
@@ -378,7 +388,7 @@ public class TxnLogBufferedWriter<T> {
         if (!STATE_UPDATER.compareAndSet(this, State.OPEN, State.CLOSING)){
             return CompletableFuture.completedFuture(null);
         }
-        CompletableFuture closeFuture = new CompletableFuture();
+        CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         // Cancel pending tasks and release resources.
         FutureUtil.safeRunAsync(() -> {
             // If some requests are flushed, BK will trigger these callbacks, and the remaining requests in should
@@ -387,6 +397,10 @@ public class TxnLogBufferedWriter<T> {
                     new ManagedLedgerException.ManagedLedgerFencedException(
                             new Exception("Transaction log buffered write has closed")
                     ));
+            // The recycled flush context may be reused by another writer, don't keep a reference to it.
+            flushContext = null;
+            dataArray.clear();
+            bytesSize = 0;
             // Cancel the timing task.
             if (!timeout.isCancelled()) {
                 this.timeout.cancel();
@@ -419,8 +433,10 @@ public class TxnLogBufferedWriter<T> {
         try {
             asyncAddArgs.callback.addFailed(ex, asyncAddArgs.ctx);
         } catch (Exception e){
-            log.error("After writing to the transaction batched log failure, the callback executed also"
-                    + " failed. managedLedger: " + managedLedger.getName(), e);
+            log.error().attr("managedLedger", managedLedger.getName())
+                    .exception(e)
+                    .log("After writing to the transaction batched log failure,"
+                            + " the callback executed also failed");
         } finally {
             if (recycle) {
                 asyncAddArgs.recycle();
@@ -570,12 +586,14 @@ public class TxnLogBufferedWriter<T> {
                     try {
                         asyncAddArgs.callback.addComplete(txnBatchedPosition, asyncAddArgs.ctx);
                     } catch (Exception e){
-                        log.error("After writing to the transaction batched log complete, the callback failed."
-                                + " managedLedger: " + managedLedger.getName(), e);
+                        log.error().attr("managedLedger", managedLedger.getName())
+                                .exception(e)
+                                .log("After writing to the transaction batched log complete,"
+                                        + " the callback failed");
                     }
                 }
             } catch (Exception e){
-                log.error("Handle callback fail after ML write complete", e);
+                log.error().exception(e).log("Handle callback fail after ML write complete");
             } finally {
                 flushContext.recycle();
             }
@@ -587,7 +605,7 @@ public class TxnLogBufferedWriter<T> {
                 final FlushContext flushContext = (FlushContext) ctx;
                 failureCallbackByContextAndRecycle(flushContext, exception);
             } catch (Exception e){
-                log.error("Handle callback fail after ML write fail", e);
+                log.error().exception(e).log("Handle callback fail after ML write fail");
             }
         }
 

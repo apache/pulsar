@@ -19,9 +19,9 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static org.testng.Assert.assertEquals;
-
 import java.io.IOException;
 import java.io.InputStream;
+import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlobStoreTestBase;
 import org.testng.annotations.Test;
 
@@ -29,6 +29,7 @@ public class BlobStoreBackedInputStreamTest extends BlobStoreTestBase {
 
     @Test
     public void testFillBuffer() throws Exception {
+        @Cleanup
         BlobStoreBackedInputStreamImpl bis = new BlobStoreBackedInputStreamImpl(
             blobStore, BUCKET, "testFillBuffer", (k, md) -> {
         }, 2048, 512);

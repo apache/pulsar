@@ -18,19 +18,18 @@
  */
 package org.apache.pulsar.io.core;
 
-import org.apache.pulsar.functions.api.Record;
-import org.testng.annotations.Test;
-
-import java.util.HashMap;
-import java.util.Map;
-
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import java.util.HashMap;
+import java.util.Map;
+import org.apache.pulsar.functions.api.Record;
+import org.testng.annotations.Test;
 
 public class SinkTest {
 
+    @SuppressWarnings("try")
     public static class TestSink implements Sink<String> {
 
         @Override
@@ -50,6 +49,7 @@ public class SinkTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSinkContext() throws Exception {
         SinkContext sinkContext = mock(SinkContext.class);
 

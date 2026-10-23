@@ -22,7 +22,12 @@ import static org.asynchttpclient.Dsl.get;
 import static org.asynchttpclient.Dsl.post;
 import static org.asynchttpclient.Dsl.put;
 import com.google.gson.Gson;
-import io.netty.handler.codec.http.HttpHeaders;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -31,16 +36,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.internal.http.AsyncHttpRequestExecutor;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
@@ -54,10 +54,8 @@ import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStats;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatus;
-import org.asynchttpclient.AsyncHandler;
-import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.AsyncCompletionHandlerBase;
 import org.asynchttpclient.HttpResponseBodyPart;
-import org.asynchttpclient.HttpResponseStatus;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.request.body.multipart.ByteArrayPart;
 import org.asynchttpclient.request.body.multipart.FilePart;
@@ -66,16 +64,18 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
-@Slf4j
+@CustomLog
 public class FunctionsImpl extends ComponentResource implements Functions {
 
     private final WebTarget functions;
-    private final AsyncHttpClient asyncHttpClient;
+    private final AsyncHttpRequestExecutor asyncHttpRequestExecutor;
 
-    public FunctionsImpl(WebTarget web, Authentication auth, AsyncHttpClient asyncHttpClient, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public FunctionsImpl(WebTarget web, Authentication auth,
+                         AsyncHttpRequestExecutor asyncHttpRequestExecutor,
+                         long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         this.functions = web.path("/admin/v3/functions");
-        this.asyncHttpClient = asyncHttpClient;
+        this.asyncHttpRequestExecutor = asyncHttpRequestExecutor;
     }
 
     @Override
@@ -171,8 +171,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 // If the function code is built in, we don't need to submit here
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
-            asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build())
-                    .toCompletableFuture()
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build())
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(
@@ -263,8 +262,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                 builder.addBodyPart(new FilePart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM));
             }
 
-            asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build())
-                    .toCompletableFuture()
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build())
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(
@@ -366,8 +364,9 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
                         @Override
                         public void failed(Throwable throwable) {
-                            log.warn("[{}] Failed to perform http post request: {}",
-                                    path.getUri(), throwable.getMessage());
+                            log.warn().attr("uri", path.getUri())
+                                    .exceptionMessage(throwable)
+                                    .log("Failed to perform http post request");
                             future.completeExceptionally(getApiException(throwable.getCause()));
                         }
                     });
@@ -464,7 +463,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                     .addBodyPart(new FilePart("data", new File(sourceFile), MediaType.APPLICATION_OCTET_STREAM))
                     .addBodyPart(new StringPart("path", path, MediaType.TEXT_PLAIN));
 
-            asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build()).toCompletableFuture()
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build())
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(
@@ -543,55 +542,31 @@ public class FunctionsImpl extends ComponentResource implements Functions {
 
             RequestBuilder builder = get(target.getUri().toASCIIString());
 
-            CompletableFuture<HttpResponseStatus> statusFuture =
-                    asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build(),
-                        new AsyncHandler<HttpResponseStatus>() {
-                            private HttpResponseStatus status;
-
-                            @Override
-                            public State onStatusReceived(HttpResponseStatus responseStatus) throws Exception {
-                                status = responseStatus;
-                                if (status.getStatusCode() != Response.Status.OK.getStatusCode()) {
-                                    return State.ABORT;
-                                }
-                                return State.CONTINUE;
-                            }
-
-                            @Override
-                            public State onHeadersReceived(HttpHeaders headers) throws Exception {
-                                return State.CONTINUE;
-                            }
+            CompletableFuture<org.asynchttpclient.Response> responseFuture =
+                    asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build(),
+                            () -> new AsyncCompletionHandlerBase() {
 
                             @Override
                             public State onBodyPartReceived(HttpResponseBodyPart bodyPart) throws Exception {
                                 os.write(bodyPart.getBodyByteBuffer());
                                 return State.CONTINUE;
                             }
+                        });
 
-                            @Override
-                            public HttpResponseStatus onCompleted() throws Exception {
-                                return status;
-                            }
-
-                            @Override
-                            public void onThrowable(Throwable t) {
-                            }
-                        }).toCompletableFuture();
-
-            statusFuture
-                    .whenComplete((status, throwable) -> {
+            responseFuture
+                    .whenComplete((response, throwable) -> {
                         try {
                             os.close();
                         } catch (IOException e) {
                             future.completeExceptionally(getApiException(e));
                         }
                     })
-                    .thenAccept(status -> {
-                        if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+                    .thenAccept(response -> {
+                        if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
                             future.completeExceptionally(
                                     getApiException(Response
-                                            .status(status.getStatusCode())
-                                            .entity(status.getStatusText())
+                                            .status(response.getStatusCode())
+                                            .entity(response.getStatusText())
                                             .build()));
                         } else {
                             future.complete(null);
@@ -607,6 +582,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         return future;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public List<ConnectorDefinition> getConnectorsList() throws PulsarAdminException {
         try {
@@ -621,12 +597,14 @@ public class FunctionsImpl extends ComponentResource implements Functions {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public Set<String> getSources() throws PulsarAdminException {
         return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSourceClass()))
                 .map(ConnectorDefinition::getName).collect(Collectors.toSet());
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public Set<String> getSinks() throws PulsarAdminException {
         return getConnectorsList().stream().filter(c -> !StringUtils.isEmpty(c.getSinkClass()))
@@ -700,7 +678,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                             .path("state").path(state.getKey()).getUri().toASCIIString());
             builder.addBodyPart(new StringPart("state", objectWriter()
                     .writeValueAsString(state), MediaType.APPLICATION_JSON));
-            asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build())
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {
@@ -740,7 +718,7 @@ public class FunctionsImpl extends ComponentResource implements Functions {
                             .addBodyPart(new ByteArrayPart("functionMetaData", functionMetaData))
                     .addBodyPart(new StringPart("delete", Boolean.toString(delete)));
 
-            asyncHttpClient.executeRequest(addAuthHeaders(functions, builder).build())
+            asyncHttpRequestExecutor.executeRequest(addAuthHeaders(functions, builder).build())
                     .toCompletableFuture()
                     .thenAccept(response -> {
                         if (response.getStatusCode() < 200 || response.getStatusCode() >= 300) {

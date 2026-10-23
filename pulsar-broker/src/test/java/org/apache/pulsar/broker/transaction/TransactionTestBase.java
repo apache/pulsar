@@ -21,18 +21,16 @@ package org.apache.pulsar.broker.transaction;
 import static org.mockito.Mockito.spy;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
-import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
@@ -53,7 +51,7 @@ import org.apache.pulsar.tests.TestRetrySupport;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 
-@Slf4j
+@CustomLog
 public abstract class TransactionTestBase extends TestRetrySupport {
     public static final String CLUSTER_NAME = "test";
 
@@ -80,8 +78,8 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         if (admin != null) {
             admin.close();
         }
-        admin = spy(
-                createNewPulsarAdmin(PulsarAdmin.builder().serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()))
+        admin = spy(createNewPulsarAdmin(PulsarAdmin.builder()
+                        .serviceHttpUrl(pulsarServiceList.get(0).getWebServiceAddress()))
         );
 
         if (pulsarClient != null) {
@@ -102,12 +100,13 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         return builder.build();
     }
 
-    protected void setUpBase(int numBroker,int numPartitionsOfTC, String topic, int numPartitions) throws Exception{
+    @SuppressWarnings("deprecation")
+    protected void setUpBase(int numBroker, int numPartitionsOfTC, String topic, int numPartitions) throws Exception{
         setBrokerCount(numBroker);
         internalSetup();
 
         String[] brokerServiceUrlArr = getPulsarServiceList().get(0).getBrokerServiceUrl().split(":");
-        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length -1];
+        String webServicePort = brokerServiceUrlArr[brokerServiceUrlArr.length - 1];
         admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl("http://localhost:"
                 + webServicePort).build());
 
@@ -163,6 +162,9 @@ public abstract class TransactionTestBase extends TestRetrySupport {
             conf.setBrokerDeduplicationEnabled(true);
             conf.setTransactionBufferSnapshotMaxTransactionCount(2);
             conf.setTransactionBufferSnapshotMinTimeInMillis(2000);
+            // Disable the dispatcher retry backoff in tests by default
+            conf.setDispatcherRetryBackoffInitialTimeInMs(0);
+            conf.setDispatcherRetryBackoffMaxTimeInMs(0);
             serviceConfigurationList.add(conf);
 
             PulsarTestContext.Builder testContextBuilder =
@@ -184,7 +186,6 @@ public abstract class TransactionTestBase extends TestRetrySupport {
         }
     }
 
-
     protected final void internalCleanup() {
         markCurrentSetupNumberCleaned();
         try {
@@ -199,7 +200,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 pulsarClient = null;
             }
             if (pulsarTestContexts.size() > 0) {
-                for(int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
+                for (int i = pulsarTestContexts.size() - 1; i >= 0; i--) {
                     pulsarTestContexts.get(i).close();
                 }
                 pulsarTestContexts.clear();
@@ -209,24 +210,24 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 serviceConfigurationList.clear();
             }
         } catch (Exception e) {
-            log.warn("Failed to clean up mocked pulsar service:", e);
+            log.warn().exception(e).log("Failed to clean up mocked pulsar service");
         }
     }
 
     /**
-     * see {@link BrokerTestBase#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}.
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force)
             throws Exception {
-        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsarServiceList);
+        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin);
     }
 
     /**
-     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin, Collection)}
+     * see {@link MockedPulsarServiceBaseTest#deleteNamespaceWithRetry(String, boolean, PulsarAdmin)}.
      */
     protected void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin)
             throws Exception {
-        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin, pulsarServiceList);
+        MockedPulsarServiceBaseTest.deleteNamespaceWithRetry(ns, force, admin);
     }
 
     public void checkSnapshotPublisherCount(String namespace, int expectCount) {
@@ -236,6 +237,7 @@ public abstract class TransactionTestBase extends TestRetrySupport {
                 .atMost(5, TimeUnit.SECONDS)
                 .pollInterval(100, TimeUnit.MILLISECONDS)
                 .untilAsserted(() -> {
+                    @SuppressWarnings("unchecked")
                     List<PublisherStats> publisherStatsList =
                             (List<PublisherStats>) admin.topics()
                                     .getStats(snTopicName.getPartitionedTopicName()).getPublishers();
