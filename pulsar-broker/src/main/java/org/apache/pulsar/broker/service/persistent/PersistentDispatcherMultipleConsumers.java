@@ -439,11 +439,18 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .attr("consumerCount", consumerList.size())
                         .log("Schedule replay of messages for consumers");
                 havePendingReplayRead = true;
-                updateMinReplayedPosition();
-                onReadStarted(ReadType.Replay);
-                Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
-                        ? asyncReplayEntriesInOrder(messagesToReplayNow)
-                        : asyncReplayEntries(messagesToReplayNow);
+                Set<? extends Position> deletedMessages;
+                try {
+                    updateMinReplayedPosition();
+                    onReadStarted(ReadType.Replay);
+                    deletedMessages = topic.isDelayedDeliveryEnabled()
+                            ? asyncReplayEntriesInOrder(messagesToReplayNow)
+                            : asyncReplayEntries(messagesToReplayNow);
+                } catch (Throwable failure) {
+                    // The replay reads were never submitted: nothing would ever clear the flag again.
+                    handleReadSchedulingFailure(failure, ReadType.Replay);
+                    return;
+                }
                 // clear already acked positions from replay bucket
                 deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
                         position.getEntryId()));
@@ -473,18 +480,50 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .attr("consumersCount", consumerList.size())
                         .log("Schedule read of messages");
                 havePendingRead = true;
-                updateMinReplayedPosition();
-                onReadStarted(ReadType.Normal);
+                try {
+                    updateMinReplayedPosition();
+                    onReadStarted(ReadType.Normal);
 
-                messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
-                cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
-                        topic.getMaxReadPosition(), createReadEntriesSkipConditionForNormalRead());
+                    messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
+                    cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
+                            topic.getMaxReadPosition(), createReadEntriesSkipConditionForNormalRead());
+                } catch (Throwable failure) {
+                    // The read was never issued to the managed cursor: nothing would ever clear the
+                    // flag again.
+                    handleReadSchedulingFailure(failure, ReadType.Normal);
+                }
             } else {
                 log.debug("Cannot schedule next read until previous one is done");
             }
         } else {
             log.debug("Consumer buffer is full, pause reading");
         }
+    }
+
+    /**
+     * Handles a failure that happens between setting the pending read flag and issuing the read to
+     * the managed cursor, including errors such as {@link OutOfMemoryError} which are not handled
+     * anywhere else on this path. No read completion can ever clear the flag in this case, so it is
+     * cleared here and the read is retried with backoff; otherwise the dispatcher would stop
+     * reading until the topic is unloaded (issue #26454).
+     */
+    private void handleReadSchedulingFailure(Throwable failure, ReadType readType) {
+        if (readType == ReadType.Normal) {
+            havePendingRead = false;
+            // The failure may have happened after the read was already registered inside the
+            // managed cursor to wait for new entries: cancel it so the cleared flag cannot leave
+            // the cursor waiting.
+            cursor.cancelPendingReadRequest();
+        } else {
+            havePendingReplayRead = false;
+        }
+        onReadEnded(readType);
+        log.error()
+                .attr("readType", readType)
+                .exception(failure)
+                .log("Failed to schedule read of messages");
+        scheduleReadEntriesWithDelay(new ManagedLedgerException(failure), readType,
+                readFailureBackoff.next().toMillis());
     }
 
     protected synchronized Predicate<Position> createReadEntriesSkipConditionForNormalRead() {
@@ -1091,8 +1130,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-
         ReadType readType = (ReadType) ctx;
+        // Clear the pending read flag before anything that might throw, as readEntriesComplete does:
+        // if this callback dies midway, nothing would ever clear the flag again and the dispatcher
+        // would stall until the topic is unloaded (issue #26454).
+        if (readType == ReadType.Normal) {
+            havePendingRead = false;
+        } else {
+            havePendingReplayRead = false;
+        }
+        onReadEnded(readType);
+
         long waitTimeMillis = readFailureBackoff.next().toMillis();
 
         // Do not keep reading more entries if the cursor is already closed.
@@ -1130,15 +1178,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     .log("Error reading entries - Retrying to read");
         }
 
-        onReadEnded(readType);
-        if (readType == ReadType.Normal) {
-            havePendingRead = false;
-        } else {
-            havePendingReplayRead = false;
-            if (exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
-                Position markDeletePosition = cursor.getMarkDeletedPosition();
-                redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            }
+        if (readType == ReadType.Replay
+                && exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
+            Position markDeletePosition = cursor.getMarkDeletedPosition();
+            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
         }
 
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();
