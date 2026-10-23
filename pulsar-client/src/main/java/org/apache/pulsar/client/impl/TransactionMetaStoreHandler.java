@@ -42,6 +42,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
@@ -274,9 +275,10 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     private void failPendingRequest() {
-        // this method is executed in internalPinnedExecutor.
+        // this method is executed in internalPinnedExecutor, or once it has terminated.
         pendingRequests.forEach((k, op) -> {
-            if (op != null && !op.callback.isDone()) {
+            // Release the op even if its caller already completed or cancelled the future.
+            if (op != null) {
                 op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
                         "Could not get response from transaction meta store when "
                                 + "the transaction meta store has already close."));
@@ -827,7 +829,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                 RequestTime lastPolled = timeoutQueue.poll();
                 if (lastPolled != null) {
                     OpBase<?> op = pendingRequests.remove(lastPolled.requestId);
-                    if (op != null && !op.callback.isDone()) {
+                    // Release the op even if its caller already completed or cancelled the future.
+                    if (op != null) {
                         op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
                             String.format("%s failed due to timeout. connection: %s. pending-queue: %s",
                                 op.description, op.clientCnx, pendingRequests.size())));
@@ -896,8 +899,9 @@ public class TransactionMetaStoreHandler extends HandlerState
         this.requestTimeout.cancel();
         this.setState(State.Closed);
         // A closed handler doesn't reconnect and its timeout sweep is cancelled, so nothing else would complete
-        // the pending requests and release their buffers.
-        internalPinnedExecutor.execute(this::failPendingRequest);
+        // the pending requests and release their buffers. As a cleanup task, this still runs if the client shuts
+        // the executor down while it's busy.
+        internalPinnedExecutor.execute((ExecutorProvider.CleanupTask) this::failPendingRequest);
     }
 
     @VisibleForTesting

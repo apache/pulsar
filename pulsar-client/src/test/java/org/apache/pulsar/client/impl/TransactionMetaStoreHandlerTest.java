@@ -36,6 +36,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
@@ -58,8 +59,7 @@ public class TransactionMetaStoreHandlerTest {
                 0L, client, "topic", connectFuture);
         final ClientCnx cnx = mock(ClientCnx.class);
         when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(19);
-        final CompletableFuture<ProducerResponse> responseFuture = CompletableFuture.completedFuture(null);
-        when(cnx.sendRequestWithId(any(), anyLong())).thenReturn(responseFuture);
+        answerConnectRequests(cnx);
 
         final Channel channel = mock(Channel.class);
         when(cnx.channel()).thenReturn(channel);
@@ -92,7 +92,7 @@ public class TransactionMetaStoreHandlerTest {
 
         final ClientCnx cnx = mock(ClientCnx.class);
         when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(19);
-        when(cnx.sendRequestWithId(any(), anyLong())).thenReturn(CompletableFuture.completedFuture(null));
+        answerConnectRequests(cnx);
         when(cnx.channel()).thenReturn(mock(Channel.class));
         // The handler is closed concurrently after it switched to Ready, but before it resends the pending
         // requests, so resending them fails.
@@ -117,17 +117,102 @@ public class TransactionMetaStoreHandlerTest {
                 .serviceUrl("pulsar://localhost:6650").build();
         final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
                 0L, client, "topic", new CompletableFuture<>());
+        final List<ByteBuf> sentRequests = connectToSilentCoordinator(handler);
+        final CompletableFuture<Void> commitFuture = handler.endTxnAsync(new TxnID(1, 1), TxnAction.COMMIT);
+        final ByteBuf request = awaitFirstSentRequest(sentRequests);
+        assertThat(request.refCnt()).as("reference held by the pending request").isEqualTo(1);
+        assertThat(commitFuture).isNotDone();
 
+        handler.close();
+
+        assertThat(commitFuture).failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        awaitReleased(handler, request);
+    }
+
+    @Test
+    public void testCloseReleasesCancelledPendingRequests() throws Exception {
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650").build();
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                0L, client, "topic", new CompletableFuture<>());
+        final List<ByteBuf> sentRequests = connectToSilentCoordinator(handler);
+        final CompletableFuture<Void> commitFuture = handler.endTxnAsync(new TxnID(1, 1), TxnAction.COMMIT);
+        final ByteBuf request = awaitFirstSentRequest(sentRequests);
+        assertThat(request.refCnt()).as("reference held by the pending request").isEqualTo(1);
+        // The caller gives up on the commit, whose request stays pending until its response, timeout or close.
+        commitFuture.cancel(false);
+
+        handler.close();
+
+        awaitReleased(handler, request);
+    }
+
+    @Test
+    public void testTimeoutReleasesCancelledPendingRequests() throws Exception {
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .operationTimeout(1, TimeUnit.SECONDS)
+                .build();
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                0L, client, "topic", new CompletableFuture<>());
+        final List<ByteBuf> sentRequests = connectToSilentCoordinator(handler);
+        final CompletableFuture<Void> commitFuture = handler.endTxnAsync(new TxnID(1, 1), TxnAction.COMMIT);
+        // The caller gives up on the commit right away, long before its request times out.
+        commitFuture.cancel(false);
+        final ByteBuf request = awaitFirstSentRequest(sentRequests);
+
+        awaitReleased(handler, request);
+    }
+
+    @Test
+    public void testClientCloseFailsPendingRequestsQueuedBehindBusyExecutor() throws Exception {
+        // A single internal executor, so the task below occupies the handler's.
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .ioThreads(1)
+                .build();
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                0L, client, "topic", new CompletableFuture<>());
+        final List<ByteBuf> sentRequests = connectToSilentCoordinator(handler);
+        final CompletableFuture<Void> commitFuture = handler.endTxnAsync(new TxnID(1, 1), TxnAction.COMMIT);
+        final ByteBuf request = awaitFirstSentRequest(sentRequests);
+        assertThat(request.refCnt()).as("reference held by the pending request").isEqualTo(1);
+        // Occupy the executor until the client's shutdown interrupts it, so failing the pending request on close is
+        // still queued when the shutdown stops the executor.
+        final CountDownLatch executorBusy = new CountDownLatch(1);
+        client.getInternalExecutorService().execute(() -> {
+            executorBusy.countDown();
+            try {
+                new CountDownLatch(1).await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertThat(executorBusy.await(10, TimeUnit.SECONDS)).isTrue();
+
+        handler.close();
+        client.close();
+
+        assertThat(commitFuture).failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        awaitReleased(handler, request);
+    }
+
+    /**
+     * Connects the handler to a mocked connection whose coordinator never answers, and returns the requests the
+     * handler sends on it. The reference retained for each write is released, as the connection would once the
+     * request is flushed.
+     */
+    private static List<ByteBuf> connectToSilentCoordinator(TransactionMetaStoreHandler handler) throws Exception {
         final ClientCnx cnx = mock(ClientCnx.class);
         when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(19);
-        doAnswer(invocation -> {
-            // Release the TC connect request, as the connection would once it is written.
-            ReferenceCountUtil.release(invocation.getArgument(0));
-            return CompletableFuture.completedFuture(null);
-        }).when(cnx).sendRequestWithId(any(), anyLong());
+        answerConnectRequests(cnx);
         when(cnx.channel()).thenReturn(mock(Channel.class));
-        // Capture the requests sent to the coordinator, which never answers them, and release the reference
-        // retained for the write, as the connection would once the request is flushed.
         final List<ByteBuf> sentRequests = new CopyOnWriteArrayList<>();
         final ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
         when(ctx.writeAndFlush(any(), any())).thenAnswer(invocation -> {
@@ -138,18 +223,23 @@ public class TransactionMetaStoreHandlerTest {
         });
         when(cnx.ctx()).thenReturn(ctx);
         handler.connectionOpened(cnx).get(10, TimeUnit.SECONDS);
+        return sentRequests;
+    }
 
-        final CompletableFuture<Void> commitFuture = handler.endTxnAsync(new TxnID(1, 1), TxnAction.COMMIT);
+    private static void answerConnectRequests(ClientCnx cnx) {
+        doAnswer(invocation -> {
+            // Release the TC connect request, as the connection would once it is written.
+            ReferenceCountUtil.release(invocation.getArgument(0));
+            return CompletableFuture.completedFuture(null);
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+    }
+
+    private static ByteBuf awaitFirstSentRequest(List<ByteBuf> sentRequests) {
         Awaitility.await().untilAsserted(() -> assertThat(sentRequests).hasSize(1));
-        final ByteBuf request = sentRequests.get(0);
-        assertThat(commitFuture).isNotDone();
-        assertThat(request.refCnt()).as("reference held by the pending request").isEqualTo(1);
+        return sentRequests.get(0);
+    }
 
-        handler.close();
-
-        assertThat(commitFuture).failsWithin(Duration.ofSeconds(10))
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+    private static void awaitReleased(TransactionMetaStoreHandler handler, ByteBuf request) {
         Awaitility.await().untilAsserted(() -> {
             assertThat(request.refCnt()).as("reference held by the pending request").isZero();
             assertThat(handler.getPendingRequestsCount()).isZero();
