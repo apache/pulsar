@@ -65,6 +65,7 @@ import org.apache.pulsar.common.util.Runnables;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.ScanConsumer;
+import org.apache.pulsar.metadata.api.Stat;
 
 /**
  * {@link TransactionBuffer} for {@code segment://} topics that reads truth from the
@@ -76,6 +77,9 @@ import org.apache.pulsar.metadata.api.ScanConsumer;
  * (TC times out → ABORTED → cleanup). There's never a ledger entry with no op record. The invariant
  * <i>every transactional entry in the segment has a corresponding {@code /txn/op} record at the
  * time of append</i> lets recovery scan {@code /txn/op} authoritatively without segment-replay.
+ * The op records of concurrent appends can be written in any order, but their entries go to the
+ * ledger in publish order, so that publishes are acknowledged in the order they were made: a
+ * producer acknowledged out of order drops its connection and re-sends its pending messages.
  *
  * <p><b>Durable visibility state.</b> The TB persists a per-segment
  * {@code /txn/segment-state/<segment>/watermark} record (the resolved-below mark) plus one
@@ -140,6 +144,14 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
      * tail so we never have two in-flight watermark CASes racing.
      */
     private CompletableFuture<Void> stateTail = CompletableFuture.completedFuture(null);
+
+    /**
+     * Tail of the chain that hands the entries of {@link #appendBufferToTxn} to the managed ledger in
+     * publish order: each entry goes once its op record is written and the appends before it handed
+     * theirs over. Never completes exceptionally, so an append that fails before the ledger doesn't
+     * hold up the ones behind it.
+     */
+    private CompletableFuture<Void> appendTail = CompletableFuture.completedFuture(null);
 
     private final LongAdder committedCount = new LongAdder();
     private final LongAdder abortedCount = new LongAdder();
@@ -339,16 +351,32 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
     @Override
     public CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer) {
         buffer.retain();
-        return recoveryFuture.thenCompose(__ -> internalAppend(txnId, buffer))
+        String txnIdKey = TxnIds.toKey(txnId);
+        CompletableFuture<Stat> opWritten = recoveryFuture.thenCompose(__ -> writeOpRecord(txnId, txnIdKey));
+        CompletableFuture<Position> appended = new CompletableFuture<>();
+        synchronized (lock) {
+            // 2. ML append, in publish order (see appendTail). By the invariant above, /txn/op is
+            // durable before any ledger entry exists for this op.
+            appendTail = appendTail.thenCompose(__ -> opWritten).handle((__, opWriteFailure) -> {
+                if (opWriteFailure == null) {
+                    appendToLedger(buffer, appended);
+                }
+                return null;
+            });
+        }
+        return opWritten.thenCompose(__ -> appended)
+                .thenApply(position -> {
+                    trackPosition(txnIdKey, position);
+                    return position;
+                })
                 .whenComplete((p, ex) -> buffer.release());
     }
 
-    private CompletableFuture<Position> internalAppend(TxnID txnId, ByteBuf buffer) {
+    private CompletableFuture<Stat> writeOpRecord(TxnID txnId, String txnIdKey) {
         if (closed) {
             return FutureUtil.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException(
                     "Transaction buffer is closed"));
         }
-        String txnIdKey = TxnIds.toKey(txnId);
         return readStateCacheFirst(txnIdKey)
                 .thenCompose(state -> {
                     if (state.isTerminal()) {
@@ -358,13 +386,7 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
                     // 1. Write /txn/op first. Positions are unknown at this point; the WRITE-kind
                     // record uses sentinel 0/0 (positions live in the TB's in-memory tracking).
                     TxnOp op = new TxnOp(TxnOpKind.WRITE, segmentName, null, 0L, 0L, null);
-                    return txnStore.appendOp(txnIdKey, op).thenCompose(opStat ->
-                            // 2. ML append. By the invariant above, /txn/op is durable before any
-                            // ledger entry exists for this op.
-                            appendToLedger(buffer).thenApply(position -> {
-                                trackPosition(txnIdKey, position);
-                                return position;
-                            }));
+                    return txnStore.appendOp(txnIdKey, op);
                 });
     }
 
@@ -384,20 +406,23 @@ public class MetadataTransactionBuffer implements TransactionBuffer {
         });
     }
 
-    private CompletableFuture<Position> appendToLedger(ByteBuf buffer) {
-        CompletableFuture<Position> result = new CompletableFuture<>();
-        ledger.asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
-            @Override
-            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
-                result.complete(position);
-            }
+    private void appendToLedger(ByteBuf buffer, CompletableFuture<Position> result) {
+        try {
+            ledger.asyncAddEntry(buffer, new AsyncCallbacks.AddEntryCallback() {
+                @Override
+                public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                    result.complete(position);
+                }
 
-            @Override
-            public void addFailed(ManagedLedgerException exception, Object ctx) {
-                result.completeExceptionally(exception);
-            }
-        }, null);
-        return result;
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    result.completeExceptionally(exception);
+                }
+            }, null);
+        } catch (RuntimeException e) {
+            // Only this append fails: the ones behind it still go to the ledger.
+            result.completeExceptionally(e);
+        }
     }
 
     private void trackPosition(String txnIdKey, Position position) {

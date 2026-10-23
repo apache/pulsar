@@ -40,6 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -61,6 +62,7 @@ import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
@@ -587,6 +589,57 @@ public class MetadataTransactionBufferTest {
         // in-memory tracking, not in the op record.
         assertThat(hits.get(0).getLedgerId()).isZero();
         assertThat(hits.get(0).getEntryId()).isZero();
+    }
+
+    @Test
+    public void publishOrdering_entriesLandInPublishOrderWhenOpRecordsAreWrittenOutOfOrder() throws Exception {
+        // The op records of concurrent appends can be written in any order: on a store without native
+        // sequence keys, two appends to a txn race on its sequence counter and the loser retries. The
+        // entries must still land, and the publishes be acknowledged, in publish order: a producer
+        // acknowledged out of order drops its connection and re-sends its pending messages.
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Void> firstOpRecordHeld = new CompletableFuture<>();
+        AtomicInteger opRecordWrites = new AtomicInteger();
+        TxnMetadataStore store = spy(txnStore);
+        doAnswer(inv -> {
+            CompletableFuture<?> written = (CompletableFuture<?>) inv.callRealMethod();
+            return opRecordWrites.getAndIncrement() == 0
+                    ? written.thenCombine(firstOpRecordHeld, (stat, __) -> stat) : written;
+        }).when(store).appendOp(any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+
+        CompletableFuture<Position> first = tb.appendBufferToTxn(txnId, 0, payload("a"));
+        CompletableFuture<Position> second = tb.appendBufferToTxn(txnId, 1, payload("b"));
+
+        // The in-memory store has written the second op record, while the first one is held back.
+        assertThat(opRecordWrites).hasValue(2);
+        assertThat(second).as("the append whose op record is written first").isNotDone();
+        verify(ledger, never()).asyncAddEntry(any(ByteBuf.class), any(), any());
+
+        firstOpRecordHeld.complete(null);
+        assertThat(first.get()).isLessThan(second.get());
+    }
+
+    @Test
+    public void publishOrdering_appendFailingBeforeTheLedgerDoesNotHoldUpLaterAppends() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        CompletableFuture<Stat> firstOpRecordWrite = new CompletableFuture<>();
+        TxnMetadataStore store = spy(txnStore);
+        doReturn(firstOpRecordWrite).doCallRealMethod().when(store).appendOp(any(), any());
+        MetadataTransactionBuffer tb = new MetadataTransactionBuffer(topic, store);
+        tb.checkIfTBRecoverCompletely().get();
+
+        CompletableFuture<Position> first = tb.appendBufferToTxn(txnId, 0, payload("a"));
+        CompletableFuture<Position> second = tb.appendBufferToTxn(txnId, 1, payload("b"));
+        assertThat(second).isNotDone();
+
+        // The first append fails without an entry, and the second one's takes its place.
+        firstOpRecordWrite.completeExceptionally(new MetadataStoreException("injected"));
+        assertThatThrownBy(first::get).hasCauseInstanceOf(MetadataStoreException.class);
+        assertThat(second.get()).isEqualTo(PositionFactory.create(10, 1));
     }
 
     // ---- helpers -----------------------------------------------------------
