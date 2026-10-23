@@ -4127,12 +4127,13 @@ public class BrokerService implements Closeable {
     }
 
     /**
-     * @return validation error message if the value is invalid, otherwise empty
+     * @return validation error message if the value is invalid, otherwise empty. Keys that are not dynamic
+     *         configurations are not validated here.
      */
     public Optional<String> getDynamicConfigurationValidationError(String key, String value) {
         ConfigField configField = dynamicConfigurationMap.get(key);
         if (configField == null) {
-            return Optional.of("Unknown dynamic configuration: " + key);
+            return Optional.empty();
         }
         if (configField.field != null) {
             Optional<String> fieldValidationError = FieldContextValidator.validateString(configField.field, value);
