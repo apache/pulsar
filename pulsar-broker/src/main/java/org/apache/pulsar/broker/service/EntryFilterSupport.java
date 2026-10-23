@@ -20,14 +20,12 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Collections;
 import java.util.List;
-import net.jcip.annotations.NotThreadSafe;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.FilterContext;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 
-@NotThreadSafe
 public class EntryFilterSupport {
 
     protected final List<EntryFilter> entryFilters;
@@ -61,28 +59,18 @@ public class EntryFilterSupport {
         hasFilter = CollectionUtils.isNotEmpty(entryFilters);
     }
 
-    /**
-     * Do not use this method outside dispatcher,
-     * the `filterContext` field is bound at dispatcher level and to avoid objection creation.
-     */
-    protected EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata,
+    public EntryFilter.FilterResult runFiltersForEntry(Entry entry, MessageMetadata msgMetadata,
                                                        Consumer consumer) {
-        if (hasFilter) {
-            fillContext(filterContext, msgMetadata, subscription, consumer);
-            return getFilterResult(filterContext, entry, entryFilters);
-        } else {
-            return EntryFilter.FilterResult.ACCEPT;
-        }
+        return runFiltersForEntry(filterContext, entry, msgMetadata, consumer);
     }
 
     /**
-     * runFiltersForAnalyzeBacklog
-     * the difference is the creation of the filterContext.
+     * Run the filters with a caller-owned context, for callers outside the dispatch thread
+     * (e.g. backlog analysis), which must not reuse the dispatcher's {@link #filterContext}.
      */
-    public EntryFilter.FilterResult runFiltersForAnalyzeBacklog(Entry entry, MessageMetadata msgMetadata,
-                                                                Consumer consumer) {
+    public EntryFilter.FilterResult runFiltersForEntry(FilterContext context, Entry entry,
+                                                       MessageMetadata msgMetadata, Consumer consumer) {
         if (hasFilter) {
-            FilterContext context = new FilterContext();
             fillContext(context, msgMetadata, subscription, consumer);
             return getFilterResult(context, entry, entryFilters);
         } else {
