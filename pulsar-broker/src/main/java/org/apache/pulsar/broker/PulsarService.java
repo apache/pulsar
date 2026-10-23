@@ -2156,6 +2156,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         }
     }
 
+    /**
+     * Whether the configuration metadata store and the local metadata store are the same instance, which happens
+     * when both use the same URL.
+     */
+    public boolean isConfigurationMetadataStoreSharedWithLocal() {
+        return configurationMetadataStore == localMetadataStore;
+    }
+
     public void initConfigMetadataSynchronizerIfNeeded() {
         mutex.lock();
         try {
@@ -2166,6 +2174,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 LOG.info(
                         "Skip to update Metadata Synchronizer because of the Configuration Metadata Store using[{}]"
                                 + " does not support.", configurationMetadataStore.getClass().getName());
+                return;
+            }
+            // Skip if the configuration metadata store is the local one: swapping its synchronizer would make every
+            // local metadata write depend on the configuration sync topic.
+            if (isConfigurationMetadataStoreSharedWithLocal()) {
+                LOG.warn("Skip to update Metadata Synchronizer to topic[{}] because the Configuration Metadata Store"
+                        + " is the same as the Local Metadata Store.", newTopic);
                 return;
             }
             // Skip if no changes.
