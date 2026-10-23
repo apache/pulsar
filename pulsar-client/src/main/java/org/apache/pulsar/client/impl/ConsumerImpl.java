@@ -2447,11 +2447,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 incomingQueueLock.unlock();
             }
 
-            // is channel is connected, we should send redeliver command to broker
-            if (cnx != null && isConnected(cnx)) {
+            // Send the redeliver also while the subscribe is in flight on this cnx: it carried the previous
+            // epoch, and if the broker never learns the new one, every message it dispatches is discarded here.
+            // The broker applies the redeliver once the consumer is created.
+            if (cnx != null) {
                 cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
                         consumerId, CONSUMER_EPOCH.get(this)), cnx.ctx().voidPromise());
-                if (currentSize > 0) {
+                // While reconnecting, the subscribe success resets the permits and grants a full queue
+                if (currentSize > 0 && isConnected(cnx)) {
                     increaseAvailablePermits(cnx, currentSize);
                 }
                 log.debug().attr("send", currentSize)
