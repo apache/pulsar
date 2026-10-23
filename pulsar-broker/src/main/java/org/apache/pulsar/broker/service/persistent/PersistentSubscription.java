@@ -75,6 +75,7 @@ import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
+import org.apache.pulsar.broker.service.plugin.FilterContext;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleDisabled;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
@@ -728,6 +729,8 @@ public class PersistentSubscription extends AbstractSubscription {
         }
         final EntryFilterSupport entryFilterSupport = dispatcher != null
                 ? (EntryFilterSupport) dispatcher : new EntryFilterSupport(this);
+        // The dispatcher keeps reusing its own FilterContext on the dispatch thread: the scan needs its own
+        final FilterContext filterContext = new FilterContext();
         // we put some hard limits on the scan, in order to prevent denial of services
         long maxEntries = config.getSubscriptionBacklogScanMaxEntries();
         long timeOutMs = config.getSubscriptionBacklogScanMaxTimeMs();
@@ -752,7 +755,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 numMessages = messageMetadata.getNumMessagesInBatch();
             }
             EntryFilter.FilterResult filterResult = entryFilterSupport
-                    .runFiltersForEntry(entry, messageMetadata, null);
+                    .runFiltersForEntry(filterContext, entry, messageMetadata, null);
 
             if (filterResult == null) {
                 filterResult = EntryFilter.FilterResult.ACCEPT;
