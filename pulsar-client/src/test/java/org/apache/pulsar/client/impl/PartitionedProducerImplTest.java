@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
@@ -90,6 +91,7 @@ public class PartitionedProducerImplTest {
         producerCreatedFuture = new CompletableFuture<>();
         ClientConfigurationData clientConfigurationData = mock(ClientConfigurationData.class);
         Timer timer = mock(Timer.class);
+        when(timer.newTimeout(any(), anyLong(), any())).thenReturn(mock(Timeout.class));
 
         producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
 
@@ -373,14 +375,16 @@ public class PartitionedProducerImplTest {
      * Captures the partition update timer tasks the producer schedules, and only those: the partition producers
      * schedule their own tasks on the same timer.
      */
-    private List<TimerTask> capturePartitionUpdateTasks() {
-        List<TimerTask> scheduled = new ArrayList<>();
+    private List<Timeout> capturePartitionUpdateTimeouts() {
+        List<Timeout> scheduled = new ArrayList<>();
         when(client.timer().newTimeout(any(), anyLong(), any())).thenAnswer(invocation -> {
             TimerTask task = invocation.getArgument(0);
+            Timeout timeout = mock(Timeout.class);
+            when(timeout.task()).thenReturn(task);
             if (task.getClass().getEnclosingClass() == PartitionedProducerImpl.class) {
-                scheduled.add(task);
+                scheduled.add(timeout);
             }
-            return mock(Timeout.class);
+            return timeout;
         });
         return scheduled;
     }
@@ -394,20 +398,21 @@ public class PartitionedProducerImplTest {
 
     /**
      * A first partition whose connection fails at once ends the creation inside the constructor, before the
-     * partition update timer is scheduled. The timer must not be scheduled afterwards: the producer is closed and
-     * nothing would cancel it.
+     * partition update timer is scheduled. The close found no timer to cancel, so the constructor must cancel the
+     * timer it schedules afterwards.
      */
     @Test
-    public void testPartitionUpdateTimerIsNotScheduledWhenTheCreationEndsInTheConstructor() {
+    public void testPartitionUpdateTimerIsCancelledWhenTheCreationEndsInTheConstructor() {
         when(client.getConnection(anyString(), anyInt()))
                 .thenReturn(FutureUtil.failedFuture(new PulsarClientException.AuthorizationException("not allowed")));
-        List<TimerTask> scheduled = capturePartitionUpdateTasks();
+        List<Timeout> scheduled = capturePartitionUpdateTimeouts();
 
         PartitionedProducerImpl<byte[]> producer = newPartitionedProducer();
 
         assertTrue(producer.producerCreatedFuture().isCompletedExceptionally());
         assertTrue(producer.isTerminalState(), "the producer ended in its constructor, state " + producer.getState());
-        assertEquals(scheduled.size(), 0, "No partition update timer for a producer that ended in its constructor");
+        assertEquals(scheduled.size(), 1);
+        verify(scheduled.get(0)).cancel();
     }
 
     /**
@@ -417,13 +422,13 @@ public class PartitionedProducerImplTest {
     @Test
     public void testPartitionUpdateTimerStopsOnceTheProducerEnded() throws Exception {
         when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
-        List<TimerTask> scheduled = capturePartitionUpdateTasks();
+        List<Timeout> scheduled = capturePartitionUpdateTimeouts();
         PartitionedProducerImpl<byte[]> producer = newPartitionedProducer();
         assertEquals(scheduled.size(), 1, "A producer still being created schedules the timer");
 
         producer.closeAsync();
         assertTrue(producer.isTerminalState(), "state " + producer.getState());
-        scheduled.get(0).run(mock(Timeout.class));
+        scheduled.get(0).task().run(mock(Timeout.class));
 
         assertEquals(scheduled.size(), 1, "An ended producer does not reschedule the partition update task");
     }

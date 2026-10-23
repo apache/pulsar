@@ -125,13 +125,19 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         firstPartitionIndex = indexList.get(0);
         start(indexList);
 
-        // start track and auto subscribe partition increasement. A producer that already ended inside start()
-        // has nothing to keep up to date, and its close ran before there was a timer to cancel.
-        if (conf.isAutoUpdatePartitions() && !isTerminalState()) {
+        // start track and auto subscribe partition increasement
+        if (conf.isAutoUpdatePartitions()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
-            partitionsAutoUpdateTimeout = client.timer()
+            Timeout timeout = client.timer()
                 .newTimeout(partitionsAutoUpdateTimerTask,
                         conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
+            partitionsAutoUpdateTimeout = timeout;
+            // A producer that ended inside start() has nothing to keep up to date, and its close ran before there
+            // was a timer to cancel. The timer is published before the state is checked and closeAsync() sets the
+            // state before it reads the timer, so one of the two always cancels it.
+            if (isTerminalState()) {
+                timeout.cancel();
+            }
         }
     }
 
