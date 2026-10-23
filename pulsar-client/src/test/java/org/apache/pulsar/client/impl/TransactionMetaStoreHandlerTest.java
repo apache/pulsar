@@ -28,15 +28,22 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.ReferenceCountUtil;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.TxnAction;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -101,5 +108,51 @@ public class TransactionMetaStoreHandlerTest {
                 .withCauseInstanceOf(TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException.class);
         // The failed request has been completed and its op recycled, so it must not stay pending.
         assertEquals(handler.getPendingRequestsCount(), 0);
+    }
+
+    @Test
+    public void testCloseFailsAndReleasesPendingRequests() throws Exception {
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650").build();
+        final TransactionMetaStoreHandler handler = new TransactionMetaStoreHandler(
+                0L, client, "topic", new CompletableFuture<>());
+
+        final ClientCnx cnx = mock(ClientCnx.class);
+        when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(19);
+        doAnswer(invocation -> {
+            // Release the TC connect request, as the connection would once it is written.
+            ReferenceCountUtil.release(invocation.getArgument(0));
+            return CompletableFuture.completedFuture(null);
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        when(cnx.channel()).thenReturn(mock(Channel.class));
+        // Capture the requests sent to the coordinator, which never answers them, and release the reference
+        // retained for the write, as the connection would once the request is flushed.
+        final List<ByteBuf> sentRequests = new CopyOnWriteArrayList<>();
+        final ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        when(ctx.writeAndFlush(any(), any())).thenAnswer(invocation -> {
+            final ByteBuf request = invocation.getArgument(0);
+            request.release();
+            sentRequests.add(request);
+            return null;
+        });
+        when(cnx.ctx()).thenReturn(ctx);
+        handler.connectionOpened(cnx).get(10, TimeUnit.SECONDS);
+
+        final CompletableFuture<Void> commitFuture = handler.endTxnAsync(new TxnID(1, 1), TxnAction.COMMIT);
+        Awaitility.await().untilAsserted(() -> assertThat(sentRequests).hasSize(1));
+        final ByteBuf request = sentRequests.get(0);
+        assertThat(commitFuture).isNotDone();
+        assertThat(request.refCnt()).as("reference held by the pending request").isEqualTo(1);
+
+        handler.close();
+
+        assertThat(commitFuture).failsWithin(Duration.ofSeconds(10))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        Awaitility.await().untilAsserted(() -> {
+            assertThat(request.refCnt()).as("reference held by the pending request").isZero();
+            assertThat(handler.getPendingRequestsCount()).isZero();
+        });
     }
 }

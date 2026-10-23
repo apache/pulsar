@@ -895,6 +895,9 @@ public class TransactionMetaStoreHandler extends HandlerState
     public void close() throws IOException {
         this.requestTimeout.cancel();
         this.setState(State.Closed);
+        // A closed handler doesn't reconnect and its timeout sweep is cancelled, so nothing else would complete
+        // the pending requests and release their buffers.
+        internalPinnedExecutor.execute(this::failPendingRequest);
     }
 
     @VisibleForTesting
