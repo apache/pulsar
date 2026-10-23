@@ -37,7 +37,9 @@ import jakarta.ws.rs.core.UriInfo;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -92,6 +94,7 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerAcks;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.data.ProducerMessages;
@@ -979,6 +982,45 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
             Assert.assertTrue(response.getMessagePublishResults().get(index).getErrorMsg()
                     .contains("Cannot create producer on topic with backlog quota exceeded"));
         }
+    }
+
+    @Test
+    public void testProduceToPartitionedTopicWithBacklogEvictionPolicy() throws Exception {
+        String namespaceName = testTenant + "/" + testNamespace;
+        String topicName = "persistent://" + namespaceName + "/" + testTopicName;
+        admin.topics().createPartitionedTopic(topicName, 3);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(0)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+        admin.namespaces().setBacklogQuota(namespaceName, backlogQuota,
+                BacklogQuota.BacklogQuotaType.destination_storage);
+
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        ProducerMessages producerMessages = new ProducerMessages();
+        StringBuilder message = new StringBuilder("[");
+        for (int i = 0; i < 9; i++) {
+            message.append(i == 0 ? "" : ",").append("{\"payload\":\"rest-produce-").append(i).append("\"}");
+        }
+        producerMessages.setMessages(createMessages(message.append("]").toString()));
+        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName,
+                false, producerMessages);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
+        ProducerAcks response = (ProducerAcks) responseCaptor.getValue().getEntity();
+        Assert.assertEquals(response.getMessagePublishResults().size(), 9);
+        // The eviction policy never rejects producers, and each partition keeps the request order.
+        Map<Integer, Long> lastEntryIdByPartition = new HashMap<>();
+        for (ProducerAck ack : response.getMessagePublishResults()) {
+            Assert.assertEquals(ack.getErrorCode(), 0, ack.getErrorMsg());
+            String[] messageId = ack.getMessageId().split(":");
+            long entryId = Long.parseLong(messageId[1]);
+            int partition = Integer.parseInt(messageId[2]);
+            Long lastEntryId = lastEntryIdByPartition.put(partition, entryId);
+            Assert.assertTrue(lastEntryId == null || lastEntryId < entryId, ack.getMessageId());
+        }
+        Assert.assertEquals(lastEntryIdByPartition.size(), 3);
     }
 
     @Test
