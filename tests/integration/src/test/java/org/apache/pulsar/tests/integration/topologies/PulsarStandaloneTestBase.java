@@ -18,14 +18,9 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
-import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_HTTPS_PORT;
-import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BROKER_PORT_TLS;
 import static org.testng.Assert.assertEquals;
-import com.google.common.io.Resources;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.tests.integration.containers.StandaloneContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -40,19 +35,8 @@ import org.testng.annotations.DataProvider;
  * tests on cluster mode. We only run basic validation and test new features (e.g. state)
  * on standalone.
  */
-@Slf4j
+@CustomLog
 public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
-
-    protected final static String clientTlsTrustCertsFilePath = loadCertificateAuthorityFile("certs/ca.cert.pem");
-    protected final static String clientTlsKeyFilePath = loadCertificateAuthorityFile("client-keys/admin.key-pk8.pem");
-    protected final static String clientTlsCertificateFilePath = loadCertificateAuthorityFile("client-keys/admin.cert.pem");
-
-
-    private static String loadCertificateAuthorityFile(String name) {
-        return Resources.getResource("certificate-authority/" + name).getPath();
-    }
-
-    protected final Map<String, String> standaloneEnvs = new HashMap<>();
 
     @DataProvider(name = "StandaloneServiceUrlAndTopics")
     public Object[][] serviceUrlAndTopics() {
@@ -100,17 +84,16 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
             .withNetworkAliases(StandaloneContainer.NAME + "-" + clusterName)
             .withEnv("PF_stateStorageServiceUrl", "bk://localhost:4181")
             .withEnv("PULSAR_STANDALONE_USE_ZOOKEEPER", "true");
-        container.withEnv(standaloneEnvs);
         container.start();
-        log.info("Pulsar cluster {} is up running:", clusterName);
-        log.info("\tBinary Service Url : {}", container.getPlainTextServiceUrl());
-        log.info("\tHttp Service Url : {}", container.getHttpServiceUrl());
+        log.info().attr("cluster", clusterName).log("Pulsar cluster is up running");
+        log.info().attr("url", container.getPlainTextServiceUrl()).log("\tBinary Service Url");
+        log.info().attr("url", container.getHttpServiceUrl()).log("\tHttp Service Url");
 
         // add cluster to public tenant
         ContainerExecResult result = container.execCmd(
                 "/pulsar/bin/pulsar-admin", "namespaces", "policies", "public/default");
         assertEquals(0, result.getExitCode());
-        log.info("public/default namespace policies are {}", result.getStdout());
+        log.info().attr("are", result.getStdout()).log("public/default namespace policies are");
     }
 
     protected void stopCluster() throws Exception {
@@ -124,7 +107,17 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         }
     }
 
-
+    protected String getFunctionLogs(String name) {
+        try {
+            String logFile = "/pulsar/logs/functions/public/default/" + name + "/" + name + "-0.log";
+            return container.<String>copyFileFromContainer(logFile, (inputStream) -> {
+                return IOUtils.toString(inputStream, "utf-8");
+            });
+        } catch (Throwable err) {
+            log.info().attr("get", name).exception(err).log("Cannot get logs");
+            return "";
+        }
+    }
 
     protected void dumpFunctionLogs(String name) {
         try {
@@ -132,34 +125,10 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
             String logs = container.<String>copyFileFromContainer(logFile, (inputStream) -> {
                 return IOUtils.toString(inputStream, "utf-8");
             });
-            log.info("Function {} logs {}", name, logs);
+            log.info().attr("function", name).attr("logs", logs).log("Function logs");
         } catch (Throwable err) {
-            log.info("Cannot download {} logs", name, err);
+            log.info().attr("download", name).exception(err).log("Cannot download logs");
         }
     }
 
-    protected void setupTLS () {
-        standaloneEnvs.put("PULSAR_PREFIX_webServicePortTls", String.valueOf(BROKER_HTTPS_PORT));
-        standaloneEnvs.put("PULSAR_PREFIX_brokerServicePortTls", String.valueOf(BROKER_PORT_TLS));
-        standaloneEnvs.put("PULSAR_PREFIX_brokerClientTlsEnabled", "true");
-        standaloneEnvs.put("PULSAR_PREFIX_tlsRequireTrustedClientCertOnConnect", "true");
-        standaloneEnvs.put("PULSAR_PREFIX_tlsAllowInsecureConnection", "false");
-        standaloneEnvs.put("PULSAR_PREFIX_tlsCertificateFilePath",
-                "/pulsar/certificate-authority/server-keys/broker.cert.pem");
-        standaloneEnvs.put("PULSAR_PREFIX_tlsKeyFilePath",
-                "/pulsar/certificate-authority/server-keys/broker.key-pk8.pem");
-        standaloneEnvs.put("PULSAR_PREFIX_tlsTrustCertsFilePath",
-                "/pulsar/certificate-authority/certs/ca.cert.pem");
-        standaloneEnvs.put("PULSAR_PREFIX_brokerClientCertificateFilePath",
-                "/pulsar/certificate-authority/client-keys/admin.cert.pem");
-        standaloneEnvs.put("PULSAR_PREFIX_brokerClientKeyFilePath",
-                "/pulsar/certificate-authority/client-keys/admin.key-pk8.pem");
-        standaloneEnvs.put("PULSAR_PREFIX_brokerClientTrustCertsFilePath",
-                "/pulsar/certificate-authority/certs/ca.cert.pem");
-        standaloneEnvs.put("PULSAR_PREFIX_brokerClientAuthenticationPlugin",
-                "org.apache.pulsar.client.impl.auth.AuthenticationTls");
-        standaloneEnvs.put("PULSAR_PREFIX_brokerClientAuthenticationParameters",
-                "{\"tlsCertFile\":\"/pulsar/certificate-authority/client-keys/admin.cert.pem\","
-                        + "\"tlsKeyFile\":\"/pulsar/certificate-authority/client-keys/admin.key-pk8.pem\"}");
-    }
 }

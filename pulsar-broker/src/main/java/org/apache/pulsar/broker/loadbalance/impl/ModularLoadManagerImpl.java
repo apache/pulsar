@@ -34,14 +34,16 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import lombok.CustomLog;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -57,21 +59,22 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
+import org.apache.pulsar.broker.loadbalance.extensions.models.TopKBundles;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
+import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.common.util.Reflections;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
-import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
@@ -85,15 +88,9 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageBrokerData;
 import org.apache.pulsar.policies.data.loadbalancer.TimeAverageMessageData;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class ModularLoadManagerImpl implements ModularLoadManager {
-    private static final Logger log = LoggerFactory.getLogger(ModularLoadManagerImpl.class);
-
-    // Path to ZNode whose children contain BundleData jsons for each bundle (new API version of ResourceQuota).
-    public static final String BUNDLE_DATA_PATH = "/loadbalance/bundle-data";
-
     // Default message rate to assume for unseen bundles.
     public static final double DEFAULT_MESSAGE_RATE = 50;
 
@@ -107,12 +104,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // The number of effective samples to keep for observing short term data.
     public static final int NUM_SHORT_SAMPLES = 10;
 
-    // Path to ZNode whose children contain ResourceQuota jsons.
-    public static final String RESOURCE_QUOTA_ZPATH = "/loadbalance/resource-quota/namespace";
-
-    // Path to ZNode containing TimeAverageBrokerData jsons for each broker.
-    public static final String TIME_AVERAGE_BROKER_ZPATH = "/loadbalance/broker-time-average";
-
     // Set of broker candidates to reuse so that object creation is avoided.
     private final Set<String> brokerCandidateCache;
 
@@ -120,17 +111,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private LockManager<LocalBrokerData> brokersData;
     private ResourceLock<LocalBrokerData> brokerDataLock;
 
-    private MetadataCache<BundleData> bundlesCache;
-    private MetadataCache<ResourceQuota> resourceQuotaCache;
-    private MetadataCache<TimeAverageBrokerData> timeAverageBrokerDataCache;
-
     // Broker host usage object used to calculate system resource usage.
     private BrokerHostUsage brokerHostUsage;
 
-    // Map from brokers to namespaces to the bundle ranges in that namespace assigned to that broker.
-    // Used to distribute bundles within a namespace evenly across brokers.
-    private final ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>
-            brokerToNamespaceToBundleRange;
+    private final BundleRangeCache brokerToNamespaceToBundleRange = new BundleRangeCache();
 
     // Path to the ZNode containing the LocalBrokerData json for this broker.
     private String brokerZnodePath;
@@ -151,8 +135,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // LocalBrokerData available before most recent update.
     private LocalBrokerData lastData;
 
-    // Pipeline used to determine what namespaces, if any, should be unloaded.
-    private final List<LoadSheddingStrategy> loadSheddingPipeline;
+    // Used to determine what namespaces, if any, should be unloaded.
+    private LoadSheddingStrategy loadSheddingStrategy;
 
     // Local data for the broker this is running on.
     private LocalBrokerData localData;
@@ -166,11 +150,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     // Strategy used to determine where new topics should be placed.
     private ModularLoadManagerStrategy placementStrategy;
 
+    private ModularLoadManagerStrategy sheddingExcludedNamespaceSelectionStrategy;
+
     // Policies used to determine which brokers are available for particular namespaces.
     private SimpleResourceAllocationPolicies policies;
 
+    @VisibleForTesting
     // Pulsar service used to initialize this.
-    private PulsarService pulsar;
+    protected PulsarService pulsar;
+
+    private PulsarResources pulsarResources;
 
     // Executor service used to update broker data.
     private final ExecutorService executors;
@@ -180,7 +169,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private Map<String, String> brokerToFailureDomainMap;
 
-    private SessionEvent lastMetadataSessionEvent = SessionEvent.Reconnected;
+    private volatile SessionEvent lastMetadataSessionEvent = SessionEvent.Reconnected;
 
     // record load balancing metrics
     private AtomicReference<List<Metrics>> loadBalancingMetrics = new AtomicReference<>();
@@ -198,36 +187,36 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private final Lock lock = new ReentrantLock();
     private final Set<String> knownBrokers = new HashSet<>();
     private Map<String, String> bundleBrokerAffinityMap;
+    // array used for sorting and select topK bundles
+    private final List<Map.Entry<String, ? extends Comparable>> bundleArr = new ArrayList<>();
+    // The callbacks that unregister the listeners of the metadata store
+    private final List<Runnable> metadataStoreListenerCleanups = new CopyOnWriteArrayList<>();
+
 
     /**
      * Initializes fields which do not depend on PulsarService. initialize(PulsarService) should subsequently be called.
      */
     public ModularLoadManagerImpl() {
         brokerCandidateCache = new HashSet<>();
-        brokerToNamespaceToBundleRange =
-                ConcurrentOpenHashMap.<String,
-                        ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>>>newBuilder()
-                        .build();
         defaultStats = new NamespaceBundleStats();
         filterPipeline = new ArrayList<>();
         loadData = new LoadData();
-        loadSheddingPipeline = new ArrayList<>();
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
-        executors = Executors.newSingleThreadExecutor(
-                new ExecutorProvider.ExtendedThreadFactory("pulsar-modular-load-manager"));
+        executors = PulsarExecutors.newSingleThreadExecutor(
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-modular-load-manager"), false);
         this.brokerToFailureDomainMap = new HashMap<>();
         this.bundleBrokerAffinityMap = new ConcurrentHashMap<>();
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
-            public boolean isEnablePersistentTopics(String brokerUrl) {
-                final BrokerData brokerData = loadData.getBrokerData().get(brokerUrl.replace("http://", ""));
+            public boolean isEnablePersistentTopics(String brokerId) {
+                final BrokerData brokerData = loadData.getBrokerData().get(brokerId);
                 return brokerData != null && brokerData.getLocalData() != null
                         && brokerData.getLocalData().isPersistentTopicsEnabled();
             }
 
             @Override
-            public boolean isEnableNonPersistentTopics(String brokerUrl) {
-                final BrokerData brokerData = loadData.getBrokerData().get(brokerUrl.replace("http://", ""));
+            public boolean isEnableNonPersistentTopics(String brokerId) {
+                final BrokerData brokerData = loadData.getBrokerData().get(brokerId);
                 return brokerData != null && brokerData.getLocalData() != null
                         && brokerData.getLocalData().isNonPersistentTopicsEnabled();
             }
@@ -243,12 +232,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public void initialize(final PulsarService pulsar) {
         this.pulsar = pulsar;
+        this.pulsarResources = pulsar.getPulsarResources();
         brokersData = pulsar.getCoordinationService().getLockManager(LocalBrokerData.class);
-        bundlesCache = pulsar.getLocalMetadataStore().getMetadataCache(BundleData.class);
-        resourceQuotaCache = pulsar.getLocalMetadataStore().getMetadataCache(ResourceQuota.class);
-        timeAverageBrokerDataCache = pulsar.getLocalMetadataStore().getMetadataCache(TimeAverageBrokerData.class);
-        pulsar.getLocalMetadataStore().registerListener(this::handleDataNotification);
-        pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
+        metadataStoreListenerCleanups.add(
+                pulsar.getLocalMetadataStore().registerCancellableListener(this::handleDataNotification));
+        metadataStoreListenerCleanups.add(
+                pulsar.getLocalMetadataStore().registerCancellableSessionListener(this::handleMetadataSessionEvent));
 
         if (SystemUtils.IS_OS_LINUX) {
             brokerHostUsage = new LinuxBrokerHostUsageImpl(pulsar);
@@ -266,20 +255,68 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         defaultStats.msgRateIn = DEFAULT_MESSAGE_RATE;
         defaultStats.msgRateOut = DEFAULT_MESSAGE_RATE;
 
-        placementStrategy = ModularLoadManagerStrategy.create(conf);
+        final LoadBalanceStrategies strategies = createLoadBalanceStrategies(conf);
+        placementStrategy = strategies.placementStrategy();
+        loadSheddingStrategy = strategies.loadSheddingStrategy();
+        sheddingExcludedNamespaceSelectionStrategy = new RoundRobinBrokerSelector();
         policies = new SimpleResourceAllocationPolicies(pulsar);
         filterPipeline.add(new BrokerLoadManagerClassFilter());
         filterPipeline.add(new BrokerVersionFilter());
 
         LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap);
         // register listeners for domain changes
-        pulsar.getPulsarResources().getClusterResources().getFailureDomainResources()
-                .registerListener(__ -> {
+        metadataStoreListenerCleanups.add(pulsarResources.getClusterResources().getFailureDomainResources()
+                .registerCancellableListener(__ -> {
                     executors.execute(
                             () -> LoadManagerShared.refreshBrokerToFailureDomainMap(pulsar, brokerToFailureDomainMap));
-                });
+                }));
+    }
 
-        loadSheddingPipeline.add(createLoadSheddingStrategy());
+    /**
+     * The placement strategy and the load shedding strategy resolved from the configuration.
+     */
+    record LoadBalanceStrategies(ModularLoadManagerStrategy placementStrategy,
+                                 LoadSheddingStrategy loadSheddingStrategy) {
+    }
+
+    /**
+     * Creates the placement and the load shedding strategy from the configuration and pairs them.
+     * <p>
+     * A placement strategy that is also a load shedding strategy (AvgShedder, the default) plans the destination of
+     * every bundle it unloads, so it is only used when the same class is configured as the shedding strategy. If a
+     * different shedding strategy is configured explicitly, the configured shedder is kept and placement falls back
+     * to {@link LeastLongTermMessageRate}, the default placement strategy before AvgShedder, so configurations that
+     * only set {@code loadBalancerLoadSheddingStrategy} keep the behavior they had.
+     */
+    @VisibleForTesting
+    static LoadBalanceStrategies createLoadBalanceStrategies(ServiceConfiguration conf) {
+        ModularLoadManagerStrategy placementStrategy = ModularLoadManagerStrategy.create(conf);
+        if (placementStrategy instanceof LoadSheddingStrategy) {
+            if (conf.getLoadBalancerLoadSheddingStrategy().equals(conf.getLoadBalancerLoadPlacementStrategy())) {
+                // bind the load shedding strategy and the placement strategy
+                return new LoadBalanceStrategies(placementStrategy, (LoadSheddingStrategy) placementStrategy);
+            }
+            log.warn()
+                    .attr("sheddingStrategy", conf.getLoadBalancerLoadSheddingStrategy())
+                    .attr("placementStrategy", conf.getLoadBalancerLoadPlacementStrategy())
+                    .attr("fallbackPlacementStrategy", LeastLongTermMessageRate.class.getName())
+                    .log("The configured load shedding strategy cannot be paired with the placement strategy,"
+                            + " which requires the same class as the shedding strategy. Using the fallback"
+                            + " placement strategy instead. Set loadBalancerLoadPlacementStrategy explicitly"
+                            + " to choose the placement strategy");
+            return new LoadBalanceStrategies(new LeastLongTermMessageRate(), createLoadSheddingStrategy(conf));
+        }
+        LoadSheddingStrategy loadSheddingStrategy = createLoadSheddingStrategy(conf);
+        if (loadSheddingStrategy instanceof ModularLoadManagerStrategy) {
+            log.warn()
+                    .attr("sheddingStrategy", conf.getLoadBalancerLoadSheddingStrategy())
+                    .attr("placementStrategy", conf.getLoadBalancerLoadPlacementStrategy())
+                    .log("The load shedding strategy also implements bundle placement but a different"
+                            + " placement strategy is configured; bundles it unloads are placed by the"
+                            + " configured placement strategy, not where the shedder planned them. Set"
+                            + " loadBalancerLoadPlacementStrategy to the same class to pair them");
+        }
+        return new LoadBalanceStrategies(placementStrategy, loadSheddingStrategy);
     }
 
     public void handleDataNotification(Notification t) {
@@ -297,20 +334,51 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         }
     }
 
-    private void handleMetadataSessionEvent(SessionEvent e) {
+    @VisibleForTesting
+    void handleMetadataSessionEvent(SessionEvent e) {
+        boolean wasConnected = isMetadataSessionConnected();
         lastMetadataSessionEvent = e;
+        if (wasConnected && !e.isConnected()
+                && pulsar.getLeaderElectionService() != null
+                && pulsar.getLeaderElectionService().isLeader()) {
+            log.warn()
+                    .attr("metadataSessionEvent", e)
+                    .log("Metadata session disconnected while this broker is the load manager leader;"
+                            + " leader-only operations will be skipped");
+        }
     }
 
-    private LoadSheddingStrategy createLoadSheddingStrategy() {
-        try {
-            return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
-                    Thread.currentThread().getContextClassLoader());
-        } catch (Exception e) {
-            log.error("Error when trying to create load shedding strategy: {}",
-                    conf.getLoadBalancerLoadPlacementStrategy(), e);
-        }
-        log.error("create load shedding strategy failed. using OverloadShedder instead.");
-        return new OverloadShedder();
+    /**
+     * Best-effort guard for leader-only operations in the modular load manager. The metadata session listener and
+     * load-manager tasks run on different threads, so the session event must be visible here. Requiring a connected
+     * session prevents this manager from acting on a leader-election state that can remain stale while disconnected.
+     * This local check does not change the shared leader-election semantics or fence a leadership change that happens
+     * after the check.
+     */
+    @VisibleForTesting
+    boolean isLeader() {
+        return isMetadataSessionConnected()
+                && pulsar.getLeaderElectionService() != null
+                && pulsar.getLeaderElectionService().isLeader();
+    }
+
+    private boolean isMetadataSessionConnected() {
+        return lastMetadataSessionEvent != null && lastMetadataSessionEvent.isConnected();
+    }
+
+    private static LoadSheddingStrategy createLoadSheddingStrategy(ServiceConfiguration conf) {
+        return Reflections.createInstance(conf.getLoadBalancerLoadSheddingStrategy(), LoadSheddingStrategy.class,
+                Thread.currentThread().getContextClassLoader());
+    }
+
+    @VisibleForTesting
+    void setLoadSheddingStrategy(LoadSheddingStrategy loadSheddingStrategy) {
+        this.loadSheddingStrategy = loadSheddingStrategy;
+    }
+
+    @VisibleForTesting
+    void setBundleSplitStrategy(BundleSplitStrategy bundleSplitStrategy) {
+        this.bundleSplitStrategy = bundleSplitStrategy;
     }
 
     /**
@@ -328,19 +396,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     private void reapDeadBrokerPreallocations(List<String> aliveBrokers) {
         for (String broker : loadData.getBrokerData().keySet()) {
             if (!aliveBrokers.contains(broker)) {
-                if (log.isDebugEnabled()) {
-                    log.debug("Broker {} appears to have stopped; now reclaiming any preallocations", broker);
-                }
+                log.debug().attr("broker", broker)
+                        .log("Broker appears to have stopped; now reclaiming any preallocations");
                 final Iterator<Map.Entry<String, String>> iterator = preallocatedBundleToBroker.entrySet().iterator();
                 while (iterator.hasNext()) {
                     Map.Entry<String, String> entry = iterator.next();
                     final String preallocatedBundle = entry.getKey();
                     final String preallocatedBroker = entry.getValue();
                     if (broker.equals(preallocatedBroker)) {
-                        if (log.isDebugEnabled()) {
-                            log.debug("Removing old preallocation on dead broker {} for bundle {}",
-                                    preallocatedBroker, preallocatedBundle);
-                        }
+                        log.debug().attr("broker", preallocatedBroker).attr("bundle", preallocatedBundle)
+                                .log("Removing old preallocation on dead broker for bundle");
                         iterator.remove();
                     }
                 }
@@ -351,10 +416,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public Set<String> getAvailableBrokers() {
         try {
-            return new HashSet<>(brokersData.listLocks(LoadManager.LOADBALANCE_BROKERS_ROOT)
-                    .get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS));
+            return getAvailableBrokersAsync().get(conf.getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (Exception e) {
-            log.warn("Error when trying to get active brokers", e);
+            log.warn().exception(e).log("Error when trying to get active brokers");
             return loadData.getBrokerData().keySet();
         }
     }
@@ -366,7 +430,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 .whenComplete((listLocks, ex) -> {
                     if (ex != null){
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                        log.warn("Error when trying to get active brokers", realCause);
+                        log.warn().exception(realCause).log("Error when trying to get active brokers");
                         future.complete(loadData.getBrokerData().keySet());
                     } else {
                         future.complete(Sets.newHashSet(listLocks));
@@ -375,52 +439,68 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         return future;
     }
 
-    // Attempt to local the data for the given bundle in metadata store
-    // If it cannot be found, return the default bundle data.
-    @Override
-    public BundleData getBundleDataOrDefault(final String bundle) {
-        BundleData bundleData = null;
+    private boolean checkBundleDataExistInNamespaceBundles(NamespaceBundles namespaceBundles,
+                                                           NamespaceBundle bundleRange) {
         try {
-            Optional<BundleData> optBundleData = bundlesCache.get(getBundleDataPath(bundle)).join();
-            if (optBundleData.isPresent()) {
-                return optBundleData.get();
-            }
-
-            Optional<ResourceQuota> optQuota = resourceQuotaCache
-                    .get(String.format("%s/%s", RESOURCE_QUOTA_ZPATH, bundle)).join();
-            if (optQuota.isPresent()) {
-                ResourceQuota quota = optQuota.get();
-                bundleData = new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES);
-                // Initialize from existing resource quotas if new API ZNodes do not exist.
-                final TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                final TimeAverageMessageData longTermData = bundleData.getLongTermData();
-
-                shortTermData.setMsgRateIn(quota.getMsgRateIn());
-                shortTermData.setMsgRateOut(quota.getMsgRateOut());
-                shortTermData.setMsgThroughputIn(quota.getBandwidthIn());
-                shortTermData.setMsgThroughputOut(quota.getBandwidthOut());
-
-                longTermData.setMsgRateIn(quota.getMsgRateIn());
-                longTermData.setMsgRateOut(quota.getMsgRateOut());
-                longTermData.setMsgThroughputIn(quota.getBandwidthIn());
-                longTermData.setMsgThroughputOut(quota.getBandwidthOut());
-
-                // Assume ample history.
-                shortTermData.setNumSamples(NUM_SHORT_SAMPLES);
-                longTermData.setNumSamples(NUM_LONG_SAMPLES);
-            }
-        } catch (Exception e) {
-            log.warn("Error when trying to find bundle {} on metadata store: {}", bundle, e);
+            namespaceBundles.validateBundle(bundleRange);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
         }
-        if (bundleData == null) {
-            bundleData = new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES, defaultStats);
-        }
-        return bundleData;
     }
 
-    // Get the metadata store path for the given bundle full name.
-    public static String getBundleDataPath(final String bundle) {
-        return BUNDLE_DATA_PATH + "/" + bundle;
+    // Attempt to local the data for the given bundle in metadata store
+    // If it cannot be found, return the default bundle data.
+    /**
+     * @deprecated use {@link #getBundleDataOrDefaultAsync(String)} instead.
+     */
+    @Deprecated
+    @Override
+    public BundleData getBundleDataOrDefault(final String bundle) {
+        return getBundleDataOrDefaultAsync(bundle).join();
+    }
+
+    @Override
+    public CompletableFuture<BundleData> getBundleDataOrDefaultAsync(final String bundle) {
+        return pulsarResources.getLoadBalanceResources().getBundleDataResources().getBundleData(bundle)
+                .thenCompose(optBundleData -> {
+                    if (optBundleData.isPresent()) {
+                        return CompletableFuture.completedFuture(optBundleData.get());
+                    }
+                    return pulsarResources.getLoadBalanceResources().getQuotaResources().getQuota(bundle)
+                            .thenApply(optQuota -> {
+                                if (optQuota.isEmpty()) {
+                                    return null;
+                                }
+                                ResourceQuota quota = optQuota.get();
+                                BundleData bundleData = new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES);
+                                // Initialize from existing resource quotas if new API ZNodes do not exist.
+                                final TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                                final TimeAverageMessageData longTermData = bundleData.getLongTermData();
+
+                                shortTermData.setMsgRateIn(quota.getMsgRateIn());
+                                shortTermData.setMsgRateOut(quota.getMsgRateOut());
+                                shortTermData.setMsgThroughputIn(quota.getBandwidthIn());
+                                shortTermData.setMsgThroughputOut(quota.getBandwidthOut());
+
+                                longTermData.setMsgRateIn(quota.getMsgRateIn());
+                                longTermData.setMsgRateOut(quota.getMsgRateOut());
+                                longTermData.setMsgThroughputIn(quota.getBandwidthIn());
+                                longTermData.setMsgThroughputOut(quota.getBandwidthOut());
+
+                                // Assume ample history.
+                                shortTermData.setNumSamples(NUM_SHORT_SAMPLES);
+                                longTermData.setNumSamples(NUM_LONG_SAMPLES);
+                                return bundleData;
+                            });
+                })
+                .exceptionally(e -> {
+                    log.warn().attr("bundle", bundle).exceptionMessage(e)
+                            .log("Error when trying to find bundle on metadata store");
+                    return null;
+                })
+                .thenApply(bundleData -> bundleData != null ? bundleData
+                        : new BundleData(NUM_SHORT_SAMPLES, NUM_LONG_SAMPLES, defaultStats));
     }
 
     // Use the Pulsar client to acquire the namespace bundle stats.
@@ -439,31 +519,40 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         return 100 * Math.abs((oldValue - newValue) / oldValue);
     }
 
+    private double getMaxResourceUsageWithWeight(LocalBrokerData localBrokerData, ServiceConfiguration conf) {
+        return localBrokerData.getMaxResourceUsageWithWeight(
+                conf.getLoadBalancerCPUResourceWeight(),
+                conf.getLoadBalancerDirectMemoryResourceWeight(),
+                conf.getLoadBalancerBandwidthInResourceWeight(),
+                conf.getLoadBalancerBandwidthOutResourceWeight());
+    }
+
     // Determine if the broker data requires an update by delegating to the update condition.
     private boolean needBrokerDataUpdate() {
         final long updateMaxIntervalMillis = TimeUnit.MINUTES
                 .toMillis(conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
         long timeSinceLastReportWrittenToStore = System.currentTimeMillis() - localData.getLastUpdate();
         if (timeSinceLastReportWrittenToStore > updateMaxIntervalMillis) {
-            log.info("Writing local data to metadata store because time since last"
-                            + " update exceeded threshold of {} minutes",
+            log.infof("Writing local data to metadata store because time since last"
+                            + " update exceeded threshold of %s minutes",
                     conf.getLoadBalancerReportUpdateMaxIntervalMinutes());
             // Always update after surpassing the maximum interval.
             return true;
         }
-        final double maxChange = Math
-                .max(100.0 * (Math.abs(lastData.getMaxResourceUsage() - localData.getMaxResourceUsage())),
-                        Math.max(percentChange(lastData.getMsgRateIn() + lastData.getMsgRateOut(),
-                                localData.getMsgRateIn() + localData.getMsgRateOut()),
-                                Math.max(
-                                        percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
-                                                localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
-                                        percentChange(lastData.getNumBundles(), localData.getNumBundles()))));
+        final double maxChange = LocalBrokerData.max(
+                percentChange(lastData.getMsgRateIn() + lastData.getMsgRateOut(),
+                        localData.getMsgRateIn() + localData.getMsgRateOut()),
+                percentChange(lastData.getMsgThroughputIn() + lastData.getMsgThroughputOut(),
+                        localData.getMsgThroughputIn() + localData.getMsgThroughputOut()),
+                percentChange(lastData.getNumBundles(), localData.getNumBundles()),
+                100.0 * Math.abs(getMaxResourceUsageWithWeight(lastData, conf)
+                        - getMaxResourceUsageWithWeight(localData, conf))
+        );
         if (maxChange > conf.getLoadBalancerReportUpdateThresholdPercentage()) {
-            log.info("Writing local data to metadata store because maximum change {}% exceeded threshold {}%; "
-                            + "time since last report written is {} seconds", maxChange,
-                    conf.getLoadBalancerReportUpdateThresholdPercentage(),
-                    timeSinceLastReportWrittenToStore / 1000.0);
+            log.info().attr("change", maxChange)
+                    .attr("threshold", conf.getLoadBalancerReportUpdateThresholdPercentage())
+                    .attr("timeSinceLastReportSeconds", timeSinceLastReportWrittenToStore / 1000.0)
+                    .log("Writing local data to metadata store because maximum change % exceeded threshold");
             return true;
         }
         return false;
@@ -471,9 +560,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     // Update both the broker data and the bundle data.
     public void updateAll() {
-        if (log.isDebugEnabled()) {
-            log.debug("Updating broker and bundle data for loadreport");
-        }
+        log.debug("Updating broker and bundle data for loadreport");
         cleanupDeadBrokersData();
         updateAllBrokerData();
         updateBundleData();
@@ -486,12 +573,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         Collection<String> deadBrokers = CollectionUtils.subtract(knownBrokers, activeBrokers);
         this.knownBrokers.clear();
         this.knownBrokers.addAll(activeBrokers);
-        if (pulsar.getLeaderElectionService() != null
-                && pulsar.getLeaderElectionService().isLeader()) {
-            deadBrokers.forEach(this::deleteTimeAverageDataFromMetadataStoreAsync);
-            for (LoadSheddingStrategy loadSheddingStrategy : loadSheddingPipeline) {
-                loadSheddingStrategy.onActiveBrokersChange(activeBrokers);
+        if (isLeader()) {
+            for (String deadBroker : deadBrokers) {
+                if (!isLeader()) {
+                    break;
+                }
+                deleteTimeAverageDataFromMetadataStoreAsync(deadBroker);
             }
+            if (!isLeader()) {
+                return;
+            }
+            loadSheddingStrategy.onActiveBrokersChange(activeBrokers);
             placementStrategy.onActiveBrokersChange(activeBrokers);
         }
     }
@@ -507,7 +599,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 Optional<LocalBrokerData> localData = brokersData.readLock(key).get();
                 if (!localData.isPresent()) {
                     brokerDataMap.remove(broker);
-                    log.info("[{}] Broker load report is not present", broker);
+                    log.info().attr("broker", broker).log("Broker load report is not present");
                     continue;
                 }
 
@@ -520,7 +612,8 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     brokerDataMap.put(broker, new BrokerData(localData.get()));
                 }
             } catch (Exception e) {
-                log.warn("Error reading broker data from cache for broker - [{}], [{}]", broker, e.getMessage());
+                log.warn().attr("broker", broker).exceptionMessage(e)
+                        .log("Error reading broker data from cache");
             }
         }
         // Remove obsolete brokers.
@@ -554,7 +647,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 } else {
                     // Otherwise, attempt to find the bundle data on metadata store.
                     // If it cannot be found, use the latest stats as the first sample.
-                    BundleData currentBundleData = getBundleDataOrDefault(bundle);
+                    BundleData currentBundleData = getBundleDataOrDefaultAsync(bundle).join();
                     currentBundleData.update(stats);
                     bundleData.put(bundle, currentBundleData);
                 }
@@ -581,24 +674,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             TimeAverageBrokerData timeAverageData = new TimeAverageBrokerData();
             timeAverageData.reset(statsMap.keySet(), bundleData, defaultStats);
             brokerData.setTimeAverageData(timeAverageData);
-            final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
-                    brokerToNamespaceToBundleRange
-                            .computeIfAbsent(broker, k ->
-                                    ConcurrentOpenHashMap.<String,
-                                            ConcurrentOpenHashSet<String>>newBuilder()
-                                            .build());
-            synchronized (namespaceToBundleRange) {
-                namespaceToBundleRange.clear();
-                LoadManagerShared.fillNamespaceToBundlesMap(statsMap.keySet(), namespaceToBundleRange);
-                LoadManagerShared.fillNamespaceToBundlesMap(preallocatedBundleData.keySet(), namespaceToBundleRange);
-            }
+
+            brokerToNamespaceToBundleRange.reloadFromBundles(broker,
+                    Stream.of(statsMap.keySet(), preallocatedBundleData.keySet()).flatMap(Collection::stream));
         }
 
         // Remove not active bundle from loadData
         for (String bundle : bundleData.keySet()) {
             if (!activeBundles.contains(bundle)){
                 bundleData.remove(bundle);
-                if (pulsar.getLeaderElectionService().isLeader()){
+                if (isLeader()) {
                     deleteBundleDataFromMetadataStore(bundle);
                 }
             }
@@ -632,6 +717,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public synchronized void doLoadShedding() {
+        if (!isLeader()) {
+            return;
+        }
         if (!LoadManagerShared.isLoadSheddingEnabled(pulsar)) {
             return;
         }
@@ -645,58 +733,92 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
         recentlyUnloadedBundles.keySet().removeIf(e -> recentlyUnloadedBundles.get(e) < timeout);
 
-        for (LoadSheddingStrategy strategy : loadSheddingPipeline) {
-            final Multimap<String, String> bundlesToUnload = strategy.findBundlesForUnloading(loadData, conf);
+        Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
+        try {
+            final Multimap<String, String> bundlesToUnload =
+                    loadSheddingStrategy.findBundlesForUnloading(loadData, conf);
 
-            bundlesToUnload.asMap().forEach((broker, bundles) -> {
-                bundles.forEach(bundle -> {
+            boolean leadershipLost = false;
+            for (Map.Entry<String, Collection<String>> entry : bundlesToUnload.asMap().entrySet()) {
+                String broker = entry.getKey();
+                boolean unloadBundleForBroker = false;
+                for (String bundle : entry.getValue()) {
+                    if (!isLeader()) {
+                        leadershipLost = true;
+                        break;
+                    }
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
+                    if (sheddingExcludedNamespaces.contains(namespaceName)) {
+                        log.debug().attr("class", loadSheddingStrategy.getClass().getSimpleName())
+                                .attr("namespace", namespaceName)
+                                .log("Skipping load shedding for namespace");
+                        continue;
+                    }
                     if (!shouldNamespacePoliciesUnload(namespaceName, bundleRange, broker)) {
-                        return;
+                        continue;
                     }
 
                     if (!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
-                        return;
+                        continue;
                     }
                     NamespaceBundle bundleToUnload = LoadManagerShared.getNamespaceBundle(pulsar, bundle);
                     Optional<String> destBroker = this.selectBroker(bundleToUnload);
                     if (!destBroker.isPresent()) {
-                        log.info("[{}] No broker available to unload bundle {} from broker {}",
-                                strategy.getClass().getSimpleName(), bundle, broker);
-                        return;
+                        log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
+                                .attr("bundle", bundle).attr("broker", broker)
+                                .log("No broker available to unload bundle from broker");
+                        continue;
                     }
                     if (destBroker.get().equals(broker)) {
-                        log.warn("[{}] The destination broker {} is the same as the current owner broker for Bundle {}",
-                                strategy.getClass().getSimpleName(), destBroker.get(), bundle);
-                        return;
+                        log.warn().attr("class", loadSheddingStrategy.getClass().getSimpleName())
+                                .attr("broker", destBroker.get()).attr("bundle", bundle)
+                                .log("The destination broker is the same as the current owner broker for bundle");
+                        continue;
                     }
 
-                    log.info("[{}] Unloading bundle: {} from broker {} to dest broker {}",
-                            strategy.getClass().getSimpleName(), bundle, broker, destBroker.get());
                     try {
-                        pulsar.getAdminClient().namespaces()
-                                .unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
+                        if (!isLeader()) {
+                            leadershipLost = true;
+                            break;
+                        }
+                        log.info().attr("class", loadSheddingStrategy.getClass().getSimpleName())
+                                .attr("bundle", bundle).attr("sourceBroker", broker)
+                                .attr("destBroker", destBroker.get())
+                                .log("Unloading bundle from source broker to dest broker");
+                        unloadNamespaceBundle(namespaceName, bundleRange, destBroker.get());
                         loadData.getRecentlyUnloadedBundles().put(bundle, System.currentTimeMillis());
+                        unloadBundleCount++;
+                        unloadBundleForBroker = true;
                     } catch (PulsarServerException | PulsarAdminException e) {
-                        log.warn("Error when trying to perform load shedding on {} for broker {}", bundle, broker, e);
+                        log.warn().attr("bundle", bundle).attr("broker", broker).exception(e)
+                                .log("Error when trying to perform load shedding on for broker");
                     }
-                });
-            });
-
-            updateBundleUnloadingMetrics(bundlesToUnload);
+                }
+                if (unloadBundleForBroker) {
+                    unloadBrokerCount++;
+                }
+                if (leadershipLost) {
+                    break;
+                }
+            }
+        } finally {
+            loadSheddingStrategy.onUnloadAttemptCompleted();
         }
+
+        updateBundleUnloadingMetrics();
+    }
+
+    @VisibleForTesting
+    void unloadNamespaceBundle(String namespaceName, String bundleRange, String destinationBroker)
+            throws PulsarServerException, PulsarAdminException {
+        pulsar.getAdminClient().namespaces().unloadNamespaceBundle(namespaceName, bundleRange, destinationBroker);
     }
 
     /**
      * As leader broker, update bundle unloading metrics.
-     *
-     * @param bundlesToUnload
      */
-    private void updateBundleUnloadingMetrics(Multimap<String, String> bundlesToUnload) {
-        unloadBrokerCount += bundlesToUnload.keySet().size();
-        unloadBundleCount += bundlesToUnload.values().size();
-
+    private void updateBundleUnloadingMetrics() {
         List<Metrics> metrics = new ArrayList<>();
         Map<String, String> dimensions = new HashMap<>();
 
@@ -736,13 +858,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         .getBundle(namespace, bundle);
                 LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                         getAvailableBrokers(), brokerTopicLoadingPredicate);
-                return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, bundle, currentBroker, pulsar,
+                return LoadManagerShared.shouldAntiAffinityNamespaceUnload(namespace, currentBroker, pulsar,
                         brokerToNamespaceToBundleRange, brokerCandidateCache);
             }
 
         } catch (Exception e) {
-            log.warn("Failed to check anti-affinity namespace ownership for {}/{}/{}, {}", namespace, bundle,
-                    currentBroker, e.getMessage());
+            log.warn().attr("namespace", namespace).attr("bundle", bundle).attr("broker", currentBroker)
+                    .exceptionMessage(e)
+                    .log("Failed to check anti-affinity namespace ownership");
 
         }
         return true;
@@ -754,8 +877,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     @Override
     public void checkNamespaceBundleSplit() {
 
-        if (!conf.isLoadBalancerAutoBundleSplitEnabled() || pulsar.getLeaderElectionService() == null
-                || !pulsar.getLeaderElectionService().isLeader() || knownBrokers.size() <= 1) {
+        if (!conf.isLoadBalancerAutoBundleSplitEnabled() || !isLeader() || knownBrokers.size() <= 1) {
             return;
         }
         final boolean unloadSplitBundles = pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled();
@@ -767,18 +889,16 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 try {
                     final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundleName);
                     final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundleName);
-                    if (!namespaceBundleFactory
-                            .canSplitBundle(namespaceBundleFactory.getBundle(namespaceName, bundleRange))) {
+                    NamespaceBundle bundle = namespaceBundleFactory.getBundle(namespaceName, bundleRange);
+                    if (!namespaceBundleFactory.canSplitBundle(bundle)) {
                         continue;
                     }
 
-                    // Make sure the same bundle is not selected again.
-                    loadData.getBundleData().remove(bundleName);
-                    localData.getLastStats().remove(bundleName);
-                    // Clear namespace bundle-cache
-                    this.pulsar.getNamespaceService().getNamespaceBundleFactory()
-                            .invalidateBundleCache(NamespaceName.get(namespaceName));
-                    deleteBundleDataFromMetadataStore(bundleName);
+                    NamespaceBundles bundles = namespaceBundleFactory.getBundles(NamespaceName.get(namespaceName));
+                    if (!checkBundleDataExistInNamespaceBundles(bundles, bundle)) {
+                        log.warn().attr("bundle", bundleName).log("Bundle has been removed, skip split this bundle");
+                        continue;
+                    }
 
                     // Check NamespacePolicies and AntiAffinityNamespace support unload bundle.
                     boolean isUnload = false;
@@ -788,14 +908,26 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                             && shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
                         isUnload = true;
                     }
-                    log.info("Load-manager splitting bundle {} and unloading {}", bundleName, isUnload);
+                    if (!isLeader()) {
+                        break;
+                    }
+                    log.info().attr("bundle", bundleName).attr("unloading", isUnload)
+                            .log("Load-manager splitting bundle and unloading");
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(namespaceName, bundleRange,
                             isUnload, null);
 
+                    // The split succeeded, so the old bundle must not be selected again.
+                    loadData.getBundleData().remove(bundleName);
+                    localData.getLastStats().remove(bundleName);
+                    // Clear namespace bundle-cache
+                    this.pulsar.getNamespaceService().getNamespaceBundleFactory()
+                            .invalidateBundleCache(NamespaceName.get(namespaceName));
+                    deleteBundleDataFromMetadataStore(bundleName);
+
                     splitCount++;
-                    log.info("Successfully split namespace bundle {}", bundleName);
+                    log.info().attr("bundle", bundleName).log("Successfully split namespace bundle");
                 } catch (Exception e) {
-                    log.error("Failed to split namespace bundle {}", bundleName, e);
+                    log.error().attr("bundle", bundleName).exception(e).log("Failed to split namespace bundle");
                 }
             }
 
@@ -867,23 +999,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     private void preallocateBundle(String bundle, String broker) {
         final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
-                key -> getBundleDataOrDefault(bundle));
+                key -> getBundleDataOrDefaultAsync(bundle).join());
         loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
         preallocatedBundleToBroker.put(bundle, broker);
 
         final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
         final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-        final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<String>> namespaceToBundleRange =
-                brokerToNamespaceToBundleRange
-                        .computeIfAbsent(broker,
-                                k -> ConcurrentOpenHashMap.<String,
-                                        ConcurrentOpenHashSet<String>>newBuilder()
-                                        .build());
-        synchronized (namespaceToBundleRange) {
-            namespaceToBundleRange.computeIfAbsent(namespaceName,
-                    k -> ConcurrentOpenHashSet.<String>newBuilder().build())
-                    .add(bundleRange);
-        }
+        brokerToNamespaceToBundleRange.add(broker, namespaceName, bundleRange);
     }
 
     @VisibleForTesting
@@ -891,7 +1013,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         synchronized (brokerCandidateCache) {
             final String bundle = serviceUnit.toString();
             final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
-                    key -> getBundleDataOrDefault(bundle));
+                    key -> getBundleDataOrDefaultAsync(bundle).join());
             brokerCandidateCache.clear();
             LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                     getAvailableBrokers(),
@@ -907,17 +1029,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     brokerToNamespaceToBundleRange, brokerToFailureDomainMap);
 
             // distribute bundles evenly to candidate-brokers if enable
-            if (conf.isLoadBalancerDistributeBundlesEvenlyEnabled()) {
+            // or system-namespace bundles
+            if (conf.isLoadBalancerDistributeBundlesEvenlyEnabled()
+                    || serviceUnit.getNamespaceObject().equals(NamespaceName.SYSTEM_NAMESPACE)) {
                 LoadManagerShared.removeMostServicingBrokersForNamespace(bundle,
                         brokerCandidateCache,
                         brokerToNamespaceToBundleRange);
-                if (log.isDebugEnabled()) {
-                    log.debug("enable distribute bundles evenly to candidate-brokers, broker candidate count={}",
-                            brokerCandidateCache.size());
-                }
+                log.debug().attr("candidateCount", brokerCandidateCache.size())
+                        .log("Enable distribute bundles evenly to candidate-brokers");
             }
 
-            log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
+            log.info().attr("brokerCount", brokerCandidateCache.size()).attr("bundle", bundle)
+                    .log("Brokers being considered for assignment");
 
             // Use the filter pipeline to finalize broker candidates.
             try {
@@ -938,11 +1061,22 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                         brokerTopicLoadingPredicate);
             }
 
-            // Choose a broker among the potentially smaller filtered list, when possible
-            Optional<String> broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
-            if (log.isDebugEnabled()) {
-                log.debug("Selected broker {} from candidate brokers {}", broker, brokerCandidateCache);
+            Optional<String> broker;
+            // For shedding excluded namespaces, use RoundRobinBrokerSelector to assign the ownership,
+            // it can make the assignment more average because these will not automatically rebalance to
+            // another broker unless manually unloaded it.
+            Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
+            String namespaceNameFromBundleName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
+            if (sheddingExcludedNamespaces.contains(namespaceNameFromBundleName)) {
+                log.debug().attr("bundle", bundle).log("Use round robin broker selector for bundle");
+                broker = sheddingExcludedNamespaceSelectionStrategy
+                        .selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
+            } else {
+                // Choose a broker among the potentially smaller filtered list, when possible
+                broker = placementStrategy.selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
             }
+            log.debug().attr("selectedBroker", broker).attr("candidates", brokerCandidateCache)
+                    .log("Selected broker from candidate brokers");
 
             if (!broker.isPresent()) {
                 // No brokers available
@@ -950,20 +1084,31 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             }
 
             final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
-            final double maxUsage = loadData.getBrokerData().get(broker.get()).getLocalData().getMaxResourceUsage();
+            final double maxUsage = getMaxResourceUsageWithWeight(
+                    loadData.getBrokerData().get(broker.get()).getLocalData(), conf);
             if (maxUsage > overloadThreshold) {
                 // All brokers that were in the filtered list were overloaded, so check if there is a better broker
                 LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache,
                         getAvailableBrokers(),
                         brokerTopicLoadingPredicate);
                 Optional<String> brokerTmp =
-                        placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+                        placementStrategy.selectBrokerForBundle(brokerCandidateCache, bundle, data, loadData, conf);
                 if (brokerTmp.isPresent()) {
                     broker = brokerTmp;
                 }
             }
             return broker;
         }
+    }
+
+    @VisibleForTesting
+    LoadData getLoadData() {
+        return loadData;
+    }
+
+    @VisibleForTesting
+    void setPlacementStrategy(ModularLoadManagerStrategy placementStrategy) {
+        this.placementStrategy = placementStrategy;
     }
 
     /**
@@ -978,15 +1123,17 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             // At this point, the ports will be updated with the real port number that the server was assigned
             Map<String, String> protocolData = pulsar.getProtocolDataToAdvertise();
 
-            lastData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                    pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
+            lastData = new LocalBrokerData(pulsar.getBrokerId(), pulsar.getWebServiceAddress(),
+                    pulsar.getWebServiceAddressTls(), pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(),
+                    pulsar.getAdvertisedListeners());
             lastData.setProtocols(protocolData);
             // configure broker-topic mode
             lastData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
             lastData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
-            localData = new LocalBrokerData(pulsar.getSafeWebServiceAddress(), pulsar.getWebServiceAddressTls(),
-                    pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(), pulsar.getAdvertisedListeners());
+            localData = new LocalBrokerData(pulsar.getBrokerId(), pulsar.getWebServiceAddress(),
+                    pulsar.getWebServiceAddressTls(), pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls(),
+                    pulsar.getAdvertisedListeners());
             localData.setProtocols(protocolData);
             localData.setBrokerVersionString(pulsar.getBrokerVersion());
             // configure broker-topic mode
@@ -994,18 +1141,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
             localData.setLoadManagerClassName(conf.getLoadManagerClassName());
 
-            String lookupServiceAddress = pulsar.getLookupServiceAddress();
-            brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + lookupServiceAddress;
-            final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + lookupServiceAddress;
+            String brokerId = pulsar.getBrokerId();
+            brokerZnodePath = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + brokerId;
             updateLocalBrokerData();
 
             brokerDataLock = brokersData.acquireLock(brokerZnodePath, localData).join();
-
-            timeAverageBrokerDataCache.readModifyUpdateOrCreate(timeAverageZPath,
-                    __ -> new TimeAverageBrokerData()).join();
+            pulsarResources.getLoadBalanceResources()
+                    .getBrokerTimeAverageDataResources()
+                    .updateTimeAverageBrokerData(brokerId, new TimeAverageBrokerData())
+                    .join();
             updateAll();
         } catch (Exception e) {
-            log.error("Unable to acquire lock for broker: [{}]", brokerZnodePath, e);
+            log.error().attr("broker", brokerZnodePath).exception(e).log("Unable to acquire lock for broker");
             throw new PulsarServerException(e);
         }
     }
@@ -1018,12 +1165,14 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
      */
     @Override
     public void stop() throws PulsarServerException {
+        metadataStoreListenerCleanups.forEach(Runnable::run);
+        metadataStoreListenerCleanups.clear();
         executors.shutdownNow();
 
         try {
             brokersData.close();
         } catch (Exception e) {
-            log.warn("Failed to release broker lock: {}", e.getMessage());
+            log.warn().exceptionMessage(e).log("Failed to release broker lock");
         }
     }
 
@@ -1042,7 +1191,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 updateLoadBalancingBundlesMetrics(getBundleStats());
             }
         } catch (Exception e) {
-            log.warn("Error when attempting to update local broker data", e);
+            log.warn().exception(e).log("Error when attempting to update local broker data");
             if (e instanceof ConcurrentModificationException) {
                 throw (ConcurrentModificationException) e;
             }
@@ -1130,7 +1279,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                 lastData.update(localData);
             }
         } catch (Exception e) {
-            log.warn("Error writing broker data on metadata store", e);
+            log.warn().exception(e).log("Error writing broker data on metadata store");
             if (e instanceof ConcurrentModificationException) {
                 throw (ConcurrentModificationException) e;
             }
@@ -1140,55 +1289,105 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
     }
 
     /**
+     * sort bundles by load and select topK bundles for each broker.
+     * @return the number of bundles selected
+     */
+    private int selectTopKBundle() {
+        bundleArr.clear();
+        Set<String> sheddingExcludedNamespaces = conf.getLoadBalancerSheddingExcludedNamespaces();
+        for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
+            String bundle = entry.getKey();
+            String namespace = NamespaceBundle.getBundleNamespace(bundle);
+            if (sheddingExcludedNamespaces.contains(namespace)) {
+                continue;
+            }
+            bundleArr.add(entry);
+        }
+
+        int maxNumberOfBundlesInBundleLoadReport = pulsar.getConfiguration()
+                .getLoadBalancerMaxNumberOfBundlesInBundleLoadReport();
+        if (maxNumberOfBundlesInBundleLoadReport <= 0) {
+            // select all bundle
+            return bundleArr.size();
+        } else {
+            // select topK bundle for each broker, so select topK * brokerCount bundle in total
+            int brokerCount = Math.max(1, loadData.getBrokerData().size());
+            int updateBundleCount = Math.min(maxNumberOfBundlesInBundleLoadReport * brokerCount, bundleArr.size());
+            if (updateBundleCount == 0) {
+                // no bundle to update
+                return 0;
+            }
+            TopKBundles.partitionSort(bundleArr, updateBundleCount);
+            return updateBundleCount;
+        }
+    }
+
+    /**
      * As the leader broker, write bundle data aggregated from all brokers to metadata store.
      */
     @Override
     public void writeBundleDataOnZooKeeper() {
+        if (!isLeader()) {
+            return;
+        }
         updateBundleData();
+        if (!isLeader()) {
+            return;
+        }
         // Write the bundle data to metadata store.
         List<CompletableFuture<Void>> futures = new ArrayList<>();
+        boolean leadershipLost = false;
 
-        for (Map.Entry<String, BundleData> entry : loadData.getBundleData().entrySet()) {
-            final String bundle = entry.getKey();
-            final BundleData data = entry.getValue();
-            futures.add(bundlesCache.readModifyUpdateOrCreate(getBundleDataPath(bundle), __ -> data)
-                    .thenApply(__ -> null));
+        // use synchronized to protect bundleArr.
+        synchronized (bundleArr) {
+            int updateBundleCount = selectTopKBundle();
+            for (Map.Entry<String, ? extends Comparable> entry : bundleArr.subList(0, updateBundleCount)) {
+                if (!isLeader()) {
+                    leadershipLost = true;
+                    break;
+                }
+                futures.add(pulsarResources.getLoadBalanceResources().getBundleDataResources().updateBundleData(
+                        entry.getKey(), (BundleData) entry.getValue()));
+            }
         }
 
         // Write the time average broker data to metadata store.
-        for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
-            final String broker = entry.getKey();
-            final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
-            futures.add(timeAverageBrokerDataCache.readModifyUpdateOrCreate(
-                    TIME_AVERAGE_BROKER_ZPATH + "/" + broker, __ -> data)
-                    .thenApply(__ -> null));
+        if (!leadershipLost) {
+            for (Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
+                if (!isLeader()) {
+                    break;
+                }
+                final String broker = entry.getKey();
+                final TimeAverageBrokerData data = entry.getValue().getTimeAverageData();
+                futures.add(pulsarResources.getLoadBalanceResources()
+                        .getBrokerTimeAverageDataResources().updateTimeAverageBrokerData(broker, data));
+            }
         }
-
         try {
             FutureUtil.waitForAll(futures).join();
         } catch (Exception e) {
-            log.warn("Error when writing metadata data to store", e);
+            log.warn().exception(e).log("Error when writing metadata data to store");
         }
     }
 
     private void deleteBundleDataFromMetadataStore(String bundle) {
         try {
-            bundlesCache.delete(getBundleDataPath(bundle)).join();
+            pulsarResources.getLoadBalanceResources().getBundleDataResources().deleteBundleData(bundle).join();
         } catch (Exception e) {
             if (!(e.getCause() instanceof NotFoundException)) {
-                log.warn("Failed to delete bundle-data {} from metadata store", bundle, e);
+                log.warn().attr("bundle", bundle).exception(e).log("Failed to delete bundle-data from metadata store");
             }
         }
     }
 
     private void deleteTimeAverageDataFromMetadataStoreAsync(String broker) {
-        final String timeAverageZPath = TIME_AVERAGE_BROKER_ZPATH + "/" + broker;
-        timeAverageBrokerDataCache.delete(timeAverageZPath).whenComplete((__, ex) -> {
-            if (ex != null && !(ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
-                log.warn("Failed to delete dead broker {} time "
-                        + "average data from metadata store", broker, ex);
-            }
-        });
+        pulsarResources.getLoadBalanceResources()
+                .getBrokerTimeAverageDataResources().deleteTimeAverageBrokerData(broker).whenComplete((__, ex) -> {
+                    if (ex != null && !(ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
+                        log.warn().attr("broker", broker).exception(ex)
+                                .log("Failed to delete dead broker time " + "average data from metadata store");
+                    }
+                });
     }
 
     @Override
@@ -1197,7 +1396,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         try {
             return brokersData.readLock(key).join().orElse(null);
         } catch (Exception e) {
-            log.warn("Failed to get local-broker data for {}", broker, e);
+            log.warn().attr("broker", broker).exception(e).log("Failed to get local-broker data");
             return null;
         }
     }
@@ -1230,7 +1429,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
         if (StringUtils.isBlank(broker)) {
             return this.bundleBrokerAffinityMap.remove(bundle);
         }
-        broker = broker.replaceFirst("http[s]?://", "");
         return this.bundleBrokerAffinityMap.put(bundle, broker);
     }
 }

@@ -22,6 +22,8 @@ import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import io.jsonwebtoken.SignatureAlgorithm;
+import jakarta.ws.rs.InternalServerErrorException;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -33,9 +35,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.crypto.SecretKey;
-import javax.ws.rs.InternalServerErrorException;
-import io.jsonwebtoken.SignatureAlgorithm;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
@@ -49,11 +50,10 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.zookeeper.KeeperException.Code;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -61,14 +61,14 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(AuthenticatedProducerConsumerTest.class);
 
-    private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
+    private static final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
+    @SuppressWarnings("deprecation")
 
-    private final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
-    private final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
-
+    private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
+    private static final String ADMIN_TOKEN = AuthTokenUtils.createToken(SECRET_KEY, "admin", Optional.empty());
 
     @BeforeMethod
     @Override
@@ -118,8 +118,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         conf.setNumExecutorThreadPoolSize(5);
         super.init();
     }
+    @SuppressWarnings("deprecation")
 
     protected final void internalSetup(Authentication auth) throws Exception {
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
                 .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).authentication(auth)
                 .build());
@@ -150,7 +152,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/my-ns/my-topic")
                 .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
+        ProducerBuilder<byte[]> producerBuilder =
+                pulsarClient.newProducer().topic("persistent://my-property/my-ns/my-topic");
 
         if (batchMessageDelayMs != 0) {
             producerBuilder.enableBatching(true);
@@ -169,7 +172,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("receivedMessage", receivedMessage).log("Received message: []");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -177,10 +180,11 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         consumer.acknowledgeCumulative(msg);
         consumer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "batch")
     public void testTlsSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
@@ -197,12 +201,12 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(dataProvider = "batch")
     public void testBasicCryptSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         AuthenticationBasic authPassword = new AuthenticationBasic();
         authPassword.configure("{\"userId\":\"superUser\",\"password\":\"supepass\"}");
         internalSetup(authPassword);
@@ -215,12 +219,12 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     @Test(dataProvider = "batch")
     public void testBasicArp1SyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
         AuthenticationBasic authPassword = new AuthenticationBasic();
         authPassword.configure("{\"userId\":\"superUser2\",\"password\":\"superpassword\"}");
         internalSetup(authPassword);
@@ -233,12 +237,13 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
+    @SuppressWarnings("deprecation")
 
     @Test(dataProvider = "batch")
     public void testAnonymousSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
@@ -258,10 +263,12 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
                 new TenantInfoImpl(Sets.newHashSet("anonymousUser"), Sets.newHashSet("test")));
 
         // make a PulsarAdmin instance as "anonymousUser" for http request
-        admin.close();
+        closeAdmin();
         admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
         admin.namespaces().createNamespace("my-property/my-ns", Sets.newHashSet("test"));
-        admin.topics().grantPermission("persistent://my-property/my-ns/my-topic", "anonymousUser",
+        String topic = "persistent://my-property/my-ns/my-topic";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, "anonymousUser",
                 EnumSet.allOf(AuthAction.class));
 
         // setup the client
@@ -273,7 +280,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
@@ -281,9 +288,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testAuthenticationFilterNegative() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
@@ -305,18 +313,19 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
             Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
     /**
      * verifies that topicLookup/PartitionMetadataLookup gives InternalServerError(500) instead 401(auth_failed) on
-     * unknown-exception failure
+     * unknown-exception failure.
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testInternalServerExceptionOnLookup() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
 
         Map<String, String> authParams = new HashMap<>();
         authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
@@ -353,6 +362,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         mockZooKeeperGlobal.unsetAlwaysFail();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testDeleteAuthenticationPoliciesOfTopic() throws Exception {
@@ -456,6 +466,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         @Cleanup
         Producer<byte[]> ignored = client.newProducer().topic(topicName).create();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testCleanupEmptyTopicAuthenticationMap() throws Exception {
@@ -496,5 +507,51 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
             assertTrue(pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get("p1/ns1"))
                     .get().auth_policies.getTopicAuthentication().containsKey(topic));
         });
+    }
+    @SuppressWarnings("deprecation")
+
+    @Test
+    public void testCleanupEmptySubscriptionAuthenticationMap() throws Exception {
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
+        Authentication authTls = new AuthenticationTls();
+        authTls.configure(authParams);
+        internalSetup(authTls);
+
+        admin.clusters().createCluster("test", ClusterData.builder().build());
+        admin.tenants().createTenant("p1",
+                new TenantInfoImpl(Collections.emptySet(), new HashSet<>(admin.clusters().getClusters())));
+        String namespace = "p1/ns1";
+        admin.namespaces().createNamespace("p1/ns1");
+
+        // grant permission1 and permission2
+        String subscription = "test-sub-1";
+        String role1 = "test-user-1";
+        String role2 = "test-user-2";
+        Set<String> roles = new HashSet<>();
+        roles.add(role1);
+        roles.add(role2);
+        admin.namespaces().grantPermissionOnSubscription(namespace, subscription, roles);
+        Optional<Policies> policies = pulsar.getPulsarResources().getNamespaceResources()
+                .getPolicies(NamespaceName.get(namespace));
+        assertTrue(policies.isPresent());
+        assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
+        assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));
+        assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role2));
+
+        // revoke permission1
+        admin.namespaces().revokePermissionOnSubscription(namespace, subscription, role1);
+        policies = pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace));
+        assertTrue(policies.isPresent());
+        assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
+        assertFalse(policies.get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role1));
+        assertTrue(policies.get().auth_policies.getSubscriptionAuthentication().get(subscription).contains(role2));
+
+        // revoke permission2
+        admin.namespaces().revokePermissionOnSubscription(namespace, subscription, role2);
+        policies = pulsar.getPulsarResources().getNamespaceResources().getPolicies(NamespaceName.get(namespace));
+        assertTrue(policies.isPresent());
+        assertFalse(policies.get().auth_policies.getSubscriptionAuthentication().containsKey(subscription));
     }
 }

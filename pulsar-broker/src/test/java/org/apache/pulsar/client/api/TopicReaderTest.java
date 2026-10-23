@@ -25,6 +25,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -40,8 +41,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -52,29 +56,21 @@ import org.apache.pulsar.client.impl.TopicMessageIdImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.RelativeTimeUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "flaky")
-public class TopicReaderTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(TopicReaderTest.class);
+@CustomLog
+public class TopicReaderTest extends SharedPulsarBaseTest {
 
-    @BeforeClass
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+    protected String methodName;
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
+    @BeforeMethod(alwaysRun = true)
+    public void setTestMethodName(Method m) {
+        methodName = m.getName();
     }
 
     @DataProvider
@@ -115,10 +111,11 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testSimpleReader() throws Exception {
-        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testSimpleReader")
+        final String topicName = newTopicName();
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName)
                 .startMessageId(MessageId.earliest).create();
 
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testSimpleReader")
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
                 .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -131,7 +128,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
             msg = reader.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -143,7 +140,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testSimpleMultiReader() throws Exception {
-        String topic = "persistent://my-property/my-ns/testSimpleMultiReader";
+        String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 3);
 
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
@@ -170,7 +167,9 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderAfterMessagesWerePublished() throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testReaderAfterMessagesWerePublished")
+        final String topicName = newTopicName();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topicName)
                 .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -178,7 +177,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         Reader<byte[]> reader = pulsarClient.newReader()
-                .topic("persistent://my-property/my-ns/testReaderAfterMessagesWerePublished")
+                .topic(topicName)
                 .startMessageId(MessageId.earliest).create();
 
         Message<byte[]> msg = null;
@@ -187,7 +186,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
             msg = reader.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -199,7 +198,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultiReaderAfterMessagesWerePublished() throws Exception {
-        String topic = "persistent://my-property/my-ns/testMultiReaderAfterMessagesWerePublished";
+        String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 3);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .create();
@@ -226,17 +225,21 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultipleReaders() throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testMultipleReaders")
+        final String topicName = newTopicName();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topicName)
                 .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        Reader<byte[]> reader1 = pulsarClient.newReader().topic("persistent://my-property/my-ns/testMultipleReaders")
+        Reader<byte[]> reader1 =
+                pulsarClient.newReader().topic(topicName)
                 .startMessageId(MessageId.earliest).create();
 
-        Reader<byte[]> reader2 = pulsarClient.newReader().topic("persistent://my-property/my-ns/testMultipleReaders")
+        Reader<byte[]> reader2 =
+                pulsarClient.newReader().topic(topicName)
                 .startMessageId(MessageId.earliest).create();
 
         Message<byte[]> msg = null;
@@ -245,7 +248,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
             msg = reader1.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet1, receivedMessage, expectedMessage);
         }
@@ -255,7 +258,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
             msg = reader2.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet2, receivedMessage, expectedMessage);
         }
@@ -267,7 +270,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultiMultipleReaders() throws Exception {
-        final String topic = "persistent://my-property/my-ns/testMultiMultipleReaders";
+        final String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 3);
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
                 .create();
@@ -305,7 +308,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testTopicStats() throws Exception {
-        String topicName = "persistent://my-property/my-ns/testTopicStats";
+        String topicName = newTopicName();
 
         Reader<byte[]> reader1 = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
@@ -326,14 +329,14 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultiTopicStats() throws Exception {
-        String topicName = "persistent://my-property/my-ns/testMultiTopicStats";
+        String topicName = newTopicName();
         admin.topics().createPartitionedTopic(topicName, 3);
 
         Reader<byte[]> reader1 = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
         Reader<byte[]> reader2 = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
-        TopicStats stats = admin.topics().getPartitionedStats(topicName,true);
+        TopicStats stats = admin.topics().getPartitionedStats(topicName, true);
         assertEquals(stats.getSubscriptions().size(), 2);
 
         reader1.close();
@@ -348,7 +351,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "variationsForResetOnLatestMsg")
     public void testReaderOnLatestMessage(boolean startInclusive, int numOfMessages) throws Exception {
-        final String topicName = "persistent://my-property/my-ns/ReaderOnLatestMessage";
+        final String topicName = newTopicName();
         final int halfOfMsgs = numOfMessages / 2;
 
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -393,7 +396,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "variationsForResetOnLatestMsg")
     public void testMultiReaderOnLatestMessage(boolean startInclusive, int numOfMessages) throws Exception {
-        final String topicName = "persistent://my-property/my-ns/testMultiReaderOnLatestMessage" + System.currentTimeMillis();
+        final String topicName = newTopicName();
         admin.topics().createPartitionedTopic(topicName, 3);
         final int halfOfMsgs = numOfMessages / 2;
 
@@ -441,7 +444,9 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderOnSpecificMessage() throws Exception {
-        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/my-ns/testReaderOnSpecificMessage")
+        final String topicName = newTopicName();
+        Producer<byte[]> producer =
+                pulsarClient.newProducer().topic(topicName)
                 .create();
         List<MessageId> messageIds = new ArrayList<>();
         for (int i = 0; i < 10; i++) {
@@ -449,7 +454,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
             messageIds.add(producer.send(message.getBytes()));
         }
 
-        Reader<byte[]> reader = pulsarClient.newReader().topic("persistent://my-property/my-ns/testReaderOnSpecificMessage")
+        Reader<byte[]> reader =
+                pulsarClient.newReader().topic(topicName)
                 .startMessageId(messageIds.get(4)).create();
 
         // Publish more messages and verify the readers only sees messages starting from the intended message
@@ -459,7 +465,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
             msg = reader.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -471,9 +477,10 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderOnSpecificMessageWithBatches() throws Exception {
+        final String topicName = newTopicName();
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/my-ns/testReaderOnSpecificMessageWithBatches").enableBatching(true)
-                .batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS).create();
+                .topic(topicName)
+                .enableBatching(true).batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS).create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.sendAsync(message.getBytes());
@@ -482,7 +489,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         // Write one sync message to ensure everything before got persistend
         producer.send("my-message-10".getBytes());
         Reader<byte[]> reader1 = pulsarClient.newReader()
-                .topic("persistent://my-property/my-ns/testReaderOnSpecificMessageWithBatches")
+                .topic(topicName)
                 .startMessageId(MessageId.earliest).create();
 
         MessageId lastMessageId = null;
@@ -496,14 +503,14 @@ public class TopicReaderTest extends ProducerConsumerBase {
         System.out.println("CREATING READER ON MSG ID: " + lastMessageId);
 
         Reader<byte[]> reader2 = pulsarClient.newReader()
-                .topic("persistent://my-property/my-ns/testReaderOnSpecificMessageWithBatches")
+                .topic(topicName)
                 .startMessageId(lastMessageId).create();
 
         for (int i = 5; i < 11; i++) {
             Message<byte[]> msg = reader2.readNext(1, TimeUnit.SECONDS);
 
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             assertEquals(receivedMessage, expectedMessage);
         }
@@ -513,7 +520,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testECDSAEncryption() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -521,32 +528,32 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
@@ -554,13 +561,14 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         final int totalMsg = 10;
 
+        final String topicName = newTopicName();
         Set<String> messageSet = new HashSet<>();
         Reader<byte[]> reader = pulsarClient.newReader()
-                .topic("persistent://my-property/my-ns/test-reader-myecdsa-topic1").startMessageId(MessageId.latest)
+                .topic(topicName).startMessageId(MessageId.latest)
                 .cryptoKeyReader(new EncKeyReader()).create();
 
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/my-ns/test-reader-myecdsa-topic1")
+                .topic(topicName)
                 .addEncryptionKey("client-ecdsa.pem").cryptoKeyReader(new EncKeyReader()).create();
         for (int i = 0; i < totalMsg; i++) {
             String message = "my-message-" + i;
@@ -572,18 +580,18 @@ public class TopicReaderTest extends ProducerConsumerBase {
         for (int i = 0; i < totalMsg; i++) {
             msg = reader.readNext(5, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + i;
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
         producer.close();
         reader.close();
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("method", methodName).log("Exiting test");
     }
 
     @Test
     public void testMultiReaderECDSAEncryption() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("method", methodName).log("Starting test");
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -591,32 +599,32 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
             @Override
             public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/public-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/public-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
 
             @Override
             public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
-                String CERT_FILE_PATH = "./src/test/resources/certificate/private-key." + keyName;
-                if (Files.isReadable(Paths.get(CERT_FILE_PATH))) {
+                String certFilePath = "./src/test/resources/certificate/private-key." + keyName;
+                if (Files.isReadable(Paths.get(certFilePath))) {
                     try {
-                        keyInfo.setKey(Files.readAllBytes(Paths.get(CERT_FILE_PATH)));
+                        keyInfo.setKey(Files.readAllBytes(Paths.get(certFilePath)));
                         return keyInfo;
                     } catch (IOException e) {
-                        Assert.fail("Failed to read certificate from " + CERT_FILE_PATH);
+                        Assert.fail("Failed to read certificate from " + certFilePath);
                     }
                 } else {
-                    Assert.fail("Certificate file " + CERT_FILE_PATH + " is not present or not readable.");
+                    Assert.fail("Certificate file " + certFilePath + " is not present or not readable.");
                 }
                 return null;
             }
@@ -625,7 +633,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         final int totalMsg = 10;
 
         Set<String> messageSet = new HashSet<>();
-        String topic = "persistent://my-property/my-ns/test-multi-reader-myecdsa-topic1";
+        String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 3);
         Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(topic).startMessageId(MessageId.latest)
@@ -652,16 +660,58 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testDefaultCryptoKeyReader() throws Exception {
-        final String topic = "persistent://my-property/my-ns/test-reader-default-crypto-key-reader"
-                + System.currentTimeMillis();
+        final String topic = newTopicName();
         final String ecdsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-ecdsa.pem";
         final String ecdsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-ecdsa.pem";
-        final String ecdsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlIS01JR2pCZ2NxaGtqT1BRSUJNSUdYQWdFQk1Cd0dCeXFHU000OUFRRUNFUUQvLy8vOS8vLy8vLy8vLy8vLwovLy8vTURzRUVQLy8vLzMvLy8vLy8vLy8vLy8vLy93RUVPaDFlY0VRZWZROTJDU1pQQ3p1WHRNREZRQUFEZzFOCmFXNW5hSFZoVVhVTXdEcEVjOUEyZVFRaEJCWWY5MUtMaVpzdERDaGdmS1VzVzRiUFdzZzVXNi9yRThBdG9wTGQKN1hxREFoRUEvLy8vL2dBQUFBQjFvdzBia0RpaEZRSUJBUU1pQUFUcktqNlJQSEdQTktjWktJT2NjTjR0Z0VOTQpuMWR6S2pMck1aVGtKNG9BYVE9PQotLS0tLUVORCBQVUJMSUMgS0VZLS0tLS0K";
-        final String ecdsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBFQyBQQVJBTUVURVJTLS0tLS0KTUlHWEFnRUJNQndHQnlxR1NNNDlBUUVDRVFELy8vLzkvLy8vLy8vLy8vLy8vLy8vTURzRUVQLy8vLzMvLy8vLwovLy8vLy8vLy8vd0VFT2gxZWNFUWVmUTkyQ1NaUEN6dVh0TURGUUFBRGcxTmFXNW5hSFZoVVhVTXdEcEVjOUEyCmVRUWhCQllmOTFLTGlac3REQ2hnZktVc1c0YlBXc2c1VzYvckU4QXRvcExkN1hxREFoRUEvLy8vL2dBQUFBQjEKb3cwYmtEaWhGUUlCQVE9PQotLS0tLUVORCBFQyBQQVJBTUVURVJTLS0tLS0KLS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1JSFlBZ0VCQkJEZXU5aGM4a092TDNwbCtMWVNqTHE5b0lHYU1JR1hBZ0VCTUJ3R0J5cUdTTTQ5QVFFQ0VRRC8KLy8vOS8vLy8vLy8vLy8vLy8vLy9NRHNFRVAvLy8vMy8vLy8vLy8vLy8vLy8vL3dFRU9oMWVjRVFlZlE5MkNTWgpQQ3p1WHRNREZRQUFEZzFOYVc1bmFIVmhVWFVNd0RwRWM5QTJlUVFoQkJZZjkxS0xpWnN0RENoZ2ZLVXNXNGJQCldzZzVXNi9yRThBdG9wTGQ3WHFEQWhFQS8vLy8vZ0FBQUFCMW93MGJrRGloRlFJQkFhRWtBeUlBQk9zcVBwRTgKY1k4MHB4a29nNXh3M2kyQVEweWZWM01xTXVzeGxPUW5pZ0JwCi0tLS0tRU5EIEVDIFBSSVZBVEUgS0VZLS0tLS0K";
+        final String ecdsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlI"
+                + "S01JR2pCZ2NxaGtqT1BRSUJNSUdYQWdFQk1Cd0dCeXFHU000OUFRRUNFUUQvLy8vOS8vLy8vLy8vLy8vLwovLy8vTURzRUVQLy8"
+                + "vLzMvLy8vLy8vLy8vLy8vLy93RUVPaDFlY0VRZWZROTJDU1pQQ3p1WHRNREZRQUFEZzFOCmFXNW5hSFZoVVhVTXdEcEVjOUEyZVF"
+                + "RaEJCWWY5MUtMaVpzdERDaGdmS1VzVzRiUFdzZzVXNi9yRThBdG9wTGQKN1hxREFoRUEvLy8vL2dBQUFBQjFvdzBia0RpaEZRSU"
+                + "JBUU1pQUFUcktqNlJQSEdQTktjWktJT2NjTjR0Z0VOTQpuMWR6S2pMck1aVGtKNG9BYVE9PQotLS0tLUVORCBQVUJMSUMgS0VZL"
+                + "S0tLS0K";
+        final String ecdsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBFQyBQQVJBTUVURVJTLS0tLS0"
+                + "KTUlHWEFnRUJNQndHQnlxR1NNNDlBUUVDRVFELy8vLzkvLy8vLy8vLy8vLy8vLy8vTURzRUVQLy8vLzMvLy8vLwovLy8vLy8vLy"
+                + "8vd0VFT2gxZWNFUWVmUTkyQ1NaUEN6dVh0TURGUUFBRGcxTmFXNW5hSFZoVVhVTXdEcEVjOUEyCmVRUWhCQllmOTFLTGlac3REQ"
+                + "2hnZktVc1c0YlBXc2c1VzYvckU4QXRvcExkN1hxREFoRUEvLy8vL2dBQUFBQjEKb3cwYmtEaWhGUUlCQVE9PQotLS0tLUVORCBF"
+                + "QyBQQVJBTUVURVJTLS0tLS0KLS0tLS1CRUdJTiBFQyBQUklWQVRFIEtFWS0tLS0tCk1JSFlBZ0VCQkJEZXU5aGM4a092TDNwbCt"
+                + "MWVNqTHE5b0lHYU1JR1hBZ0VCTUJ3R0J5cUdTTTQ5QVFFQ0VRRC8KLy8vOS8vLy8vLy8vLy8vLy8vLy9NRHNFRVAvLy8vMy8vLy"
+                + "8vLy8vLy8vLy8vL3dFRU9oMWVjRVFlZlE5MkNTWgpQQ3p1WHRNREZRQUFEZzFOYVc1bmFIVmhVWFVNd0RwRWM5QTJlUVFoQkJZZ"
+                + "jkxS0xpWnN0RENoZ2ZLVXNXNGJQCldzZzVXNi9yRThBdG9wTGQ3WHFEQWhFQS8vLy8vZ0FBQUFCMW93MGJrRGloRlFJQkFhRWtB"
+                + "eUlBQk9zcVBwRTgKY1k4MHB4a29nNXh3M2kyQVEweWZWM01xTXVzeGxPUW5pZ0JwCi0tLS0tRU5EIEVDIFBSSVZBVEUgS0VZLS0"
+                + "tLS0K";
         final String rsaPublicKeyFile = "file:./src/test/resources/certificate/public-key.client-rsa.pem";
         final String rsaPrivateKeyFile = "file:./src/test/resources/certificate/private-key.client-rsa.pem";
-        final String rsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF0S1d3Z3FkblRZck9DditqMU1rVApXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuYjEwSmNGZjVaanpQOUJTWEsrdEhtSTh1b04zNjh2RXY2eWhVClJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0M3cWRqQ043TERKM01ucWlCSXJVc1NhRVAxd3JOc0Ixa0krbzkKRVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVla0hxTDdzQmxKOThoNk5tc2ljRWFVa2FyZGswVE9YcmxrakMrYwpNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0aHB2blhMdkNtRzRNKzZ4dFl0RCtucGNWUFp3MWkxUjkwZk1zCjdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG5OS2dXN2M3SUJNclAwQUVtMzdIVHUwTFNPalAyT0hYbHZ2bFEKR1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==";
-        final String rsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFb3dJQkFBS0NBUUVBdEtXd2dxZG5UWXJPQ3YrajFNa1RXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuCmIxMEpjRmY1Wmp6UDlCU1hLK3RIbUk4dW9OMzY4dkV2NnloVVJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0MKN3FkakNON0xESjNNbnFpQklyVXNTYUVQMXdyTnNCMWtJK285RVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVlawpIcUw3c0JsSjk4aDZObXNpY0VhVWthcmRrMFRPWHJsa2pDK2NNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0Cmhwdm5YTHZDbUc0TSs2eHRZdEQrbnBjVlBadzFpMVI5MGZNczdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG4KTktnVzdjN0lCTXJQMEFFbTM3SFR1MExTT2pQMk9IWGx2dmxRR1FJREFRQUJBb0lCQUFhSkZBaTJDN3UzY05yZgpBc3RZOXZWRExvTEl2SEZabGtCa3RqS1pEWW1WSXNSYitoU0NWaXdWVXJXTEw2N1I2K0l2NGVnNERlVE9BeDAwCjhwbmNYS2daVHcyd0liMS9RalIvWS9SamxhQzhsa2RtUldsaTd1ZE1RQ1pWc3lodVNqVzZQajd2cjhZRTR3b2oKRmhOaWp4RUdjZjl3V3JtTUpyemRuVFdRaVhCeW8rZVR2VVE5QlBnUEdyUmpzTVptVGtMeUFWSmZmMkRmeE81YgpJV0ZEWURKY3lZQU1DSU1RdTd2eXMvSTUwb3U2aWxiMUNPNlFNNlo3S3BQZU9vVkZQd3R6Ymg4Y2Y5eE04VU5TCmo2Si9KbWRXaGdJMzRHUzNOQTY4eFRRNlBWN3pqbmhDYytpY2NtM0pLeXpHWHdhQXBBWitFb2NlLzlqNFdLbXUKNUI0emlSMENnWUVBM2wvOU9IYmwxem15VityUnhXT0lqL2kyclR2SHp3Qm5iblBKeXVlbUw1Vk1GZHBHb2RRMwp2d0h2eVFtY0VDUlZSeG1Yb2pRNFF1UFBIczNxcDZ3RUVGUENXeENoTFNUeGxVYzg1U09GSFdVMk85OWpWN3pJCjcrSk9wREsvTXN0c3g5bkhnWGR1SkYrZ2xURnRBM0xIOE9xeWx6dTJhRlBzcHJ3S3VaZjk0UThDZ1lFQXovWngKYWtFRytQRU10UDVZUzI4Y1g1WGZqc0lYL1YyNkZzNi9zSDE2UWpVSUVkZEU1VDRmQ3Vva3hDalNpd1VjV2htbApwSEVKNVM1eHAzVllSZklTVzNqUlczcXN0SUgxdHBaaXBCNitTMHpUdUptTEpiQTNJaVdFZzJydE10N1gxdUp2CkEvYllPcWUwaE9QVHVYdVpkdFZaMG5NVEtrN0dHOE82VmtCSTdGY0NnWUVBa0RmQ21zY0pnczdKYWhsQldIbVgKekg5cHdlbStTUEtqSWMvNE5CNk4rZGdpa3gyUHAwNWhwUC9WaWhVd1lJdWZ2cy9MTm9nVllOUXJ0SGVwVW5yTgoyK1RtYkhiWmdOU3YxTGR4dDgyVWZCN3kwRnV0S3U2bGhtWEh5TmVjaG8zRmk4c2loMFYwYWlTV21ZdUhmckFICkdhaXNrRVpLbzFpaVp2UVhKSXg5TzJNQ2dZQVRCZjByOWhUWU10eXh0YzZIMy9zZGQwMUM5dGhROGdEeTB5alAKMFRxYzBkTVNKcm9EcW1JV2tvS1lldzkvYmhGQTRMVzVUQ25Xa0NBUGJIbU50RzRmZGZiWXdta0gvaGRuQTJ5MApqS2RscGZwOEdYZVVGQUdIR3gxN0ZBM3NxRnZnS1VoMGVXRWdSSFVMN3ZkUU1WRkJnSlM5M283elFNOTRmTGdQCjZjT0I4d0tCZ0ZjR1Y0R2pJMld3OWNpbGxhQzU1NE12b1NqZjhCLyswNGtYekRPaDhpWUlJek85RVVpbDFqaksKSnZ4cDRobkx6VEtXYnV4M01FV3F1ckxrWWFzNkdwS0JqdytpTk9DYXI2WWRxV0dWcU0zUlV4N1BUVWFad2tLeApVZFA2M0lmWTdpWkNJVC9RYnlIUXZJVWUyTWFpVm5IK3VseGRrSzZZNWU3Z3hjYmNrSUg0Ci0tLS0tRU5EIFJTQSBQUklWQVRFIEtFWS0tLS0tCg==";
+        final String rsaPublicKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQk"
+                + "lqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF0S1d3Z3FkblRZck9DditqMU1rVApXZlNIMHdDc0haWmNhO"
+                + "XdBVzNxUDR1dWhsQnZuYjEwSmNGZjVaanpQOUJTWEsrdEhtSTh1b04zNjh2RXY2eWhVClJITTR5dVhxekN4enVBd2tRU28zOXJ6"
+                + "WDhQR0M3cWRqQ043TERKM01ucWlCSXJVc1NhRVAxd3JOc0Ixa0krbzkKRVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVla0hxTDd"
+                + "zQmxKOThoNk5tc2ljRWFVa2FyZGswVE9YcmxrakMrYwpNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0aHB2blhMdkNtRzRNKz"
+                + "Z4dFl0RCtucGNWUFp3MWkxUjkwZk1zCjdwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG5OS2dXN2M3SUJNclAwQUVtMzdIVHUwT"
+                + "FNPalAyT0hYbHZ2bFEKR1FJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==";
+        final String rsaPrivateKeyData = "data:application/x-pem-file;base64,LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tL"
+                + "QpNSUlFb3dJQkFBS0NBUUVBdEtXd2dxZG5UWXJPQ3YrajFNa1RXZlNIMHdDc0haWmNhOXdBVzNxUDR1dWhsQnZuCmIxMEpjRmY1"
+                + "Wmp6UDlCU1hLK3RIbUk4dW9OMzY4dkV2NnloVVJITTR5dVhxekN4enVBd2tRU28zOXJ6WDhQR0MKN3FkakNON0xESjNNbnFpQkl"
+                + "yVXNTYUVQMXdyTnNCMWtJK285RVIxZTVPL3VFUEFvdFA5MzNoSFEwSjJoTUVlawpIcUw3c0JsSjk4aDZObXNpY0VhVWthcmRrMF"
+                + "RPWHJsa2pDK2NNZDhaYkdTY1BxSTlNMzhibW4zT0x4RlRuMXZ0Cmhwdm5YTHZDbUc0TSs2eHRZdEQrbnBjVlBadzFpMVI5MGZNcz"
+                + "dwcFpuUmJ2OEhjL0RGZE9LVlFJZ2FtNkNEZG4KTktnVzdjN0lCTXJQMEFFbTM3SFR1MExTT2pQMk9IWGx2dmxRR1FJREFRQUJBb"
+                + "0lCQUFhSkZBaTJDN3UzY05yZgpBc3RZOXZWRExvTEl2SEZabGtCa3RqS1pEWW1WSXNSYitoU0NWaXdWVXJXTEw2N1I2K0l2NGVn"
+                + "NERlVE9BeDAwCjhwbmNYS2daVHcyd0liMS9RalIvWS9SamxhQzhsa2RtUldsaTd1ZE1RQ1pWc3lodVNqVzZQajd2cjhZRTR3b2o"
+                + "KRmhOaWp4RUdjZjl3V3JtTUpyemRuVFdRaVhCeW8rZVR2VVE5QlBnUEdyUmpzTVptVGtMeUFWSmZmMkRmeE81YgpJV0ZEWURKY3"
+                + "lZQU1DSU1RdTd2eXMvSTUwb3U2aWxiMUNPNlFNNlo3S3BQZU9vVkZQd3R6Ymg4Y2Y5eE04VU5TCmo2Si9KbWRXaGdJMzRHUzNOQ"
+                + "TY4eFRRNlBWN3pqbmhDYytpY2NtM0pLeXpHWHdhQXBBWitFb2NlLzlqNFdLbXUKNUI0emlSMENnWUVBM2wvOU9IYmwxem15Vity"
+                + "UnhXT0lqL2kyclR2SHp3Qm5iblBKeXVlbUw1Vk1GZHBHb2RRMwp2d0h2eVFtY0VDUlZSeG1Yb2pRNFF1UFBIczNxcDZ3RUVGUEN"
+                + "XeENoTFNUeGxVYzg1U09GSFdVMk85OWpWN3pJCjcrSk9wREsvTXN0c3g5bkhnWGR1SkYrZ2xURnRBM0xIOE9xeWx6dTJhRlBzcH"
+                + "J3S3VaZjk0UThDZ1lFQXovWngKYWtFRytQRU10UDVZUzI4Y1g1WGZqc0lYL1YyNkZzNi9zSDE2UWpVSUVkZEU1VDRmQ3Vva3hDa"
+                + "lNpd1VjV2htbApwSEVKNVM1eHAzVllSZklTVzNqUlczcXN0SUgxdHBaaXBCNitTMHpUdUptTEpiQTNJaVdFZzJydE10N1gxdUp2"
+                + "CkEvYllPcWUwaE9QVHVYdVpkdFZaMG5NVEtrN0dHOE82VmtCSTdGY0NnWUVBa0RmQ21zY0pnczdKYWhsQldIbVgKekg5cHdlbSt"
+                + "TUEtqSWMvNE5CNk4rZGdpa3gyUHAwNWhwUC9WaWhVd1lJdWZ2cy9MTm9nVllOUXJ0SGVwVW5yTgoyK1RtYkhiWmdOU3YxTGR4dD"
+                + "gyVWZCN3kwRnV0S3U2bGhtWEh5TmVjaG8zRmk4c2loMFYwYWlTV21ZdUhmckFICkdhaXNrRVpLbzFpaVp2UVhKSXg5TzJNQ2dZQ"
+                + "VRCZjByOWhUWU10eXh0YzZIMy9zZGQwMUM5dGhROGdEeTB5alAKMFRxYzBkTVNKcm9EcW1JV2tvS1lldzkvYmhGQTRMVzVUQ25X"
+                + "a0NBUGJIbU50RzRmZGZiWXdta0gvaGRuQTJ5MApqS2RscGZwOEdYZVVGQUdIR3gxN0ZBM3NxRnZnS1VoMGVXRWdSSFVMN3ZkUU1"
+                + "WRkJnSlM5M283elFNOTRmTGdQCjZjT0I4d0tCZ0ZjR1Y0R2pJMld3OWNpbGxhQzU1NE12b1NqZjhCLyswNGtYekRPaDhpWUlJek"
+                + "85RVVpbDFqaksKSnZ4cDRobkx6VEtXYnV4M01FV3F1ckxrWWFzNkdwS0JqdytpTk9DYXI2WWRxV0dWcU0zUlV4N1BUVWFad2tLe"
+                + "ApVZFA2M0lmWTdpWkNJVC9RYnlIUXZJVWUyTWFpVm5IK3VseGRrSzZZNWU3Z3hjYmNrSUg0Ci0tLS0tRU5EIFJTQSBQUklWQVRF"
+                + "IEtFWS0tLS0tCg==";
         final int numMsg = 10;
 
         Map<String, String> privateKeyFileMap = new HashMap<>();
@@ -739,11 +789,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testSimpleReaderReachEndOfTopic() throws Exception {
+        final String topicName = newTopicName();
         Reader<byte[]> reader = pulsarClient.newReader()
-                .topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
+                .topic(topicName)
                 .startMessageId(MessageId.earliest).create();
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/my-ns/testSimpleReaderReachEndOfTopic")
+                .topic(topicName)
                 .create();
 
         // no data write, should return false
@@ -763,7 +814,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         while (reader.hasMessageAvailable()) {
             msg = (MessageImpl<byte[]>) reader.readNext(1, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + (index++);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -782,7 +833,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         while (reader.hasMessageAvailable()) {
             msg = (MessageImpl<byte[]>) reader.readNext(1, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.debug("Received message: [{}]", receivedMessage);
+            log.debug().attr("message", receivedMessage).log("Received message");
             String expectedMessage = "my-message-" + (index++);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
         }
@@ -797,8 +848,8 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testSimpleMultiReaderReachEndOfTopic() throws Exception {
-        String topic = "persistent://my-property/my-ns/testSimpleMultiReaderReachEndOfTopic";
-        admin.topics().createPartitionedTopic(topic,3);
+        String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 3);
         Reader<byte[]> reader = pulsarClient.newReader().topic(topic).startMessageId(MessageId.earliest).create();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
@@ -851,12 +902,13 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderReachEndOfTopicOnMessageWithBatches() throws Exception {
+        final String topicName = newTopicName();
         Reader<byte[]> reader = pulsarClient.newReader()
-                .topic("persistent://my-property/my-ns/testReaderReachEndOfTopicOnMessageWithBatches")
+                .topic(topicName)
                 .startMessageId(MessageId.earliest).create();
 
         Producer<byte[]> producer = pulsarClient.newProducer()
-                .topic("persistent://my-property/my-ns/testReaderReachEndOfTopicOnMessageWithBatches")
+                .topic(topicName)
                 .enableBatching(true).batchingMaxPublishDelay(100, TimeUnit.MILLISECONDS).create();
 
         // no data write, should return false
@@ -894,7 +946,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultiReaderReachEndOfTopicOnMessageWithBatches() throws Exception {
-        String topic = "persistent://my-property/my-ns/testMultiReaderReachEndOfTopicOnMessageWithBatches";
+        String topic = newTopicName();
         admin.topics().createPartitionedTopic(topic, 3);
         Reader<byte[]> reader = pulsarClient.newReader()
                 .topic(topic)
@@ -939,7 +991,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMessageAvailableAfterRestart() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testMessageAvailableAfterRestart";
+        String topic = newTopicName();
         String content = "my-message-1";
 
         // stop retention from cleaning up
@@ -960,7 +1012,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         // cause broker to drop topic. Will be loaded next time we access it
-        pulsar.getBrokerService().getTopicReference(topic).get().close(false).get();
+        getTopicReference(topic).get().close(false).get();
 
         try (Reader<byte[]> reader = pulsarClient.newReader().topic(topic)
                 .startMessageId(MessageId.earliest).create()) {
@@ -975,7 +1027,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultiReaderMessageAvailableAfterRestart() throws Exception {
-        String topic = "persistent://my-property/use/my-ns/testMessageAvailableAfterRestart2";
+        String topic = newTopicName();
         String content = "my-message-1";
         admin.topics().createPartitionedTopic(topic, 3);
         // stop retention from cleaning up
@@ -996,9 +1048,9 @@ public class TopicReaderTest extends ProducerConsumerBase {
         }
 
         // cause broker to drop topic. Will be loaded next time we access it
-        pulsar.getBrokerService().getTopics().keys().forEach(topicName -> {
+        SharedPulsarCluster.get().getPulsarService().getBrokerService().getTopics().keySet().forEach(topicName -> {
             try {
-                pulsar.getBrokerService().getTopicReference(topicName).get().close(false).get();
+                getTopicReference(topicName).get().close(false).get();
             } catch (Exception e) {
                 fail();
             }
@@ -1017,7 +1069,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "variationsForHasMessageAvailable")
     public void testHasMessageAvailable(boolean enableBatch, boolean startInclusive) throws Exception {
-        final String topicName = "persistent://my-property/my-ns/HasMessageAvailable";
+        final String topicName = newTopicName();
         final int numOfMessage = 100;
 
         ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer()
@@ -1075,22 +1127,23 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test(timeOut = 20000)
     public void testHasMessageAvailable() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/testHasMessageAvailableWithBatch";
+        final String topicName = newTopicName();
         final int numOfMessage = 10;
 
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .enableBatching(true)
                 .batchingMaxMessages(10)
-                .batchingMaxPublishDelay(2,TimeUnit.SECONDS)
+                .batchingMaxPublishDelay(2, TimeUnit.SECONDS)
                 .topic(topicName).create();
 
         //For batch-messages with single message, the type of client messageId should be the same as that of broker
         MessageIdImpl messageId = (MessageIdImpl) producer.send("msg".getBytes());
         assertFalse(messageId instanceof BatchMessageIdImpl);
-        ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>)pulsarClient.newReader().topic(topicName)
+        ReaderImpl<byte[]> reader = (ReaderImpl<byte[]>) pulsarClient.newReader().topic(topicName)
                 .startMessageId(messageId).startMessageIdInclusive().create();
         MessageIdImpl lastMsgId = (MessageIdImpl) reader.getConsumer().getLastMessageId();
         assertFalse(lastMsgId instanceof BatchMessageIdImpl);
@@ -1127,12 +1180,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
             if (id instanceof BatchMessageIdImpl) {
                 MessageId lastMessageId = reader.getConsumer().getLastMessageId();
                 assertTrue(lastMessageId instanceof BatchMessageIdImpl);
-                log.info("id {} instance of BatchMessageIdImpl",id);
+                log.info().attr("id", id).log("id instance of BatchMessageIdImpl");
             } else {
                 assertTrue(id instanceof MessageIdImpl);
                 MessageId lastMessageId = reader.getConsumer().getLastMessageId();
                 assertTrue(lastMessageId instanceof MessageIdImpl);
-                log.info("id {} instance of MessageIdImpl",id);
+                log.info().attr("id", id).log("id instance of MessageIdImpl");
             }
             reader.close();
         }
@@ -1155,7 +1208,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     @Test
     public void testReaderNonDurableIsAbleToSeekRelativeTime() throws Exception {
         final int numOfMessage = 10;
-        final String topicName = "persistent://my-property/my-ns/ReaderNonDurableIsAbleToSeekRelativeTime";
+        final String topicName = newTopicName();
 
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topicName).create();
@@ -1179,7 +1232,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     @Test
     public void testMultiReaderNonDurableIsAbleToSeekRelativeTime() throws Exception {
         final int numOfMessage = 10;
-        final String topicName = "persistent://my-property/my-ns/ReaderNonDurableIsAbleToSeekRelativeTime";
+        final String topicName = newTopicName();
         admin.topics().createPartitionedTopic(topicName, 3);
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
@@ -1201,7 +1254,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderIsAbleToSeekWithTimeOnBeginningOfTopic() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/ReaderSeekWithTimeOnBeginningOfTopic";
+        final String topicName = newTopicName();
         final int numOfMessage = 10;
 
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1239,8 +1292,9 @@ public class TopicReaderTest extends ProducerConsumerBase {
             testMessageOrderAndDuplicates(messageSetB, receivedMessage, expectedMessage);
         }
 
-        // Reader should be finished
-        assertTrue(reader.isConnected());
+        // Reader should be finished. seek() triggers an asynchronous reconnect of the underlying consumer(s), so
+        // isConnected() can be transiently false right after the post-seek reads; await it to avoid flakiness.
+        Awaitility.await().untilAsserted(() -> assertTrue(reader.isConnected()));
         assertFalse(reader.hasMessageAvailable());
         assertEquals(((ReaderImpl) reader).getConsumer().numMessagesInQueue(), 0);
 
@@ -1250,7 +1304,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultiReaderIsAbleToSeekWithTimeOnBeginningOfTopic() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/MultiReaderSeekWithTimeOnBeginningOfTopic";
+        final String topicName = newTopicName();
         final int numOfMessage = 10;
         admin.topics().createPartitionedTopic(topicName, 3);
 
@@ -1285,8 +1339,9 @@ public class TopicReaderTest extends ProducerConsumerBase {
             Assert.assertTrue(messageSetB.add(receivedMessage), "Received duplicate message " + receivedMessage);
         }
 
-        // Reader should be finished
-        assertTrue(reader.isConnected());
+        // Reader should be finished. seek() triggers an asynchronous reconnect of the underlying consumer(s), so
+        // isConnected() can be transiently false right after the post-seek reads; await it to avoid flakiness.
+        Awaitility.await().untilAsserted(() -> assertTrue(reader.isConnected()));
         assertFalse(reader.hasMessageAvailable());
         assertEquals(((MultiTopicsReaderImpl) reader).getMultiTopicsConsumer().numMessagesInQueue(), 0);
 
@@ -1296,7 +1351,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderIsAbleToSeekWithMessageIdOnMiddleOfTopic() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/ReaderSeekWithMessageIdOnMiddleOfTopic";
+        final String topicName = newTopicName();
         final int numOfMessage = 100;
         final int halfMessages = numOfMessage / 2;
 
@@ -1340,8 +1395,9 @@ public class TopicReaderTest extends ProducerConsumerBase {
             testMessageOrderAndDuplicates(messageSetB, receivedMessage, expectedMessage);
         }
 
-        // Reader should be finished
-        assertTrue(reader.isConnected());
+        // Reader should be finished. seek() triggers an asynchronous reconnect of the underlying consumer(s), so
+        // isConnected() can be transiently false right after the post-seek reads; await it to avoid flakiness.
+        Awaitility.await().untilAsserted(() -> assertTrue(reader.isConnected()));
         assertFalse(reader.hasMessageAvailable());
         assertEquals(((ReaderImpl) reader).getConsumer().numMessagesInQueue(), 0);
 
@@ -1351,7 +1407,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderIsAbleToSeekWithTimeOnMiddleOfTopic() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/ReaderIsAbleToSeekWithTimeOnMiddleOfTopic";
+        final String topicName = newTopicName();
         final int numOfMessage = 10;
         final int halfMessages = numOfMessage / 2;
 
@@ -1384,7 +1440,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testMultiReaderIsAbleToSeekWithTimeOnMiddleOfTopic() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/testMultiReaderIsAbleToSeekWithTimeOnMiddleOfTopic" + System.currentTimeMillis();
+        final String topicName = newTopicName();
         final int numOfMessage = 10;
         final int halfMessages = numOfMessage / 2;
         admin.topics().createPartitionedTopic(topicName, 3);
@@ -1413,7 +1469,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
     @Test(dataProvider = "variationsForExpectedPos")
     public void testReaderStartMessageIdAtExpectedPos(boolean batching, boolean startInclusive, int numOfMessages)
             throws Exception {
-        final String topicName = "persistent://my-property/my-ns/ReaderStartMessageIdAtExpectedPos";
+        final String topicName = newTopicName();
         final int resetIndex = new Random().nextInt(numOfMessages); // Choose some random index to reset
         final int firstMessage = startInclusive ? resetIndex : resetIndex + 1; // First message of reset
 
@@ -1475,7 +1531,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderBuilderConcurrentCreate() throws Exception {
-        String topicName = "persistent://my-property/my-ns/testReaderBuilderConcurrentCreate_";
+        String topicName = newTopicName() + "-";
         int numTopic = 30;
         ReaderBuilder<byte[]> builder = pulsarClient.newReader().startMessageId(MessageId.earliest);
 
@@ -1503,7 +1559,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test(timeOut = 10000)
     public void testMultiReaderBuilderConcurrentCreate() throws Exception {
-        String topicName = "persistent://my-property/my-ns/testMultiReaderBuilderConcurrentCreate_";
+        String topicName = newTopicName() + "-";
         int numTopic = 30;
         ReaderBuilder<byte[]> builder = pulsarClient.newReader().startMessageId(MessageId.earliest);
 
@@ -1532,7 +1588,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
     @Test
     public void testReaderStartInMiddleOfBatch() throws Exception {
-        final String topicName = "persistent://my-property/my-ns/ReaderStartInMiddleOfBatch";
+        final String topicName = newTopicName();
         final int numOfMessage = 100;
 
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -1622,5 +1678,12 @@ public class TopicReaderTest extends ProducerConsumerBase {
         assertTrue(r2.hasMessageAvailable());
         assertTrue(r2Inclusive.hasMessageAvailable());
         assertTrue(r3.hasMessageAvailable());
+    }
+
+    private <T> void testMessageOrderAndDuplicates(Set<T> messagesReceived, T receivedMessage,
+            T expectedMessage) {
+        Assert.assertEquals(receivedMessage, expectedMessage,
+                "Received message " + receivedMessage + " did not match the expected message " + expectedMessage);
+        Assert.assertTrue(messagesReceived.add(receivedMessage), "Received duplicate message " + receivedMessage);
     }
 }

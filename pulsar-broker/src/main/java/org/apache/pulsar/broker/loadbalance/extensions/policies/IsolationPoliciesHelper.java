@@ -21,14 +21,14 @@ package org.apache.pulsar.broker.loadbalance.extensions.policies;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceAllocationPolicies;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 
-@Slf4j
+@CustomLog
 public class IsolationPoliciesHelper {
 
     private final SimpleResourceAllocationPolicies policies;
@@ -42,14 +42,14 @@ public class IsolationPoliciesHelper {
         return LoadManagerShared.applyNamespacePoliciesAsync(serviceUnit, policies,
                 availableBrokers.keySet(), new LoadManagerShared.BrokerTopicLoadingPredicate() {
                     @Override
-                    public boolean isEnablePersistentTopics(String brokerUrl) {
-                        BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
+                    public boolean isEnablePersistentTopics(String brokerId) {
+                        BrokerLookupData lookupData = availableBrokers.get(brokerId);
                         return lookupData != null && lookupData.persistentTopicsEnabled();
                     }
 
                     @Override
-                    public boolean isEnableNonPersistentTopics(String brokerUrl) {
-                        BrokerLookupData lookupData = availableBrokers.get(brokerUrl.replace("http://", ""));
+                    public boolean isEnableNonPersistentTopics(String brokerId) {
+                        BrokerLookupData lookupData = availableBrokers.get(brokerId);
                         return lookupData != null && lookupData.nonPersistentTopicsEnabled();
                     }
                 });

@@ -18,25 +18,27 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import com.google.common.collect.Lists;
-import org.apache.pulsar.client.admin.Brokers;
-import org.apache.pulsar.client.api.ProxyProtocol;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import java.io.ByteArrayOutputStream;
+import com.google.common.collect.Lists;
 import java.io.File;
-import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.Map;
+import lombok.Cleanup;
 import org.apache.pulsar.admin.cli.utils.CmdUtils;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ProxyProtocol;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.assertj.core.util.Maps;
 import org.testng.Assert;
@@ -95,6 +97,27 @@ public class TestCmdClusters {
     }
 
     @Test
+    public void testTlsFactoryOptions() throws Exception {
+        // PIP-478: a cluster entry may select its own PulsarTlsFactory for outbound connections to that
+        // remote cluster — the two legs configured from the cluster entry, the binary replication client
+        // and the cross-cluster admin client (not the broker-level peer-cluster lookup client).
+        ClusterData expected = ClusterData.builder()
+                .brokerClientTlsFactoryClassName("com.example.MyTlsFactory")
+                .brokerClientTlsFactoryConfig("k1=v1,k2=v2")
+                .build();
+
+        cmdClusters.run(new String[]{"create", "test_cluster",
+                "--tls-factory-class-name", "com.example.MyTlsFactory",
+                "--tls-factory-config", "k1=v1,k2=v2"});
+        verify(clusters).createCluster(eq("test_cluster"), eq(expected));
+
+        cmdClusters.run(new String[]{"update", "test_cluster",
+                "--tls-factory-class-name", "com.example.MyTlsFactory",
+                "--tls-factory-config", "k1=v1,k2=v2"});
+        verify(clusters).updateCluster(eq("test_cluster"), eq(expected));
+    }
+
+    @Test
     public void testListCmd() throws Exception {
         List<String> clusterList = Lists.newArrayList("us-west", "us-east", "us-cent");
         List<String> clusterResultList = Lists.newArrayList("us-west", "us-east", "us-cent(*)");
@@ -110,16 +133,27 @@ public class TestCmdClusters {
 
         CmdClusters cmd = new CmdClusters(() -> admin);
 
-        PrintStream defaultSystemOut = System.out;
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream(); PrintStream ps = new PrintStream(out)) {
-            System.setOut(ps);
-            cmd.run("list".split("\\s+"));
-            Assert.assertEquals(out.toString(), String.join("\n", clusterList) + "\n");
-            out.reset();
-            cmd.run("list -c".split("\\s+"));
-            Assert.assertEquals(out.toString(), String.join("\n", clusterResultList) + "\n");
-        } finally {
-            System.setOut(defaultSystemOut);
-        }
+        @Cleanup
+        StringWriter stringWriter = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter = new PrintWriter(stringWriter);
+        cmd.getCommander().setOut(printWriter);
+
+        cmd.run("list".split("\\s+"));
+        Assert.assertEquals(stringWriter.toString(), String.join("\n", clusterList) + "\n");
+
+        @Cleanup
+        StringWriter stringWriter1 = new StringWriter();
+        @Cleanup
+        PrintWriter printWriter1 = new PrintWriter(stringWriter1);
+        cmd.getCommander().setOut(printWriter1);
+        cmd.run("list -c".split("\\s+"));
+        Assert.assertEquals(stringWriter1.toString(), String.join("\n", clusterResultList) + "\n");
+    }
+
+    @Test
+    public void testGetClusterMigration() throws Exception {
+        cmdClusters.run(new String[]{"get-cluster-migration", "test_cluster"});
+        verify(clusters, times(1)).getClusterMigration("test_cluster");
     }
 }
