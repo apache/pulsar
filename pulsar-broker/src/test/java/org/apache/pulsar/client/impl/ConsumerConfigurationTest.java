@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
-
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -31,18 +30,18 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 public class ConsumerConfigurationTest extends MockedPulsarServiceBaseTest {
-    private static String persistentTopic = "persistent://my-property/use/my-ns/persist";
-    private static String nonPersistentTopic = "non-persistent://my-property/use/my-ns/nopersist";
+    private static String persistentTopic = "persistent://my-property/my-ns/persist";
+    private static String nonPersistentTopic = "non-persistent://my-property/my-ns/nopersist";
 
     @BeforeMethod
     @Override
     public void setup() throws Exception {
         super.internalSetup();
 
-        admin.clusters().createCluster("use", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+        admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
         admin.tenants().createTenant("my-property",
-                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+                new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+        admin.namespaces().createNamespace("my-property/my-ns");
     }
 
     @AfterMethod(alwaysRun = true)

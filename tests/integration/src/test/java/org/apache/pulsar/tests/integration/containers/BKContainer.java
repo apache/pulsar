@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,8 +26,18 @@ public class BKContainer extends PulsarContainer<BKContainer> {
     public static final String NAME = "bookie";
 
     public BKContainer(String clusterName, String hostName) {
+        this(clusterName, hostName, DEFAULT_IMAGE_NAME);
+    }
+
+    public BKContainer(String clusterName, String hostName, String imageName) {
         super(
-            clusterName, hostName, hostName, "bin/run-bookie.sh", BOOKIE_PORT, INVALID_PORT);
+            clusterName, hostName, hostName, "bin/run-bookie.sh", BOOKIE_PORT, INVALID_PORT, "/metrics",
+            imageName);
         tailContainerLog();
+    }
+
+    @Override
+    protected boolean isPassNettyLeakDetectionSystemProperties() {
+        return false;
     }
 }

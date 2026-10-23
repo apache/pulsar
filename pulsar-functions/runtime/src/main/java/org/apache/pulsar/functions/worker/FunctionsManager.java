@@ -1,0 +1,107 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.functions.worker;
+
+import com.google.common.annotations.VisibleForTesting;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.stream.Collectors;
+import lombok.CustomLog;
+import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.utils.functions.FunctionArchive;
+import org.apache.pulsar.functions.utils.functions.FunctionUtils;
+import org.apache.pulsar.functions.utils.functions.ReloadFunctionsResult;
+
+@CustomLog
+public class FunctionsManager implements AutoCloseable {
+    private volatile Map<String, FunctionArchive> functions;
+
+    @VisibleForTesting
+    public FunctionsManager() {
+        this.functions = new TreeMap<>();
+    }
+
+    public FunctionsManager(WorkerConfig workerConfig) throws IOException {
+        this.functions = createFunctions(workerConfig);
+    }
+
+    public void addFunction(String functionType, FunctionArchive functionArchive) {
+        functions.put(functionType, functionArchive);
+    }
+
+    public FunctionArchive getFunction(String functionType) {
+        return functions.get(functionType);
+    }
+
+    public Path getFunctionArchive(String functionType) {
+        return functions.get(functionType).getArchivePath();
+    }
+
+    public List<FunctionDefinition> getFunctionDefinitions() {
+        return functions.values().stream().map(FunctionArchive::getFunctionDefinition)
+                .collect(Collectors.toList());
+    }
+
+    public void reloadFunctions(WorkerConfig workerConfig) throws IOException {
+        ReloadFunctionsResult reload = FunctionUtils.reloadFunctions(
+                this.functions,
+                workerConfig.getFunctionsDirectory(),
+                workerConfig.getNarExtractionDirectory(),
+                isEnableClassloading(workerConfig));
+        this.functions = reload.functions();
+        closeFunctions(reload.functionsToClose());
+    }
+
+    private static Map<String, FunctionArchive> createFunctions(WorkerConfig workerConfig) throws IOException {
+        boolean enableClassloading = isEnableClassloading(workerConfig);
+        return FunctionUtils.searchForFunctions(workerConfig.getFunctionsDirectory(),
+                workerConfig.getNarExtractionDirectory(),
+                enableClassloading);
+    }
+
+    private static boolean isEnableClassloading(WorkerConfig workerConfig) {
+        return workerConfig.getEnableClassloadingOfBuiltinFiles()
+                || ThreadRuntimeFactory.class.getName().equals(workerConfig.getFunctionRuntimeFactoryClassName());
+    }
+
+    @Override
+    public void close() {
+        closeFunctions(functions);
+    }
+
+    private void closeFunctions(Collection<FunctionArchive> functions) {
+        functions.forEach(functionArchive -> {
+            try {
+                functionArchive.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("Failed to close function archive");
+            }
+        });
+    }
+
+    private void closeFunctions(Map<String, FunctionArchive> functionMap) {
+        closeFunctions(functionMap.values());
+        functionMap.clear();
+    }
+}

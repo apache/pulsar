@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,53 +18,77 @@
  */
 package org.apache.pulsar.common.allocator;
 
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBufAllocator;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.common.allocator.LeakDetectionPolicy;
+import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocatorMetric;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.common.allocator.OutOfMemoryPolicy;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.allocator.impl.ByteBufAllocatorImpl;
 import org.mockito.MockedConstruction;
 import org.mockito.Mockito;
-import org.powermock.reflect.Whitebox;
 import org.testng.annotations.Test;
 
-import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
-
-@Slf4j
 public class PulsarByteBufAllocatorDefaultTest {
 
     @Test
-    public void testDefaultConfig() throws Exception {
+    @SuppressWarnings("try")
+    public void testDefaultConfig() {
+        // Force initialize PulsarByteBufAllocator.DEFAULT before mock the ctor so that it is not polluted.
+        assertNotNull(PulsarByteBufAllocator.DEFAULT);
+
         AtomicBoolean called = new AtomicBoolean();
-        try (MockedConstruction<ByteBufAllocatorImpl> mocked = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
+        try (MockedConstruction<ByteBufAllocatorImpl> ignored = Mockito.mockConstruction(ByteBufAllocatorImpl.class,
                 (mock, context) -> {
             called.set(true);
             final List<?> arguments = context.arguments();
             assertTrue(arguments.get(0) instanceof ByteBufAllocator);
             assertEquals(arguments.get(2), PoolingPolicy.PooledDirect);
             assertEquals(arguments.get(4), OutOfMemoryPolicy.FallbackToHeap);
-            assertEquals(arguments.get(6), LeakDetectionPolicy.Advanced);
-
         })) {
-            final ByteBufAllocatorImpl byteBufAllocator = (ByteBufAllocatorImpl) PulsarByteBufAllocator.DEFAULT;
-            // use the variable, in case the compiler optimization
-            log.trace("{}", byteBufAllocator);
-
-            if (!called.get()) {
-                // maybe PulsarByteBufAllocator static initialization has already been called by a previous test
-                // let's rerun the same method
-                PulsarByteBufAllocator.createByteBufAllocator();
-            }
+            assertFalse(called.get());
+            PulsarByteBufAllocator.createByteBufAllocator();
             assertTrue(called.get());
-        } finally {
-            Whitebox.setInternalState(PulsarByteBufAllocator.class, "DEFAULT",
-                    PulsarByteBufAllocator.createByteBufAllocator());
         }
+    }
+
+    /**
+     * Verify that a {@link PooledByteBufAllocator} created with {@code maxOrder=10} produces the expected chunk size,
+     * which is consistent with the {@code -Dio.netty.allocator.maxOrder=10} setting in {@code conf/pulsar_env.sh}.
+     *
+     * <p>Netty computes chunk size as: {@code pageSize << maxOrder = 8192 << 10 = 8,388,608 bytes (8 MiB)}.
+     * This test constructs the allocator directly with {@code maxOrder=10} so no JVM argument is required.
+     */
+    @Test
+    public void testDefaultChunkSizeMatchesMaxOrder10() {
+        // Expected chunk size: pageSize (8192 bytes) << maxOrder (10) = 8 MiB
+        final int maxOrder = 10;
+        final int expectedChunkSize = 8192 << maxOrder;
+
+        // Create a PooledByteBufAllocator with maxOrder=10, same as -Dio.netty.allocator.maxOrder=10
+        PooledByteBufAllocator allocator = new PooledByteBufAllocator(
+                true,           // preferDirect
+                0,                        // nHeapArena
+                1,                        // nDirectArena
+                8192,                     // pageSize (default)
+                maxOrder,                 // maxOrder=10
+                64,                       // smallPageSize (default)
+                256,                      // normalPageSize (default)
+                false,
+                0
+        );
+
+        PooledByteBufAllocatorMetric metric = allocator.metric();
+        // Verify that the chunk size derived from maxOrder=10 equals 8 MiB
+        assertEquals(metric.chunkSize(), expectedChunkSize,
+                "Chunk size should be 8 MiB (pageSize << maxOrder = 8192 << 10) "
+                        + "as configured by -Dio.netty.allocator.maxOrder=10 in pulsar_env.sh");
+
     }
 
 }

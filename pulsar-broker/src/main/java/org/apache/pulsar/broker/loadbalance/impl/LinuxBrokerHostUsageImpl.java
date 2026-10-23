@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,24 +18,24 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUnit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.NICUsageType;
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.UsageUnit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForCGroup;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getCpuUsageForEntireHost;
-import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getPhysicalNICs;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalCpuLimit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicLimit;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getTotalNicUsage;
+import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.getUsablePhysicalNICs;
 import static org.apache.pulsar.broker.loadbalance.LinuxInfoUtils.isCGroupEnabled;
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
+import com.google.common.annotations.VisibleForTesting;
 import com.sun.management.OperatingSystemMXBean;
 import java.lang.management.ManagementFactory;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.BitRateUnit;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LinuxInfoUtils;
@@ -46,7 +46,7 @@ import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 /**
  * Class that will return the broker host usage.
  */
-@Slf4j
+@CustomLog
 public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private long lastCollection;
     private double lastTotalNicUsageTx;
@@ -56,23 +56,27 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private OperatingSystemMXBean systemBean;
     private SystemResourceUsage usage;
     private final Optional<Double> overrideBrokerNicSpeedGbps;
+    private final List<String> overrideBrokerNics;
     private final boolean isCGroupsEnabled;
 
     public LinuxBrokerHostUsageImpl(PulsarService pulsar) {
         this(
             pulsar.getConfiguration().getLoadBalancerHostUsageCheckIntervalMinutes(),
             pulsar.getConfiguration().getLoadBalancerOverrideBrokerNicSpeedGbps(),
+            pulsar.getConfiguration().getLoadBalancerOverrideBrokerNics(),
             pulsar.getLoadManagerExecutor()
         );
     }
 
     public LinuxBrokerHostUsageImpl(int hostUsageCheckIntervalMin,
                                     Optional<Double> overrideBrokerNicSpeedGbps,
+                                    List<String> overrideBrokerNics,
                                     ScheduledExecutorService executorService) {
         this.systemBean = (OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean();
         this.lastCollection = 0L;
         this.usage = new SystemResourceUsage();
         this.overrideBrokerNicSpeedGbps = overrideBrokerNicSpeedGbps;
+        this.overrideBrokerNics = overrideBrokerNics;
         this.isCGroupsEnabled = isCGroupEnabled();
         // Call now to initialize values before the constructor returns
         calculateBrokerHostUsage();
@@ -88,15 +92,16 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
 
     @Override
     public void calculateBrokerHostUsage() {
-        List<String> nics = getPhysicalNICs();
+        List<String> nics = !overrideBrokerNics.isEmpty() ? overrideBrokerNics : getUsablePhysicalNICs();
         double totalNicLimit = getTotalNicLimitWithConfiguration(nics);
-        double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, UsageUnit.Kbps);
-        double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, UsageUnit.Kbps);
+        double totalNicUsageTx = getTotalNicUsage(nics, NICUsageType.TX, BitRateUnit.Kilobit);
+        double totalNicUsageRx = getTotalNicUsage(nics, NICUsageType.RX, BitRateUnit.Kilobit);
         double totalCpuLimit = getTotalCpuLimit(isCGroupsEnabled);
         long now = System.currentTimeMillis();
         double elapsedSeconds = (now - lastCollection) / 1000d;
         if (elapsedSeconds <= 0) {
-            log.warn("elapsedSeconds {} is not expected, skip this round of calculateBrokerHostUsage", elapsedSeconds);
+            log.warn().attr("elapsedSeconds", elapsedSeconds)
+                    .log("elapsedSeconds is not expected, skip this round of calculateBrokerHostUsage");
             return;
         }
         SystemResourceUsage usage = new SystemResourceUsage();
@@ -114,19 +119,21 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
             usage.setBandwidthIn(new ResourceUsage(nicUsageRx, totalNicLimit));
             usage.setBandwidthOut(new ResourceUsage(nicUsageTx, totalNicLimit));
         }
+        usage.setCpu(new ResourceUsage(cpuUsage, totalCpuLimit));
 
         lastTotalNicUsageTx = totalNicUsageTx;
         lastTotalNicUsageRx = totalNicUsageRx;
         lastCollection = System.currentTimeMillis();
         this.usage = usage;
-        usage.setCpu(new ResourceUsage(cpuUsage, totalCpuLimit));
     }
 
-    private double getTotalNicLimitWithConfiguration(List<String> nics) {
+    @VisibleForTesting
+    double getTotalNicLimitWithConfiguration(List<String> nics) {
         // Use the override value as configured. Return the total max speed across all available NICs, converted
         // from Gbps into Kbps
-        return overrideBrokerNicSpeedGbps.map(aDouble -> aDouble * nics.size() * 1000 * 1000)
-                .orElseGet(() -> getTotalNicLimit(nics, NICUnit.Kbps));
+        return overrideBrokerNicSpeedGbps.map(BitRateUnit.Gigabit::toKilobit)
+                .map(speed -> speed * nics.size())
+                .orElseGet(() -> getTotalNicLimit(nics, BitRateUnit.Kilobit));
     }
 
     private double getTotalCpuUsage(double elapsedTimeSeconds) {
@@ -138,7 +145,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     }
 
     private double getTotalCpuUsageForCGroup(double elapsedTimeSeconds) {
-        double usage = getCpuUsageForCGroup();
+        double usage = (double) getCpuUsageForCGroup();
         double currentUsage = usage - lastCpuUsage;
         lastCpuUsage = usage;
         return 100 * currentUsage / elapsedTimeSeconds / TimeUnit.SECONDS.toNanos(1);
@@ -153,7 +160,8 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
      * </pre>
      *
      * Line is split in "words", filtering the first. The sum of all numbers give the amount of cpu cycles used this
-     * far. Real CPU usage should equal the sum substracting the idle cycles, this would include iowait, irq and steal.
+     * far. Real CPU usage should equal the sum substracting the idle cycles(that is idle+iowait), this would include
+     * cpu, user, nice, system, irq, softirq, steal, guest and guest_nice.
      */
     private double getTotalCpuUsageForEntireHost() {
         LinuxInfoUtils.ResourceUsage cpuUsageForEntireHost = getCpuUsageForEntireHost();
@@ -167,6 +175,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
         return currentUsage;
     }
 
+    @SuppressWarnings("deprecation")
     private ResourceUsage getMemUsage() {
         double total = ((double) systemBean.getTotalPhysicalMemorySize()) / (1024 * 1024);
         double free = ((double) systemBean.getFreePhysicalMemorySize()) / (1024 * 1024);

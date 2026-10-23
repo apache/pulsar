@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,13 +25,11 @@ import org.apache.pulsar.common.policies.data.stats.ReplicatorStatsImpl;
 
 public interface Replicator {
 
-    void startProducer();
+    Topic getLocalTopic();
 
-    ReplicatorStatsImpl getStats();
+    ReplicatorStatsImpl computeStats();
 
-    CompletableFuture<Void> disconnect();
-
-    CompletableFuture<Void> disconnect(boolean b);
+    CompletableFuture<Void> terminate();
 
     void updateRates();
 
@@ -41,9 +39,22 @@ public interface Replicator {
         //No-op
     }
 
+    default void updateRateLimiter() {
+    }
+
     default Optional<DispatchRateLimiter> getRateLimiter() {
         return Optional.empty();
     }
 
     boolean isConnected();
+
+    long getNumberOfEntriesInBacklog();
+
+    default boolean hasBacklog() {
+        return getNumberOfEntriesInBacklog() > 0;
+    }
+
+    boolean isTerminated();
+
+    ReplicatorStatsImpl getStats();
 }

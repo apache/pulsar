@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,7 @@ public class AsyncContextFunction implements Function<String, CompletableFuture<
     @Override
     public CompletableFuture<Void> process(String input, Context context) {
         Logger log = context.getLogger();
-        CompletableFuture<Void> future = new CompletableFuture();
+        CompletableFuture<Void> future = new CompletableFuture<>();
 
         // this method only delay a function execute.
         Executors.newCachedThreadPool().submit(() -> {

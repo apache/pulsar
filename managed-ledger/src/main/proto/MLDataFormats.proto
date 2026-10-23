@@ -58,6 +58,7 @@ message ManagedLedgerInfo {
         optional int64 size = 3;
         optional int64 timestamp = 4;
         optional OffloadContext offloadContext = 5;
+        repeated KeyValue properties = 6;
     }
 
   repeated LedgerInfo ledgerInfo = 1;
@@ -82,11 +83,20 @@ message PositionInfo {
 
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 5;
+    repeated LongListMap individualDeletedMessageRanges = 6;
+
+    // If the cursor was idle (e.g. its subscription had no consumers), the time since then (Unix time, milliseconds)
+    optional int64 idleSince = 7;
 }
 
 message NestedPositionInfo {
     required int64 ledgerId = 1;
     required int64 entryId  = 2;
+}
+
+message LongListMap {
+    required int64 key = 1;
+    repeated int64 values  = 2;
 }
 
 message MessageRange {
@@ -105,6 +115,11 @@ message LongProperty {
     required int64 value  = 2;
 }
 
+message StringProperty {
+    required string name = 1;
+    required string value = 2;
+}
+
 message ManagedCursorInfo {
     // If the ledger id is -1, then the mark-delete position is
     // the one from the (ledgerId, entryId) snapshot below
@@ -119,10 +134,18 @@ message ManagedCursorInfo {
     // the current cursor position
     repeated LongProperty properties = 5;
 
-    optional int64 lastActive = 6;
+    // deprecated: no longer read, but still written (as a positive time) for the older versions that read it
+    optional int64 lastActive = 6 [deprecated = true];
 
     // Store which index in the batch message has been deleted
     repeated BatchedEntryDeletionIndexInfo batchedEntryDeletionIndexInfo = 7;
+
+    // Additional custom properties associated with
+    // the cursor
+    repeated StringProperty cursorProperties = 8;
+
+    // If the cursor was idle (e.g. its subscription had no consumers), the time since then (Unix time, milliseconds)
+    optional int64 idleSince = 9;
 }
 
 enum CompressionType {

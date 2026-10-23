@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,7 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import java.nio.ByteBuffer;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -30,7 +30,7 @@ import org.testng.annotations.Test;
 /**
  * AutoConsumeSchema test.
  */
-@Slf4j
+@CustomLog
 public class AutoConsumeSchemaTest {
 
     @Test

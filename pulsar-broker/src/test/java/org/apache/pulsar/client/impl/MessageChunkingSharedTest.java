@@ -1,0 +1,287 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar.client.impl;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
+import org.awaitility.Awaitility;
+import org.testng.annotations.Test;
+
+@CustomLog
+@Test(groups = "broker-impl")
+public class MessageChunkingSharedTest extends SharedPulsarBaseTest {
+
+    private static final int MAX_MESSAGE_SIZE = 100;
+
+    @Test
+    public void testSingleConsumer() throws Exception {
+        final String topic = newTopicName();
+        @Cleanup final Producer<String> producer = createProducer(topic);
+        @Cleanup final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(5)
+                .subscribe();
+
+        final List<String> values = new ArrayList<>();
+        values.add(createChunkedMessage(1)); // non-chunk
+        values.add(createChunkedMessage(10)); // number of chunks > receiver queue size
+        values.add(createChunkedMessage(4)); // number of chunks < receiver queue size
+        for (String value : values) {
+            final MessageId messageId = producer.send(value);
+            log.info().attr("sent", value.length()).attr("bytes", messageId).log("Sent bytes to");
+        }
+
+        final List<String> receivedValues = new ArrayList<>();
+        for (int i = 0; i < values.size(); i++) {
+            final Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+            if (message == null) {
+                break;
+            }
+            receivedValues.add(message.getValue());
+            log.info()
+                    .attr("size", message.getValue().length())
+                    .attr("messageId", message.getMessageId())
+                    .log("Received bytes");
+            consumer.acknowledge(message);
+        }
+        assertEquals(receivedValues, values);
+    }
+
+    @Test
+    public void testMultiConsumers() throws Exception {
+        final String topic = newTopicName();
+        @Cleanup final Producer<String> producer = createProducer(topic);
+        final ConsumerBuilder<String> consumerBuilder = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(5);
+
+        final List<String> receivedValues1 = Collections.synchronizedList(new ArrayList<>());
+        @Cleanup final Consumer<String> consumer1 = consumerBuilder
+                .messageListener((MessageListener<String>) (consumer, msg) -> receivedValues1.add(msg.getValue()))
+                .subscribe();
+        final List<String> receivedValues2 = Collections.synchronizedList(new ArrayList<>());
+        @Cleanup final Consumer<String> consumer2 = consumerBuilder
+                .messageListener((MessageListener<String>) (consumer, msg) -> receivedValues2.add(msg.getValue()))
+                .subscribe();
+
+        final Set<String> values = new HashSet<>();
+        for (int i = 0; i < 10; i++) {
+            values.add(createChunkedMessage(4));
+        }
+        for (String value : values) {
+            producer.send(value);
+        }
+
+        Awaitility.await().atMost(Duration.ofSeconds(15))
+                .until(() -> receivedValues1.size() + receivedValues2.size() >= values.size());
+        assertEquals(receivedValues1.size() + receivedValues2.size(), values.size());
+        assertFalse(receivedValues1.isEmpty());
+        assertFalse(receivedValues2.isEmpty());
+        for (String value : receivedValues1) {
+            assertTrue(values.contains(value));
+        }
+        for (String value : receivedValues2) {
+            assertTrue(values.contains(value));
+        }
+    }
+
+    @Test
+    public void testInterleavedChunks() throws Exception {
+        final String topic = newTopicName();
+        final ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared);
+        final List<String> receivedUuidList1 = Collections.synchronizedList(new ArrayList<>());
+        final Consumer<byte[]> consumer1 = consumerBuilder.messageListener((MessageListener<byte[]>)
+                        (consumer, msg) -> receivedUuidList1.add(msg.getProducerName() + "-" + msg.getSequenceId()))
+                .consumerName("consumer-1")
+                .subscribe();
+        final PersistentTopic persistentTopic = (PersistentTopic) getTopicIfExists(topic).get().orElse(null);
+        assertNotNull(persistentTopic);
+        // send: A-0, A-1-0-3, A-1-1-3, B-0, B-1-0-2
+        sendNonChunk(persistentTopic, "A", 0);
+        sendChunk(persistentTopic, "A", 1, 0, 3);
+        sendChunk(persistentTopic, "A", 1, 1, 3);
+        sendNonChunk(persistentTopic, "B", 0);
+        sendChunk(persistentTopic, "B", 1, 0, 2);
+
+        Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> receivedUuidList1.size() >= 2);
+        assertEquals(receivedUuidList1, Arrays.asList("A-0", "B-0"));
+
+        // complete all 2 chunks of B-1
+        sendChunk(persistentTopic, "B", 1, 1, 2);
+        Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> receivedUuidList1.size() >= 3);
+        assertEquals(receivedUuidList1, Arrays.asList("A-0", "B-0", "B-1"));
+
+        // complete all 3 chunks of A-1
+        sendChunk(persistentTopic, "A", 1, 2, 3);
+        Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> receivedUuidList1.size() >= 3);
+        assertEquals(receivedUuidList1, Arrays.asList("A-0", "B-0", "B-1", "A-1"));
+
+        final List<String> receivedUuidList2 = Collections.synchronizedList(new ArrayList<>());
+        @Cleanup final Consumer<byte[]> consumer2 = consumerBuilder.messageListener((MessageListener<byte[]>)
+                        (consumer, msg) -> receivedUuidList2.add(msg.getProducerName() + "-" + msg.getSequenceId()))
+                .consumerName("consumer-2")
+                .subscribe();
+        consumer1.close();
+
+        // Since messages were never acknowledged, all messages will be redelivered to consumer-2
+        Awaitility.await().atMost(Duration.ofSeconds(3)).until(() -> receivedUuidList2.size() >= 4);
+        assertEquals(receivedUuidList1, Arrays.asList("A-0", "B-0", "B-1", "A-1"));
+    }
+
+    // Issue #25220
+    @Test
+    public void testNegativeAckChunkedMessage() throws Exception {
+        final String topic = newTopicName();
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub1")
+                .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
+                .subscriptionType(SubscriptionType.Shared)
+                .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
+                .subscribe();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableBatching(false)
+                .enableChunking(true)
+                .chunkMaxMessageSize(1024) // 1KB max - forces chunking for larger messages
+                .create();
+        String longMessage = "X".repeat(10 * 1024);
+        producer.sendAsync(longMessage);
+        producer.flush();
+
+        // negative ack the first message
+        consumer.negativeAcknowledge(consumer.receive());
+
+        // now 2s has passed, the first message should be redelivered 1s later.
+        Message<String> msg1 = consumer.receive(2, TimeUnit.SECONDS);
+        assertNotNull(msg1);
+    }
+
+    private Producer<String> createProducer(String topic) throws PulsarClientException {
+        return pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableChunking(true)
+                .enableBatching(false)
+                .chunkMaxMessageSize(MAX_MESSAGE_SIZE)
+                .create();
+    }
+
+    private static String createChunkedMessage(int numChunks) {
+        assert numChunks >= 1;
+        final byte[] payload = new byte[(numChunks - 1) * MAX_MESSAGE_SIZE + MAX_MESSAGE_SIZE / 10];
+        final Random random = new Random();
+        for (int i = 0; i < payload.length; i++) {
+            payload[i] = (byte) ('a' + random.nextInt(26));
+        }
+        return Schema.STRING.decode(payload);
+    }
+
+    private static void sendNonChunk(final PersistentTopic persistentTopic,
+                                     final String producerName,
+                                     final long sequenceId) {
+        sendChunk(persistentTopic, producerName, sequenceId, null, null);
+    }
+
+    protected static void sendChunk(final PersistentTopic persistentTopic,
+                                  final String producerName,
+                                  final long sequenceId,
+                                  final Integer chunkId,
+                                  final Integer numChunks) {
+        final MessageMetadata metadata = new MessageMetadata();
+        metadata.setProducerName(producerName);
+        metadata.setSequenceId(sequenceId);
+        metadata.setPublishTime(System.currentTimeMillis());
+        if (chunkId != null && numChunks != null) {
+            metadata.setUuid(producerName + "-" + sequenceId);
+            metadata.setChunkId(chunkId);
+            metadata.setNumChunksFromMsg(numChunks);
+            metadata.setTotalChunkMsgSize(numChunks);
+        }
+        final ByteBuf buf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
+                Unpooled.wrappedBuffer("a".getBytes()));
+        persistentTopic.publishMessage(buf, new Topic.PublishContext() {
+            @Override
+            public boolean isChunked() {
+                return chunkId != null;
+            }
+
+            @Override
+            public String getProducerName() {
+                return producerName;
+            }
+
+            public long getSequenceId() {
+                return sequenceId;
+            }
+
+            @Override
+            public void completed(Exception e, long ledgerId, long entryId) {
+                String name = producerName + "-" + sequenceId;
+                if (chunkId != null) {
+                    name += "-" + chunkId + "-" + numChunks;
+                }
+                if (e == null) {
+                    log.info().attr("sent", name).attr("ledgerId", ledgerId).attr("entryId", entryId).log("Sent to");
+                } else {
+                    log.error().attr("topic", name).exceptionMessage(e).log("Failed to send");
+                }
+            }
+        });
+    }
+}

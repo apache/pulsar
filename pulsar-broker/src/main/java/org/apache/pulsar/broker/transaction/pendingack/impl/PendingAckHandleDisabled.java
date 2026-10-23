@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -22,14 +22,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandle;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckHandleStats;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionInPendingAckStats;
 import org.apache.pulsar.common.policies.data.TransactionPendingAckStats;
+import org.apache.pulsar.common.stats.PositionInPendingAckStats;
 import org.apache.pulsar.common.util.FutureUtil;
 
 /**
@@ -42,12 +43,12 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
 
     @Override
     public CompletableFuture<Void> individualAcknowledgeMessage(TxnID txnID,
-                                                                List<MutablePair<PositionImpl, Integer>> positions) {
+                                                                List<MutablePair<Position, Integer>> positions) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
     @Override
-    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<PositionImpl> positions) {
+    public CompletableFuture<Void> cumulativeAcknowledgeMessage(TxnID txnID, List<Position> positions) {
         return FutureUtil.failedFuture(new NotAllowedException("The transaction is disabled"));
     }
 
@@ -62,12 +63,12 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public void syncBatchPositionAckSetForTransaction(PositionImpl position) {
+    public void syncBatchPositionAckSetForTransaction(Position position) {
         //no operation
     }
 
     @Override
-    public boolean checkIsCanDeleteConsumerPendingAck(PositionImpl position) {
+    public boolean checkIsCanDeleteConsumerPendingAck(Position position) {
         return false;
     }
 
@@ -87,17 +88,30 @@ public class PendingAckHandleDisabled implements PendingAckHandle {
     }
 
     @Override
-    public TransactionPendingAckStats getStats() {
+    public TransactionPendingAckStats getStats(boolean lowWaterMarks) {
         return null;
     }
 
     @Override
-    public CompletableFuture<Void> close() {
+    public PendingAckHandleStats getPendingAckHandleStats() {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Void> closeAsync() {
         return CompletableFuture.completedFuture(null);
     }
 
     @Override
     public boolean checkIfPendingAckStoreInit() {
         return false;
+    }
+
+    @Override
+    public Position getPositionInPendingAck(Position position) {
+        return null;
+    }
+    public PositionInPendingAckStats checkPositionInPendingAckState(Position position, Integer batchIndex) {
+        return null;
     }
 }

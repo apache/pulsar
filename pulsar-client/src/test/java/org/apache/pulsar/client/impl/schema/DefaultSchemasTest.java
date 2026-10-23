@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,9 +19,7 @@
 package org.apache.pulsar.client.impl.schema;
 
 import static org.testng.Assert.assertEquals;
-
 import java.nio.charset.StandardCharsets;
-
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -35,7 +33,7 @@ import org.testng.annotations.Test;
 public class DefaultSchemasTest {
     private PulsarClient client;
 
-    private static final String TEST_TOPIC = "persistent://sample/standalone/ns1/test-topic";
+    private static final String TEST_TOPIC = "test-topic";
 
     @BeforeClass
     public void setup() throws PulsarClientException {

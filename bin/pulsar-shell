@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+# need this for relative symlinks
+PRG="$0"
+while [ -h "$PRG" ] ; do
+  ls=`ls -ld "$PRG"`
+  link=`expr "$ls" : '.*-> \(.*\)$'`
+  if expr "$link" : '/.*' > /dev/null; then
+    PRG="$link"
+  else
+    PRG="`dirname "$PRG"`/$link"
+  fi
+done
+
+BINDIR=$(dirname "$PRG")
+export PULSAR_HOME=`cd -P $BINDIR/..;pwd`
+. "$PULSAR_HOME/bin/pulsar-admin-common.sh"
+OPTS="-Dorg.jline.terminal.jansi=false $OPTS"
+OPTS="-Dpulsar.shell.working.dir=$(pwd) $OPTS"
+DEFAULT_CONFIG="-Dpulsar.shell.config.default=$PULSAR_CLIENT_CONF"
+
+#Change to PULSAR_HOME to support relative paths
+cd "$PULSAR_HOME"
+exec $JAVA $OPTS $DEFAULT_CONFIG org.apache.pulsar.shell.PulsarShell "$@"

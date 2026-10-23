@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,29 +18,58 @@
  */
 package org.apache.pulsar.broker.delayed;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 
+@CustomLog
 public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTrackerFactory {
-
     private Timer timer;
 
     private long tickTimeMillis;
 
+    private boolean isDelayedDeliveryDeliverAtTimeStrict;
+
+    private long fixedDelayDetectionLookahead;
+
     @Override
-    public void initialize(ServiceConfiguration config) {
+    public void initialize(PulsarService pulsarService) {
+        ServiceConfiguration config = pulsarService.getConfig();
         this.timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-delayed-delivery"),
                 config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS);
         this.tickTimeMillis = config.getDelayedDeliveryTickTimeMillis();
+        this.isDelayedDeliveryDeliverAtTimeStrict = config.isDelayedDeliveryDeliverAtTimeStrict();
+        this.fixedDelayDetectionLookahead = config.getDelayedDeliveryFixedDelayDetectionLookahead();
     }
 
     @Override
-    public DelayedDeliveryTracker newTracker(PersistentDispatcherMultipleConsumers dispatcher) {
-        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis);
+    public DelayedDeliveryTracker newTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        String topicName = dispatcher.getTopic().getName();
+        String subscriptionName = dispatcher.getSubscription().getName();
+        DelayedDeliveryTracker tracker =  DelayedDeliveryTracker.DISABLE;
+        try {
+            tracker = newTracker0(dispatcher);
+        } catch (Exception e) {
+            // it should never go here
+            log.warn()
+                    .attr("topic", topicName)
+                    .attr("subscription", subscriptionName)
+                    .exception(e)
+                    .log("Failed to create InMemoryDelayedDeliveryTracker");
+        }
+        return tracker;
+    }
+
+    @VisibleForTesting
+    InMemoryDelayedDeliveryTracker newTracker0(AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        return new InMemoryDelayedDeliveryTracker(dispatcher, timer, tickTimeMillis,
+                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
     }
 
     @Override

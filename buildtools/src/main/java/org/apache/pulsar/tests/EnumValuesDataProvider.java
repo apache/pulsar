@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -36,7 +36,9 @@ public abstract class EnumValuesDataProvider {
                 .findFirst()
                 .filter(Class::isEnum)
                 .orElseThrow(() -> new IllegalArgumentException("The test method should have an enum parameter."));
-        return toDataProviderArray((Class<? extends Enum<?>>) enumClass);
+        @SuppressWarnings("unchecked") // safe: verified enumClass.isEnum() above
+        Class<? extends Enum<?>> typedEnumClass = (Class<? extends Enum<?>>) enumClass;
+        return toDataProviderArray(typedEnumClass);
     }
 
     /*

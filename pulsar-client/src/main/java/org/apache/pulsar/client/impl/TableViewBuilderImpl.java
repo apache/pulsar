@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,19 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TableView;
 import org.apache.pulsar.client.api.TableViewBuilder;
+import org.apache.pulsar.client.api.TableViewMessageMapper;
 import org.apache.pulsar.client.impl.conf.ConfigurationDataUtils;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
 
@@ -64,6 +68,30 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
     }
 
     @Override
+    public <V> TableView<V> createMapped(TableViewMessageMapper<T, V> mapper) throws PulsarClientException {
+        checkArgument(mapper != null, "mapper cannot be null");
+        checkArgument(conf.getTopicCompactionStrategyClassName() == null,
+                MappedTableViewImpl.COMPACTION_STRATEGY_UNSUPPORTED);
+        try {
+            return createMappedAsync(mapper).get();
+        } catch (Exception e) {
+            throw PulsarClientException.unwrap(e);
+        }
+    }
+
+    @Override
+    public <V> CompletableFuture<TableView<V>> createMappedAsync(TableViewMessageMapper<T, V> mapper) {
+        if (mapper == null) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("mapper cannot be null"));
+        }
+        if (conf.getTopicCompactionStrategyClassName() != null) {
+            return FutureUtil.failedFuture(
+                    new IllegalArgumentException(MappedTableViewImpl.COMPACTION_STRATEGY_UNSUPPORTED));
+        }
+        return new MappedTableViewImpl<>(client, schema, conf, mapper).start();
+    }
+
+    @Override
     public TableViewBuilder<T> topic(String topic) {
        checkArgument(StringUtils.isNotBlank(topic), "topic cannot be blank");
        conf.setTopicName(StringUtils.trim(topic));
@@ -75,5 +103,36 @@ public class TableViewBuilderImpl<T> implements TableViewBuilder<T> {
        checkArgument(unit.toSeconds(interval) >= 1, "minimum is 1 second");
        conf.setAutoUpdatePartitionsSeconds(unit.toSeconds(interval));
        return this;
+    }
+
+    @Override
+    public TableViewBuilder<T> subscriptionName(String subscriptionName) {
+        checkArgument(StringUtils.isNotBlank(subscriptionName), "subscription name cannot be blank");
+        conf.setSubscriptionName(StringUtils.trim(subscriptionName));
+        return this;
+    }
+
+    @Override
+    public TableViewBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+        conf.setCryptoKeyReader(cryptoKeyReader);
+        return this;
+    }
+
+    @Override
+    public TableViewBuilder<T> defaultCryptoKeyReader(String privateKey) {
+        checkArgument(StringUtils.isNotBlank(privateKey), "privateKey cannot be blank");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().defaultPrivateKey(privateKey).build());
+    }
+
+    @Override
+    public TableViewBuilder<T> defaultCryptoKeyReader(@NonNull Map<String, String> privateKeys) {
+        checkArgument(!privateKeys.isEmpty(), "privateKeys cannot be empty");
+        return cryptoKeyReader(DefaultCryptoKeyReader.builder().privateKeys(privateKeys).build());
+    }
+
+    @Override
+    public TableViewBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action) {
+        conf.setCryptoFailureAction(action);
+        return this;
     }
 }

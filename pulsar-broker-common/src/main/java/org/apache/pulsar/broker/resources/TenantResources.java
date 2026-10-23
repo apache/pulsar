@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,14 +24,14 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
-@Slf4j
+@CustomLog
 public class TenantResources extends BaseResources<TenantInfo> {
     public TenantResources(MetadataStore store, int operationTimeoutSec) {
         super(store, TenantInfo.class, operationTimeoutSec);
@@ -47,8 +47,8 @@ public class TenantResources extends BaseResources<TenantInfo> {
 
     public CompletableFuture<Void> deleteTenantAsync(String tenantName) {
         return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenantName))
-                .thenCompose(clusters -> FutureUtil.waitForAll(clusters.stream()
-                        .map(cluster -> getCache().delete(joinPath(BASE_POLICIES_PATH, tenantName, cluster)))
+                .thenCompose(namespaces -> FutureUtil.waitForAll(namespaces.stream()
+                        .map(ns -> getCache().delete(joinPath(BASE_POLICIES_PATH, tenantName, ns)))
                         .collect(Collectors.toList()))
                 ).thenCompose(__ -> deleteAsync(joinPath(BASE_POLICIES_PATH, tenantName)));
     }
@@ -78,94 +78,84 @@ public class TenantResources extends BaseResources<TenantInfo> {
     }
 
     public CompletableFuture<Boolean> tenantExistsAsync(String tenantName) {
-        return getCache().exists(joinPath(BASE_POLICIES_PATH, tenantName));
+        return existsAsync(joinPath(BASE_POLICIES_PATH, tenantName));
     }
 
     public List<String> getListOfNamespaces(String tenant) throws MetadataStoreException {
         List<String> namespaces = new ArrayList<>();
 
-        // this will return a cluster in v1 and a namespace in v2
-        for (String clusterOrNamespace : getChildren(joinPath(BASE_POLICIES_PATH, tenant))) {
-            // Then get the list of namespaces
-            final List<String> children = getChildren(joinPath(BASE_POLICIES_PATH, tenant, clusterOrNamespace));
-            if (children == null || children.isEmpty()) {
-                String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
-                // if the length is 0 then this is probably a leftover cluster from namespace created
-                // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
-                try {
-                    if (get(joinPath(BASE_POLICIES_PATH, namespace)).isPresent()) {
-                        namespaces.add(namespace);
-                    }
-                } catch (MetadataStoreException.ContentDeserializationException e) {
-                    // not a namespace node
+        for (String ns : getChildren(joinPath(BASE_POLICIES_PATH, tenant))) {
+            String namespace = NamespaceName.get(tenant, ns).toString();
+            try {
+                if (get(joinPath(BASE_POLICIES_PATH, namespace)).isPresent()) {
+                    namespaces.add(namespace);
                 }
-
-            } else {
-                children.forEach(ns -> {
-                    namespaces.add(NamespaceName.get(tenant, clusterOrNamespace, ns).toString());
-                });
+            } catch (MetadataStoreException.ContentDeserializationException e) {
+                // not a namespace node
             }
         }
 
         return namespaces;
     }
 
-    public CompletableFuture<List<String>> getActiveNamespaces(String tenant, String cluster) {
-        return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant, cluster));
+    public CompletableFuture<List<String>> getListOfNamespacesAsync(String tenant) {
+        return getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant))
+                .thenCompose(nsList -> nsList.stream().map(key -> {
+                    String namespace = NamespaceName.get(tenant, key).toString();
+                    return getAsync(joinPath(BASE_POLICIES_PATH, namespace))
+                        .thenApply(opt -> opt.isPresent()
+                                ? List.of(namespace)
+                                : new ArrayList<String>())
+                        .exceptionally(ex -> {
+                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                            if (cause instanceof MetadataStoreException
+                                    .ContentDeserializationException) {
+                                return new ArrayList<>();
+                            }
+                            throw FutureUtil.wrapToCompletionException(ex);
+                        });
+                }).reduce(CompletableFuture.completedFuture(new ArrayList<>()),
+                        (accumulator, n) -> accumulator.thenCompose(namespaces -> n.thenApply(m -> {
+                            namespaces.addAll(m);
+                            return namespaces;
+                        }))));
     }
 
     public CompletableFuture<Void> hasActiveNamespace(String tenant) {
         CompletableFuture<Void> activeNamespaceFuture = new CompletableFuture<>();
-        getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant)).thenAccept(clusterOrNamespaceList -> {
-            if (clusterOrNamespaceList == null || clusterOrNamespaceList.isEmpty()) {
+        getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant)).thenAccept(nsList -> {
+            if (nsList == null || nsList.isEmpty()) {
                 activeNamespaceFuture.complete(null);
                 return;
             }
             List<CompletableFuture<Void>> activeNamespaceListFuture = new ArrayList<>();
-            clusterOrNamespaceList.forEach(clusterOrNamespace -> {
-                // get list of active V1 namespace
+            nsList.forEach(ns -> {
                 CompletableFuture<Void> checkNs = new CompletableFuture<>();
                 activeNamespaceListFuture.add(checkNs);
-                getChildrenAsync(joinPath(BASE_POLICIES_PATH, tenant, clusterOrNamespace))
-                        .whenComplete((children, ex) -> {
-                            if (ex != null) {
-                                checkNs.completeExceptionally(ex);
-                                return;
-                            }
-                            if (children != null && !children.isEmpty()) {
-                                checkNs.completeExceptionally(
-                                        new IllegalStateException("The tenant still has active namespaces"));
-                                return;
-                            }
-                            String namespace = NamespaceName.get(tenant, clusterOrNamespace).toString();
-                            // if the length is 0 then this is probably a leftover cluster from namespace
-                            // created
-                            // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to
-                            // add it to the list
-                            getAsync(joinPath(BASE_POLICIES_PATH, namespace)).thenApply(data -> {
-                                if (data.isPresent()) {
-                                    checkNs.completeExceptionally(new IllegalStateException(
-                                            "The tenant still has active namespaces"));
-                                } else {
-                                    checkNs.complete(null);
-                                }
-                                return null;
-                            }).exceptionally(ex2 -> {
-                                if (ex2.getCause() instanceof MetadataStoreException.ContentDeserializationException) {
-                                    // it's not a valid namespace-node
-                                    checkNs.complete(null);
-                                } else {
-                                    checkNs.completeExceptionally(ex2);
-                                }
-                                return null;
-                            });
-                        });
-                FutureUtil.waitForAll(activeNamespaceListFuture).thenAccept(r -> {
-                    activeNamespaceFuture.complete(null);
-                }).exceptionally(ex -> {
-                    activeNamespaceFuture.completeExceptionally(ex.getCause());
+                String namespace = NamespaceName.get(tenant, ns).toString();
+                getAsync(joinPath(BASE_POLICIES_PATH, namespace)).thenApply(data -> {
+                    if (data.isPresent()) {
+                        checkNs.completeExceptionally(new IllegalStateException(
+                                "The tenant still has active namespaces"));
+                    } else {
+                        checkNs.complete(null);
+                    }
+                    return null;
+                }).exceptionally(ex2 -> {
+                    if (ex2.getCause() instanceof MetadataStoreException.ContentDeserializationException) {
+                        // it's not a valid namespace-node
+                        checkNs.complete(null);
+                    } else {
+                        checkNs.completeExceptionally(ex2);
+                    }
                     return null;
                 });
+            });
+            FutureUtil.waitForAll(activeNamespaceListFuture).thenAccept(r -> {
+                activeNamespaceFuture.complete(null);
+            }).exceptionally(ex -> {
+                activeNamespaceFuture.completeExceptionally(ex.getCause());
+                return null;
             });
         }).exceptionally(ex -> {
             activeNamespaceFuture.completeExceptionally(ex.getCause());

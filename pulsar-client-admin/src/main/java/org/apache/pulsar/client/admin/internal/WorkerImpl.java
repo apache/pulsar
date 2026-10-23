@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,15 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.ClientErrorException;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.Worker;
 import org.apache.pulsar.client.api.Authentication;
@@ -37,14 +34,14 @@ import org.apache.pulsar.common.functions.WorkerInfo;
 import org.apache.pulsar.common.policies.data.WorkerFunctionInstanceStats;
 import org.apache.pulsar.common.stats.Metrics;
 
-@Slf4j
+@CustomLog
 public class WorkerImpl extends BaseResource implements Worker {
 
     private final WebTarget workerStats;
     private final WebTarget worker;
 
-    public WorkerImpl(WebTarget web, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public WorkerImpl(WebTarget web, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         this.worker = web.path("/admin/v2/worker");
         this.workerStats = web.path("/admin/v2/worker-stats");
     }
@@ -57,26 +54,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public CompletableFuture<List<WorkerFunctionInstanceStats>> getFunctionsStatsAsync() {
         WebTarget path = workerStats.path("functionsmetrics");
-        final CompletableFuture<List<WorkerFunctionInstanceStats>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(new ClientErrorException(response));
-                        } else {
-                            List<WorkerFunctionInstanceStats> metricsList =
-                                    response.readEntity(new GenericType<List<WorkerFunctionInstanceStats>>() {});
-                            future.complete(metricsList);
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<List<WorkerFunctionInstanceStats>>() {});
     }
 
     @Override
@@ -87,25 +65,8 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public CompletableFuture<Collection<Metrics>> getMetricsAsync() {
         WebTarget path = workerStats.path("metrics");
-        final CompletableFuture<Collection<Metrics>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(new ClientErrorException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    new GenericType<List<Metrics>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<List<Metrics>>() {})
+                .thenApply(list -> list);
     }
 
     @Override
@@ -116,25 +77,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public CompletableFuture<List<WorkerInfo>> getClusterAsync() {
         WebTarget path = worker.path("cluster");
-        final CompletableFuture<List<WorkerInfo>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(new ClientErrorException(response));
-                        } else {
-                            future.complete(response.readEntity(new GenericType<List<WorkerInfo>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<List<WorkerInfo>>() {});
     }
 
     @Override
@@ -145,24 +88,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public CompletableFuture<WorkerInfo> getClusterLeaderAsync() {
         WebTarget path = worker.path("cluster").path("leader");
-        final CompletableFuture<WorkerInfo> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(new ClientErrorException(response));
-                        } else {
-                            future.complete(response.readEntity(new GenericType<WorkerInfo>(){}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<WorkerInfo>(){});
     }
 
     @Override
@@ -173,25 +99,7 @@ public class WorkerImpl extends BaseResource implements Worker {
     @Override
     public CompletableFuture<Map<String, Collection<String>>> getAssignmentsAsync() {
         WebTarget path = worker.path("assignments");
-        final CompletableFuture<Map<String, Collection<String>>> future = new CompletableFuture<>();
-        asyncGetRequest(path,
-                new InvocationCallback<Response>() {
-                    @Override
-                    public void completed(Response response) {
-                        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
-                            future.completeExceptionally(new ClientErrorException(response));
-                        } else {
-                            future.complete(response.readEntity(
-                                    new GenericType<Map<String, Collection<String>>>() {}));
-                        }
-                    }
-
-                    @Override
-                    public void failed(Throwable throwable) {
-                        future.completeExceptionally(getApiException(throwable.getCause()));
-                    }
-                });
-        return future;
+        return asyncGetRequest(path, new GenericType<Map<String, Collection<String>>>() {});
     }
 
     @Override

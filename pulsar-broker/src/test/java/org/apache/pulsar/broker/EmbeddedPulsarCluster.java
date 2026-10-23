@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.Builder;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
@@ -34,10 +35,8 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
 
     private static final String CLUSTER_NAME = "embedded";
 
-    @Builder.Default
     private int numBrokers = 1;
 
-    @Builder.Default
     private int numBookies = 1;
 
     private final String metadataStoreUrl;
@@ -52,11 +51,17 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
     private final PulsarAdmin admin;
 
     @Builder
-    private EmbeddedPulsarCluster(int numBrokers, int numBookies, String metadataStoreUrl) throws Exception {
+    private EmbeddedPulsarCluster(int numBrokers, int numBookies, String metadataStoreUrl,
+                                  String dataDir, boolean clearOldData) throws Exception {
         this.numBrokers = numBrokers;
         this.numBookies = numBookies;
         this.metadataStoreUrl = metadataStoreUrl;
-        this.bkCluster = new BKCluster(metadataStoreUrl, numBookies);
+        this.bkCluster = BKCluster.builder()
+                .metadataServiceUri(metadataStoreUrl)
+                .numBookies(numBookies)
+                .dataDir(StringUtils.isNotBlank(dataDir) ? dataDir : null)
+                .clearOldData(clearOldData)
+                .build();
 
         for (int i = 0; i < numBrokers; i++) {
             PulsarService s = new PulsarService(getConf());
@@ -71,7 +76,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
                 .serviceHttpUrl(adminUrl)
                 .build();
 
-        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().serviceUrl(serviceUrl).build());
+        admin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().brokerServiceUrl(serviceUrl).build());
         admin.tenants().createTenant("public",
                 TenantInfo.builder().allowedClusters(Collections.singleton(CLUSTER_NAME)).build());
         admin.namespaces().createNamespace("public/default", Collections.singleton(CLUSTER_NAME));
@@ -92,6 +97,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         return serviceUrl;
     }
 
+    @SuppressWarnings("deprecation")
     private ServiceConfiguration getConf() {
         ServiceConfiguration conf = new ServiceConfiguration();
         conf.setAdvertisedAddress("localhost");
@@ -105,7 +111,7 @@ public class EmbeddedPulsarCluster implements AutoCloseable {
         conf.setWebServicePort(Optional.of(0));
         conf.setNumExecutorThreadPoolSize(1);
         conf.setNumCacheExecutorThreadPoolSize(1);
-        conf.setNumWorkerThreadsForNonPersistentTopic(1);
+        conf.setTopicOrderedExecutorThreadNum(1);
         conf.setNumIOThreads(1);
         conf.setNumOrderedExecutorThreads(1);
         conf.setBookkeeperClientNumWorkerThreads(1);

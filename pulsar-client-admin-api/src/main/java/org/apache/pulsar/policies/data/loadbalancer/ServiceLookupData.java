@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,6 +25,8 @@ import java.util.Optional;
  * For backwards compatibility purposes.
  */
 public interface ServiceLookupData {
+    String getBrokerId();
+
     String getWebServiceUrl();
 
     String getWebServiceUrlTls();
@@ -47,5 +49,9 @@ public interface ServiceLookupData {
      * @return the optional protocol data advertised by the broker.
      */
     Optional<String> getProtocol(String protocol);
+
+    String getLoadManagerClassName();
+
+    long getStartTimestamp();
 
 }

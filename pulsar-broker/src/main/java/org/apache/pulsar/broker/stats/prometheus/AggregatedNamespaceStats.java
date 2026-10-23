@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.stats.prometheus;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.compaction.CompactionRecord;
 
 public class AggregatedNamespaceStats {
@@ -33,6 +34,7 @@ public class AggregatedNamespaceStats {
     public double throughputIn;
     public double throughputOut;
 
+    public double messageAckRate;
     public long bytesInCounter;
     public long msgInCounter;
     public long bytesOutCounter;
@@ -41,9 +43,17 @@ public class AggregatedNamespaceStats {
     public ManagedLedgerStats managedLedgerStats = new ManagedLedgerStats();
     public long msgBacklog;
     public long msgDelayed;
+    public long msgInReplay;
+
+    public long ongoingTxnCount;
+    public long abortedTxnCount;
+    public long committedTxnCount;
 
     long backlogQuotaLimit;
     long backlogQuotaLimitTime;
+
+    public long sizeBasedBacklogQuotaExceededEvictionCount;
+    public long timeBasedBacklogQuotaExceededEvictionCount;
 
     public Map<String, AggregatedReplicationStats> replicationStats = new HashMap<>();
 
@@ -58,7 +68,11 @@ public class AggregatedNamespaceStats {
     long compactionCompactedEntriesCount;
     long compactionCompactedEntriesSize;
     StatsBuckets compactionLatencyBuckets = new StatsBuckets(CompactionRecord.WRITE_LATENCY_BUCKETS_USEC);
+    long delayedMessageIndexSizeInBytes;
 
+    Map<String, TopicMetricBean> bucketDelayedIndexStats = new HashMap<>();
+
+    @SuppressWarnings("DuplicatedCode")
     void updateStats(TopicStats stats) {
         topicsCount++;
 
@@ -75,6 +89,19 @@ public class AggregatedNamespaceStats {
         msgInCounter += stats.msgInCounter;
         bytesOutCounter += stats.bytesOutCounter;
         msgOutCounter += stats.msgOutCounter;
+        delayedMessageIndexSizeInBytes += stats.delayedMessageIndexSizeInBytes;
+
+        stats.bucketDelayedIndexStats.forEach((k, v) -> {
+            TopicMetricBean topicMetricBean =
+                    bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+            topicMetricBean.name = v.name;
+            topicMetricBean.labelsAndValues = v.labelsAndValues;
+            topicMetricBean.value += v.value;
+        });
+
+        this.ongoingTxnCount += stats.ongoingTxnCount;
+        this.abortedTxnCount += stats.abortedTxnCount;
+        this.committedTxnCount += stats.committedTxnCount;
 
         managedLedgerStats.storageSize += stats.managedLedgerStats.storageSize;
         managedLedgerStats.storageLogicalSize += stats.managedLedgerStats.storageLogicalSize;
@@ -83,8 +110,12 @@ public class AggregatedNamespaceStats {
         backlogQuotaLimit = Math.max(backlogQuotaLimit, stats.backlogQuotaLimit);
         backlogQuotaLimitTime = Math.max(backlogQuotaLimitTime, stats.backlogQuotaLimitTime);
 
+        sizeBasedBacklogQuotaExceededEvictionCount += stats.sizeBasedBacklogQuotaExceededEvictionCount;
+        timeBasedBacklogQuotaExceededEvictionCount += stats.timeBasedBacklogQuotaExceededEvictionCount;
+
         managedLedgerStats.storageWriteRate += stats.managedLedgerStats.storageWriteRate;
         managedLedgerStats.storageReadRate += stats.managedLedgerStats.storageReadRate;
+        managedLedgerStats.storageReadCacheMissesRate += stats.managedLedgerStats.storageReadCacheMissesRate;
 
         msgBacklog += stats.msgBacklog;
 
@@ -95,7 +126,7 @@ public class AggregatedNamespaceStats {
 
         stats.replicationStats.forEach((n, as) -> {
             AggregatedReplicationStats replStats =
-                    replicationStats.computeIfAbsent(n,  k -> new AggregatedReplicationStats());
+                    replicationStats.computeIfAbsent(n, k -> new AggregatedReplicationStats());
             replStats.msgRateIn += as.msgRateIn;
             replStats.msgRateOut += as.msgRateOut;
             replStats.msgThroughputIn += as.msgThroughputIn;
@@ -103,6 +134,7 @@ public class AggregatedNamespaceStats {
             replStats.replicationBacklog += as.replicationBacklog;
             replStats.msgRateExpired += as.msgRateExpired;
             replStats.connectedCount += as.connectedCount;
+            replStats.disconnectedCount += as.disconnectedCount;
             replStats.replicationDelayInSeconds += as.replicationDelayInSeconds;
         });
 
@@ -110,18 +142,40 @@ public class AggregatedNamespaceStats {
             AggregatedSubscriptionStats subsStats =
                     subscriptionStats.computeIfAbsent(n, k -> new AggregatedSubscriptionStats());
             msgDelayed += as.msgDelayed;
+            msgInReplay += as.msgInReplay;
             subsStats.blockedSubscriptionOnUnackedMsgs = as.blockedSubscriptionOnUnackedMsgs;
             subsStats.msgBacklog += as.msgBacklog;
             subsStats.msgBacklogNoDelayed += as.msgBacklogNoDelayed;
             subsStats.msgDelayed += as.msgDelayed;
+            subsStats.msgInReplay += as.msgInReplay;
             subsStats.msgRateRedeliver += as.msgRateRedeliver;
             subsStats.unackedMessages += as.unackedMessages;
+            subsStats.filterProcessedMsgCount += as.filterProcessedMsgCount;
+            subsStats.filterAcceptedMsgCount += as.filterAcceptedMsgCount;
+            subsStats.filterRejectedMsgCount += as.filterRejectedMsgCount;
+            subsStats.filterRescheduledMsgCount += as.filterRescheduledMsgCount;
+            subsStats.dispatchThrottledMsgEventsBySubscriptionLimit += as.dispatchThrottledMsgEventsBySubscriptionLimit;
+            subsStats.dispatchThrottledBytesEventsBySubscriptionLimit +=
+                    as.dispatchThrottledBytesEventsBySubscriptionLimit;
+            subsStats.dispatchThrottledMsgEventsByBrokerLimit += as.dispatchThrottledMsgEventsByBrokerLimit;
+            subsStats.dispatchThrottledBytesEventsByBrokerLimit += as.dispatchThrottledBytesEventsByBrokerLimit;
+            subsStats.dispatchThrottledMsgEventsByTopicLimit += as.dispatchThrottledMsgEventsByTopicLimit;
+            subsStats.dispatchThrottledBytesEventsByTopicLimit += as.dispatchThrottledBytesEventsByTopicLimit;
+            subsStats.delayedMessageIndexSizeInBytes += as.delayedMessageIndexSizeInBytes;
+            as.bucketDelayedIndexStats.forEach((k, v) -> {
+                TopicMetricBean topicMetricBean =
+                        subsStats.bucketDelayedIndexStats.computeIfAbsent(k, __ -> new TopicMetricBean());
+                topicMetricBean.name = v.name;
+                topicMetricBean.labelsAndValues = v.labelsAndValues;
+                topicMetricBean.value += v.value;
+            });
             as.consumerStat.forEach((c, v) -> {
                 AggregatedConsumerStats consumerStats =
                         subsStats.consumerStat.computeIfAbsent(c, k -> new AggregatedConsumerStats());
                 consumerStats.blockedSubscriptionOnUnackedMsgs = v.blockedSubscriptionOnUnackedMsgs;
                 consumerStats.msgRateRedeliver += v.msgRateRedeliver;
                 consumerStats.unackedMessages += v.unackedMessages;
+                messageAckRate += v.msgAckRate;
             });
         });
 
@@ -136,6 +190,7 @@ public class AggregatedNamespaceStats {
         compactionLatencyBuckets.addAll(stats.compactionLatencyBuckets);
     }
 
+    @SuppressWarnings("DuplicatedCode")
     public void reset() {
         managedLedgerStats.reset();
         topicsCount = 0;
@@ -146,13 +201,39 @@ public class AggregatedNamespaceStats {
         rateOut = 0;
         throughputIn = 0;
         throughputOut = 0;
+        messageAckRate = 0;
+        bytesInCounter = 0;
+        msgInCounter = 0;
+
+        bytesOutCounter = 0;
+        msgOutCounter = 0;
 
         msgBacklog = 0;
         msgDelayed = 0;
+        msgInReplay = 0;
+        ongoingTxnCount = 0;
+        abortedTxnCount = 0;
+        committedTxnCount = 0;
+
         backlogQuotaLimit = 0;
         backlogQuotaLimitTime = -1;
 
         replicationStats.clear();
         subscriptionStats.clear();
+
+        sizeBasedBacklogQuotaExceededEvictionCount = 0;
+        timeBasedBacklogQuotaExceededEvictionCount = 0;
+
+        compactionRemovedEventCount = 0;
+        compactionSucceedCount = 0;
+        compactionFailedCount = 0;
+        compactionDurationTimeInMills = 0;
+        compactionReadThroughput = 0;
+        compactionWriteThroughput = 0;
+        compactionCompactedEntriesCount = 0;
+        compactionCompactedEntriesSize = 0;
+
+        delayedMessageIndexSizeInBytes = 0;
+        bucketDelayedIndexStats.clear();
     }
 }

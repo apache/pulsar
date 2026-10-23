@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,22 +18,24 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
 import lombok.Builder;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchangeRequest;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.ClientCredentialsExchanger;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenClient;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenEndpointAuthMethod;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenExchangeException;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
 
@@ -42,10 +44,11 @@ import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenResult;
  *
  * @see <a href="https://tools.ietf.org/html/rfc6749#section-4.4">OAuth 2.0 RFC 6749, section 4.4</a>
  */
-@Slf4j
+@CustomLog
 class ClientCredentialsFlow extends FlowBase {
     public static final String CONFIG_PARAM_ISSUER_URL = "issuerUrl";
     public static final String CONFIG_PARAM_AUDIENCE = "audience";
+    // Maps to the keyFileUrl
     public static final String CONFIG_PARAM_KEY_FILE = "privateKey";
     public static final String CONFIG_PARAM_SCOPE = "scope";
 
@@ -60,11 +63,92 @@ class ClientCredentialsFlow extends FlowBase {
     private boolean initialized = false;
 
     @Builder
-    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope) {
-        super(issuerUrl);
+    public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope,
+                                 Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
+                                 String certFile, String keyFile, Duration autoCertRefreshDuration,
+                                 String wellKnownMetadataPath, String jsseProvider, String jcaProvider) {
+        super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath, certFile, keyFile, autoCertRefreshDuration,
+                wellKnownMetadataPath, jsseProvider, jcaProvider);
         this.audience = audience;
         this.privateKey = privateKey;
         this.scope = scope;
+    }
+
+
+    /**
+     * Constructs a {@link ClientCredentialsFlow} from configuration parameters.
+     *
+     * @param params
+     * @return
+     */
+    public static ClientCredentialsFlow fromParameters(Map<String, String> params) {
+        URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
+        String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
+        // These are optional parameters, so we allow null values
+        String scope = params.get(CONFIG_PARAM_SCOPE);
+        String audience = params.get(CONFIG_PARAM_AUDIENCE);
+        Duration connectTimeout = parseParameterDuration(params, CONFIG_PARAM_CONNECT_TIMEOUT);
+        Duration readTimeout = parseParameterDuration(params, CONFIG_PARAM_READ_TIMEOUT);
+        String trustCertsFilePath = params.get(CONFIG_PARAM_TRUST_CERTS_FILE_PATH);
+        String certFile = params.get(CONFIG_PARAM_CERT_FILE);
+        String keyFile = params.get(CONFIG_PARAM_TLS_KEY_FILE);
+        Duration autoCertRefreshDuration = parseParameterDuration(params, CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION);
+        String wellKnownMetadataPath = params.get(CONFIG_PARAM_WELL_KNOWN_METADATA_PATH);
+        // PIP-478: the IdP leg's own provider pins. Explicit parameters win over anything inherited from the
+        // owning client, and are the only source on the standalone path, which has no client to inherit from.
+        String jsseProvider = params.get(CONFIG_PARAM_JSSE_PROVIDER);
+        String jcaProvider = params.get(CONFIG_PARAM_JCA_PROVIDER);
+
+        return ClientCredentialsFlow.builder()
+                .issuerUrl(issuerUrl)
+                .audience(audience)
+                .privateKey(privateKeyUrl)
+                .scope(scope)
+                .connectTimeout(connectTimeout)
+                .readTimeout(readTimeout)
+                .trustCertsFilePath(trustCertsFilePath)
+                .certFile(certFile)
+                .keyFile(keyFile)
+                .autoCertRefreshDuration(autoCertRefreshDuration)
+                .wellKnownMetadataPath(wellKnownMetadataPath)
+                .jsseProvider(jsseProvider)
+                .jcaProvider(jcaProvider)
+                .build();
+    }
+
+    /**
+     * Loads the private key from the given URL.
+     *
+     * @param privateKeyURL
+     * @return
+     * @throws IOException
+     */
+    @VisibleForTesting
+    static KeyFile loadPrivateKey(String privateKeyURL) throws IOException {
+        try {
+            URLConnection urlConnection = new org.apache.pulsar.client.api.url.URL(privateKeyURL).openConnection();
+            try {
+                return loadPrivateKey(urlConnection);
+            } finally {
+                IOUtils.close(urlConnection);
+            }
+        } catch (URISyntaxException | InstantiationException | IllegalAccessException e) {
+            throw new IOException("Invalid privateKey format", e);
+        }
+    }
+
+    @VisibleForTesting
+    static KeyFile loadPrivateKey(URLConnection urlConnection) throws IOException {
+        String protocol = urlConnection.getURL().getProtocol();
+        if ("data".equals(protocol) && !"application/json".equals(urlConnection.getContentType())) {
+            throw new IllegalArgumentException(
+                    "Unsupported media type or encoding format: " + urlConnection.getContentType());
+        }
+        // Read the stream directly: getContent() needs a content type to pick a handler, which not every
+        // URL handler reports
+        try (Reader r = new InputStreamReader(urlConnection.getInputStream(), StandardCharsets.UTF_8)) {
+            return KeyFile.fromJson(r);
+        }
     }
 
     @Override
@@ -73,7 +157,7 @@ class ClientCredentialsFlow extends FlowBase {
         assert this.metadata != null;
 
         URL tokenUrl = this.metadata.getTokenEndpoint();
-        this.exchanger = new TokenClient(tokenUrl);
+        this.exchanger = new TokenClient(tokenUrl, getHttpClient());
         initialized = true;
     }
 
@@ -92,6 +176,7 @@ class ClientCredentialsFlow extends FlowBase {
                 .clientSecret(keyFile.getClientSecret())
                 .audience(this.audience)
                 .scope(this.scope)
+                .authMethod(TokenEndpointAuthMethod.CLIENT_SECRET_POST)
                 .build();
         TokenResult tr;
         if (!initialized) {
@@ -101,7 +186,7 @@ class ClientCredentialsFlow extends FlowBase {
             tr = this.exchanger.exchangeClientCredentials(req);
         } catch (TokenExchangeException | IOException e) {
             throw new PulsarClientException.AuthenticationException("Unable to obtain an access token: "
-                                                                    + e.getMessage());
+                    + e.getMessage());
         }
 
         return tr;
@@ -109,55 +194,9 @@ class ClientCredentialsFlow extends FlowBase {
 
     @Override
     public void close() throws Exception {
-        exchanger.close();
-    }
-
-    /**
-     * Constructs a {@link ClientCredentialsFlow} from configuration parameters.
-     * @param params
-     * @return
-     */
-    public static ClientCredentialsFlow fromParameters(Map<String, String> params) {
-        URL issuerUrl = parseParameterUrl(params, CONFIG_PARAM_ISSUER_URL);
-        String privateKeyUrl = parseParameterString(params, CONFIG_PARAM_KEY_FILE);
-        // These are optional parameters, so we only perform a get
-        String scope = params.get(CONFIG_PARAM_SCOPE);
-        String audience = params.get(CONFIG_PARAM_AUDIENCE);
-        return ClientCredentialsFlow.builder()
-                .issuerUrl(issuerUrl)
-                .audience(audience)
-                .privateKey(privateKeyUrl)
-                .scope(scope)
-                .build();
-    }
-
-    /**
-     * Loads the private key from the given URL.
-     * @param privateKeyURL
-     * @return
-     * @throws IOException
-     */
-    private static KeyFile loadPrivateKey(String privateKeyURL) throws IOException {
-        try {
-            URLConnection urlConnection = new org.apache.pulsar.client.api.url.URL(privateKeyURL).openConnection();
-            try {
-                String protocol = urlConnection.getURL().getProtocol();
-                String contentType = urlConnection.getContentType();
-                if ("data".equals(protocol) && !"application/json".equals(contentType)) {
-                    throw new IllegalArgumentException(
-                            "Unsupported media type or encoding format: " + urlConnection.getContentType());
-                }
-                KeyFile privateKey;
-                try (Reader r = new InputStreamReader((InputStream) urlConnection.getContent(),
-                        StandardCharsets.UTF_8)) {
-                    privateKey = KeyFile.fromJson(r);
-                }
-                return privateKey;
-            } finally {
-                IOUtils.close(urlConnection);
-            }
-        } catch (URISyntaxException | InstantiationException | IllegalAccessException e) {
-            throw new IOException("Invalid privateKey format", e);
+        super.close();
+        if (exchanger != null) {
+            exchanger.close();
         }
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,15 +20,16 @@ package org.apache.pulsar.common.util.collections;
 
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-import lombok.EqualsAndHashCode;
-
 import java.util.BitSet;
+import lombok.EqualsAndHashCode;
 
 /**
  * Safe multithreaded version of {@code BitSet} and leverage netty recycler.
  */
+@Deprecated
 @EqualsAndHashCode(callSuper = true)
 public class ConcurrentBitSetRecyclable extends ConcurrentBitSet {
+    private static final long serialVersionUID = 1L;
 
     private final Handle<ConcurrentBitSetRecyclable> recyclerHandle;
 

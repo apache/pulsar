@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -41,7 +41,8 @@ public class FunctionConfig {
     public enum ProcessingGuarantees {
         ATLEAST_ONCE,
         ATMOST_ONCE,
-        EFFECTIVELY_ONCE
+        EFFECTIVELY_ONCE,
+        MANUAL
     }
 
     /**
@@ -51,6 +52,18 @@ public class FunctionConfig {
         JAVA,
         PYTHON,
         GO
+    }
+
+    /**
+     * Pulsar client API that the Java runtime uses for a component's own topics.
+     *
+     * <p>When it is not set, the runtime uses the V5 client if any of the component's topics is a
+     * {@code topic://} (scalable) topic, and the v4 client otherwise. Setting {@link #V5} lets the V5 client
+     * drive {@code persistent://} topics.
+     */
+    public enum ClientApi {
+        V4,
+        V5
     }
 
     // Any flags that you want to pass to the runtime.
@@ -71,6 +84,7 @@ public class FunctionConfig {
      * A generalized way of specifying inputs.
      */
     private Map<String, ConsumerConfig> inputSpecs;
+    private String inputTypeClassName;
 
     private String output;
 
@@ -82,6 +96,7 @@ public class FunctionConfig {
      * implementation.
      */
     private String outputSchemaType;
+    private String outputTypeClassName;
 
     private String outputSerdeClassName;
     private String logTopic;
@@ -102,6 +117,8 @@ public class FunctionConfig {
     // SecretProviderConfigurator.getSecretObjectType() method.
     private Map<String, Object> secrets;
     private Runtime runtime;
+    // Deprecated since, see https://github.com/apache/pulsar/issues/15560
+    @Deprecated
     private Boolean autoAck;
     private Integer maxMessageRetries;
     private String deadLetterTopic;
@@ -114,6 +131,7 @@ public class FunctionConfig {
     private String jar;
     private String py;
     private String go;
+    private String functionType;
     // Whether the subscriptions the functions created/used should be deleted when the functions is deleted
     private Boolean cleanupSubscription;
     // This is an arbitrary string that can be interpreted by the function runtime
@@ -125,6 +143,13 @@ public class FunctionConfig {
     private Integer maxPendingAsyncRequests;
     // Whether the pulsar admin client exposed to function context, default is disabled.
     private Boolean exposePulsarAdminClientEnabled;
+    // Whether the consumer should skip to latest position in case of failure recovery
+    private Boolean skipToLatest;
+    // Pulsar client API for the function's own topics; null picks it from the topic domains
+    private ClientApi clientApi;
+    // Memory limit of the Pulsar client used by each Java function instance; null uses the worker default.
+    // Ignored by the worker's thread runtime, where all instances share one client configured by the worker.
+    private MemoryLimit pulsarClientMemoryLimit;
 
     @Builder.Default
     private SubscriptionInitialPosition subscriptionPosition = SubscriptionInitialPosition.Latest;

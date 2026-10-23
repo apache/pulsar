@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -50,6 +50,9 @@ SET_KEYS = [
     'brokerClientTlsProtocols',
     'webServiceTlsCiphers',
     'webServiceTlsProtocols',
+    'additionalJavaRuntimeArguments',
+    'additionalEnabledConnectorUrlPatterns',
+    'additionalEnabledFunctionsUrlPatterns'
 ]
 
 PF_ENV_PREFIX = 'PF_'
@@ -61,7 +64,7 @@ if len(sys.argv) < 2:
 conf_files = sys.argv[1:]
 
 for conf_filename in conf_files:
-    conf = yaml.load(open(conf_filename))
+    conf = yaml.load(open(conf_filename), Loader=yaml.FullLoader)
 
     # update the config
     modified = False

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,7 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
@@ -27,9 +30,12 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  *
  * <p>All the stats are relative to the last recording period. The interval of the stats refreshes is configured with
  * {@link ClientBuilder#statsInterval(long, java.util.concurrent.TimeUnit)} with a default of 1 minute.
+ *
+ * @deprecated use {@link ClientBuilder#openTelemetry(OpenTelemetry)} to enable stats
  */
 @InterfaceAudience.Public
-@InterfaceStability.Stable
+@InterfaceStability.Evolving
+@Deprecated
 public interface ProducerStats extends Serializable {
     /**
      * @return the number of messages published in the last interval
@@ -116,4 +122,10 @@ public interface ProducerStats extends Serializable {
      */
     int getPendingQueueSize();
 
+    /**
+     * @return stats for each partition if topic is partitioned topic
+     */
+    default Map<String, ProducerStats> getPartitionStats() {
+        return Collections.emptyMap();
+    }
 }

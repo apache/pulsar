@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -45,6 +45,7 @@ public abstract class CoordinatorException extends Exception {
      * Exception is thrown when transaction coordinator not found.
      */
     public static class CoordinatorNotFoundException extends CoordinatorException {
+        private static final long serialVersionUID = 1L;
 
         public CoordinatorNotFoundException(String msg) {
             super(msg);
@@ -117,6 +118,18 @@ public abstract class CoordinatorException extends Exception {
             super("Expect Transaction Coordinator `" + tcID + "` to be in " + expectedState
                     + " status but it is in " + currentState + " state for " + operation);
 
+        }
+    }
+
+    /**
+     * Exception is thrown when a operation of new transaction reach the number of max active transactions.
+     */
+    public static class ReachMaxActiveTxnException extends CoordinatorException {
+
+        private static final long serialVersionUID = 0L;
+
+        public ReachMaxActiveTxnException(String message) {
+            super(message);
         }
     }
 }

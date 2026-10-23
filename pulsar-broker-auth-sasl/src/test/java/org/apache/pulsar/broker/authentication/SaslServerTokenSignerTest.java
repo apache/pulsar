@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,16 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.broker.authentication;
 
 import javax.naming.AuthenticationException;
-
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class SaslServerTokenSignerTest {
 
     @Test
@@ -33,8 +31,7 @@ public class SaslServerTokenSignerTest {
         try {
             new SaslRoleTokenSigner(null);
             Assert.fail();
-        }
-        catch (IllegalArgumentException ex) {
+        } catch (IllegalArgumentException ex) {
         }
     }
 

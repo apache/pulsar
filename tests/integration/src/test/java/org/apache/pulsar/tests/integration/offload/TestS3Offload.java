@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,14 +20,13 @@ package org.apache.pulsar.tests.integration.offload;
 
 import java.util.HashMap;
 import java.util.Map;
-
 import java.util.function.Supplier;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.tests.integration.containers.S3Container;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class TestS3Offload extends TestBaseOffload {
 
     private S3Container s3Container;
@@ -54,17 +53,20 @@ public class TestS3Offload extends TestBaseOffload {
     }
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testPublishOffloadAndConsumeViaCLI(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+    public void testPublishOffloadAndConsumeViaCLI(Supplier<String> serviceUrl, Supplier<String> adminUrl)
+            throws Exception {
         super.testPublishOffloadAndConsumeViaCLI(serviceUrl.get(), adminUrl.get());
     }
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testPublishOffloadAndConsumeViaThreshold(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+    public void testPublishOffloadAndConsumeViaThreshold(Supplier<String> serviceUrl, Supplier<String> adminUrl)
+            throws Exception {
         super.testPublishOffloadAndConsumeViaThreshold(serviceUrl.get(), adminUrl.get());
     }
 
     @Test(dataProvider =  "ServiceAndAdminUrls")
-    public void testPublishOffloadAndConsumeDeletionLag(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
+    public void testPublishOffloadAndConsumeDeletionLag(Supplier<String> serviceUrl, Supplier<String> adminUrl)
+            throws Exception {
         super.testPublishOffloadAndConsumeDeletionLag(serviceUrl.get(), adminUrl.get());
 
     }
@@ -73,7 +75,7 @@ public class TestS3Offload extends TestBaseOffload {
     @Override
     protected Map<String, String> getEnv() {
         Map<String, String> result = new HashMap<>();
-        result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(ENTRIES_PER_LEDGER));
+        result.put("managedLedgerMaxEntriesPerLedger", String.valueOf(getNumEntriesPerLedger()));
         result.put("managedLedgerMinLedgerRolloverTimeMinutes", "0");
         result.put("managedLedgerOffloadDriver", "aws-s3");
         result.put("s3ManagedLedgerOffloadBucket", "pulsar-integtest");

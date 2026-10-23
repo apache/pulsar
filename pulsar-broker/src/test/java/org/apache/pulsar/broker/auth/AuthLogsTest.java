@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,36 +19,30 @@
 package org.apache.pulsar.broker.auth;
 
 import static org.testng.Assert.fail;
-
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.testng.annotations.AfterClass;
-
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
+import com.google.common.collect.Sets;
+import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.ServerSideErrorException;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.AuthenticationException;
 import org.apache.pulsar.client.api.PulsarClientException.AuthorizationException;
-import org.apache.pulsar.client.api.Producer;
-import com.google.common.collect.Sets;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
 
 /**
  * This test doesn't test much in and off itself.
  * However it is useful to see which logs are produced when there's an
  * failure or error in authentication.
  */
-@Test(groups = "flaky")
+@CustomLog
+@Test(groups = "broker")
 public class AuthLogsTest extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(AuthLogsTest.class);
-
     public AuthLogsTest() {
         super();
     }
@@ -64,16 +58,20 @@ public class AuthLogsTest extends MockedPulsarServiceBaseTest {
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
         conf.setSuperUserRoles(Sets.newHashSet("super"));
+        conf.setBrokerClientAuthenticationPlugin(MockAuthentication.class.getName());
+        conf.setBrokerClientAuthenticationParameters("user:pass.pass");
         internalSetup();
 
         try (PulsarAdmin admin = PulsarAdmin.builder()
              .authentication(new MockAuthentication("pass.pass"))
              .serviceHttpUrl(brokerUrl.toString()).build()) {
-            admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
+            admin.clusters().createCluster("test", ClusterData.builder()
+                    .serviceUrl(pulsar.getWebServiceAddress()).build());
             admin.tenants().createTenant("public",
-                                         new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"), Sets.newHashSet("test")));
+                                         new TenantInfoImpl(Sets.newHashSet("appid1", "appid2"),
+                                                 Sets.newHashSet("test")));
             admin.namespaces().createNamespace("public/default");
-            admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"));
+            admin.namespaces().setNamespaceReplicationClusters("public/default", Sets.newHashSet("test"), false);
         }
     }
 

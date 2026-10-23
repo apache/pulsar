@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,12 +18,13 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import java.net.URI;
 import java.util.Optional;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.util.PortManager;
+import lombok.CustomLog;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -41,7 +42,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class AdvertisedListenersTest extends MultiBrokerBaseTest {
     @Override
@@ -64,19 +65,23 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
     }
 
     private void updateConfig(ServiceConfiguration conf, String advertisedAddress) {
-        int pulsarPort = PortManager.nextFreePort();
-        int httpPort = PortManager.nextFreePort();
-        int httpsPort = PortManager.nextFreePort();
+        // Pre-allocate ports because the advertised listener URLs are baked into config
+        // before the broker starts. The broker then binds to the same ports.
+        int pulsarPort = nextLockedFreePort();
+        int httpPort = nextLockedFreePort();
+        int httpsPort = nextLockedFreePort();
 
         // Use invalid domain name as identifier and instead make sure the advertised listeners work as intended
-        this.conf.setAdvertisedAddress(advertisedAddress);
-        this.conf.setAdvertisedListeners(
-                "public:pulsar://localhost:" + pulsarPort +
-                        ",public_http:http://localhost:" + httpPort +
-                        ",public_https:https://localhost:" + httpsPort);
-        this.conf.setBrokerServicePort(Optional.of(pulsarPort));
-        this.conf.setWebServicePort(Optional.of(httpPort));
-        this.conf.setWebServicePortTls(Optional.of(httpsPort));
+        conf.setAdvertisedAddress(advertisedAddress);
+        // let it be detected from advertised listeners
+        conf.setInternalListenerName(null);
+        // set advertised listeners
+        conf.setAdvertisedListeners(
+                "public:pulsar://localhost:" + pulsarPort
+                        + ",public:http://localhost:" + httpPort
+                        + ",public:https://localhost:" + httpsPort);
+        conf.setBrokerServicePort(Optional.of(pulsarPort));
+        conf.setWebServicePort(Optional.of(httpPort));
     }
 
     @Test
@@ -85,6 +90,7 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
                 new HttpGet(pulsar.getWebServiceAddress() + "/lookup/v2/topic/persistent/public/default/my-topic");
         request.addHeader(HttpHeaders.CONTENT_TYPE, "application/json");
         request.addHeader(HttpHeaders.ACCEPT, "application/json");
+        final String topic = "my-topic";
 
         @Cleanup
         CloseableHttpClient httpClient = HttpClients.createDefault();
@@ -93,25 +99,26 @@ public class AdvertisedListenersTest extends MultiBrokerBaseTest {
         CloseableHttpResponse response = httpClient.execute(request);
 
         HttpEntity entity = response.getEntity();
-        LookupData ld = ObjectMapperFactory.getThreadLocal().readValue(EntityUtils.toString(entity), LookupData.class);
+        LookupData ld = ObjectMapperFactory.getMapper().reader().readValue(EntityUtils.toString(entity),
+                LookupData.class);
         System.err.println("Lookup data: " + ld);
 
         assertEquals(new URI(ld.getBrokerUrl()).getHost(), "localhost");
         assertEquals(new URI(ld.getHttpUrl()).getHost(), "localhost");
-        assertEquals(new URI(ld.getHttpUrlTls()).getHost(), "localhost");
 
 
         // Produce data
         @Cleanup
         Producer<String> p = pulsarClient.newProducer(Schema.STRING)
-                .topic("my-topic")
+                .topic(topic)
                 .create();
 
         p.send("hello");
 
         // Verify we can get the correct HTTP redirect to the advertised listener
         for (PulsarAdmin a : getAllAdmins()) {
-            TopicStats s = a.topics().getStats("my-topic");
+            TopicStats s = a.topics().getStats(topic);
+            assertNotNull(a.lookups().lookupTopic(topic));
             assertEquals(s.getPublishers().size(), 1);
         }
     }

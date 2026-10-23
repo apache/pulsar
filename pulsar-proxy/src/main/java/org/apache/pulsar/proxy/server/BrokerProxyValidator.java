@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.proxy.server;
 
 import inet.ipaddr.IPAddress;
@@ -33,11 +32,11 @@ import java.util.StringTokenizer;
 import java.util.concurrent.CompletableFuture;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 
-@Slf4j
+@CustomLog
 public class BrokerProxyValidator {
     private static final String SEPARATOR = "\\s*,\\s*";
     private static final String ALLOW_ANY = "*";
@@ -126,7 +125,7 @@ public class BrokerProxyValidator {
             return NettyFutureUtil.toCompletableFuture(
                             inetSocketAddressResolver.resolve(InetSocketAddress.createUnresolved(host, port)))
                     .thenCompose(resolvedAddress -> {
-                        CompletableFuture<InetSocketAddress> result = new CompletableFuture();
+                        CompletableFuture<InetSocketAddress> result = new CompletableFuture<>();
                         if (isIPAddressAllowed(resolvedAddress)) {
                             result.complete(resolvedAddress);
                         } else {

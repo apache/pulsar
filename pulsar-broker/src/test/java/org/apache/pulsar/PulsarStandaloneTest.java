@@ -1,0 +1,172 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+package org.apache.pulsar;
+
+import static org.apache.commons.io.FileUtils.cleanDirectory;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
+import java.io.File;
+import java.util.Collections;
+import java.util.List;
+import lombok.Cleanup;
+import org.apache.bookkeeper.conf.ServerConfiguration;
+import org.apache.bookkeeper.util.IOUtils;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
+import org.apache.pulsar.metadata.bookkeeper.BKCluster;
+import org.testng.Assert;
+import org.testng.annotations.DataProvider;
+import org.testng.annotations.Test;
+
+@Test(groups = "broker")
+public class PulsarStandaloneTest {
+
+    @DataProvider
+    public Object[][] enableBrokerClientAuth() {
+        return new Object[][] { { true }, { false } };
+    }
+
+    @Test
+    public void testStandaloneWithRocksDB() throws Exception {
+        final File tempDir = IOUtils.createTempDir("standalone", "test");
+        String[] args = new String[]{"--config",
+                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf",
+                "-nss",
+                "-nfw",
+                "--metadata-dir", new File(tempDir, "metadata").getAbsolutePath()};
+        final int bookieNum = 3;
+
+        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(args);
+        standalone.setBkDir(new File(tempDir, "bookies").getAbsolutePath());
+        standalone.setNumOfBk(bookieNum);
+
+        standalone.startBookieWithMetadataStore();
+        List<ServerConfiguration> firstBsConfs = standalone.bkCluster.getBsConfs();
+        Assert.assertEquals(firstBsConfs.size(), bookieNum);
+        standalone.close();
+
+        // start twice, read cookie from local folder
+        standalone.startBookieWithMetadataStore();
+        List<ServerConfiguration> secondBsConfs = standalone.bkCluster.getBsConfs();
+        Assert.assertEquals(secondBsConfs.size(), bookieNum);
+
+        // Cookies must be preserved across restart (otherwise bookie startup would have failed
+        // with InvalidCookieException). The bookieId is the persistent identity.
+        for (int i = 0; i < bookieNum; i++) {
+            ServerConfiguration conf1 = firstBsConfs.get(i);
+            ServerConfiguration conf2 = secondBsConfs.get(i);
+            Assert.assertEquals(conf1.getBookieId(), "bk-" + i);
+            Assert.assertEquals(conf1.getBookieId(), conf2.getBookieId());
+        }
+        standalone.close();
+        cleanDirectory(tempDir);
+    }
+
+    @Test(dataProvider = "enableBrokerClientAuth")
+    public void testMetadataInitialization(boolean enableBrokerClientAuth) throws Exception {
+        final File metadataDir = IOUtils.createTempDir("standalone", "metadata");
+        @Cleanup final PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(new String[]{
+                "--config",
+                "./src/test/resources/configurations/standalone_no_client_auth.conf",
+                "-nss",
+                "-nfw",
+                "--metadata-url",
+                "rocksdb://" + metadataDir.getAbsolutePath()
+        });
+        if (enableBrokerClientAuth) {
+            standalone.getConfig().setBrokerClientAuthenticationPlugin(
+                    MockTokenAuthenticationProvider.MockAuthentication.class.getName());
+        }
+        final File bkDir = IOUtils.createTempDir("standalone", "bk");
+        standalone.setNumOfBk(1);
+        standalone.setBkDir(bkDir.getAbsolutePath());
+        standalone.start();
+
+        @Cleanup PulsarAdmin admin = PulsarAdmin.builder()
+                .serviceHttpUrl(standalone.getWebServiceUrl())
+                .authentication(new MockTokenAuthenticationProvider.MockAuthentication())
+                .build();
+        if (enableBrokerClientAuth) {
+            assertTrue(admin.clusters().getClusters().contains("test_cluster"));
+            assertTrue(admin.tenants().getTenants().contains("public"));
+            assertTrue(admin.namespaces().getNamespaces("public").contains("public/default"));
+        } else {
+            assertTrue(admin.clusters().getClusters().isEmpty());
+            admin.clusters().createCluster("test_cluster", ClusterData.builder()
+                    .serviceUrl(standalone.getWebServiceUrl())
+                    .brokerServiceUrl(standalone.getBrokerServiceUrl())
+                    .build());
+            assertTrue(admin.tenants().getTenants().isEmpty());
+            admin.tenants().createTenant("public", TenantInfo.builder()
+                    .adminRoles(Collections.singleton("admin"))
+                    .allowedClusters(Collections.singleton("test_cluster"))
+                    .build());
+
+            assertTrue(admin.namespaces().getNamespaces("public").isEmpty());
+            admin.namespaces().createNamespace("public/default");
+        }
+
+        String topic = "test-get-topic-bundle-range";
+        admin.topics().createNonPartitionedTopic(topic);
+        // public/default is created with the default number of bundles (32); crc32 of the full topic name is
+        // 0xca437fb1, which falls into the 26th of the 32 equally sized ranges
+        assertEquals(admin.namespaces().getBundles("public/default").getNumBundles(),
+                standalone.getConfig().getDefaultNumberOfNamespaceBundles());
+        assertEquals(admin.lookups().getBundleRange(topic), "0xc8000000_0xd0000000");
+
+        standalone.close();
+        cleanDirectory(bkDir);
+        cleanDirectory(metadataDir);
+    }
+
+
+    @Test
+    public void testShutdownHookClosesBkCluster() throws Exception {
+        File dataDir = IOUtils.createTempDir("data", "");
+        File metadataDir = new File(dataDir, "metadata");
+        File bkDir = new File(dataDir, "bookkeeper");
+        @Cleanup
+        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(new String[] {
+                "--config",
+                "./src/test/resources/configurations/pulsar_broker_test_standalone_with_rocksdb.conf",
+                "-nss",
+                "-nfw",
+                "--metadata-dir",
+                metadataDir.getAbsolutePath(),
+                "--bookkeeper-dir",
+                bkDir.getAbsolutePath()
+        });
+        standalone.setTestMode(true);
+        standalone.start();
+        BKCluster bkCluster = standalone.bkCluster;
+        standalone.runShutdownHook();
+        assertTrue(bkCluster.isClosed());
+    }
+
+    @Test
+    public void testWipeData() throws Exception {
+        PulsarStandaloneStarter standalone = new PulsarStandaloneStarter(new String[] {
+                "--config",
+                "./src/test/resources/configurations/standalone_no_client_auth.conf",
+                "--wipe-data"
+        });
+        assertTrue(standalone.isWipeData());
+    }
+}

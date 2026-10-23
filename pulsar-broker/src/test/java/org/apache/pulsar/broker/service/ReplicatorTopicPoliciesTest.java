@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,18 +23,21 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
-import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.DispatchRate;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.InactiveTopicDeleteMode;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
@@ -50,22 +53,16 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
- * Starts 3 brokers that are in 3 different clusters
+ * Starts 3 brokers that are in 3 different clusters.
  */
-@Test(groups = "broker")
+@Test(groups = "broker-replication")
 public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
 
     @Override
     @BeforeClass(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
-        config1.setSystemTopicEnabled(true);
         config1.setDefaultNumberOfNamespaceBundles(1);
-        config1.setTopicLevelPoliciesEnabled(true);
-        config2.setSystemTopicEnabled(true);
-        config2.setTopicLevelPoliciesEnabled(true);
         config2.setDefaultNumberOfNamespaceBundles(1);
-        config3.setSystemTopicEnabled(true);
-        config3.setTopicLevelPoliciesEnabled(true);
         config3.setDefaultNumberOfNamespaceBundles(1);
         super.setup();
     }
@@ -85,6 +82,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         BacklogQuotaImpl backlogQuota = new BacklogQuotaImpl();
         backlogQuota.setLimitSize(1);
         backlogQuota.setLimitTime(2);
+        backlogQuota.setPolicy(BacklogQuota.RetentionPolicy.producer_exception);
         // local
         admin1.topicPolicies().setBacklogQuota(topic, backlogQuota);
         Awaitility.await().untilAsserted(() ->
@@ -223,8 +221,8 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() -> condition.apply(admin3));
     }
 
-    private interface ThrowingConsumer<I> {
-        void apply(I input) throws Throwable;
+    private interface ThrowingConsumer<T> {
+        void apply(T input) throws Throwable;
     }
 
 
@@ -704,7 +702,7 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         init(namespace, persistentTopicName);
         OffloadPoliciesImpl offloadPolicies =
                 OffloadPoliciesImpl.create("s3", "region", "bucket", "endpoint", null, null, null, null,
-                8, 9, 10L, null, OffloadedReadPriority.BOOKKEEPER_FIRST);
+                8, 9, 10L, 10L, null, OffloadedReadPriority.BOOKKEEPER_FIRST);
         // local
         try {
             admin1.topicPolicies().setOffloadPolicies(persistentTopicName, offloadPolicies);
@@ -717,9 +715,9 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         Awaitility.await().untilAsserted(() ->
                 assertNull(admin3.topicPolicies().getOffloadPolicies(persistentTopicName)));
         // global
-        try{
+        try {
             admin1.topicPolicies(true).setOffloadPolicies(persistentTopicName, offloadPolicies);
-        }catch (Exception exception){
+        } catch (Exception exception) {
             // driver not found exception.
             assertTrue(exception instanceof PulsarAdminException.ServerSideErrorException);
         }
@@ -737,15 +735,69 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
                 assertNull(admin3.topicPolicies(true).getOffloadPolicies(persistentTopicName)));
     }
 
+    @Test
+    public void testRemoveReplicationClusters() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String persistentTopicName = "persistent://" + namespace + "/topic" + UUID.randomUUID();
 
-    private void init(String namespace, String topic)
-            throws PulsarAdminException, PulsarClientException, PulsarServerException {
+        init(namespace, persistentTopicName);
+
+        // set topic replica cluster policy as `r1 r2`
+        admin1.topics().setReplicationClusters(persistentTopicName, Arrays.asList("r1", "r2"));
+        PersistentTopic topicRef =
+            (PersistentTopic) pulsar1.getBrokerService().getTopicReference(persistentTopicName + "-partition-0").get();
+        assertNotNull(topicRef);
+
+        Awaitility.await().untilAsserted(() -> {
+            List<String> replicaClusters = topicRef.getReplicators().keySet().stream().sorted().toList();
+            assertEquals(replicaClusters.size(), 1);
+            assertEquals(replicaClusters.toString(), "[r2]");
+        });
+
+        // removing topic replica cluster policy, so namespace policy should take effect
+        admin1.topics().removeReplicationClusters(persistentTopicName);
+        Awaitility.await().untilAsserted(() -> {
+            List<String> replicaClusters = topicRef.getReplicators().keySet().stream().sorted().toList();
+            assertEquals(replicaClusters.size(), 2);
+            assertEquals(replicaClusters.toString(), "[r2, r3]");
+        });
+    }
+
+    @Test
+    public void testReplicateAutoSubscriptionCreation() throws Exception {
+        final String namespace = "pulsar/partitionedNs-" + UUID.randomUUID();
+        final String topic = "persistent://" + namespace + "/topic" + UUID.randomUUID();
+        init(namespace, topic);
+
+        AutoSubscriptionCreationOverride autoSubscriptionCreationOverride =
+                AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(true).build();
+        // local
+        admin1.topicPolicies().setAutoSubscriptionCreation(topic, autoSubscriptionCreationOverride);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies().getAutoSubscriptionCreation(topic, false)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies().getAutoSubscriptionCreation(topic, false)));
+        // global
+        admin1.topicPolicies(true).setAutoSubscriptionCreation(topic, autoSubscriptionCreationOverride);
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> assertEquals(admin2.topicPolicies(true)
+                .getAutoSubscriptionCreation(topic, false).isAllowAutoSubscriptionCreation(), true));
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> assertEquals(admin3.topicPolicies(true)
+                .getAutoSubscriptionCreation(topic, false).isAllowAutoSubscriptionCreation(), true));
+        // remove auto subscription creation for a topic
+        admin1.topicPolicies(true).removeAutoSubscriptionCreation(topic);
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin2.topicPolicies(true).getAutoSubscriptionCreation(topic, false)));
+        Awaitility.await().untilAsserted(() ->
+                assertNull(admin3.topicPolicies(true).getAutoSubscriptionCreation(topic, false)));
+    }
+
+    private void init(String namespace, String topic) throws Exception {
         final String cluster2 = pulsar2.getConfig().getClusterName();
         final String cluster1 = pulsar1.getConfig().getClusterName();
         final String cluster3 = pulsar3.getConfig().getClusterName();
 
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet(cluster1, cluster2, cluster3));
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"), false);
         // Create partitioned-topic from R1
         admin1.topics().createPartitionedTopic(topic, 3);
         // List partitioned topics from R2
@@ -763,11 +815,9 @@ public class ReplicatorTopicPoliciesTest extends ReplicatorTestBase {
         pulsar3.getClient().newProducer().topic(topic).create().close();
 
         //init topic policies server
-        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
-            assertNull(pulsar1.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
-            assertNull(pulsar2.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
-            assertNull(pulsar3.getTopicPoliciesService().getTopicPolicies(TopicName.get(topic)));
-        });
+        TopicPolicyTestUtils.getTopicPolicies(pulsar1.getTopicPoliciesService(), TopicName.get(topic));
+        TopicPolicyTestUtils.getTopicPolicies(pulsar2.getTopicPoliciesService(), TopicName.get(topic));
+        TopicPolicyTestUtils.getTopicPolicies(pulsar3.getTopicPoliciesService(), TopicName.get(topic));
     }
 
 }

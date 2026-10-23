@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,8 +23,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.packages.management.core.PackagesStorage;
 import org.apache.pulsar.packages.management.core.common.PackageMetadata;
@@ -37,9 +39,45 @@ import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementE
 /**
  * Packages management implementation.
  */
+@Slf4j
 public class PackagesManagementImpl implements PackagesManagement {
 
     private PackagesStorage storage;
+    private final boolean jsonSerializationEnabled;
+    private final boolean allowLegacyJavaSerialization;
+
+    public PackagesManagementImpl() {
+        this(true, true, false);
+    }
+
+    public PackagesManagementImpl(boolean jsonSerializationEnabled, boolean allowLegacyJavaSerialization) {
+        this(jsonSerializationEnabled, allowLegacyJavaSerialization, true);
+    }
+
+    private PackagesManagementImpl(boolean jsonSerializationEnabled, boolean allowLegacyJavaSerialization,
+                                   boolean logConfigWarnings) {
+        this.jsonSerializationEnabled = jsonSerializationEnabled;
+        this.allowLegacyJavaSerialization = allowLegacyJavaSerialization;
+        if (logConfigWarnings) {
+            if (allowLegacyJavaSerialization) {
+                log.warn("Reading legacy Java-serialized package metadata is enabled "
+                        + "(packagesManagementAllowLegacyJavaSerialization=true). Re-upload existing packages "
+                        + "or let organic updateMeta calls rewrite them as JSON, then disable this flag. "
+                        + "This default is scheduled to flip to false in a future Pulsar release.");
+            }
+            if (!jsonSerializationEnabled) {
+                log.warn("Package metadata is being written in the legacy Java serialization format "
+                        + "(packagesManagementJsonSerializationEnabled=false). JSON is preferred; this flag "
+                        + "exists only for rollback and will be removed in a future Pulsar release.");
+            }
+            if (!jsonSerializationEnabled && !allowLegacyJavaSerialization) {
+                log.warn("packagesManagementJsonSerializationEnabled=false combined with "
+                        + "packagesManagementAllowLegacyJavaSerialization=false means new writes use Java "
+                        + "serialization but reads reject it — existing entries will fail to load. This is "
+                        + "likely a misconfiguration.");
+            }
+        }
+    }
 
     @Override
     public void initialize(PackagesStorage storage) {
@@ -84,20 +122,21 @@ public class PackagesManagementImpl implements PackagesManagement {
                     future.completeExceptionally(throwable);
                     return;
                 }
-                try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+                try (ByteArrayInputStream in = new ByteArrayInputStream(
+                        PackageMetadataUtil.toBytes(metadata, jsonSerializationEnabled))) {
                     storage.deleteAsync(metadataPath)
-                        .thenCompose(aVoid -> storage.writeAsync(metadataPath, inputStream))
+                        .thenCompose(aVoid -> storage.writeAsync(metadataPath, in))
                         .whenComplete((aVoid, t) -> {
                             if (t != null) {
                                 future.completeExceptionally(new PackagesManagementException(
-                                    String.format("Update package '%s' metadata failed", packageName.toString()), t));
+                                    String.format("Update package '%s' metadata failed", packageName), t));
                             } else {
                                 future.complete(null);
                             }
                         });
                 } catch (IOException e) {
                     future.completeExceptionally(new PackagesManagementException(
-                        String.format("Read package '%s' metadata failed", packageName.toString()), e));
+                        String.format("Read package '%s' metadata failed", packageName), e));
                 }
             });
         return future;
@@ -106,7 +145,8 @@ public class PackagesManagementImpl implements PackagesManagement {
     private CompletableFuture<Void> writeMeta(PackageName packageName, PackageMetadata metadata) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         String metadataPath = metadataPath(packageName);
-        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(PackageMetadataUtil.toBytes(metadata))) {
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(
+                PackageMetadataUtil.toBytes(metadata, jsonSerializationEnabled))) {
             storage.writeAsync(metadataPath, inputStream)
                 .whenComplete((aVoid, t) -> {
                     if (t != null) {
@@ -143,8 +183,7 @@ public class PackagesManagementImpl implements PackagesManagement {
     public CompletableFuture<Void> delete(PackageName packageName) {
         return CompletableFuture.allOf(
             storage.deleteAsync(metadataPath(packageName)),
-            storage.deleteAsync(packagePath(packageName)),
-            storage.deleteAsync(packageName.toRestPath()));
+            storage.deleteAsync(packagePath(packageName)));
     }
 
     @Override
@@ -154,6 +193,11 @@ public class PackagesManagementImpl implements PackagesManagement {
 
     @Override
     public CompletableFuture<List<String>> list(PackageType type, String tenant, String namespace) {
+        try {
+            PackageName.validateNamespace(tenant, namespace);
+        } catch (IllegalArgumentException e) {
+            return CompletableFuture.failedFuture(e);
+        }
         return storage.listAsync(String.format("%s/%s/%s", type, tenant, namespace));
     }
 
@@ -188,8 +232,8 @@ public class PackagesManagementImpl implements PackagesManagement {
                 if (!exist) {
                     future.complete(null);
                 } else {
-                    future.completeExceptionally(
-                        new NotFoundException(String.format("Package '%s' metadata already exists", packageName)));
+                    future.completeExceptionally(new FileAlreadyExistsException(
+                            String.format("Package '%s' metadata already exists", packageName)));
                 }
             });
         return future;
@@ -236,7 +280,8 @@ public class PackagesManagementImpl implements PackagesManagement {
     private CompletableFuture<PackageMetadata> metadataReadFromStream(ByteArrayOutputStream outputStream) {
         CompletableFuture<PackageMetadata> future = new CompletableFuture<>();
         try {
-            PackageMetadata metadata = PackageMetadataUtil.fromBytes(outputStream.toByteArray());
+            PackageMetadata metadata = PackageMetadataUtil.fromBytes(
+                    outputStream.toByteArray(), allowLegacyJavaSerialization);
             future.complete(metadata);
         } catch (PackagesManagementException.MetadataFormatException e) {
             future.completeExceptionally(e);
@@ -244,12 +289,12 @@ public class PackagesManagementImpl implements PackagesManagement {
         return future;
     }
 
-    private String metadataPath(PackageName packageName) {
+    protected String metadataPath(PackageName packageName) {
         return packageName.toRestPath() + "/meta";
     }
 
-    private String packagePath(PackageName packageName) {
-        return packageName.toRestPath() + "/data";
+    protected String packagePath(PackageName packageName) {
+        return packageName.toRestPath() + storage.dataPath();
     }
 
     private String packageWithoutVersionPath(PackageName packageName) {

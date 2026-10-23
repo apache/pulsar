@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,7 +27,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import java.io.File;
@@ -47,8 +46,8 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -81,6 +80,7 @@ import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.LocalRunner;
@@ -90,9 +90,8 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.io.core.Sink;
 import org.apache.pulsar.io.core.SinkContext;
+import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
@@ -102,9 +101,10 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Test Pulsar sink on function
+ * Test Pulsar sink on function.
  */
 @Test(groups = { "flaky" })
+@CustomLog
 public class PulsarFunctionLocalRunTest {
     LocalBookkeeperEnsemble bkEnsemble;
 
@@ -122,11 +122,16 @@ public class PulsarFunctionLocalRunTest {
 
     private static final String CLUSTER = "local";
 
-    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
-    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
-    private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
-    private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private static final String TLS_SERVER_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.cert.pem");
+    private static final String TLS_SERVER_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
+    private static final String TLS_CLIENT_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.cert.pem");
+    private static final String TLS_CLIENT_KEY_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/client-keys/admin.key-pk8.pem");
+    private static final String TLS_TRUST_CERT_FILE_PATH =
+            ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
 
     private static final String SYSTEM_PROPERTY_NAME_NAR_FILE_PATH = "pulsar-io-data-generator.nar.path";
     private PulsarFunctionTestTemporaryDirectory tempDirectory;
@@ -147,6 +152,16 @@ public class PulsarFunctionLocalRunTest {
                         + SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_JAR_FILE_PATH + " system property"));
     }
 
+    private static final String SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH =
+            "pulsar-functions-api-examples.nar.path";
+
+    public static File getPulsarApiExamplesNar() {
+        return new File(Objects.requireNonNull(
+                System.getProperty(SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH)
+                , "pulsar-functions-api-examples.nar file location must be specified with "
+                        + SYSTEM_PROPERTY_NAME_FUNCTIONS_API_EXAMPLES_NAR_FILE_PATH + " system property"));
+    }
+
     private static final String SYSTEM_PROPERTY_NAME_BATCH_NAR_FILE_PATH = "pulsar-io-batch-data-generator.nar.path";
 
     public static File getPulsarIOBatchDataGeneratorNar() {
@@ -158,9 +173,6 @@ public class PulsarFunctionLocalRunTest {
 
     private URLClassLoader pulsarApiExamplesClassLoader;
     private Class<?> avroTestObjectClass;
-
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarFunctionLocalRunTest.class);
     private FileServer fileServer;
 
     @DataProvider(name = "validRoleName")
@@ -172,7 +184,8 @@ public class PulsarFunctionLocalRunTest {
     void loadPulsarApiExamples() throws MalformedURLException, ClassNotFoundException {
         pulsarApiExamplesClassLoader = new URLClassLoader(new URL[]{getPulsarApiExamplesJar().toURI().toURL()},
                 Thread.currentThread().getContextClassLoader());
-        avroTestObjectClass = pulsarApiExamplesClassLoader.loadClass("org.apache.pulsar.functions.api.examples.pojo.AvroTestObject");
+        avroTestObjectClass = pulsarApiExamplesClassLoader.loadClass(
+                "org.apache.pulsar.functions.api.examples.pojo.AvroTestObject");
     }
 
     @AfterClass(alwaysRun = true)
@@ -182,22 +195,25 @@ public class PulsarFunctionLocalRunTest {
             pulsarApiExamplesClassLoader = null;
         }
     }
+    @SuppressWarnings("deprecation")
 
     @BeforeMethod(alwaysRun = true)
     void setup(Method method) throws Exception {
-        log.info("--- Setting up method {} ---", method.getName());
+        log.info().attr("method", method.getName()).log("Setting up method");
 
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
         bkEnsemble.start();
 
-        config = spy(ServiceConfiguration.class);
+        config = new ServiceConfiguration();
+        config.setSystemTopicEnabled(false);
+        config.setTopicLevelPoliciesEnabled(false);
         config.setClusterName(CLUSTER);
         Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
         config.setWebServicePort(Optional.of(0));
         config.setWebServicePortTls(Optional.of(0));
-        config.setZookeeperServers("127.0.0.1" + ":" + bkEnsemble.getZookeeperPort());
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
@@ -223,7 +239,7 @@ public class PulsarFunctionLocalRunTest {
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         config.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         config.setBrokerClientTlsEnabled(true);
-        config.setAllowAutoTopicCreationType("non-partitioned");
+        config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         workerConfig = createWorkerConfig(config);
 
@@ -233,6 +249,11 @@ public class PulsarFunctionLocalRunTest {
 
             File file = getPulsarIODataGeneratorNar();
             Files.copy(file.toPath(), new File(connectorsDir, file.getName()).toPath());
+
+            File functionsDir = new File(workerConfig.getFunctionsDirectory());
+
+            file = getPulsarApiExamplesNar();
+            Files.copy(file.toPath(), new File(functionsDir, file.getName()).toPath());
         }
 
         Optional<WorkerService> functionWorkerService = Optional.empty();
@@ -249,14 +270,16 @@ public class PulsarFunctionLocalRunTest {
         authTls.configure(authParams);
 
         admin = spy(
-                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
-                        .allowTlsInsecureConnection(true).authentication(authTls).build());
+                PulsarAdmin.builder().serviceHttpUrl(brokerServiceUrl)
+                        .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                        .allowTlsInsecureConnection(true)
+                        .authentication(authTls).build());
 
         brokerStatsClient = admin.brokerStats();
         primaryHost = pulsar.getWebServiceAddress();
 
         // create cluster metadata
-        ClusterData clusterData = ClusterData.builder().serviceUrl(urlTls.toString()).build();
+        ClusterData clusterData = ClusterData.builder().serviceUrlTls(urlTls.toString()).build();
         admin.clusters().createCluster(config.getClusterName(), clusterData);
 
         ClientBuilder clientBuilder = PulsarClient.builder()
@@ -284,6 +307,7 @@ public class PulsarFunctionLocalRunTest {
         fileServer = new FileServer();
         fileServer.serveFile("/pulsar-io-data-generator.nar", getPulsarIODataGeneratorNar());
         fileServer.serveFile("/pulsar-functions-api-examples.jar", getPulsarApiExamplesJar());
+        fileServer.serveFile("/pulsar-functions-api-examples.nar", getPulsarApiExamplesNar());
         fileServer.start();
     }
 
@@ -291,17 +315,34 @@ public class PulsarFunctionLocalRunTest {
     void shutdown() throws Exception {
         try {
             log.info("--- Shutting down ---");
-            fileServer.stop();
-            pulsarClient.close();
-            admin.close();
-            pulsar.close();
-            bkEnsemble.stop();
+            if (fileServer != null) {
+                fileServer.stop();
+                fileServer = null;
+            }
+            if (pulsarClient != null) {
+                pulsarClient.close();
+                pulsarClient = null;
+            }
+            if (admin != null) {
+                admin.close();
+                admin = null;
+            }
+            if (pulsar != null) {
+                pulsar.close();
+                pulsar = null;
+            }
+            if (bkEnsemble != null) {
+                bkEnsemble.stop();
+                bkEnsemble = null;
+            }
         } finally {
             if (tempDirectory != null) {
                 tempDirectory.delete();
+                tempDirectory = null;
             }
         }
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     protected WorkerConfig createWorkerConfig(ServiceConfiguration config) {
 
@@ -316,7 +357,8 @@ public class PulsarFunctionLocalRunTest {
                 org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler.class.getName());
         workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
         workerConfig.setFunctionRuntimeFactoryConfigs(
-                ObjectMapperFactory.getThreadLocal().convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName(CLUSTER), Map.class));
+                ObjectMapperFactory.getMapper().getObjectMapper()
+                        .convertValue(new ThreadRuntimeFactoryConfig().setThreadGroupName(CLUSTER), Map.class));
         // worker talks to local broker
         workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePortTls().get());
         workerConfig.setPulsarWebServiceUrl("https://127.0.0.1:" + config.getWebServicePortTls().get());
@@ -344,10 +386,12 @@ public class PulsarFunctionLocalRunTest {
         workerConfig.setAuthorizationEnabled(true);
         return workerConfig;
     }
+    @SuppressWarnings("deprecation")
 
     protected static FunctionConfig createFunctionConfig(String tenant,
                                                          String namespace,
                                                          String functionName,
+                                                         boolean isBuiltin,
                                                          String sourceTopic,
                                                          String sinkTopic,
                                                          String subscriptionName) {
@@ -361,7 +405,9 @@ public class PulsarFunctionLocalRunTest {
         functionConfig.setSubName(subscriptionName);
         functionConfig.setInputs(Collections.singleton(sourceTopic));
         functionConfig.setAutoAck(true);
-        functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
+        if (!isBuiltin) {
+            functionConfig.setClassName("org.apache.pulsar.functions.api.examples.ExclamationFunction");
+        }
         functionConfig.setRuntime(FunctionConfig.Runtime.JAVA);
         functionConfig.setOutput(sinkTopic);
         functionConfig.setCleanupSubscription(true);
@@ -416,29 +462,34 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic).subscriptionName("sub").subscribe();
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic)
+                .subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                sourceTopic, sinkTopic, subscriptionName);
+                jarFilePathUrl != null && (jarFilePathUrl.startsWith(Utils.BUILTIN)
+                        || jarFilePathUrl.endsWith(".nar")), sourceTopic, sinkTopic, subscriptionName);
         functionConfig.setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE);
 
         functionConfig.setJar(jarFilePathUrl);
         functionConfig.setParallelism(parallelism);
+        functionConfig.setRetainOrdering(true);
         int metricsPort = FunctionCommon.findAvailablePort();
         @Cleanup
         LocalRunner localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
                 .tlsHostNameVerificationEnabled(false)
                 .metricsPortStart(metricsPort)
+                .functionsDirectory(workerConfig.getFunctionsDirectory())
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls()).build();
         localRunner.start(false);
 
@@ -449,11 +500,13 @@ public class PulsarFunctionLocalRunTest {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
                 if (topicStats.getSubscriptions().containsKey(subscriptionName)
                         && topicStats.getSubscriptions().get(subscriptionName).getConsumers().size() == parallelism) {
-                    for (ConsumerStats consumerStats : topicStats.getSubscriptions().get(subscriptionName).getConsumers()) {
+                    for (ConsumerStats consumerStats : topicStats.getSubscriptions()
+                            .get(subscriptionName).getConsumers()) {
                         result = consumerStats.getAvailablePermits() == 1000
                                 && consumerStats.getMetadata() != null
                                 && consumerStats.getMetadata().containsKey("id")
-                                && consumerStats.getMetadata().get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, functionName));
+                                && consumerStats.getMetadata().get("id").equals(String.format("%s/%s/%s",
+                                tenant, namespacePortion, functionName));
                     }
                 }
                 return result;
@@ -473,7 +526,8 @@ public class PulsarFunctionLocalRunTest {
         }
         retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                SubscriptionStats subStats =
+                        admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
                 return subStats.getUnackedMessages() == 0;
             } catch (PulsarAdminException e) {
                 return false;
@@ -489,19 +543,20 @@ public class PulsarFunctionLocalRunTest {
 
         // validate pulsar-sink consumer has consumed all messages and delivered to Pulsar sink but unacked messages
         // due to publish failure
-        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions().values().iterator().next().getUnackedMessages(),
+        assertNotEquals(admin.topics().getStats(sourceTopic).getSubscriptions()
+                        .values().iterator().next().getUnackedMessages(),
                 totalMsgs);
 
         // validate prometheus metrics
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
-        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
             if (line.startsWith("pulsar_function_processed_successfully_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_function_processed_successfully_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_function_processed_successfully_total");
                 if (m != null) {
                     metricsMap.put(m.tags.get("instance_id"), m);
                 }
@@ -511,13 +566,14 @@ public class PulsarFunctionLocalRunTest {
 
         double totalMsgRecv = 0.0;
         for (int i = 0; i < parallelism; i++) {
-            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            TestPulsarFunctionUtils.Metric m = metricsMap.get(String.valueOf(i));
             Assert.assertNotNull(m);
             assertEquals(m.tags.get("cluster"), config.getClusterName());
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));
             assertEquals(m.tags.get("name"), functionName);
             assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-            assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
+            assertEquals(m.tags.get("fqfn"),
+                    FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, functionName));
             totalMsgRecv += m.value;
         }
         Assert.assertEquals(totalMsgRecv, totalMsgs);
@@ -563,6 +619,7 @@ public class PulsarFunctionLocalRunTest {
         testE2EPulsarFunctionLocalRun(jarFilePathUrl, 1);
     }
 
+    @SuppressWarnings("unchecked")
     private void testAvroFunctionLocalRun(String jarFilePathUrl) throws Exception {
 
         final String namespacePortion = "io";
@@ -575,7 +632,7 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
 
         Schema schema = Schema.AVRO(SchemaDefinition.builder()
@@ -589,15 +646,20 @@ public class PulsarFunctionLocalRunTest {
         //produce message to sourceTopic
         Producer<Object> producer = pulsarClient.newProducer(schema).topic(sourceTopic).create();
         //consume message from sinkTopic
-        Consumer<GenericRecord> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic).subscriptionName("sub").subscribe();
+        Consumer<GenericRecord> consumer =
+                pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(sinkTopic)
+                .subscriptionName("sub").subscribe();
 
         FunctionConfig functionConfig = createFunctionConfig(tenant, namespacePortion, functionName,
-                sourceTopic, sinkTopic, subscriptionName);
+                jarFilePathUrl != null
+                        && jarFilePathUrl.startsWith(Utils.BUILTIN), sourceTopic, sinkTopic, subscriptionName);
         //set jsr310ConversionEnabled、alwaysAllowNull
-        Map<String,String> schemaInput = new HashMap<>();
-        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"true\",\"__alwaysAllowNull\":\"true\"}}");
+        Map<String, String> schemaInput = new HashMap<>();
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":"
+                + "\"true\",\"__alwaysAllowNull\":\"true\"}}");
         Map<String, String> schemaOutput = new HashMap<>();
-        schemaOutput.put(sinkTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"true\",\"__alwaysAllowNull\":\"true\"}}");
+        schemaOutput.put(sinkTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":"
+                + "\"true\",\"__alwaysAllowNull\":\"true\"}}");
 
         functionConfig.setCustomSchemaInputs(schemaInput);
         functionConfig.setCustomSchemaOutputs(schemaOutput);
@@ -612,7 +674,8 @@ public class PulsarFunctionLocalRunTest {
         LocalRunner localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
@@ -631,7 +694,7 @@ public class PulsarFunctionLocalRunTest {
         }, 50, 150);
 
         int totalMsgs = 5;
-        Method setBaseValueMethod = avroTestObjectClass.getMethod("setBaseValue", new Class[]{int.class});
+        Method setBaseValueMethod = avroTestObjectClass.getMethod("setBaseValue", new Class[]{Integer.class});
         for (int i = 0; i < totalMsgs; i++) {
             Object avroTestObject = avroTestObjectClass.getDeclaredConstructor().newInstance();
             setBaseValueMethod.invoke(avroTestObject, i);
@@ -649,7 +712,8 @@ public class PulsarFunctionLocalRunTest {
         }
 
         // validate pulsar-sink consumer has consumed all messages
-        assertNotEquals(admin.topics().getStats(sinkTopic).getSubscriptions().values().iterator().next().getUnackedMessages(), 0);
+        assertNotEquals(admin.topics().getStats(sinkTopic).getSubscriptions()
+                .values().iterator().next().getUnackedMessages(), 0);
         localRunner.stop();
 
         retryStrategically((test) -> {
@@ -663,11 +727,13 @@ public class PulsarFunctionLocalRunTest {
         }, 20, 150);
 
         //change the schema, the function should not run, resulting in no messages to consume
-        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":\"false\",\"__alwaysAllowNull\":\"false\"}}");
+        schemaInput.put(sourceTopic, "{\"schemaType\":\"AVRO\",\"schemaProperties\":{\"__jsr310ConversionEnabled\":"
+                + "\"false\",\"__alwaysAllowNull\":\"false\"}}");
         localRunner = LocalRunner.builder()
                 .functionConfig(functionConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
@@ -701,9 +767,26 @@ public class PulsarFunctionLocalRunTest {
         testE2EPulsarFunctionLocalRun(jarFilePathUrl);
     }
 
+    @Test(timeOut = 20000)
+    public void testE2EPulsarFunctionLocalRunWithNar() throws Exception {
+        String jarFilePathUrl = getPulsarApiExamplesNar().toURI().toString();
+        testE2EPulsarFunctionLocalRun(jarFilePathUrl);
+    }
+
     @Test(timeOut = 40000)
     public void testE2EPulsarFunctionLocalRunURL() throws Exception {
         testE2EPulsarFunctionLocalRun(fileServer.getUrl("/pulsar-functions-api-examples.jar"));
+    }
+
+    @Test(timeOut = 40000)
+    public void testE2EPulsarFunctionLocalRunNarURL() throws Exception {
+        testE2EPulsarFunctionLocalRun(fileServer.getUrl("/pulsar-functions-api-examples.nar"));
+    }
+
+    @Test(timeOut = 20000, groups = "builtin")
+    public void testE2EPulsarFunctionLocalRunBuiltin() throws Exception {
+        String jarFilePathUrl = String.format("%s://exclamation", Utils.BUILTIN);
+        testE2EPulsarFunctionLocalRun(jarFilePathUrl);
     }
 
     @Test(timeOut = 40000)
@@ -718,7 +801,7 @@ public class PulsarFunctionLocalRunTest {
         final String sourceName = "PulsarSource-test";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList(CLUSTER));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         SourceConfig sourceConfig = createSourceConfig(tenant, namespacePortion, sourceName, sinkTopic);
         if (jarFilePathUrl == null || !jarFilePathUrl.endsWith(".nar")) {
@@ -732,7 +815,8 @@ public class PulsarFunctionLocalRunTest {
         LocalRunner localRunner = LocalRunner.builder()
                 .sourceConfig(sourceConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
@@ -760,7 +844,8 @@ public class PulsarFunctionLocalRunTest {
                     for (PublisherStats publisher : sourceStats.getPublishers()) {
                         result = publisher.getMetadata() != null
                                 && publisher.getMetadata().containsKey("id")
-                                && publisher.getMetadata().get("id").equals(String.format("%s/%s/%s", tenant, namespacePortion, sourceName));
+                                && publisher.getMetadata().get("id").equals(String.format("%s/%s/%s",
+                                tenant, namespacePortion, sourceName));
                     }
                 }
 
@@ -781,15 +866,15 @@ public class PulsarFunctionLocalRunTest {
         assertEquals(admin.topics().getStats(sinkTopic).getPublishers().size(), parallelism);
 
         // validate prometheus metrics
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
-        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
             if (line.startsWith("pulsar_source_written_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_source_written_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_source_written_total");
                 if (m != null) {
                     metricsMap.put(m.tags.get("instance_id"), m);
                 }
@@ -798,13 +883,14 @@ public class PulsarFunctionLocalRunTest {
         Assert.assertEquals(metricsMap.size(), parallelism);
 
         for (int i = 0; i < parallelism; i++) {
-            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            TestPulsarFunctionUtils.Metric m = metricsMap.get(String.valueOf(i));
             Assert.assertNotNull(m);
             assertEquals(m.tags.get("cluster"), config.getClusterName());
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));
             assertEquals(m.tags.get("name"), sourceName);
             assertEquals(m.tags.get("namespace"), String.format("%s/%s", tenant, namespacePortion));
-            assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion, sourceName));
+            assertEquals(m.tags.get("fqfn"), FunctionCommon.getFullyQualifiedName(tenant, namespacePortion,
+                    sourceName));
             assertTrue(m.value > 0.0);
         }
 
@@ -858,6 +944,11 @@ public class PulsarFunctionLocalRunTest {
     }
 
     private void testPulsarSinkLocalRun(String jarFilePathUrl, int parallelism, String className) throws Exception {
+        testPulsarSinkLocalRun(jarFilePathUrl, parallelism, className, null, null);
+    }
+
+    private void testPulsarSinkLocalRun(String jarFilePathUrl, int parallelism, String className,
+                                        String transformFunction, String transformFunctionClassName) throws Exception {
         final String namespacePortion = "io";
         final String replNamespace = tenant + "/" + namespacePortion;
         final String sourceTopic = "persistent://" + replNamespace + "/input";
@@ -867,14 +958,16 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("local"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
+        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic,
+                subscriptionName);
 
-        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
+                ConsumerConfig.builder().receiverQueueSize(1000).build()));
         if (className != null) {
             sinkConfig.setClassName(className);
         } else if (jarFilePathUrl == null || !jarFilePathUrl.endsWith(".nar")) {
@@ -883,18 +976,23 @@ public class PulsarFunctionLocalRunTest {
 
         sinkConfig.setArchive(jarFilePathUrl);
         sinkConfig.setParallelism(parallelism);
+        sinkConfig.setTransformFunction(transformFunction);
+        sinkConfig.setTransformFunctionClassName(transformFunctionClassName);
+
         int metricsPort = FunctionCommon.findAvailablePort();
         @Cleanup
         LocalRunner localRunner = LocalRunner.builder()
                 .sinkConfig(sinkConfig)
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)
                 .tlsHostNameVerificationEnabled(false)
                 .brokerServiceUrl(pulsar.getBrokerServiceUrlTls())
                 .connectorsDirectory(workerConfig.getConnectorsDirectory())
+                .functionsDirectory(workerConfig.getFunctionsDirectory())
                 .metricsPortStart(metricsPort)
                 .build();
 
@@ -906,7 +1004,8 @@ public class PulsarFunctionLocalRunTest {
                 TopicStats topicStats = admin.topics().getStats(sourceTopic);
                 if (topicStats.getSubscriptions().containsKey(subscriptionName)
                         && topicStats.getSubscriptions().get(subscriptionName).getConsumers().size() == parallelism) {
-                    for (ConsumerStats consumerStats : topicStats.getSubscriptions().get(subscriptionName).getConsumers()) {
+                    for (ConsumerStats consumerStats : topicStats.getSubscriptions()
+                            .get(subscriptionName).getConsumers()) {
                         result = consumerStats.getAvailablePermits() == 1000;
                     }
                 }
@@ -923,7 +1022,8 @@ public class PulsarFunctionLocalRunTest {
         }
         Assert.assertTrue(retryStrategically((test) -> {
             try {
-                SubscriptionStats subStats = admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
+                SubscriptionStats subStats =
+                        admin.topics().getStats(sourceTopic).getSubscriptions().get(subscriptionName);
                 return subStats.getUnackedMessages() == 0 && subStats.getMsgThroughputOut() == totalMsgs;
             } catch (PulsarAdminException e) {
                 return false;
@@ -931,24 +1031,24 @@ public class PulsarFunctionLocalRunTest {
         }, 5, 200));
 
         // validate prometheus metrics
-        String prometheusMetrics = PulsarFunctionTestUtils.getPrometheusMetrics(metricsPort);
-        log.info("prometheus metrics: {}", prometheusMetrics);
+        String prometheusMetrics = TestPulsarFunctionUtils.getPrometheusMetrics(metricsPort);
+        log.info().attr("metrics", prometheusMetrics).log("prometheus metrics");
 
-        Map<String, PulsarFunctionTestUtils.Metric> metricsMap = new HashMap<>();
+        Map<String, TestPulsarFunctionUtils.Metric> metricsMap = new HashMap<>();
         Arrays.asList(prometheusMetrics.split("\n")).forEach(line -> {
             if (line.startsWith("pulsar_sink_written_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_written_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_sink_written_total");
                 if (m != null) {
                     metricsMap.put(m.tags.get("instance_id"), m);
                 }
             } else if (line.startsWith("pulsar_sink_sink_exceptions_total")) {
-                Map<String, PulsarFunctionTestUtils.Metric> metrics = PulsarFunctionTestUtils.parseMetrics(line);
+                Map<String, TestPulsarFunctionUtils.Metric> metrics = TestPulsarFunctionUtils.parseMetrics(line);
                 assertFalse(metrics.isEmpty());
-                PulsarFunctionTestUtils.Metric m = metrics.get("pulsar_sink_sink_exceptions_total");
+                TestPulsarFunctionUtils.Metric m = metrics.get("pulsar_sink_sink_exceptions_total");
                 if (m == null) {
-                    m = metrics.get("pulsar_sink_sink_exceptions_total_1min");
+                    m = metrics.get("pulsar_sink_sink_exceptions_1min_total");
                 }
                 assertEquals(m.value, 0);
             }
@@ -957,7 +1057,7 @@ public class PulsarFunctionLocalRunTest {
 
         double totalNumRecvMsg = 0;
         for (int i = 0; i < parallelism; i++) {
-            PulsarFunctionTestUtils.Metric m = metricsMap.get(String.valueOf(i));
+            TestPulsarFunctionUtils.Metric m = metricsMap.get(String.valueOf(i));
             Assert.assertNotNull(m);
             assertEquals(m.tags.get("cluster"), config.getClusterName());
             assertEquals(m.tags.get("instance_id"), String.valueOf(i));
@@ -1043,9 +1143,18 @@ public class PulsarFunctionLocalRunTest {
 
     @Test
     public void testPulsarSinkStatsByteBufferType() throws Throwable {
-        runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName()));
+        runWithNarClassLoader(() -> testPulsarSinkLocalRun(null, 1,
+                StatsNullSink.class.getName()));
     }
-    
+
+    //@Test(timeOut = 20000, groups = "builtin")
+    @Test(groups = "builtin")
+    public void testPulsarSinkWithFunction() throws Throwable {
+        testPulsarSinkLocalRun(null, 1, StatsNullSink.class.getName(),
+                "builtin://exclamation",
+                "org.apache.pulsar.functions.api.examples.RecordFunction");
+    }
+
     public static class TestErrorSink implements Sink<byte[]> {
         private Map config;
         @Override
@@ -1084,14 +1193,16 @@ public class PulsarFunctionLocalRunTest {
         final String subscriptionName = "test-sub";
         admin.namespaces().createNamespace(replNamespace);
         Set<String> clusters = Sets.newHashSet(Lists.newArrayList("local"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters);
+        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
 
         // create a producer that creates a topic at broker
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(sourceTopic).create();
 
-        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic, subscriptionName);
+        SinkConfig sinkConfig = createSinkConfig(tenant, namespacePortion, sinkName, sourceTopic,
+                subscriptionName);
 
-        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic, ConsumerConfig.builder().receiverQueueSize(1000).build()));
+        sinkConfig.setInputSpecs(Collections.singletonMap(sourceTopic,
+                ConsumerConfig.builder().receiverQueueSize(1000).build()));
 
         sinkConfig.setClassName(TestErrorSink.class.getName());
 
@@ -1099,7 +1210,8 @@ public class PulsarFunctionLocalRunTest {
 
         LocalRunner.LocalRunnerBuilder localRunnerBuilder = LocalRunner.builder()
                 .clientAuthPlugin(AuthenticationTls.class.getName())
-                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s", TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
+                .clientAuthParams(String.format("tlsCertFile:%s,tlsKeyFile:%s",
+                        TLS_CLIENT_CERT_FILE_PATH, TLS_CLIENT_KEY_FILE_PATH))
                 .useTls(true)
                 .tlsTrustCertFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .tlsAllowInsecureConnection(true)

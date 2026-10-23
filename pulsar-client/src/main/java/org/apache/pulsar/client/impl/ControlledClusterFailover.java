@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,30 +20,33 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ControlledClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ServiceUrlProvider;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -53,45 +56,53 @@ import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.jspecify.annotations.Nullable;
 
-@Slf4j
+/**
+ * A service URL provider that fetches controlled failover configuration from an external HTTP service
+ * and updates the Pulsar client when the returned configuration changes.
+ *
+ * <p>Each instance is tied to the lifecycle of one {@link PulsarClient}. Once initialized by a
+ * Pulsar client, it must not be reused by another client. Create a new provider instance for each
+ * Pulsar client.
+ */
+@CustomLog
 public class ControlledClusterFailover implements ServiceUrlProvider {
     private static final int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
     private static final int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
     private static final int DEFAULT_MAX_REDIRECTS = 20;
+    private final Map<String, String> headers;
+    private final String urlProvider;
 
     private PulsarClientImpl pulsarClient;
     private volatile String currentPulsarServiceUrl;
     private volatile ControlledConfiguration currentControlledConfiguration;
     private final ScheduledExecutorService executor;
     private final long interval;
-    private ObjectMapper objectMapper = null;
-    private final AsyncHttpClient httpClient;
-    private final BoundRequestBuilder requestBuilder;
+    private AsyncHttpClient httpClient;
+    private BoundRequestBuilder requestBuilder;
 
     private ControlledClusterFailover(ControlledClusterFailoverBuilderImpl builder) throws IOException {
         this.currentPulsarServiceUrl = builder.defaultServiceUrl;
         this.interval = builder.interval;
         this.executor = Executors.newSingleThreadScheduledExecutor(
-                new DefaultThreadFactory("pulsar-service-provider"));
-
-        this.httpClient = buildHttpClient();
-        this.requestBuilder = httpClient.prepareGet(builder.urlProvider)
-            .addHeader("Accept", "application/json");
-
+                new ExecutorProvider.ExtendedThreadFactory("pulsar-service-provider"));
+        urlProvider = builder.urlProvider;
         if (builder.header != null && !builder.header.isEmpty()) {
-            builder.header.forEach(requestBuilder::addHeader);
+            headers = new LinkedHashMap<>(builder.header);
+        } else {
+            headers = Collections.emptyMap();
         }
     }
 
     private AsyncHttpClient buildHttpClient() {
         DefaultAsyncHttpClientConfig.Builder confBuilder = new DefaultAsyncHttpClientConfig.Builder();
+        confBuilder.setCookieStore(null);
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setMaxRedirects(DEFAULT_MAX_REDIRECTS);
-        confBuilder.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS * 1000);
-        confBuilder.setReadTimeout(DEFAULT_READ_TIMEOUT_IN_SECONDS * 1000);
+        confBuilder.setConnectTimeout(Duration.ofSeconds(DEFAULT_CONNECT_TIMEOUT_IN_SECONDS));
+        confBuilder.setReadTimeout(Duration.ofSeconds(DEFAULT_READ_TIMEOUT_IN_SECONDS));
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         confBuilder.setKeepAliveStrategy(new DefaultKeepAliveStrategy() {
             @Override
@@ -102,13 +113,33 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                     && super.keepAlive(remoteAddress, ahcRequest, request, response);
             }
         });
+        confBuilder.setNettyTimer(pulsarClient.timer());
+        confBuilder.setEventLoopGroup(pulsarClient.eventLoopGroup());
         AsyncHttpClientConfig config = confBuilder.build();
         return new DefaultAsyncHttpClient(config);
     }
 
     @Override
-    public void initialize(PulsarClient client) {
+    public synchronized void initialize(PulsarClient client) {
+        if (this.pulsarClient != null) {
+            throw new IllegalStateException("ServiceUrlProvider has already been initialized");
+        }
         this.pulsarClient = (PulsarClientImpl) client;
+        this.httpClient = buildHttpClient();
+        this.requestBuilder = httpClient.prepareGet(urlProvider)
+                // share Pulsar client DNS resolver and cache
+                .setNameResolver(pulsarClient.getNameResolver())
+                .addHeader("Accept", "application/json");
+        headers.forEach(requestBuilder::addHeader);
+
+        // Initialize currentControlledConfiguration from client's current configuration
+        // to avoid unnecessary reconnection on first scheduled check when the configuration hasn't changed
+        ClientConfigurationData conf = pulsarClient.getConfiguration();
+        this.currentControlledConfiguration = new ControlledConfiguration();
+        this.currentControlledConfiguration.setServiceUrl(currentPulsarServiceUrl);
+        this.currentControlledConfiguration.setTlsTrustCertsFilePath(conf.getTlsTrustCertsFilePath());
+        this.currentControlledConfiguration.setAuthPluginClassName(conf.getAuthPluginClassName());
+        this.currentControlledConfiguration.setAuthParamsString(conf.getAuthParams());
 
         // start to check service url every 30 seconds
         this.executor.scheduleAtFixedRate(catchingAndLoggingThrowables(() -> {
@@ -118,8 +149,9 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                 if (controlledConfiguration != null
                         && !Strings.isNullOrEmpty(controlledConfiguration.getServiceUrl())
                         && !controlledConfiguration.equals(currentControlledConfiguration)) {
-                    log.info("Switch Pulsar service url from {} to {}",
-                            currentControlledConfiguration, controlledConfiguration.toString());
+                    log.info().attr("currentConfig", currentControlledConfiguration)
+                            .attr("newConfig", controlledConfiguration.toString())
+                            .log("Switching Pulsar service url");
 
                     Authentication authentication = null;
                     if (!Strings.isNullOrEmpty(controlledConfiguration.authPluginClassName)
@@ -140,12 +172,15 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
                     }
 
                     pulsarClient.updateServiceUrl(serviceUrl);
+                    pulsarClient.reloadLookUp();
                     currentPulsarServiceUrl = serviceUrl;
                     currentControlledConfiguration = controlledConfiguration;
                 }
             } catch (IOException e) {
-                log.error("Failed to switch new Pulsar url, current: {}, new: {}",
-                        currentControlledConfiguration, controlledConfiguration, e);
+                log.error().attr("current", currentControlledConfiguration)
+                        .attr("new", controlledConfiguration)
+                        .exception(e)
+                        .log("Failed to switch Pulsar service url");
             }
         }), interval, interval, TimeUnit.MILLISECONDS);
     }
@@ -166,21 +201,14 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
             int statusCode = response.getStatusCode();
             if (statusCode == 200) {
                 String content = response.getResponseBody(StandardCharsets.UTF_8);
-                return getObjectMapper().readValue(content, ControlledConfiguration.class);
+                return ObjectMapperFactory.getMapper().reader().readValue(content, ControlledConfiguration.class);
             }
-            log.warn("Failed to fetch controlled configuration, status code: {}", statusCode);
+            log.warn().attr("code", statusCode).log("Failed to fetch controlled configuration, status code");
         } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to fetch controlled configuration ", e);
+            log.error().exception(e).log("Failed to fetch controlled configuration ");
         }
 
         return null;
-    }
-
-    private ObjectMapper getObjectMapper() {
-        if (objectMapper == null) {
-            objectMapper = new ObjectMapper();
-        }
-        return objectMapper;
     }
 
     @Data
@@ -192,11 +220,10 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
         private String authParamsString;
 
         public String toJson() {
-            ObjectMapper objectMapper = ObjectMapperFactory.getThreadLocal();
             try {
-                return objectMapper.writeValueAsString(this);
+                return ObjectMapperFactory.getMapper().writer().writeValueAsString(this);
             } catch (JsonProcessingException e) {
-                log.warn("Failed to write as json. ", e);
+                log.warn().exception(e).log("Failed to write as json. ");
                 return null;
             }
         }
@@ -208,13 +235,13 @@ public class ControlledClusterFailover implements ServiceUrlProvider {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         this.executor.shutdown();
         if (httpClient != null) {
             try {
                 httpClient.close();
             } catch (IOException e) {
-                log.error("Failed to close http client.");
+                log.error().exception(e).log("Failed to close http client.");
             }
         }
     }

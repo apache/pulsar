@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,72 +18,113 @@
  */
 package org.apache.pulsar.client.cli;
 
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterDescription;
-import com.beust.jcommander.Parameters;
+import static org.apache.pulsar.internal.CommandDescriptionUtil.getArgDescription;
+import static org.apache.pulsar.internal.CommandDescriptionUtil.getCommandDescription;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
+import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.cli.ClientApiOptionGroups;
 import org.apache.pulsar.client.api.PulsarClientException;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.ArgSpec;
+import picocli.CommandLine.Model.CommandSpec;
+import picocli.CommandLine.Model.OptionSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Spec;
 
 @Getter
-@Parameters(commandDescription = "Generate documentation automatically.")
-@Slf4j
-public class CmdGenerateDocumentation {
+@Command(description = "Generate documentation automatically.")
+@CustomLog
+public class CmdGenerateDocumentation extends AbstractCmd {
 
-    @Parameter(names = {"-n", "--command-names"}, description = "List of command names")
+    private static final String COMMON_SECTION = "Common options";
+
+    @Spec
+    private CommandSpec pulsarClientCommandSpec;
+
+    @Option(names = {"-n", "--command-names"}, description = "List of command names")
     private List<String> commandNames = new ArrayList<>();
 
     public int run() throws PulsarClientException {
-        PulsarClientTool pulsarClientTool = new PulsarClientTool(new Properties());
-        JCommander commander = pulsarClientTool.commandParser;
-        if (commandNames.size() == 0) {
-            for (Map.Entry<String, JCommander> cmd : commander.getCommands().entrySet()) {
-                if (cmd.getKey().equals("generate_documentation")) {
-                    continue;
+        if (commandNames == null || commandNames.isEmpty()) {
+            pulsarClientCommandSpec.parent().subcommands().forEach((k, v) -> {
+                if (k.equals("generate_documentation")) {
+                    return;
                 }
-                generateDocument(cmd.getKey(), commander);
-            }
+                this.generateDocument(k, v);
+            });
         } else {
-            for (String commandName : commandNames) {
-                if (commandName.equals("generate_documentation")) {
-                    continue;
+            commandNames.forEach(module -> {
+                CommandLine commandLine = pulsarClientCommandSpec.parent().subcommands().get(module);
+                if (commandLine == null) {
+                    return;
                 }
-                generateDocument(commandName, commander);
-            }
+                if (commandLine.getCommandName().equals("generate_documentation")) {
+                    return;
+                }
+                this.generateDocument(module, commandLine);
+            });
         }
+
         return 0;
     }
 
-    protected String generateDocument(String module, JCommander parentCmd) {
+    protected String generateDocument(String module, CommandLine parentCmd) {
         StringBuilder sb = new StringBuilder();
-        JCommander cmd = parentCmd.getCommands().get(module);
-        sb.append("------------\n\n");
-        sb.append("# ").append(module).append("\n\n");
-        sb.append("### Usage\n\n");
-        sb.append("`$").append(module).append("`\n\n");
-        sb.append("------------\n\n");
-        sb.append(parentCmd.getUsageFormatter().getCommandDescription(module)).append("\n");
-        sb.append("\n\n```bdocs-tab:example_shell\n")
+        sb.append("## ").append(module).append("\n\n");
+        sb.append(commandDescription(parentCmd)).append("\n");
+        sb.append("\n\n```shell\n")
                 .append("$ pulsar-client ").append(module).append(" [options]")
                 .append("\n```");
         sb.append("\n\n");
-        for (String s : cmd.getCommands().keySet()) {
-            sb.append("* `").append(s).append("`\n");
+
+        // Options are listed under the same sections as in --help: the ungrouped options first,
+        // then one section per option group heading (for example the client-specific options).
+        Map<String, List<OptionSpec>> sections = new LinkedHashMap<>();
+        sections.put(COMMON_SECTION, new ArrayList<>());
+        for (ArgSpec arg : parentCmd.getCommandSpec().args()) {
+            if (arg.hidden() || !(arg instanceof OptionSpec option)) {
+                continue;
+            }
+            String heading = ClientApiOptionGroups.sectionHeading(option);
+            sections.computeIfAbsent(heading == null ? COMMON_SECTION : heading, k -> new ArrayList<>())
+                    .add(option);
         }
-        sb.append("|Flag|Description|Default|\n");
-        sb.append("|---|---|---|\n");
-        List<ParameterDescription> options = cmd.getParameters();
-        options.forEach((option) ->
-                sb.append("| `").append(option.getNames())
-                        .append("` | ").append(option.getDescription().replace("\n", " "))
-                        .append("|").append(option.getDefault()).append("|\n")
-        );
+        boolean singleSection = sections.size() == 1;
+        sections.forEach((heading, sectionOptions) -> {
+            if (!singleSection) {
+                sb.append("### ").append(heading.endsWith(":") ? heading.substring(0, heading.length() - 1)
+                        : heading).append("\n\n");
+            }
+            sb.append("|Flag|Description|Default|\n");
+            sb.append("|---|---|---|\n");
+            sectionOptions.forEach(option -> {
+                String descriptions = getArgDescription(option).replace("\n", " ");
+                sb.append("| `").append(Arrays.toString(option.names()))
+                        .append("` | ").append(descriptions)
+                        .append("|").append(option.defaultValue()).append("|\n");
+                sb.append("|\n");
+            });
+            if (!singleSection) {
+                sb.append("\n");
+            }
+        });
         System.out.println(sb.toString());
         return sb.toString();
+    }
+
+    /** The command description, with its paragraphs joined into one line. */
+    private static String commandDescription(CommandLine cmd) {
+        String[] description = cmd.getCommandSpec().usageMessage().description();
+        if (description == null || description.length == 0) {
+            return getCommandDescription(cmd);
+        }
+        return Arrays.stream(description).filter(line -> !line.isBlank()).collect(Collectors.joining(" "));
     }
 }

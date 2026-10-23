@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,20 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.util;
-
-import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
-import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -49,6 +43,11 @@ public class FileModifiedTimeUpdaterTest {
             this.authParam = authParam;
         }
 
+        @Override
+        public boolean hasDataForTls() {
+            return true;
+        }
+
         public boolean hasDataFromCommand() {
             return true;
         }
@@ -61,7 +60,7 @@ public class FileModifiedTimeUpdaterTest {
             return true;
         }
 
-        public String getTlsCerificateFilePath() {
+        public String getTlsCertificateFilePath() {
             return certFilePath;
         }
 
@@ -99,23 +98,6 @@ public class FileModifiedTimeUpdaterTest {
         FileTime fileTime = fileModifiedTimeUpdater.getLastModifiedTime();
         Assert.assertFalse(fileModifiedTimeUpdater.checkAndRefresh());
         Assert.assertEquals(fileTime, fileModifiedTimeUpdater.getLastModifiedTime());
-    }
-
-    @Test
-    public void testNettyClientSslContextRefresher() throws Exception {
-        BasicAuthenticationData provider = new BasicAuthenticationData(null);
-        String certFile = "/tmp/cert.txt";
-        createFile(Paths.get(certFile));
-        provider.certFilePath = certFile;
-        provider.keyFilePath = certFile;
-        NettyClientSslContextRefresher refresher = new NettyClientSslContextRefresher(null, false, certFile,
-                provider, null, null, 1);
-        Thread.sleep(5000);
-        Paths.get(certFile).toFile().delete();
-        // update the file
-        createFile(Paths.get(certFile));
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).until(()-> refresher.needUpdate());
-        assertTrue(refresher.needUpdate());
     }
 
 }

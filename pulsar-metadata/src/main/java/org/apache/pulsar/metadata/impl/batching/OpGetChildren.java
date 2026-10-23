@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,19 @@
 package org.apache.pulsar.metadata.impl.batching;
 
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import org.apache.pulsar.metadata.api.Option;
 
 @Data
 @AllArgsConstructor
 public class OpGetChildren implements MetadataOp {
 
     private final String path;
+    private final Set<Option> options;
+    public final long created = System.currentTimeMillis();
     private final CompletableFuture<List<String>> future = new CompletableFuture<>();
 
     @Override
@@ -38,5 +42,10 @@ public class OpGetChildren implements MetadataOp {
     @Override
     public int size() {
         return path.length();
+    }
+
+    @Override
+    public long created() {
+        return this.created;
     }
 }
