@@ -1654,10 +1654,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
                 if (redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
+                    // The application may release a pooled message before it is sent to the DLQ
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
-                            Collections.singletonList(message));
+                            Collections.singletonList(message.unpooledCopy()));
                     if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
                         redeliverUnacknowledgedMessages(Collections.singleton(message.getMessageId()));
+                        // The message is not delivered to the application, which would otherwise release it
+                        message.release();
                         // The message is skipped due to reaching the max redelivery count,
                         // so we need to increase the available permits
                         increaseAvailablePermits(cnx);
@@ -1989,9 +1992,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     continue;
                 }
                 if (possibleToDeadLetter != null) {
-                    possibleToDeadLetter.add(message);
+                    // The application may release a pooled message before it is sent to the DLQ
+                    possibleToDeadLetter.add(message.unpooledCopy());
                     // Skip the message which reaches the max redelivery count.
                     if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
+                        message.release();
                         skippedMessages++;
                         continue;
                     }
