@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,6 +29,8 @@ public class AllocatorStats {
     public int numThreadLocalCaches;
     public int normalCacheSize;
     public int smallCacheSize;
+    public long usedDirectMemory;
+    public long usedHeapMemory;
 
     public List<PoolArenaStats> directArenas;
     public List<PoolArenaStats> heapArenas;

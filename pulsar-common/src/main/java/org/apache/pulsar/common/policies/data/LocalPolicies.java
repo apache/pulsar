@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -34,19 +34,29 @@ public class LocalPolicies {
     public final BookieAffinityGroupData bookieAffinityGroup;
     // namespace anti-affinity-group
     public final String namespaceAntiAffinityGroup;
+    public final boolean migrated;
 
     public LocalPolicies() {
         bundles = defaultBundle();
         bookieAffinityGroup = null;
         namespaceAntiAffinityGroup = null;
+        migrated = false;
     }
 
     public LocalPolicies(BundlesData data,
                          BookieAffinityGroupData bookieAffinityGroup,
                          String namespaceAntiAffinityGroup) {
+        this(data, bookieAffinityGroup, namespaceAntiAffinityGroup, false);
+    }
+
+    public LocalPolicies(BundlesData data,
+                         BookieAffinityGroupData bookieAffinityGroup,
+                         String namespaceAntiAffinityGroup,
+                         boolean migrated) {
         bundles = data;
         this.bookieAffinityGroup = bookieAffinityGroup;
         this.namespaceAntiAffinityGroup = namespaceAntiAffinityGroup;
+        this.migrated = migrated;
     }
 
 }

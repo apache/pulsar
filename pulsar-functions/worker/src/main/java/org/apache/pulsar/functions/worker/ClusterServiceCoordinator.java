@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,23 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.worker;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.util.ExecutorProvider;
 
-@Slf4j
+@CustomLog
 public class ClusterServiceCoordinator implements AutoCloseable {
 
     @Getter
@@ -55,7 +54,7 @@ public class ClusterServiceCoordinator implements AutoCloseable {
 
     public ClusterServiceCoordinator(String workerId, LeaderService leaderService, Supplier<Boolean> isLeader) {
         this(workerId, leaderService, isLeader, Executors.newSingleThreadScheduledExecutor(
-                new ThreadFactoryBuilder().setNameFormat("cluster-service-coordinator-timer").build()));
+                new ExecutorProvider.ExtendedThreadFactory("cluster-service-coordinator-timer")));
     }
 
     @VisibleForTesting
@@ -85,7 +84,8 @@ public class ClusterServiceCoordinator implements AutoCloseable {
                     try {
                         timerTaskInfo.getTask().run();
                     } catch (Exception e) {
-                        log.error("Cluster timer task {} failed with exception.", taskName, e);
+                        log.error().attr("taskName", taskName)
+                            .exception(e).log("Cluster timer task failed");
                     }
                 }
             }), timerTaskInfo.getInterval(), timerTaskInfo.getInterval(), TimeUnit.MILLISECONDS);
@@ -94,8 +94,10 @@ public class ClusterServiceCoordinator implements AutoCloseable {
 
     @Override
     public void close() {
-        log.info("Stopping Cluster Service Coordinator for worker {}", this.workerId);
+        log.info().attr("workerId", this.workerId)
+                .log("Stopping Cluster Service Coordinator");
         this.executor.shutdown();
-        log.info("Stopped Cluster Service Coordinator for worker {}", this.workerId);
+        log.info().attr("workerId", this.workerId)
+                .log("Stopped Cluster Service Coordinator");
     }
 }

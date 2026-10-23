@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -19,15 +19,12 @@
 package org.apache.pulsar.utils;
 
 import static org.testng.Assert.assertEquals;
-
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
-
 import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
 @Test(groups = "utils")
 public class SimpleTextOutputStreamTest {
@@ -117,5 +114,28 @@ public class SimpleTextOutputStreamTest {
         String s = buf.toString(StandardCharsets.UTF_8);
         reset();
         return s;
+    }
+
+    @Test
+    public void testWriteString() {
+        String str = "persistence://test/test/test_¬¬¬¬¬¬¬aabbcc";
+        stream.write(str);
+        assertEquals(str, str());
+    }
+
+
+    @Test
+    public void testWriteChar() {
+        String str = "persistence://test/test/test_¬¬¬¬¬¬¬aabbcc\"\n";
+        for (char c : str.toCharArray()) {
+            stream.write(c);
+        }
+        assertEquals(str, str());
+
+        buf.clear();
+
+        stream.write('\n').write('"').write('A').write('Z').write('a').write('z').write(' ').write(',').write('{')
+                .write('}').write('[').write(']').write('¬');
+        assertEquals(str(), "\n\"AZaz ,{}[]¬");
     }
 }

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,12 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
 import static org.apache.bookkeeper.mledger.util.Futures.executeWithRetry;
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -31,19 +34,20 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.util.FutureUtil;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testPropertiesClose() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig());
         ManagedCursor c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getProperties(), Collections.emptyMap());
@@ -72,7 +76,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         // Reopen the managed ledger
-        ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ledger = factory.open("my_test_ledger", defaultConfig());
         c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getMarkDeletedPosition(), p3);
@@ -81,7 +85,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testPropertiesRecoveryAfterCrash() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig());
 
         Map<String, String> cursorProperties = new TreeMap<>();
         cursorProperties.put("custom1", "one");
@@ -107,7 +111,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
 
         // Reopen the managed ledger
-        ledger = factory2.open("my_test_ledger", new ManagedLedgerConfig());
+        ledger = factory2.open("my_test_ledger", defaultConfig());
         c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getMarkDeletedPosition(), p3);
@@ -119,7 +123,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
 
     @Test(timeOut = 20000)
     void testPropertiesOnDelete() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig());
         ManagedCursor c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getProperties(), Collections.emptyMap());
@@ -145,7 +149,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         // Reopen the managed ledger
-        ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ledger = factory.open("my_test_ledger", defaultConfig());
         c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getMarkDeletedPosition(), p3);
@@ -154,7 +158,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
 
     @Test
     void testPropertiesAtCreation() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger_at_creation", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger_at_creation", defaultConfig());
 
 
         Map<String, Long> properties = new TreeMap<>();
@@ -175,7 +179,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         // Reopen the managed ledger
-        ledger = factory.open("my_test_ledger_at_creation", new ManagedLedgerConfig());
+        ledger = factory.open("my_test_ledger_at_creation", defaultConfig());
         c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getProperties(), properties);
@@ -184,7 +188,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
 
     @Test
     void testUpdateCursorProperties() throws Exception {
-        ManagedLedger ledger = factory.open("testUpdateCursorProperties", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("testUpdateCursorProperties", defaultConfig());
 
         Map<String, Long> properties = new TreeMap<>();
         properties.put("a", 1L);
@@ -208,7 +212,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         // Reopen the managed ledger
-        ledger = factory.open("testUpdateCursorProperties", new ManagedLedgerConfig());
+        ledger = factory.open("testUpdateCursorProperties", defaultConfig());
         c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getProperties(), properties);
@@ -223,7 +227,7 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         // Create a new factory to force a managed ledger close and recovery
         ManagedLedgerFactory factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
         // Reopen the managed ledger
-        ledger = factory2.open("testUpdateCursorProperties", new ManagedLedgerConfig());
+        ledger = factory2.open("testUpdateCursorProperties", defaultConfig());
         c1 = ledger.openCursor("c1");
 
         assertEquals(c1.getProperties(), properties);
@@ -232,11 +236,37 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         ledger.close();
 
         factory2.shutdown();
+
+        // Create a new factory to force a managed ledger close and recovery
+        ManagedLedgerFactory factory3 = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        // Reopen the managed ledger
+        ledger = factory3.open("testUpdateCursorProperties", defaultConfig());
+        c1 = ledger.openCursor("c1");
+
+        c1.putCursorProperty(CURSOR_INTERNAL_PROPERTY_PREFIX + "test", "test").get(10, TimeUnit.SECONDS);
+        c1.putCursorProperty("custom4", "custom4").get(10, TimeUnit.SECONDS);
+        c1.setCursorProperties(cursorPropertiesUpdated).get(10, TimeUnit.SECONDS);
+
+        cursorPropertiesUpdated.put(CURSOR_INTERNAL_PROPERTY_PREFIX + "test", "test");
+
+        try {
+            c1.setCursorProperties(cursorPropertiesUpdated).get(10, TimeUnit.SECONDS);
+            Assert.fail("Should fail");
+        } catch (Exception e) {
+            assertTrue(
+                    FutureUtil.unwrapCompletionException(e).getMessage().contains("The property key can't start with"));
+        }
+
+        assertEquals(c1.getCursorProperties(), cursorPropertiesUpdated);
+
+        ledger.close();
+
+        factory3.shutdown();
     }
 
     @Test
     public void testUpdateCursorPropertiesConcurrent() throws Exception {
-        ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig());
+        ManagedLedger ledger = factory.open("my_test_ledger", defaultConfig());
         ManagedCursor c1 = ledger.openCursor("c1");
 
         List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -247,16 +277,16 @@ public class ManagedCursorPropertiesTest extends MockedBookKeeperTestCase {
         map.put("c", "3");
 
         futures.add(executeWithRetry(() -> c1.setCursorProperties(map),
-                ManagedLedgerException.BadVersionException.class));
+                ManagedLedgerException.BadVersionException.class, 3));
 
         futures.add(executeWithRetry(() -> c1.putCursorProperty("a", "2"),
-                ManagedLedgerException.BadVersionException.class));
+                ManagedLedgerException.BadVersionException.class, 3));
 
         futures.add(executeWithRetry(() -> c1.removeCursorProperty("c"),
-                ManagedLedgerException.BadVersionException.class));
+                ManagedLedgerException.BadVersionException.class, 3));
 
         for (CompletableFuture<Void> future : futures) {
-            future.get();
+            future.get(10, TimeUnit.SECONDS);
         }
 
         assertEquals(c1.getCursorProperties().get("a"), "2");

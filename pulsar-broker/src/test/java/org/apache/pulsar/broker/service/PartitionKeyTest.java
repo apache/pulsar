@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,39 +20,26 @@ package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
-
+import lombok.Cleanup;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-public class PartitionKeyTest extends BrokerTestBase {
-
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.baseSetup();
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
-    }
+public class PartitionKeyTest extends SharedPulsarBaseTest {
 
     @Test(timeOut = 10000)
     public void testPartitionKey() throws Exception {
-        final String topicName = "persistent://prop/use/ns-abc/testPartitionKey";
+        final String topicName = newTopicName();
 
+        @Cleanup
         org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName("my-subscription").subscribe();
 
         // 1. producer with batch enabled
+        @Cleanup
         Producer<byte[]> producerWithBatches = pulsarClient.newProducer().topic(topicName).enableBatching(true)
                 .create();
-
 
         // 2. Producer without batches
         Producer<byte[]> producerWithoutBatches = pulsarClient.newProducer().topic(topicName).create();
@@ -71,7 +58,5 @@ public class PartitionKeyTest extends BrokerTestBase {
 
             consumer.acknowledge(msg);
         }
-
     }
-
 }

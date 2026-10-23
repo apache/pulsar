@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -29,7 +29,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import javax.crypto.SecretKey;
-import lombok.extern.slf4j.Slf4j;
+import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
@@ -50,13 +51,16 @@ import org.testng.annotations.Test;
 /**
  * Unit tests for schema admin api.
  */
-@Slf4j
+@SuppressWarnings("deprecation")
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
 
     private static final SecretKey SECRET_KEY = AuthTokenUtils.createSecretKey(SignatureAlgorithm.HS256);
     private static final String ADMIN_TOKEN = Jwts.builder().setSubject("admin").signWith(SECRET_KEY).compact();
     private static final String CONSUME_TOKEN = Jwts.builder().setSubject("consumer").signWith(SECRET_KEY).compact();
+
+    private static final String PRODUCE_TOKEN = Jwts.builder().setSubject("producer").signWith(SECRET_KEY).compact();
 
     @BeforeMethod
     @Override
@@ -79,6 +83,7 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
                         ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(),
                         ADMIN_TOKEN);
+        closeAdmin();
         admin = Mockito.spy(pulsarAdminBuilder.build());
 
         // Setup namespaces
@@ -97,41 +102,54 @@ public class AdminApiSchemaWithAuthTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testGetCreateDeleteSchema() throws Exception {
         String topicName = "persistent://schematest/test/testCreateSchema";
+        @Cleanup
         PulsarAdmin adminWithoutPermission = PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .build();
+        @Cleanup
         PulsarAdmin adminWithAdminPermission = PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(), ADMIN_TOKEN)
                 .build();
+        @Cleanup
         PulsarAdmin adminWithConsumePermission = PulsarAdmin.builder()
                 .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
                 .authentication(AuthenticationToken.class.getName(), CONSUME_TOKEN)
                 .build();
+        @Cleanup
+        PulsarAdmin adminWithProducePermission = PulsarAdmin.builder()
+                .serviceHttpUrl(brokerUrl != null ? brokerUrl.toString() : brokerUrlTls.toString())
+                .authentication(AuthenticationToken.class.getName(), PRODUCE_TOKEN)
+                .build();
+        admin.topics().createNonPartitionedTopic(topicName);
         admin.topics().grantPermission(topicName, "consumer", EnumSet.of(AuthAction.consume));
         admin.topics().grantPermission(topicName, "producer", EnumSet.of(AuthAction.produce));
 
         SchemaInfo si = Schema.BOOL.getSchemaInfo();
+        assertThrows(PulsarAdminException.class, () -> adminWithConsumePermission.schemas().getSchemaInfo(topicName));
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().createSchema(topicName, si));
+        adminWithProducePermission.schemas().createSchema(topicName, si);
         adminWithAdminPermission.schemas().createSchema(topicName, si);
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName));
         SchemaInfo readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName);
-        ((SchemaInfoImpl)readSi).setTimestamp(0);
+        ((SchemaInfoImpl) readSi).setTimestamp(0);
         assertEquals(readSi, si);
 
         assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getSchemaInfo(topicName, 0));
         readSi = adminWithConsumePermission.schemas().getSchemaInfo(topicName, 0);
-        ((SchemaInfoImpl)readSi).setTimestamp(0);
+        ((SchemaInfoImpl) readSi).setTimestamp(0);
         assertEquals(readSi, si);
         List<SchemaInfo> allSchemas = adminWithConsumePermission.schemas().getAllSchemas(topicName);
         assertEquals(allSchemas.size(), 1);
 
         SchemaInfo schemaInfo2 = Schema.BOOL.getSchemaInfo();
-        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().testCompatibility(topicName, schemaInfo2));
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas()
+                .testCompatibility(topicName, schemaInfo2));
         assertTrue(adminWithAdminPermission.schemas().testCompatibility(topicName, schemaInfo2).isCompatibility());
 
-        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas().getVersionBySchema(topicName, si));
+        assertThrows(PulsarAdminException.class, () -> adminWithoutPermission.schemas()
+                .getVersionBySchema(topicName, si));
         Long versionBySchema = adminWithConsumePermission.schemas().getVersionBySchema(topicName, si);
         assertEquals(versionBySchema, Long.valueOf(0L));
 

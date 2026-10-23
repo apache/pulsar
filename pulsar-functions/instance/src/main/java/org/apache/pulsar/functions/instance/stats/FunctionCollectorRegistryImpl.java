@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -26,9 +26,11 @@ public class FunctionCollectorRegistryImpl extends FunctionCollectorRegistry {
 
     private final Map<String, Collector> namesToCollectors = new HashMap<String, Collector>();
 
-    public Collector registerIfNotExist(String metricName, Collector collector) {
+    @Override
+    public <T extends Collector> T registerIfNotExist(String metricName, T collector) {
         synchronized (this) {
-            Collector existingCollector = namesToCollectors.get(metricName);
+            @SuppressWarnings("unchecked")
+            T existingCollector = (T) namesToCollectors.get(metricName);
             if (existingCollector == null) {
                 namesToCollectors.put(metricName, collector);
                 super.register(collector);

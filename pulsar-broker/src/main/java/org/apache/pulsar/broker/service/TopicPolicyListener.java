@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
-public interface TopicPolicyListener<T> {
-  void onUpdate(T data);
+import org.apache.pulsar.common.classification.InterfaceAudience;
+import org.apache.pulsar.common.classification.InterfaceStability;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
+
+@InterfaceStability.Stable
+@InterfaceAudience.LimitedPrivate
+public interface TopicPolicyListener {
+
+  void onUpdate(TopicPolicies data);
 }

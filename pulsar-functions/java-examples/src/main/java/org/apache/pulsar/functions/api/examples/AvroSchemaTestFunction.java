@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,18 @@
  */
 package org.apache.pulsar.functions.api.examples;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.examples.pojo.AvroTestObject;
 
 
-@Slf4j
+@CustomLog
 public class AvroSchemaTestFunction implements Function<AvroTestObject, AvroTestObject> {
 
     @Override
     public AvroTestObject process(AvroTestObject input, Context context) throws Exception {
-        log.info("AvroTestObject - baseValue: {}", input.getBaseValue());
+        log.info().attr("baseValue", input.getBaseValue()).log("AvroTestObject");
         input.setBaseValue(input.getBaseValue() + 10);
         return input;
     }

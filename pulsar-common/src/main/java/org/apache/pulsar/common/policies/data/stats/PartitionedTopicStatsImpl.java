@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -28,6 +28,7 @@ import org.apache.pulsar.common.policies.data.TopicStats;
 
 /**
  * Statistics for a partitioned topic.
+ * This class is not thread-safe.
  */
 @SuppressFBWarnings("EQ_DOESNT_OVERRIDE_EQUALS")
 public class PartitionedTopicStatsImpl extends TopicStatsImpl implements PartitionedTopicStats {

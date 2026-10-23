@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.policies.data;
 
 /**
@@ -51,8 +50,14 @@ public enum TopicOperation {
     GET_STATS,
     GET_METADATA,
     DELETE_METADATA,
+    UPDATE_METADATA,
     GET_BACKLOG_SIZE,
 
     SET_REPLICATED_SUBSCRIPTION_STATUS,
     GET_REPLICATED_SUBSCRIPTION_STATUS,
+    TRIM_TOPIC,
+
+    // PIP-475: migrate a regular topic to a scalable topic. Maps to PRODUCE in the default
+    // authorization provider; a custom provider may restrict it independently.
+    MIGRATE_TO_SCALABLE,
 }

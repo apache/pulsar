@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -32,7 +32,7 @@ public abstract class Validator {
     }
 
     /**
-     * validate the field value o that belogs to the field which is named name
+     * validate the field value o that belongs to the field which is named name
      * This method should throw IllegalArgumentException in case o doesn't
      * validate per this validator's implementation.
      */

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,8 +18,11 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
@@ -32,9 +35,10 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A ManagedLedger it's a superset of a BookKeeper ledger concept.
@@ -220,8 +224,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at latest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
@@ -236,8 +239,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at latest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param properties
      *             user defined properties that will be attached to the first position of the cursor, if the open
      *             operation will trigger the creation of the cursor.
@@ -323,8 +325,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param callback
      *            callback object
      * @param ctx
@@ -339,8 +340,7 @@ public interface ManagedLedger {
      * @param name
      *            the name associated with the ManagedCursor
      * @param initialPosition
-     *            the cursor will be set at lastest position or not when first created
-     *            default is <b>true</b>
+     *            if null, the cursor will be set at latest position when first created
      * @param cursorProperties
      *            the properties for the Cursor
      * @param callback
@@ -376,6 +376,8 @@ public interface ManagedLedger {
      * @return the number of entries
      */
     long getNumberOfEntries();
+
+    long getNumberOfEntries(Range<Position> range);
 
     /**
      * Get the total number of active entries for this managed ledger.
@@ -420,6 +422,23 @@ public interface ManagedLedger {
     long getOffloadedSize();
 
     /**
+     * Resets the exception thrown by the PayloadProcessor during an add entry operation to null.
+     * <p>
+     * **Context:** When an add entry operation fails due to an interceptor, all subsequent incoming add entry
+     * operations will also fail. This behavior ensures message ordering and consistency.
+     * <p>
+     * **Important:** This method MUST only be called after all pending add operations are fully completed
+     * (e.g., after a Topic is unfenced). Calling it prematurely will prevent the Managed Ledger (ML)
+     * from being able to write indefinitely.
+     * <p>
+     * **Implementation Note:** Downstream projects that support the ML PayloadProcessor should implement
+     * this method. Otherwise, do not implement it.
+     */
+    default void unfenceForInterceptorException() {
+        // Default implementation does nothing
+    }
+
+    /**
      * Get last offloaded ledgerId. If no offloaded yet, it returns 0.
      *
      * @return last offloaded ledgerId
@@ -441,6 +460,43 @@ public interface ManagedLedger {
     long getLastOffloadedFailureTimestamp();
 
     void asyncTerminate(TerminateCallback callback, Object ctx);
+
+    CompletableFuture<Position> asyncMigrate();
+
+
+    /**
+     * Add a property to the specified LedgerInfo.
+     *
+     * @param ledgerId the ledger id
+     * @param key      the key of the property to add
+     * @param value    the value of the property to add
+     * @return
+     * @throws ManagedLedgerException.ManagedLedgerFencedException if the ledger is fenced
+     * @throws ManagedLedgerException if the ledger is not found or persistent failure
+     */
+    CompletableFuture<Void> asyncAddLedgerProperty(long ledgerId, String key, String value);
+
+    /**
+     * Remove a property from the specified LedgerInfo.
+     *
+     * @param ledgerId the ledger id
+     * @param key      the key of the property to remove
+     * @return
+     * @throws ManagedLedgerException.ManagedLedgerFencedException if the ledger is fenced
+     * @throws ManagedLedgerException if the ledger is not found or persistent failure
+     */
+    CompletableFuture<Void> asyncRemoveLedgerProperty(long ledgerId, String key);
+
+    /**
+     * Get the value of the specified property from the specified LedgerInfo.
+     *
+     * @param ledgerId the ledger id
+     * @param key      the key of the property to get
+     * @return the value of the property
+     * @throws ManagedLedgerException.ManagedLedgerFencedException if the ledger is fenced
+     * @throws ManagedLedgerException if the ledger is not found or persistent failure
+     */
+    CompletableFuture<String> asyncGetLedgerProperty(long ledgerId, String key);
 
     /**
      * Terminate the managed ledger and return the last committed entry.
@@ -524,14 +580,20 @@ public interface ManagedLedger {
     /**
      * Get the slowest consumer.
      *
-     * @return the slowest consumer
+     * @return the slowest consumer or null if there is no consumer
      */
+    @Nullable
     ManagedCursor getSlowestConsumer();
 
     /**
      * Returns whether the managed ledger was terminated.
      */
     boolean isTerminated();
+
+    /**
+     * Returns whether the managed ledger was migrated.
+     */
+    boolean isMigrated();
 
     /**
      * Returns managed-ledger config.
@@ -628,6 +690,17 @@ public interface ManagedLedger {
     void trimConsumedLedgersInBackground(CompletableFuture<?> promise);
 
     /**
+     * Rollover cursors in background if needed.
+     */
+    default void rolloverCursorsInBackground() {}
+
+    /**
+     * If a ledger is lost, this ledger will be skipped after enabled "autoSkipNonRecoverableData", and the method is
+     * used to delete information about this ledger in the ManagedCursor.
+     */
+    default void skipNonRecoverableLedger(long ledgerId){}
+
+    /**
      * Roll current ledger if it is full.
      */
     @Deprecated
@@ -650,6 +723,12 @@ public interface ManagedLedger {
     CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId);
 
     /**
+     * Get basic ledger summary.
+     * will get {@link Optional#empty()} if corresponding ledger not exists.
+     */
+    Optional<LedgerInfo> getOptionalLedgerInfo(long ledgerId);
+
+    /**
      * Truncate ledgers
      * The truncate operation will move all cursors to the end of the topic and delete all inactive ledgers.
      */
@@ -666,11 +745,64 @@ public interface ManagedLedger {
     /**
      * Check current inactive ledger (based on {@link ManagedLedgerConfig#getInactiveLedgerRollOverTimeMs()} and
      * roll over that ledger if inactive.
+     *
+     * @return true if ledger is considered for rolling over
      */
-    void checkInactiveLedgerAndRollOver();
+    boolean checkInactiveLedgerAndRollOver();
 
     /**
      * Check if managed ledger should cache backlog reads.
      */
     void checkCursorsToCacheEntries();
+
+    /**
+     * Get managed ledger attributes.
+     */
+    default ManagedLedgerAttributes getManagedLedgerAttributes() {
+        return new ManagedLedgerAttributes(this);
+    }
+
+    void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx);
+
+    /**
+     * Get all the managed ledgers.
+     */
+    NavigableMap<Long, LedgerInfo> getLedgersInfo();
+
+    Position getNextValidPosition(Position position);
+
+    Position getPreviousPosition(Position position);
+
+    long getEstimatedBacklogSize(Position position);
+
+    Position getPositionAfterN(Position startPosition, long n, PositionBound startRange);
+
+    int getPendingAddEntriesCount();
+
+    long getCacheSize();
+
+    default CompletableFuture<Position> getLastDispatchablePosition(final Predicate<Entry> predicate,
+                                                                    final Position startPosition) {
+        return CompletableFuture.completedFuture(PositionFactory.EARLIEST);
+    }
+
+    Position getFirstPosition();
+
+    /**
+     * Get the timestamp in milliseconds of the last successful add entry operation.
+     *
+     * @return the last add entry time in milliseconds
+     */
+    default long getLastAddEntryTime() {
+        return 0;
+    }
+
+    /**
+     * Get the creation timestamp of the managed ledger metadata, or 0 if not available.
+     *
+     * @return the creation timestamp in milliseconds, or 0 if not available
+     */
+    default long getMetadataCreationTimestamp() {
+        return 0;
+    }
 }

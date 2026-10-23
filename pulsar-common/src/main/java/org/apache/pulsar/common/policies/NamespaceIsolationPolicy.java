@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.SortedSet;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BrokerStatus;
+import org.apache.pulsar.common.policies.data.NamespaceIsolationPolicyUnloadScope;
 
 /**
  * Namespace isolation policy.
@@ -42,6 +43,11 @@ public interface NamespaceIsolationPolicy {
      * @return
      */
     List<String> getSecondaryBrokers();
+
+    /**
+     * Get the unload scope for the policy set call.
+     */
+    NamespaceIsolationPolicyUnloadScope getUnloadScope();
 
     /**
      * Get the list of primary brokers for the namespace according to the policy.
@@ -100,6 +106,32 @@ public interface NamespaceIsolationPolicy {
      * @return
      */
     boolean isSecondaryBroker(String brokerAddress);
+
+    /**
+     * Check to see whether the broker with the given broker id ({@code host:port}) is a primary broker
+     * because of a policy entry that names a port. Entries that contain a {@code :} are matched against
+     * {@code host:port}, with an IPv6 host in brackets (e.g. {@code [2001:db8::1]:8080}). Entries without
+     * a {@code :} are matched against the broker host only, see {@link #isPrimaryBroker(String)}.
+     *
+     * @param brokerId the broker id, in the form {@code host:port}
+     * @return true if a primary broker entry matches the broker id
+     */
+    default boolean isPrimaryBrokerId(String brokerId) {
+        return false;
+    }
+
+    /**
+     * Check to see whether the broker with the given broker id ({@code host:port}) is a secondary broker
+     * because of a policy entry that names a port. Entries that contain a {@code :} are matched against
+     * {@code host:port}, with an IPv6 host in brackets (e.g. {@code [2001:db8::1]:8080}). Entries without
+     * a {@code :} are matched against the broker host only, see {@link #isSecondaryBroker(String)}.
+     *
+     * @param brokerId the broker id, in the form {@code host:port}
+     * @return true if a secondary broker entry matches the broker id
+     */
+    default boolean isSecondaryBrokerId(String brokerId) {
+        return false;
+    }
 
     /**
      * According to the namespace isolation policy, find the allowed available primary brokers.

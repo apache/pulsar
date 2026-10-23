@@ -22,32 +22,110 @@ on:
   pull_request:
     branches:
       - master
+      - branch-*
+      - pulsar-*
+  schedule:
+    # scheduled job with JDK 25
+    - cron: '0 12 * * *'
+    # scheduled job with JDK 21
+    # if cron expression is changed, make sure to update the expression in jdk_major_version step in preconditions job
+    - cron: '0 6 * * *'
   workflow_dispatch:
+    inputs:
+      jdk_major_version:
+        description: 'JDK major version to use for the build'
+        required: true
+        type: choice
+        options:
+          - '25'
+          - '21'
+          - '26'
+        default: '25'
+      trace_test_resource_cleanup:
+        description: 'Collect thread & heap information before exiting a test JVM. When set to "on", thread dump and heap histogram will be collected. When set to "full", a heap dump will also be collected.'
+        required: true
+        type: choice
+        options:
+          - 'off'
+          - 'on'
+          - 'full'
+        default: 'off'
+      thread_leak_detector_wait_millis:
+        description: 'Duration in ms to wait for threads to exit in thread leak detection between test classes. It is necessary to wait for threads to complete before they are determined to be leaked threads.'
+        required: true
+        type: number
+        default: 10000
+      netty_leak_detection:
+        description: 'Controls Netty leak detection. When set to "report", Netty leak detection is enabled. When set to "fail_on_leak", Netty leak detection is enabled and a build job will fail if leaks are detected. When set to "off", Netty leak detection is disabled.'
+        required: true
+        type: choice
+        options:
+          - 'report'
+          - 'fail_on_leak'
+          - 'off'
+        default: 'report'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '' }}
   cancel-in-progress: true
 
 env:
-  MAVEN_OPTS: -Xmx1024m -Dhttp.keepAlive=false -Dmaven.wagon.http.pool=false -Dmaven.wagon.http.retryHandler.class=standard -Dmaven.wagon.http.retryHandler.count=3
+  CI_ENABLE_SSH: ${{ vars.CI_ENABLE_SSH }}
   # defines the retention period for the intermediate build artifacts needed for rerunning a failed build job
   # it's possible to rerun individual failed jobs when the build artifacts are available
   # if the artifacts have already been expired, the complete workflow can be rerun by closing and reopening the PR or by rebasing the PR
   ARTIFACT_RETENTION_DAYS: 3
+  JDK_DISTRIBUTION: corretto
+
+# Do not depend on the repository or enterprise default token permissions.
+permissions:
+  contents: read
 
 jobs:
-  changed_files_job:
+  preconditions:
+    permissions:
+      contents: read
+      pull-requests: read # List changed files and check whether the PR is ready.
+      actions: write # Cancel scheduled runs in forks.
     name: Preconditions
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     outputs:
       docs_only: ${{ steps.check_changes.outputs.docs_only }}
-      cpp_only: ${{ steps.check_changes.outputs.cpp_only }}
       changed_tests: ${{ steps.changes.outputs.tests_files }}
+      jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
+      java_non_tests: ${{ steps.changes.outputs.java_non_tests }}
+      netty_leak_detection: ${{ steps.netty_leak_detection.outputs.netty_leak_detection }}
     steps:
+      - name: Cancel scheduled jobs in forks by default
+        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'schedule' }}
+        uses: actions/github-script@v8
+        with:
+          script: |
+            await github.rest.actions.cancelWorkflowRun({owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId});
+            process.exit(1);
+
+      - name: Select JDK major version
+        id: jdk_major_version
+        run: |
+          # use JDK 21 for the scheduled build with cron expression '0 6 * * *'
+          if [[ "${{ github.event_name == 'schedule' && github.event.schedule == '0 6 * * *' && 'true' || 'false' }}" == "true" ]]; then
+            echo "jdk_major_version=21" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          # use JDK 25 for build unless overridden with workflow_dispatch input
+          echo "jdk_major_version=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.jdk_major_version || '25'}}" >> $GITHUB_OUTPUT
+
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
+
+      - name: Check ASF action allowlist
+        if: ${{ (github.event.pull_request.base.repo.owner.login || github.repository_owner) == 'apache' }}
+        uses: apache/infrastructure-actions/allowlist-check@main
+        with:
+          scan-glob: '.github/**/*.y*ml'
 
       - name: Detect changed files
+        if: ${{ github.event_name == 'pull_request' }}
         id:   changes
         uses: apache/pulsar-test-infra/paths-filter@master
         with:
@@ -55,28 +133,38 @@ jobs:
           list-files: csv
 
       - name: Check changed files
+        if: ${{ github.event_name == 'pull_request' }}
         id: check_changes
         run: |
-          echo "::set-output name=docs_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}"
-          echo "::set-output name=cpp_only::${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.cpp_count) && fromJSON(steps.changes.outputs.cpp_count) > 0 }}"
+          if [[ "${GITHUB_EVENT_NAME}" != "schedule" && "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ]]; then
+            echo "docs_only=${{ fromJSON(steps.changes.outputs.all_count) == fromJSON(steps.changes.outputs.docs_count) && fromJSON(steps.changes.outputs.docs_count) > 0 }}" >> $GITHUB_OUTPUT
+          else
+            echo docs_only=false >> $GITHUB_OUTPUT
+          fi
 
-      - name: Check if the PR has been approved for testing
+      - name: Check if the PR is ready for running CI
         if: ${{ steps.check_changes.outputs.docs_only != 'true' && github.repository == 'apache/pulsar' && github.event_name == 'pull_request' }}
-        env:
-          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
-          GITHUB_TOKEN: ${{ github.token }}
+        uses: ./.github/actions/check-pr-ready-to-test
+
+      - name: Set Netty leak detection mode
+        id: netty_leak_detection
         run: |
-          build/pulsar_ci_tool.sh check_ready_to_test
+          echo "netty_leak_detection=${{
+          github.event_name == 'workflow_dispatch' && github.event.inputs.netty_leak_detection || 'report'
+          }}" >> $GITHUB_OUTPUT
 
   build-and-license-check:
-    needs: changed_files_job
+    needs: preconditions
     name: Build and License check
-    runs-on: ubuntu-20.04
+    env:
+      JOB_NAME: Build and License check
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -85,47 +173,69 @@ jobs:
         # ssh access is enabled for builds in own forks
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
+        continue-on-error: true
         with:
           limit-access-to-actor: true
 
-      - name: Cache local Maven repository
-        uses: actions/cache@v2
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
         with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: |
+            17
+            ${{ env.CI_JDK_MAJOR_VERSION }}
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v2
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
         with:
-          distribution: 'temurin'
-          java-version: 17
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          cache-read-only: false
 
-      - name: Check source code license headers
-        run: mvn -B -T 8 -ntp initialize apache-rat:check license:check
+      - name: Build, check licenses and code style
+        run: >-
+          ./gradlew assemble rat spotlessCheck checkstyleMain checkstyleTest
+          --no-configuration-cache
 
-      - name: Build core-modules
-        run: |
-          mvn -B -T 1C -ntp -Pcore-modules,-main clean install -DskipTests -Dlicense.skip=true -Drat.skip=true
+      - name: Verify client and Functions API Java compatibility
+        run: ./gradlew :tests:pulsar-client-java-compatibility:test -PtestRetryCount=0
 
       - name: Check binary licenses
-        run: src/check-binary-license.sh ./distribution/server/target/apache-pulsar-*-bin.tar.gz
+        run: ./gradlew checkBinaryLicense --no-configuration-cache
 
-      - name: Install gh-actions-artifact-client.js
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+      - name: Check that project's public libraries can be published to a Maven repository
+        run: ./gradlew publishAllPublicationsToLocalDeployRepository
 
-      - name: Save maven build results to Github artifact cache so that the results can be reused
+      - name: Check API/SPI publication dependency closure with a custom group
+        # Validate generated POMs and Gradle metadata, including the BOM, without uploading artifacts.
+        run: >-
+          ./gradlew validateApiSpiPublication
+          -PpublishApiAndSpiOnly=true -Pgroup=myorg.pulsar
+
+      - name: Upload Gradle reports
+        uses: actions/upload-artifact@v4
+        if: ${{ !success() }}
+        with:
+          name: gradle-reports-build-and-license-check
+          path: |
+            **/build/reports/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Save build outputs for test jobs
         run: |
-          cd $HOME
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh store_tar_to_github_actions_artifacts pulsar-maven-repository-binaries \
-          tar --exclude '.m2/repository/org/apache/pulsar/pulsar-*-distribution' \
-              -I zstd -cf - .m2/repository/org/apache/pulsar
-          cd $GITHUB_WORKSPACE
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh store_tar_to_github_actions_artifacts pulsar-server-distribution \
-          tar -I zstd -cf - distribution/server/target/apache-pulsar-*-bin.tar.gz
+          # Tar up compiled classes, resources, and distribution archives so test jobs
+          # don't need to recompile. Distribution tarballs are needed for Docker image builds.
+          find . \( -path '*/build/classes/*' -o -path '*/build/generated/*' -o -path '*/build/resources/*' \
+            -o -path '*/build/libs/*' -o -path '*/build/tmp/jar/*' -o -path '*/build/distributions/*' \) -print \
+            | tar cf /tmp/gradle-build-outputs.tar --files-from=-
+
+      - name: Upload build outputs
+        uses: actions/upload-artifact@v7
+        with:
+          name: gradle-build-outputs
+          path: /tmp/gradle-build-outputs.tar
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+          compression-level: 1
 
       - name: Wait for ssh connection when build fails
         # ssh access is enabled for builds in own forks
@@ -138,10 +248,19 @@ jobs:
 
   unit-tests:
     name: CI - Unit - ${{ matrix.name }}
-    runs-on: ubuntu-20.04
+    env:
+      JOB_NAME: CI - Unit - ${{ matrix.name }}
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      TRACE_TEST_RESOURCE_CLEANUP: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.trace_test_resource_cleanup || 'off' }}
+      TRACE_TEST_RESOURCE_CLEANUP_DIR: ${{ github.workspace }}/build/trace-test-resource-cleanup
+      THREAD_LEAK_DETECTOR_WAIT_MILLIS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.thread_leak_detector_wait_millis || 10000 }}
+      THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/build/thread-leak-dumps
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/build/netty-leak-dumps
+    runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
-    needs: ['changed_files_job', 'build-and-license-check']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+    needs: ['preconditions', 'build-and-license-check']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -155,6 +274,11 @@ jobs:
             group: BROKER_GROUP_2
           - name: Brokers - Broker Group 3
             group: BROKER_GROUP_3
+            timeout: 75
+          - name: Brokers - Broker Group 4
+            group: BROKER_GROUP_4
+          - name: Brokers - Broker Group 5
+            group: BROKER_GROUP_5
           - name: Brokers - Client Api
             group: BROKER_CLIENT_API
           - name: Brokers - Client Impl
@@ -163,82 +287,104 @@ jobs:
             group: PROXY
           - name: Pulsar IO
             group: PULSAR_IO
+          - name: Pulsar Client
+            group: CLIENT
+          - name: Pulsar Metadata
+            group: METADATA
+          - name: Protobuf v3
+            group: PROTOBUFV3
 
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
+
+      - name: Clean Disk for replication tests or resource tracing
+        if: ${{ matrix.group == 'BROKER_GROUP_5' || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
+        uses: ./.github/actions/clean-disk
 
       - name: Setup ssh access to build runner VM
         # ssh access is enabled for builds in own forks
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
+        continue-on-error: true
         with:
           limit-access-to-actor: true
 
-      - name: Cache Maven dependencies
-        uses: actions/cache@v2
+      - name: Set up JDK ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
         with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ matrix.jdk || env.CI_JDK_MAJOR_VERSION }}
 
-      - name: Set up JDK ${{ matrix.jdk || '17' }}
-        uses: actions/setup-java@v2
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
         with:
-          distribution: 'temurin'
-          java-version: ${{ matrix.jdk || '17' }}
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
-      - name: Install gh-actions-artifact-client.js
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+      - name: Restore build outputs from build job
+        uses: actions/download-artifact@v8
+        with:
+          name: gradle-build-outputs
 
-      - name: Restore maven build results from Github artifact cache
-        run: |
-          cd $HOME
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+      - name: Extract build outputs
+        run: tar xf gradle-build-outputs.tar
 
       - name: Run setup commands
+        if: ${{ matrix.setup }}
         run: |
           ${{ matrix.setup }}
 
       - name: Run unit test group '${{ matrix.group }}'
         run: |
-          CHANGED_TESTS="${{ needs.changed_files_job.outputs.tests_files }}" ./build/run_unit_group.sh ${{ matrix.group }}
+          ./pulsar-build/run_unit_group_gradle.sh ${{ matrix.group }}
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
-        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
+        run: $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh print_thread_dumps
 
-      - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
+      - name: Aggregate test reports to ./test-reports directory
         if: ${{ always() }}
         uses: ./.github/actions/copy-test-reports
 
-      - name: Publish Test Report
-        uses: apache/pulsar-test-infra/action-junit-report@master
+      - name: Report detected thread leaks
         if: ${{ always() }}
-        with:
-          report_paths: 'test-reports/TEST-*.xml'
-          annotate_only: 'true'
+        run: |
+          if [ -d "$THREAD_LEAK_DETECTOR_DIR" ]; then
+            cd "$THREAD_LEAK_DETECTOR_DIR"
+            cat threadleak*.txt | awk '/^Summary:/ {print "::warning::" $0 "\n"; next} {print}'
+          fi
 
-      - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
-        if: ${{ !success() }}
+      - name: Report detected Netty leaks
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
+        run: $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh report_netty_leaks
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v7
+        if: ${{ !success() || env.TRACE_TEST_RESOURCE_CLEANUP != 'off' }}
         with:
-          name: Unit-${{ matrix.group }}-surefire-reports
-          path: surefire-reports
+          name: Unit-${{ matrix.group }}-test-reports
+          path: |
+            test-reports/
+            **/build/reports/tests/
           retention-days: 7
+          if-no-files-found: ignore
 
-      - name: Upload possible heap dump
-        uses: actions/upload-artifact@v3
+      - name: Upload possible heap dump, core dump or crash files
+        uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
-          name: Unit-${{ matrix.group }}-heapdump
-          path: /tmp/*.hprof
+          name: Unit-${{ matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
+            build/threaddumps/
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
+            ${{ env.TRACE_TEST_RESOURCE_CLEANUP_DIR }}/*
+            ${{ env.THREAD_LEAK_DETECTOR_DIR }}/*
           retention-days: 7
           if-no-files-found: ignore
 
@@ -250,65 +396,99 @@ jobs:
         with:
           action: wait
 
-  pulsar-java-test-image:
-    name: Build Pulsar java-test-image docker image
-    runs-on: ubuntu-20.04
-    timeout-minutes: 60
-    needs: ['changed_files_job', 'build-and-license-check']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+  macos-build:
+    name: Build Pulsar on MacOS
+    runs-on: macos-latest
+    timeout-minutes: 120
+    needs: ['preconditions', 'build-and-license-check']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
-      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
+
+      - name: Tune Runner VM
+        uses: ./.github/actions/tune-runner-vm
+
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
+        with:
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+
+      - name: Build with Gradle
+        run: ./gradlew assemble
+
+  pulsar-java-test-image:
+    name: Build java-test-image Docker image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    needs: ['preconditions', 'build-and-license-check']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+    env:
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v6
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
       - name: Setup ssh access to build runner VM
-        # ssh access is enabled for builds in own forks
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
+        continue-on-error: true
         with:
           limit-access-to-actor: true
 
-      - name: Cache Maven dependencies
-        uses: actions/cache@v2
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
         with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v2
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
         with:
-          distribution: 'temurin'
-          java-version: 17
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
-      - name: Install gh-actions-artifact-client.js
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+      - name: Restore build outputs from build job
+        uses: actions/download-artifact@v8
+        with:
+          name: gradle-build-outputs
 
-      - name: restore maven build results from Github artifact cache
+      - name: Extract build outputs
+        run: tar xf gradle-build-outputs.tar
+
+      - name: Setup Docker
+        uses: gradle/develocity-actions/setup-docker@f852d93dada312948b1ba533226c28e05d756866 # v2.4
+        with:
+          develocity-url: https://develocity.apache.org
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          develocity-project-id: pulsar
+
+      - name: Build java-test-image Docker image
+        run: ./gradlew :tests:java-test-image:dockerBuild${{ env.CI_JDK_MAJOR_VERSION != '21' && format(' -PdockerJavaVersion={0}', env.CI_JDK_MAJOR_VERSION) || '' }}
+
+      - name: Save docker image to file
         run: |
-          cd $HOME
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+          docker save apachepulsar/java-test-image:latest | gzip > /tmp/java-test-image.tar.gz
 
-      - name: Build java-test-image docker image
-        run: |
-          # build docker image
-          mvn -B -am -pl tests/docker-images/java-test-image install -Pcore-modules,-main,integrationTests,docker \
-          -Dmaven.test.skip=true -Ddocker.squash=true -DskipSourceReleaseAssembly=true \
-          -Dspotbugs.skip=true  -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
-
-      - name: save docker image apachepulsar/java-test-image:latest to Github artifact cache
-        run: |
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_save_image_to_github_actions_artifacts apachepulsar/java-test-image:latest pulsar-java-test-image
+      - name: Upload docker image
+        uses: actions/upload-artifact@v7
+        with:
+          name: java-test-image
+          path: /tmp/java-test-image.tar.gz
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+          compression-level: 0
 
       - name: Wait for ssh connection when build fails
-        # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
         if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
@@ -317,12 +497,16 @@ jobs:
 
   integration-tests:
     name: CI - Integration - ${{ matrix.name }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
-    needs: ['changed_files_job', 'pulsar-java-test-image']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
+    needs: ['preconditions', 'pulsar-java-test-image']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
+      JOB_NAME: CI - Integration - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/java-test-image:latest
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/build/netty-leak-dumps
     strategy:
       fail-fast: false
       matrix:
@@ -336,19 +520,23 @@ jobs:
           - name: Messaging
             group: MESSAGING
 
-          - name: Shade on Java 8
-            group: SHADE_RUN
-            runtime_jdk: 8
-            setup: ./build/run_integration_group.sh SHADE_BUILD
-
-          - name: Shade on Java 11
-            group: SHADE_RUN
-            runtime_jdk: 11
-            setup: ./build/run_integration_group.sh SHADE_BUILD
+          - name: LoadBalance
+            group: LOADBALANCE
 
           - name: Shade on Java 17
             group: SHADE_RUN
-            setup: ./build/run_integration_group.sh SHADE_BUILD
+            upload_name: SHADE_RUN_17
+            runtime_jdk: 17
+
+          - name: Shade on Java 21
+            group: SHADE_RUN
+            upload_name: SHADE_RUN_21
+            runtime_jdk: 21
+
+          - name: Shade on Java 25
+            group: SHADE_RUN
+            upload_name: SHADE_RUN_25
+            runtime_jdk: 25
 
           - name: Standalone
             group: STANDALONE
@@ -356,303 +544,226 @@ jobs:
           - name: Transaction
             group: TRANSACTION
 
+          - name: Metrics
+            group: METRICS
+
+          - name: Upgrade
+            group: UPGRADE
+
+          - name: Kubernetes
+            group: PULSAR_K8S
+
+          - name: Native Image
+            group: NATIVE_IMAGE
+            runtime_jdk: 25
+            # Native image compilation (even in quick build mode) is slower than a
+            # regular test group, so allow extra headroom over the default timeout.
+            timeout: 40
+
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
       - name: Setup ssh access to build runner VM
-        # ssh access is enabled for builds in own forks
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
+        continue-on-error: true
         with:
           limit-access-to-actor: true
 
-      - name: Cache Maven dependencies
-        uses: actions/cache@v2
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}${{ matrix.runtime_jdk && matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && format(' and {0}', matrix.runtime_jdk) || '' }}
+        if: ${{ matrix.group != 'NATIVE_IMAGE' }}
+        uses: actions/setup-java@v5
         with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: |
+            ${{ matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && matrix.runtime_jdk || '' }}
+            ${{ env.CI_JDK_MAJOR_VERSION }}
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v2
+      # The NATIVE_IMAGE group compiles a native binary with GraalVM native-build-tools,
+      # which requires a GraalVM JDK. This overrides JAVA_HOME for that matrix entry only.
+      - name: Set up GraalVM
+        if: ${{ matrix.group == 'NATIVE_IMAGE' }}
+        uses: graalvm/setup-graalvm@0426e2e191540e8514dff98dc52a5f5146a2a276 # v1.6.6
         with:
-          distribution: 'temurin'
-          java-version: 17
+          distribution: 'graalvm-community'
+          java-version: 25 # always use GraalVM 25.x
 
-      - name: Install gh-actions-artifact-client.js
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
+        with:
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
-      - name: Restore maven build results from Github artifact cache
-        run: |
-          cd $HOME
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+      - name: Restore build outputs from build job
+        uses: actions/download-artifact@v8
+        with:
+          name: gradle-build-outputs
 
-      - name: Load docker image apachepulsar/java-test-image:latest from Github artifact cache
-        run: |
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_load_image_from_github_actions_artifacts pulsar-java-test-image
+      - name: Extract build outputs
+        run: tar xf gradle-build-outputs.tar
+
+      - name: Download docker image
+        uses: actions/download-artifact@v8
+        with:
+          name: java-test-image
+          path: /tmp
+
+      - name: Load docker image
+        run: docker load -i /tmp/java-test-image.tar.gz
 
       - name: Run setup commands
         if: ${{ matrix.setup }}
         run: |
           ${{ matrix.setup }}
 
-      - name: Set up runtime JDK ${{ matrix.runtime_jdk }}
-        uses: actions/setup-java@v2
-        if: ${{ matrix.runtime_jdk }}
-        with:
-          distribution: 'temurin'
-          java-version: ${{ matrix.runtime_jdk }}
-
       - name: Run integration test group '${{ matrix.group }}'
         run: |
-          ./build/run_integration_group.sh ${{ matrix.group }}
+          ./pulsar-build/run_integration_group_gradle.sh ${{ matrix.group }}${{ matrix.runtime_jdk && matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && format(' -PtestJavaVersion={0}', matrix.runtime_jdk) || '' }}
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
-        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
+        run: $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh print_thread_dumps
 
-      - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
+      - name: Aggregate test reports to ./test-reports directory
         if: ${{ always() }}
         uses: ./.github/actions/copy-test-reports
 
-      - name: Publish Test Report
-        uses: apache/pulsar-test-infra/action-junit-report@master
-        if: ${{ always() }}
-        with:
-          report_paths: 'test-reports/TEST-*.xml'
-          annotate_only: 'true'
+      - name: Report detected Netty leaks
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
+        run: $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh report_netty_leaks
 
-      - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
+      - name: Upload test reports
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
-          name: Integration-${{ matrix.group }}-surefire-reports
-          path: surefire-reports
+          name: Integration-${{ matrix.upload_name || matrix.group }}-test-reports
+          path: |
+            test-reports/
+            **/build/reports/tests/
           retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload possible heap dump, core dump or crash files
+        uses: actions/upload-artifact@v7
+        if: ${{ always() }}
+        with:
+          name: Integration-${{ matrix.upload_name || matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
+            build/threaddumps/
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         continue-on-error: true
         with:
-          name: Integration-${{ matrix.group }}-container-logs
-          path: tests/integration/target/container-logs
+          name: Integration-${{ matrix.upload_name || matrix.group }}-container-logs
+          path: tests/integration/build/container-logs
           retention-days: 7
 
       - name: Wait for ssh connection when build fails
-        # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
         if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
         with:
           action: wait
 
-  delete-integration-test-docker-image-artifact:
-    name: "Delete integration test docker image artifact"
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
-    needs: [
-      'changed_files_job',
-      'integration-tests'
-    ]
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
-
-      - name: Tune Runner VM
-        uses: ./.github/actions/tune-runner-vm
-
-      - name: Install gh-actions-artifact-client.js
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Delete docker image from GitHub Actions Artifacts
-        run: |
-          gh-actions-artifact-client.js delete pulsar-java-test-image.zst
-
-  cpp-tests:
-    name: CI - CPP, Python Tests
-    runs-on: ubuntu-20.04
-    timeout-minutes: 120
-    needs: [
-      'changed_files_job',
-      'integration-tests'
-    ]
-    if: always()
-    steps:
-      - name: check condition
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          if [[ ! ( ( \
-                "${{needs.changed_files_job.outputs.cpp_only}}" == "false" \
-                && "${{ needs.integration-tests.result }}" == "success" \
-               ) || ( \
-                "${{needs.changed_files_job.outputs.cpp_only}}" == "true" \
-               ) ) ]]; then
-            echo "Required jobs haven't been completed successfully."
-            exit 1            
-          fi
-
-      - name: checkout
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/checkout@v2
-
-      - name: Tune Runner VM
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: ./.github/actions/tune-runner-vm
-
-      - name: Cache local Maven repository
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-
-
-      - name: Set up JDK 17
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: 17
-
-      - name: Clean Disk
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: ./.github/actions/clean-disk
-
-      - name: Install gh-actions-artifact-client.js
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Restore maven build results from Github artifact cache
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          cd $HOME
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
-          cd $GITHUB_WORKSPACE 
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-server-distribution
-
-      - name: copy python tests
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          mvn -B -Pskip-all -ntp -pl pulsar-functions/instance package 
-
-      - name: build cpp artifacts
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: |
-          echo "Build C++ client library"
-          pulsar-client-cpp/docker-build.sh
-
-      - name: run c++ tests
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        run: pulsar-client-cpp/docker-tests.sh
-
-      - name: Upload test-logs
-        if: ${{ failure() && needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/upload-artifact@v3
-        continue-on-error: true
-        with:
-          name: cpp-tests-logs
-          path: test-logs
-
   pulsar-test-latest-version-image:
-    name: Build Pulsar docker image
-    runs-on: ubuntu-20.04
+    permissions:
+      contents: read
+      security-events: write # Upload scheduled container scan results.
+    name: Build pulsar-test-latest-version Docker image
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
-    needs: ['changed_files_job', 'build-and-license-check']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    needs: ['preconditions', 'build-and-license-check']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
-      UBUNTU_MIRROR: http://azure.archive.ubuntu.com/ubuntu/
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
       - name: Setup ssh access to build runner VM
-        # ssh access is enabled for builds in own forks
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
+        continue-on-error: true
         with:
           limit-access-to-actor: true
 
-      - name: Clean Disk
-        uses: ./.github/actions/clean-disk
-
-      - name: Cache local Maven repository
-        uses: actions/cache@v2
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
         with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-            ${{ runner.os }}-m2-dependencies-core-modules-
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v2
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
         with:
-          distribution: 'temurin'
-          java-version: 17
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
-      - name: Install gh-actions-artifact-client.js
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+      - name: Restore build outputs from build job
+        uses: actions/download-artifact@v8
+        with:
+          name: gradle-build-outputs
 
-      - name: restore maven build results from Github artifact cache
+      - name: Extract build outputs
+        run: tar xf gradle-build-outputs.tar
+
+      - name: Setup Docker
+        uses: gradle/develocity-actions/setup-docker@f852d93dada312948b1ba533226c28e05d756866 # v2.4
+        with:
+          develocity-url: https://develocity.apache.org
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          develocity-project-id: pulsar
+
+      - name: Build pulsar-test-latest-version Docker image
+        run: ./gradlew :tests:latest-version-image:dockerBuild${{ env.CI_JDK_MAJOR_VERSION != '21' && format(' -PdockerJavaVersion={0}', env.CI_JDK_MAJOR_VERSION) || '' }}
+
+      - name: Run Trivy container scan
+        id: trivy_scan
+        uses: lhotari/sandboxed-trivy-action@f01374b6cc3bf7264ab238293e94f6db7ada6dd0
+        if: ${{ github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        with:
+          scan-type: 'image'
+          scan-ref: "apachepulsar/pulsar:latest"
+          scanners: vuln
+          severity: CRITICAL,HIGH,MEDIUM,LOW
+          limit-severities-for-sarif: true
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v4
+        if: ${{ steps.trivy_scan.outcome == 'success' && github.repository == 'apache/pulsar' && github.event_name != 'pull_request' }}
+        continue-on-error: true
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Save docker image to file
         run: |
-          cd $HOME
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+          docker save apachepulsar/pulsar-test-latest-version:latest | gzip > /tmp/pulsar-test-latest-version.tar.gz
 
-      - name: Build latest-version-image docker image
-        run: |
-          # build docker image
-          # include building of Pulsar SQL, Connectors, Offloaders and server distros
-          mvn -B -am -pl pulsar-sql/presto-distribution,distribution/io,distribution/offloaders,distribution/server,tests/docker-images/latest-version-image install \
-          -Pmain,docker -Dmaven.test.skip=true -Ddocker.squash=true \
-          -Dspotbugs.skip=true -Dlicense.skip=true -Dcheckstyle.skip=true -Drat.skip=true
-
-      - name: Clean up disk space
-        run: |
-          # release disk space since saving docker image consumes local disk space
-          #
-          echo "::group::Available diskspace before cleaning"
-          time df -BM / /mnt
-          echo "::endgroup::"          
-          echo "::group::Clean build directory"
-          # docker build changes some files to root ownership, fix this before deleting files
-          sudo chown -R $USER:$GROUP .
-          # clean build directories
-          time git clean -fdx
-          echo "::endgroup::"          
-          echo "::group::Available diskspace after cleaning build directory"
-          time df -BM / /mnt
-          echo "::endgroup::"
-          echo "::group::Delete maven repository"
-          # delete maven repository
-          time rm -rf ~/.m2/repository
-          echo "::endgroup::"          
-          echo "::group::Available diskspace after cleaning maven repository"
-          time df -BM / /mnt
-          echo "::endgroup::"          
-
-      - name: save docker image apachepulsar/pulsar-test-latest-version:latest to Github artifact cache
-        run: |
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_save_image_to_github_actions_artifacts apachepulsar/pulsar-test-latest-version:latest pulsar-test-latest-version-image
+      - name: Upload docker image
+        uses: actions/upload-artifact@v7
+        with:
+          name: pulsar-test-latest-version-image
+          path: /tmp/pulsar-test-latest-version.tar.gz
+          retention-days: ${{ env.ARTIFACT_RETENTION_DAYS }}
+          compression-level: 0
 
       - name: Wait for ssh connection when build fails
-        # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
         if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
@@ -661,12 +772,16 @@ jobs:
 
   system-tests:
     name: CI - System - ${{ matrix.name }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
-    needs: ['changed_files_job', 'pulsar-test-latest-version-image']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+    needs: ['preconditions', 'pulsar-test-latest-version-image']
+    if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
     env:
+      JOB_NAME: CI - System - ${{ matrix.name }}
       PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
+      NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/build/netty-leak-dumps
     strategy:
       fail-fast: false
       matrix:
@@ -689,280 +804,125 @@ jobs:
           - name: Pulsar Connectors - Process
             group: PULSAR_CONNECTORS_PROCESS
 
-          - name: Pulsar IO
-            group: PULSAR_IO
-
-          - name: Sql
-            group: SQL
-
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
-
-      - name: Tune Runner VM
-        uses: ./.github/actions/tune-runner-vm
-
-      - name: Setup ssh access to build runner VM
-        # ssh access is enabled for builds in own forks
-        if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
-        uses: ./.github/actions/ssh-access
-        with:
-          limit-access-to-actor: true
-
-      - name: Cache local Maven repository
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-            ${{ runner.os }}-m2-dependencies-core-modules-
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: 17
-
-      - name: Install gh-actions-artifact-client.js
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Restore maven build results from Github artifact cache
-        run: |
-          cd $HOME
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
-
-      - name: Load docker image apachepulsar/pulsar-test-latest-version:latest from Github artifact cache
-        run: |
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_load_image_from_github_actions_artifacts pulsar-test-latest-version-image
-
-      - name: Run setup commands
-        if: ${{ matrix.setup }}
-        run: |
-          ${{ matrix.setup }}
-
-      - name: Run system test group '${{ matrix.group }}'
-        run: |
-          ./build/run_integration_group.sh ${{ matrix.group }}
-
-      - name: print JVM thread dumps when cancelled
-        if: cancelled()
-        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
-
-      - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
-        if: ${{ always() }}
-        uses: ./.github/actions/copy-test-reports
-
-      - name: Publish Test Report
-        uses: apache/pulsar-test-infra/action-junit-report@master
-        if: ${{ always() }}
-        with:
-          report_paths: 'test-reports/TEST-*.xml'
-          annotate_only: 'true'
-
-      - name: Upload container logs
-        uses: actions/upload-artifact@v3
-        if: ${{ !success() }}
-        continue-on-error: true
-        with:
-          name: System-${{ matrix.group }}-container-logs
-          path: tests/integration/target/container-logs
-          retention-days: 7
-
-      - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
-        if: ${{ !success() }}
-        with:
-          name: System-${{ matrix.name }}-surefire-reports
-          path: surefire-reports
-          retention-days: 7
-
-      - name: Wait for ssh connection when build fails
-        # ssh access is enabled for builds in own forks
-        uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
-        continue-on-error: true
-        with:
-          action: wait
-
-  flaky-system-tests:
-    name: CI Flaky - System - ${{ matrix.name }}
-    runs-on: ubuntu-20.04
-    timeout-minutes: 60
-    needs: [ 'changed_files_job', 'pulsar-test-latest-version-image' ]
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-    env:
-      PULSAR_TEST_IMAGE_NAME: apachepulsar/pulsar-test-latest-version:latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
           - name: Plugin
             group: PLUGIN
 
-          - name: Pulsar IO - Oracle
-            group: PULSAR_IO_ORA
-
-
     steps:
       - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
 
       - name: Setup ssh access to build runner VM
-        # ssh access is enabled for builds in own forks
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
+        continue-on-error: true
         with:
           limit-access-to-actor: true
 
-      - name: Cache local Maven repository
-        uses: actions/cache@v2
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
         with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-            ${{ runner.os }}-m2-dependencies-core-modules-
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v2
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
         with:
-          distribution: 'temurin'
-          java-version: 17
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
 
-      - name: Install gh-actions-artifact-client.js
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
+      - name: Restore build outputs from build job
+        uses: actions/download-artifact@v8
+        with:
+          name: gradle-build-outputs
 
-      - name: Restore maven build results from Github artifact cache
-        run: |
-          cd $HOME
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
+      - name: Extract build outputs
+        run: tar xf gradle-build-outputs.tar
 
-      - name: Load docker image apachepulsar/pulsar-test-latest-version:latest from Github artifact cache
-        run: |
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh docker_load_image_from_github_actions_artifacts pulsar-test-latest-version-image
+      - name: Download docker image
+        uses: actions/download-artifact@v8
+        with:
+          name: pulsar-test-latest-version-image
+          path: /tmp
 
-      - name: Run setup commands
-        if: ${{ matrix.setup }}
-        run: |
-          ${{ matrix.setup }}
+      - name: Load docker image
+        run: docker load -i /tmp/pulsar-test-latest-version.tar.gz
 
       - name: Run system test group '${{ matrix.group }}'
         run: |
-          ./build/run_integration_group.sh ${{ matrix.group }}
+          ./pulsar-build/run_integration_group_gradle.sh ${{ matrix.group }}
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
-        run: $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh print_thread_dumps
+        run: $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh print_thread_dumps
 
-      - name: Aggregates all test reports to ./test-reports and ./surefire-reports directories
+      - name: Aggregate test reports to ./test-reports directory
         if: ${{ always() }}
         uses: ./.github/actions/copy-test-reports
 
-      - name: Publish Test Report
-        uses: apache/pulsar-test-infra/action-junit-report@master
+      - name: Report detected Netty leaks
+        if: ${{ always() && env.NETTY_LEAK_DETECTION != 'off' }}
+        run: $GITHUB_WORKSPACE/pulsar-build/pulsar_ci_tool.sh report_netty_leaks
+
+      - name: Upload test reports
+        uses: actions/upload-artifact@v7
+        if: ${{ !success() }}
+        with:
+          name: System-${{ matrix.group }}-test-reports
+          path: |
+            test-reports/
+            **/build/reports/tests/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload possible heap dump, core dump or crash files
+        uses: actions/upload-artifact@v7
         if: ${{ always() }}
         with:
-          report_paths: 'test-reports/TEST-*.xml'
-          annotate_only: 'true'
+          name: System-${{ matrix.group }}-dumps
+          path: |
+            /tmp/*.hprof
+            **/hs_err_*.log
+            **/core.*
+            build/threaddumps/
+            ${{ env.NETTY_LEAK_DUMP_DIR }}/*
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload container logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         continue-on-error: true
         with:
           name: System-${{ matrix.group }}-container-logs
-          path: tests/integration/target/container-logs
-          retention-days: 7
-
-      - name: Upload Surefire reports
-        uses: actions/upload-artifact@v3
-        if: ${{ !success() }}
-        with:
-          name: System-${{ matrix.name }}-surefire-reports
-          path: surefire-reports
+          path: tests/integration/build/container-logs
           retention-days: 7
 
       - name: Wait for ssh connection when build fails
-        # ssh access is enabled for builds in own forks
         uses: ./.github/actions/ssh-access
         if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         continue-on-error: true
         with:
           action: wait
 
-  delete-system-test-docker-image-artifact:
-    name: "Delete system test docker image artifact"
-    runs-on: ubuntu-20.04
-    timeout-minutes: 10
-    needs: [
-      'changed_files_job',
-      'system-tests',
-      'flaky-system-tests'
-    ]
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+  codeql:
+    name: Run CodeQL Analysis
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    needs: ['preconditions', 'unit-tests']
+    # Private repositories need Code Security enabled before opting in.
+    if: ${{ (github.event.repository.visibility == 'public' || vars.CI_ENABLE_CODEQL == 'true') && (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    env:
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+      CODEQL_LANGUAGE: java-kotlin
     steps:
       - name: checkout
-        uses: actions/checkout@v2
-
-      - name: Tune Runner VM
-        uses: ./.github/actions/tune-runner-vm
-
-      - name: Install gh-actions-artifact-client.js
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Delete docker image from GitHub Actions Artifacts
-        run: |
-          gh-actions-artifact-client.js delete pulsar-test-latest-version-image.zst
-
-  macos-build:
-    name: Build Pulsar on MacOS
-    runs-on: macos-11
-    timeout-minutes: 120
-    needs: ['changed_files_job', 'integration-tests']
-    if: ${{ needs.changed_files_job.outputs.docs_only != 'true' && needs.changed_files_job.outputs.cpp_only != 'true' }}
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
-
-      - name: Tune Runner VM
-        uses: ./.github/actions/tune-runner-vm
-
-      - name: Cache Maven dependencies
-        uses: actions/cache@v2
-        with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-all-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-all-
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v2
-        with:
-          distribution: 'temurin'
-          java-version: 17
-
-      - name: build package
-        run: mvn -B clean package -DskipTests -T 1C -ntp
-
-  owasp-dep-check:
-    name: OWASP dependency check
-    runs-on: ubuntu-20.04
-    timeout-minutes: 120
-    needs: [ 'changed_files_job', 'integration-tests' ]
-    if: ${{ needs.changed_files_job.outputs.need_owasp == 'true' }}
-    steps:
-      - name: checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
 
       - name: Tune Runner VM
         uses: ./.github/actions/tune-runner-vm
@@ -971,105 +931,86 @@ jobs:
         # ssh access is enabled for builds in own forks
         if: ${{ github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
         uses: ./.github/actions/ssh-access
+        continue-on-error: true
         with:
           limit-access-to-actor: true
 
-      - name: Cache Maven dependencies
-        uses: actions/cache@v2
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
         with:
-          path: |
-            ~/.m2/repository/*/*/*
-            !~/.m2/repository/org/apache/pulsar
-          key: ${{ runner.os }}-m2-dependencies-core-modules-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-m2-dependencies-core-modules-
-      - name: Set up JDK ${{ matrix.jdk || '17' }}
-        uses: actions/setup-java@v2
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
         with:
-          distribution: 'temurin'
-          java-version: ${{ matrix.jdk || '17' }}
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          cache-read-only: true
 
-      - name: Clean Disk
-        uses: ./.github/actions/clean-disk
-
-      - name: Install gh-actions-artifact-client.js
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Restore maven build results from Github artifact cache
+      - name: Configure Gradle for CodeQL
         run: |
-          cd $HOME
-          $GITHUB_WORKSPACE/build/pulsar_ci_tool.sh restore_tar_from_github_actions_artifacts pulsar-maven-repository-binaries
-      # Projects dependent on flume, hdfs, hbase, and presto currently excluded from the scan.
-      - name: run "clean verify" to trigger dependency check
-        run: mvn -q -B -ntp verify -PskipDocker,owasp-dependency-check -DskipTests -pl '!pulsar-sql,!distribution/io,!distribution/offloaders,!tiered-storage/file-system,!pulsar-io/flume,!pulsar-io/hbase,!pulsar-io/hdfs2,!pulsar-io/hdfs3,!pulsar-io/docs,!pulsar-io/jdbc/openmldb'
+          cat >> gradle.properties <<'EOF'
+          
+          org.gradle.configuration-cache=false
+          org.gradle.configureondemand=false
+          org.gradle.parallel=false
+          org.gradle.caching=false
+          org.gradle.daemon=false
+          EOF
 
-      - name: Upload report
-        uses: actions/upload-artifact@v3
-        if: ${{ cancelled() || failure() }}
-        continue-on-error: true
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
         with:
-          name: dependency report
-          path: target/dependency-check-report.html
+          languages: ${{ env.CODEQL_LANGUAGE }}
+          build-mode: none
 
-      - name: Wait for ssh connection when build fails
-        # ssh access is enabled for builds in own forks
-        uses: ./.github/actions/ssh-access
-        if: ${{ failure() && github.repository != 'apache/pulsar' && github.event_name == 'pull_request' }}
-        continue-on-error: true
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
         with:
-          action: wait
+          category: "/language:${{ env.CODEQL_LANGUAGE }}"
 
-  # This job is required for pulls to be merged.
+  # This job is required for pulls to be merged. This job is referenced by name in .asf.yaml file in the
+  # protected_branches section for master branch required_status_checks.
   # It depends on all other jobs in this workflow.
-  # It cleans up the binaries in the same job in order to not spin up another runner for basically doing nothing.
   pulsar-ci-checks-completed:
+    permissions:
+      actions: write # Delete intermediate build artifacts.
     name: "Pulsar CI checks completed"
-    if: always()
-    runs-on: ubuntu-20.04
+    # run always, but skip for other repositories than apache/pulsar when a scheduled workflow is cancelled
+    # this is to allow the workflow scheduled jobs to show as cancelled instead of failed since scheduled
+    # jobs are not enabled for other than apache/pulsar repository.
+    if: ${{ always() && !(cancelled() && github.repository != 'apache/pulsar' && github.event_name == 'schedule') }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     needs: [
-      'changed_files_job',
+      'preconditions',
       'unit-tests',
       'integration-tests',
       'system-tests',
-      'flaky-system-tests',
       'macos-build',
-      'cpp-tests'
+      'codeql'
     ]
     steps:
       - name: Check that all required jobs were completed successfully
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+        if: ${{ needs.preconditions.result != 'success' || needs.preconditions.outputs.docs_only != 'true'  }}
         run: |
-          if [[ ! ( ( \
-                "${{needs.changed_files_job.outputs.cpp_only}}" == "false" \
+          if [[ ! ( \
+                   "${{ needs.preconditions.result }}" == "success" \
                 && "${{ needs.unit-tests.result }}" == "success" \
                 && "${{ needs.integration-tests.result }}" == "success" \
                 && "${{ needs.system-tests.result }}" == "success" \
                 && "${{ needs.macos-build.result }}" == "success" \
-                && "${{ needs.cpp-tests.result }}" == "success" \
-               ) || ( \
-                "${{needs.changed_files_job.outputs.cpp_only}}" == "true" \
-                && "${{ needs.system-tests.result }}" == "success" \
-                && "${{ needs.cpp-tests.result }}" == "success" \
-               ) ) ]]; then
+                && ( "${{ needs.codeql.result }}" == "success" || "${{ needs.codeql.result }}" == "skipped" ) \
+               ) ]]; then
             echo "Required jobs haven't been completed successfully."
-            exit 1            
+            exit 1
           fi
 
-      - name: checkout
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: actions/checkout@v2
-
-      - name: Tune Runner VM
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: ./.github/actions/tune-runner-vm
-
-      - name: Install gh-actions-artifact-client.js
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
-        uses: apache/pulsar-test-infra/gh-actions-artifact-client/dist@master
-
-      - name: Delete maven repository binaries from GitHub Actions Artifacts
-        if: ${{ needs.changed_files_job.outputs.docs_only != 'true' }}
+      - name: Delete build artifacts
+        if: ${{ needs.preconditions.outputs.docs_only != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          gh-actions-artifact-client.js delete pulsar-maven-repository-binaries.tar.zst || true
-          gh-actions-artifact-client.js delete pulsar-server-distribution.tar.zst || true
+          gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts \
+            --jq '.artifacts[] | select(.name == "gradle-build-outputs" or .name == "java-test-image" or .name == "pulsar-test-latest-version-image") | .id' \
+            | xargs -I{} gh api -X DELETE repos/${{ github.repository }}/actions/artifacts/{} || true

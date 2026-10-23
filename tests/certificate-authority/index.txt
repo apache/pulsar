@@ -4,3 +4,6 @@ V	210318101354Z		1002	unknown	/CN=ivan
 V	22920409135604Z		1003	unknown	/CN=proxy
 V	22920410132517Z		1004	unknown	/CN=superproxy
 V	22920411084025Z		1005	unknown	/CN=user1
+V	22960802101401Z		1006	unknown	/CN=proxy.pulsar.apache.org
+V	22970222155018Z		1007	unknown	/CN=broker-localhost-SAN
+V	22970222155019Z		1008	unknown	/CN=proxy-localhost-SAN

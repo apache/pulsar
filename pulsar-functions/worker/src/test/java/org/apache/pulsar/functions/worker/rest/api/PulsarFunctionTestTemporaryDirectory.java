@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,7 +31,7 @@ import org.testng.Assert;
  * Creates a temporary directory that contains 3 subdirectories,
  * "narExtractionDirectory", "downloadDirectory" and "connectorsDirectory",
  * which are assigned to the provided workerConfig's respective settings with
- * the {@link #useTemporaryDirectoriesForWorkerConfig(WorkerConfig)} method
+ * the {@link #useTemporaryDirectoriesForWorkerConfig(WorkerConfig)} method.
  */
 public class PulsarFunctionTestTemporaryDirectory {
     private final File tempDirectory;

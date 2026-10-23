@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -31,45 +31,60 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
+import org.apache.pulsar.TestNGInstanceOrder;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidMessageException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
-import org.apache.pulsar.client.impl.BinaryProtoLookupService;
-import org.apache.pulsar.client.impl.HttpLookupService;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.LookupService;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.schema.KeyValueSchemaImpl;
 import org.apache.pulsar.client.impl.schema.SchemaInfoImpl;
 import org.apache.pulsar.client.impl.schema.reader.AvroReader;
 import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
+import org.testng.annotations.Listeners;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-@Slf4j
+@CustomLog
+@Listeners({ TestNGInstanceOrder.class })
 public class SimpleSchemaTest extends ProducerConsumerBase {
+
+    private static final String NAMESPACE = "my-property/my-ns";
+    private static final String NAMESPACE_ALWAYS_COMPATIBLE = "my-property/always-compatible";
+    private static final String NAMESPACE_NEVER_COMPATIBLE = "my-property/never-compatible";
 
     @DataProvider(name = "batchingModes")
     public static Object[][] batchingModes() {
@@ -111,35 +126,54 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
 
-    @BeforeMethod
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         conf.setSchemaValidationEnforced(schemaValidationEnforced);
         this.isTcpLookup = true;
         super.internalSetup();
         super.producerBaseSetup();
+        admin.namespaces().createNamespace(NAMESPACE_ALWAYS_COMPATIBLE);
+        admin.namespaces().setSchemaCompatibilityStrategy(NAMESPACE_ALWAYS_COMPATIBLE,
+                SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
+        admin.namespaces().createNamespace(NAMESPACE_NEVER_COMPATIBLE);
+        admin.namespaces().setSchemaCompatibilityStrategy(NAMESPACE_NEVER_COMPATIBLE,
+                SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE);
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
     }
 
+    @AfterMethod(alwaysRun = true)
+    public void resetNamespace() throws Exception {
+        List<String> list = admin.namespaces().getTopics(NAMESPACE);
+        for (String topicName : list){
+            if (!pulsar.getBrokerService().isSystemTopic(topicName)) {
+                admin.topics().delete(topicName, false);
+            }
+        }
+        PulsarClientImpl pulsarClientImpl = (PulsarClientImpl) pulsarClient;
+        pulsarClientImpl.getSchemaProviderLoadingCache().invalidateAll();
+    }
+
     @Test
     public void testString() throws Exception {
+        final String topicName = String.format("persistent://%s/my-topic1", NAMESPACE);
         try (Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
-                .topic("persistent://my-property/my-ns/my-topic1")
+                .topic(topicName)
                 .subscriptionName("my-subscriber-name").subscribe();
              Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                     .topic("persistent://my-property/my-ns/my-topic1").create()) {
-            int N = 10;
+                     .topic(topicName).create()) {
+            int num = 10;
 
-            for (int i = 0; i < N; i++) {
+            for (int i = 0; i < num; i++) {
                 producer.send("my-message-" + i);
             }
 
-            for (int i = 0; i < N; i++) {
+            for (int i = 0; i < num; i++) {
                 Message<String> msg = consumer.receive();
                 assertEquals(msg.getValue(), "my-message-" + i);
 
@@ -176,7 +210,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newProducerNewTopicNewSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
                 .topic(topic).create()) {
             p.send(new V1Data(0));
@@ -185,7 +219,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newProducerTopicExistsWithoutSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
         try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create()) {
             p.send(topic.getBytes(UTF_8));
         }
@@ -198,7 +232,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newProducerTopicExistsWithSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
                 .topic(topic).create()) {
             p.send(new V1Data(1));
@@ -212,7 +246,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newProducerWithoutSchemaOnTopicWithSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
 
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
                 .topic(topic).create()) {
@@ -246,17 +280,17 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
         org.apache.avro.Schema v1SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v1SchemaBytes));
         // if using NATIVE_AVRO, producer can connect but the publish will fail
-        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.NATIVE_AVRO(v1SchemaAvroNative)).topic(topic).create()) {
+        try (Producer<byte[]> p = pulsarClient.newProducer(Schema.NATIVE_AVRO(v1SchemaAvroNative))
+                .topic(topic).create()) {
             p.send("junkdata".getBytes(UTF_8));
         } catch (PulsarClientException e) {
             assertTrue(e.getCause() instanceof SchemaSerializationException);
         }
-   
     }
 
     @Test
     public void newProducerForMessageSchemaOnTopicWithMultiVersionSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
         byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
         AvroWriter<V1Data> v1Writer = new AvroWriter<>(
@@ -322,8 +356,84 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testProducerConnectStateWhenRegisteringSchema() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(NAMESPACE_ALWAYS_COMPATIBLE + "/tp");
+        final String subscription = "s1";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, subscription, MessageId.earliest);
+
+        // Create a pulsar client with a delayed response of "getOrCreateSchemaResponse"
+        CompletableFuture<Void> responseSignal = new CompletableFuture<>();
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
+            new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+                @SuppressWarnings("unchecked")
+                protected void handleGetOrCreateSchemaResponse(
+                        CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
+                    responseSignal.join();
+                    super.handleGetOrCreateSchemaResponse(commandGetOrCreateSchemaResponse);
+                }
+            });
+        Producer producer = client.newProducer(Schema.AUTO_PRODUCE_BYTES()).enableBatching(false).topic(topic).create();
+        producer.newMessage(Schema.STRING).value("msg").sendAsync();
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get();
+        assertEquals(persistentTopic.getProducers().size(), 1);
+        assertTrue(producer.isConnected());
+
+        // cleanup.
+        responseSignal.complete(null);
+        producer.close();
+        client.close();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(persistentTopic.getProducers().size(), 0);
+        });
+        admin.topics().delete(topic);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testNoMemoryLeakIfSchemaIncompatible() throws Exception {
+        final String topic = BrokerTestUtil.newUniqueName(NAMESPACE_NEVER_COMPATIBLE + "/tp");
+        final String subscription = "s1";
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().createSubscription(topic, subscription, MessageId.earliest);
+
+        // Create a pulsar client with a delayed response of "getOrCreateSchemaResponse"
+        CompletableFuture<Void> responseSignal = new CompletableFuture<>();
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().serviceUrl(lookupUrl.toString());
+        PulsarClient client = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) ->
+            new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
+                @SuppressWarnings("unchecked")
+                protected void handleGetOrCreateSchemaResponse(
+                        CommandGetOrCreateSchemaResponse commandGetOrCreateSchemaResponse) {
+                    responseSignal.join();
+                    super.handleGetOrCreateSchemaResponse(commandGetOrCreateSchemaResponse);
+                }
+            });
+        Producer producer = client.newProducer(Schema.AUTO_PRODUCE_BYTES()).enableBatching(false).topic(topic).create();
+        producer.newMessage(Schema.STRING).value("msg").sendAsync();
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(topic, false).get().get();
+        assertEquals(persistentTopic.getProducers().size(), 1);
+        assertTrue(producer.isConnected());
+
+        // cleanup.
+        responseSignal.complete(null);
+        producer.close();
+        client.close();
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(persistentTopic.getProducers().size(), 0);
+        });
+        admin.topics().delete(topic);
+    }
+
+    @Test
     public void newNativeAvroProducerForMessageSchemaOnTopicWithMultiVersionSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
         byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
         org.apache.avro.Schema v1SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v1SchemaBytes));
@@ -390,7 +500,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newProducerForMessageOnTopicWithDifferentSchemaType() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
         V1Data data1 = new V1Data(2);
         V2Data data2 = new V2Data(3, 5);
         V1Data data3 = new V1Data(8);
@@ -422,7 +532,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newProducerForMessageSchemaOnTopicInitialWithNoSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
         byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
         AvroWriter<V1Data> v1Writer = new AvroWriter<>(
@@ -454,7 +564,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
         List<SchemaInfo> allSchemas = admin.schemas().getAllSchemas(topic);
         allSchemas.forEach(schemaInfo -> {
-            ((SchemaInfoImpl)schemaInfo).setTimestamp(0);
+            ((SchemaInfoImpl) schemaInfo).setTimestamp(0);
         });
         Assert.assertEquals(allSchemas, Arrays.asList(v1Schema.getSchemaInfo(),
                 v2Schema.getSchemaInfo()));
@@ -462,7 +572,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newNativeAvroProducerForMessageSchemaOnTopicInitialWithNoSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
         byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
         org.apache.avro.Schema v1SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v1SchemaBytes));
@@ -495,7 +605,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
         List<SchemaInfo> allSchemas = admin.schemas().getAllSchemas(topic);
         allSchemas.forEach(schemaInfo -> {
-            ((SchemaInfoImpl)schemaInfo).setTimestamp(0);
+            ((SchemaInfoImpl) schemaInfo).setTimestamp(0);
         });
         Assert.assertEquals(allSchemas, Arrays.asList(v1Schema.getSchemaInfo(),
                 v2Schema.getSchemaInfo()));
@@ -503,10 +613,12 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newProducerForMessageSchemaWithBatch() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
+        @Cleanup
         Consumer<V2Data> c = pulsarClient.newConsumer(Schema.AVRO(V2Data.class))
                 .topic(topic)
                 .subscriptionName("sub1").subscribe();
+        @Cleanup
         Producer<byte[]> p = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
                 .topic(topic)
                 .enableBatching(true)
@@ -535,6 +647,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 try {
                     p.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.AVRO(IncompatibleData.class)))
                             .value(content).send();
+                    fail("Expect: incompatible schema exception");
                 } catch (Exception e) {
                     Assert.assertTrue(e instanceof IncompatibleSchemaException, e.getMessage());
                 }
@@ -556,7 +669,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newNativeAvroProducerForMessageSchemaWithBatch() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);
         byte[] v1SchemaBytes = v1Schema.getSchemaInfo().getSchema();
         org.apache.avro.Schema v1SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v1SchemaBytes));
@@ -566,9 +679,11 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         org.apache.avro.Schema v2SchemaAvroNative = new Parser().parse(new ByteArrayInputStream(v2SchemaBytes));
         AvroWriter<V2Data> v2Writer = new AvroWriter<>(v2SchemaAvroNative);
 
+        @Cleanup
         Consumer<byte[]> c = pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("sub1").subscribe();
+        @Cleanup
         Producer<byte[]> p = pulsarClient.newProducer(Schema.NATIVE_AVRO(v1SchemaAvroNative))
                 .topic(topic)
                 .enableBatching(true)
@@ -595,7 +710,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             if ((i + 1) % incompatible == 0) {
                 Schema<IncompatibleData> incompatibleSchema = Schema.AVRO(IncompatibleData.class);
                 byte[] incompatibleSchemaBytes = incompatibleSchema.getSchemaInfo().getSchema();
-                org.apache.avro.Schema incompatibleSchemaAvroNative = new Parser().parse(new ByteArrayInputStream(incompatibleSchemaBytes));
+                org.apache.avro.Schema incompatibleSchemaAvroNative =
+                        new Parser().parse(new ByteArrayInputStream(incompatibleSchemaBytes));
                 byte[] content = incompatibleDataAvroWriter.write(new IncompatibleData(-i, -i));
                 try {
                     p.newMessage(Schema.NATIVE_AVRO(incompatibleSchemaAvroNative))
@@ -606,7 +722,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             }
         }
         p.flush();
-    
+
         for (int i = 0; i < total; ++i) {
             byte[] raw = c.receive().getData();
             if (i / batch % 2 == 0) {
@@ -624,7 +740,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newProducerWithMultipleSchemaDisabled() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
         AvroWriter<V1Data> v1DataAvroWriter = new AvroWriter<>(
                 ReflectData.AllowNull.get().getSchema(V1Data.class));
         try (Producer<byte[]> p = pulsarClient.newProducer()
@@ -638,7 +754,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newConsumerWithSchemaOnNewTopic() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
 
         try (Consumer<V1Data> c = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
                 .topic(topic).subscriptionName("sub1").subscribe();
@@ -651,7 +767,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newConsumerWithSchemaOnExistingTopicWithoutSchema() {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
 
         try (Producer<byte[]> p = pulsarClient.newProducer().topic(topic).create();
              Consumer<V1Data> c = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
@@ -664,7 +780,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newConsumerWithSchemaTopicHasSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
 
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topic).create();
              Consumer<V1Data> c = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
@@ -677,7 +793,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test
     public void newBytesConsumerWithTopicWithSchema() throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
 
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class)).topic(topic).create();
              Consumer<byte[]> c = pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe()) {
@@ -697,7 +813,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     private void getSchemaVersionFromMessages(boolean batching) throws Exception {
-        String topic = "my-property/my-ns/schema-test";
+        String topic = NAMESPACE + "/schema-test";
 
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
                 .topic(topic)
@@ -718,7 +834,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "batchingModes")
     public void testAutoConsume(boolean batching) throws Exception {
-        String topic = "my-property/my-ns/schema-test-auto-consume-" + batching;
+        String topic = NAMESPACE + "/schema-test-auto-consume-" + batching;
 
         try (Producer<V1Data> p = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
                 .topic(topic)
@@ -743,10 +859,12 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 assertEquals(data.getValue().getField("i"), i);
                 MessageImpl impl = (MessageImpl) data;
 
-                org.apache.avro.Schema avroSchema = (org.apache.avro.Schema) impl.getSchemaInternal().getNativeSchema().get();
+                org.apache.avro.Schema avroSchema =
+                        (org.apache.avro.Schema) impl.getSchemaInternal().getNativeSchema().get();
                 assertNotNull(avroSchema);
 
-                org.apache.avro.Schema avroSchema2 = (org.apache.avro.Schema) data.getReaderSchema().get().getNativeSchema().get();
+                org.apache.avro.Schema avroSchema2 =
+                        (org.apache.avro.Schema) data.getReaderSchema().get().getNativeSchema().get();
                 assertNotNull(avroSchema2);
             }
 
@@ -754,8 +872,9 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batchingModesAndValueEncodingType")
+    @SuppressWarnings("unchecked")
     public void testAutoKeyValueConsume(boolean batching, KeyValueEncodingType keyValueEncodingType) throws Exception {
-        String topic = "my-property/my-ns/schema-test-auto-keyvalue-consume-" + batching+"-"+keyValueEncodingType;
+        String topic = NAMESPACE + "/schema-test-auto-keyvalue-consume-" + batching + "-" + keyValueEncodingType;
 
         Schema<KeyValue<V1Data, V1Data>> pojoSchema = Schema.KeyValue(
                 Schema.AVRO(V1Data.class),
@@ -840,7 +959,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 // verify c0
                 for (int i = 0; i < numMessages; i++) {
                     Message<GenericRecord> wrapper = c0.receive();
-                    KeyValue<GenericRecord, GenericRecord> data = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
+                    KeyValue<GenericRecord, GenericRecord> data =
+                            (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
                     assertNotNull(wrapper.getSchemaVersion());
                     assertEquals(data.getKey().getField("i"), i * 100);
                     assertEquals(data.getValue().getField("i"), i * 1000);
@@ -977,7 +1097,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             // verify c0
             for (int i = 0; i < numMessages; i++) {
                 Message<GenericRecord> wrapper = c0.receive();
-                KeyValue<GenericRecord, GenericRecord> data = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
+                KeyValue<GenericRecord, GenericRecord> data =
+                        (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
                 assertNotNull(wrapper.getSchemaVersion());
                 assertEquals(data.getKey().getField("i"), i * 100);
                 assertEquals(data.getValue().getField("i"), i * 1000);
@@ -1038,8 +1159,9 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testAutoKeyValueConsumeGenericObject() throws Exception {
-        String topic = "my-property/my-ns/schema-test-auto-keyvalue-consume-"+ UUID.randomUUID();
+        String topic = NAMESPACE + "/schema-test-auto-keyvalue-consume-" + UUID.randomUUID();
 
         Schema<KeyValue<V1Data, V1Data>> pojoSchema = Schema.KeyValue(
                 Schema.AVRO(V1Data.class),
@@ -1066,7 +1188,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             // verify c0
             for (int i = 0; i < numMessages; i++) {
                 Message<GenericRecord> wrapper = c0.receive();
-                KeyValue<GenericRecord, GenericRecord> data = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
+                KeyValue<GenericRecord, GenericRecord> data =
+                        (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
                 assertNotNull(wrapper.getSchemaVersion());
                 assertEquals(data.getKey().getField("i"), i * 100);
                 assertEquals(data.getValue().getField("i"), i * 1000);
@@ -1101,7 +1224,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 // verify c0
                 for (int i = 0; i < numMessages; i++) {
                     Message<GenericRecord> wrapper = c0.receive();
-                    KeyValue<GenericRecord, GenericRecord> data = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
+                    KeyValue<GenericRecord, GenericRecord> data =
+                            (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
                     assertNotNull(wrapper.getSchemaVersion());
                     assertEquals(data.getKey().getField("i"), i * 100);
                     assertEquals(data.getValue().getField("i"), i * 1000);
@@ -1111,7 +1235,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                     assertNotNull(keyValueSchema.getKeySchema());
                     assertNotNull(keyValueSchema.getValueSchema());
                     assertTrue(keyValueSchema.getKeySchema().getSchemaInfo().getSchemaDefinition().contains("V2Data"));
-                    assertTrue(keyValueSchema.getValueSchema().getSchemaInfo().getSchemaDefinition().contains("V2Data"));
+                    assertTrue(keyValueSchema.getValueSchema().getSchemaInfo().getSchemaDefinition()
+                            .contains("V2Data"));
                     assertTrue(keyValueSchema.getKeySchema().getNativeSchema().isPresent());
                     assertTrue(keyValueSchema.getValueSchema().getNativeSchema().isPresent());
                 }
@@ -1120,35 +1245,44 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
-    public void testGetSchemaByVersion() throws PulsarClientException, PulsarAdminException, ExecutionException, InterruptedException {
-        final String topic = "persistent://my-property/my-ns/testGetSchemaByVersion";
+    public void testGetSchemaByVersion() throws PulsarClientException, PulsarAdminException,
+            ExecutionException, InterruptedException {
+        final String topic = String.format("persistent://%s/testGetSchemaByVersion", NAMESPACE);
 
         @Cleanup
-        PulsarClientImpl httpProtocolClient = (PulsarClientImpl) PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
+        PulsarClientImpl httpProtocolClient =
+                (PulsarClientImpl) PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
         PulsarClientImpl binaryProtocolClient = (PulsarClientImpl) pulsarClient;
 
-        pulsarClient.newProducer(Schema.AVRO(V1Data.class))
+        @Cleanup
+        Producer p1 = pulsarClient.newProducer(Schema.AVRO(V1Data.class))
                 .topic(topic)
                 .create();
 
-        pulsarClient.newProducer(Schema.AVRO(V2Data.class))
+        @Cleanup
+        Producer p2 = pulsarClient.newProducer(Schema.AVRO(V2Data.class))
                 .topic(topic)
                 .create();
 
         LookupService httpLookupService = httpProtocolClient.getLookup();
         LookupService binaryLookupService = binaryProtocolClient.getLookup();
-        Assert.assertTrue(httpLookupService instanceof HttpLookupService);
-        Assert.assertTrue(binaryLookupService instanceof BinaryProtoLookupService);
+        Assert.assertTrue(!httpLookupService.isBinaryProtoLookupService());
+        Assert.assertTrue(binaryLookupService.isBinaryProtoLookupService());
         Assert.assertEquals(admin.schemas().getAllSchemas(topic).size(), 2);
-        Assert.assertTrue(httpLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
-        Assert.assertTrue(httpLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
-        Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
-        Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic), ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
+        Assert.assertTrue(httpLookupService.getSchema(TopicName.get(topic),
+                ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
+        Assert.assertTrue(httpLookupService.getSchema(TopicName.get(topic),
+                ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
+        Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic),
+                ByteBuffer.allocate(8).putLong(0).array()).get().isPresent());
+        Assert.assertTrue(binaryLookupService.getSchema(TopicName.get(topic),
+                ByteBuffer.allocate(8).putLong(1).array()).get().isPresent());
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testGetNativeSchemaWithAutoConsumeWithMultiVersion() throws Exception {
-        final String topic = "persistent://my-property/my-ns/testGetSchemaWithMultiVersion";
+        final String topic = String.format("persistent://%s/testGetSchemaWithMultiVersion", NAMESPACE);
 
         @Cleanup
         Consumer<?> consumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
@@ -1175,8 +1309,14 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         Schema<?> schemaV1 = messageV1.getReaderSchema().get();
         Message<?> messageV2 = consumer.receive();
         Schema<?> schemaV2 = messageV2.getReaderSchema().get();
-        log.info("schemaV1 {} {}", schemaV1.getSchemaInfo(), schemaV1.getNativeSchema());
-        log.info("schemaV2 {} {}", schemaV2.getSchemaInfo(), schemaV2.getNativeSchema());
+        log.info()
+                .attr("schemaV1", schemaV1.getSchemaInfo())
+                .attr("nativeSchema", schemaV1.getNativeSchema())
+                .log("schemaV1");
+        log.info()
+                .attr("schemaV2", schemaV2.getSchemaInfo())
+                .attr("nativeSchema", schemaV2.getNativeSchema())
+                .log("schemaV2");
         assertTrue(schemaV1.getSchemaInfo().getSchemaDefinition().contains("V1Data"));
         assertTrue(schemaV2.getSchemaInfo().getSchemaDefinition().contains("V2Data"));
         org.apache.avro.Schema avroSchemaV1 = (org.apache.avro.Schema) schemaV1.getNativeSchema().get();
@@ -1188,8 +1328,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "topicDomain")
     public void testAutoCreatedSchema(String domain) throws Exception {
-        final String topic1 = domain + "my-property/my-ns/testAutoCreatedSchema-1";
-        final String topic2 = domain + "my-property/my-ns/testAutoCreatedSchema-2";
+        final String topic1 = domain + NAMESPACE + "/testAutoCreatedSchema-1";
+        final String topic2 = domain + NAMESPACE + "/testAutoCreatedSchema-2";
 
         pulsarClient.newProducer(Schema.BYTES).topic(topic1).create().close();
         try {
@@ -1203,7 +1343,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         // topic1's schema becomes STRING now
         Assert.assertEquals(admin.schemas().getSchemaInfo(topic1).getType(), SchemaType.STRING);
 
-        pulsarClient.newConsumer(Schema.BYTES).topic(topic2).subscriptionName("sub").subscribe().close();
+        pulsarClient.newConsumer(Schema.BYTES).topic(topic2)
+                .subscriptionName("sub").subscribe().close();
         try {
             // BYTES schema is treated as no schema
             admin.schemas().getSchemaInfo(topic2);
@@ -1211,9 +1352,83 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         } catch (PulsarAdminException e) {
             Assert.assertEquals(e.getStatusCode(), 404);
         }
-        pulsarClient.newConsumer(Schema.STRING).topic(topic2).subscriptionName("sub").subscribe().close();
+        pulsarClient.newConsumer(Schema.STRING).topic(topic2)
+                .subscriptionName("sub").subscribe().close();
         // topic2's schema becomes STRING now.
         Assert.assertEquals(admin.schemas().getSchemaInfo(topic2).getType(), SchemaType.STRING);
+    }
+
+    @Test(dataProvider = "topicDomain")
+    public void testSubscribeWithSchemaAfterAutoConsumeNewTopic(String domain) throws Exception {
+        final String topic = domain + "my-property/my-ns/testSubscribeWithSchemaAfterAutoConsume-1";
+
+        @Cleanup
+        Consumer<GenericRecord> autoConsumer1 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("autoConsumer1")
+                .subscribe();
+        @Cleanup
+        Consumer<GenericRecord> autoConsumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("autoConsumer2")
+                .subscribe();
+        @Cleanup
+        Consumer<GenericRecord> autoConsumer3 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("autoConsumer3")
+                .subscribe();
+        @Cleanup
+        Consumer<GenericRecord> autoConsumer4 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("autoConsumer4")
+                .subscribe();
+        try {
+            log.info("The autoConsumer1 isConnected: " + autoConsumer1.isConnected());
+            log.info("The autoConsumer2 isConnected: " + autoConsumer2.isConnected());
+            log.info("The autoConsumer3 isConnected: " + autoConsumer3.isConnected());
+            log.info("The autoConsumer4 isConnected: " + autoConsumer4.isConnected());
+            admin.schemas().getSchemaInfo(topic);
+            fail("The schema of topic should not exist");
+        } catch (PulsarAdminException e) {
+            assertEquals(e.getStatusCode(), 404);
+        }
+
+        @Cleanup
+        Consumer<V1Data> consumerWithSchema1 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("consumerWithSchema-1")
+                .subscribe();
+        @Cleanup
+        Consumer<V1Data> consumerWithSchema2 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub0")
+                .consumerName("consumerWithSchema-2")
+                .subscribe();
+        @Cleanup
+        Consumer<V1Data> consumerWithSchema3 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("consumerWithSchema-3")
+                .subscribe();
+        @Cleanup
+        Consumer<V1Data> consumerWithSchema4 = pulsarClient.newConsumer(Schema.AVRO(V1Data.class))
+                .topic(topic)
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionName("sub1")
+                .consumerName("consumerWithSchema-4")
+                .subscribe();
     }
 
     @DataProvider(name = "keyEncodingType")
@@ -1222,8 +1437,10 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "keyEncodingType")
+    @SuppressWarnings("unchecked")
     public void testAutoKeyValueConsumeGenericObjectNullValues(KeyValueEncodingType encodingType) throws Exception {
-        String topic = "my-property/my-ns/schema-test-auto-keyvalue-" + encodingType + "-null-value-consume-" + UUID.randomUUID();
+        String topic = NAMESPACE + "/schema-test-auto-keyvalue-" + encodingType + "-null-value-consume-"
+                + UUID.randomUUID();
 
         Schema<KeyValue<V1Data, V1Data>> pojoSchema = Schema.KeyValue(
                 Schema.AVRO(V1Data.class),
@@ -1246,23 +1463,28 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             p.send(new KeyValue<>(null, null));
 
             Message<GenericRecord> wrapper = c0.receive();
-            assertEquals(encodingType, ((KeyValueSchemaImpl) wrapper.getReaderSchema().get()).getKeyValueEncodingType());
-            KeyValue<GenericRecord, GenericRecord> data1 = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
+            assertEquals(encodingType,
+                    ((KeyValueSchemaImpl) wrapper.getReaderSchema().get()).getKeyValueEncodingType());
+            KeyValue<GenericRecord, GenericRecord> data1 =
+                    (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
             assertEquals(1, data1.getKey().getField("i"));
             assertEquals(2, data1.getValue().getField("i"));
 
             wrapper = c0.receive();
-            KeyValue<GenericRecord, GenericRecord> data2 = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
+            KeyValue<GenericRecord, GenericRecord> data2 =
+                    (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
             assertEquals(1, data2.getKey().getField("i"));
             assertNull(data2.getValue());
 
             wrapper = c0.receive();
-            KeyValue<GenericRecord, GenericRecord> data3 = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
+            KeyValue<GenericRecord, GenericRecord> data3 =
+                    (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
             assertNull(data3.getKey());
             assertEquals(2, data3.getValue().getField("i"));
 
             wrapper = c0.receive();
-            KeyValue<GenericRecord, GenericRecord> data4 = (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
+            KeyValue<GenericRecord, GenericRecord> data4 =
+                    (KeyValue<GenericRecord, GenericRecord>) wrapper.getValue().getNativeObject();
             assertNull(data4.getKey());
             assertNull(data4.getValue());
 
@@ -1275,7 +1497,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         if (schemaValidationEnforced) {
             return;
         }
-        final String topic = "test-consume-avro-messages-without-schema-" + UUID.randomUUID();
+        final String topic = NAMESPACE + "/test-consume-avro-messages-without-schema-" + UUID.randomUUID();
         final Schema<V1Data> schema = Schema.AVRO(V1Data.class);
         final Consumer<V1Data> consumer = pulsarClient.newConsumer(schema)
                 .topic(topic)
@@ -1294,7 +1516,7 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
         for (int i = 0; i < numMessages; i++) {
             final Message<V1Data> msg = consumer.receive(3, TimeUnit.SECONDS);
             assertNotNull(msg);
-            log.info("Received {} from {}", msg.getValue().i, topic);
+            log.info().attr("value", msg.getValue().i).attr("topic", topic).log("Received from");
             assertEquals(msg.getValue().i, i);
             assertEquals(msg.getReaderSchema().orElse(Schema.BYTES).getSchemaInfo(), schema.getSchemaInfo());
             consumer.acknowledge(msg);

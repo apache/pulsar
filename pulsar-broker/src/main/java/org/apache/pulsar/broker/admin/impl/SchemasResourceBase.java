@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,26 +18,28 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
-import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.isNull;
-import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
+import static org.apache.commons.lang3.StringUtils.defaultIfEmpty;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import javax.ws.rs.core.Response;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.client.internal.DefaultImplementation;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
+import org.apache.pulsar.common.policies.data.SchemaMetadata;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.schema.GetAllVersionsSchemaResponse;
 import org.apache.pulsar.common.protocol.schema.GetSchemaResponse;
@@ -46,8 +48,6 @@ import org.apache.pulsar.common.protocol.schema.SchemaData;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.LongSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class SchemasResourceBase extends AdminResource {
 
@@ -105,6 +105,13 @@ public class SchemasResourceBase extends AdminResource {
                 });
     }
 
+    public CompletableFuture<SchemaMetadata> getSchemaMetadataAsync(boolean authoritative) {
+        String schemaId = getSchemaId();
+        BookkeeperSchemaStorage storage = (BookkeeperSchemaStorage) pulsar().getSchemaStorage();
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
+                .thenCompose(__ -> storage.getSchemaMetadata(schemaId));
+    }
+
     public CompletableFuture<SchemaVersion> deleteSchemaAsync(boolean authoritative, boolean force) {
         return validateDestinationAndAdminOperationAsync(authoritative)
                 .thenCompose(__ -> {
@@ -115,20 +122,20 @@ public class SchemasResourceBase extends AdminResource {
     }
 
     public CompletableFuture<SchemaVersion> postSchemaAsync(PostSchemaPayload payload, boolean authoritative) {
-        return validateDestinationAndAdminOperationAsync(authoritative)
-                .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
+        return validateOwnershipAndOperationAsync(authoritative, TopicOperation.PRODUCE)
+                .thenCompose(__ -> getSchemaCompatibilityStrategyAsyncWithoutAuth())
                 .thenCompose(schemaCompatibilityStrategy -> {
                     byte[] data;
                     if (SchemaType.KEY_VALUE.name().equals(payload.getType())) {
                         try {
                             data = DefaultImplementation.getDefaultImplementation()
                                     .convertKeyValueDataStringToSchemaInfoSchema(payload.getSchema()
-                                            .getBytes(Charsets.UTF_8));
+                                            .getBytes(StandardCharsets.UTF_8));
                         } catch (IOException conversionError) {
                             throw new RestException(conversionError);
                         }
                     } else {
-                        data = payload.getSchema().getBytes(Charsets.UTF_8);
+                        data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
                     }
                     return pulsar().getSchemaRegistryService()
                             .putSchemaIfAbsent(getSchemaId(),
@@ -147,8 +154,13 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> getSchemaCompatibilityStrategyAsync())
                 .thenCompose(strategy -> {
                     String schemaId = getSchemaId();
+                    final SchemaType schemaType = SchemaType.valueOf(payload.getType());
+                    byte[] data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
+                    if (schemaType.getValue() == SchemaType.KEY_VALUE.getValue()) {
+                        data = SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(data);
+                    }
                     return pulsar().getSchemaRegistryService().isCompatible(schemaId,
-                            SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8))
+                            SchemaData.builder().data(data)
                                     .isDeleted(false)
                                     .timestamp(clock.millis()).type(SchemaType.valueOf(payload.getType()))
                                     .user(defaultIfEmpty(clientAppId(), ""))
@@ -162,10 +174,14 @@ public class SchemasResourceBase extends AdminResource {
         return validateOwnershipAndOperationAsync(authoritative, TopicOperation.GET_METADATA)
                 .thenCompose(__ -> {
                     String schemaId = getSchemaId();
+                    final SchemaType schemaType = SchemaType.valueOf(payload.getType());
+                    byte[] data = payload.getSchema().getBytes(StandardCharsets.UTF_8);
+                    if (schemaType.getValue() == SchemaType.KEY_VALUE.getValue()) {
+                        data = SchemaUtils.convertKeyValueDataStringToSchemaInfoSchema(data);
+                    }
                     return pulsar().getSchemaRegistryService()
                             .findSchemaVersion(schemaId,
-                                    SchemaData.builder().data(payload.getSchema().getBytes(Charsets.UTF_8))
-                                            .isDeleted(false).timestamp(clock.millis())
+                                    SchemaData.builder().data(data).isDeleted(false).timestamp(clock.millis())
                                             .type(SchemaType.valueOf(payload.getType()))
                                             .user(defaultIfEmpty(clientAppId(), ""))
                                             .props(payload.getProperties()).build());
@@ -185,7 +201,7 @@ public class SchemasResourceBase extends AdminResource {
                         DefaultImplementation.getDefaultImplementation()
                                 .decodeKeyValueSchemaInfo(schemaAndMetadata.schema.toSchemaInfo()));
             } else {
-                schemaData = new String(schemaAndMetadata.schema.getData(), UTF_8);
+                schemaData = new String(schemaAndMetadata.schema.getData(), StandardCharsets.UTF_8);
             }
             return GetSchemaResponse.builder().version(getLongSchemaVersion(schemaAndMetadata.version))
                     .type(schemaAndMetadata.schema.getType()).timestamp(schemaAndMetadata.schema.getTimestamp())
@@ -227,5 +243,7 @@ public class SchemasResourceBase extends AdminResource {
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, operation));
     }
 
-    private static final Logger log = LoggerFactory.getLogger(SchemasResourceBase.class);
+    protected boolean shouldPrintErrorLog(Throwable ex) {
+        return isNot307And404Exception(ex);
+    }
 }

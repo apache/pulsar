@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -20,7 +20,6 @@ package org.apache.pulsar.common.policies.data;
 
 import static org.apache.pulsar.common.util.FieldParser.value;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.ImmutableList;
 import java.io.Serializable;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -30,17 +29,20 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 /**
  * Definition of the offload policies.
  */
-@Slf4j
+@CustomLog
 @Data
 @NoArgsConstructor
 public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
@@ -61,21 +63,44 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         CONFIGURATION_FIELDS = Collections.unmodifiableList(temp);
     }
 
-    public static final int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024;   // 64MB
-    public static final int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MB
+    public static final String DRIVER_S3 = "S3";
+    public static final String DRIVER_AWS_S3 = "aws-s3";
+    public static final String DRIVER_GOOGLE_CLOUD_STORAGE = "google-cloud-storage";
+    public static final String DRIVER_FILESYSTEM = "filesystem";
+    public static final String DRIVER_AZUREBLOB = "azureblob";
+    public static final String DRIVER_ALIYUN_OSS = "aliyun-oss";
+    public static final List<String> INTERNAL_SUPPORTED_DRIVER = List.of(DRIVER_S3,
+        DRIVER_AWS_S3, DRIVER_GOOGLE_CLOUD_STORAGE, DRIVER_FILESYSTEM, DRIVER_AZUREBLOB, DRIVER_ALIYUN_OSS);
+    public static final List<String> DRIVER_NAMES;
+    static {
+        String extraDrivers = System.getProperty("pulsar.extra.offload.drivers", "");
+        if (extraDrivers.trim().isEmpty()) {
+            DRIVER_NAMES = INTERNAL_SUPPORTED_DRIVER;
+        } else {
+            List<String> driverList = new ArrayList<>(INTERNAL_SUPPORTED_DRIVER);
+            driverList.addAll(Arrays.stream(StringUtils.split(extraDrivers, ','))
+                    .map(String::trim).collect(Collectors.toSet()));
+            DRIVER_NAMES = Collections.unmodifiableList(driverList);
+        }
+    }
+
+    public static final int DEFAULT_MAX_BLOCK_SIZE_IN_BYTES = 64 * 1024 * 1024;   // 64MiB
+    public static final int DEFAULT_GCS_MAX_BLOCK_SIZE_IN_BYTES = 128 * 1024 * 1024;   // 128MiB
+    public static final int DEFAULT_READ_BUFFER_SIZE_IN_BYTES = 1024 * 1024;      // 1MiB
     public static final int DEFAULT_OFFLOAD_MAX_THREADS = 2;
+    public static final int DEFAULT_OFFLOAD_READ_THREADS = 2;
     public static final int DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS = 1;
-    public static final ImmutableList<String> DRIVER_NAMES = ImmutableList
-            .of("S3", "aws-s3", "google-cloud-storage", "filesystem", "azureblob", "aliyun-oss");
     public static final String DEFAULT_OFFLOADER_DIRECTORY = "./offloaders";
     public static final Long DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES = null;
+    public static final Long DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS = null;
     public static final Long DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS = null;
+    public static final String EXTRA_CONFIG_PREFIX = "managedLedgerOffloadExtraConfig";
 
     public static final String OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE =
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public static final String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
-    public static final OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY =
-            OffloadedReadPriority.TIERED_STORAGE_FIRST;
+    public static final String DATA_READ_PRIORITY_NAME_IN_CONF_FILE = "managedLedgerDataReadPriority";
+    public static final OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = null;
 
     // common config
     @Configuration
@@ -89,7 +114,13 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     private Integer managedLedgerOffloadMaxThreads = DEFAULT_OFFLOAD_MAX_THREADS;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private Integer managedLedgerOffloadReadThreads = DEFAULT_OFFLOAD_READ_THREADS;
+    @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer managedLedgerOffloadPrefetchRounds = DEFAULT_OFFLOAD_MAX_PREFETCH_ROUNDS;
+    @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private Long managedLedgerOffloadThresholdInSeconds = DEFAULT_OFFLOAD_THRESHOLD_IN_SECONDS;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Long managedLedgerOffloadThresholdInBytes = DEFAULT_OFFLOAD_THRESHOLD_IN_BYTES;
@@ -99,7 +130,9 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
-
+    @Configuration
+    @JsonProperty(access = JsonProperty.Access.READ_WRITE)
+    private Map<String, String> managedLedgerExtraConfigurations = new HashMap<>();
     // s3 config, set by service configuration or cli
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
@@ -139,7 +172,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
     private String gcsManagedLedgerOffloadBucket = null;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
-    private Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_MAX_BLOCK_SIZE_IN_BYTES;
+    private Integer gcsManagedLedgerOffloadMaxBlockSizeInBytes = DEFAULT_GCS_MAX_BLOCK_SIZE_IN_BYTES;
     @Configuration
     @JsonProperty(access = JsonProperty.Access.READ_WRITE)
     private Integer gcsManagedLedgerOffloadReadBufferSizeInBytes = DEFAULT_READ_BUFFER_SIZE_IN_BYTES;
@@ -178,11 +211,14 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                                              String role, String roleSessionName,
                                              String credentialId, String credentialSecret,
                                              Integer maxBlockSizeInBytes, Integer readBufferSizeInBytes,
-                                             Long offloadThresholdInBytes, Long offloadDeletionLagInMillis,
+                                             Long offloadThresholdInBytes,
+                                             Long offloadThresholdInSeconds,
+                                             Long offloadDeletionLagInMillis,
                                              OffloadedReadPriority readPriority) {
         OffloadPoliciesImplBuilder builder = builder()
                 .managedLedgerOffloadDriver(driver)
                 .managedLedgerOffloadThresholdInBytes(offloadThresholdInBytes)
+                .managedLedgerOffloadThresholdInSeconds(offloadThresholdInSeconds)
                 .managedLedgerOffloadDeletionLagInMillis(offloadDeletionLagInMillis)
                 .managedLedgerOffloadBucket(bucket)
                 .managedLedgerOffloadRegion(region)
@@ -191,7 +227,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 .managedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes)
                 .managedLedgerOffloadedReadPriority(readPriority);
 
-        if (driver.equalsIgnoreCase(DRIVER_NAMES.get(0)) || driver.equalsIgnoreCase(DRIVER_NAMES.get(1))) {
+        if (driver.equalsIgnoreCase(DRIVER_S3) || driver.equalsIgnoreCase(DRIVER_AWS_S3)
+                || driver.equalsIgnoreCase(DRIVER_ALIYUN_OSS)) {
             if (role != null) {
                 builder.s3ManagedLedgerOffloadRole(role);
             }
@@ -210,7 +247,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                     .s3ManagedLedgerOffloadServiceEndpoint(endpoint)
                     .s3ManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes)
                     .s3ManagedLedgerOffloadReadBufferSizeInBytes(readBufferSizeInBytes);
-        } else if (driver.equalsIgnoreCase(DRIVER_NAMES.get(2))) {
+        } else if (driver.equalsIgnoreCase(DRIVER_GOOGLE_CLOUD_STORAGE)) {
             builder.gcsManagedLedgerOffloadRegion(region)
                 .gcsManagedLedgerOffloadBucket(bucket)
                 .gcsManagedLedgerOffloadMaxBlockSizeInBytes(maxBlockSizeInBytes)
@@ -222,8 +259,7 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
     public static OffloadPoliciesImpl create(Properties properties) {
         OffloadPoliciesImpl data = new OffloadPoliciesImpl();
-        Field[] fields = OffloadPoliciesImpl.class.getDeclaredFields();
-        Arrays.stream(fields).forEach(f -> {
+        for (Field f : CONFIGURATION_FIELDS) {
             if (properties.containsKey(f.getName())) {
                 try {
                     f.setAccessible(true);
@@ -234,7 +270,13 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                                     f.getName(), properties.get(f.getName())), e);
                 }
             }
-        });
+        }
+
+        Map<String, String> extraConfigurations = getExtraConfigurations(properties);
+        if (extraConfigurations != null) {
+            data.getManagedLedgerExtraConfigurations().putAll(extraConfigurations);
+        }
+
         data.compatibleWithBrokerConfigFile(properties);
         return data;
     }
@@ -256,9 +298,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                     Long.parseLong(properties.getProperty(DELETION_LAG_NAME_IN_CONF_FILE)));
         }
 
-        if (properties.containsKey("managedLedgerDataReadPriority")) {
+        if (!properties.containsKey("managedLedgerOffloadedReadPriority")
+                && properties.containsKey(DATA_READ_PRIORITY_NAME_IN_CONF_FILE)) {
             setManagedLedgerOffloadedReadPriority(
-                    OffloadedReadPriority.fromString(properties.getProperty("managedLedgerDataReadPriority")));
+                    OffloadedReadPriority.fromString(properties.getProperty(DATA_READ_PRIORITY_NAME_IN_CONF_FILE)));
         }
     }
 
@@ -274,22 +317,23 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(0))
-                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(1));
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_S3)
+                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_AWS_S3)
+                || managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_ALIYUN_OSS);
     }
 
     public boolean isGcsDriver() {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(2));
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_GOOGLE_CLOUD_STORAGE);
     }
 
     public boolean isFileSystemDriver() {
         if (managedLedgerOffloadDriver == null) {
             return false;
         }
-        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_NAMES.get(3));
+        return managedLedgerOffloadDriver.equalsIgnoreCase(DRIVER_FILESYSTEM);
     }
 
     public boolean bucketValid() {
@@ -311,62 +355,22 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
 
     public Properties toProperties() {
         Properties properties = new Properties();
-        setProperty(properties, "managedLedgerOffloadedReadPriority", this.getManagedLedgerOffloadedReadPriority());
-        setProperty(properties, "offloadersDirectory", this.getOffloadersDirectory());
-        setProperty(properties, "managedLedgerOffloadDriver", this.getManagedLedgerOffloadDriver());
-        setProperty(properties, "managedLedgerOffloadMaxThreads",
-                this.getManagedLedgerOffloadMaxThreads());
-        setProperty(properties, "managedLedgerOffloadPrefetchRounds",
-                this.getManagedLedgerOffloadPrefetchRounds());
-        setProperty(properties, "managedLedgerOffloadThresholdInBytes",
-                this.getManagedLedgerOffloadThresholdInBytes());
-        setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
-                this.getManagedLedgerOffloadDeletionLagInMillis());
-
-        if (this.isS3Driver()) {
-            setProperty(properties, "s3ManagedLedgerOffloadRegion",
-                    this.getS3ManagedLedgerOffloadRegion());
-            setProperty(properties, "s3ManagedLedgerOffloadBucket",
-                    this.getS3ManagedLedgerOffloadBucket());
-            setProperty(properties, "s3ManagedLedgerOffloadServiceEndpoint",
-                    this.getS3ManagedLedgerOffloadServiceEndpoint());
-            setProperty(properties, "s3ManagedLedgerOffloadMaxBlockSizeInBytes",
-                    this.getS3ManagedLedgerOffloadMaxBlockSizeInBytes());
-            setProperty(properties, "s3ManagedLedgerOffloadCredentialId",
-                    this.getS3ManagedLedgerOffloadCredentialId());
-            setProperty(properties, "s3ManagedLedgerOffloadCredentialSecret",
-                    this.getS3ManagedLedgerOffloadCredentialSecret());
-            setProperty(properties, "s3ManagedLedgerOffloadRole",
-                    this.getS3ManagedLedgerOffloadRole());
-            setProperty(properties, "s3ManagedLedgerOffloadRoleSessionName",
-                    this.getS3ManagedLedgerOffloadRoleSessionName());
-            setProperty(properties, "s3ManagedLedgerOffloadReadBufferSizeInBytes",
-                    this.getS3ManagedLedgerOffloadReadBufferSizeInBytes());
-        } else if (this.isGcsDriver()) {
-            setProperty(properties, "gcsManagedLedgerOffloadRegion",
-                    this.getGcsManagedLedgerOffloadRegion());
-            setProperty(properties, "gcsManagedLedgerOffloadBucket",
-                    this.getGcsManagedLedgerOffloadBucket());
-            setProperty(properties, "gcsManagedLedgerOffloadMaxBlockSizeInBytes",
-                    this.getGcsManagedLedgerOffloadMaxBlockSizeInBytes());
-            setProperty(properties, "gcsManagedLedgerOffloadReadBufferSizeInBytes",
-                    this.getGcsManagedLedgerOffloadReadBufferSizeInBytes());
-            setProperty(properties, "gcsManagedLedgerOffloadServiceAccountKeyFile",
-                    this.getGcsManagedLedgerOffloadServiceAccountKeyFile());
-        } else if (this.isFileSystemDriver()) {
-            setProperty(properties, "fileSystemProfilePath", this.getFileSystemProfilePath());
-            setProperty(properties, "fileSystemURI", this.getFileSystemURI());
+        for (Field f : CONFIGURATION_FIELDS) {
+            try {
+                f.setAccessible(true);
+                if ("managedLedgerExtraConfigurations".equals(f.getName())) {
+                    @SuppressWarnings("unchecked") // field type is Map<String, String>
+                    Map<String, String> extraConfig = (Map<String, String>) f.get(this);
+                    extraConfig.forEach((key, value) -> {
+                        setProperty(properties, EXTRA_CONFIG_PREFIX + key, value);
+                    });
+                } else {
+                    setProperty(properties, f.getName(), f.get(this));
+                }
+            } catch (Exception e) {
+                throw new IllegalArgumentException("An error occurred while processing the field: " + f.getName(), e);
+            }
         }
-
-        setProperty(properties, "managedLedgerOffloadBucket", this.getManagedLedgerOffloadBucket());
-        setProperty(properties, "managedLedgerOffloadRegion", this.getManagedLedgerOffloadRegion());
-        setProperty(properties, "managedLedgerOffloadServiceEndpoint",
-                this.getManagedLedgerOffloadServiceEndpoint());
-        setProperty(properties, "managedLedgerOffloadMaxBlockSizeInBytes",
-                this.getManagedLedgerOffloadMaxBlockSizeInBytes());
-        setProperty(properties, "managedLedgerOffloadReadBufferSizeInBytes",
-                this.getManagedLedgerOffloadReadBufferSizeInBytes());
-
         return properties;
     }
 
@@ -393,7 +397,8 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
      * @return offload policies
      */
     public static OffloadPoliciesImpl oldPoliciesCompatible(OffloadPoliciesImpl nsLevelPolicies, Policies policies) {
-        if (policies == null || (policies.offload_threshold == -1 && policies.offload_deletion_lag_ms == null)) {
+        if (policies == null || (policies.offload_threshold == -1 && policies.offload_threshold_in_seconds == -1
+                && policies.offload_deletion_lag_ms == null)) {
             return nsLevelPolicies;
         }
         if (nsLevelPolicies == null) {
@@ -402,6 +407,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         if (nsLevelPolicies.getManagedLedgerOffloadThresholdInBytes() == null
                 && policies.offload_threshold != -1) {
             nsLevelPolicies.setManagedLedgerOffloadThresholdInBytes(policies.offload_threshold);
+        }
+        if (nsLevelPolicies.getManagedLedgerOffloadThresholdInSeconds() == null
+                && policies.offload_threshold_in_seconds != -1) {
+            nsLevelPolicies.setManagedLedgerOffloadThresholdInSeconds(policies.offload_threshold_in_seconds);
         }
         if (nsLevelPolicies.getManagedLedgerOffloadDeletionLagInMillis() == null
                 && policies.offload_deletion_lag_ms != null) {
@@ -428,7 +437,10 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             OffloadPoliciesImpl offloadPolicies = new OffloadPoliciesImpl();
             for (Field field : CONFIGURATION_FIELDS) {
                 Object object;
-                if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
+                if (field.getName().equals("managedLedgerExtraConfigurations")) {
+                    object = mergeManagedLedgerExtraConfigurations(topicLevelPolicies, nsLevelPolicies,
+                            brokerProperties);
+                } else if (topicLevelPolicies != null && field.get(topicLevelPolicies) != null) {
                     object = field.get(topicLevelPolicies);
                 } else if (nsLevelPolicies != null && field.get(nsLevelPolicies) != null) {
                     object = field.get(nsLevelPolicies);
@@ -448,8 +460,30 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
                 return offloadPolicies;
             }
         } catch (Exception e) {
-            log.error("Failed to merge configuration.", e);
+            log.error().exception(e).log("Failed to merge configuration.");
             return null;
+        }
+    }
+
+    private static Map<String, String> mergeManagedLedgerExtraConfigurations(OffloadPoliciesImpl topicLevelPolicies,
+                                                                            OffloadPoliciesImpl nsLevelPolicies,
+                                                                            Properties brokerProperties) {
+        Map<String, String> mergedExtraConfigurations = new HashMap<>();
+        putAllExtraConfigurations(mergedExtraConfigurations, getExtraConfigurations(brokerProperties));
+        if (nsLevelPolicies != null) {
+            putAllExtraConfigurations(mergedExtraConfigurations,
+                    nsLevelPolicies.getManagedLedgerExtraConfigurations());
+        }
+        if (topicLevelPolicies != null) {
+            putAllExtraConfigurations(mergedExtraConfigurations,
+                    topicLevelPolicies.getManagedLedgerExtraConfigurations());
+        }
+        return mergedExtraConfigurations.isEmpty() ? null : mergedExtraConfigurations;
+    }
+
+    private static void putAllExtraConfigurations(Map<String, String> target, Map<String, String> extraConfigurations) {
+        if (extraConfigurations != null && !extraConfigurations.isEmpty()) {
+            target.putAll(extraConfigurations);
         }
     }
 
@@ -466,16 +500,30 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
      */
     private static Object getCompatibleValue(Properties properties, Field field) {
         Object object;
-        if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {
+        if (field.getName().equals("managedLedgerExtraConfigurations")) {
+            return getExtraConfigurations(properties);
+        } else if (field.getName().equals("managedLedgerOffloadThresholdInBytes")) {
             object = properties.getProperty("managedLedgerOffloadThresholdInBytes",
                     properties.getProperty(OFFLOAD_THRESHOLD_NAME_IN_CONF_FILE));
         } else if (field.getName().equals("managedLedgerOffloadDeletionLagInMillis")) {
             object = properties.getProperty("managedLedgerOffloadDeletionLagInMillis",
                     properties.getProperty(DELETION_LAG_NAME_IN_CONF_FILE));
+        } else if (field.getName().equals("managedLedgerOffloadedReadPriority")) {
+            object = properties.getProperty("managedLedgerOffloadedReadPriority",
+                    properties.getProperty(DATA_READ_PRIORITY_NAME_IN_CONF_FILE));
         } else {
             object = properties.get(field.getName());
         }
         return value((String) object, field);
+    }
+
+    private static Map<String, String> getExtraConfigurations(Properties properties) {
+        Map<String, String> extraConfigurations = properties.entrySet().stream()
+                .filter(entry -> entry.getKey().toString().startsWith(EXTRA_CONFIG_PREFIX))
+                .collect(Collectors.toMap(
+                        entry -> entry.getKey().toString().replaceFirst(EXTRA_CONFIG_PREFIX, ""),
+                        entry -> entry.getValue().toString()));
+        return extraConfigurations.isEmpty() ? null : extraConfigurations;
     }
 
     public static class OffloadPoliciesImplBuilder implements OffloadPolicies.Builder {
@@ -496,6 +544,11 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
             return this;
         }
 
+        public OffloadPoliciesImplBuilder managedLedgerOffloadReadThreads(Integer managedLedgerOffloadReadThreads) {
+            impl.managedLedgerOffloadReadThreads = managedLedgerOffloadReadThreads;
+            return this;
+        }
+
         public OffloadPoliciesImplBuilder managedLedgerOffloadPrefetchRounds(
                 Integer managedLedgerOffloadPrefetchRounds) {
             impl.managedLedgerOffloadPrefetchRounds = managedLedgerOffloadPrefetchRounds;
@@ -505,6 +558,13 @@ public class OffloadPoliciesImpl implements Serializable, OffloadPolicies {
         public OffloadPoliciesImplBuilder managedLedgerOffloadThresholdInBytes(
                 Long managedLedgerOffloadThresholdInBytes) {
             impl.managedLedgerOffloadThresholdInBytes = managedLedgerOffloadThresholdInBytes;
+            return this;
+        }
+
+        @Override
+        public OffloadPoliciesImplBuilder managedLedgerOffloadThresholdInSeconds(
+                Long managedLedgerOffloadThresholdInSeconds) {
+            impl.managedLedgerOffloadThresholdInSeconds = managedLedgerOffloadThresholdInSeconds;
             return this;
         }
 

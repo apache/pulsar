@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -38,6 +38,15 @@ public class FunctionRecord<T> implements Record<T> {
     private final String partitionId;
     private final Integer partitionIndex;
     private final Long recordSequence;
+
+    // Explicit define FunctionRecordBuilder to avoid javadoc failure
+    @SuppressWarnings("unused")
+    public static class FunctionRecordBuilder<T> {
+        /**
+         * Force to use {@link #from(Context, Schema)}.
+         */
+        private FunctionRecordBuilder() {}
+    }
 
     /**
      * Creates a builder for a Record from a Function Context.

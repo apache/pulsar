@@ -1,1 +1,0 @@
-For how to make contributions to Pulsar documentation and website, see [Pulsar Documentation Contribution Guide](https://docs.google.com/document/d/11DTnNPpvcPrebLkMAFcDEIFlD8ARD-k6F-LXoIwdD9Y/edit#).

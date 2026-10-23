@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,41 +18,41 @@
  */
 package org.apache.pulsar.websocket.proxy;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
+import com.google.gson.JsonPrimitive;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.eclipse.jetty.websocket.api.RemoteEndpoint;
+import lombok.CustomLog;
+import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
-import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
+import org.eclipse.jetty.websocket.api.annotations.OnWebSocketOpen;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonPrimitive;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-@WebSocket(maxTextMessageSize = 64 * 1024)
+@WebSocket
+@CustomLog
 public class SimpleConsumerSocket {
     private static final String X_PULSAR_MESSAGE_ID = "messageId";
     private final CountDownLatch closeLatch;
     private Session session;
-    private final ArrayList<String> consumerBuffer;
-    final ArrayList<JsonObject> messages;
+    private final List<String> consumerBuffer;
+    private final List<JsonObject> messages;
     private final AtomicInteger receivedMessages = new AtomicInteger();
     // Custom message handler to override standard message processing, if it's needed
     private SimpleConsumerMessageHandler customMessageHandler;
 
     public SimpleConsumerSocket() {
         this.closeLatch = new CountDownLatch(1);
-        consumerBuffer = new ArrayList<>();
-        this.messages = new ArrayList<>();
+        consumerBuffer = Collections.synchronizedList(new ArrayList<>());
+        this.messages = Collections.synchronizedList(new ArrayList<>());
     }
 
     public boolean awaitClose(int duration, TimeUnit unit) throws InterruptedException {
@@ -65,16 +65,16 @@ public class SimpleConsumerSocket {
 
     @OnWebSocketClose
     public void onClose(int statusCode, String reason) {
-        log.info("Connection closed: {} - {}", statusCode, reason);
+        log.info().attr("statusCode", statusCode).attr("reason", reason).log("Connection closed");
         this.session = null;
         this.closeLatch.countDown();
     }
 
-    @OnWebSocketConnect
+    @OnWebSocketOpen
     public void onConnect(Session session) throws InterruptedException {
-        log.info("Got connect: {}", session);
+        log.info().attr("session", session).log("Got connect");
         this.session = session;
-        log.debug("Got connected: {}", session);
+        log.debug().attr("session", session).log("Got connected");
     }
 
     @OnWebSocketMessage
@@ -86,12 +86,12 @@ public class SimpleConsumerSocket {
             String messageId = message.get(X_PULSAR_MESSAGE_ID).getAsString();
             consumerBuffer.add(messageId);
             if (customMessageHandler != null) {
-                this.getRemote().sendString(customMessageHandler.handle(messageId, message));
+                this.getSession().sendText(customMessageHandler.handle(messageId, message), Callback.NOOP);
             } else {
                 JsonObject ack = new JsonObject();
                 ack.add("messageId", new JsonPrimitive(messageId));
                 // Acking the proxy
-                this.getRemote().sendString(ack.toString());
+                this.getSession().sendText(ack.toString(), Callback.NOOP);
             }
         } else {
             consumerBuffer.add(message.toString());
@@ -102,30 +102,26 @@ public class SimpleConsumerSocket {
         JsonObject permitMessage = new JsonObject();
         permitMessage.add("type", new JsonPrimitive("permit"));
         permitMessage.add("permitMessages", new JsonPrimitive(nbPermits));
-        this.getRemote().sendString(permitMessage.toString());
+        this.getSession().sendText(permitMessage.toString(), Callback.NOOP);
     }
 
     public void unsubscribe() throws IOException {
         JsonObject message = new JsonObject();
         message.add("type", new JsonPrimitive("unsubscribe"));
-        this.getRemote().sendString(message.toString());
+        this.getSession().sendText(message.toString(), Callback.NOOP);
     }
 
     public void isEndOfTopic() throws IOException {
         JsonObject message = new JsonObject();
         message.add("type", new JsonPrimitive("isEndOfTopic"));
-        this.getRemote().sendString(message.toString());
-    }
-
-    public RemoteEndpoint getRemote() {
-        return this.session.getRemote();
+        this.getSession().sendText(message.toString(), Callback.NOOP);
     }
 
     public Session getSession() {
         return this.session;
     }
 
-    public synchronized ArrayList<String> getBuffer() {
+    public List<String> getBuffer() {
         return consumerBuffer;
     }
 
@@ -133,6 +129,7 @@ public class SimpleConsumerSocket {
         return receivedMessages.get();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(SimpleConsumerSocket.class);
-
+    public List<JsonObject> getMessages() {
+        return messages;
+    }
 }

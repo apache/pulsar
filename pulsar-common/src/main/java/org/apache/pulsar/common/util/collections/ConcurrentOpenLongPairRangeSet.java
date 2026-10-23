@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,17 +18,22 @@
  */
 package org.apache.pulsar.common.util.collections;
 
+import static java.util.BitSet.valueOf;
 import static java.util.Objects.requireNonNull;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import org.apache.commons.lang.mutable.MutableInt;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.commons.lang3.mutable.MutableInt;
 
 /**
  * A Concurrent set comprising zero or more ranges of type {@link LongPair}. This can be alternative of
@@ -195,7 +200,18 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     }
 
     @Override
-    public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumer) {
+    public void forEach(RangeProcessor<T> action, LongPairConsumer<? extends T> consumerParam) {
+        forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
+            Range<T> range = Range.openClosed(
+                    consumerParam.apply(lowerKey, lowerValue),
+                    consumerParam.apply(upperKey, upperValue)
+            );
+            return action.process(range);
+        });
+    }
+
+    @Override
+    public void forEachRawRange(RawRangeProcessor processor) {
         AtomicBoolean completed = new AtomicBoolean(false);
         rangeBitSetMap.forEach((key, set) -> {
             if (completed.get()) {
@@ -209,9 +225,8 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             int currentClosedMark = first;
             while (currentClosedMark != -1 && currentClosedMark <= last) {
                 int nextOpenMark = set.nextClearBit(currentClosedMark);
-                Range<T> range = Range.openClosed(consumer.apply(key, currentClosedMark - 1),
-                        consumer.apply(key, nextOpenMark - 1));
-                if (!action.process(range)) {
+                if (!processor.processRawRange(key, currentClosedMark - 1,
+                        key, nextOpenMark - 1)) {
                     completed.set(true);
                     break;
                 }
@@ -219,6 +234,7 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
             }
         });
     }
+
 
     @Override
     public Range<T> firstRange() {
@@ -240,6 +256,42 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
         int upper = lastSet.getValue().previousSetBit(lastSet.getValue().size());
         int lower = Math.min(lastSet.getValue().previousClearBit(upper), upper);
         return Range.openClosed(consumer.apply(lastSet.getKey(), lower), consumer.apply(lastSet.getKey(), upper));
+    }
+
+    @Override
+    public Map<Long, long[]> toRanges(int maxRanges) {
+        Map<Long, long[]> internalBitSetMap = new HashMap<>();
+        AtomicInteger rangeCount = new AtomicInteger();
+        rangeBitSetMap.forEach((id, bmap) -> {
+            if (rangeCount.getAndAdd(bmap.cardinality()) > maxRanges) {
+                return;
+            }
+            internalBitSetMap.put(id, bmap.toLongArray());
+        });
+        return internalBitSetMap;
+    }
+
+    @Override
+    public void build(Map<Long, long[]> internalRange) {
+        internalRange.forEach((id, ranges) -> rangeBitSetMap.put(id, valueOf(ranges)));
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(rangeBitSetMap);
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (!(obj instanceof ConcurrentOpenLongPairRangeSet)) {
+            return false;
+        }
+        if (this == obj) {
+            return true;
+        }
+        @SuppressWarnings("rawtypes")
+        ConcurrentOpenLongPairRangeSet set = (ConcurrentOpenLongPairRangeSet) obj;
+        return this.rangeBitSetMap.equals(set.rangeBitSetMap);
     }
 
     @Override
@@ -269,10 +321,13 @@ public class ConcurrentOpenLongPairRangeSet<T extends Comparable<T>> implements 
     public int size() {
         if (updatedAfterCachedForSize) {
             MutableInt size = new MutableInt(0);
-            forEach((range) -> {
+
+            // ignore result because we just want to count
+            forEachRawRange((lowerKey, lowerValue, upperKey, upperValue) -> {
                 size.increment();
                 return true;
             });
+
             cachedSize = size.intValue();
             updatedAfterCachedForSize = false;
         }

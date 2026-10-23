@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,18 +18,20 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.TopicPolicies;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
@@ -46,13 +48,11 @@ import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.policies.data.SubscribeRate;
 
 public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
-    private final WebTarget adminTopics;
     private final WebTarget adminV2Topics;
     private final boolean isGlobal;
 
     protected TopicPoliciesImpl(WebTarget web, Authentication auth, long readTimeoutMs, boolean isGlobal) {
         super(auth, readTimeoutMs);
-        this.adminTopics = web.path("/admin");
         this.adminV2Topics = web.path("/admin/v2");
         this.isGlobal = isGlobal;
     }
@@ -340,7 +340,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Void> setOffloadPoliciesAsync(String topic, OffloadPolicies offloadPolicies) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "offloadPolicies");
-        return asyncPostRequest(path, Entity.entity((OffloadPoliciesImpl) offloadPolicies, MediaType.APPLICATION_JSON));
+        return asyncPostRequest(path, Entity.entity(offloadPolicies, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -399,6 +399,63 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     public CompletableFuture<Void> removeMaxUnackedMessagesOnSubscriptionAsync(String topic) {
         TopicName topicName = validateTopic(topic);
         WebTarget path = topicPath(topicName, "maxUnackedMessagesOnSubscription");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void setSubscriptionExpirationTime(String topic, int subscriptionExpirationTimeInMinutes)
+            throws PulsarAdminException {
+        try {
+            TopicName topicName = validateTopic(topic);
+            WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
+            request(path.queryParam("subscriptionExpirationTime", subscriptionExpirationTimeInMinutes))
+                    .post(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> setSubscriptionExpirationTimeAsync(String topic,
+                                                                      int subscriptionExpirationTimeInMinutes) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
+        path = path.queryParam("subscriptionExpirationTime", subscriptionExpirationTimeInMinutes);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Integer getSubscriptionExpirationTime(String topic) throws PulsarAdminException {
+        return getSubscriptionExpirationTime(topic, false);
+    }
+
+    @Override
+    public CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String topic) {
+        return getSubscriptionExpirationTimeAsync(topic, false);
+    }
+
+    @Override
+    public Integer getSubscriptionExpirationTime(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getSubscriptionExpirationTimeAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<Integer> getSubscriptionExpirationTimeAsync(String topic, boolean applied) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
+        path = path.queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<Integer>() {});
+    }
+
+    @Override
+    public void removeSubscriptionExpirationTime(String topic) throws PulsarAdminException {
+        sync(() -> removeSubscriptionExpirationTimeAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeSubscriptionExpirationTimeAsync(String topic) {
+        TopicName topicName = validateTopic(topic);
+        WebTarget path = topicPath(topicName, "subscriptionExpirationTime");
         return asyncDeleteRequest(path);
     }
 
@@ -1217,6 +1274,110 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public void setAutoSubscriptionCreation(
+            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride)
+            throws PulsarAdminException {
+        sync(() -> setAutoSubscriptionCreationAsync(topic, autoSubscriptionCreationOverride));
+    }
+
+    @Override
+    public CompletableFuture<Void> setAutoSubscriptionCreationAsync(
+            String topic, AutoSubscriptionCreationOverride autoSubscriptionCreationOverride) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "autoSubscriptionCreation");
+        return asyncPostRequest(path, Entity.entity(autoSubscriptionCreationOverride, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public AutoSubscriptionCreationOverride getAutoSubscriptionCreation(String topic,
+                                                                        boolean applied) throws PulsarAdminException {
+        return sync(() -> getAutoSubscriptionCreationAsync(topic, applied));
+    }
+
+    @Override
+    public CompletableFuture<AutoSubscriptionCreationOverride> getAutoSubscriptionCreationAsync(String topic,
+                                                                                                boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "autoSubscriptionCreation");
+        path = path.queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<AutoSubscriptionCreationOverride>() {});
+    }
+
+    @Override
+    public void removeAutoSubscriptionCreation(String topic) throws PulsarAdminException {
+        sync(() -> removeAutoSubscriptionCreationAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeAutoSubscriptionCreationAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "autoSubscriptionCreation");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<Void> setDispatcherPauseOnAckStatePersistent(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "dispatcherPauseOnAckStatePersistent");
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeDispatcherPauseOnAckStatePersistent(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "dispatcherPauseOnAckStatePersistent");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> getDispatcherPauseOnAckStatePersistent(String topic, boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "dispatcherPauseOnAckStatePersistent").queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<Boolean>(){});
+    }
+
+    @Override
+    public CompletableFuture<Void> setReplicationClusters(String topic, List<String> clusterIds) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        return asyncPostRequest(path, Entity.entity(clusterIds, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public Set<String> getReplicationClusters(String topic, boolean applied) throws PulsarAdminException {
+        return sync(() -> getReplicationClustersAsync(topic, applied));
+    }
+
+    public CompletableFuture<Set<String>> getReplicationClustersAsync(String topic, boolean applied) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        path = path.queryParam("applied", applied);
+        return asyncGetRequest(path, new FutureCallback<Set<String>>(){});
+    }
+
+    @Override
+    public void removeReplicationClusters(String topic) throws PulsarAdminException {
+        sync(() -> removeReplicationClustersAsync(topic));
+    }
+
+    public CompletableFuture<Void> removeReplicationClustersAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "replication");
+        return asyncDeleteRequest(path);
+    }
+
+    @Override
+    public void deleteTopicPolicies(String topic) throws PulsarAdminException {
+        sync(() -> deleteTopicPoliciesAsync(topic));
+    }
+
+    public CompletableFuture<Void> deleteTopicPoliciesAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "policies");
+        return asyncDeleteRequest(path);
+    }
+
     /*
      * returns topic name with encoded Local Name
      */
@@ -1226,8 +1387,7 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
     }
 
     private WebTarget topicPath(TopicName topic, String... parts) {
-        final WebTarget base = topic.isV2() ? adminV2Topics : adminTopics;
-        WebTarget topicPath = base.path(topic.getRestPath());
+        WebTarget topicPath = adminV2Topics.path(topic.getRestPath());
         topicPath = WebTargets.addParts(topicPath, parts);
         topicPath = addGlobalIfNeeded(topicPath);
         return topicPath;

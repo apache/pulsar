@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,14 +23,20 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.testng.annotations.Test;
-
 import lombok.Cleanup;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
 public class TlsSniTest extends TlsProducerConsumerBase {
+
+    @BeforeMethod
+    @Override
+    protected void setup() throws Exception {
+        super.setup();
+        internalSetUpForNamespace();
+    }
 
     /**
      * Verify that using an IP-address in the broker service URL will work with using the SNI capabilities
@@ -41,7 +47,7 @@ public class TlsSniTest extends TlsProducerConsumerBase {
      */
     @Test
     public void testIpAddressInBrokerServiceUrl() throws Exception {
-        String topicName = "persistent://my-property/use/my-ns/my-topic1";
+        String topicName = "persistent://my-property/my-ns/my-topic1";
 
         URI brokerServiceUrlTls = new URI(pulsar.getBrokerServiceUrlTls());
 
@@ -50,12 +56,12 @@ public class TlsSniTest extends TlsProducerConsumerBase {
                     brokerServiceUrlTls.getPort());
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(brokerServiceIpAddressUrl)
-                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).allowTlsInsecureConnection(false)
                 .enableTlsHostnameVerification(false)
                 .operationTimeout(1000, TimeUnit.MILLISECONDS);
         Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
+        authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
         clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
 
         @Cleanup

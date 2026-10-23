@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -25,13 +25,23 @@ import org.testng.annotations.Test;
 
 public abstract class PulsarFunctionsGoTest extends PulsarFunctionsTest {
 
-	PulsarFunctionsGoTest(FunctionRuntimeType functionRuntimeType) {
-		super(functionRuntimeType);
-	}
+    PulsarFunctionsGoTest(FunctionRuntimeType functionRuntimeType) {
+        super(functionRuntimeType);
+    }
 
     @Test(enabled = false, groups = {"go_function", "function"})
     public void testGoFunctionLocalRun() throws Exception {
         testFunctionLocalRun(Runtime.GO);
+    }
+
+    @Test(groups = {"go_function", "function"})
+    public void testGoExclamationMultiInputsFunction() throws Exception {
+        testExclamationFunction(Runtime.GO, false, false, true, false);
+    }
+
+    @Test(groups = {"go_function", "function"})
+    public void testGoFunctionNegAck() throws Exception {
+        testFunctionNegAck(Runtime.GO);
     }
 
 }

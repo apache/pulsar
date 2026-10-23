@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -58,13 +58,18 @@ public class BatchReceivePolicy implements Serializable {
      * Timeout: 100ms<p/>
      */
     public static final BatchReceivePolicy DEFAULT_POLICY = new BatchReceivePolicy(
-            -1, 10 * 1024 * 1024, 100, TimeUnit.MILLISECONDS);
+            -1, 10 * 1024 * 1024, 100, TimeUnit.MILLISECONDS, true);
 
-    private BatchReceivePolicy(int maxNumMessages, int maxNumBytes, int timeout, TimeUnit timeoutUnit) {
+    public static final BatchReceivePolicy DEFAULT_MULTI_TOPICS_DISABLE_POLICY = new BatchReceivePolicy(
+            -1, 10 * 1024 * 1024, 100, TimeUnit.MILLISECONDS, false);
+
+    private BatchReceivePolicy(int maxNumMessages, int maxNumBytes, int timeout, TimeUnit timeoutUnit,
+                               boolean messagesFromMultiTopicsEnabled) {
         this.maxNumMessages = maxNumMessages;
         this.maxNumBytes = maxNumBytes;
         this.timeout = timeout;
         this.timeoutUnit = timeoutUnit;
+        this.messagesFromMultiTopicsEnabled = messagesFromMultiTopicsEnabled;
     }
 
     /**
@@ -82,6 +87,13 @@ public class BatchReceivePolicy implements Serializable {
      */
     private final int timeout;
     private final TimeUnit timeoutUnit;
+
+
+    /**
+     * If it is false, one time `batchReceive()` only can receive the single topic messages,
+     * the max messages and max size will not be strictly followed. (default: true).
+     */
+    private final boolean messagesFromMultiTopicsEnabled;
 
     public void verify() {
         if (maxNumMessages <= 0 && maxNumBytes <= 0 && timeout <= 0) {
@@ -105,6 +117,10 @@ public class BatchReceivePolicy implements Serializable {
         return maxNumBytes;
     }
 
+    public boolean isMessagesFromMultiTopicsEnabled() {
+        return messagesFromMultiTopicsEnabled;
+    }
+
     /**
      * Builder of BatchReceivePolicy.
      */
@@ -114,6 +130,7 @@ public class BatchReceivePolicy implements Serializable {
         private int maxNumBytes;
         private int timeout;
         private TimeUnit timeoutUnit;
+        private boolean messagesFromMultiTopicsEnabled = true;
 
         public Builder maxNumMessages(int maxNumMessages) {
             this.maxNumMessages = maxNumMessages;
@@ -131,8 +148,14 @@ public class BatchReceivePolicy implements Serializable {
             return this;
         }
 
+        public Builder messagesFromMultiTopicsEnabled(boolean messagesFromMultiTopicsEnabled) {
+            this.messagesFromMultiTopicsEnabled = messagesFromMultiTopicsEnabled;
+            return this;
+        }
+
         public BatchReceivePolicy build() {
-            return new BatchReceivePolicy(maxNumMessages, maxNumBytes, timeout, timeoutUnit);
+            return new BatchReceivePolicy(maxNumMessages, maxNumBytes, timeout, timeoutUnit,
+                    messagesFromMultiTopicsEnabled);
         }
     }
 
@@ -147,6 +170,7 @@ public class BatchReceivePolicy implements Serializable {
                 + ", maxNumBytes=" + maxNumBytes
                 + ", timeout=" + timeout
                 + ", timeoutUnit=" + timeoutUnit
+                + ", messagesFromMultiTopicsEnabled=" + messagesFromMultiTopicsEnabled
                 + '}';
     }
 }

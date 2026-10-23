@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -127,6 +127,23 @@ public class NamespaceIsolationPolicies {
             }
         }
         return true;
+    }
+
+    /**
+     * Check to see whether a broker id ({@code host:port}) is the primary broker of any policy because of an
+     * entry that names a port, see {@link NamespaceIsolationPolicyImpl#isPrimaryBrokerId(String)}. Such a
+     * broker is not part of the shared broker pool.
+     *
+     * @param brokerId the broker id, in the form {@code host:port}
+     * @return true if any policy has a primary broker entry with a port that matches the broker id
+     */
+    public boolean isPrimaryBrokerIdInAnyPolicy(String brokerId) {
+        for (NamespaceIsolationData policyData : this.policies.values()) {
+            if (new NamespaceIsolationPolicyImpl(policyData).isPrimaryBrokerId(brokerId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

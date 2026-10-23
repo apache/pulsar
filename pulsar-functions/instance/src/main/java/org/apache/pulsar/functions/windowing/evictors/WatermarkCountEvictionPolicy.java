@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -37,6 +37,7 @@ public class WatermarkCountEvictionPolicy<T>
     protected final AtomicLong currentCount;
     private EvictionContext context;
 
+    @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<WatermarkCountEvictionPolicy> PROCESSED_UPDATER =
             AtomicLongFieldUpdater.newUpdater(WatermarkCountEvictionPolicy.class, "processed");
     private volatile long processed;

@@ -41,6 +41,14 @@ enum SubscriptionPosition {
     EARLIEST = 1;
 }
 
+enum CompressionType {
+    LZ4 = 0;
+    NONE = 1;
+    ZLIB = 2;
+    ZSTD = 3;
+    SNAPPY = 4;
+}
+
 message Resources {
     double cpu = 1;
     int64 ram = 2;
@@ -63,6 +71,13 @@ message FunctionDetails {
         FUNCTION = 1;
         SOURCE = 2;
         SINK = 3;
+    }
+    // Pulsar client API that the Java runtime uses for the component's own topics.
+    enum ClientApi {
+        // V5 if any of the component's topics is a topic:// (scalable) topic, otherwise V4
+        AUTO = 0;
+        V4 = 1;
+        V5 = 2;
     }
     string tenant = 1;
     string namespace = 2;
@@ -90,6 +105,16 @@ message FunctionDetails {
     bool retainOrdering = 21;
     bool retainKeyOrdering = 22;
     SubscriptionPosition subscriptionPosition = 23;
+    ClientApi clientApi = 24;
+    MemoryLimit pulsarClientMemoryLimit = 25;
+}
+
+// Memory limit of the Pulsar client used by a function instance. A 0 value means unset.
+message MemoryLimit {
+    // The max memory in bytes the Pulsar client can use
+    int64 limitInBytes = 1;
+    // The max memory the Pulsar client can use, as a percentage of the JVM max direct memory
+    double percentOfMaxDirectMemory = 2;
 }
 
 message ConsumerSpec {
@@ -104,6 +129,7 @@ message ConsumerSpec {
     map<string, string> consumerProperties = 6;
     CryptoSpec cryptoSpec = 7;
     bool poolMessages = 8;
+    MessagePayloadProcessorSpec messagePayloadProcessorSpec = 9;
 }
 
 message ProducerSpec {
@@ -112,6 +138,8 @@ message ProducerSpec {
     bool useThreadLocalProducers = 3;
     CryptoSpec cryptoSpec = 4;
     string batchBuilder = 5;
+    CompressionType compressionType = 6;
+    BatchingSpec batchingSpec = 7;
 }
 
 message CryptoSpec {
@@ -136,6 +164,20 @@ message CryptoSpec {
     // define the action if consumer fail to decrypt data
     // one of FAIL, DISCARD, CONSUME
     FailureAction consumerCryptoFailureAction = 5;
+}
+
+message MessagePayloadProcessorSpec {
+    string className = 1;
+    string configs = 2;
+}
+
+message BatchingSpec {
+    bool enabled = 1;
+    int32 batchingMaxPublishDelayMs = 2;
+    int32 roundRobinRouterBatchingPartitionSwitchFrequency = 3;
+    int32 batchingMaxMessages = 4;
+    int32 batchingMaxBytes = 5;
+    string batchBuilder = 6;
 }
 
 message SourceSpec {
@@ -165,6 +207,7 @@ message SourceSpec {
     bool cleanupSubscription = 11;
     SubscriptionPosition subscriptionPosition = 12;
     uint64 negativeAckRedeliveryDelayMs = 13;
+    bool skipToLatest = 14;
 }
 
 message SinkSpec {

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.common.policies.data;
 
 import org.testng.Assert;
@@ -34,13 +33,13 @@ public class PolicyHierarchyValueTest {
         value.updateNamespaceValue(2);
         Assert.assertEquals(value.get(), Integer.valueOf(2));
 
-        value.updateTopicValue(3);
+        value.updateTopicValue(3, false);
         Assert.assertEquals(value.get(), Integer.valueOf(3));
 
         value.updateNamespaceValue(null);
         Assert.assertEquals(value.get(), Integer.valueOf(3));
 
-        value.updateTopicValue(null);
+        value.updateTopicValue(null, false);
         Assert.assertEquals(value.get(), Integer.valueOf(1));
     }
 }

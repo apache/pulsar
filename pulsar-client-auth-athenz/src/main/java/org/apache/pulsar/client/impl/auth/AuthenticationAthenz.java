@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.google.common.io.CharStreams;
+import com.oath.auth.KeyRefresher;
+import com.oath.auth.KeyRefresherException;
+import com.oath.auth.Utils;
 import com.yahoo.athenz.auth.ServiceIdentityProvider;
 import com.yahoo.athenz.auth.impl.SimpleServiceIdentityProvider;
 import com.yahoo.athenz.auth.util.Crypto;
@@ -33,44 +37,67 @@ import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.net.URLConnection;
 import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.PrivateKey;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import javax.net.ssl.SSLContext;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException;
 import org.apache.pulsar.client.api.url.URL;
+import org.apache.pulsar.client.api.v5.internal.V5AuthenticationProvider;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
+import org.apache.pulsar.client.impl.auth.v5.AthenzAuthenticationV5;
 
-public class AuthenticationAthenz implements Authentication, EncodedAuthenticationParameterSupport {
+/**
+ * Athenz authentication provider.
+ *
+ * <p>The verbatim v4 synchronous surface ({@link #getAuthData()} / {@link AuthenticationDataAthenz}) is
+ * preserved for callers of the v4 API; PIP-478 additionally exposes the v5-native body through
+ * {@link V5AuthenticationProvider} — the v5-native {@link AthenzAuthenticationV5}, which the client drives
+ * over the non-blocking binary path without bridging this class. The ZTS role-token exchange and its cache
+ * stay here, on the Athenz SDK's own transport.
+ */
+public class AuthenticationAthenz
+        implements Authentication, EncodedAuthenticationParameterSupport, V5AuthenticationProvider {
 
     private static final long serialVersionUID = 1L;
 
     private static final String APPLICATION_X_PEM_FILE = "application/x-pem-file";
 
+
+    private transient KeyRefresher keyRefresher = null;
     private transient ZTSClient ztsClient = null;
-    private String ztsUrl;
+    private String ztsUrl = null;
+    private String ztsProxyUrl = null;
     private String tenantDomain;
     private String tenantService;
     private String providerDomain;
-    private PrivateKey privateKey;
+    private PrivateKey privateKey = null;
     private String keyId = "0";
+    private String privateKeyPath = null;
+    private String x509CertChainPath = null;
+    private String caCertPath = null;
     private String roleHeader = null;
     // If auto prefetching is enabled, application will not complete until the static method
     // ZTSClient.cancelPrefetch() is called.
     // cf. https://github.com/AthenZ/athenz/issues/544
     private boolean autoPrefetchEnabled = false;
-    private long cachedRoleTokenTimestamp;
+    private volatile long cachedRoleTokenTimestamp;
     private String roleToken;
     // athenz will only give this token if it's at least valid for 2hrs
     private static final int minValidity = 2 * 60 * 60;
     private static final int maxValidity = 24 * 60 * 60; // token has upto 24 hours validity
-    private static final int cacheDurationInHour = 1; // we will cache role token for an hour then ask athenz lib again
+    private static final int cacheDurationInMinutes = 90; // role token is cached for 90 minutes
+    private static final int retryFrequencyInMillis = 60 * 60 * 1000; // key refresher scans files every hour
 
     private final ReadWriteLock cachedRoleTokenLock = new ReentrantReadWriteLock();
 
@@ -82,6 +109,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         return "athenz";
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         Lock readLock = cachedRoleTokenLock.readLock();
@@ -116,17 +144,59 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         if (roleToken == null) {
             return false;
         }
-        // Ensure we refresh the Athenz role token every hour to avoid using an expired
+        // Ensure we refresh the Athenz role token every 90 minutes to avoid using an expired
         // role token
-        return (System.nanoTime() - cachedRoleTokenTimestamp) < TimeUnit.HOURS.toNanos(cacheDurationInHour);
+        return (System.nanoTime() - cachedRoleTokenTimestamp) < TimeUnit.MINUTES.toNanos(cacheDurationInMinutes);
+    }
+
+    @Override
+    public org.apache.pulsar.client.api.v5.auth.Authentication v5Authentication() {
+        // PIP-478: the client drives this v5-native body. The ZTS role-token exchange and its cache stay on
+        // this shim — it runs on the Athenz SDK's own transport, which the framework does not own — and the
+        // body reads the current role token through the provider below.
+        return new AthenzAuthenticationV5(new ShimRoleTokenProvider(this));
+    }
+
+    @SuppressWarnings("deprecation")
+    private String currentRoleToken() {
+        try {
+            return getAuthData().getCommandData();
+        } catch (PulsarClientException e) {
+            // Wrap in CompletionException, not a bare RuntimeException: on the async binary path this runs
+            // inside V5AuthContexts.supplyBlocking, and BinaryAuthenticationExchange strips exactly one
+            // CompletionException layer before mapping to the v4 exception type. A RuntimeException would
+            // survive that single unwrap and flatten a GettingAuthenticationDataException (transient
+            // credential-acquisition failure) into a generic PulsarClientException.
+            throw new CompletionException(e);
+        }
+    }
+
+    private String currentRoleHeaderName() {
+        return isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader();
+    }
+
+    private static final class ShimRoleTokenProvider implements AthenzAuthenticationV5.RoleTokenProvider {
+        private static final long serialVersionUID = 1L;
+        private final AuthenticationAthenz shim;
+
+        ShimRoleTokenProvider(AuthenticationAthenz shim) {
+            this.shim = shim;
+        }
+
+        @Override
+        public String roleToken() {
+            return shim.currentRoleToken();
+        }
+
+        @Override
+        public String roleHeaderName() {
+            return shim.currentRoleHeaderName();
+        }
     }
 
     @Override
     public void configure(String encodedAuthParamString) {
-
-        if (isBlank(encodedAuthParamString)) {
-            throw new IllegalArgumentException("authParams must not be empty");
-        }
+        checkArgument(isNotBlank(encodedAuthParamString), "authParams must not be empty");
 
         try {
             setAuthParams(AuthenticationUtil.configureFromJsonString(encodedAuthParamString));
@@ -145,19 +215,31 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         this.tenantDomain = authParams.get("tenantDomain");
         this.tenantService = authParams.get("tenantService");
         this.providerDomain = authParams.get("providerDomain");
-        // privateKeyPath is deprecated, this is for compatibility
-        if (isBlank(authParams.get("privateKey")) && isNotBlank(authParams.get("privateKeyPath"))) {
-            this.privateKey = loadPrivateKey(authParams.get("privateKeyPath"));
-        } else {
-            this.privateKey = loadPrivateKey(authParams.get("privateKey"));
-        }
-
-        if (this.privateKey == null) {
-            throw new IllegalArgumentException("Failed to load private key from privateKey or privateKeyPath field");
-        }
-
         this.keyId = authParams.getOrDefault("keyId", "0");
         this.autoPrefetchEnabled = Boolean.parseBoolean(authParams.getOrDefault("autoPrefetchEnabled", "false"));
+
+        if (isNotBlank(authParams.get("x509CertChain"))) {
+            // When using Copper Argos
+            checkRequiredParams(authParams, "privateKey", "caCert", "providerDomain");
+            // Absolute paths are required to generate a key refresher, so if these are relative paths, convert them
+            this.x509CertChainPath = getAbsolutePathFromUrl(authParams.get("x509CertChain"));
+            this.privateKeyPath = getAbsolutePathFromUrl(authParams.get("privateKey"));
+            this.caCertPath = getAbsolutePathFromUrl(authParams.get("caCert"));
+        } else {
+            checkRequiredParams(authParams, "tenantDomain", "tenantService", "providerDomain");
+
+            // privateKeyPath is deprecated, this is for compatibility
+            if (isBlank(authParams.get("privateKey")) && isNotBlank(authParams.get("privateKeyPath"))) {
+                this.privateKey = loadPrivateKey(authParams.get("privateKeyPath"));
+            } else {
+                this.privateKey = loadPrivateKey(authParams.get("privateKey"));
+            }
+
+            if (this.privateKey == null) {
+                throw new IllegalArgumentException(
+                        "Failed to load private key from privateKey or privateKeyPath field");
+            }
+        }
 
         if (isNotBlank(authParams.get("athenzConfPath"))) {
             System.setProperty("athenz.athenz_conf", authParams.get("athenzConfPath"));
@@ -172,6 +254,9 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         if (isNotBlank(authParams.get("ztsUrl"))) {
             this.ztsUrl = authParams.get("ztsUrl");
         }
+        if (isNotBlank(authParams.get("ztsProxyUrl"))) {
+            this.ztsProxyUrl = authParams.get("ztsProxyUrl");
+        }
     }
 
     @Override
@@ -183,19 +268,52 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         if (ztsClient != null) {
             ztsClient.close();
         }
+        if (keyRefresher != null) {
+            keyRefresher.shutdown();
+        }
     }
 
-    private ZTSClient getZtsClient() {
+    private ZTSClient getZtsClient() throws InterruptedException, IOException, KeyRefresherException {
         if (ztsClient == null) {
-            ServiceIdentityProvider siaProvider = new SimpleServiceIdentityProvider(tenantDomain, tenantService,
-                    privateKey, keyId);
-            ztsClient = new ZTSClient(ztsUrl, tenantDomain, tenantService, siaProvider);
-            ztsClient.setPrefetchAutoEnable(this.autoPrefetchEnabled);
+            if (x509CertChainPath != null) {
+                // When using Copper Argos
+                if (keyRefresher == null) {
+                    keyRefresher = Utils.generateKeyRefresherFromCaCert(caCertPath, x509CertChainPath, privateKeyPath);
+                    keyRefresher.startup(retryFrequencyInMillis);
+                }
+                final SSLContext sslContext = Utils.buildSSLContext(keyRefresher.getKeyManagerProxy(),
+                        keyRefresher.getTrustManagerProxy());
+                ztsClient = new ZTSClient(ztsUrl, ztsProxyUrl, sslContext);
+            } else {
+                ServiceIdentityProvider siaProvider = new SimpleServiceIdentityProvider(tenantDomain, tenantService,
+                        privateKey, keyId);
+                ztsClient = new ZTSClient(ztsUrl, ztsProxyUrl, tenantDomain, tenantService, siaProvider);
+            }
+            ZTSClient.setPrefetchAutoEnable(this.autoPrefetchEnabled);
         }
         return ztsClient;
     }
 
-    private PrivateKey loadPrivateKey(String privateKeyURL) {
+    private static void checkRequiredParams(Map<String, String> authParams, String... requiredParams) {
+        for (String param : requiredParams) {
+            checkArgument(isNotBlank(authParams.get(param)), "Missing required parameter: %s", param);
+        }
+    }
+
+    private static String getAbsolutePathFromUrl(String urlString) {
+        try {
+            java.net.URL url = new URL(urlString).openConnection().getURL();
+            checkArgument("file".equals(url.getProtocol()), "Unsupported protocol: %s", url.getProtocol());
+            Path path = Paths.get(url.getPath());
+            return path.isAbsolute() ? path.toString() : path.toAbsolutePath().toString();
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("Invalid URL format", e);
+        } catch (InstantiationException | IllegalAccessException | IOException e) {
+            throw new IllegalArgumentException("Cannnot get absolute path from specified URL", e);
+        }
+    }
+
+    private static PrivateKey loadPrivateKey(String privateKeyURL) {
         PrivateKey privateKey = null;
         try {
             URLConnection urlConnection = new URL(privateKeyURL).openConnection();

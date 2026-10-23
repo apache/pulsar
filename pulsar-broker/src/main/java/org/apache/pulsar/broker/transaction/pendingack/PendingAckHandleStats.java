@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -27,6 +27,13 @@ public interface PendingAckHandleStats {
     void recordAbortTxn(boolean success);
 
     void close();
+
+    long getCommitSuccessCount();
+    long getCommitFailedCount();
+    long getAbortSuccessCount();
+    long getAbortFailedCount();
+
+    PendingAckHandleAttributes getAttributes();
 
     static PendingAckHandleStats create(String topic, String subName, boolean exposeTopicLevelMetrics) {
         return new PendingAckHandleStatsImpl(topic, subName, exposeTopicLevelMetrics);

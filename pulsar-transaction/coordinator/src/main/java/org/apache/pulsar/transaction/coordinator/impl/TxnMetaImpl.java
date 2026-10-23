@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -42,11 +42,13 @@ class TxnMetaImpl implements TxnMeta {
     private volatile TxnStatus txnStatus = TxnStatus.OPEN;
     private final long openTimestamp;
     private final long timeoutAt;
+    private final String owner;
 
-    TxnMetaImpl(TxnID txnID, long openTimestamp, long timeoutAt) {
+    TxnMetaImpl(TxnID txnID, long openTimestamp, long timeoutAt, String owner) {
         this.txnID = txnID;
         this.openTimestamp = openTimestamp;
         this.timeoutAt = timeoutAt;
+        this.owner = owner;
     }
 
     @Override
@@ -161,4 +163,8 @@ class TxnMetaImpl implements TxnMeta {
         return this.timeoutAt;
     }
 
+    @Override
+    public String getOwner() {
+        return this.owner;
+    }
 }

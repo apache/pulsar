@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,11 +18,10 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import org.testng.annotations.Test;
-import java.util.UUID;
-
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import java.util.UUID;
+import org.testng.annotations.Test;
 
 public class DataBlockUtilsTest {
 

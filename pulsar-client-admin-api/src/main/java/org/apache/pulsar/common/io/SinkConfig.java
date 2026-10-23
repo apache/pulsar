@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -94,4 +94,7 @@ public class SinkConfig {
     private String transformFunction;
     private String transformFunctionClassName;
     private String transformFunctionConfig;
+    private String logTopic;
+    // Pulsar client API for the sink's own topics; null picks it from the topic domains
+    private FunctionConfig.ClientApi clientApi;
 }

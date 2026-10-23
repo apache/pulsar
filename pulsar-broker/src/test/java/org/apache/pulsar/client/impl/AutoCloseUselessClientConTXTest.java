@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -42,55 +42,35 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSupports {
 
-    private static String topicName = UUID.randomUUID().toString().replaceAll("-","");
-    private static String topicFullName = "persistent://public/default/" + topicName;
+    private static final String topicName = UUID.randomUUID().toString().replaceAll("-", "");
+    private static final String topicFullName = "persistent://public/default/" + topicName;
 
     @BeforeMethod
     public void before() throws PulsarAdminException, MetadataStoreException {
         // Create Topics
-        PulsarAdmin pulsarAdmin_0 = super.getAllAdmins().get(0);
-        List<String> topicList_defaultNamespace = pulsarAdmin_0.topics().getList("public/default");
-        if (!topicList_defaultNamespace.contains(topicName)
-                && !topicList_defaultNamespace.contains(topicFullName + "-partition-0")
-                && !topicList_defaultNamespace.contains(topicFullName)){
-            pulsarAdmin_0.topics().createNonPartitionedTopic(topicFullName);
-        }
-        List<String> topicList_systemNamespace = pulsarAdmin_0.topics().getList("pulsar/system");
-
-        if (!pulsar.getPulsarResources()
-                .getNamespaceResources()
-                .getPartitionedTopicResources().partitionedTopicExists(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)){
-            pulsar.getPulsarResources()
-                    .getNamespaceResources()
-                    .getPartitionedTopicResources()
-                    .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
-                            new PartitionedTopicMetadata(2));
-        }
-        if (!pulsar.getPulsarResources()
-                .getNamespaceResources()
-                .getPartitionedTopicResources().partitionedTopicExists(SystemTopicNames.TRANSACTION_COORDINATOR_LOG)){
-            pulsar.getPulsarResources()
-                    .getNamespaceResources()
-                    .getPartitionedTopicResources()
-                    .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_LOG,
-                            new PartitionedTopicMetadata(2));
+        PulsarAdmin pulsarAdmin0 = super.getAllAdmins().get(0);
+        List<String> topicListDefaultNamespace = pulsarAdmin0.topics().getList("public/default");
+        if (!topicListDefaultNamespace.contains(topicName)
+                && !topicListDefaultNamespace.contains(topicFullName + "-partition-0")
+                && !topicListDefaultNamespace.contains(topicFullName)){
+            pulsarAdmin0.topics().createNonPartitionedTopic(topicFullName);
         }
     }
 
     @Override
     protected void doInitConf() throws Exception {
         super.doInitConf();
-        updateConfig(conf, "BROKER-INIT");
+        updateConfig(conf);
     }
 
     @Override
     protected ServiceConfiguration createConfForAdditionalBroker(int additionalBrokerIndex) {
         ServiceConfiguration conf = super.createConfForAdditionalBroker(additionalBrokerIndex);
-        updateConfig(conf, "BROKER-" + additionalBrokerIndex);
+        updateConfig(conf);
         return conf;
     }
 
@@ -110,8 +90,21 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
             if (!admin.namespaces().getNamespaces("pulsar").contains("pulsar/system")) {
                 admin.namespaces().createNamespace("pulsar/system");
             }
-        }catch (Exception e){
-            log.warn("create namespace failure", e);
+
+            if (conf.isTransactionCoordinatorEnabled()) {
+                if (!pulsar.getPulsarResources()
+                        .getNamespaceResources()
+                        .getPartitionedTopicResources()
+                        .partitionedTopicExists(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN)){
+                    pulsar.getPulsarResources()
+                            .getNamespaceResources()
+                            .getPartitionedTopicResources()
+                            .createPartitionedTopic(SystemTopicNames.TRANSACTION_COORDINATOR_ASSIGN,
+                                    new PartitionedTopicMetadata(2));
+                }
+            }
+        } catch (Exception e){
+            log.warn().exception(e).log("create namespace failure");
         }
         return clientBuilder.enableTransaction(true).build();
     }
@@ -119,7 +112,7 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
     /**
      * Override for make broker enable transaction.
      */
-    private void updateConfig(ServiceConfiguration conf, String advertisedAddress) {
+    private void updateConfig(ServiceConfiguration conf) {
         this.conf.setTransactionCoordinatorEnabled(true);
         this.conf.setSystemTopicEnabled(true);
         this.conf.setTopicLevelPoliciesEnabled(true);
@@ -132,11 +125,11 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
     public void testConnectionAutoReleaseUnPartitionedTopicWithTransaction() throws Exception {
         PulsarClientImpl pulsarClient = (PulsarClientImpl) super.getAllClients().get(0);
         // Init clients
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionName("my-subscription-x")
                 .subscribe();
-        Producer producer = pulsarClient.newProducer()
+        Producer<byte[]> producer = pulsarClient.newProducer()
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .topic(topicName)
                 .create();
@@ -158,6 +151,4 @@ public class AutoCloseUselessClientConTXTest extends AutoCloseUselessClientConSu
         consumer.close();
         producer.close();
     }
-
-
 }

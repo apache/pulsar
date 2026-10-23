@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -18,48 +18,44 @@
  */
 package org.apache.pulsar.broker.delayed;
 
-import io.netty.util.Timeout;
+import com.google.common.annotations.VisibleForTesting;
+import io.github.merlimat.slog.Logger;
 import io.netty.util.Timer;
-import io.netty.util.TimerTask;
+import it.unimi.dsi.fastutil.longs.Long2ObjectAVLTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectRBTreeMap;
+import it.unimi.dsi.fastutil.longs.Long2ObjectSortedMap;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import java.time.Clock;
-import java.util.Set;
+import java.util.NavigableSet;
 import java.util.TreeSet;
-import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
-import org.apache.pulsar.common.util.collections.TripleLongPriorityQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicLong;
+import lombok.Getter;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.common.util.collections.LongBitmap;
+import org.apache.pulsar.common.util.collections.LongBitmaps;
 
-@Slf4j
-public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, TimerTask {
+public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker {
 
-    private final TripleLongPriorityQueue priorityQueue = new TripleLongPriorityQueue();
+    private static final Logger LOG = Logger.get(InMemoryDelayedDeliveryTracker.class);
+    protected final Logger log;
 
-    private final PersistentDispatcherMultipleConsumers dispatcher;
-
-    // Reference to the shared (per-broker) timer for delayed delivery
-    private final Timer timer;
-
-    // Current timeout or null if not set
-    private Timeout timeout;
-
-    // Timestamp at which the timeout is currently set
-    private long currentTimeoutTarget;
-
-    // Last time the TimerTask was triggered for this class
-    private long lastTickRun;
-
-    private long tickTimeMillis;
-
-    private final Clock clock;
-
-    private final boolean isDelayedDeliveryDeliverAtTimeStrict;
+    // timestamp -> ledgerId -> entryId
+    // AVL tree -> OpenHashMap -> LongBitmap
+    protected final Long2ObjectSortedMap<Long2ObjectSortedMap<LongBitmap>>
+            delayedMessageMap = new Long2ObjectAVLTreeMap<>();
 
     // If we detect that all messages have fixed delay time, such that the delivery is
     // always going to be in FIFO order, then we can avoid pulling all the messages in
     // tracker. Instead, we use the lookahead for detection and pause the read from
     // the cursor if the delays are fixed.
-    public static final long DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES = 50_000;
+    @Getter
+    @VisibleForTesting
+    private final long fixedDelayDetectionLookahead;
 
     // This is the timestamp of the message with the highest delivery time
     // If new added messages are lower than this, it means the delivery is requested
@@ -69,33 +65,70 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     // Track whether we have seen all messages with fixed delay so far.
     private boolean messagesHaveFixedDelay = true;
 
-    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer, long tickTimeMillis,
-                                   boolean isDelayedDeliveryDeliverAtTimeStrict) {
-        this(dispatcher, timer, tickTimeMillis, Clock.systemUTC(), isDelayedDeliveryDeliverAtTimeStrict);
+    // The bit count to trim to reduce memory occupation.
+    private final int timestampPrecisionBitCnt;
+    private final long precisionMillis;
+
+    // Count of delayed messages in the tracker.
+    private final AtomicLong delayedMessagesCount = new AtomicLong(0);
+
+    // Cached memory usage of the delayed message bitmaps, maintained via delta on each mutation.
+    private final AtomicLong memoryUsage = new AtomicLong(0);
+
+    InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
+                                   long tickTimeMillis,
+                                   boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                   long fixedDelayDetectionLookahead) {
+        this(new DispatcherDelayedDeliveryContext(dispatcher), timer, tickTimeMillis, Clock.systemUTC(),
+                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
     }
 
-    InMemoryDelayedDeliveryTracker(PersistentDispatcherMultipleConsumers dispatcher, Timer timer,
-                                   long tickTimeMillis, Clock clock, boolean isDelayedDeliveryDeliverAtTimeStrict) {
-        this.dispatcher = dispatcher;
-        this.timer = timer;
-        this.tickTimeMillis = tickTimeMillis;
-        this.clock = clock;
-        this.isDelayedDeliveryDeliverAtTimeStrict = isDelayedDeliveryDeliverAtTimeStrict;
+    @VisibleForTesting
+    public InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
+                                          long tickTimeMillis, Clock clock,
+                                          boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                          long fixedDelayDetectionLookahead) {
+        this(new DispatcherDelayedDeliveryContext(dispatcher), timer, tickTimeMillis, clock,
+                isDelayedDeliveryDeliverAtTimeStrict, fixedDelayDetectionLookahead);
+    }
+
+    private InMemoryDelayedDeliveryTracker(DelayedDeliveryContext context, Timer timer,
+                                           long tickTimeMillis, Clock clock,
+                                           boolean isDelayedDeliveryDeliverAtTimeStrict,
+                                           long fixedDelayDetectionLookahead) {
+        super(context, timer, tickTimeMillis, clock, isDelayedDeliveryDeliverAtTimeStrict);
+        this.log = LOG.with().ctx(super.log).build();
+        this.fixedDelayDetectionLookahead = fixedDelayDetectionLookahead;
+        this.timestampPrecisionBitCnt = calculateTimestampPrecisionBitCnt(tickTimeMillis);
+        this.precisionMillis = 1L << timestampPrecisionBitCnt;
     }
 
     /**
-     * When {@link #isDelayedDeliveryDeliverAtTimeStrict} is false, we allow for early delivery by as much as the
-     * {@link #tickTimeMillis} because it is a slight optimization to let messages skip going back into the delay
-     * tracker for a brief amount of time when we're already trying to dispatch to the consumer.
-     *
-     * When {@link #isDelayedDeliveryDeliverAtTimeStrict} is true, we use the current time to determine when messages
-     * can be delivered. As a consequence, there are two delays that will affect delivery. The first is the
-     * {@link #tickTimeMillis} and the second is the {@link Timer}'s granularity.
-     *
-     * @return the cutoff time to determine whether a message is ready to deliver to the consumer
+     * The tick time is used to determine the precision of the delivery time. As the redelivery time
+     * is not accurate, we can bucket the delivery time and group multiple message ids into the same
+     * bucket to reduce the memory usage. THe default value is 1 second, which means we accept 1 second
+     * deviation for the delivery time, so that we can trim the lower 9 bits of the delivery time, because
+     * 2**9ms = 512ms < 1s, 2**10ms = 1024ms > 1s.
+     * @param tickTimeMillis
+     * @return
      */
-    private long getCutoffTime() {
-        return isDelayedDeliveryDeliverAtTimeStrict ? clock.millis() : clock.millis() + tickTimeMillis;
+    private static int calculateTimestampPrecisionBitCnt(long tickTimeMillis) {
+        int bitCnt = 0;
+        while (tickTimeMillis > 0) {
+            tickTimeMillis >>= 1;
+            bitCnt++;
+        }
+        return bitCnt > 0 ? bitCnt - 1 : 0;
+    }
+
+    /**
+     * trim the lower bits of the timestamp to reduce the memory usage.
+     * @param timestamp
+     * @param bits
+     * @return
+     */
+    private static long trimLowerBit(long timestamp, int bits) {
+        return timestamp & (-1L << bits);
     }
 
     @Override
@@ -105,24 +138,67 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
             return false;
         }
 
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Add message {}:{} -- Delivery in {} ms ", dispatcher.getName(), ledgerId, entryId,
-                    deliverAt - clock.millis());
+        log.debug()
+                .attr("ledgerId", ledgerId)
+                .attr("entryId", entryId)
+                .attr("deliveryInMs", () -> deliverAt - clock.millis())
+                .log("Add message");
+        long timestamp = roundTimestamp(deliverAt);
+
+        LongBitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
+            .computeIfAbsent(ledgerId, k -> LongBitmaps.create());
+
+        long oldSize = bitmap.serializedSize();
+        if (bitmap.checkedAdd(entryId)) {
+            long newSize = bitmap.serializedSize();
+            memoryUsage.addAndGet(newSize - oldSize);
+            delayedMessagesCount.incrementAndGet();
         }
 
-
-        priorityQueue.add(deliverAt, ledgerId, entryId);
         updateTimer();
 
-        // Check that new delivery time comes after the current highest, or at
-        // least within a single tick time interval of 1 second.
+        checkAndUpdateHighest(deliverAt);
+
+        return true;
+    }
+
+    /**
+     * Round the deliverAt timestamp to the bucket boundary used as the key in {@link #delayedMessageMap}, so that
+     * all messages within the same bucket share a single map entry to reduce memory usage.
+     *
+     * In strict delivery mode the timestamp is rounded up: a bucket then becomes due only after every deliverAt
+     * time inside it has passed, so messages are delivered up to one bucket (less than tickTimeMillis) late, but
+     * never before their deliverAt time. Rounding down instead would let {@link #getScheduledMessages(int)} hand a
+     * message to the dispatcher before its deliverAt time; the dispatcher would put it back and re-trigger reads
+     * in a loop until the deliverAt time is reached (see issue #25996).
+     *
+     * In non-strict mode the timestamp is rounded down, since delivering up to tickTimeMillis early is allowed.
+     * Availability checks account for the full bucket width so that the original deliverAt is still within that
+     * allowed window.
+     */
+    private long roundTimestamp(long deliverAt) {
+        if (isDeliverAtTimeStrict()) {
+            // round up, saturating at Long.MAX_VALUE instead of overflowing for deliverAt close to Long.MAX_VALUE
+            long roundedUp = deliverAt + precisionMillis - 1;
+            return trimLowerBit(roundedUp < deliverAt ? Long.MAX_VALUE : roundedUp, timestampPrecisionBitCnt);
+        }
+        return trimLowerBit(deliverAt, timestampPrecisionBitCnt);
+    }
+
+    private long getBucketCutoffTime() {
+        return isDeliverAtTimeStrict() ? getCutoffTime() : getCutoffTime() - precisionMillis + 1;
+    }
+
+    /**
+     * Check that new delivery time comes after the current highest, or at
+     * least within a single tick time interval of 1 second.
+     */
+    private void checkAndUpdateHighest(long deliverAt) {
         if (deliverAt < (highestDeliveryTimeTracked - tickTimeMillis)) {
             messagesHaveFixedDelay = false;
         }
 
         highestDeliveryTimeTracked = Math.max(highestDeliveryTimeTracked, deliverAt);
-
-        return true;
     }
 
     /**
@@ -130,7 +206,8 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
      */
     @Override
     public boolean hasMessageAvailable() {
-        boolean hasMessageAvailable = !priorityQueue.isEmpty() && priorityQueue.peekN1() <= getCutoffTime();
+        boolean hasMessageAvailable = !delayedMessageMap.isEmpty()
+                && delayedMessageMap.firstLongKey() <= getBucketCutoffTime();
         if (!hasMessageAvailable) {
             updateTimer();
         }
@@ -141,33 +218,56 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
      * Get a set of position of messages that have already reached.
      */
     @Override
-    public Set<PositionImpl> getScheduledMessages(int maxMessages) {
+    public NavigableSet<Position> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
-        Set<PositionImpl> positions = new TreeSet<>();
-        long cutoffTime = getCutoffTime();
+        NavigableSet<Position> positions = new TreeSet<>();
+        long cutoffTime = getBucketCutoffTime();
 
-        while (n > 0 && !priorityQueue.isEmpty()) {
-            long timestamp = priorityQueue.peekN1();
+        while (n > 0 && !delayedMessageMap.isEmpty()) {
+            long timestamp = delayedMessageMap.firstLongKey();
             if (timestamp > cutoffTime) {
                 break;
             }
 
-            long ledgerId = priorityQueue.peekN2();
-            long entryId = priorityQueue.peekN3();
-            positions.add(new PositionImpl(ledgerId, entryId));
-
-            priorityQueue.pop();
-            --n;
+            LongSet ledgerIdToDelete = new LongOpenHashSet();
+            Long2ObjectSortedMap<LongBitmap> ledgerMap = delayedMessageMap.get(timestamp);
+            for (Long2ObjectMap.Entry<LongBitmap> ledgerEntry : ledgerMap.long2ObjectEntrySet()) {
+                long ledgerId = ledgerEntry.getLongKey();
+                LongBitmap entryIds = ledgerEntry.getValue();
+                long cardinality = entryIds.cardinality();
+                long oldSize = entryIds.serializedSize();
+                long drained = entryIds.drainTo(n, entryId -> {
+                    positions.add(PositionFactory.create(ledgerId, entryId));
+                });
+                long newSize = entryIds.serializedSize();
+                memoryUsage.addAndGet(newSize - oldSize);
+                delayedMessagesCount.addAndGet(-drained);
+                n -= drained;
+                if (drained == cardinality) {
+                    // Bitmap is now empty; the entry will be removed from the ledger map below.
+                    ledgerIdToDelete.add(ledgerId);
+                }
+                if (n <= 0) {
+                    break;
+                }
+            }
+            for (long ledgerId : ledgerIdToDelete) {
+                ledgerMap.remove(ledgerId);
+            }
+            if (ledgerMap.isEmpty()) {
+                delayedMessageMap.remove(timestamp);
+            }
         }
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Get scheduled messages - found {}", dispatcher.getName(), positions.size());
-        }
-
-        if (priorityQueue.isEmpty()) {
-            // Reset to initial state
-            highestDeliveryTimeTracked = 0;
-            messagesHaveFixedDelay = true;
+        log.debug()
+                .attr("messagesCount", positions.size())
+                .log("Get scheduled messages");
+        if (delayedMessageMap.isEmpty()) {
+            resetFixedDelayDetection();
+            if (delayedMessagesCount.get() != 0) {
+                log.warn()
+                        .attr("delayedMessagesCount", delayedMessagesCount.get())
+                        .log("Delayed message tracker is empty, but delayedMessagesCount is non-zero");
+            }
         }
 
         updateTimer();
@@ -175,121 +275,53 @@ public class InMemoryDelayedDeliveryTracker implements DelayedDeliveryTracker, T
     }
 
     @Override
-    public void resetTickTime(long tickTime) {
-
-        if (this.tickTimeMillis != tickTime) {
-            this.tickTimeMillis = tickTime;
-        }
+    public CompletableFuture<Void> clear() {
+        this.delayedMessageMap.clear();
+        this.delayedMessagesCount.set(0);
+        this.memoryUsage.set(0);
+        resetFixedDelayDetection();
+        return CompletableFuture.completedFuture(null);
     }
 
-    @Override
-    public void clear() {
-        this.priorityQueue.clear();
+    /**
+     * Go back to the initial state of the fixed delay detection. It must be done whenever the tracker is emptied,
+     * since the messages added afterwards are not related to the ones that were tracked before.
+     */
+    private void resetFixedDelayDetection() {
+        highestDeliveryTimeTracked = 0;
+        messagesHaveFixedDelay = true;
     }
 
     @Override
     public long getNumberOfDelayedMessages() {
-        return priorityQueue.size();
-    }
-
-    @Override
-    public long getBufferMemoryUsage() {
-        return priorityQueue.bytesCapacity();
+        return delayedMessagesCount.get();
     }
 
     /**
-     * Update the scheduled timer task such that:
-     * 1. If there are no delayed messages, return and do not schedule a timer task.
-     * 2. If the next message in the queue has the same deliverAt time as the timer task, return and leave existing
-     *    timer task in place.
-     * 3. If the deliverAt time for the next delayed message has already passed (i.e. the delay is negative), return
-     *    without scheduling a timer task since the subscription is backlogged.
-     * 4. Else, schedule a timer task where the delay is the greater of these two: the next message's deliverAt time or
-     *    the last tick time plus the tickTimeMillis (to ensure we do not schedule the task more frequently than the
-     *    tickTimeMillis).
+     * Estimates memory usage of all bitmaps in the tracker.
+     * Uses serialized size as an approximation of memory usage.
+     * @return estimated memory usage in bytes
      */
-    private void updateTimer() {
-        if (priorityQueue.isEmpty()) {
-            if (timeout != null) {
-                currentTimeoutTarget = -1;
-                timeout.cancel();
-                timeout = null;
-            }
-            return;
-        }
-
-        long timestamp = priorityQueue.peekN1();
-        if (timestamp == currentTimeoutTarget) {
-            // The timer is already set to the correct target time
-            return;
-        }
-
-        if (timeout != null) {
-            timeout.cancel();
-        }
-
-        long now = clock.millis();
-        long delayMillis = timestamp - now;
-
-        if (delayMillis < 0) {
-            // There are messages that are already ready to be delivered. If
-            // the dispatcher is not getting them is because the consumer is
-            // either not connected or slow.
-            // We don't need to keep retriggering the timer. When the consumer
-            // catches up, the dispatcher will do the readMoreEntries() and
-            // get these messages
-            return;
-        }
-
-        // Compute the earliest time that we schedule the timer to run.
-        long remainingTickDelayMillis = lastTickRun + tickTimeMillis - now;
-        long calculatedDelayMillis = Math.max(delayMillis, remainingTickDelayMillis);
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Start timer in {} millis", dispatcher.getName(), calculatedDelayMillis);
-        }
-
-        // Even though we may delay longer than this timestamp because of the tick delay, we still track the
-        // current timeout with reference to the next message's timestamp.
-        currentTimeoutTarget = timestamp;
-        timeout = timer.newTimeout(this, calculatedDelayMillis, TimeUnit.MILLISECONDS);
-    }
-
     @Override
-    public void run(Timeout timeout) throws Exception {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Timer triggered", dispatcher.getName());
-        }
-        if (timeout.isCancelled()) {
-            return;
-        }
-
-        synchronized (dispatcher) {
-            lastTickRun = clock.millis();
-            currentTimeoutTarget = -1;
-            this.timeout = null;
-            dispatcher.readMoreEntries();
-        }
+    public long getBufferMemoryUsage() {
+        return memoryUsage.get();
     }
 
     @Override
     public void close() {
-        priorityQueue.close();
-        if (timeout != null) {
-            timeout.cancel();
-        }
+        super.close();
     }
 
     @Override
     public boolean shouldPauseAllDeliveries() {
         // Pause deliveries if we know all delays are fixed within the lookahead window
-        return messagesHaveFixedDelay
-                && priorityQueue.size() >= DETECT_FIXED_DELAY_LOOKAHEAD_MESSAGES
+        return fixedDelayDetectionLookahead > 0
+                && messagesHaveFixedDelay
+                && getNumberOfDelayedMessages() >= fixedDelayDetectionLookahead
                 && !hasMessageAvailable();
     }
 
-    @Override
-    public boolean containsMessage(long ledgerId, long entryId) {
-        return false;
+    protected long nextDeliveryTime() {
+        return delayedMessageMap.firstLongKey();
     }
 }

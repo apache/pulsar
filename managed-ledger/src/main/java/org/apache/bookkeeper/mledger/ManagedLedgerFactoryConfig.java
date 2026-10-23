@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -21,7 +21,7 @@ package org.apache.bookkeeper.mledger;
 import lombok.Data;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.CompressionType;
 
 /**
  * Configuration for a {@link ManagedLedgerFactory}.
@@ -39,7 +39,6 @@ public class ManagedLedgerFactoryConfig {
      */
     private double cacheEvictionWatermark = 0.90;
 
-    private int numManagedLedgerWorkerThreads = Runtime.getRuntime().availableProcessors();
     private int numManagedLedgerSchedulerThreads = Runtime.getRuntime().availableProcessors();
 
     /**
@@ -48,14 +47,67 @@ public class ManagedLedgerFactoryConfig {
     private long cacheEvictionIntervalMs = 10;
 
     /**
-     * All entries that have stayed in cache for more than the configured time, will be evicted.
+     * Controls time-to-live (TTL) for entries in the managed ledger (broker) cache.
+     * The TTL can be extended in two ways:
+     * 1. When cacheEvictionByExpectedReadCount is enabled: TTL is extended for entries with remaining
+     * expected reads. The maximum number of extensions is controlled by
+     * managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes.
+     * 2. When cacheEvictionExtendTTLOfRecentlyAccessed is enabled: TTL is extended for entries
+     * accessed since the last expiration check.
      */
     private long cacheEvictionTimeThresholdMillis = 1000;
 
     /**
-     * Whether we should make a copy of the entry payloads when inserting in cache.
+     * Maximum number of times the cache can extend the TTL of an entry that has remaining expected reads.
+     * Only takes effect when cacheEvictionByExpectedReadCount is enabled.
+     * This helps optimize cache efficiency for scenarios like:
+     * - Key_Shared subscription replays
+     * - Catch-up reads for lagging consumers
+     * - Consumers temporarily falling behind the tail
+     * Entries with remaining expected reads will have their TTL extended up to this many times
+     * before being eligible for eviction. The TTL will be extended by
+     * managedLedgerCacheEvictionTimeThresholdMillis each time. When the cache needs memory, size-based eviction
+     * overrides this protection after requeuing an entry at most once per eviction pass. Both this protection and the
+     * one of cacheEvictionExtendTTLOfRecentlyAccessed apply only in a pass's first cycle through the cache's entries;
+     * after it, the pass removes entries in their order in the queue. Entries added while a pass is running are past
+     * its first cycle, so that pass doesn't requeue them.
+     * Without copyEntriesInCache, a cached entry keeps the larger buffer that it was received in allocated while its
+     * time to live is extended, so consider enabling copying before raising this value.
+     */
+    private int cacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes = 5;
+
+    /**
+     * Controls whether recently accessed entries in the managed ledger cache should have their
+     * lifetime extended before cache eviction.
+     */
+    private boolean cacheEvictionExtendTTLOfRecentlyAccessed = true;
+
+    /**
+     * Whether we should make a copy of the entry payloads when inserting in cache. Without a copy, a cached entry keeps
+     * the buffer that it was received in allocated while it stays in the cache. That is a buffer of the Netty
+     * connection that the entry arrived on, from a client or from a bookie, such as a receive buffer or one that the
+     * TLS handler or the frame decoder allocated, and it can be much larger than the entry.
+     * The cache size limit counts only the entry's own size, so size-based eviction doesn't bound that memory, and
+     * cacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes extends how long it stays allocated.
      */
     private boolean copyEntriesInCache = false;
+
+    /**
+     * Maximum number of (estimated) data in-flight reading from storage and the cache.
+     */
+    private long managedLedgerMaxReadsInFlightSize = 0;
+
+    /**
+     * Maximum time to wait for acquiring permits for max reads in flight when managedLedgerMaxReadsInFlightSizeInMB is
+     * set (>0) and the limit is reached.
+     */
+    private long managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis = 60000;
+
+    /**
+     * Maximum number of reads that can be queued for acquiring permits for max reads in flight when
+     * managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.
+     */
+    private int managedLedgerMaxReadsInFlightPermitsAcquireQueueSize = 10000;
 
     /**
      * Whether trace managed ledger task execution time.
@@ -85,10 +137,32 @@ public class ManagedLedgerFactoryConfig {
     /**
      * ManagedLedgerInfo compression type. If the compression type is null or invalid, don't compress data.
      */
-    private String managedLedgerInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
+    private String managedLedgerInfoCompressionType = CompressionType.NONE.name();
+
+    /**
+     * ManagedLedgerInfo compression threshold. If the origin metadata size below configuration.
+     * compression will not apply.
+     */
+    private long managedLedgerInfoCompressionThresholdInBytes = 0;
 
     /**
      * ManagedCursorInfo compression type. If the compression type is null or invalid, don't compress data.
      */
-    private String managedCursorInfoCompressionType = MLDataFormats.CompressionType.NONE.name();
+    private String managedCursorInfoCompressionType = CompressionType.NONE.name();
+
+    /**
+     * ManagedCursorInfo compression threshold. If the origin metadata size below configuration.
+     * compression will not apply.
+     */
+    private long managedCursorInfoCompressionThresholdInBytes = 0;
+
+    public MetadataCompressionConfig getCompressionConfigForManagedLedgerInfo() {
+        return new MetadataCompressionConfig(managedLedgerInfoCompressionType,
+                managedLedgerInfoCompressionThresholdInBytes);
+    }
+
+    public MetadataCompressionConfig getCompressionConfigForManagedCursorInfo() {
+        return new MetadataCompressionConfig(managedCursorInfoCompressionType,
+                managedCursorInfoCompressionThresholdInBytes);
+    }
 }

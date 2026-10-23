@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -35,6 +35,7 @@ public class ConfigHelper {
                 timeBacklogQuota(configuration));
     }
 
+    @SuppressWarnings("deprecation")
     public static BacklogQuota sizeBacklogQuota(ServiceConfiguration configuration) {
         long backlogQuotaBytes = configuration.getBacklogQuotaDefaultLimitGB() > 0
                 ? ((long) (configuration.getBacklogQuotaDefaultLimitGB() * BacklogQuotaImpl.BYTES_IN_GIGABYTE))
