@@ -591,6 +591,26 @@ public class ConsumerImplTest {
         consumerConf = new ConsumerConfigurationData<>();
         consumerConf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
         createConsumer(consumerConf, PERSISTENT_TOPIC, null, Schema.BYTES);
+
+        assertThat(reconnectWithPendingAck()).containsExactly(BaseCommand.Type.ACK, BaseCommand.Type.FLOW);
+    }
+
+    @Test
+    public void testZeroQueueReconnectSendsPendingAcksBeforeFlowPermits() {
+        // A zero-queue consumer sends the permit for a pending receive while it switches to Ready: the acks must
+        // go out before that permit too.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        consumerConf.setReceiverQueueSize(0);
+        createConsumer(consumerConf, PERSISTENT_TOPIC, null, Schema.BYTES);
+        consumer.pendingReceives.add(new CompletableFuture<>());
+
+        assertThat(reconnectWithPendingAck()).containsExactly(BaseCommand.Type.ACK, BaseCommand.Type.FLOW);
+    }
+
+    // Acks a message with the grouping delay pending, then reconnects the consumer on a mocked connection and
+    // returns the types of the commands it writes there.
+    private List<BaseCommand.Type> reconnectWithPendingAck() {
         consumer.acknowledgeAsync(new MessageIdImpl(1, 1, -1)).join();
 
         ClientCnx cnx = ClientTestFixtures.mockClientCnx();
@@ -610,8 +630,7 @@ public class ConsumerImplTest {
 
         consumer.setState(HandlerState.State.Connecting);
         consumer.connectionOpened(cnx).join();
-
-        assertThat(written).containsExactly(BaseCommand.Type.ACK, BaseCommand.Type.FLOW);
+        return written;
     }
 
     private static BaseCommand.Type commandType(ByteBuf frame) {
