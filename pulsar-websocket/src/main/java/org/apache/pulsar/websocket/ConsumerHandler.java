@@ -31,7 +31,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -86,6 +88,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private int maxPendingMessages = 0;
     private final AtomicInteger pendingMessages = new AtomicInteger();
+    // Ids delivered and not yet acked or nacked; only these release a slot when not in pull mode
+    private final Set<String> pendingMessageIds = ConcurrentHashMap.newKeySet();
     private final boolean pullMode;
 
     private final LongAdder numMsgsDelivered;
@@ -209,7 +213,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             }
             final long msgSize = msg.getData().length;
 
-            messageIdCache.put(dm.messageId, msg.getMessageId());
+            final String messageId = dm.messageId;
+            messageIdCache.put(messageId, msg.getMessageId());
+            // A redelivered id that is still pending keeps its slot instead of taking another one
+            final boolean newPending = pullMode || pendingMessageIds.add(messageId);
 
             try {
                 getSession()
@@ -228,7 +235,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                                             .attr("msg", getSession().getRemoteSocketAddress())
                                             .attr("message", th.getMessage())
                                             .log("/ ] Failed to deliver msg to");
-                                    pendingMessages.decrementAndGet();
+                                    if (pullMode || pendingMessageIds.remove(messageId)) {
+                                        pendingMessages.decrementAndGet();
+                                    }
                                     // schedule receive as one of the delivery failed
                                     service.getExecutor().execute(() -> receiveMessage());
                                 }));
@@ -236,7 +245,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 close(WebSocketError.FailedToSerializeToJSON);
             }
 
-            int pending = pendingMessages.incrementAndGet();
+            int pending = newPending ? pendingMessages.incrementAndGet() : pendingMessages.get();
             if (pending < maxPendingMessages) {
                 // Start next read in a separate thread to avoid recursion
                 service.getExecutor().execute(this::receiveMessage);
@@ -337,8 +346,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         consumer.unsubscribe();
     }
 
-    private void checkResumeReceive() {
-        if (!this.pullMode) {
+    private void checkResumeReceive(String messageId) {
+        // A repeated or unknown ack/nack must not release a slot, or delivery would stop being bounded
+        if (!this.pullMode && pendingMessageIds.remove(messageId)) {
             int pending = pendingMessages.getAndDecrement();
             if (pending >= maxPendingMessages) {
                 // Resume delivery
@@ -364,7 +374,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             consumer.acknowledgeAsync(msgId).thenAccept(consumer -> numMsgsAcked.increment());
         }
 
-        checkResumeReceive();
+        checkResumeReceive(command.messageId);
     }
 
     private void handleNack(ConsumerCommand command) throws IOException {
@@ -383,7 +393,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         } else {
             consumer.negativeAcknowledge(msgId);
         }
-        checkResumeReceive();
+        checkResumeReceive(command.messageId);
     }
 
     private void handlePermit(ConsumerCommand command) throws IOException {
