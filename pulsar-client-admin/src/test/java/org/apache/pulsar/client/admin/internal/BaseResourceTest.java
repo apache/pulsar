@@ -18,45 +18,97 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import static org.testng.Assert.assertEquals;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import org.apache.pulsar.common.policies.data.ErrorData;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.mockito.Mockito;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.ResponseDefinitionBuilder;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import jakarta.ws.rs.ClientErrorException;
+import jakarta.ws.rs.core.Response;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class BaseResourceTest {
+
+    WireMockServer server;
+    String adminUrl;
+
+    @BeforeClass(alwaysRun = true)
+    void beforeClass() {
+        server = new WireMockServer(WireMockConfiguration.wireMockConfig().port(0));
+        server.start();
+        adminUrl = "http://localhost:" + server.port();
+    }
+
+    @AfterClass(alwaysRun = true)
+    void afterClass() {
+        if (server != null) {
+            server.stop();
+        }
+    }
+
+    private String httpErrorFor(String path, ResponseDefinitionBuilder response) throws Exception {
+        server.stubFor(get(urlEqualTo(path)).willReturn(response));
+
+        @Cleanup
+        PulsarAdminImpl admin = (PulsarAdminImpl) PulsarAdmin.builder().serviceHttpUrl(adminUrl).build();
+        NamespacesImpl namespaces = (NamespacesImpl) admin.namespaces();
+
+        try {
+            namespaces.asyncGetRequest(admin.getRoot().path(path), Object.class).get(3, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            assertThat(e.getCause()).isInstanceOf(PulsarAdminException.class);
+            return ((PulsarAdminException) e.getCause()).getHttpError();
+        }
+        throw new AssertionError("Request to " + path + " should have failed");
+    }
+
     @Test
-    public void testGetReasonFromServer() throws JsonProcessingException {
-        // when readEntity(ErrorData.class) works
-        String reason = "reason in response";
-        String errMsg = "error message";
-        Response response = Mockito.mock(Response.class);
-        WebApplicationException e = new WebApplicationException(errMsg, response);
-        Mockito.when(response.readEntity(ErrorData.class)).thenReturn(new ErrorData(reason));
-        assertEquals(BaseResource.getReasonFromServer(e), reason);
+    public void testJsonErrorData() throws Exception {
+        assertThat(httpErrorFor("/json", aResponse()
+                .withStatus(404)
+                .withHeader("Content-Type", "application/json")
+                .withBody("{\"reason\":\"Namespace does not exist\"}")))
+                .isEqualTo("Namespace does not exist");
+    }
 
-        // fallback to e.getResponse().readEntity(String.class)
-        response = Mockito.mock(Response.class);
-        Mockito.when(response.readEntity(ErrorData.class)).thenThrow(new RuntimeException());
-        Mockito.when(response.readEntity(String.class))
-                .thenReturn(ObjectMapperFactory.getThreadLocal().writeValueAsString(new ErrorData(reason)));
-        assertEquals(BaseResource.getReasonFromServer(new WebApplicationException(errMsg, response)), reason);
+    @Test
+    public void testErrorDataWithoutJsonContentType() throws Exception {
+        assertThat(httpErrorFor("/no-content-type", aResponse()
+                .withStatus(409)
+                .withBody("{\"reason\":\"Topic already exists\"}")))
+                .isEqualTo("Topic already exists");
+    }
 
-        // fallback to e.getMessage()
-        response = Mockito.mock(Response.class);
-        Mockito.when(response.readEntity(ErrorData.class)).thenThrow(new RuntimeException());
-        Mockito.when(response.readEntity(String.class)).thenThrow(new RuntimeException());
-        assertEquals(BaseResource.getReasonFromServer(new WebApplicationException(ObjectMapperFactory.getThreadLocal()
-                .writeValueAsString(new ErrorData(reason)), response)), reason);
+    @Test
+    public void testPlainTextBody() throws Exception {
+        // AsyncHttpConnector uses the body as the reason phrase, so it ends up in the exception message
+        assertThat(httpErrorFor("/text", aResponse()
+                .withStatus(400)
+                .withHeader("Content-Type", "text/plain")
+                .withBody("Unknown property foo")))
+                .isEqualTo("HTTP 400 Unknown property foo");
+    }
 
-        // fallback to original e.getMessage()
-        response = Mockito.mock(Response.class);
-        Mockito.when(response.readEntity(ErrorData.class)).thenThrow(new RuntimeException());
-        Mockito.when(response.readEntity(String.class)).thenThrow(new RuntimeException());
-        assertEquals(BaseResource.getReasonFromServer(new WebApplicationException(errMsg, response)), errMsg);
+    @Test
+    public void testOutboundResponseWithStringEntity() {
+        // FunctionsImpl, SinksImpl, SourcesImpl and PackagesImpl build such responses from the raw body
+        Response response = Response.status(409).entity("{\"reason\":\"Function already exists\"}").build();
+        assertThat(BaseResource.getReasonFromServer(new ClientErrorException(response)))
+                .isEqualTo("Function already exists");
+    }
+
+    @Test
+    public void testOutboundResponseWithoutEntity() {
+        assertThat(BaseResource.getReasonFromServer(new ClientErrorException(Response.status(404).build())))
+                .isEqualTo("HTTP 404 Not Found");
     }
 }
