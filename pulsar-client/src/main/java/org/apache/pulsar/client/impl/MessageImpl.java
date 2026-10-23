@@ -257,6 +257,18 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         }
     }
 
+    /**
+     * Copies the data needed by DLQ processing, with independent metadata and an owned payload reference.
+     * The source must not be released while copying, and the caller must release the returned message.
+     */
+    MessageImpl<T> copyForDeadLetter() {
+        MessageImpl<T> copy = new MessageImpl<>(topic, (MessageIdImpl) messageId, msgMetadata,
+                payload.duplicate(), encryptionCtx, cnx, schema, redeliveryCount, true, consumerEpoch);
+        // Batch messages keep their per-message properties outside msgMetadata. These maps are immutable.
+        copy.properties = properties;
+        return copy;
+    }
+
     public MessageImpl(String topic, String msgId, Map<String, String> properties,
             byte[] payload, Schema<T> schema, MessageMetadata msgMetadata) {
         this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema, msgMetadata);
