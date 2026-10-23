@@ -102,13 +102,13 @@ public class PulsarFunctionTlsTest {
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerShutdownTimeoutMs(0L);
             config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
-            config.setWebServicePort(Optional.empty());
+            config.setWebServicePort(enablePlaintextListeners() ? Optional.of(0) : Optional.empty());
             // Pre-allocate the TLS web port: PulsarService.initializeWorkerConfigFromBrokerConfig
             // builds workerId = "c-{cluster}-fw-{host}-{port}" from the CONFIGURED port. Two
             // brokers configured with port 0 would end up with the same workerId and the
             // function-worker membership manager would never elect a leader.
             config.setWebServicePortTls(Optional.of(PortManager.nextLockedFreePort()));
-            config.setBrokerServicePort(Optional.empty());
+            config.setBrokerServicePort(enablePlaintextListeners() ? Optional.of(0) : Optional.empty());
             config.setBrokerServicePortTls(Optional.of(0));
             config.setClusterName("my-cluster");
             config.setAdvertisedAddress("localhost");
@@ -151,7 +151,8 @@ public class PulsarFunctionTlsTest {
             workerConfig.setInstanceLivenessCheckFreqMs(100);
             workerConfig.setBrokerClientAuthenticationEnabled(true);
             workerConfig.setTlsEnabled(true);
-            workerConfig.setUseTls(true);
+            // With plaintext listeners enabled, the worker must pick TLS from brokerClientTlsEnabled alone
+            workerConfig.setUseTls(!enablePlaintextListeners());
             workerConfig.setTlsEnableHostnameVerification(true);
             workerConfig.setTlsAllowInsecureConnection(false);
             File packagePath = new File(
@@ -194,6 +195,10 @@ public class PulsarFunctionTlsTest {
                 .build();
         pulsarAdmins[0].tenants().createTenant(testTenant, tenantInfo);
         pulsarAdmins[0].namespaces().createNamespace(testNamespace, 16);
+    }
+
+    protected boolean enablePlaintextListeners() {
+        return false;
     }
 
     @AfterMethod(alwaysRun = true)

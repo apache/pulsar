@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
@@ -36,24 +37,32 @@ import io.netty.handler.codec.EncoderException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandGetSchema;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadataResponse;
+import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.lookup.GetTopicsResult;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -64,6 +73,7 @@ public class LookupProxyHandlerTest {
     private static final long CLIENT_REQUEST_ID = 10L;
     private static final long BROKER_REQUEST_ID = 20L;
     private static final String TOPIC = "persistent://tenant/ns/topic";
+    private static final String NAMESPACE = "tenant/ns";
 
     private ProxyConfiguration configuration;
     private ProxyService proxyService;
@@ -75,6 +85,7 @@ public class LookupProxyHandlerTest {
     private EmbeddedChannel channel;
     private LookupProxyHandler handler;
     private ByteBuf forwardedRequest;
+    private AsyncDualMemoryLimiterImpl topicListLimiter;
 
     @BeforeMethod
     public void setup() {
@@ -109,6 +120,10 @@ public class LookupProxyHandlerTest {
 
     @AfterMethod(alwaysRun = true)
     public void cleanup() {
+        if (topicListLimiter != null) {
+            topicListLimiter.close();
+            topicListLimiter = null;
+        }
         if (forwardedRequest != null) {
             forwardedRequest.release();
             forwardedRequest = null;
@@ -365,6 +380,69 @@ public class LookupProxyHandlerTest {
 
         verify(context).writeAndFlush(any(ByteBuf.class), eq(promise));
         verify(connectionPool).releaseConnection(clientCnx);
+    }
+
+    @Test
+    public void testGetTopicsOfNamespaceCopiesPropertiesBeforeConnecting() {
+        topicListLimiter = new AsyncDualMemoryLimiterImpl(Long.MAX_VALUE, 100, 10_000,
+                Long.MAX_VALUE, 100, 10_000);
+        when(proxyService.getMaxTopicListInFlightLimiter()).thenReturn(topicListLimiter);
+        when(proxyService.getTopicListSizeResultCache()).thenReturn(new TopicListSizeResultCache());
+        handler = new LookupProxyHandler(proxyService, proxyConnection);
+        CompletableFuture<GetTopicsResult> topicsFuture = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            ByteBuf request = invocation.getArgument(0);
+            try {
+                forwardedRequest = request.copy();
+                return topicsFuture;
+            } finally {
+                request.release();
+            }
+        }).when(clientCnx).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+
+        // The decoder parses every frame into the same command and releases the frame after the handler returns.
+        BaseCommand decoderCommand = new BaseCommand();
+        ByteBuf firstFrame = newGetTopicsOfNamespaceFrame(Map.of("key1", "value1", "key2", "value2"));
+        ByteBuf secondFrame = newGetTopicsOfNamespaceFrame(Map.of("other", "other-value"));
+        try {
+            parseFrame(decoderCommand, firstFrame);
+            handler.handleGetTopicsOfNamespace(decoderCommand.getGetTopicsOfNamespace());
+            firstFrame.release();
+            firstFrame = null;
+            parseFrame(decoderCommand, secondFrame);
+
+            connectionFuture.complete(clientCnx);
+
+            verify(clientCnx, timeout(10_000)).newGetTopicsOfNamespace(any(ByteBuf.class), eq(BROKER_REQUEST_ID));
+            BaseCommand command = decodeCommand(forwardedRequest);
+            assertThat(command.getType()).as("Forwarded command type")
+                    .isEqualTo(BaseCommand.Type.GET_TOPICS_OF_NAMESPACE);
+            CommandGetTopicsOfNamespace forwarded = command.getGetTopicsOfNamespace();
+            assertThat(forwarded.getRequestId()).as("Broker request ID").isEqualTo(BROKER_REQUEST_ID);
+            assertThat(forwarded.getNamespace()).as("Forwarded namespace").isEqualTo(NAMESPACE);
+            Map<String, String> forwardedProperties = new HashMap<>();
+            for (KeyValue kv : forwarded.getPropertiesList()) {
+                forwardedProperties.put(kv.getKey(), kv.getValue());
+            }
+            assertThat(forwardedProperties).as("Forwarded properties")
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("key1", "value1", "key2", "value2"));
+        } finally {
+            if (firstFrame != null) {
+                firstFrame.release();
+            }
+            secondFrame.release();
+        }
+    }
+
+    private static ByteBuf newGetTopicsOfNamespaceFrame(Map<String, String> properties) {
+        return Commands.newGetTopicsOfNamespaceRequest(NAMESPACE, CLIENT_REQUEST_ID,
+                CommandGetTopicsOfNamespace.Mode.PERSISTENT, null, null, properties);
+    }
+
+    private static void parseFrame(BaseCommand command, ByteBuf frame) {
+        int frameSize = frame.readInt();
+        assertThat(frameSize).as("Frame size").isEqualTo(frame.readableBytes());
+        command.parseFrom(frame, frame.readInt());
     }
 
     private void verifyNoBackendLookup() {

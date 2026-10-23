@@ -29,7 +29,6 @@ import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -360,9 +359,14 @@ public class LookupProxyHandler {
                 ? commandGetTopicsOfNamespace.getTopicsPattern() : null;
         String topicsHash = commandGetTopicsOfNamespace.hasTopicsHash()
                 ? commandGetTopicsOfNamespace.getTopicsHash() : null;
+        // The decoder reuses the command and releases its buffer once this handler returns, so the properties
+        // must be copied before the connection future completes.
+        Map<String, String> properties = new HashMap<>();
+        for (KeyValue kv : commandGetTopicsOfNamespace.getPropertiesList()) {
+            properties.put(kv.getKey(), kv.getValue());
+        }
         performGetTopicsOfNamespace(clientRequestId, commandGetTopicsOfNamespace.getNamespace(), serviceUrl,
-                10, topicsPattern, topicsHash, commandGetTopicsOfNamespace.getMode(),
-            commandGetTopicsOfNamespace.getPropertiesList());
+                10, topicsPattern, topicsHash, commandGetTopicsOfNamespace.getMode(), properties);
     }
 
     private void performGetTopicsOfNamespace(long clientRequestId,
@@ -372,7 +376,7 @@ public class LookupProxyHandler {
                                              String topicsPattern,
                                              String topicsHash,
                                              CommandGetTopicsOfNamespace.Mode mode,
-                                             List<KeyValue> properties) {
+                                             Map<String, String> properties) {
         if (numberOfRetries == 0) {
             writeAndFlush(Commands.newError(clientRequestId, ServerError.ServiceNotReady,
                     "Reached max number of redirections"));
@@ -394,14 +398,10 @@ public class LookupProxyHandler {
             // Connected to backend broker
             long requestId = proxyConnection.newRequestId();
             ByteBuf command;
-            Map<String, String> propertiesMap = new HashMap<>();
-            for (KeyValue kv : properties) {
-                propertiesMap.put(kv.getKey(), kv.getValue());
-            }
             command = Commands.newGetTopicsOfNamespaceRequest(namespaceName, requestId, mode,
-                    topicsPattern, topicsHash, propertiesMap);
+                    topicsPattern, topicsHash, properties);
 
-            internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, mode, propertiesMap, clientCnx,
+            internalPerformGetTopicsOfNamespace(clientRequestId, namespaceName, mode, properties, clientCnx,
                     command, requestId);
             proxyConnection.getConnectionPool().releaseConnection(clientCnx);
         }).exceptionally(ex -> {

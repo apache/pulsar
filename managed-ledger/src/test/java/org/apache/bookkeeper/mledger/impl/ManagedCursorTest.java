@@ -137,6 +137,7 @@ import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.collections4.iterators.EmptyIterator;
 import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -5231,6 +5232,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         when(ml.getName()).thenReturn(mlName);
         when(ml.getStore()).thenReturn(mockMetaStore);
         when(ml.getLastPosition()).thenReturn(lastPosition);
+        when(ml.getLastPositionAndCounter()).thenReturn(Pair.of(lastPosition, 0L));
         when(ml.getNextValidLedger(markDeleteLedgerId)).thenReturn(3L);
         when(ml.getNextValidPosition(lastPosition)).thenReturn(nextPosition);
         when(ml.ledgerExists(markDeleteLedgerId)).thenReturn(false);
