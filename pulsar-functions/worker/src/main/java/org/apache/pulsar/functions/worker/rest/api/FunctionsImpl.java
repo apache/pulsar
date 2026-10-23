@@ -23,6 +23,9 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.functions.auth.FunctionAuthUtils.getFunctionAuthData;
 import static org.apache.pulsar.functions.utils.FunctionCommon.isFunctionCodeBuiltin;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.UriBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,9 +35,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.UriBuilder;
 import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
@@ -102,6 +102,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
         }
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, functionName, "register", authParams);
+        checkPackageSourcePermission(functionPkgUrl, authParams);
 
         try {
             // Check tenant exists
@@ -285,6 +286,7 @@ public class FunctionsImpl extends ComponentImpl implements Functions<PulsarWork
 
         throwRestExceptionIfUnauthorizedForNamespace(tenant, namespace, functionName, "update",
                 authParams);
+        checkPackageSourcePermission(functionPkgUrl, authParams);
 
         FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 

@@ -18,21 +18,20 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.InvocationCallback;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.MediaType;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.InvocationCallback;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import org.apache.pulsar.common.util.Codec;
 
 public class BrokersImpl extends BaseResource implements Brokers {
     private final WebTarget adminBrokers;
@@ -94,8 +93,8 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<Void> updateDynamicConfigurationAsync(String configName, String configValue) {
-        String value = Codec.encode(configValue);
-        WebTarget path = adminBrokers.path("configuration").path(configName).path(value);
+        WebTarget path = WebTargets.addParts(adminBrokers.path("configuration").path(configName),
+                new String[] {configValue});
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 

@@ -18,20 +18,30 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response.Status;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.ScalableTopicMetadata;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     private final WebTarget adminScalable;
@@ -107,11 +117,31 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<Void> createScalableTopicAsync(String topic, int numInitialSegments,
                                                               Map<String, String> properties) {
         TopicName tn = validateTopic(topic);
+        try {
+            TopicName.validateTopicNameForCreation(tn);
+        } catch (IllegalArgumentException e) {
+            return FutureUtil.failedFuture(
+                    new PreconditionFailedException(e, e.getMessage(), Status.PRECONDITION_FAILED.getStatusCode()));
+        }
         WebTarget path = topicPath(tn).queryParam("numInitialSegments", numInitialSegments);
         Entity<?> entity = (properties != null && !properties.isEmpty())
                 ? Entity.entity(properties, MediaType.APPLICATION_JSON)
                 : Entity.entity("", MediaType.APPLICATION_JSON);
         return asyncPutRequest(path, entity);
+    }
+
+    // --- Migrate ---
+
+    @Override
+    public void migrateToScalable(String topic, boolean force) throws PulsarAdminException {
+        sync(() -> migrateToScalableAsync(topic, force));
+    }
+
+    @Override
+    public CompletableFuture<Void> migrateToScalableAsync(String topic, boolean force) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("migrate").queryParam("force", force);
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
     // --- Get metadata ---
@@ -125,6 +155,94 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<ScalableTopicMetadata> getMetadataAsync(String topic) {
         TopicName tn = validateTopic(topic);
         return asyncGetRequest(topicPath(tn), ScalableTopicMetadata.class);
+    }
+
+    // --- Auto split/merge policy override (PIP-483) ---
+
+    @Override
+    public void setAutoScalePolicy(String topic, AutoScalePolicyOverride override)
+            throws PulsarAdminException {
+        sync(() -> setAutoScalePolicyAsync(topic, override));
+    }
+
+    @Override
+    public CompletableFuture<Void> setAutoScalePolicyAsync(String topic, AutoScalePolicyOverride override) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("autoScalePolicy");
+        return asyncPostRequest(path, Entity.entity(override, MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public AutoScalePolicyOverride getAutoScalePolicy(String topic) throws PulsarAdminException {
+        return sync(() -> getAutoScalePolicyAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<AutoScalePolicyOverride> getAutoScalePolicyAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        return asyncGetRequest(topicPath(tn).path("autoScalePolicy"), AutoScalePolicyOverride.class);
+    }
+
+    @Override
+    public void removeAutoScalePolicy(String topic) throws PulsarAdminException {
+        sync(() -> removeAutoScalePolicyAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeAutoScalePolicyAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        return asyncDeleteRequest(topicPath(tn).path("autoScalePolicy"));
+    }
+
+    // --- Permissions ---
+
+    @Override
+    public Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException {
+        return sync(() -> getPermissionsAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(String topic) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncGetRequest(topicPath(tn).path("permissions"),
+                    new GenericType<Map<String, Set<AuthAction>>>() {});
+        });
+    }
+
+    @Override
+    public void grantPermission(String topic, String role, Set<AuthAction> actions) throws PulsarAdminException {
+        sync(() -> grantPermissionAsync(topic, role, actions));
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionAsync(String topic, String role, Set<AuthAction> actions) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncPostRequest(permissionsPath(tn, role), Entity.entity(actions, MediaType.APPLICATION_JSON));
+        });
+    }
+
+    @Override
+    public void revokePermissions(String topic, String role) throws PulsarAdminException {
+        sync(() -> revokePermissionsAsync(topic, role));
+    }
+
+    @Override
+    public CompletableFuture<Void> revokePermissionsAsync(String topic, String role) {
+        return FutureUtil.supplySafely(() -> {
+            TopicName tn = validateTopic(topic);
+            return asyncDeleteRequest(permissionsPath(tn, role));
+        });
+    }
+
+    /**
+     * The role as a single path component, even if it contains a '/'. Unlike the form encoding of
+     * {@link URLEncoder}, a space must be "%20" in a path: the broker reads a '+' of the path as a '+'.
+     */
+    private WebTarget permissionsPath(TopicName tn, String role) {
+        String encodedRole = URLEncoder.encode(role, StandardCharsets.UTF_8).replace("+", "%20");
+        return topicPath(tn).path("permissions").path(encodedRole);
     }
 
     // --- Delete ---
@@ -152,6 +270,40 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<ScalableTopicStats> getStatsAsync(String topic) {
         TopicName tn = validateTopic(topic);
         return asyncGetRequest(topicPath(tn).path("stats"), ScalableTopicStats.class);
+    }
+
+    @Override
+    public SegmentTopicStats getSegmentStats(String topic, long segmentId) throws PulsarAdminException {
+        return sync(() -> getSegmentStatsAsync(topic, segmentId));
+    }
+
+    @Override
+    public CompletableFuture<SegmentTopicStats> getSegmentStatsAsync(String topic, long segmentId) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("segments").path(String.valueOf(segmentId)).path("stats");
+        return asyncGetRequest(path, SegmentTopicStats.class);
+    }
+
+    @Override
+    public SegmentTopicStats getSegmentStats(String segmentTopic) throws PulsarAdminException {
+        return sync(() -> getSegmentStatsAsync(segmentTopic));
+    }
+
+    @Override
+    public CompletableFuture<SegmentTopicStats> getSegmentStatsAsync(String segmentTopic) {
+        final TopicName tn;
+        try {
+            tn = TopicName.get(segmentTopic);
+        } catch (IllegalArgumentException e) {
+            return FutureUtil.failedFuture(e);
+        }
+        if (!tn.isSegment()) {
+            return FutureUtil.failedFuture(new IllegalArgumentException(
+                    "Expected a segment name (segment://tenant/namespace/topic/<descriptor>), got: "
+                            + segmentTopic));
+        }
+        // The name encodes the parent topic and the segment ID; the endpoint is keyed by those.
+        return getSegmentStatsAsync(SegmentTopicName.getParentTopicName(tn).toString(), tn.getSegmentId());
     }
 
     // --- Subscription operations ---
@@ -222,6 +374,20 @@ public class ScalableTopicsImpl extends BaseResource implements ScalableTopics {
     public CompletableFuture<Void> splitSegmentAsync(String topic, long segmentId) {
         TopicName tn = validateTopic(topic);
         WebTarget path = topicPath(tn).path("split").path(String.valueOf(segmentId));
+        return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
+    }
+
+    @Override
+    public void rebucketSegment(String topic, long segmentId, int bucketCount)
+            throws PulsarAdminException {
+        sync(() -> rebucketSegmentAsync(topic, segmentId, bucketCount));
+    }
+
+    @Override
+    public CompletableFuture<Void> rebucketSegmentAsync(String topic, long segmentId, int bucketCount) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn).path("rebucket").path(String.valueOf(segmentId))
+                .queryParam("bucketCount", bucketCount);
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 

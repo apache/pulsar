@@ -48,6 +48,9 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
     ProducerBuilderV5(PulsarClientV5 client, Schema<T> v5Schema) {
         this.client = client;
         this.v5Schema = v5Schema;
+        // V5 default: a send blocks the caller when the client memory limit is reached (the v4
+        // default is to fail the send). See ProducerBuilder#blockIfQueueFull.
+        conf.setBlockIfQueueFull(true);
     }
 
     @Override
@@ -55,10 +58,7 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
         try {
             return createAsync().join();
         } catch (java.util.concurrent.CompletionException e) {
-            if (e.getCause() instanceof PulsarClientException pce) {
-                throw pce;
-            }
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -70,7 +70,7 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
                     new PulsarClientException.InvalidConfigurationException("Topic name is required"));
         }
 
-        TopicName topicName = V5Utils.asScalableTopicName(topicStr);
+        TopicName topicName = V5Utils.parseScalableTopicInput(topicStr);
 
         // Create DAG watch client and start the session
         DagWatchClient dagWatch = new DagWatchClient(client.v4Client(), topicName);
@@ -79,6 +79,7 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
                 .thenCompose(initialLayout -> {
                     ScalableTopicProducer<T> producer = new ScalableTopicProducer<>(
                             client, v5Schema, conf, dagWatch, initialLayout);
+                    client.registerProducer(producer);
                     // For exclusive access modes, claim every active segment up front so
                     // a collision surfaces here instead of being deferred to first send.
                     return producer.eagerAttachInitialAsync()
@@ -87,7 +88,8 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
                                 throw ex instanceof java.util.concurrent.CompletionException ce
                                         ? ce : new java.util.concurrent.CompletionException(ex);
                             }));
-                });
+                })
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override

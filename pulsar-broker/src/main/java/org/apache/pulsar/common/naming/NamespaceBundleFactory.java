@@ -57,11 +57,12 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.Backoff;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 
 @CustomLog
-public class NamespaceBundleFactory {
+public class NamespaceBundleFactory implements AutoCloseable {
     private final HashFunction hashFunc;
 
     private final AsyncLoadingCache<NamespaceName, NamespaceBundles> bundlesCache;
@@ -72,6 +73,7 @@ public class NamespaceBundleFactory {
     private final TopicBundleAssignmentStrategy topicBundleAssignmentStrategy;
 
     private final Duration maxRetryDuration = Duration.ofSeconds(10);
+    private final Runnable cancelMetadataStoreListener;
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
@@ -82,7 +84,8 @@ public class NamespaceBundleFactory {
 
         CacheMetricsCollector.CAFFEINE.addCache("bundles", this.bundlesCache);
 
-        pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
+        cancelMetadataStoreListener =
+                pulsar.getLocalMetadataStore().registerCancellableListener(this::handleMetadataStoreNotification);
 
         this.pulsar = pulsar;
 
@@ -242,19 +245,25 @@ public class NamespaceBundleFactory {
     public CompletableFuture<NamespaceBundle> getBundleWithHighestThroughputAsync(NamespaceName nsName) {
         LoadManager loadManager = pulsar.getLoadManager().get();
         if (loadManager instanceof ModularLoadManagerWrapper) {
-            return getBundlesAsync(nsName).thenApply(bundles -> {
-                double maxMsgThroughput = -1;
-                NamespaceBundle bundleWithHighestThroughput = null;
-                for (NamespaceBundle bundle : bundles.getBundles()) {
-                    BundleData bundleData = ((ModularLoadManagerWrapper) loadManager).getLoadManager()
-                            .getBundleDataOrDefault(bundle.toString());
-                    if (bundleData.getTopics() > 0
-                            && bundleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
-                        maxMsgThroughput = bundleData.getLongTermData().totalMsgThroughput();
-                        bundleWithHighestThroughput = bundle;
+            return getBundlesAsync(nsName).thenCompose(bundles -> {
+                List<NamespaceBundle> bundleList = bundles.getBundles();
+                List<CompletableFuture<BundleData>> bundleDataFutures = bundleList.stream()
+                        .map(bundle -> ((ModularLoadManagerWrapper) loadManager).getLoadManager()
+                                .getBundleDataOrDefaultAsync(bundle.toString()))
+                        .toList();
+                return FutureUtil.waitForAll(bundleDataFutures).thenApply(__ -> {
+                    double maxMsgThroughput = -1;
+                    NamespaceBundle bundleWithHighestThroughput = null;
+                    for (int i = 0; i < bundleList.size(); i++) {
+                        BundleData bundleData = bundleDataFutures.get(i).join();
+                        if (bundleData.getTopics() > 0
+                                && bundleData.getLongTermData().totalMsgThroughput() > maxMsgThroughput) {
+                            maxMsgThroughput = bundleData.getLongTermData().totalMsgThroughput();
+                            bundleWithHighestThroughput = bundleList.get(i);
+                        }
                     }
-                }
-                return bundleWithHighestThroughput;
+                    return bundleWithHighestThroughput;
+                });
             });
         }
         return getBundleWithHighestTopicsAsync(nsName);
@@ -423,4 +432,12 @@ public class NamespaceBundleFactory {
                 (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
     }
 
+
+    /**
+     * Stop following the changes of the bundles in the metadata store.
+     */
+    @Override
+    public void close() {
+        cancelMetadataStoreListener.run();
+    }
 }

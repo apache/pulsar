@@ -72,7 +72,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     // The producer of the metadata topic when we are the leader.
     // Note that this variable serves a double duty. A non-null value
     // implies we are the leader, while a null value means we are not the leader
-    private Producer<byte[]> exclusiveLeaderProducer;
+    private volatile Producer<byte[]> exclusiveLeaderProducer;
     @Getter
     private volatile MessageId lastMessageSeen = MessageId.earliest;
 

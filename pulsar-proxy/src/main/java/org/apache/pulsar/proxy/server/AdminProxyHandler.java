@@ -19,6 +19,10 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import io.opentelemetry.api.OpenTelemetry;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -28,27 +32,26 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import javax.net.ssl.SSLContext;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.tls.TlsFactorySupport;
 import org.apache.pulsar.broker.web.AuthenticationFilter;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.common.util.PulsarSslConfiguration;
-import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.apache.pulsar.jetty.tls.JettyTlsFactory;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
+import org.apache.pulsar.tls.PulsarTlsFactory;
+import org.apache.pulsar.tls.TlsFactoryInitContext;
+import org.apache.pulsar.tls.TlsHandle;
+import org.apache.pulsar.tls.TlsPurpose;
 import org.eclipse.jetty.client.HttpClient;
 import org.eclipse.jetty.client.ProtocolHandlers;
 import org.eclipse.jetty.client.RedirectProtocolHandler;
 import org.eclipse.jetty.client.Request;
+import org.eclipse.jetty.client.Response;
 import org.eclipse.jetty.client.transport.HttpClientTransportOverHTTP;
-import org.eclipse.jetty.ee8.proxy.ProxyServlet;
+import org.eclipse.jetty.ee10.proxy.ProxyServlet;
 import org.eclipse.jetty.http.HttpField;
 import org.eclipse.jetty.http.HttpHeader;
 import org.eclipse.jetty.io.Content;
@@ -84,27 +87,54 @@ class AdminProxyHandler extends ProxyServlet {
     private final Authentication proxyClientAuthentication;
     private final String brokerWebServiceUrl;
     private final String functionWorkerWebServiceUrl;
-    private PulsarSslFactory pulsarSslFactory;
+    // PIP-478 broker-client TLS SPI factory (the only path since the PIP-337 removal).
+    private PulsarTlsFactory brokerClientTlsFactory;
+    // PIP-478: the handle backing the Jetty HttpClient's SslContextFactory.Client — the BROKER_CLIENT
+    // SSLContext subscription that reloads a synthesized client on rotation, or the native-instance handle
+    // when a custom factory supplies the Jetty client directly. Disposed in destroy().
+    private TlsHandle<?> brokerClientTlsSubscription;
+    // PIP-478: the OpenTelemetry root threaded into the BROKER_CLIENT-purpose TlsFactoryInitContext so
+    // pulsar.tls.reload emits; OpenTelemetry.noop() when unset.
+    private final OpenTelemetry openTelemetry;
     private ScheduledExecutorService sslContextRefresher;
 
     AdminProxyHandler(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider,
                       Authentication proxyClientAuthentication) {
+        this(config, discoveryProvider, proxyClientAuthentication, OpenTelemetry.noop());
+    }
+
+    AdminProxyHandler(ProxyConfiguration config, BrokerDiscoveryProvider discoveryProvider,
+                      Authentication proxyClientAuthentication, OpenTelemetry openTelemetry) {
         this.config = config;
         this.discoveryProvider = discoveryProvider;
         this.proxyClientAuthentication = proxyClientAuthentication;
+        this.openTelemetry = openTelemetry;
         this.brokerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getBrokerWebServiceURLTLS()
                 : config.getBrokerWebServiceURL();
         this.functionWorkerWebServiceUrl = config.isTlsEnabledWithBroker() ? config.getFunctionWorkerWebServiceURLTLS()
                 : config.getFunctionWorkerWebServiceURL();
         if (config.isTlsEnabledWithBroker()) {
-            this.pulsarSslFactory = createPulsarSslFactory();
             this.sslContextRefresher = Executors.newSingleThreadScheduledExecutor(
                     new ExecutorProvider.ExtendedThreadFactory("pulsar-proxy-admin-handler-ssl-refresh"));
-            if (config.getTlsCertRefreshCheckDurationSec() > 0) {
-                this.sslContextRefresher.scheduleWithFixedDelay(this::refreshSslContext,
-                        config.getTlsCertRefreshCheckDurationSec(), config.getTlsCertRefreshCheckDurationSec(),
-                        TimeUnit.SECONDS);
-            }
+            this.brokerClientTlsFactory = createBrokerClientTlsFactory();
+        }
+    }
+
+    // PIP-478: build+initialize the broker-client PulsarTlsFactory (BROKER_CLIENT purpose). The factory owns
+    // rotation internally; newHttpClient() builds a self-reloading SslContextFactory.Client that swaps the
+    // context on rotation, so a long-lived admin HttpClient picks up rotated broker-client material.
+    private PulsarTlsFactory createBrokerClientTlsFactory() {
+        try {
+            PulsarTlsFactory factory = TlsFactorySupport.createFactory(config.getBrokerClientTlsFactoryClassName(),
+                    null, () -> ProxyTlsFactories.brokerClientFactory(config, proxyClientAuthentication));
+            TlsFactoryInitContext initContext = TlsFactorySupport.initContext(
+                    TlsFactorySupport.parseFactoryConfig(config.getBrokerClientTlsFactoryConfig()),
+                    sslContextRefresher, sslContextRefresher, openTelemetry);
+            TlsFactorySupport.initializeBlocking(factory, initContext);
+            return factory;
+        } catch (Exception e) {
+            log.error().exception(e).log("Failed to create Pulsar TLS factory");
+            throw new RuntimeException(e);
         }
     }
 
@@ -120,12 +150,40 @@ class AdminProxyHandler extends ProxyServlet {
 
         ProtocolHandlers protocolHandlers = httpClient.getProtocolHandlers();
         if (protocolHandlers != null) {
-            protocolHandlers.put(new RedirectProtocolHandler(httpClient));
+            protocolHandlers.put(new NonAbortingRedirectProtocolHandler(httpClient));
         }
 
         httpClient.setIdleTimeout(config.getHttpProxyIdleTimeout());
 
         setTimeout(config.getHttpProxyTimeout());
+    }
+
+    /**
+     * A {@link RedirectProtocolHandler} that does not abort the in-flight request when a redirect
+     * response is received.
+     *
+     * <p>Jetty's default {@link RedirectProtocolHandler#onSuccess(Response)} aborts a request that
+     * still has a body to send when a redirect status is received, raising
+     * {@code HttpRequestException: "Aborting request after receiving a NNN response"}. When a broker
+     * returns a 307 (to redirect an admin request to the bundle-owner broker) before the proxy has
+     * finished streaming the request body, that abort can race ahead of the redirect continuation in
+     * {@link RedirectProtocolHandler#onComplete} and surface to the proxy as a spurious HTTP 502 Bad
+     * Gateway. The redirect itself is driven by {@code onComplete} from the response (its status and
+     * {@code Location} header) and does not depend on the abort, so skipping it lets the redirect
+     * always be followed on a fresh request (with the body replayed by
+     * {@link ReplayableProxyContentProvider}), which is the behavior this proxy needs.
+     */
+    static class NonAbortingRedirectProtocolHandler extends RedirectProtocolHandler {
+        NonAbortingRedirectProtocolHandler(HttpClient client) {
+            super(client);
+        }
+
+        @Override
+        public void onSuccess(Response response) {
+            // Intentionally do NOT abort the request here. The redirect is followed in onComplete();
+            // aborting the in-flight request only races a 502 to the proxy when the broker returns a
+            // redirect before the request body has finished sending.
+        }
     }
 
     // This class allows the request body to be replayed, the default implementation
@@ -222,11 +280,18 @@ class AdminProxyHandler extends ProxyServlet {
         try {
             if (config.isTlsEnabledWithBroker()) {
                 try {
-                    SslContextFactory.Client contextFactory = new Client(this.pulsarSslFactory);
-                    if (!config.isTlsHostnameVerificationEnabled()) {
-                        contextFactory.setEndpointIdentificationAlgorithm(null);
-                    }
-                    return new JettyHttpClient(contextFactory);
+                    // PIP-478: the BROKER_CLIENT Jetty client factory — a custom brokerClientTlsFactory
+                    // may supply it natively (owning its reload and endpoint identification), otherwise the
+                    // framework synthesizes a self-reloading one subscribed to the BROKER_CLIENT SSLContext so
+                    // rotated broker-client material reaches new connections. Hostname verification is applied
+                    // on the synthesized path only; a native client owns it.
+                    JettyTlsFactory.ReloadableClientTls reloadable = JettyTlsFactory.createReloadingClientFactory(
+                            this.brokerClientTlsFactory, TlsPurpose.BROKER_CLIENT, sslContextRefresher,
+                            config.getBrokerClientSslProvider(), config.isTlsHostnameVerificationEnabled());
+                    // Replace any prior subscription (newHttpClient may be invoked more than once).
+                    disposeBrokerClientTlsSubscription();
+                    this.brokerClientTlsSubscription = reloadable.subscription();
+                    return new JettyHttpClient(reloadable.sslContextFactory());
                 } catch (Exception e) {
                     log.error().exception(e).log("new jetty http client exception");
                     throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
@@ -316,79 +381,26 @@ class AdminProxyHandler extends ProxyServlet {
         }
     }
 
-    private static class Client extends SslContextFactory.Client {
-
-        private final PulsarSslFactory sslFactory;
-
-        public Client(PulsarSslFactory sslFactory) {
-            super();
-            this.sslFactory = sslFactory;
-        }
-
-        @Override
-        public SSLContext getSslContext() {
-            return this.sslFactory.getInternalSslContext();
-        }
-    }
-
-    protected PulsarSslConfiguration buildSslConfiguration(AuthenticationDataProvider authData) {
-        return PulsarSslConfiguration.builder()
-                .tlsProvider(config.getBrokerClientSslProvider())
-                .tlsKeyStoreType(config.getBrokerClientTlsKeyStoreType())
-                .tlsKeyStorePath(config.getBrokerClientTlsKeyStore())
-                .tlsKeyStorePassword(config.getBrokerClientTlsKeyStorePassword())
-                .tlsTrustStoreType(config.getBrokerClientTlsTrustStoreType())
-                .tlsTrustStorePath(config.getBrokerClientTlsTrustStore())
-                .tlsTrustStorePassword(config.getBrokerClientTlsTrustStorePassword())
-                .tlsCiphers(config.getBrokerClientTlsCiphers())
-                .tlsProtocols(config.getBrokerClientTlsProtocols())
-                .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath())
-                .tlsCertificateFilePath(config.getBrokerClientCertificateFilePath())
-                .tlsKeyFilePath(config.getBrokerClientKeyFilePath())
-                .allowInsecureConnection(config.isTlsAllowInsecureConnection())
-                .requireTrustedClientCertOnConnect(false)
-                .tlsEnabledWithKeystore(config.isBrokerClientTlsEnabledWithKeyStore())
-                .tlsCustomParams(config.getBrokerClientSslFactoryPluginParams())
-                .authData(authData)
-                .serverMode(false)
-                .isHttps(true)
-                .build();
-    }
-
-    protected PulsarSslFactory createPulsarSslFactory() {
-        try {
-            try {
-                AuthenticationDataProvider authData =
-                        proxyClientAuthentication.getAuthData(URI.create(getWebServiceUrl()).getHost());
-                PulsarSslConfiguration pulsarSslConfiguration = buildSslConfiguration(authData);
-                PulsarSslFactory sslFactory =
-                        (PulsarSslFactory) Class.forName(config.getBrokerClientSslFactoryPlugin())
-                                .getConstructor().newInstance();
-                sslFactory.initialize(pulsarSslConfiguration);
-                sslFactory.createInternalSslContext();
-                return sslFactory;
-            } catch (Exception e) {
-                log.error().exception(e).log("Failed to create Pulsar SSLFactory");
-                throw new PulsarClientException.InvalidConfigurationException(e.getMessage());
-            }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    protected void refreshSslContext() {
-        try {
-            this.pulsarSslFactory.update();
-        } catch (Exception e) {
-            log.error().exception(e).log("Failed to refresh SSL context");
-        }
-    }
-
     @Override
     public void destroy() {
         super.destroy();
+        // PIP-478: dispose the BROKER_CLIENT SSLContext subscription driving the reloading Jetty
+        // client factory, then close the broker-client TLS factory if the new path was used.
+        disposeBrokerClientTlsSubscription();
+        if (this.brokerClientTlsFactory != null) {
+            this.brokerClientTlsFactory.close();
+            this.brokerClientTlsFactory = null;
+        }
         if (this.sslContextRefresher != null) {
             this.sslContextRefresher.shutdownNow();
+        }
+    }
+
+    private void disposeBrokerClientTlsSubscription() {
+        TlsHandle<?> subscription = this.brokerClientTlsSubscription;
+        if (subscription != null) {
+            this.brokerClientTlsSubscription = null;
+            subscription.dispose();
         }
     }
 }

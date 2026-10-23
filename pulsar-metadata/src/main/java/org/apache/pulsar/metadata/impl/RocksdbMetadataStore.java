@@ -265,7 +265,7 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
         if (value != null) {
             generator.set(toLong(value));
         } else {
-            db.put(writeOptions, INSTANCE_ID_KEY, toBytes(generator.get()));
+            db.put(writeOptions, SEQUENTIAL_ID_KEY, toBytes(generator.get()));
         }
         return generator;
     }
@@ -436,6 +436,10 @@ public class RocksdbMetadataStore extends AbstractMetadataStore {
                     String currentPath = toString(keyBytes);
                     // Direct children only.
                     if (currentPath.indexOf('/', firstKey.length()) >= 0) {
+                        continue;
+                    }
+                    if (isSequenceCounterChild(currentPath.substring(firstKey.length()))) {
+                        // Sidecar bookkeeping for SequenceKeysDeltas — not a user record.
                         continue;
                     }
                     byte[] value = iterator.value();

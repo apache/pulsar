@@ -24,9 +24,19 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.github.benmanes.caffeine.cache.CacheLoader;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.UriBuilder;
+import jakarta.ws.rs.core.UriInfo;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
@@ -38,25 +48,20 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
-import javax.servlet.ServletContext;
-import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.UriBuilder;
-import javax.ws.rs.core.UriInfo;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataForwarded;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.broker.authentication.AuthenticationParameters;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
+import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.namespace.LookupOptions;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.BookieResources;
@@ -127,6 +132,7 @@ public abstract class PulsarWebResource {
     @Context
     protected ServletContext servletContext;
 
+    @Setter(onMethod_ = @VisibleForTesting)
     @Context
     protected HttpServletRequest httpRequest;
 
@@ -176,8 +182,22 @@ public abstract class PulsarWebResource {
         return (AuthenticationDataSource) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedDataAttributeName);
     }
 
+    /**
+     * The request authentication data of a proxied request is authenticated as the proxy, not the original principal.
+     */
+    protected AuthenticationDataSource originalPrincipalAuthData() {
+        return AuthenticationDataForwarded.ofProxiedRequest(clientAuthData());
+    }
+
     public boolean isRequestHttps() {
         return "https".equalsIgnoreCase(httpRequest.getScheme());
+    }
+
+    public String getWebServiceListenerName() {
+        if (httpRequest == null) {
+            return null;
+        }
+        return (String) httpRequest.getAttribute(WebService.ATTRIBUTE_LISTENER_NAME);
     }
 
     public static boolean isClientAuthenticated(String appId) {
@@ -229,7 +249,7 @@ public abstract class PulsarWebResource {
                         }
                         return pulsar.getBrokerService()
                                 .getAuthorizationService()
-                                .isSuperUser(originalPrincipal, clientAuthData());
+                                .isSuperUser(originalPrincipal, originalPrincipalAuthData());
                     }).thenAccept(originalPrincipalAuthorizationSuccess -> {
                         if (!originalPrincipalAuthorizationSuccess){
                             throw new RestException(Status.UNAUTHORIZED,
@@ -325,7 +345,6 @@ public abstract class PulsarWebResource {
                     if (tenantInfoOptional.isEmpty()) {
                         throw new RestException(Status.NOT_FOUND, "Tenant does not exist");
                     }
-                    TenantInfo tenantInfo = tenantInfoOptional.get();
                     if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration()
                             .isAuthorizationEnabled()) {
                         if (!isClientAuthenticated(clientAppId)) {
@@ -333,51 +352,32 @@ public abstract class PulsarWebResource {
                         }
                         validateOriginalPrincipal(clientAppId, originalPrincipal);
                         if (pulsar.getConfiguration().getProxyRoles().contains(clientAppId)) {
+                            // both the proxy and the original principal must be a super user or a tenant admin
                             AuthorizationService authorizationService =
                                     pulsar.getBrokerService().getAuthorizationService();
-                            return authorizationService.isTenantAdmin(tenant, clientAppId, tenantInfo,
-                                            authenticationData)
-                                .thenCompose(isTenantAdmin -> {
-                                    if (!isTenantAdmin) {
-                                            return authorizationService.isSuperUser(clientAppId, authenticationData)
-                                                .thenCombine(authorizationService.isSuperUser(originalPrincipal,
-                                                             authenticationData),
-                                                     (proxyAuthorized, originalPrincipalAuthorized) -> {
-                                                         if (!proxyAuthorized || !originalPrincipalAuthorized) {
-                                                             throw new RestException(Status.UNAUTHORIZED,
-                                                                     String.format("Proxy not authorized to access "
-                                                                                     + "resource (proxy:%s,original:%s)"
-                                                                             , clientAppId, originalPrincipal));
-                                                         } else {
-                                                                 log.debug()
-                                                                         .attr("principal", originalPrincipal)
-                                                                         .attr("proxy", clientAppId)
-                                                                         .attr("tenant", tenant)
-                                                                         .log("Authorized on tenant");
-                                                                 return null;
-                                                         }
-                                                     });
-                                    } else {
-                                            log.debug().attr("principal", originalPrincipal)
-                                                    .attr("proxy", clientAppId)
-                                                    .attr("tenant", tenant)
-                                                    .log("Successfully authorized on tenant");
-                                                                                return CompletableFuture
-                                                                                        .completedFuture(null);
-                                    }
-                                });
+                            return authorizationService.isSuperUserOrTenantAdmin(tenant, clientAppId,
+                                    authenticationData)
+                                .thenCombine(authorizationService.isSuperUserOrTenantAdmin(tenant,
+                                        originalPrincipal,
+                                        AuthenticationDataForwarded.ofProxiedRequest(authenticationData)),
+                                    (proxyAuthorized, originalPrincipalAuthorized) -> {
+                                        if (!proxyAuthorized || !originalPrincipalAuthorized) {
+                                            throw new RestException(Status.UNAUTHORIZED,
+                                                    String.format("Proxy not authorized to access "
+                                                            + "resource (proxy:%s,original:%s)",
+                                                            clientAppId, originalPrincipal));
+                                        }
+                                        log.debug().attr("principal", originalPrincipal)
+                                                .attr("proxy", clientAppId)
+                                                .attr("tenant", tenant)
+                                                .log("Successfully authorized on tenant");
+                                        return null;
+                                    });
                         } else {
                             return pulsar.getBrokerService()
                                     .getAuthorizationService()
-                                    .isSuperUser(clientAppId, authenticationData)
-                                    .thenCompose(isSuperUser -> {
-                                        if (!isSuperUser) {
-                                            return pulsar.getBrokerService().getAuthorizationService()
-                                                    .isTenantAdmin(tenant, clientAppId, tenantInfo, authenticationData);
-                                        } else {
-                                            return CompletableFuture.completedFuture(true);
-                                        }
-                                    }).thenAccept(authorized -> {
+                                    .isSuperUserOrTenantAdmin(tenant, clientAppId, authenticationData)
+                                    .thenAccept(authorized -> {
                                         if (!authorized) {
                                             throw new RestException(Status.UNAUTHORIZED,
                                                     "Don't have permission to administrate resources on this tenant");
@@ -646,10 +646,11 @@ public abstract class PulsarWebResource {
                     }
                     LookupOptions options = LookupOptions.builder()
                         .authoritative(false)
-                        .requestHttps(isRequestHttps())
+                        .webServiceAdvertisedListenerName(getWebServiceListenerName())
                         .readOnly(true)
-                        .loadTopicsInBundle(false).build();
-                    return nsService.getWebServiceUrlAsync(nsBundle, options).thenApply(Optional::isPresent);
+                        .build();
+                    return nsService.getLookupResultForWebRequestAsync(nsBundle, options)
+                            .thenApply(Optional::isPresent);
                 });
     }
 
@@ -661,90 +662,30 @@ public abstract class PulsarWebResource {
                         .thenApply(__ -> nsBundle));
     }
 
-    public void validateBundleOwnership(NamespaceBundle bundle, boolean authoritative, boolean readOnly)
-            throws Exception {
-        NamespaceService nsService = pulsar().getNamespaceService();
-
-        try {
-            // Call getWebServiceUrl() to acquire or redirect the request
-            // Get web service URL of owning broker.
-            // 1: If namespace is assigned to this broker, continue
-            // 2: If namespace is assigned to another broker, redirect to the webservice URL of another broker
-            // authoritative flag is ignored
-            // 3: If namespace is unassigned and readOnly is true, return 412
-            // 4: If namespace is unassigned and readOnly is false:
-            // - If authoritative is false and this broker is not leader, forward to leader
-            // - If authoritative is false and this broker is leader, determine owner and forward w/ authoritative=true
-            // - If authoritative is true, own the namespace and continue
-            LookupOptions options = LookupOptions.builder()
-                    .authoritative(authoritative)
-                    .requestHttps(isRequestHttps())
-                    .readOnly(readOnly)
-                    .loadTopicsInBundle(false).build();
-            Optional<URL> webUrl = nsService.getWebServiceUrl(bundle, options);
-            // Ensure we get a url
-            if (webUrl.isEmpty()) {
-                log.warn("Unable to get web service url");
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "Failed to find ownership for ServiceUnit:" + bundle.toString());
-            }
-
-            if (!nsService.isServiceUnitOwned(bundle)) {
-                boolean newAuthoritative = this.isLeaderBroker();
-                // Replace the host and port of the current request and redirect
-                URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
-                        .port(webUrl.get().getPort()).replaceQueryParam("authoritative", newAuthoritative).build();
-
-                log.debug().attr("bundle", bundle).log("is not a service unit owned");
-
-                // Redirect
-                log.debug().attr("redirect", redirect).log("Redirecting the rest call");
-                throw new WebApplicationException(Response.temporaryRedirect(redirect).build());
-            }
-        } catch (TimeoutException te) {
-            String msg = String.format("Finding owner for ServiceUnit %s timed out", bundle);
-            log.error().exception(te).log(msg);
-            throw new RestException(Status.INTERNAL_SERVER_ERROR, msg);
-        } catch (IllegalArgumentException iae) {
-            // namespace format is not valid
-            log.debug().attr("serviceUnit", bundle).exception(iae).log("Failed to find owner for ServiceUnit");
-            throw new RestException(Status.PRECONDITION_FAILED,
-                    "ServiceUnit format is not expected. ServiceUnit " + bundle);
-        } catch (IllegalStateException ise) {
-            log.debug().attr("serviceUnit", bundle).exception(ise).log("Failed to find owner for ServiceUnit");
-            throw new RestException(Status.PRECONDITION_FAILED, "ServiceUnit bundle is actived. ServiceUnit " + bundle);
-        } catch (NullPointerException e) {
-            log.warn("Unable to get web service url");
-            throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for ServiceUnit:" + bundle);
-        }
-    }
-
     public CompletableFuture<Void> validateBundleOwnershipAsync(NamespaceBundle bundle, boolean authoritative,
                                                                 boolean readOnly) {
         NamespaceService nsService = pulsar().getNamespaceService();
         LookupOptions options = LookupOptions.builder()
                 .authoritative(authoritative)
-                .requestHttps(isRequestHttps())
+                .webServiceAdvertisedListenerName(getWebServiceListenerName())
                 .readOnly(readOnly)
-                .loadTopicsInBundle(false).build();
-        return nsService.getWebServiceUrlAsync(bundle, options)
-                .thenCompose(webUrl -> {
-                    if (webUrl.isEmpty()) {
+                .build();
+        return nsService.getLookupResultForWebRequestAsync(bundle, options)
+                .thenCompose(optLookupResult -> {
+                    if (optLookupResult.isEmpty()) {
                         log.warn("Unable to get web service url");
                         throw new RestException(Status.PRECONDITION_FAILED,
                                 "Failed to find ownership for ServiceUnit:" + bundle.toString());
                     }
+                    LookupResult lookupResult = optLookupResult.get();
                     return nsService.isServiceUnitOwnedAsync(bundle)
                             .thenAccept(owned -> {
                                 if (!owned) {
                                     boolean newAuthoritative = this.isLeaderBroker();
-                                    // Replace the host and port of the current request and redirect
-                                    UriBuilder uriBuilder = UriBuilder.fromUri(uri.getRequestUri())
-                                            .host(webUrl.get().getHost())
-                                            .port(webUrl.get().getPort())
-                                            .replaceQueryParam("authoritative", newAuthoritative);
+                                    UriBuilder uriBuilder = UriBuilder.fromUri(
+                                            lookupResult.toRedirectUri(uri.getRequestUri(), newAuthoritative));
                                     if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
-                                        uriBuilder.replaceQueryParam("destinationBroker", (Object[]) null);
+                                        uriBuilder.replaceQueryParam("destinationBroker");
                                     }
                                     URI redirect = uriBuilder.build();
                                     log.debug().attr("bundle", bundle).log("is not a service unit owned");
@@ -773,32 +714,26 @@ public abstract class PulsarWebResource {
 
         LookupOptions options = LookupOptions.builder()
                 .authoritative(authoritative)
-                .requestHttps(isRequestHttps())
+                .webServiceAdvertisedListenerName(getWebServiceListenerName())
                 .readOnly(false)
-                .loadTopicsInBundle(false)
                 .build();
 
-        return nsService.getWebServiceUrlAsync(topicName, options)
-                .thenApply(webUrl ->
-                        webUrl.orElseThrow(() -> {
+        return nsService.getLookupResultForWebRequestAsync(topicName, options)
+                .thenApply(optLookupResult ->
+                        optLookupResult.orElseThrow(() -> {
                             log.info("Unable to get web service url");
                             throw new RestException(Status.PRECONDITION_FAILED,
                                     "Failed to find ownership for topic:" + topicName);
                         })
-                ).thenCompose(webUrl -> nsService.isServiceUnitOwnedAsync(topicName)
-                        .thenApply(isTopicOwned -> Pair.of(webUrl, isTopicOwned))
+                ).thenCompose(lookupResult -> nsService.isServiceUnitOwnedAsync(topicName)
+                        .thenApply(isTopicOwned -> Pair.of(lookupResult, isTopicOwned))
                 ).thenAccept(pair -> {
-                    URL webUrl = pair.getLeft();
+                    LookupResult lookupResult = pair.getLeft();
                     boolean isTopicOwned = pair.getRight();
 
                     if (!isTopicOwned) {
                         boolean newAuthoritative = isLeaderBroker(pulsar());
-                        // Replace the host and port of the current request and redirect
-                        URI redirect = UriBuilder.fromUri(uri.getRequestUri())
-                                .host(webUrl.getHost())
-                                .port(webUrl.getPort())
-                                .replaceQueryParam("authoritative", newAuthoritative)
-                                .build();
+                        URI redirect = lookupResult.toRedirectUri(uri.getRequestUri(), newAuthoritative);
                         // Redirect
                         log.debug()
                                 .attr("redirect", redirect)
@@ -1068,6 +1003,15 @@ public abstract class PulsarWebResource {
 
     public CompletableFuture<Void> validateNamespaceOperationAsync(NamespaceName namespaceName,
                                                               NamespaceOperation operation) {
+        return validateNamespaceOperationAsync(namespaceName, operation, null);
+    }
+
+    /**
+     * Validates a namespace operation for a single subscription, passing it to the authorization provider.
+     */
+    public CompletableFuture<Void> validateNamespaceOperationAsync(NamespaceName namespaceName,
+                                                                   NamespaceOperation operation,
+                                                                   String subscription) {
         if (pulsar().getConfiguration().isAuthenticationEnabled()
             && pulsar().getBrokerService().isAuthorizationEnabled()) {
             if (!isClientAuthenticated(clientAppId())) {
@@ -1075,9 +1019,21 @@ public abstract class PulsarWebResource {
                         new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request"));
             }
 
-            return pulsar().getBrokerService().getAuthorizationService()
-                    .allowNamespaceOperationAsync(namespaceName, operation, originalPrincipal(),
-                             clientAppId(), clientAuthData())
+            AuthorizationService authorizationService = pulsar().getBrokerService().getAuthorizationService();
+            CompletableFuture<Boolean> allowFuture;
+            if (subscription != null) {
+                // Wrap the request auth data so that the subscription is available for every kind of
+                // authentication data, including the auth data of the anonymous role. The original principal
+                // is checked with its own auth data, so that it is not evaluated with the proxy credentials.
+                allowFuture = authorizationService.allowNamespaceOperationAsync(namespaceName, operation,
+                        originalPrincipal(), clientAppId(),
+                        new AuthenticationDataSubscription(originalPrincipalAuthData(), subscription),
+                        new AuthenticationDataSubscription(clientAuthData(), subscription));
+            } else {
+                allowFuture = authorizationService.allowNamespaceOperationAsync(namespaceName, operation,
+                        originalPrincipal(), clientAppId(), clientAuthData());
+            }
+            return allowFuture
                     .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.FORBIDDEN,
@@ -1318,10 +1274,20 @@ public abstract class PulsarWebResource {
                         new RestException(Status.UNAUTHORIZED, "Need to authenticate to perform the request"));
             }
 
-            AuthenticationDataSource authData = clientAuthData();
-            authData.setSubscription(subscription);
-            return pulsar().getBrokerService().getAuthorizationService()
-                    .allowTopicOperationAsync(topicName, operation, originalPrincipal(), clientAppId(), authData)
+            AuthorizationService authorizationService = pulsar().getBrokerService().getAuthorizationService();
+            CompletableFuture<Boolean> allowFuture;
+            if (subscription != null) {
+                // Wrap instead of setting the subscription, which some auth data types (e.g. anonymous) ignore.
+                // As for namespace operations, the original principal is checked with its own auth data.
+                allowFuture = authorizationService.allowTopicOperationAsync(topicName, operation,
+                        originalPrincipal(), clientAppId(),
+                        new AuthenticationDataSubscription(originalPrincipalAuthData(), subscription),
+                        new AuthenticationDataSubscription(clientAuthData(), subscription));
+            } else {
+                allowFuture = authorizationService.allowTopicOperationAsync(topicName, operation,
+                        originalPrincipal(), clientAppId(), clientAuthData());
+            }
+            return allowFuture
                     .thenAccept(isAuthorized -> {
                         if (!isAuthorized) {
                             throw new RestException(Status.UNAUTHORIZED, String.format(
@@ -1332,6 +1298,34 @@ public abstract class PulsarWebResource {
         } else {
             return CompletableFuture.completedFuture(null);
         }
+    }
+
+    /**
+     * Whether a topic that does not exist may be created for this client: the auto topic creation settings allow it
+     * and, when it would be created from nothing, the authorization provider lets this client trigger it. The
+     * provider is not consulted for a topic the broker re-materializes from existing metadata, such as a partition
+     * of an existing partitioned topic, see {@link BrokerService#isAllowAutoTopicCreationAsync}.
+     */
+    protected CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(TopicName topicName) {
+        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName, newTopicCheck(topicName));
+    }
+
+    /**
+     * Whether the authorization provider lets this client trigger the creation of a new topic. The request values are
+     * read now, as the check may run later on another thread.
+     */
+    protected Supplier<CompletableFuture<Boolean>> newTopicCheck(TopicName topicName) {
+        BrokerService brokerService = pulsar().getBrokerService();
+        if (!pulsar().getConfiguration().isAuthenticationEnabled() || !brokerService.isAuthorizationEnabled()) {
+            return () -> CompletableFuture.completedFuture(true);
+        }
+        String originalPrincipal = originalPrincipal();
+        String clientAppId = clientAppId();
+        // As for topic operations, the original principal of a proxied request is checked with its own auth data.
+        AuthenticationDataSource originalAuthData = originalPrincipalAuthData();
+        AuthenticationDataSource authData = clientAuthData();
+        return () -> brokerService.getAuthorizationService().allowTopicAutoCreationAsync(topicName,
+                originalPrincipal, clientAppId, originalAuthData, authData);
     }
 
     public <T> T sync(Supplier<CompletableFuture<T>> supplier) {

@@ -91,11 +91,14 @@ public class MLTransactionLogImpl implements TransactionLog {
         this.tcId = tcID.getId();
         this.managedLedgerFactory = managedLedgerFactory;
         this.managedLedgerConfig = managedLedgerConfig;
+        this.managedLedgerConfig.setLoggerContext(log.with().attr("tcId", tcId).build());
         this.timer = timer;
         this.txnLogBufferedWriterConfig = txnLogBufferedWriterConfig;
         if (txnLogBufferedWriterConfig.isBatchEnabled()) {
             this.managedLedgerConfig.setDeletionAtBatchIndexLevelEnabled(true);
         }
+        // the transaction log keeps TransactionMetadataEntry records, not Pulsar messages
+        this.managedLedgerConfig.setPulsarMessageEntries(false);
         this.entryQueue = new SpscArrayQueue<>(2000);
         this.bufferedWriterMetrics = bufferedWriterMetrics;
     }

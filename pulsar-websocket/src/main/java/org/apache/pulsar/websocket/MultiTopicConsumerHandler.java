@@ -21,11 +21,11 @@ package org.apache.pulsar.websocket;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import com.google.common.base.Splitter;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
-import javax.servlet.http.HttpServletRequest;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
@@ -33,7 +33,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.eclipse.jetty.ee8.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
 
 /**
  * Subscribing for multi-topic.
@@ -59,12 +59,16 @@ public class MultiTopicConsumerHandler extends ConsumerHandler {
                                 .allowTopicOperationAsync(TopicName.get(topicName),
                                         TopicOperation.CONSUME, authRole, subscription));
                 }
-                FutureUtil.waitForAll(futures)
+                return FutureUtil.waitForAll(futures)
+                        .thenCompose(__ -> futures.stream().allMatch(f -> f.join())
+                                ? authorizeDeadLetterTopic(authRole, authenticationData)
+                                : CompletableFuture.completedFuture(false))
                         .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-                return futures.stream().allMatch(f -> f.join());
             } else {
                 return service.getAuthorizationService()
                         .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
+                        .thenCompose(allowed -> allowed ? authorizeDeadLetterTopic(authRole, authenticationData)
+                                : CompletableFuture.completedFuture(false))
                         .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
             }
         } catch (TimeoutException e) {

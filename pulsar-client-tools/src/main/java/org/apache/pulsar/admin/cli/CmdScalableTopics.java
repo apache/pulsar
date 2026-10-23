@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -41,15 +42,15 @@ public class CmdScalableTopics extends CmdBase {
         private String namespace;
 
         @Option(names = {"-p", "--property"},
-                description = "Filter to topics whose properties contain this key=value pair."
-                        + " Repeat to AND multiple filters together.",
-                arity = "0..*")
+                description = "Filter to topics whose properties contain key=value pairs."
+                        + " Repeat or separate with commas to AND multiple filters together.",
+                arity = "1")
         private List<String> properties;
 
         @Override
         void run() throws Exception {
             String ns = validateNamespace(namespace);
-            Map<String, String> filters = parseListKeyValueMap(properties);
+            Map<String, String> filters = parseProperties(properties);
             if (filters == null || filters.isEmpty()) {
                 print(scalableTopics().listScalableTopics(ns));
             } else {
@@ -67,19 +68,38 @@ public class CmdScalableTopics extends CmdBase {
                 description = "Number of initial segments", defaultValue = "1")
         private int numInitialSegments;
 
-        @Option(names = {"-p", "--property"}, description = "Key-value properties (key=value)",
-                arity = "0..*")
+        @Option(names = {"-p", "--property"},
+                description = "Key-value properties. Repeat or separate with commas (key=value[,key=value...])",
+                arity = "1")
         private List<String> properties;
 
         @Override
         void run() throws Exception {
-            Map<String, String> props = parseListKeyValueMap(properties);
+            Map<String, String> props = parseProperties(properties);
             if (props != null) {
                 scalableTopics().createScalableTopic(topic, numInitialSegments, props);
             } else {
                 scalableTopics().createScalableTopic(topic, numInitialSegments);
             }
             print("Created scalable topic " + topic + " with " + numInitialSegments + " segment(s)");
+        }
+    }
+
+    @Command(description = "Migrate an existing regular (partitioned or non-partitioned) topic"
+            + " to a scalable topic. Fails if legacy v4 clients are still connected unless"
+            + " --force is set.")
+    private class MigrateCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-f", "--force"},
+                description = "Migrate even if legacy v4 clients are still connected")
+        private boolean force;
+
+        @Override
+        void run() throws Exception {
+            scalableTopics().migrateToScalable(topic, force);
+            print("Migrated topic " + topic + " to a scalable topic");
         }
     }
 
@@ -94,7 +114,9 @@ public class CmdScalableTopics extends CmdBase {
         }
     }
 
-    @Command(description = "Get aggregated stats for a scalable topic")
+    @Command(description = "Get the stats of a scalable topic as a whole: the segment DAG with"
+            + " per-segment load, the subscriptions with their backlog across segments, and the"
+            + " producers")
     private class GetStatsCmd extends CliCommand {
         @Parameters(description = "tenant/namespace/topic", arity = "1")
         private String topic;
@@ -102,6 +124,19 @@ public class CmdScalableTopics extends CmdBase {
         @Override
         void run() throws Exception {
             prettyPrint(scalableTopics().getStats(topic));
+        }
+    }
+
+    @Command(description = "Get the stats of a single segment of a scalable topic: the regular topic"
+            + " stats of the topic backing the segment")
+    private class GetSegmentStatsCmd extends CliCommand {
+        @Parameters(description = "segment://tenant/namespace/topic/<hashStart>-<hashEnd>-<segmentId>,"
+                + " as listed by 'stats'", arity = "1")
+        private String segment;
+
+        @Override
+        void run() throws Exception {
+            prettyPrint(scalableTopics().getSegmentStats(segment));
         }
     }
 
@@ -200,16 +235,82 @@ public class CmdScalableTopics extends CmdBase {
         }
     }
 
+    @Command(description = "Get the permissions on a scalable topic: the permissions set at the namespace"
+            + " level combined (union) with any eventual specific permission set on the topic")
+    private class PermissionsCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Override
+        void run() throws Exception {
+            print(scalableTopics().getPermissions(topic));
+        }
+    }
+
+    @Command(description = "Grant a new permission to a client role on a scalable topic. The permission"
+            + " applies to every segment of the topic")
+    private class GrantPermissionCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-r", "--role"}, description = "Client role to which grant permissions", required = true)
+        private String role;
+
+        @Option(names = {"-a", "--actions"}, description = "Actions to be granted (produce,consume,sources,sinks,"
+                + "functions,packages)", required = true, split = ",")
+        private List<String> actions;
+
+        @Override
+        void run() throws Exception {
+            scalableTopics().grantPermission(topic, role, getAuthActions(actions));
+            print("Granted " + actions + " to role " + role + " on topic " + topic);
+        }
+    }
+
+    @Command(description = "Revoke the permissions granted to a client role on a scalable topic. Permissions"
+            + " granted at the namespace level are not affected")
+    private class RevokePermissionCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-r", "--role"}, description = "Client role to which revoke permissions", required = true)
+        private String role;
+
+        @Override
+        void run() throws Exception {
+            scalableTopics().revokePermissions(topic, role);
+            print("Revoked the permissions of role " + role + " on topic " + topic);
+        }
+    }
+
     public CmdScalableTopics(Supplier<PulsarAdmin> admin) {
         super("scalable-topics", admin);
         addCommand("list", new ListCmd());
         addCommand("create", new CreateCmd());
+        addCommand("migrate", new MigrateCmd());
         addCommand("get-metadata", new GetMetadataCmd());
         addCommand("stats", new GetStatsCmd());
+        addCommand("segment-stats", new GetSegmentStatsCmd());
         addCommand("delete", new DeleteCmd());
         addCommand("split-segment", new SplitSegmentCmd());
         addCommand("merge-segments", new MergeSegmentsCmd());
         addCommand("seek", new SeekSubscriptionCmd());
         addCommand("clear-backlog", new ClearBacklogCmd());
+        addCommand("permissions", new PermissionsCmd());
+        addCommand("grant-permission", new GrantPermissionCmd());
+        addCommand("revoke-permission", new RevokePermissionCmd());
+    }
+
+    private Map<String, String> parseProperties(List<String> properties) {
+        if (properties == null || properties.isEmpty()) {
+            return null;
+        }
+        List<String> entries = new ArrayList<>();
+        for (String property : properties) {
+            for (String entry : property.split(",", -1)) {
+                entries.add(entry.trim());
+            }
+        }
+        return parseListKeyValueMap(entries);
     }
 }

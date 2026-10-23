@@ -36,6 +36,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 
 public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
@@ -82,34 +83,48 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
     @Override
     protected CompletableFuture<Message<T>> internalReceiveAsync() {
-        CompletableFuture<Message<T>> future = super.internalReceiveAsync();
-        if (!future.isDone()) {
-            // We expect the message to be not in the queue yet
-            increaseAvailablePermits(cnx());
-        }
-
-        return future;
+        CompletableFutureCancellationHandler cancellationHandler = new CompletableFutureCancellationHandler();
+        CompletableFuture<Message<T>> result = cancellationHandler.createFuture();
+        internalPinnedExecutor.execute(() -> {
+            Message<T> message = incomingMessages.poll();
+            if (message != null) {
+                messageProcessed(message);
+                result.complete(beforeConsume(message));
+                return;
+            }
+            // Hold the same lock as consumerIsReconnectedToBroker() so exactly one permit is sent:
+            // either reconnect counts this future, or this task sends it after reconnection.
+            synchronized (ZeroQueueConsumerImpl.this) {
+                pendingReceives.add(result);
+                cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
+                // Cancellation or timeout may have completed the future before registration.
+                if (!result.isDone() && isConnected()) {
+                    increaseAvailablePermits(cnx());
+                }
+            }
+        });
+        return result;
     }
 
     private Message<T> fetchSingleMessageFromBroker() throws PulsarClientException {
         // Just being cautious
         if (incomingMessages.size() > 0) {
             log.error("The incoming message queue should never be greater than 0 when Queue size is 0");
-            incomingMessages.forEach(Message::release);
-            incomingMessages.clear();
+            clearIncomingMessages();
         }
 
         Message<T> message;
         try {
             // if cnx is null or if the connection breaks the connectionOpened function will send the flow again
-            waitingOnReceiveForZeroQueueSize = true;
             synchronized (this) {
+                waitingOnReceiveForZeroQueueSize = true;
                 if (isConnected()) {
                     increaseAvailablePermits(cnx());
                 }
             }
             do {
                 message = incomingMessages.take();
+                decreaseIncomingMessageSize(message);
                 lastDequeuedMessageId = message.getMessageId();
                 ClientCnx msgCnx = ((MessageImpl<?>) message).getCnx();
                 // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
@@ -121,6 +136,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                         break;
                     }
                 }
+                message.release();
             } while (true);
 
             stats.updateNumMsgsReceived(message);
@@ -132,7 +148,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             // Finally blocked is invoked in case the block on incomingMessages is interrupted
             waitingOnReceiveForZeroQueueSize = false;
             // Clearing the queue in case there was a race with messageReceived
-            incomingMessages.clear();
+            clearIncomingMessages();
         }
     }
 
@@ -140,12 +156,20 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     protected void consumerIsReconnectedToBroker(ClientCnx cnx, int currentQueueSize) {
         super.consumerIsReconnectedToBroker(cnx, currentQueueSize);
 
-        // For zerosize queue : If the connection is reset and someone is waiting for the messages
-        // or queue was not empty: send a flow command
-        if (waitingOnReceiveForZeroQueueSize
+        // Send one permit per pending receiveAsync(), plus one for a blocking receive(),
+        // idle listener, or non-empty queue.
+        int pendingAsyncReceives = 0;
+        for (CompletableFuture<Message<T>> pendingReceive : pendingReceives) {
+            if (!pendingReceive.isDone()) {
+                pendingAsyncReceives++;
+            }
+        }
+        boolean shouldSendPermit = waitingOnReceiveForZeroQueueSize
                 || currentQueueSize > 0
-                || (listener != null && !waitingOnListenerForZeroQueueSize)) {
-            increaseAvailablePermits(cnx);
+                || (listener != null && !waitingOnListenerForZeroQueueSize);
+        int permits = pendingAsyncReceives + (shouldSendPermit ? 1 : 0);
+        if (permits > 0) {
+            increaseAvailablePermits(cnx, permits);
         }
     }
 
@@ -170,8 +194,10 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                             .log("Calling message listener for unqueued message");
                 waitingOnListenerForZeroQueueSize = true;
                 trackMessage(message);
-                unAckedMessageTracker.add(
-                        MessageIdAdvUtils.discardBatch(message.getMessageId()), message.getRedeliveryCount());
+                if (isAckTimeoutTrackingEnabled()) {
+                    unAckedMessageTracker.add(
+                            MessageIdAdvUtils.discardBatch(message.getMessageId()), message.getRedeliveryCount());
+                }
                 if (decryptFailListener != null
                         && message.getEncryptionCtx().isPresent()
                         && message.getEncryptionCtx().get().isEncrypted()
@@ -197,7 +223,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
 
     @Override
     void receiveIndividualMessagesFromBatch(BrokerEntryMetadata brokerEntryMetadata, MessageMetadata msgMetadata,
-                                            int redeliveryCount, List<Long> ackSet, ByteBuf uncompressedPayload,
+                                            int redeliveryCount, long[] ackSet, ByteBuf uncompressedPayload,
                                             MessageIdData messageId, ClientCnx cnx, long consumerEpoch,
                                             boolean isEncrypted) {
 

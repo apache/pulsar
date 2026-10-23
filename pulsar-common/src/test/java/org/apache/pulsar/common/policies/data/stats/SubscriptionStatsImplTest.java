@@ -27,8 +27,10 @@ public class SubscriptionStatsImplTest {
     public void testReset() {
         SubscriptionStatsImpl stats = new SubscriptionStatsImpl();
         stats.earliestMsgPublishTimeInBacklog = 1L;
+        stats.oldestBacklogMessageAgeSeconds = 10L;
         stats.reset();
         assertEquals(stats.earliestMsgPublishTimeInBacklog, 0L);
+        assertEquals(stats.oldestBacklogMessageAgeSeconds, -1L);
 
     }
 
@@ -78,5 +80,20 @@ public class SubscriptionStatsImplTest {
 
         SubscriptionStatsImpl aggregate = stats1.add(stats2);
         assertEquals(aggregate.earliestMsgPublishTimeInBacklog, 0L);
+    }
+
+    @Test
+    public void testAdd_OldestBacklogMessageAgeSeconds() {
+        SubscriptionStatsImpl stats1 = new SubscriptionStatsImpl();
+        stats1.oldestBacklogMessageAgeSeconds = -1L;
+
+        SubscriptionStatsImpl stats2 = new SubscriptionStatsImpl();
+        stats2.oldestBacklogMessageAgeSeconds = 20L;
+
+        SubscriptionStatsImpl stats3 = new SubscriptionStatsImpl();
+        stats3.oldestBacklogMessageAgeSeconds = 10L;
+
+        SubscriptionStatsImpl aggregate = stats1.add(stats2).add(stats3);
+        assertEquals(aggregate.oldestBacklogMessageAgeSeconds, 20L);
     }
 }

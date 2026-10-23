@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.v5;
 
 import io.github.merlimat.slog.Logger;
+import io.netty.util.Timeout;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -30,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedTransferQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.client.api.v5.Message;
@@ -57,9 +57,10 @@ import org.apache.pulsar.common.naming.TopicName;
  * per-topic consumer with the right segment vector — same semantics as the
  * single-topic case, just lifted one level.
  *
- * <p>For Removed-mid-stream topics we flush acks up to {@code latestDelivered}
- * for that topic before closing the per-topic consumer, so the user's
- * processing-acked invariant is preserved if the topic is later re-added.
+ * <p>Acknowledgment is always explicit: neither {@code close()} nor a topic
+ * leaving the matching set acks anything on the application's behalf. A removed
+ * topic's per-topic consumer is simply detached; anything delivered-but-unacked
+ * is redelivered if the topic is later re-added (at-least-once).
  */
 final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
 
@@ -79,15 +80,20 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
     private final String subscriptionName;
 
     private final ScalableTopicsWatcher watcher;
+    /**
+     * Every topic of the matching set, from when the consumer starts attaching it until it leaves the set:
+     * while it is being attached, once attached, and while a failed attach waits to be retried.
+     */
     private final ConcurrentHashMap<String, PerTopic<T>> perTopic = new ConcurrentHashMap<>();
-    private final LinkedTransferQueue<MessageV5<T>> mux = new LinkedTransferQueue<>();
+    private final V5ReceiveQueue<T> mux;
 
     /**
-     * Tracks the latest delivered message id per (parent topic, segment id) across
-     * every per-topic consumer. Snapshotted at enqueue time for each delivered
-     * message so cumulative ack covers everything visible up to that message.
+     * Latest-delivered position per parent topic, each an <em>immutable</em> per-segment slice
+     * (the message's own position vector). Snapshotted — shallowly, sharing those immutable
+     * slices — at enqueue time for each delivered message so cumulative ack covers everything
+     * visible up to that message.
      */
-    private final ConcurrentHashMap<String, ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId>>
+    private final ConcurrentHashMap<String, Map<Long, org.apache.pulsar.client.api.MessageId>>
             latestDeliveredPerTopicSegment = new ConcurrentHashMap<>();
 
     private volatile boolean closed = false;
@@ -106,6 +112,9 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         this.propertyFilters = propertyFilters;
         this.subscriptionName = consumerConf.getSubscriptionName();
         this.watcher = watcher;
+        this.mux = new V5ReceiveQueue<>(
+                client.v4Client().externalExecutorProvider().getExecutor(), client.v4Client().timer(),
+                consumerConf.getReceiverQueueSize());
         this.log = LOG.with()
                 .attr("namespace", namespace)
                 .attr("subscription", subscriptionName)
@@ -134,51 +143,65 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                 }));
     }
 
+    /**
+     * Open one per-topic consumer per topic in the initial snapshot, waiting for the first attempt on
+     * every topic. A topic whose first attempt failed is retried in the background, like a topic that
+     * joins the matching set later.
+     */
     private CompletableFuture<Void> openInitial(List<String> topics) {
         if (topics.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
         List<CompletableFuture<?>> opens = new ArrayList<>(topics.size());
         for (String t : topics) {
-            opens.add(openTopic(t, /* retry= */ false));
+            opens.add(openTopic(t));
         }
         return CompletableFuture.allOf(opens.toArray(CompletableFuture[]::new));
     }
 
-    private CompletableFuture<Void> openTopic(String topicName, boolean retry) {
+    /**
+     * Subscribe to one topic, retrying failures in the background until an attempt succeeds or the
+     * topic leaves the matching set. The returned future completes once the first attempt finishes.
+     */
+    private CompletableFuture<Void> openTopic(String topicName) {
         if (closed) {
             return CompletableFuture.completedFuture(null);
         }
-        if (perTopic.containsKey(topicName)) {
+        PerTopic<T> state = new PerTopic<>();
+        if (perTopic.putIfAbsent(topicName, state) != null) {
+            // Already attached, being attached, or waiting to retry.
             return CompletableFuture.completedFuture(null);
         }
-        TopicName topic = V5Utils.asScalableTopicName(topicName);
-        // One ScalableConsumerClient session per topic, same as the single-topic builder.
+        return attachTopic(topicName, state);
+    }
+
+    /** One attempt at subscribing to a topic; a failure schedules the next one. */
+    private CompletableFuture<Void> attachTopic(String topicName, PerTopic<T> state) {
+        TopicName topic = V5Utils.parseScalableTopicInput(topicName);
+        // One ScalableConsumerClient session per topic, same as the single-topic builder. A namespace
+        // consumer only attaches to topics the watcher reports as existing; it must never auto-create one
+        // (so a deleted topic can't be resurrected by an attach or a reconnect that looks it up).
         ScalableConsumerClient session = new ScalableConsumerClient(
                 client.v4Client(), topic,
                 consumerConf.getSubscriptionName(),
                 perTopicConsumerName(topicName),
-                ScalableConsumerType.STREAM);
+                ScalableConsumerType.STREAM,
+                /* createIfMissing= */ false);
 
         // Per-topic message sink: each delivered message arrives with its
         // single-topic positionVector (computed by ScalableStreamConsumer). Update
         // our cross-topic latestDelivered map, snapshot the full cross-topic vector,
         // and forward to the shared mux. No pump thread.
-        java.util.function.Consumer<MessageV5<T>> sink = msg ->
-                onPerTopicMessage(topicName, msg);
+        MessageSink<T> sink = msg -> onPerTopicMessage(topicName, msg);
 
         return session.start()
                 .thenCompose(initialAssignment -> ScalableStreamConsumer.createAsyncImpl(
                         client, v5Schema, perTopicConf(topicName), session,
                         topicName, initialAssignment, sink))
                 .thenAccept(sc -> {
-                    if (closed) {
-                        sc.closeAsync();
-                        return;
-                    }
-                    PerTopic<T> state = new PerTopic<>(topicName, sc);
-                    PerTopic<T> existing = perTopic.putIfAbsent(topicName, state);
-                    if (existing != null) {
+                    // closeTopic cancels the state when the topic leaves the matching set
+                    // while this attempt is in flight: close what it opened.
+                    if (closed || !state.consumer.complete(sc)) {
                         sc.closeAsync();
                         return;
                     }
@@ -187,8 +210,9 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                 .exceptionally(ex -> {
                     Throwable cause = ex instanceof CompletionException ce && ce.getCause() != null
                             ? ce.getCause() : ex;
-                    if (retry && !closed) {
-                        scheduleRetry(topicName);
+                    // No retry once the topic has left the matching set: it may be gone for good.
+                    if (!closed && !state.consumer.isDone()) {
+                        scheduleRetry(topicName, state);
                     }
                     log.warn().attr("topic", topicName).exceptionMessage(cause)
                             .log("Per-topic stream subscribe failed");
@@ -196,12 +220,15 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                 });
     }
 
-    private void scheduleRetry(String topicName) {
+    private void scheduleRetry(String topicName, PerTopic<T> state) {
         long delayMs = nextBackoff(topicName);
         log.info().attr("topic", topicName).attr("delayMs", delayMs)
                 .log("Retrying per-topic stream subscribe");
-        client.v4Client().timer().newTimeout(timeout -> openTopic(topicName, /* retry= */ true),
-                delayMs, TimeUnit.MILLISECONDS);
+        state.retry = client.v4Client().timer().newTimeout(t -> {
+            if (!closed && !state.consumer.isDone()) {
+                attachTopic(topicName, state);
+            }
+        }, delayMs, TimeUnit.MILLISECONDS);
     }
 
     private final ConcurrentHashMap<String, AtomicLong> retryDelays = new ConcurrentHashMap<>();
@@ -238,10 +265,13 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
     }
 
     /**
-     * Close per-topic consumer, flushing pending cumulative acks up to whatever was
-     * last delivered for that topic. If the topic later re-appears (re-Added), a
-     * fresh consumer subscribes and resumes from the broker-side cursor — already
-     * advanced past the messages we've delivered to the user.
+     * Detach the per-topic consumer and drop our delivery tracking for it. Runs both on
+     * {@link #closeAsync()} and when a topic leaves the matching set. We deliberately do
+     * <em>not</em> acknowledge anything here: acks on a stream consumer are cumulative and
+     * always explicit, so closing (or a topic removal) must never advance a cursor past
+     * what the application itself acked. Whatever was delivered-but-unacked is redelivered
+     * on the next attach (at-least-once). If the topic later re-appears, a fresh consumer
+     * subscribes and resumes from the broker-side cursor.
      */
     private CompletableFuture<Void> closeTopic(String topicName) {
         retryDelays.remove(topicName);
@@ -249,13 +279,20 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         if (state == null) {
             return CompletableFuture.completedFuture(null);
         }
-        // Flush: ack everything we delivered for this topic.
-        ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> latest =
-                latestDeliveredPerTopicSegment.remove(topicName);
-        if (latest != null && !latest.isEmpty()) {
-            state.consumer.ackUpToVector(new HashMap<>(latest));
+        // If it isn't attached yet, stop attaching it: an attempt in flight closes the consumer
+        // it opens, and a pending backoff retry must not re-subscribe a topic that just left
+        // the match set.
+        boolean attaching = state.consumer.cancel(false);
+        Timeout retry = state.retry;
+        if (retry != null) {
+            retry.cancel();
         }
-        return state.consumer.closeAsync()
+        // Stop tracking this topic's delivery positions. No ack flush — see javadoc.
+        latestDeliveredPerTopicSegment.remove(topicName);
+        if (attaching) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return state.consumer.thenCompose(ScalableStreamConsumer::closeAsync)
                 .thenRun(() -> log.info().attr("topic", topicName)
                         .log("Per-topic stream consumer detached"));
     }
@@ -279,50 +316,17 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
 
     @Override
     public Message<T> receive() throws PulsarClientException {
-        try {
-            return mux.take();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return mux.take();
     }
 
     @Override
     public Message<T> receive(Duration timeout) throws PulsarClientException {
-        try {
-            return mux.poll(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
+        return mux.poll(timeout);
     }
 
     @Override
     public Messages<T> receiveMulti(int maxNumMessages, Duration timeout) throws PulsarClientException {
-        // Block for up to `timeout` waiting for the first message, then drain whatever
-        // else is immediately available up to maxNumMessages. Same shape as the single
-        // topic StreamConsumer.
-        long deadline = System.nanoTime() + timeout.toNanos();
-        List<Message<T>> batch = new ArrayList<>();
-        try {
-            long remaining = deadline - System.nanoTime();
-            while (batch.size() < maxNumMessages && remaining > 0) {
-                MessageV5<T> msg = mux.poll(remaining, TimeUnit.NANOSECONDS);
-                if (msg == null) {
-                    break;
-                }
-                batch.add(msg);
-                remaining = deadline - System.nanoTime();
-            }
-            // Opportunistic drain of anything else already queued.
-            List<MessageV5<T>> tail = new ArrayList<>();
-            mux.drainTo(tail, maxNumMessages - batch.size());
-            batch.addAll(tail);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException("Receive interrupted", e);
-        }
-        return new MessagesV5<>(batch);
+        return new MessagesV5<>(mux.receiveMulti(maxNumMessages, timeout));
     }
 
     @Override
@@ -354,11 +358,13 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         }
         for (var entry : vector.entrySet()) {
             PerTopic<T> state = perTopic.get(entry.getKey());
-            if (state == null) {
-                // Topic was Removed since enqueue; closeTopic already flushed.
+            ScalableStreamConsumer<T> consumer = state != null ? state.attachedConsumer() : null;
+            if (consumer == null) {
+                // Topic left the matching set since this message was enqueued: we've
+                // detached it and no longer ack removed topics, so skip its slice.
                 continue;
             }
-            action.accept(state.consumer, entry.getValue());
+            action.accept(consumer, entry.getValue());
         }
     }
 
@@ -375,7 +381,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Close interrupted", e);
         } catch (ExecutionException e) {
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -385,6 +391,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
         }
         closed = true;
         watcher.close();
+        mux.close();
         List<CompletableFuture<Void>> closes = new ArrayList<>();
         for (var topic : new HashSet<>(perTopic.keySet())) {
             closes.add(closeTopic(topic));
@@ -406,7 +413,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
             }
             for (String t : target) {
                 if (!current.contains(t)) {
-                    openTopic(t, /* retry= */ true);
+                    openTopic(t);
                     resetBackoff(t);
                 }
             }
@@ -418,7 +425,7 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
                 closeTopic(t);
             }
             for (String t : added) {
-                openTopic(t, /* retry= */ true);
+                openTopic(t);
                 resetBackoff(t);
             }
         }
@@ -431,55 +438,54 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
      * message id; we adopt that as the per-topic slice of our cross-topic
      * vector, snapshot the full map, and forward into the shared mux.
      *
-     * <p>Runs on the netty IO thread that delivered the per-segment message —
-     * the only contention is the synchronized snapshot block which guards
-     * against torn cross-topic views during concurrent deliveries.
+     * <p>Runs on the netty IO thread that delivered the per-segment message. No lock: the
+     * message's own {@code positionVector} is already an immutable, complete snapshot of this
+     * topic's live segments, so we adopt it as the topic's slice and take a <em>shallow</em>
+     * copy of the cross-topic map. Because every slice is immutable, a concurrent delivery to
+     * another topic only ever swaps in a whole new slice — the snapshot can never observe a
+     * torn per-topic view — which also removes the per-message O(topics×segments) deep copy.
      */
-    private void onPerTopicMessage(String parentTopic, MessageV5<T> msg) {
+    private CompletableFuture<Void> onPerTopicMessage(String parentTopic, MessageV5<T> msg) {
         if (closed) {
-            return;
+            return CompletableFuture.completedFuture(null);
         }
         MessageIdV5 origId = (MessageIdV5) msg.id();
 
-        // Adopt the message's own positionVector as our per-topic latest-delivered
-        // slice. ScalableStreamConsumer maintained the increasing invariant on
-        // each segment id; merging via putAll keeps the property cross-topic.
-        ConcurrentHashMap<Long, org.apache.pulsar.client.api.MessageId> ours =
-                latestDeliveredPerTopicSegment.computeIfAbsent(parentTopic,
-                        k -> new ConcurrentHashMap<>());
-        ours.putAll(origId.positionVector());
+        // Adopt the message's own (immutable) position vector as this topic's latest-delivered
+        // slice. It already covers every live segment of the topic up to this message; segments
+        // that sealed or rebalanced away are gone from segmentConsumers, so acking them is a
+        // no-op — dropping them here is observationally identical to the old accumulate-forever.
+        latestDeliveredPerTopicSegment.put(parentTopic, origId.positionVector());
 
-        // Snapshot the cross-topic vector under lock so concurrent deliveries
-        // can't observe a torn view.
-        Map<String, Map<Long, org.apache.pulsar.client.api.MessageId>> snapshot;
-        synchronized (latestDeliveredPerTopicSegment) {
-            snapshot = new HashMap<>(latestDeliveredPerTopicSegment.size());
-            for (var e : latestDeliveredPerTopicSegment.entrySet()) {
-                snapshot.put(e.getKey(), new HashMap<>(e.getValue()));
-            }
-        }
+        // Shallow snapshot: O(topics), values are the shared immutable slices above.
+        Map<String, Map<Long, org.apache.pulsar.client.api.MessageId>> snapshot =
+                new HashMap<>(latestDeliveredPerTopicSegment);
 
         MessageIdV5 newId = new MessageIdV5(
                 origId.v4MessageId(), origId.segmentId(),
                 origId.positionVector(), parentTopic, snapshot);
-        mux.add(new MessageV5<>(msg.v4Message(), newId, parentTopic));
+        return mux.offer(new MessageV5<>(msg.v4Message(), newId, parentTopic));
     }
 
     // --- Per-topic state ---
 
     /**
-     * Per-topic bookkeeping. Messages flow into the shared mux directly via the
-     * sink installed on the per-topic consumer at create-time, so there's no
-     * pump thread to manage — this is just a holder for ack routing and clean
-     * shutdown.
+     * Per-topic bookkeeping, from when the topic joins the matching set until it leaves it.
+     * Messages flow into the shared mux directly via the sink installed on the per-topic
+     * consumer at create-time, so there's no pump thread to manage — this is just a holder
+     * for ack routing and clean shutdown, and for the pending retry while attaching fails.
      */
     private static final class PerTopic<T> {
-        private final String parentTopic;
-        private final ScalableStreamConsumer<T> consumer;
+        /**
+         * Completes with the per-topic consumer once an attempt attaches it. Cancelled by
+         * {@code closeTopic} if the topic leaves the matching set first, which stops the attempts.
+         */
+        private final CompletableFuture<ScalableStreamConsumer<T>> consumer = new CompletableFuture<>();
+        private volatile Timeout retry;
 
-        PerTopic(String parentTopic, ScalableStreamConsumer<T> consumer) {
-            this.parentTopic = parentTopic;
-            this.consumer = consumer;
+        /** The per-topic consumer, or null while the topic isn't attached. */
+        ScalableStreamConsumer<T> attachedConsumer() {
+            return consumer.isDone() && !consumer.isCompletedExceptionally() ? consumer.getNow(null) : null;
         }
     }
 
@@ -488,40 +494,17 @@ final class MultiTopicStreamConsumer<T> implements StreamConsumer<T> {
     private final class AsyncStreamConsumerV5Multi implements AsyncStreamConsumer<T> {
         @Override
         public CompletableFuture<Message<T>> receive() {
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    return MultiTopicStreamConsumer.this.receive();
-                } catch (PulsarClientException e) {
-                    throw new CompletionException(e);
-                }
-            });
+            return mux.receiveAsync();
         }
 
         @Override
         public CompletableFuture<Message<T>> receive(Duration timeout) {
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    return MultiTopicStreamConsumer.this.receive(timeout);
-                } catch (PulsarClientException e) {
-                    throw new CompletionException(e);
-                }
-            });
+            return mux.receiveAsync(timeout);
         }
 
         @Override
         public CompletableFuture<List<Message<T>>> receiveMulti(int maxNumMessages, Duration timeout) {
-            return CompletableFuture.supplyAsync(() -> {
-                try {
-                    Messages<T> ms = MultiTopicStreamConsumer.this.receiveMulti(maxNumMessages, timeout);
-                    List<Message<T>> out = new ArrayList<>();
-                    for (Message<T> m : ms) {
-                        out.add(m);
-                    }
-                    return out;
-                } catch (PulsarClientException e) {
-                    throw new CompletionException(e);
-                }
-            });
+            return mux.receiveMultiAsync(maxNumMessages, timeout);
         }
 
         @Override

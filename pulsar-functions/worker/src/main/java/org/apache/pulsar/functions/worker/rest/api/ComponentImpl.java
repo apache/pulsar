@@ -26,6 +26,11 @@ import static org.apache.pulsar.functions.utils.FunctionCommon.createPkgTempFile
 import static org.apache.pulsar.functions.utils.FunctionCommon.getUniquePackageName;
 import static org.apache.pulsar.functions.worker.rest.RestUtils.throwUnavailableException;
 import com.google.common.base.Utf8;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.StreamingOutput;
+import jakarta.ws.rs.core.UriBuilder;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -45,11 +50,6 @@ import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
-import javax.ws.rs.core.UriBuilder;
 import lombok.CustomLog;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -72,6 +72,8 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.FunctionInstanceStatsDataImpl;
 import org.apache.pulsar.common.policies.data.FunctionStatsImpl;
+import org.apache.pulsar.common.policies.data.NamespaceOperation;
+import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.RestException;
 import org.apache.pulsar.functions.api.state.StateValue;
@@ -85,6 +87,7 @@ import org.apache.pulsar.functions.proto.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.SinkSpec;
 import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.utils.ClientApiResolver;
 import org.apache.pulsar.functions.utils.ComponentTypeUtils;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
@@ -1159,6 +1162,16 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
                     .log("Function in trigger function has unidentified topic @ / / /");
             throw new RestException(Status.BAD_REQUEST, "Function in trigger function has unidentified topic");
         }
+        // triggering writes the input and reads the output with the worker's v4 client
+        String scalableTopic = ClientApiResolver.isScalableTopic(inputTopicToWrite) ? inputTopicToWrite
+                : ClientApiResolver.isScalableTopic(functionMetaData.getFunctionDetails().getSink().getTopic())
+                ? functionMetaData.getFunctionDetails().getSink().getTopic() : null;
+        if (scalableTopic != null) {
+            throw new RestException(Status.BAD_REQUEST,
+                    "Triggering a function is not supported for topic:// (scalable) topics: " + scalableTopic);
+        }
+        // The worker's client publishes the message, so check the caller's produce permission first
+        throwRestExceptionIfNotAllowedToProduce(tenant, namespace, functionName, inputTopicToWrite, authParams);
         try {
             worker().getBrokerAdmin().topics().getSubscriptions(inputTopicToWrite);
         } catch (PulsarAdminException e) {
@@ -1806,6 +1819,35 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
+    private void throwRestExceptionIfNotAllowedToProduce(String tenant, String namespace, String componentName,
+                                                         String topic, AuthenticationParameters authParams) {
+        if (!worker().getWorkerConfig().isAuthorizationEnabled() || isSuperUser(authParams)) {
+            return;
+        }
+        boolean allowed;
+        try {
+            allowed = worker().getAuthorizationService()
+                    .allowTopicOperationAsync(TopicName.get(topic), TopicOperation.PRODUCE, authParams)
+                    .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (Exception e) {
+            log.warn().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", componentName)
+                    .attr("topic", topic).attr("clientRole", authParams.getClientRole())
+                    .attr("originalPrincipal", authParams.getOriginalPrincipal()).exception(e)
+                    .log("Failed to check produce permission on topic");
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+        if (!allowed) {
+            log.warn().attr("tenant", tenant).attr("namespace", namespace).attr("componentName", componentName)
+                    .attr("topic", topic).attr("clientRole", authParams.getClientRole())
+                    .attr("originalPrincipal", authParams.getOriginalPrincipal())
+                    .log("Client is not allowed to produce to the input topic of the triggered function");
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to perform operation");
+        }
+    }
+
     public boolean isSuperUser(AuthenticationParameters authParams) {
         if (authParams.getClientRole() != null) {
             try {
@@ -1904,6 +1946,36 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         }
     }
 
+    // Require the packages permission on the namespace of a package URL provided in the request.
+    void checkPackageSourcePermission(String packageUrl, AuthenticationParameters authParams) {
+        if (!worker().getWorkerConfig().isAuthorizationEnabled()
+                || !isNotBlank(packageUrl) || !Utils.hasPackageTypePrefix(packageUrl)) {
+            return;
+        }
+        final NamespaceName packageNamespace;
+        try {
+            PackageName packageName = PackageName.get(packageUrl);
+            packageNamespace = NamespaceName.get(packageName.getTenant(), packageName.getNamespace());
+        } catch (RuntimeException e) {
+            throw new RestException(Status.BAD_REQUEST, e.getMessage());
+        }
+        final boolean allowed;
+        try {
+            allowed = worker().getAuthorizationService().allowNamespaceOperationAsync(
+                    packageNamespace, NamespaceOperation.PACKAGES, authParams.getOriginalPrincipal(),
+                    authParams.getClientRole(), authParams.getClientAuthenticationDataSource())
+                    .get(worker().getWorkerConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        } catch (Exception e) {
+            throw new RestException(Status.INTERNAL_SERVER_ERROR, e.getMessage());
+        }
+        if (!allowed) {
+            throw new RestException(Status.UNAUTHORIZED, "Client is not authorized to access package source");
+        }
+    }
+
     static File downloadPackageFile(PulsarWorkerService worker, String packageName)
             throws IOException, PulsarAdminException {
         Path tempDirectory;
@@ -1926,7 +1998,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
         if (isNotBlank(functionPkgUrl)) {
             componentPackageFile = getPackageFile(componentType, functionPkgUrl);
         } else if (existingPackagePath.startsWith(Utils.FILE) || existingPackagePath.startsWith(Utils.HTTP)) {
-            if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, functionPkgUrl)) {
+            if (!worker().getPackageUrlValidator().isValidPackageUrl(componentType, existingPackagePath)) {
                 throw new IllegalArgumentException("Function Package url is not valid."
                         + "supported url (http/https/file)");
             }
@@ -1935,7 +2007,7 @@ public abstract class ComponentImpl implements Component<PulsarWorkerService> {
             } catch (Exception e) {
                 throw new IllegalArgumentException(String.format("Encountered error \"%s\" "
                                 + "when getting %s package from %s", e.getMessage(),
-                        ComponentTypeUtils.toString(componentType), functionPkgUrl));
+                        ComponentTypeUtils.toString(componentType), existingPackagePath));
             }
         } else if (Utils.hasPackageTypePrefix(existingPackagePath)) {
             componentPackageFile = getPackageFile(componentType, existingPackagePath);

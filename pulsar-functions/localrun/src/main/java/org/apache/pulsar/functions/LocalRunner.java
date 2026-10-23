@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -50,6 +49,7 @@ import lombok.CustomLog;
 import lombok.Value;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -583,6 +583,7 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig
                             .setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
+                instanceConfig.setPulsarClientMemoryLimit(functionConfig.getPulsarClientMemoryLimit());
             }
 
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
@@ -663,6 +664,9 @@ public class LocalRunner implements AutoCloseable {
             if (userCodeClassLoader != null && userCodeClassLoader.getClassLoader() != null) {
                 Thread.currentThread().setContextClassLoader(userCodeClassLoader.getClassLoader());
             }
+            Optional<MemoryLimit> pulsarClientMemoryLimit = functionConfig != null
+                    ? Optional.ofNullable(functionConfig.getPulsarClientMemoryLimit())
+                    : Optional.empty();
             runtimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                     serviceUrl,
                     stateStorageImplClass,
@@ -671,7 +675,7 @@ public class LocalRunner implements AutoCloseable {
                     secretsProvider,
                     collectorRegistry, narExtractionDirectory,
                     null,
-                    exposePulsarAdminClientEnabled, webServiceUrl);
+                    exposePulsarAdminClientEnabled, webServiceUrl, pulsarClientMemoryLimit);
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
@@ -694,6 +698,7 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig
                             .setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
+                instanceConfig.setPulsarClientMemoryLimit(functionConfig.getPulsarClientMemoryLimit());
             }
 
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
@@ -730,7 +735,7 @@ public class LocalRunner implements AutoCloseable {
 
     private ClassLoader isBuiltInFunction(String functionType) throws IOException {
         // Validate the connector type from the locally available connectors
-        TreeMap<String, FunctionArchive> functions = getFunctions();
+        Map<String, FunctionArchive> functions = getFunctions();
 
         String functionName = functionType.replaceFirst("^builtin://", "");
         FunctionArchive function = functions.get(functionName);
@@ -744,7 +749,7 @@ public class LocalRunner implements AutoCloseable {
 
     private ClassLoader isBuiltInSource(String sourceType) throws IOException {
         // Validate the connector type from the locally available connectors
-        TreeMap<String, Connector> connectors = getConnectors();
+        Map<String, Connector> connectors = getConnectors();
 
         String source = sourceType.replaceFirst("^builtin://", "");
         Connector connector = connectors.get(source);
@@ -758,7 +763,7 @@ public class LocalRunner implements AutoCloseable {
 
     private ClassLoader isBuiltInSink(String sinkType) throws IOException {
         // Validate the connector type from the locally available connectors
-        TreeMap<String, Connector> connectors = getConnectors();
+        Map<String, Connector> connectors = getConnectors();
 
         String sink = sinkType.replaceFirst("^builtin://", "");
         Connector connector = connectors.get(sink);
@@ -770,11 +775,11 @@ public class LocalRunner implements AutoCloseable {
         }
     }
 
-    private TreeMap<String, FunctionArchive> getFunctions() throws IOException {
+    private Map<String, FunctionArchive> getFunctions() throws IOException {
         return FunctionUtils.searchForFunctions(functionsDir, narExtractionDirectory, true);
     }
 
-    private TreeMap<String, Connector> getConnectors() throws IOException {
+    private Map<String, Connector> getConnectors() throws IOException {
         return ConnectorUtils.searchForConnectors(connectorsDir, narExtractionDirectory, true);
     }
 

@@ -27,8 +27,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
@@ -40,10 +42,12 @@ import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -252,7 +256,7 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
         CountDownLatch sessionLostLatch = new CountDownLatch(1);
         AtomicReference<SessionEvent> receivedEvent = new AtomicReference<>();
 
-        dualStore.registerSessionListener(event -> {
+        dualStore.registerCancellableSessionListener(event -> {
             receivedEvent.set(event);
             if (event == SessionEvent.SessionLost) {
                 sessionLostLatch.countDown();
@@ -286,7 +290,7 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
         CountDownLatch sessionReestablishedLatch = new CountDownLatch(1);
         List<SessionEvent> receivedEvents = new ArrayList<>();
 
-        dualStore.registerSessionListener(event -> {
+        dualStore.registerCancellableSessionListener(event -> {
             receivedEvents.add(event);
             if (event == SessionEvent.SessionReestablished) {
                 sessionReestablishedLatch.countDown();
@@ -314,6 +318,55 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
     }
 
     @Test
+    public void testListenerCancelledAfterCompletionIsUnregisteredFromTarget() throws Exception {
+        @Cleanup
+        MetadataStore sourceStore =
+                new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true);
+
+        String targetUrl = "memory:" + UUID.randomUUID();
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+
+        BlockingQueue<Notification> notifications = new LinkedBlockingQueue<>();
+        Runnable cancelListener = dualStore.registerCancellableListener(notifications::add);
+        CountDownLatch sessionReestablishedLatch = new CountDownLatch(1);
+        dualStore.registerCancellableSessionListener(event -> {
+            if (event == SessionEvent.SessionReestablished) {
+                sessionReestablishedLatch.countDown();
+            }
+        });
+
+        MigrationState preparationState = new MigrationState(MigrationPhase.PREPARATION, targetUrl);
+        sourceStore.put(MigrationState.MIGRATION_FLAG_PATH,
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(preparationState),
+                Optional.empty()).join();
+        Awaitility.await().until(() -> dualStore.getMigrationPhase() == MigrationPhase.PREPARATION);
+        MigrationState completedState = new MigrationState(MigrationPhase.COMPLETED, targetUrl);
+        sourceStore.put(MigrationState.MIGRATION_FLAG_PATH,
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(completedState),
+                Optional.empty()).join();
+        // The listeners are registered with the target store before the session is reestablished
+        assertTrue(sessionReestablishedLatch.await(10, TimeUnit.SECONDS));
+
+        String path = newKey();
+        dualStore.put(path, new byte[0], Optional.empty()).join();
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(notifications.stream().anyMatch(n -> n.getPath().equals(path))));
+
+        cancelListener.run();
+        // Registered with the target store directly, since the migration has completed
+        BlockingQueue<Notification> laterListenerNotifications = new LinkedBlockingQueue<>();
+        dualStore.registerCancellableListener(laterListenerNotifications::add);
+        String otherPath = newKey();
+        dualStore.put(otherPath, new byte[0], Optional.empty()).join();
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(laterListenerNotifications.stream().anyMatch(n -> n.getPath().equals(otherPath))));
+        assertFalse(notifications.stream().anyMatch(n -> n.getPath().equals(otherPath)));
+    }
+
+    @Test
     public void testSessionReestablishedEventOnFailure() throws Exception {
         MetadataStore zkStore =
                 new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true);
@@ -324,7 +377,7 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
         CountDownLatch sessionReestablishedLatch = new CountDownLatch(1);
         List<SessionEvent> receivedEvents = new ArrayList<>();
 
-        dualStore.registerSessionListener(event -> {
+        dualStore.registerCancellableSessionListener(event -> {
             receivedEvents.add(event);
             if (event == SessionEvent.SessionReestablished) {
                 sessionReestablishedLatch.countDown();
@@ -449,5 +502,67 @@ public class DualMetadataStoreTest extends BaseMetadataStoreTest {
 
         // Exists should check target in COMPLETED phase
         assertTrue(dualStore.exists(targetPath).join());
+    }
+
+    @Test
+    public void testStoreCreatedDuringMigration() throws Exception {
+        String prefix = newKey();
+
+        @Cleanup
+        MetadataStore rawStore = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), false);
+
+        String targetUrl = "memory:" + UUID.randomUUID();
+        @Cleanup
+        MetadataStore targetStore = MetadataStoreFactory.create(targetUrl,
+                MetadataStoreConfig.builder().build());
+
+        // The migration is already in PREPARATION phase before the store gets created
+        MigrationState preparationState = new MigrationState(MigrationPhase.PREPARATION, targetUrl);
+        rawStore.put(MigrationState.MIGRATION_FLAG_PATH,
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(preparationState),
+                Optional.empty()).join();
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(
+                new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true),
+                MetadataStoreConfig.builder().build());
+
+        // Writes must be blocked while the migration is in progress
+        String path = prefix + "/test-key";
+        byte[] data = "test-data".getBytes(StandardCharsets.UTF_8);
+        try {
+            dualStore.put(path, data, Optional.empty()).join();
+            fail("Should have thrown IllegalStateException");
+        } catch (CompletionException e) {
+            assertTrue(e.getCause() instanceof IllegalStateException);
+        }
+
+        // Even though it missed the PREPARATION notification, the store must acknowledge the
+        // preparation (delete its participant node), so that the coordinator is not stalled
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(rawStore.getChildren(MigrationState.PARTICIPANTS_PATH).join().isEmpty()));
+
+        // Complete the migration
+        MigrationState completedState = new MigrationState(MigrationPhase.COMPLETED, targetUrl);
+        rawStore.put(MigrationState.MIGRATION_FLAG_PATH,
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(completedState),
+                Optional.empty()).join();
+
+        // Once the store has processed the completion, writes must succeed and land in the target store
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            dualStore.put(path, data, Optional.empty()).join();
+            assertTrue(targetStore.get(path).join().isPresent());
+        });
+
+        Optional<GetResult> targetResult = targetStore.get(path).join();
+        assertTrue(targetResult.isPresent());
+        assertEquals(new String(targetResult.get().getValue(), StandardCharsets.UTF_8), "test-data");
+
+        // Reads now come from the target store as well
+        assertTrue(dualStore.get(path).join().isPresent());
+
+        // The key must not have been written to the source store
+        assertFalse(rawStore.get(path).join().isPresent());
     }
 }

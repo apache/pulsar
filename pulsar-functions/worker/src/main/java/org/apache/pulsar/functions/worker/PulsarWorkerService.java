@@ -23,6 +23,7 @@ import static org.apache.pulsar.metadata.impl.MetadataStoreFactoryImpl.removeIde
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -31,7 +32,6 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Supplier;
-import javax.ws.rs.core.Response;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -190,7 +190,7 @@ public class PulsarWorkerService implements WorkerService {
         this.openTelemetry = new PulsarWorkerOpenTelemetry(workerConfig);
         this.workerConfig = workerConfig;
         this.dlogUri = dlogUri;
-        this.workerStatsManager = new WorkerStatsManager(workerConfig, runAsStandalone);
+        this.workerStatsManager = new WorkerStatsManager(workerConfig, runAsStandalone, openTelemetry.getMeter());
         this.functions = new FunctionsImpl(() -> PulsarWorkerService.this);
         this.functionsV2 = new FunctionsImplV2(() -> PulsarWorkerService.this);
         this.sinks = new SinksImpl(() -> PulsarWorkerService.this);
@@ -610,7 +610,7 @@ public class PulsarWorkerService implements WorkerService {
             workerStatsManager.setFunctionRuntimeManager(functionRuntimeManager);
             workerStatsManager.setFunctionMetaDataManager(functionMetaDataManager);
             workerStatsManager.setLeaderService(leaderService);
-            workerStatsManager.setIsLeader(checkIsStillLeader);
+            workerStatsManager.setIsLeader(leaderService::isLeader);
             workerStatsManager.startupTimeEnd();
         } catch (Throwable t) {
             log.error().exception(t).log("Error Starting up in worker");
@@ -636,14 +636,6 @@ public class PulsarWorkerService implements WorkerService {
             }
         }
 
-        if (null != functionRuntimeManager) {
-            try {
-                functionRuntimeManager.close();
-            } catch (Exception e) {
-                log.warn().exception(e).log("Failed to close function runtime manager");
-            }
-        }
-
         if (null != clusterServiceCoordinator) {
             clusterServiceCoordinator.close();
         }
@@ -654,6 +646,14 @@ public class PulsarWorkerService implements WorkerService {
 
         if (null != schedulerManager) {
             schedulerManager.close();
+        }
+
+        if (null != functionRuntimeManager) {
+            try {
+                functionRuntimeManager.close();
+            } catch (Exception e) {
+                log.warn().exception(e).log("Failed to close function runtime manager");
+            }
         }
 
         if (null != leaderService) {
@@ -690,6 +690,10 @@ public class PulsarWorkerService implements WorkerService {
 
         if (null != stateStoreProvider) {
             stateStoreProvider.close();
+        }
+
+        if (null != workerStatsManager) {
+            workerStatsManager.close();
         }
 
         if (null != openTelemetry) {

@@ -18,17 +18,16 @@
  */
 package org.apache.pulsar.broker.admin.v3;
 
-import io.swagger.annotations.Api;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.core.MediaType;
 import org.apache.pulsar.broker.admin.impl.FunctionsBase;
 
 @Path("/functions")
-@Api(value = "/functions", description = "Functions admin apis", tags = "functions")
+@Tag(name = "functions", description = "Functions admin apis")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@SuppressWarnings("deprecation")
 public class Functions extends FunctionsBase {
 }

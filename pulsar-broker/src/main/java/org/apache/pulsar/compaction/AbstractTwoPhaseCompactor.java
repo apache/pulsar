@@ -185,7 +185,7 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
       Map<String, MessageId> latestForKey, BookKeeper bk) {
     Map<String, byte[]> metadata =
         LedgerMetadataUtils.buildMetadataForCompactedLedger(reader.getTopic(), to.toByteArray());
-    return createLedger(bk, metadata).thenCompose((ledger) -> {
+    return createLedger(bk, metadata, reader.getTopic()).thenCompose((ledger) -> {
       log.info()
               .attr("topic", reader.getTopic())
               .attr("from", from)
@@ -384,22 +384,26 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
   }
 
   protected CompletableFuture<LedgerHandle> createLedger(BookKeeper bk,
-      Map<String, byte[]> metadata) {
+      Map<String, byte[]> metadata, String topic) {
     CompletableFuture<LedgerHandle> bkf = new CompletableFuture<>();
 
     try {
-      bk.asyncCreateLedger(conf.getManagedLedgerDefaultEnsembleSize(),
-          conf.getManagedLedgerDefaultWriteQuorum(),
-          conf.getManagedLedgerDefaultAckQuorum(),
-          Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
-          Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD,
-          (rc, ledger, ctx) -> {
-            if (rc != BKException.Code.OK) {
-              bkf.completeExceptionally(BKException.create(rc));
+      bk.newCreateLedgerOp()
+          .withEnsembleSize(conf.getManagedLedgerDefaultEnsembleSize())
+          .withWriteQuorumSize(conf.getManagedLedgerDefaultWriteQuorum())
+          .withAckQuorumSize(conf.getManagedLedgerDefaultAckQuorum())
+          .withDigestType(Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE.toApiDigestType())
+          .withPassword(Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD)
+          .withCustomMetadata(metadata)
+          .withLoggerContext(log.with().attr("topic", topic).build())
+          .execute()
+          .whenComplete((writeHandle, ex) -> {
+            if (ex != null) {
+              bkf.completeExceptionally(BKException.create(BKException.getExceptionCode(ex)));
             } else {
-              bkf.complete(ledger);
+              bkf.complete((LedgerHandle) writeHandle);
             }
-          }, null, metadata);
+          });
     } catch (Throwable t) {
       log.error().exception(t).log("Encountered unexpected error when creating compaction ledger");
       return FutureUtil.failedFuture(t);
@@ -462,14 +466,24 @@ public abstract class AbstractTwoPhaseCompactor<T> extends Compactor {
     return bkf;
   }
 
+  /**
+   * Extract the partition key and the payload size for a non-batch message.
+   *
+   * @return a pair of (partitionKey, payloadSize), or null if the message has no partition key.
+   */
   protected Pair<String, Integer> extractKeyAndSize(RawMessage m, MessageMetadata msgMetadata) {
-    ByteBuf headersAndPayload = m.getHeadersAndPayload();
     if (msgMetadata.hasPartitionKey()) {
-      int size = headersAndPayload.readableBytes();
-      if (msgMetadata.hasUncompressedSize()) {
-        size = msgMetadata.getUncompressedSize();
+      int payloadSize;
+      if (msgMetadata.hasNullValue() && msgMetadata.isNullValue()) {
+        payloadSize = 0;
+      } else if (msgMetadata.hasUncompressedSize()) {
+        payloadSize = msgMetadata.getUncompressedSize();
+      } else {
+        ByteBuf headersAndPayload = m.getHeadersAndPayload().duplicate();
+        Commands.skipMessageMetadata(headersAndPayload);
+        payloadSize = headersAndPayload.readableBytes();
       }
-      return Pair.of(msgMetadata.getPartitionKey(), size);
+      return Pair.of(msgMetadata.getPartitionKey(), payloadSize);
     } else {
       return null;
     }

@@ -26,15 +26,15 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Response;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -87,7 +87,7 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig,
                 new AuthenticationService(PulsarConfigurationLoader.convertFrom(proxyConfig)),
-                proxyClientAuthentication));
+                proxyClientAuthentication, 10, TimeUnit.MILLISECONDS));
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper)))
                 .when(proxyService).createLocalMetadataStore();
         doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
@@ -222,6 +222,18 @@ public class ProxyStatsTest extends MockedPulsarServiceBaseTest {
         assertFalse(proxyService.getTopicStats().isEmpty());
         proxyService.setProxyLogLevel(0);
         assertTrue(proxyService.getTopicStats().isEmpty());
+    }
+
+    @Test
+    public void testStatsUpdatedPeriodically() {
+        String topicName = "periodic-stats-update";
+        TopicStats stats = Mockito.spy(new TopicStats());
+        proxyService.getTopicStats().put(topicName, stats);
+        try {
+            Mockito.verify(stats, Mockito.timeout(5000).atLeast(2)).calculate();
+        } finally {
+            proxyService.getTopicStats().remove(topicName);
+        }
     }
 
     @Test
