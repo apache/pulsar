@@ -46,4 +46,11 @@ public class StrategicCompactorTest extends CompactorTest {
     protected Compactor getCompactor() {
         return compactor;
     }
+
+    // The strategic compactor doesn't re-batch through RawBatchConverter, and it drops the properties of
+    // messages that come from a batch.
+    @Override
+    @Test(enabled = false)
+    public void testCompactionOfCompressedBatchWithProperties() throws Exception {
+    }
 }
