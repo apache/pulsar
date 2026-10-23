@@ -296,23 +296,20 @@ public class PatternConsumerUpdateQueue {
             log.error().attr("task", task)
                     .exception(ex)
                     .log("Pattern consumer task failed");
-            boolean scheduleRecheck;
+            // Skip a redundant delayed retry, but still advance any queued recheck.
             synchronized (PatternConsumerUpdateQueue.this) {
-                if (PatternConsumerUpdateQueue.this.closed) {
+                if (recheckTaskInQueue || PatternConsumerUpdateQueue.this.closed) {
+                    triggerNextTask();
                     return null;
                 }
-                scheduleRecheck = !recheckTaskInQueue;
             }
-            // A queued recheck avoids an extra retry, but must still be started by advancing the queue.
-            if (scheduleRecheck) {
-                // Skip if the last recheck task has been executed after the current time.
-                long failedTime = System.currentTimeMillis();
-                patternConsumer.getClient().timer().newTimeout(timeout -> {
-                    if (lastRecheckTaskStartingTimestamp <= failedTime) {
-                        appendRecheckOp();
-                    }
-                }, 10, TimeUnit.SECONDS);
-            }
+            // Skip if the last recheck task has been executed after the current time.
+            long failedTime = System.currentTimeMillis();
+            patternConsumer.getClient().timer().newTimeout(timeout -> {
+                if (lastRecheckTaskStartingTimestamp <= failedTime) {
+                    appendRecheckOp();
+                }
+            }, 10, TimeUnit.SECONDS);
             triggerNextTask();
             return null;
         });

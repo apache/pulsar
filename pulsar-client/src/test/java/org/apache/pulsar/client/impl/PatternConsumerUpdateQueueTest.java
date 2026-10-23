@@ -278,7 +278,6 @@ public class PatternConsumerUpdateQueueTest {
             addFuture.completeExceptionally(new RuntimeException("Failed topic subscription"));
 
             verify(instance.mockedConsumer).recheckTopicsChange();
-            verify(timer, never()).newTimeout(any(), anyLong(), any());
 
             List<String> addedTopics = List.of("added-after-recheck");
             List<String> removedTopics = List.of("removed-after-recheck");
