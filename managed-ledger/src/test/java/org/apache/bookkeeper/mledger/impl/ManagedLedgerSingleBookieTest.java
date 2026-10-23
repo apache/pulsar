@@ -18,10 +18,10 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -44,9 +44,8 @@ public class ManagedLedgerSingleBookieTest extends MockedBookKeeperTestCase {
 
     @Test // (timeOut = 20000)
     public void simple() throws Exception {
-        ManagedLedgerConfig config = new ManagedLedgerConfig().setEnsembleSize(1).setWriteQuorumSize(1)
-                .setAckQuorumSize(1).setMetadataEnsembleSize(1).setMetadataWriteQuorumSize(1)
-                .setMetadataAckQuorumSize(1);
+        ManagedLedgerConfig config = defaultConfig().setEnsembleSize(1).setWriteQuorumSize(1)
+                .setAckQuorumSize(1);
         ManagedLedger ledger = factory.open("my_test_ledger", config);
 
         assertEquals(ledger.getNumberOfEntries(), 0);

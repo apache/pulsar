@@ -16,26 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.MultiBrokerTestZKBaseTest;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
-import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBaseTest {
     private static final long EXPIRE_AFTER_WRITE_MILLIS_IN_TEST = 2000L;
@@ -58,22 +58,19 @@ public class MultiBrokerLeaderElectionExpirationTest extends MultiBrokerTestZKBa
     }
 
     @Override
-    protected MetadataStoreExtended createLocalMetadataStore() throws MetadataStoreException {
-        return changeDefaultMetadataCacheConfig(super.createLocalMetadataStore());
-    }
-
-    @Override
-    protected MetadataStoreExtended createConfigurationMetadataStore() throws MetadataStoreException {
-        return changeDefaultMetadataCacheConfig(super.createConfigurationMetadataStore());
+    protected MetadataStoreExtended createMetadataStore(String metadataStoreName) {
+        return changeDefaultMetadataCacheConfig(super.createMetadataStore(metadataStoreName));
     }
 
     MetadataStoreExtended changeDefaultMetadataCacheConfig(MetadataStoreExtended metadataStore) {
         MetadataStoreExtended spy = spy(metadataStore);
-        when(spy.getDefaultMetadataCacheConfig()).thenReturn(MetadataCacheConfig
+        @SuppressWarnings("unchecked")
+        MetadataCacheConfig<Object> config = (MetadataCacheConfig<Object>) MetadataCacheConfig
                 .builder()
                 .refreshAfterWriteMillis(REFRESH_AFTER_WRITE_MILLIS_IN_TEST)
                 .expireAfterWriteMillis(EXPIRE_AFTER_WRITE_MILLIS_IN_TEST)
-                .build());
+                .build();
+        doReturn(config).when(spy).getDefaultMetadataCacheConfig();
         return spy;
     }
 

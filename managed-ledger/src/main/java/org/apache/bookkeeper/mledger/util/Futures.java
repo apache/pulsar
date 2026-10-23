@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Conveniences to use with {@link CompletableFuture}.
@@ -74,11 +75,12 @@ public class Futures {
                                                             Class<? extends Exception> needRetryExceptionClass,
                                                             int maxRetryTimes) {
         CompletableFuture<T> resultFuture = new CompletableFuture<>();
-        op.get().whenComplete((res, ex) -> {
+        FutureUtil.supplySafely(op).whenComplete((res, ex) -> {
             if (ex == null) {
                 resultFuture.complete(res);
             } else {
-                if (needRetryExceptionClass.isAssignableFrom(ex.getClass()) && maxRetryTimes > 0) {
+                Throwable throwable = FutureUtil.unwrapCompletionException(ex);
+                if (needRetryExceptionClass.isAssignableFrom(throwable.getClass()) && maxRetryTimes > 0) {
                     executeWithRetry(op, needRetryExceptionClass, maxRetryTimes - 1).whenComplete((res2, ex2) -> {
                         if (ex2 == null) {
                             resultFuture.complete(res2);

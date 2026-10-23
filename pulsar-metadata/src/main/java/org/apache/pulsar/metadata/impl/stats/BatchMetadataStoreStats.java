@@ -18,20 +18,13 @@
  */
 package org.apache.pulsar.metadata.impl.stats;
 
-import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class BatchMetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 5, 10, 20, 50, 100, 200, 500, 1000};
     private static final String NAME = "name";
 
-    private static final Gauge EXECUTOR_QUEUE_SIZE = Gauge
-            .build("pulsar_batch_metadata_store_executor_queue_size", "-")
-            .labelNames(NAME)
-            .register();
     private static final Histogram OPS_WAITING = Histogram
             .build("pulsar_batch_metadata_store_queue_wait_time", "-")
             .unit("ms")
@@ -51,33 +44,17 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
             .register();
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private final ThreadPoolExecutor executor;
     private final String metadataStoreName;
 
     private final Histogram.Child batchOpsWaitingChild;
     private final Histogram.Child batchExecuteTimeChild;
     private final Histogram.Child opsPerBatchChild;
 
-    public BatchMetadataStoreStats(String metadataStoreName, ExecutorService executor) {
-        if (executor instanceof ThreadPoolExecutor tx) {
-            this.executor = tx;
-        } else {
-            this.executor = null;
-        }
+    public BatchMetadataStoreStats(String metadataStoreName) {
         this.metadataStoreName = metadataStoreName;
-
-        EXECUTOR_QUEUE_SIZE.setChild(new Gauge.Child() {
-            @Override
-            public double get() {
-                return BatchMetadataStoreStats.this.executor == null ? 0 :
-                        BatchMetadataStoreStats.this.executor.getQueue().size();
-            }
-        }, metadataStoreName);
-
         this.batchOpsWaitingChild = OPS_WAITING.labels(metadataStoreName);
         this.batchExecuteTimeChild = BATCH_EXECUTE_TIME.labels(metadataStoreName);
         this.opsPerBatchChild = OPS_PER_BATCH.labels(metadataStoreName);
-
     }
 
     public void recordOpWaiting(long millis) {
@@ -95,7 +72,6 @@ public final class BatchMetadataStoreStats implements AutoCloseable {
     @Override
     public void close() throws Exception {
         if (closed.compareAndSet(false, true)) {
-            EXECUTOR_QUEUE_SIZE.remove(this.metadataStoreName);
             OPS_WAITING.remove(this.metadataStoreName);
             BATCH_EXECUTE_TIME.remove(this.metadataStoreName);
             OPS_PER_BATCH.remove(metadataStoreName);

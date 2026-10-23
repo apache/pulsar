@@ -39,6 +39,9 @@ public interface NamespaceBundleSplitAlgorithm {
     NamespaceBundleSplitAlgorithm TOPIC_COUNT_EQUALLY_DIVIDE_ALGO = new TopicCountEquallyDivideBundleSplitAlgorithm();
     NamespaceBundleSplitAlgorithm SPECIFIED_POSITIONS_DIVIDE_ALGO =
             new SpecifiedPositionsBundleSplitAlgorithm();
+
+    NamespaceBundleSplitAlgorithm SPECIFIED_POSITIONS_DIVIDE_FORCE_ALGO =
+            new SpecifiedPositionsBundleSplitAlgorithm(true);
     NamespaceBundleSplitAlgorithm FLOW_OR_QPS_EQUALLY_DIVIDE_ALGO = new FlowOrQpsEquallyDivideBundleSplitAlgorithm();
 
     static NamespaceBundleSplitAlgorithm of(String algorithmName) {

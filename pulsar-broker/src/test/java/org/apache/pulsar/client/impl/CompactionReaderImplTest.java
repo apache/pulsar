@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 import com.google.common.collect.Sets;
 import java.util.concurrent.CompletableFuture;
 import lombok.Cleanup;
-import org.apache.commons.lang.reflect.FieldUtils;
+import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -62,9 +62,15 @@ public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void test() throws Exception {
 
         String topic = "persistent://my-property/my-ns/my-compact-topic";
+
+        // subscribe before sending anything, so that we get all messages
+        @Cleanup
+        var consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("sub1").readCompacted(true).subscribe();
         int numKeys = 5;
         @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
@@ -72,9 +78,11 @@ public class CompactionReaderImplTest extends MockedPulsarServiceBaseTest {
             producer.newMessage().key("key:" + i).value("value" + i).send();
         }
 
+        var consumerFuture = new CompletableFuture();
         @Cleanup
         CompactionReaderImpl<String> reader = CompactionReaderImpl
-                .create((PulsarClientImpl) pulsarClient, Schema.STRING, topic, new CompletableFuture(), null);
+                .create((PulsarClientImpl) pulsarClient, Schema.STRING, topic, consumerFuture, null);
+        consumerFuture.join();
 
         ConsumerBase consumerBase = spy(reader.getConsumer());
         FieldUtils.writeDeclaredField(

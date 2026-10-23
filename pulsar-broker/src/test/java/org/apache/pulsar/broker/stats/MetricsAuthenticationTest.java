@@ -19,9 +19,10 @@
 package org.apache.pulsar.broker.stats;
 
 import com.google.common.collect.Sets;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.core.Response;
-import lombok.extern.slf4j.Slf4j;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.core.Response;
+import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.logging.LoggingFeature;
@@ -30,7 +31,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod(alwaysRun = true)
@@ -52,7 +53,8 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
     void testGetMetricsByAuthenticate() throws Exception {
         conf.setAuthenticateMetricsEndpoint(true);
         super.internalSetup();
-        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        @Cleanup
+        Client client = jakarta.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         Response r = client.target(this.pulsar.getWebServiceAddress()).path("/metrics").request().get();
         Assert.assertEquals(r.getStatus(), Response.Status.UNAUTHORIZED.getStatusCode());
     }
@@ -60,7 +62,8 @@ public class MetricsAuthenticationTest extends MockedPulsarServiceBaseTest {
     @Test
     void testGetMetricsByDefault() throws Exception {
         super.internalSetup();
-        Client client = javax.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
+        @Cleanup
+        Client client = jakarta.ws.rs.client.ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
         Response r = client.target(this.pulsar.getWebServiceAddress()).path("/metrics").request().get();
         Assert.assertEquals(r.getStatus(), Response.Status.OK.getStatusCode());
     }

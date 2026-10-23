@@ -19,6 +19,8 @@
 package org.apache.pulsar.metadata.bookkeeper;
 
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
+import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -31,17 +33,21 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.conf.AbstractConfiguration;
+import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.discover.BookieServiceInfo;
 import org.apache.bookkeeper.discover.RegistrationClient;
 import org.apache.bookkeeper.discover.RegistrationManager;
@@ -50,15 +56,21 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link RegistrationManager}.
  */
-@Slf4j
+@CustomLog
 public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
     private static Set<BookieId> prepareNBookies(int num) {
@@ -126,7 +138,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
     public void testGetBookieServiceInfo(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                        MetadataStoreConfig.builder().fsyncEnable(false).build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
 
@@ -168,10 +180,10 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         getAndVerifyAllBookies(rc, addresses);
 
         Awaitility.await().untilAsserted(() -> {
-        for (BookieId address : addresses) {
-            BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
-            compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
-        }});
+            for (BookieId address : addresses) {
+                BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
+                compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
+            }});
 
         // shutdown the bookies (but keep the cookie)
         for (BookieId address : addresses) {
@@ -184,12 +196,12 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         // getBookieServiceInfo should fail with BKBookieHandleNotAvailableException
         Awaitility.await().untilAsserted(() -> {
-        for (BookieId address : addresses) {
-            assertTrue(
-                expectThrows(ExecutionException.class, () -> {
-                    rc.getBookieServiceInfo(address).get();
-            }).getCause() instanceof BKException.BKBookieHandleNotAvailableException);
-        }});
+            for (BookieId address : addresses) {
+                assertTrue(
+                        expectThrows(ExecutionException.class, () -> {
+                            rc.getBookieServiceInfo(address).get();
+                        }).getCause() instanceof BKException.BKBookieHandleNotAvailableException);
+            }});
 
 
         // restart the bookies, all writable
@@ -241,12 +253,12 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
                 .await()
                 .ignoreExceptionsMatching(e -> e.getCause() instanceof BKException.BKBookieHandleNotAvailableException)
                 .untilAsserted(() -> {
-            // verify that infos are updated
-            for (BookieId address : addresses) {
-                BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
-                compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
-            }
-        });
+                    // verify that infos are updated
+                    for (BookieId address : addresses) {
+                        BookieServiceInfo bookieServiceInfo = rc.getBookieServiceInfo(address).get().getValue();
+                        compareBookieServiceInfo(bookieServiceInfo, bookieServiceInfos.get(address));
+                    }
+                });
 
     }
 
@@ -303,6 +315,67 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         assertEquals(result.getValue().size(), addresses.size());
     }
 
+    @Test(dataProvider = "readOnly")
+    public void testBookieInfoReloadedAfterFailedRead(boolean readOnly) throws Exception {
+        @Cleanup
+        FailingReadsMetadataStore store = new FailingReadsMetadataStore("memory:" + UUID.randomUUID());
+
+        String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
+
+        @Cleanup
+        RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
+
+        @Cleanup
+        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
+
+        BookieId bookie = new BookieSocketAddress("127.0.0.1", 3181).toBookieId();
+        String registrationPath = ledgersRoot + "/" + AVAILABLE_NODE + (readOnly ? "/" + READONLY : "") + "/" + bookie;
+
+        // The read of the bookie info, triggered by the registration notification, fails
+        CompletableFuture<Void> failedRead = store.failNextRead(registrationPath);
+        rm.registerBookie(bookie, readOnly, new BookieServiceInfo());
+        failedRead.get(10, TimeUnit.SECONDS);
+
+        // The bookie is registered but missing from the client cache, and no other notification will follow
+        assertTrue(expectThrows(ExecutionException.class, () -> rc.getBookieServiceInfo(bookie).get())
+                .getCause() instanceof BKException.BKBookieHandleNotAvailableException);
+
+        // The miss reloads the bookie info, so a retry finds it
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> rc.getBookieServiceInfo(bookie).get());
+    }
+
+    @DataProvider(name = "readOnly")
+    public static Object[][] readOnly() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    private static class FailingReadsMetadataStore extends LocalMemoryMetadataStore {
+        private final Map<String, CompletableFuture<Void>> failingReads = new ConcurrentHashMap<>();
+
+        FailingReadsMetadataStore(String url) throws MetadataStoreException {
+            super(url, MetadataStoreConfig.builder().build());
+        }
+
+        /**
+         * Fail the next read of the path. The returned future completes once the read has failed.
+         */
+        CompletableFuture<Void> failNextRead(String path) {
+            CompletableFuture<Void> failed = new CompletableFuture<>();
+            failingReads.put(path, failed);
+            return failed;
+        }
+
+        @Override
+        public CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
+            CompletableFuture<Void> failed = failingReads.remove(path);
+            if (failed == null) {
+                return super.storeGet(path, opts);
+            }
+            failed.complete(null);
+            return CompletableFuture.failedFuture(new MetadataStoreException("Injected read failure"));
+        }
+    }
+
     @Test(dataProvider = "impl")
     public void testWatchWritableBookiesSuccess(String provider, Supplier<String> urlSupplier) throws Exception {
         testWatchBookiesSuccess(provider, urlSupplier, true);
@@ -318,7 +391,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         @Cleanup
         MetadataStoreExtended store = MetadataStoreExtended.create(urlSupplier.get(),
-                        MetadataStoreConfig.builder().fsyncEnable(false).build());
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
 
         String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
 
@@ -338,8 +411,8 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
             b.getValue().forEach(x -> bookies.put(x, true));
         };
 
-        int BOOKIES = 10;
-        Set<BookieId> addresses = prepareNBookies(BOOKIES);
+        int expectedBookies = 10;
+        Set<BookieId> addresses = prepareNBookies(expectedBookies);
 
         if (isWritable) {
             result(rc.watchWritableBookies(listener));
@@ -353,8 +426,95 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         Awaitility.await().untilAsserted(() -> {
             assertFalse(updates.isEmpty());
-            assertEquals(bookies.size(), BOOKIES);
+            assertEquals(bookies.size(), expectedBookies);
         });
     }
 
+
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testNetworkDelayWithBkZkManager() throws Throwable {
+        final String zksConnectionString = zks.getConnectionString();
+        final String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
+        // prepare registration manager
+        @Cleanup
+        ZooKeeper zk = new ZooKeeper(zksConnectionString, 5000, null);
+        final ServerConfiguration serverConfiguration = new ServerConfiguration();
+        serverConfiguration.setZkLedgersRootPath(ledgersRoot);
+        final FaultInjectableZKRegistrationManager rm =
+                new FaultInjectableZKRegistrationManager(serverConfiguration, zk);
+        rm.prepareFormat();
+        // prepare registration client
+        @Cleanup
+        MetadataStoreExtended store = MetadataStoreExtended.create(zksConnectionString,
+                MetadataStoreConfig.builder().fsyncEnable(false).build());
+        @Cleanup
+        RegistrationClient rc1 = new PulsarRegistrationClient(store, ledgersRoot);
+        @Cleanup
+        RegistrationClient rc2 = new PulsarRegistrationClient(store, ledgersRoot);
+
+        final List<BookieId> addresses = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            addresses.add(BookieId.parse("BOOKIE-" + i));
+        }
+        final Map<BookieId, BookieServiceInfo> bookieServiceInfos = new HashMap<>();
+
+        int port = 223;
+        for (BookieId address : addresses) {
+            BookieServiceInfo info = new BookieServiceInfo();
+            BookieServiceInfo.Endpoint endpoint = new BookieServiceInfo.Endpoint();
+            endpoint.setAuth(Collections.emptyList());
+            endpoint.setExtensions(Collections.emptyList());
+            endpoint.setId("id");
+            endpoint.setHost("localhost");
+            endpoint.setPort(port++);
+            endpoint.setProtocol("bookie-rpc");
+            info.setEndpoints(Arrays.asList(endpoint));
+            bookieServiceInfos.put(address, info);
+            rm.registerBookie(address, false, info);
+            // write the cookie
+            rm.writeCookie(address, new Versioned<>(new byte[0], Version.NEW));
+        }
+
+        // trigger loading the BookieServiceInfo in the local cache
+        getAndVerifyAllBookies(rc1, addresses);
+        getAndVerifyAllBookies(rc2, addresses);
+
+        Awaitility.await().untilAsserted(() -> {
+            for (BookieId address : addresses) {
+                compareBookieServiceInfo(rc1.getBookieServiceInfo(address).get().getValue(),
+                        bookieServiceInfos.get(address));
+                compareBookieServiceInfo(rc2.getBookieServiceInfo(address).get().getValue(),
+                        bookieServiceInfos.get(address));
+            }
+        });
+
+        // verified the init status.
+
+
+        // mock network delay
+        rm.betweenRegisterReadOnlyBookie(__ -> {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            return null;
+        });
+
+        for (int i = 0; i < addresses.size() / 2; i++) {
+            final BookieId bkId = addresses.get(i);
+            // turn some bookies to be read only.
+            rm.registerBookie(bkId, true, bookieServiceInfos.get(bkId));
+        }
+
+        Awaitility.await().untilAsserted(() -> {
+            for (BookieId address : addresses) {
+                compareBookieServiceInfo(rc1.getBookieServiceInfo(address).get().getValue(),
+                        bookieServiceInfos.get(address));
+                compareBookieServiceInfo(rc2.getBookieServiceInfo(address).get().getValue(),
+                        bookieServiceInfos.get(address));
+            }
+        });
+    }
 }

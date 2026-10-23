@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectReader;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,10 +31,12 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class AuthenticationUtil {
+    private static final ObjectReader HASHMAP_READER =
+            ObjectMapperFactory.getMapper().reader().forType(new TypeReference<HashMap<String, String>>() {
+            });
+
     public static Map<String, String> configureFromJsonString(String authParamsString) throws IOException {
-        ObjectMapper jsonMapper = ObjectMapperFactory.create();
-        return jsonMapper.readValue(authParamsString, new TypeReference<HashMap<String, String>>() {
-        });
+        return HASHMAP_READER.readValue(authParamsString);
     }
 
     public static Map<String, String> configureFromPulsar1AuthParamString(String authParamsString) {
@@ -57,6 +59,15 @@ public class AuthenticationUtil {
         return authParams;
     }
 
+    private static Class<?> loadAuthenticationClass(String className) throws ClassNotFoundException {
+        try {
+            return Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            // Built-in plugins retain their configured names when the implementation jar is shaded.
+            return Class.forName("org.apache.pulsar.shade." + className);
+        }
+    }
+
     /**
      * Create an instance of the Authentication-Plugin.
      *
@@ -72,7 +83,7 @@ public class AuthenticationUtil {
             throws UnsupportedAuthenticationException {
         try {
             if (isNotBlank(authPluginClassName)) {
-                Class<?> authClass = Class.forName(authPluginClassName);
+                Class<?> authClass = loadAuthenticationClass(authPluginClassName);
                 Authentication auth = (Authentication) authClass.getDeclaredConstructor().newInstance();
                 if (auth instanceof EncodedAuthenticationParameterSupport) {
                     // Parse parameters on plugin side.
@@ -105,7 +116,7 @@ public class AuthenticationUtil {
             throws UnsupportedAuthenticationException {
         try {
             if (isNotBlank(authPluginClassName)) {
-                Class<?> authClass = Class.forName(authPluginClassName);
+                Class<?> authClass = loadAuthenticationClass(authPluginClassName);
                 Authentication auth = (Authentication) authClass.getDeclaredConstructor().newInstance();
                 auth.configure(authParams);
                 return auth;

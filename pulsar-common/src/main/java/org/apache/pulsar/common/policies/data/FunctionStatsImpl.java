@@ -137,6 +137,6 @@ public class FunctionStatsImpl implements FunctionStats {
     }
 
     public static FunctionStatsImpl decode (String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, FunctionStatsImpl.class);
+        return ObjectMapperFactory.getMapper().reader().readValue(json, FunctionStatsImpl.class);
     }
 }

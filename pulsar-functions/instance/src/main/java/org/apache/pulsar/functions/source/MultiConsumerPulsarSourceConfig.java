@@ -23,16 +23,18 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.TreeMap;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 @Data
+@EqualsAndHashCode(callSuper = false)
 public class MultiConsumerPulsarSourceConfig extends PulsarSourceConfig {
 
     private Map<String, ConsumerConfig> topicSchema = new TreeMap<>();
 
     public static MultiConsumerPulsarSourceConfig load(Map<String, Object> map) throws IOException {
-        ObjectMapper mapper = ObjectMapperFactory.getThreadLocal();
-        return mapper.readValue(new ObjectMapper().writeValueAsString(map), MultiConsumerPulsarSourceConfig.class);
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        return mapper.readValue(mapper.writeValueAsString(map), MultiConsumerPulsarSourceConfig.class);
     }
 }

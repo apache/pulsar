@@ -41,4 +41,7 @@ public class TransactionMetadata {
 
     /** The ackedPartitions of this transaction. */
     public Map<String, Map<String, TransactionInPendingAckStats>> ackedPartitions;
+
+    /** The owner of this transaction. */
+    public String owner;
 }

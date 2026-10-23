@@ -19,14 +19,12 @@
 package org.apache.pulsar.broker.loadbalance.extensions.strategy;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
-import lombok.extern.slf4j.Slf4j;
+import javax.annotation.concurrent.ThreadSafe;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.LoadManagerContext;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLoadData;
@@ -37,87 +35,43 @@ import org.apache.pulsar.common.naming.ServiceUnitId;
  * This strategy takes into account the historical load percentage and short-term load percentage, and thus will not
  * cause cluster fluctuations due to short-term load jitter.
  */
-@Slf4j
+@ThreadSafe
+@CustomLog
 public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
-    private static final double MAX_RESOURCE_USAGE = 1.0d;
     // Maintain this list to reduce object creation.
-    private final ArrayList<String> bestBrokers;
-    private final Set<String> noLoadDataBrokers;
-    private final Map<String, Double> brokerAvgResourceUsageWithWeight;
+    private final ThreadLocal<ArrayList<String>> bestBrokers;
+    private final ThreadLocal<HashSet<String>> noLoadDataBrokers;
 
     public LeastResourceUsageWithWeight() {
-        this.bestBrokers = new ArrayList<>();
-        this.brokerAvgResourceUsageWithWeight = new HashMap<>();
-        this.noLoadDataBrokers = new HashSet<>();
+        this.bestBrokers = ThreadLocal.withInitial(ArrayList::new);
+        this.noLoadDataBrokers = ThreadLocal.withInitial(HashSet::new);
     }
 
     // A broker's max resource usage with weight using its historical load and short-term load data with weight.
     private double getMaxResourceUsageWithWeight(final String broker, final BrokerLoadData brokerLoadData,
                                                  final ServiceConfiguration conf, boolean debugMode) {
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
-        final double maxUsageWithWeight =
-                updateAndGetMaxResourceUsageWithWeight(broker, brokerLoadData, conf, debugMode);
+        final var maxUsageWithWeight = brokerLoadData.getWeightedMaxEMA();
+
 
         if (maxUsageWithWeight > overloadThreshold) {
-            log.warn(
-                    "Broker {} is overloaded, max resource usage with weight percentage: {}%, "
-                            + "CPU: {}%, MEMORY: {}%, DIRECT MEMORY: {}%, BANDWIDTH IN: {}%, "
-                            + "BANDWIDTH OUT: {}%, CPU weight: {}, MEMORY weight: {}, DIRECT MEMORY weight: {}, "
-                            + "BANDWIDTH IN weight: {}, BANDWIDTH OUT weight: {}",
-                    broker, maxUsageWithWeight * 100,
-                    brokerLoadData.getCpu().percentUsage(), brokerLoadData.getMemory().percentUsage(),
-                    brokerLoadData.getDirectMemory().percentUsage(), brokerLoadData.getBandwidthIn().percentUsage(),
-                    brokerLoadData.getBandwidthOut().percentUsage(), conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
+            log.warnf(
+                    "Broker %s is overloaded, brokerLoad(%s%%) > overloadThreshold(%s%%). load data:{%s}",
+                    broker,
+                    maxUsageWithWeight * 100,
+                    overloadThreshold * 100,
+                    brokerLoadData.toString(conf));
+        } else if (debugMode) {
+            log.info().attr("broker", broker).attr("loadData", brokerLoadData.toString(conf)).log("Broker load data");
         }
 
-        if (debugMode) {
-            log.info("Broker {} has max resource usage with weight percentage: {}%",
-                    broker, maxUsageWithWeight * 100);
-        }
+
         return maxUsageWithWeight;
     }
 
-    /**
-     * Update and get the max resource usage with weight of broker according to the service configuration.
-     *
-     * @param broker     The broker name.
-     * @param brokerData The broker load data.
-     * @param conf       The service configuration.
-     * @param debugMode  The debug mode to print computed load states and decision information.
-     * @return the max resource usage with weight of broker
-     */
-    private double updateAndGetMaxResourceUsageWithWeight(String broker, BrokerLoadData brokerData,
-                                                          ServiceConfiguration conf, boolean debugMode) {
-        final double historyPercentage = conf.getLoadBalancerHistoryResourcePercentage();
-        Double historyUsage = brokerAvgResourceUsageWithWeight.get(broker);
-        double resourceUsage = brokerData.getMaxResourceUsageWithWeight(
-                conf.getLoadBalancerCPUResourceWeight(),
-                conf.getLoadBalancerMemoryResourceWeight(),
-                conf.getLoadBalancerDirectMemoryResourceWeight(),
-                conf.getLoadBalancerBandwithInResourceWeight(),
-                conf.getLoadBalancerBandwithOutResourceWeight());
-        historyUsage = historyUsage == null
-                ? resourceUsage : historyUsage * historyPercentage + (1 - historyPercentage) * resourceUsage;
-        if (debugMode) {
-            log.info(
-                    "Broker {} get max resource usage with weight: {}, history resource percentage: {}%, CPU weight: "
-                            + "{}, MEMORY weight: {}, DIRECT MEMORY weight: {}, BANDWIDTH IN weight: {}, BANDWIDTH "
-                            + "OUT weight: {} ",
-                    broker, historyUsage, historyPercentage, conf.getLoadBalancerCPUResourceWeight(),
-                    conf.getLoadBalancerMemoryResourceWeight(), conf.getLoadBalancerDirectMemoryResourceWeight(),
-                    conf.getLoadBalancerBandwithInResourceWeight(),
-                    conf.getLoadBalancerBandwithOutResourceWeight());
-        }
-        brokerAvgResourceUsageWithWeight.put(broker, historyUsage);
-        return historyUsage;
-    }
 
     /**
      * Find a suitable broker to assign the given bundle to.
-     * This method is not thread safety.
      *
      * @param candidates     The candidates for which the bundle may be assigned.
      * @param bundleToAssign The data for the bundle to assign.
@@ -125,12 +79,17 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public Optional<String> select(List<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
+    public Optional<String> select(
+            Set<String> candidates, ServiceUnitId bundleToAssign, LoadManagerContext context) {
         var conf = context.brokerConfiguration();
         if (candidates.isEmpty()) {
-            log.info("There are no available brokers as candidates at this point for bundle: {}", bundleToAssign);
+            log.warn().attr("bundle", bundleToAssign)
+                    .log("There are no available brokers as candidates at this point for bundle");
             return Optional.empty();
         }
+
+        ArrayList<String> bestBrokers = this.bestBrokers.get();
+        HashSet<String> noLoadDataBrokers = this.noLoadDataBrokers.get();
 
         bestBrokers.clear();
         noLoadDataBrokers.clear();
@@ -138,12 +97,12 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
         // select one of them at the end.
         double totalUsage = 0.0d;
 
-        // TODO: use loadBalancerDebugModeEnabled too.
-        boolean debugMode = log.isDebugEnabled();
+        boolean debugMode = conf.isLoadBalancerDebugModeEnabled();
         for (String broker : candidates) {
             var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
             if (brokerLoadDataOptional.isEmpty()) {
-                log.warn("There is no broker load data for broker:{}. Skipping this broker.", broker);
+                log.warn().attr("broker", broker)
+                        .log("There is no broker load data for broker. Skipping this broker. Phase one");
                 noLoadDataBrokers.add(broker);
                 continue;
             }
@@ -160,30 +119,40 @@ public class LeastResourceUsageWithWeight implements BrokerSelectionStrategy {
             final double diffThreshold =
                     conf.getLoadBalancerAverageResourceUsageDifferenceThresholdPercentage() / 100.0;
             if (debugMode) {
-                log.info("Computed avgUsage:{}, diffThreshold:{}", avgUsage, diffThreshold);
+                log.info().attr("avgUsage", avgUsage).attr("diffThreshold", diffThreshold)
+                        .log("Computed avgUsage and diffThreshold");
             }
-            candidates.forEach(broker -> {
-                Double avgResUsage = brokerAvgResourceUsageWithWeight.getOrDefault(broker, MAX_RESOURCE_USAGE);
+            for (String broker : candidates) {
+                var brokerLoadDataOptional = context.brokerLoadDataStore().get(broker);
+                if (brokerLoadDataOptional.isEmpty()) {
+                    log.warn().attr("broker", broker)
+                            .log("There is no broker load data for broker. Skipping this broker. Phase two");
+                    continue;
+                }
+                double avgResUsage = brokerLoadDataOptional.get().getWeightedMaxEMA();
                 if ((avgResUsage + diffThreshold <= avgUsage && !noLoadDataBrokers.contains(broker))) {
                     bestBrokers.add(broker);
                 }
-            });
+            }
         }
 
         if (bestBrokers.isEmpty()) {
             // Assign randomly as all brokers are overloaded.
-            log.warn("Assign randomly as none of the brokers are underloaded. candidatesSize:{}, "
-                    + "noLoadDataBrokersSize:{}", candidates.size(), noLoadDataBrokers.size());
-            for (String broker : candidates) {
-                bestBrokers.add(broker);
+            if (debugMode) {
+                log.info().attr("candidatesSize", candidates.size())
+                        .attr("noLoadDataBrokersSize", noLoadDataBrokers.size())
+                        .log("Assign randomly as none of the brokers are underloaded");
             }
+            bestBrokers.addAll(candidates);
         }
 
         if (debugMode) {
-            log.info("Selected {} best brokers: {} from candidate brokers: {}, noLoadDataBrokers:{}",
-                    bestBrokers.size(), bestBrokers,
-                    candidates,
-                    noLoadDataBrokers);
+            log.info()
+                    .attr("bestBrokersSize", bestBrokers.size())
+                    .attr("bestBrokers", bestBrokers)
+                    .attr("candidates", candidates)
+                    .attr("noLoadDataBrokers", noLoadDataBrokers)
+                    .log("Selected best brokers from candidates");
         }
         return Optional.of(bestBrokers.get(ThreadLocalRandom.current().nextInt(bestBrokers.size())));
     }

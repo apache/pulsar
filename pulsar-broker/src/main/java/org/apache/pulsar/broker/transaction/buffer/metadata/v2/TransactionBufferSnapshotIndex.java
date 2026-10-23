@@ -29,8 +29,21 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class TransactionBufferSnapshotIndex {
     public long sequenceID;
-    public long maxReadPositionLedgerID;
-    public long maxReadPositionEntryID;
-    public long persistentPositionLedgerID;
-    public long persistentPositionEntryID;
+    /**
+     * Location(ledger id of position) of a transaction marker in the origin topic.
+     */
+    public long abortedMarkLedgerID;
+
+    /**
+     * Location(entry id of position) of a transaction marker in the origin topic.
+     */
+    public long abortedMarkEntryID;
+    /**
+     * Location(ledger id of position) of a segment data in the system topic __transaction_buffer_snapshot_segments.
+     */
+    public long segmentLedgerID;
+    /**
+     * Location(entry id of position) of a segment data in the system topic __transaction_buffer_snapshot_segments.
+     */
+    public long segmentEntryID;
 }

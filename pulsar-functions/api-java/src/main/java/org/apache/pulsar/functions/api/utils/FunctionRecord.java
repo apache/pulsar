@@ -39,6 +39,15 @@ public class FunctionRecord<T> implements Record<T> {
     private final Integer partitionIndex;
     private final Long recordSequence;
 
+    // Explicit define FunctionRecordBuilder to avoid javadoc failure
+    @SuppressWarnings("unused")
+    public static class FunctionRecordBuilder<T> {
+        /**
+         * Force to use {@link #from(Context, Schema)}.
+         */
+        private FunctionRecordBuilder() {}
+    }
+
     /**
      * Creates a builder for a Record from a Function Context.
      * The builder is initialized with the output topic from the Context and with the topicName, key, eventTime,

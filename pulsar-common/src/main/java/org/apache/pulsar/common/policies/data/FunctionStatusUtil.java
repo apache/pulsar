@@ -23,6 +23,6 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 
 public class FunctionStatusUtil {
     public static FunctionStatus decode(String json) throws IOException {
-        return ObjectMapperFactory.getThreadLocal().readValue(json, FunctionStatus.class);
+        return ObjectMapperFactory.getMapper().reader().readValue(json, FunctionStatus.class);
     }
 }

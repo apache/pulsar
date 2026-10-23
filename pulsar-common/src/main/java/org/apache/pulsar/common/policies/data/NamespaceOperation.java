@@ -39,4 +39,5 @@ public enum NamespaceOperation {
     UNSUBSCRIBE,
 
     PACKAGES,
+    TRIM_TOPIC,
 }
