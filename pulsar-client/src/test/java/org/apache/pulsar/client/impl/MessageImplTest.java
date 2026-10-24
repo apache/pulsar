@@ -28,9 +28,13 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
+import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -42,10 +46,12 @@ import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvid
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -81,6 +87,41 @@ public class MessageImplTest {
             next.getDataBuffer().release();
             next.recycle();
         }
+    }
+
+    @DataProvider(name = "releaseOrder")
+    public Object[][] releaseOrder() {
+        return new Object[][]{{true}, {false}};
+    }
+
+    @Test(dataProvider = "releaseOrder")
+    public void testReleaseKeepsBrokerMetadataOfPooledBatchSiblings(boolean releaseFirstMessageFirst) {
+        BrokerEntryMetadata sharedBrokerMetadata = new BrokerEntryMetadata().setBrokerTimestamp(123).setIndex(456);
+        MessageMetadata batchMetadata = new MessageMetadata().setNumMessagesInBatch(2);
+        List<MessageImpl<byte[]>> messages = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            MessageImpl<byte[]> message = MessageImpl.create("test-topic", new BatchMessageIdImpl(1, 2, -1, i, 2, null),
+                    batchMetadata, new SingleMessageMetadata(), Unpooled.wrappedBuffer(new byte[]{(byte) i}),
+                    Optional.empty(), null, Schema.BYTES, 0, true, Commands.DEFAULT_CONSUMER_EPOCH);
+            message.setBrokerEntryMetadata(sharedBrokerMetadata);
+            messages.add(message);
+        }
+        MessageImpl<byte[]> first = messages.get(0);
+        MessageImpl<byte[]> second = messages.get(1);
+        MessageImpl<byte[]> released = releaseFirstMessageFirst ? first : second;
+        MessageImpl<byte[]> live = releaseFirstMessageFirst ? second : first;
+
+        released.release();
+
+        assertTrue(live.hasBrokerPublishTime());
+        assertEquals(live.getBrokerPublishTime().orElseThrow().longValue(), 123L);
+        assertTrue(live.hasIndex());
+        // the index of a batch message is the entry index minus the number of messages after it in the batch
+        assertEquals(live.getIndex().orElseThrow().longValue(), live == first ? 455L : 456L);
+        assertTrue(sharedBrokerMetadata.hasBrokerTimestamp());
+        assertTrue(sharedBrokerMetadata.hasIndex());
+
+        live.release();
     }
 
     @Test
