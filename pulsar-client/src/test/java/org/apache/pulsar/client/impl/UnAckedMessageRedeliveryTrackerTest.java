@@ -102,13 +102,23 @@ public class UnAckedMessageRedeliveryTrackerTest {
         }
     }
 
-    @DataProvider(name = "subscriptionTypes")
-    public Object[][] subscriptionTypes() {
-        return new Object[][] {{SubscriptionType.Exclusive}, {SubscriptionType.Failover}};
+    private enum ConsumerOperation {
+        RECEIVE, REDELIVER
     }
 
-    @Test(dataProvider = "subscriptionTypes")
-    public void testConcurrentExplicitRedelivery(SubscriptionType subscriptionType) throws Exception {
+    @DataProvider(name = "consumerOperations")
+    public Object[][] consumerOperations() {
+        return new Object[][] {
+                {SubscriptionType.Exclusive, ConsumerOperation.RECEIVE},
+                {SubscriptionType.Failover, ConsumerOperation.RECEIVE},
+                {SubscriptionType.Exclusive, ConsumerOperation.REDELIVER},
+                {SubscriptionType.Failover, ConsumerOperation.REDELIVER}
+        };
+    }
+
+    @Test(dataProvider = "consumerOperations")
+    public void testConcurrentConsumerOperation(SubscriptionType subscriptionType, ConsumerOperation operation)
+            throws Exception {
         ManualTimer timer = new ManualTimer();
         ExecutorProvider executorProvider = new ExecutorProvider(1, "ack-timeout-redelivery-test");
         ExecutorService internalExecutor = Executors.newSingleThreadExecutor(
@@ -126,16 +136,17 @@ public class UnAckedMessageRedeliveryTrackerTest {
             ConsumerConfigurationData<byte[]> conf = configuration();
             conf.setSubscriptionType(subscriptionType);
             ConsumerImpl<byte[]> consumer = ConsumerImpl.newConsumerImpl(client,
-                    "non-persistent://tenant/ns/ack-timeout-redelivery", conf, executorProvider,
+                    "persistent://tenant/ns/ack-timeout-redelivery", conf, executorProvider,
                     -1, false, new CompletableFuture<Consumer<byte[]>>(), null, null, null, true);
             consumerToClose = consumer;
             consumer.setState(HandlerState.State.Ready);
             UnAckedMessageTracker tracker = consumer.getUnAckedMessageTracker();
-            tracker.add(new MessageIdImpl(1, 1, -1));
+            consumer.trackMessage(new MessageIdImpl(1, 1, -1));
+            assertThat(tracker.size()).isEqualTo(1);
             timer.runTick();
 
             synchronized (consumer) {
-                long applicationThreadId = Thread.currentThread().getId();
+                long applicationThreadId = Thread.currentThread().threadId();
                 timeoutRedelivery = timeoutExecutor.submit(() -> {
                     timeoutThread.set(Thread.currentThread());
                     timer.runTick();
@@ -144,7 +155,8 @@ public class UnAckedMessageRedeliveryTrackerTest {
                 Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
                     assertThat(timeoutThread.get()).isNotNull();
                     ThreadInfo threadInfo = ManagementFactory.getThreadMXBean()
-                            .getThreadInfo(timeoutThread.get().getId(), 30);
+                            .getThreadInfo(timeoutThread.get().threadId(), 30);
+                    assertThat(threadInfo).isNotNull();
                     assertThat(threadInfo.getThreadState()).isEqualTo(Thread.State.BLOCKED);
                     assertThat(threadInfo.getLockOwnerId()).isEqualTo(applicationThreadId);
                     assertThat(threadInfo.getLockInfo().getIdentityHashCode())
@@ -162,12 +174,21 @@ public class UnAckedMessageRedeliveryTrackerTest {
                 assertThat(trackerLockAvailable)
                         .as("Timeout redelivery must release the tracker lock before waiting for the consumer monitor")
                         .isTrue();
-                consumer.redeliverUnacknowledgedMessages();
+                if (operation == ConsumerOperation.RECEIVE) {
+                    MessageImpl<?> message = mock(MessageImpl.class);
+                    when(message.getMessageId()).thenReturn(new MessageIdImpl(1, 2, -1));
+                    // Both receive() and receiveAsync() process messages through this synchronized method.
+                    consumer.messageProcessed(message);
+                    assertThat(tracker.size()).as("The received message must be tracked").isEqualTo(1);
+                } else {
+                    consumer.redeliverUnacknowledgedMessages();
+                }
             }
             timeoutRedelivery.get(10, TimeUnit.SECONDS);
             assertThat(tracker.isEmpty()).isTrue();
 
-            tracker.add(new MessageIdImpl(1, 2, -1));
+            consumer.trackMessage(new MessageIdImpl(1, 3, -1));
+            assertThat(tracker.size()).isEqualTo(1);
             timer.runTick();
             timer.runTick();
             assertThat(tracker.isEmpty()).isTrue();

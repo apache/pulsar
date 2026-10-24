@@ -94,8 +94,9 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                     } finally {
                         writeLock.unlock();
 
-                        // Consumer callbacks may acquire the consumer monitor, which is also held
-                        // when an application thread clears this tracker during explicit redelivery.
+                        // Never call into the consumer while holding the tracker lock: receive processing
+                        // and explicit redelivery hold the consumer monitor while updating this tracker.
+                        // UnAckedMessageTracker follows the same lock ordering.
                         if (!messageIds.isEmpty()) {
                             consumerBase.onAckTimeoutSend(messageIds);
                             consumerBase.redeliverUnacknowledgedMessages(messageIds);
