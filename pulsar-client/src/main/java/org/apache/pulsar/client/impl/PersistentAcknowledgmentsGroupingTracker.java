@@ -161,6 +161,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                 return CompletableFuture.completedFuture(null);
             }
         } else {
+            // The interceptors run user code, which may take the consumer's lock: call them before taking the receipt
+            // lock, which the consumer takes in write mode under its own lock to flush the acks on reconnection.
+            for (MessageId messageId : messageIds) {
+                consumer.onAcknowledge(messageId, null);
+            }
             Optional<Lock> readLock = acquireReadLock();
             try {
                 if (messageIds.size() != 0) {
@@ -212,11 +217,6 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
             @Nullable MessageIdAdv batchMessageId,
             Function<MessageIdAdv, CompletableFuture<Void>> individualAckFunction,
             Function<MessageIdAdv, CompletableFuture<Void>> batchAckFunction) {
-        if (batchMessageId != null) {
-            consumer.onAcknowledge(batchMessageId, null);
-        } else {
-            consumer.onAcknowledge(msgId, null);
-        }
         if (batchMessageId == null || MessageIdAdvUtils.acknowledge(batchMessageId, true)) {
             consumer.getStats().incrementNumAcksSent((batchMessageId != null) ? batchMessageId.getBatchSize() : 1);
             consumer.getUnAckedMessageTracker().remove(msgId);
@@ -237,6 +237,11 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
                                                       @Nullable MessageIdAdv batchMessageId) {
         switch (ackType) {
             case Individual:
+                if (batchMessageId != null) {
+                    consumer.onAcknowledge(batchMessageId, null);
+                } else {
+                    consumer.onAcknowledge(msgId, null);
+                }
                 return addIndividualAcknowledgment(msgId,
                         batchMessageId,
                         __ -> doIndividualAck(__, properties),
