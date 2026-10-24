@@ -50,6 +50,9 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     private static final int MAX_RETRY_COUNT_FOR_ADD_CONSUMER_RACE = 5;
     protected final String topicName;
     private volatile Consumer activeConsumer = null;
+    // Guarded by this. The generation is only changed while the dispatcher monitor is held and is captured/read
+    // from the same monitor by the persistent dispatcher read lifecycle.
+    private long activeConsumerGeneration;
     protected final CopyOnWriteArrayList<Consumer> consumers;
     protected StickyKeyConsumerSelector stickyKeyConsumerSelector;
     protected boolean isKeyHashRangeFiltered = false;
@@ -143,9 +146,16 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
             return false;
         } else {
             // If the active consumer is changed, send notification.
-            activeConsumer = selectedConsumer;
+            updateActiveConsumer(selectedConsumer);
             scheduleReadOnActiveConsumer();
             return true;
+        }
+    }
+
+    private void updateActiveConsumer(Consumer consumer) {
+        if (activeConsumer != consumer) {
+            activeConsumer = consumer;
+            activeConsumerGeneration++;
         }
     }
 
@@ -271,7 +281,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         }
 
         if (consumers.isEmpty()) {
-            activeConsumer = null;
+            updateActiveConsumer(null);
         }
 
         if (closeFuture == null && !consumers.isEmpty()) {
@@ -364,6 +374,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
     public Consumer getActiveConsumer() {
         return activeConsumer;
+    }
+
+    protected final long getActiveConsumerGeneration() {
+        return activeConsumerGeneration;
     }
 
     @Override
