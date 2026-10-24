@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect.Visibility;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
@@ -90,6 +94,18 @@ public final class ConfigurationDataUtils {
 
     private static final ObjectMapper MAPPER = create();
 
+    /**
+     * Reads and writes the fields directly, bypassing the setters, and keeps null values. Used to put a property
+     * back to the value a new configuration instance has.
+     */
+    private static final ObjectMapper FIELD_MAPPER = create()
+            .setVisibility(PropertyAccessor.ALL, Visibility.NONE)
+            .setVisibility(PropertyAccessor.FIELD, Visibility.ANY)
+            .setDefaultPropertyInclusion(Include.ALWAYS);
+
+    private static final List<String> AUTHENTICATION_KEYS = List.of("authPluginClassName", "authParams",
+            "authParamMap");
+
     private ConfigurationDataUtils() {}
 
     @SuppressWarnings("unchecked")
@@ -108,6 +124,64 @@ public final class ConfigurationDataUtils {
             throw new RuntimeException("Failed to load config into existing configuration data", e);
         }
 
+    }
+
+    /**
+     * Apply the properties in {@code config} to {@code target} through its setters, leaving every other property
+     * as it is. Unlike {@link #loadData}, this keeps properties that are not serialized, such as listeners,
+     * {@code @JsonIgnore} fields and {@code @Secret} values, which would otherwise be dropped or masked.
+     *
+     * <p>A property mapped to null goes back to its default value, as it does with {@link #loadData}.
+     *
+     * <p>{@code target} is modified in place, so callers that must not see a partial update on failure pass a
+     * copy of their configuration.
+     *
+     * @return {@code target}
+     */
+    public static <T> T updateData(Map<String, Object> config, T target) {
+        try {
+            // The mapper skips null values
+            T updated = MAPPER.updateValue(target, config);
+            return resetNullProperties(config, updated);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to load config into existing configuration data", e);
+        }
+    }
+
+    /**
+     * With {@link #loadData}, a null value removes the property from the merged configuration, so the new instance
+     * keeps its default value. Do the same here, writing the default to the field without going through the
+     * setter, which may reject it. Like there, a null for a property that isn't serialized is ignored.
+     */
+    private static <T> T resetNullProperties(Map<String, Object> config, T target) throws IOException {
+        JsonNode defaults = null;
+        ObjectNode resets = null;
+        for (Map.Entry<String, Object> entry : config.entrySet()) {
+            if (entry.getValue() != null) {
+                continue;
+            }
+            if (defaults == null) {
+                defaults = FIELD_MAPPER.valueToTree(MAPPER.readValue("{}", target.getClass()));
+                resets = FIELD_MAPPER.createObjectNode();
+            }
+            JsonNode defaultValue = defaults.get(entry.getKey());
+            if (defaultValue != null) {
+                resets.set(entry.getKey(), defaultValue);
+            }
+        }
+        return resets == null ? target : FIELD_MAPPER.readerForUpdating(target).readValue(resets);
+    }
+
+    /**
+     * Whether {@code config} sets any of the properties the authentication is created from.
+     */
+    public static boolean containsAuthenticationKeys(Map<String, Object> config) {
+        for (String key : AUTHENTICATION_KEYS) {
+            if (config.containsKey(key)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }

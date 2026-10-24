@@ -475,6 +475,19 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             @SuppressWarnings("unchecked")
             ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
             c.properties = new TreeMap<>(this.properties);
+            // subscribeAsync fills the default retry and dead letter topics into the policy, so a clone needs its
+            // own copy, or a consumer would get the topics of another one subscribed from the same template
+            DeadLetterPolicy policy = this.deadLetterPolicy;
+            if (policy != null) {
+                c.deadLetterPolicy = DeadLetterPolicy.builder()
+                        .maxRedeliverCount(policy.getMaxRedeliverCount())
+                        .retryLetterTopic(policy.getRetryLetterTopic())
+                        .deadLetterTopic(policy.getDeadLetterTopic())
+                        .initialSubscriptionName(policy.getInitialSubscriptionName())
+                        .retryLetterProducerBuilderCustomizer(policy.getRetryLetterProducerBuilderCustomizer())
+                        .deadLetterProducerBuilderCustomizer(policy.getDeadLetterProducerBuilderCustomizer())
+                        .build();
+            }
             return c;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ConsumerConfigurationData");
