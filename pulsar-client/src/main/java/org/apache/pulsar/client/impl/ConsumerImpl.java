@@ -970,6 +970,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
                     if (changeToReadyState()) {
+                        // Send the acks that waited for the subscription before any other command on the new
+                        // connection, including the permits consumerIsReconnectedToBroker() sends for a zero-queue
+                        // consumer, so the broker has them when it starts dispatching and does not redeliver the
+                        // acknowledged messages.
+                        acknowledgmentsGroupingTracker.flush();
                         // A redeliver while the subscribe was in flight bumped the epoch without sending it, and
                         // the broker created the consumer with the subscribe's epoch: send the current one before
                         // any permits, or every message dispatched with the older epoch is discarded.
@@ -994,9 +999,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 resetBackoff();
 
                 boolean firstTimeConnect = subscribeFuture.complete(this);
-                // Send the acks that waited for the subscription before the flow command, so the broker has them
-                // when it starts dispatching and does not redeliver the acknowledged messages.
-                acknowledgmentsGroupingTracker.flush();
                 // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
                 // command to receive messages.
                 if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {

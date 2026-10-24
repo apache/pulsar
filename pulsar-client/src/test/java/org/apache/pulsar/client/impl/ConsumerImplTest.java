@@ -591,6 +591,64 @@ public class ConsumerImplTest {
         consumerConf = new ConsumerConfigurationData<>();
         consumerConf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
         createConsumer(consumerConf, PERSISTENT_TOPIC, null, Schema.BYTES);
+
+        assertThat(reconnectWithPendingAck()).containsExactly(BaseCommand.Type.ACK, BaseCommand.Type.FLOW);
+    }
+
+    @Test
+    public void testZeroQueueReconnectSendsPendingAcksBeforeFlowPermits() {
+        // A zero-queue consumer sends the permit for a pending receive while it switches to Ready: the acks must
+        // go out before that permit too.
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        consumerConf.setReceiverQueueSize(0);
+        createConsumer(consumerConf, PERSISTENT_TOPIC, null, Schema.BYTES);
+        consumer.pendingReceives.add(new CompletableFuture<>());
+
+        assertThat(reconnectWithPendingAck()).containsExactly(BaseCommand.Type.ACK, BaseCommand.Type.FLOW);
+    }
+
+    @Test
+    public void testReconnectFlushDoesNotWaitForListAckInterceptors() throws Exception {
+        // With ack receipts, recording a list ack takes the tracker's receipt lock, and the reconnection flushes the
+        // acks under the consumer's lock. The interceptors must run outside the receipt lock: one that takes the
+        // consumer's lock, here by asking for redelivery, would otherwise deadlock with the flush.
+        CountDownLatch interceptorEntered = new CountDownLatch(1);
+        CountDownLatch interceptorRelease = new CountDownLatch(1);
+        ConsumerInterceptor<byte[]> interceptor = mock(ConsumerInterceptor.class);
+        doAnswer(invocation -> {
+            interceptorEntered.countDown();
+            interceptorRelease.await();
+            invocation.<Consumer<byte[]>>getArgument(0).redeliverUnacknowledgedMessages();
+            return null;
+        }).when(interceptor).onAcknowledge(any(), any(), any());
+        consumerConf = new ConsumerConfigurationData<>();
+        consumerConf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        consumerConf.setAckReceiptEnabled(true);
+        createConsumer(consumerConf, PERSISTENT_TOPIC, interceptor, Schema.BYTES);
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        doReturn(Commands.getCurrentProtocolVersion()).when(cnx).getRemoteEndpointProtocolVersion();
+        // Reconnecting, with the subscribe in flight on the new connection.
+        consumer.setState(HandlerState.State.Connecting);
+        consumer.setClientCnx(cnx);
+
+        CompletableFuture<Void> acknowledged = runInDaemonThread("list-ack",
+                () -> consumer.acknowledgeAsync(List.of(new MessageIdImpl(1, 1, -1))));
+        assertThat(interceptorEntered.await(10, TimeUnit.SECONDS)).isTrue();
+        try {
+            // The subscription completes while the interceptor runs: the flush must not wait for it.
+            assertThat(runInDaemonThread("reconnect", () -> consumer.connectionOpened(cnx).join()))
+                    .succeedsWithin(10, TimeUnit.SECONDS);
+        } finally {
+            interceptorRelease.countDown();
+        }
+        // The interceptor then takes the consumer's lock to redeliver, and the acknowledgment completes.
+        assertThat(acknowledged).succeedsWithin(10, TimeUnit.SECONDS);
+    }
+
+    // Acks a message with the grouping delay pending, then reconnects the consumer on a mocked connection and
+    // returns the types of the commands it writes there.
+    private List<BaseCommand.Type> reconnectWithPendingAck() {
         consumer.acknowledgeAsync(new MessageIdImpl(1, 1, -1)).join();
 
         ClientCnx cnx = ClientTestFixtures.mockClientCnx();
@@ -610,8 +668,23 @@ public class ConsumerImplTest {
 
         consumer.setState(HandlerState.State.Connecting);
         consumer.connectionOpened(cnx).join();
+        return written;
+    }
 
-        assertThat(written).containsExactly(BaseCommand.Type.ACK, BaseCommand.Type.FLOW);
+    // A daemon thread, so that a test failing on a deadlock doesn't keep the JVM running.
+    private static CompletableFuture<Void> runInDaemonThread(String name, Runnable task) {
+        CompletableFuture<Void> done = new CompletableFuture<>();
+        Thread thread = new Thread(() -> {
+            try {
+                task.run();
+                done.complete(null);
+            } catch (Throwable t) {
+                done.completeExceptionally(t);
+            }
+        }, name);
+        thread.setDaemon(true);
+        thread.start();
+        return done;
     }
 
     private static BaseCommand.Type commandType(ByteBuf frame) {
