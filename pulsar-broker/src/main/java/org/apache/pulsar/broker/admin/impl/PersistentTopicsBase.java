@@ -132,6 +132,7 @@ import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.InactiveTopicPolicies;
+import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.OffloadPoliciesImpl;
 import org.apache.pulsar.common.policies.data.PartitionedTopicInternalStats;
@@ -1574,6 +1575,30 @@ public class PersistentTopicsBase extends AdminResource {
         })
         .thenCompose(__ -> getTopicReferenceAsync(topicName))
         .thenCompose(topic -> topic.getInternalStats(metadata));
+    }
+
+    protected CompletableFuture<ManagedLedgerInternalStats.CursorStats> internalGetCursorInternalStatsAsync(
+            boolean authoritative, String subName) {
+        return validateTopicOperationAsync(topicName, TopicOperation.GET_STATS)
+        .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
+        .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
+        .thenCompose(__ -> getTopicReferenceAsync(topicName))
+        .thenApply(topic -> {
+            if (topic == null) {
+                throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
+            }
+            if (!(topic instanceof PersistentTopic persistentTopic)) {
+                throw new RestException(Status.METHOD_NOT_ALLOWED,
+                        "Cannot get cursor internal stats on non-persistent topics");
+            }
+            ManagedLedgerInternalStats.CursorStats cursorInternalStats =
+                    persistentTopic.getCursorInternalStats(subName);
+            if (cursorInternalStats == null) {
+                throw new RestException(Status.NOT_FOUND,
+                        getSubNotFoundErrorMessage(topicName.toString(), subName));
+            }
+            return cursorInternalStats;
+        });
     }
 
     protected void internalGetManagedLedgerInfo(AsyncResponse asyncResponse, boolean authoritative) {
