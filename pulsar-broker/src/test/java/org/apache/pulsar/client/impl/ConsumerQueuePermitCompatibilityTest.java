@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -34,14 +35,67 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
 public class ConsumerQueuePermitCompatibilityTest extends SharedPulsarBaseTest {
     private static final int TIMEOUT_SECONDS = 10;
     private static final String SUBSCRIPTION = "queue-permit-compatibility";
+
+    @DataProvider
+    public Object[][] startPaused() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "startPaused", timeOut = 30000)
+    public void testInitialPermitsSurviveUnsubscribeFailure(boolean startPaused) throws Exception {
+        String topic = newTopicName();
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(getBrokerServiceUrl()).ioThreads(1).build();
+             Producer<String> producer = client.newProducer(Schema.STRING).topic(topic)
+                     .enableBatching(false).create();
+             ConsumerImpl<String> existingConsumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                     .topic(topic).subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                     .startPaused(true).subscribe()) {
+            CompletableFuture<ConsumerImpl<String>> recoveredConsumer = new CompletableFuture<>();
+            ClientCnx connection = existingConsumer.getClientCnx();
+            // Register the synchronous callback on the only IO thread before it can process the subscribe reply.
+            // The unsubscribe changes Ready to Closing before subscription initialization can grant permits.
+            connection.ctx().executor().execute(() -> client.newConsumer(Schema.STRING).topic(topic)
+                    .subscriptionName(SUBSCRIPTION).subscriptionType(SubscriptionType.Shared)
+                    .receiverQueueSize(2).startPaused(startPaused).subscribeAsync()
+                    .thenCompose(consumer -> consumer.unsubscribeAsync(false).handle((ignored, error) -> {
+                        assertThat(error).isInstanceOf(PulsarClientException.BrokerMetadataException.class);
+                        return (ConsumerImpl<String>) consumer;
+                    })).whenComplete((consumer, error) -> {
+                        if (error == null) {
+                            recoveredConsumer.complete(consumer);
+                        } else {
+                            recoveredConsumer.completeExceptionally(error);
+                        }
+                    }));
+            try (ConsumerImpl<String> consumer = recoveredConsumer.get(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+                assertThat(consumer.getClientCnx()).isSameAs(connection);
+                assertThat(consumer.isConnected()).isTrue();
+                if (startPaused) {
+                    consumer.resume();
+                }
+                producer.send("after-unsubscribe-failure");
+                Message<String> message = consumer.receive(TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                assertThat(message).as("initial permits after the rejected unsubscribe").isNotNull();
+                try {
+                    assertThat(message.getValue()).isEqualTo("after-unsubscribe-failure");
+                    consumer.acknowledge(message);
+                } finally {
+                    message.release();
+                }
+            }
+        }
+    }
 
     @Test(timeOut = 60000)
     public void testMultiTopicInitialPermitsReconnectAndSeek() throws Exception {

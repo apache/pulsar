@@ -1135,9 +1135,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private void initializeReceiverQueuePermits(long requestId, ClientCnx cnx) {
         synchronized (receiverQueuePermitLock) {
+            // A failed unsubscribe restores Ready from Closing without a new subscription or initial grant.
             if (cnx == null || receiverQueuePermitRequestId != requestId
                     || receiverQueuePermitPhase != ReceiverQueuePermitPhase.AWAITING_INITIAL_PERMITS
-                    || cnx() != cnx || getState() != State.Ready) {
+                    || cnx() != cnx) {
                 return;
             }
             // A resize before initialization is included in this snapshot; later resizes grant only their delta.
@@ -2204,8 +2205,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     .attr("delta", delta)
                     .log("update currentReceiverQueueSize from to, increaseAvailablePermits by");
             ClientCnx currentCnx = cnx();
+            // Keep resize deltas while an unsubscribe is pending, since failure restores this subscription.
             if (receiverQueuePermitPhase == ReceiverQueuePermitPhase.INITIALIZED
-                    && currentCnx != null && getState() == State.Ready) {
+                    && currentCnx != null) {
                 increaseAvailablePermits(currentCnx, delta);
             }
         }

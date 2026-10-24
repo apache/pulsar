@@ -43,7 +43,10 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
@@ -260,6 +263,108 @@ public class ConsumerQueuePermitTest {
         }
     }
 
+    @DataProvider
+    public Object[][] pausedModes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "pausedModes", timeOut = 120000)
+    public void testFailedUnsubscribeFromSubscribeCallbackRetainsInitialGrant(boolean startPaused) throws Exception {
+        try (TestConsumer fixture = new TestConsumer(false, startPaused)) {
+            AtomicReference<CompletableFuture<Void>> unsubscribe = new AtomicReference<>();
+            // A user callback runs before subscription success initializes the queue's permits.
+            CompletableFuture<Void> callback = fixture.subscribeFuture.thenAccept(
+                    consumer -> unsubscribe.set(consumer.unsubscribeAsync(false)));
+            Connection connection = new Connection();
+            CompletableFuture<Void> opened = fixture.consumer.connectionOpened(connection.cnx);
+            connection.subscribeReply.complete(null);
+            opened.get(5, TimeUnit.SECONDS);
+            callback.get(5, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Closing);
+            assertThat(unsubscribe.get()).isNotNull().isNotDone();
+
+            // Keep UNSUBSCRIBE pending until the subscription-success callback has returned.
+            connection.unsubscribeReply.completeExceptionally(
+                    new PulsarClientException.BrokerMetadataException("Unsubscribe rejected"));
+            assertThat(unsubscribe.get().isCompletedExceptionally()).isTrue();
+            assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Ready);
+            if (startPaused) {
+                assertThat(connection.sentPermits.get()).as("paused consumer retains its initial grant").isZero();
+                fixture.consumer.resume();
+            }
+            assertThat(connection.sentPermits.get()).as("initial FLOW survives failed unsubscribe").isEqualTo(1);
+
+            MessageImpl<byte[]> queued = new MessageImpl<>(fixture.consumer.getTopic(),
+                    new MessageIdImpl(1, 1, -1), new MessageMetadata(), Unpooled.EMPTY_BUFFER,
+                    connection.cnx, Schema.BYTES);
+            fixture.consumer.enqueueMessageAndCheckBatchReceive(queued);
+            Message<byte[]> received = fixture.consumer.receive(5, TimeUnit.SECONDS);
+            try {
+                assertThat(received).as("consumer remains usable after unsubscribe failure").isSameAs(queued);
+            } finally {
+                if (received != null) {
+                    received.release();
+                }
+            }
+        }
+    }
+
+    @Test(dataProvider = "pausedModes", timeOut = 120000)
+    public void testMemoryShrinkDuringFailedUnsubscribeRetainsPermitDebt(boolean paused) throws Exception {
+        try (TestConsumer fixture = new TestConsumer()) {
+            Connection connection = new Connection();
+            CompletableFuture<Void> opened = fixture.consumer.connectionOpened(connection.cnx);
+            connection.subscribeReply.complete(null);
+            opened.get(5, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getCurrentReceiverQueueSize()).isEqualTo(1);
+            assertThat(connection.sentPermits.get()).isEqualTo(1);
+
+            fixture.consumer.setCurrentReceiverQueueSize(2);
+            assertThat(connection.sentPermits.get()).isEqualTo(2);
+            assertThat(fixture.consumer.getAvailablePermits()).isZero();
+            if (paused) {
+                fixture.consumer.pause();
+            }
+            CompletableFuture<Void> unsubscribe = fixture.consumer.unsubscribeAsync(false);
+            assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Closing);
+            assertThat(unsubscribe).isNotDone();
+
+            // Shared memory pressure can shrink this consumer while UNSUBSCRIBE is outstanding.
+            MemoryLimitController memory = new MemoryLimitController(1024 * 1024, 1,
+                    fixture.consumer::reduceCurrentReceiverQueueSize);
+            memory.forceReserveMemory(1);
+            memory.releaseMemory(1);
+            assertThat(fixture.consumer.getCurrentReceiverQueueSize()).isEqualTo(1);
+
+            connection.unsubscribeReply.completeExceptionally(
+                    new PulsarClientException.BrokerMetadataException("Unsubscribe rejected"));
+            assertThat(unsubscribe.isCompletedExceptionally()).isTrue();
+            assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(fixture.consumer.getAvailablePermits()).as("shrink debt survives failed unsubscribe")
+                    .isEqualTo(-1);
+            if (paused) {
+                fixture.consumer.resume();
+                assertThat(connection.sentPermits.get()).as("resume does not grant permits while in debt")
+                        .isEqualTo(2);
+            }
+
+            MessageImpl<byte[]> queued = new MessageImpl<>(fixture.consumer.getTopic(),
+                    new MessageIdImpl(1, 1, -1), new MessageMetadata(), Unpooled.EMPTY_BUFFER,
+                    connection.cnx, Schema.BYTES);
+            fixture.consumer.enqueueMessageAndCheckBatchReceive(queued);
+            Message<byte[]> received = fixture.consumer.receive(5, TimeUnit.SECONDS);
+            try {
+                assertThat(received).isSameAs(queued);
+                assertThat(connection.sentPermits.get()).as("consuming a message pays the shrink debt").isEqualTo(2);
+                assertThat(fixture.consumer.getAvailablePermits()).isZero();
+            } finally {
+                if (received != null) {
+                    received.release();
+                }
+            }
+        }
+    }
+
     @Test(timeOut = 120000)
     public void testMemoryTriggeredResizeDoesNotAcquireConsumerMonitor() throws Exception {
         try (TestConsumer fixture = new TestConsumer()) {
@@ -304,6 +409,7 @@ public class ConsumerQueuePermitTest {
     private static final class TestConsumer implements AutoCloseable {
         private final ExecutorProvider executorProvider = new ExecutorProvider(1, "queue-permit-test");
         private final ExecutorService internalExecutor = Executors.newSingleThreadExecutor();
+        private final CompletableFuture<Consumer<byte[]>> subscribeFuture;
         private final ConsumerImpl<byte[]> consumer;
         private final PulsarClientImpl client;
         private Runnable beforeSubscribeCompletion = () -> { };
@@ -313,6 +419,10 @@ public class ConsumerQueuePermitTest {
         }
 
         TestConsumer(boolean hasParentConsumer) {
+            this(hasParentConsumer, false);
+        }
+
+        TestConsumer(boolean hasParentConsumer, boolean startPaused) {
             client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
             client.getConfiguration().setStatsIntervalSeconds(0);
             when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
@@ -325,7 +435,8 @@ public class ConsumerQueuePermitTest {
             conf.setSubscriptionMode(SubscriptionMode.NonDurable);
             conf.setReceiverQueueSize(2);
             conf.setAutoScaledReceiverQueueSizeEnabled(true);
-            CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>() {
+            conf.setStartPaused(startPaused);
+            subscribeFuture = new CompletableFuture<>() {
                 @Override
                 public boolean complete(Consumer<byte[]> value) {
                     beforeSubscribeCompletion.run();
@@ -351,6 +462,7 @@ public class ConsumerQueuePermitTest {
     private static final class Connection {
         private final ClientCnx cnx = mock(ClientCnx.class);
         private CompletableFuture<ProducerResponse> subscribeReply = new CompletableFuture<>();
+        private final CompletableFuture<ProducerResponse> unsubscribeReply = new CompletableFuture<>();
         private final AtomicInteger sentPermits = new AtomicInteger();
         private final List<BaseCommand> sentCommands = new CopyOnWriteArrayList<>();
         private final List<Long> subscribeEpochs = new CopyOnWriteArrayList<>();
@@ -380,6 +492,9 @@ public class ConsumerQueuePermitTest {
                     subscribeEpochs.add(command.getSubscribe().getConsumerEpoch());
                     CompletableFuture<ProducerResponse> reply = subscribeReply;
                     return reply;
+                }
+                if (command.getType() == BaseCommand.Type.UNSUBSCRIBE) {
+                    return unsubscribeReply;
                 }
                 assertThat(command.getType()).isEqualTo(BaseCommand.Type.CLOSE_CONSUMER);
                 return CompletableFuture.<ProducerResponse>completedFuture(null);
