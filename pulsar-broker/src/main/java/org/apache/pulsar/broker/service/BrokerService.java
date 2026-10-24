@@ -1810,8 +1810,12 @@ public class BrokerService implements Closeable {
                 log.warn()
                         .attr("topic", topic)
                         .exceptionMessage(ex.getCause())
-                        .log("Replication check failed. Removing topic from topics list");
-                nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                        .log("Non-persistent topic initialization failed. Closing topic");
+                nonPersistentTopic.close(true, true).whenComplete((v, closeException) -> {
+                    if (closeException != null) {
+                        log.warn().attr("topic", topic).exception(closeException)
+                                .log("Failed to close partially initialized non-persistent topic");
+                    }
                     topicFuture.completeExceptionally(ex);
                 });
                 return null;
