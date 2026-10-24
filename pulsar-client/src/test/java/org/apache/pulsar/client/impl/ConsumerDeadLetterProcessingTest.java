@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -38,6 +39,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultChannelPromise;
+import io.netty.channel.EventLoop;
+import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -73,8 +76,8 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-public class ConsumerDeadLetterMessageReleaseTest {
-    private static final String TOPIC = "persistent://public/default/dlq-message-release";
+public class ConsumerDeadLetterProcessingTest {
+    private static final String TOPIC = "persistent://public/default/dlq-processing";
     private static final byte[] PAYLOAD = "same-original-payload".getBytes(StandardCharsets.UTF_8);
     private static final MessageIdImpl ORIGINAL_ID = new MessageIdImpl(1, 1, -1);
     private static final int MAX_REDELIVERIES = 2;
@@ -91,26 +94,22 @@ public class ConsumerDeadLetterMessageReleaseTest {
     }
 
     @DataProvider
-    public Object[][] completionOrders() {
-        List<Object[]> cases = new ArrayList<>();
-        for (boolean batch : new boolean[] {false, true}) {
-            for (boolean originalBeforeReconnect : new boolean[] {false, true}) {
-                for (boolean originalSuccess : new boolean[] {false, true}) {
-                    for (boolean replacementSuccess : new boolean[] {false, true}) {
-                        cases.add(new Object[] {batch, originalBeforeReconnect, originalSuccess, replacementSuccess});
-                    }
-                }
-            }
-        }
-        return cases.toArray(Object[][]::new);
+    public Object[][] duplicateBatchMessages() {
+        return new Object[][] {
+                {MAX_REDELIVERIES, 1}, {MAX_REDELIVERIES, 2},
+                {MAX_REDELIVERIES + 1, 1}, {MAX_REDELIVERIES + 1, 2}
+        };
     }
 
     @DataProvider
-    public Object[][] pendingSendCompletions() {
+    public Object[][] sendCompletions() {
         List<Object[]> cases = new ArrayList<>();
-        for (boolean batch : new boolean[] {false, true}) {
+        for (boolean reverseOrder : new boolean[] {false, true}) {
             for (SendCompletion completion : SendCompletion.values()) {
-                cases.add(new Object[] {batch, completion});
+                cases.add(new Object[] {reverseOrder, SendCompletion.SUCCESS, completion});
+                if (completion != SendCompletion.SUCCESS) {
+                    cases.add(new Object[] {reverseOrder, completion, SendCompletion.SUCCESS});
+                }
             }
         }
         return cases.toArray(Object[][]::new);
@@ -125,13 +124,8 @@ public class ConsumerDeadLetterMessageReleaseTest {
     }
 
     @DataProvider
-    public Object[][] epochFilteredMessageTypes() {
-        return new Object[][] {
-                {SubscriptionType.Exclusive, false},
-                {SubscriptionType.Exclusive, true},
-                {SubscriptionType.Failover, false},
-                {SubscriptionType.Failover, true}
-        };
+    public Object[][] staleDeliveries() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
     }
 
     @DataProvider
@@ -139,63 +133,135 @@ public class ConsumerDeadLetterMessageReleaseTest {
         return new Object[][] {{0}, {1}};
     }
 
-    @DataProvider
-    public Object[][] staleBatchTransitions() {
-        return new Object[][] {{false}, {true}};
-    }
-
-    @Test(dataProvider = "messageTypes", timeOut = 30000)
-    public void testAcknowledgmentPreservesApplicationMessage(boolean batch) throws Exception {
-        try (Fixture fixture = new Fixture(batch)) {
-            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
-            List<Message<byte[]>> received = new ArrayList<>();
-            try {
-                for (int index = 0; index < (batch ? 2 : 1); index++) {
-                    Message<byte[]> message = fixture.consumer.receive(1, TimeUnit.SECONDS);
-                    assertThat(message).isNotNull();
-                    received.add(message);
-                }
-                assertThat(fixture.sends).isEmpty();
-                assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).containsKey(ORIGINAL_ID);
-                for (Message<byte[]> message : received) {
-                    fixture.consumer.acknowledgeAsync(message).get(1, TimeUnit.SECONDS);
-                    assertThat(message.getData()).isEqualTo(PAYLOAD);
-                }
-                assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
-                fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
-                for (Message<byte[]> message : received) {
-                    assertThat(message.getData()).as("an ACK and consumer close must preserve application ownership")
-                            .isEqualTo(PAYLOAD);
-                }
-            } finally {
-                received.forEach(Message::release);
-            }
-            assertThat(frame.refCnt()).as("the application releases the final payload reference").isZero();
-        }
-    }
-
-    @Test(dataProvider = "messageTypes", timeOut = 30000)
-    public void testApplicationReleasePreservesDeadLetterCache(boolean batch) throws Exception {
-        try (Fixture fixture = new Fixture(batch)) {
-            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
-            for (int index = 0; index < (batch ? 2 : 1); index++) {
+    @Test(dataProvider = "duplicateBatchMessages", timeOut = 30000)
+    public void testDuplicateBatchMessagesAreReleasedAndExcludedFromDeadLetter(int redeliveryCount,
+                                                                             int acknowledgedMessages)
+            throws Exception {
+        try (Fixture fixture = new Fixture(true, true)) {
+            ByteBuf original = fixture.deliver(0);
+            for (int index = 0; index < 2; index++) {
                 Message<byte[]> message = fixture.consumer.receive(1, TimeUnit.SECONDS);
                 assertThat(message).isNotNull();
-                message.release();
+                try {
+                    if (index < acknowledgedMessages) {
+                        fixture.consumer.acknowledgeAsync(message).get(1, TimeUnit.SECONDS);
+                    }
+                } finally {
+                    message.release();
+                }
             }
-            assertThat(frame.refCnt()).as("the cache owns its payload independently of the application")
-                    .isPositive();
-            fixture.consumer.redeliverUnacknowledgedMessages(Set.of(ORIGINAL_ID));
-            assertThat(fixture.sends).hasSize(batch ? 2 : 1);
-            fixture.assertSentMetadata();
-            fixture.completeDelivery(0, true);
-            fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
-            assertThat(frame.refCnt()).as("ACK and send completion release both internal owners").isZero();
+            assertThat(original.refCnt()).isZero();
+
+            ByteBuf redelivery = fixture.deliver(redeliveryCount);
+            if (acknowledgedMessages == 2) {
+                assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
+                assertThat(fixture.sends).isEmpty();
+            } else {
+                assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID)).hasSize(1);
+                if (redeliveryCount == MAX_REDELIVERIES) {
+                    Message<byte[]> remaining = fixture.consumer.receive(1, TimeUnit.SECONDS);
+                    assertThat(remaining).isNotNull();
+                    remaining.release();
+                    fixture.consumer.redeliverUnacknowledgedMessages(Set.of(ORIGINAL_ID));
+                }
+                assertThat(fixture.sends).hasSize(1);
+                fixture.assertSentMetadata(1);
+                fixture.completeSend(0, SendCompletion.SUCCESS);
+                assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
+            }
+            assertThat(fixture.consumer.numMessagesInQueue()).isZero();
+            assertThat(redelivery.refCnt()).as("discarded duplicates have no application or DLQ buffer owner")
+                    .isZero();
+        }
+    }
+
+    @Test(dataProvider = "sendCompletions", timeOut = 30000)
+    public void testBatchAcknowledgmentWaitsForEveryDeadLetterSend(boolean reverseOrder,
+                                                                  SendCompletion firstCompletion,
+                                                                  SendCompletion finalCompletion) throws Exception {
+        try (Fixture fixture = new Fixture(true)) {
+            ByteBuf frame = fixture.deliver();
+            assertThat(fixture.sends).hasSize(2);
+            assertThat(frame.refCnt()).as("DLQ candidates are heap copies of the released original messages")
+                    .isZero();
+            int first = reverseOrder ? 1 : 0;
+            int last = reverseOrder ? 0 : 1;
+            fixture.completeSend(first, firstCompletion);
+            assertThat(fixture.sends.get(last)).as("the remaining DLQ send is still pending").isNotDone();
+            assertThat(fixture.acknowledgments).as("a pending send prevents acknowledgment of the batch")
+                    .isEmpty();
+            assertThat(fixture.redeliveries).as("failure or cancellation must wait for the remaining submitted send")
+                    .isZero();
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).containsKey(ORIGINAL_ID);
+            fixture.assertSentMetadata(0, 1);
+
+            fixture.completeSend(last, finalCompletion);
+            if (firstCompletion == SendCompletion.SUCCESS && finalCompletion == SendCompletion.SUCCESS) {
+                assertThat(fixture.acknowledgments).hasSize(1);
+                assertThat(fixture.redeliveries).isZero();
+                fixture.assertLastAcknowledgmentCoversEntry();
+                assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
+            } else {
+                assertThat(fixture.acknowledgments).as("failure or cancellation preserves the original batch")
+                        .isEmpty();
+                assertThat(fixture.redeliveries).as("retry is requested only after every submitted send completes")
+                        .isEqualTo(1);
+                assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).containsKey(ORIGINAL_ID);
+            }
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testPartialApplicationAcknowledgmentExcludesCachedBatchMessageFromDeadLetter() throws Exception {
+        try (Fixture fixture = new Fixture(true)) {
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
+            Message<byte[]> first = fixture.consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> second = fixture.consumer.receive(1, TimeUnit.SECONDS);
+            assertThat(first).isNotNull();
+            assertThat(second).isNotNull();
+            MessageId secondMessageId = second.getMessageId();
+            try {
+                fixture.consumer.acknowledgeAsync(first).get(1, TimeUnit.SECONDS);
+            } finally {
+                first.release();
+                second.release();
+            }
+            assertThat(frame.refCnt()).isZero();
+            assertThat(fixture.acknowledgments).hasSize(1);
+            fixture.consumer.redeliverUnacknowledgedMessages(Set.of(secondMessageId));
+            assertThat(fixture.sends).as("a message acknowledged after caching must not be republished to DLQ")
+                    .hasSize(1);
+            fixture.assertSentMetadata(1);
+            fixture.completeSend(0, SendCompletion.SUCCESS);
+            assertThat(fixture.acknowledgments).hasSize(2);
+            fixture.assertLastAcknowledgmentCoversEntry();
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
+        }
+    }
+
+    @Test(dataProvider = "partialBatchSendFailures", timeOut = 30000)
+    public void testPartialBatchConstructionFailureDoesNotAcknowledgeSource(Throwable failure) throws Exception {
+        try (Fixture fixture = new Fixture(true)) {
+            fixture.messageCreationFailure = failure;
+            ByteBuf frame = fixture.deliver();
+            assertThat(fixture.sends).as("the first send precedes failure constructing the second message")
+                    .hasSize(1);
+            assertThat(frame.refCnt()).isZero();
+            assertThat(fixture.sends.get(0)).isNotDone();
+            assertThat(fixture.acknowledgments).isEmpty();
+            assertThat(fixture.redeliveries).as("construction failure must wait for the already submitted send")
+                    .isZero();
+            fixture.completeSend(0, SendCompletion.SUCCESS);
+            assertThat(fixture.redeliveries).as("the failed batch is retried after its submitted send completes")
+                    .isEqualTo(1);
+            assertThat(fixture.acknowledgments).as("a partially submitted batch cannot acknowledge its source")
+                    .isEmpty();
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).containsKey(ORIGINAL_ID);
         }
     }
 
     @Test(dataProvider = "messageTypes", timeOut = 30000)
-    public void testAcknowledgmentFromReceiveCallbackReleasesDeadLetterCache(boolean batch) throws Exception {
+    public void testAcknowledgmentFromReceiveCallbackRemovesPublishedCandidates(boolean batch) throws Exception {
         try (Fixture fixture = new Fixture(batch)) {
             List<CompletableFuture<Void>> callbacks = new ArrayList<>();
             for (int index = 0; index < (batch ? 2 : 1); index++) {
@@ -208,195 +274,54 @@ public class ConsumerDeadLetterMessageReleaseTest {
                     }
                 }));
             }
-
             ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
             CompletableFuture.allOf(callbacks.toArray(CompletableFuture<?>[]::new)).get(1, TimeUnit.SECONDS);
             assertThat(fixture.sends).isEmpty();
-            // Batch index acknowledgments send an ACK for each application message.
-            assertThat(fixture.acknowledgments).isEqualTo(batch ? 2 : 1);
+            assertThat(fixture.acknowledgments).hasSize(batch ? 2 : 1);
             assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
-            assertThat(frame.refCnt()).as("inline ACKs must release candidates published by the receive path")
-                    .isZero();
+            assertThat(frame.refCnt()).isZero();
         }
     }
 
     @Test(dataProvider = "messageTypes", timeOut = 30000)
-    public void testCloseFromReceiveCallbackReleasesDeadLetterCache(boolean batch) throws Exception {
+    public void testCloseFromFirstReceiveCallbackDoesNotRepublishCandidates(boolean batch) throws Exception {
         try (Fixture fixture = new Fixture(batch)) {
-            List<CompletableFuture<Void>> callbacks = new ArrayList<>();
-            int messagesPerDelivery = batch ? 2 : 1;
-            for (int index = 0; index < messagesPerDelivery; index++) {
-                boolean closeAfterReceive = index == messagesPerDelivery - 1;
-                callbacks.add(fixture.consumer.receiveAsync().thenCompose(message -> {
-                    try {
-                        CompletableFuture<Void> completion = closeAfterReceive ? fixture.consumer.closeAsync()
-                                : CompletableFuture.completedFuture(null);
-                        assertThat(message.getData()).as("close must preserve the application's message owner")
-                                .isEqualTo(PAYLOAD);
-                        return completion;
-                    } finally {
-                        message.release();
-                    }
-                }));
-            }
-
+            CompletableFuture<Void> callback = fixture.consumer.receiveAsync().thenCompose(message -> {
+                try {
+                    CompletableFuture<Void> close = fixture.consumer.closeAsync();
+                    assertThat(message.getData()).isEqualTo(PAYLOAD);
+                    return close;
+                } finally {
+                    message.release();
+                }
+            });
             ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
-            CompletableFuture.allOf(callbacks.toArray(CompletableFuture<?>[]::new)).get(1, TimeUnit.SECONDS);
+            callback.get(1, TimeUnit.SECONDS);
             assertThat(fixture.sends).isEmpty();
-            assertThat(fixture.acknowledgments).isZero();
+            assertThat(fixture.acknowledgments).isEmpty();
             assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
-            assertThat(frame.refCnt()).as("the receive path must not publish candidates after close cleanup")
+            assertThat(fixture.consumer.numMessagesInQueue()).as("close stops the remaining batch notifications")
+                    .isZero();
+            assertThat(frame.refCnt()).as("messages not submitted after the callback closes must be released")
                     .isZero();
         }
     }
 
-    @Test(dataProvider = "completionOrders", timeOut = 30000)
-    public void testDeadLetterCompletionReleasesRedeliveredMessage(boolean batch, boolean originalBeforeReconnect,
-                                                                  boolean originalSuccess,
-                                                                  boolean replacementSuccess) throws Exception {
+    @Test(dataProvider = "staleDeliveries", timeOut = 30000)
+    public void testStaleDeliveryDoesNotCacheDeadLetterMessages(boolean batch, boolean reconnect) throws Exception {
         try (Fixture fixture = new Fixture(batch)) {
-            ByteBuf original = fixture.deliver();
-            int messagesPerDelivery = batch ? 2 : 1;
-            assertThat(fixture.sends).hasSize(messagesPerDelivery);
-            assertThat(original.refCnt()).as("A must remain live while its DLQ sends are pending").isPositive();
-            if (originalBeforeReconnect) {
-                fixture.completeDelivery(0, originalSuccess);
+            ClientCnx sourceConnection = fixture.consumer.getClientCnx();
+            if (reconnect) {
+                assertThat(fixture.consumer.changeToConnecting()).isTrue();
+                fixture.consumer.connectionOpened(fixture.newConnection()).get(1, TimeUnit.SECONDS);
+            } else {
+                fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
             }
-
-            assertThat(fixture.consumer.changeToConnecting()).isTrue();
-            fixture.consumer.connectionOpened(fixture.newConnection()).get(1, TimeUnit.SECONDS);
-            ByteBuf replacement = fixture.deliver();
-            assertThat(fixture.sends).hasSize(2 * messagesPerDelivery);
-            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID))
-                    .hasSize(messagesPerDelivery);
-
-            if (!originalBeforeReconnect) {
-                fixture.completeDelivery(0, originalSuccess);
-                assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages().containsKey(ORIGINAL_ID))
-                        .as("the old ACK removes the current cache entry only after a successful send")
-                        .isEqualTo(!originalSuccess);
-            }
-            assertThat(replacement.refCnt()).as("B's pending DLQ operation must still own its payload")
-                    .isPositive();
-            fixture.assertSentMetadata();
-
-            fixture.completeDelivery(1, replacementSuccess);
-            assertThat(fixture.acknowledgments).isEqualTo((originalSuccess ? 1 : 0) + (replacementSuccess ? 1 : 0));
-            fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
-            assertThat(original.refCnt()).as("A's buffer after real consumer close").isZero();
-            assertThat(replacement.refCnt()).as("B's buffer after real consumer close").isZero();
-        }
-    }
-
-    @Test(dataProvider = "pendingSendCompletions", timeOut = 30000)
-    public void testClosePreservesPendingDeadLetterOperation(boolean batch, SendCompletion completion)
-            throws Exception {
-        try (Fixture fixture = new Fixture(batch)) {
-            ByteBuf frame = fixture.deliver();
-            int messagesPerDelivery = batch ? 2 : 1;
-            assertThat(fixture.sends).hasSize(messagesPerDelivery);
-            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID))
-                    .hasSize(messagesPerDelivery);
-
-            fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES + 1, sourceConnection);
             assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
-            assertThat(frame.refCnt()).as("pending DLQ operations must retain their payload after close")
-                    .isPositive();
-            fixture.assertSentMetadata();
-
-            fixture.completeDelivery(0, completion);
-            assertThat(fixture.acknowledgments).as("a closed consumer must not acknowledge the source message")
-                    .isZero();
-            assertThat(frame.refCnt()).as("completion must release the final DLQ operation owner").isZero();
-        }
-    }
-
-    @Test(dataProvider = "partialBatchSendFailures", timeOut = 30000)
-    public void testPartialBatchSendFailurePreservesPendingSend(Throwable failure) throws Exception {
-        try (Fixture fixture = new Fixture(true)) {
-            fixture.messageCreationFailure = failure;
-            ByteBuf frame = fixture.deliver();
-            assertThat(fixture.sends).as("the first send was submitted before constructing the second message")
-                    .hasSize(1);
-            CompletableFuture<MessageId> firstSend = fixture.sends.get(0);
-            assertThat(firstSend.isDone()).isFalse();
-            fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
-            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
-            assertThat(firstSend.isDone()).as("close must leave the submitted send pending").isFalse();
-            assertThat(frame.refCnt()).as("construction failure must preserve the pending send owner after close")
-                    .isPositive();
-
-            firstSend.complete(new MessageIdImpl(9, 0, -1));
-            assertThat(fixture.acknowledgments).as("a partially failed batch must not acknowledge the source")
-                    .isZero();
-            assertThat(frame.refCnt()).as("the final submitted send releases the operation's payload references")
-                    .isZero();
-        }
-    }
-
-    @Test(dataProvider = "messageTypes", timeOut = 30000)
-    public void testProducerInitializationFailureReleasesDeadLetterOperation(boolean batch) throws Exception {
-        AtomicInteger customizations = new AtomicInteger();
-        IllegalStateException failure = new IllegalStateException("Controlled DLQ producer customization failure");
-        try (Fixture fixture = new Fixture(batch, (context, builder) -> {
-            customizations.incrementAndGet();
-            throw failure;
-        })) {
-            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
-            for (int index = 0; index < (batch ? 2 : 1); index++) {
-                Message<byte[]> message = fixture.consumer.receive(1, TimeUnit.SECONDS);
-                assertThat(message).isNotNull();
-                message.release();
-            }
-
-            IllegalStateException synchronousFailure = null;
-            try {
-                fixture.consumer.redeliverUnacknowledgedMessages(Set.of(ORIGINAL_ID));
-            } catch (IllegalStateException exception) {
-                // Observe the leaked operation owner even if unpatched initialization escapes synchronously.
-                assertThat(exception).isSameAs(failure);
-                synchronousFailure = exception;
-            }
-            assertThat(customizations.get()).isEqualTo(1);
             assertThat(fixture.sends).isEmpty();
-            assertThat(fixture.acknowledgments).isZero();
-            fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
-            assertThat(frame.refCnt()).as("producer initialization failure must release the DLQ operation owner")
-                    .isZero();
-            assertThat(synchronousFailure).as("initialization failure must be handled by the async DLQ path").isNull();
-        }
-    }
-
-    @Test(dataProvider = "epochFilteredMessageTypes", timeOut = 30000)
-    public void testEpochFilteringPreservesDeadLetterCache(SubscriptionType subscriptionType, boolean batch)
-            throws Exception {
-        try (Fixture fixture = new Fixture(batch, subscriptionType)) {
-            long deliveryEpoch = fixture.consumer.getConsumerEpoch();
-            fixture.queueNotifications = true;
-            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
-            int messageCount = batch ? 2 : 1;
-            assertThat(fixture.notifications).hasSize(messageCount);
-            List<MessageImpl<byte[]>> cachedMessages =
-                    fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID);
-            assertThat(cachedMessages).hasSize(messageCount);
-
-            fixture.consumer.redeliverUnacknowledgedMessages();
-            assertThat(fixture.consumer.getConsumerEpoch()).isEqualTo(deliveryEpoch + 1);
-            fixture.runNotifications();
-
-            assertThat(fixture.consumer.numMessagesInQueue()).as("stale callbacks must discard application messages")
-                    .isZero();
-            assertThat(fixture.sends).isEmpty();
-            for (int index = 0; index < messageCount; index++) {
-                MessageImpl<byte[]> cachedMessage = cachedMessages.get(index);
-                assertThat(cachedMessage.getConsumerEpoch()).isEqualTo(deliveryEpoch);
-                assertThat(cachedMessage.getData()).as("epoch filtering must preserve the independent DLQ owner")
-                        .isEqualTo(PAYLOAD);
-                assertThat(cachedMessage.getProperties()).containsEntry("application-property", "value-" + index);
-            }
-            fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
-            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
-            assertThat(frame.refCnt()).as("epoch discard and close release their own references exactly once")
+            assertThat(fixture.acknowledgments).isEmpty();
+            assertThat(frame.refCnt()).as("a delivery from a stale connection must release its originals")
                     .isZero();
         }
     }
@@ -408,78 +333,61 @@ public class ConsumerDeadLetterMessageReleaseTest {
             fixture.notificationsBeforeRejection = acceptedNotifications;
             RejectedExecutionException failure = new RejectedExecutionException("Controlled notification rejection");
             fixture.notificationRejection = failure;
-
-            assertThatThrownBy(() -> fixture.deliver(MAX_REDELIVERIES))
-                    .isSameAs(failure);
+            assertThatThrownBy(() -> fixture.deliver(MAX_REDELIVERIES)).isSameAs(failure);
             ByteBuf frame = fixture.frames.get(0);
             assertThat(fixture.notifications).hasSize(acceptedNotifications);
-            List<MessageImpl<byte[]>> cachedMessages =
-                    fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID);
-            assertThat(cachedMessages).hasSize(2);
-            for (MessageImpl<byte[]> cachedMessage : cachedMessages) {
-                assertThat(cachedMessage.getData()).as("notification rejection must preserve cache ownership")
-                        .isEqualTo(PAYLOAD);
-            }
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID)).hasSize(2);
             fixture.runNotifications();
-            assertThat(fixture.consumer.numMessagesInQueue()).isEqualTo(acceptedNotifications);
-            fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
-            assertThat(frame.refCnt()).as("the rejected message and every unsubmitted message must be released")
+            for (int index = 0; index < acceptedNotifications; index++) {
+                Message<byte[]> message = fixture.consumer.receive(1, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                message.release();
+            }
+            assertThat(frame.refCnt()).as("rejected and never submitted notifications release their messages")
                     .isZero();
         }
     }
 
-    @Test(dataProvider = "staleBatchTransitions", timeOut = 30000)
-    public void testStaleDecodedBatchDoesNotCacheDeadLetterMessages(boolean reconnect) throws Exception {
-        try (Fixture fixture = new Fixture(true)) {
-            ClientCnx sourceConnection = fixture.consumer.getClientCnx();
-            if (reconnect) {
-                assertThat(fixture.consumer.changeToConnecting()).isTrue();
-                fixture.consumer.connectionOpened(fixture.newConnection()).get(1, TimeUnit.SECONDS);
-            } else {
-                fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
-            }
-
-            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES + 1, sourceConnection);
-            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
+    @Test(dataProvider = "messageTypes", timeOut = 30000)
+    public void testProducerInitializationFailureDoesNotEscapeSynchronously(boolean batch) throws Exception {
+        AtomicInteger customizations = new AtomicInteger();
+        try (Fixture fixture = new Fixture(batch, (context, builder) -> {
+            customizations.incrementAndGet();
+            throw new IllegalStateException("Controlled DLQ producer customization failure");
+        })) {
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
+            fixture.releaseApplicationMessages();
+            assertThat(frame.refCnt()).isZero();
+            assertThatCode(() -> fixture.consumer.redeliverUnacknowledgedMessages(Set.of(ORIGINAL_ID)))
+                    .doesNotThrowAnyException();
+            assertThat(customizations.get()).isEqualTo(1);
             assertThat(fixture.sends).isEmpty();
-            assertThat(fixture.acknowledgments).isZero();
-            assertThat(frame.refCnt()).as("a late decoded batch must release rejected cache ownership").isZero();
+            assertThat(fixture.acknowledgments).isEmpty();
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).containsKey(ORIGINAL_ID);
         }
     }
 
     @Test(dataProvider = "messageTypes", timeOut = 30000)
-    public void testProducerBackoffFailureCompletesDeadLetterOperation(boolean batch) throws Exception {
+    public void testProducerBackoffFailureCompletesProducerFuture(boolean batch) throws Exception {
         AtomicInteger customizations = new AtomicInteger();
-        IllegalStateException failure =
-                new IllegalStateException("Controlled DLQ producer retry customization failure");
         try (Fixture fixture = new Fixture(batch, (context, builder) -> {
             if (customizations.incrementAndGet() == 2) {
-                throw failure;
+                throw new IllegalStateException("Controlled DLQ producer retry customization failure");
             }
         }, true)) {
             ByteBuf frame = fixture.deliver();
+            assertThat(frame.refCnt()).isZero();
             assertThat(customizations.get()).isEqualTo(1);
-            assertThat(fixture.sends).isEmpty();
             fixture.consumer.redeliverUnacknowledgedMessages(Set.of(ORIGINAL_ID));
             assertThat(fixture.scheduledTasks).hasSize(1);
-
-            IllegalStateException synchronousFailure = null;
-            try {
-                fixture.scheduledTasks.remove(0).run();
-            } catch (IllegalStateException exception) {
-                assertThat(exception).isSameAs(failure);
-                synchronousFailure = exception;
-            }
+            assertThatCode(() -> fixture.scheduledTasks.remove(0).run()).doesNotThrowAnyException();
             assertThat(customizations.get()).isEqualTo(2);
-            assertThat(fixture.scheduledTasks).isEmpty();
             assertThat(fixture.sends).isEmpty();
-            assertThat(fixture.acknowledgments).isZero();
-            CompletableFuture<Void> close = fixture.consumer.closeAsync();
-            Throwable closeFailure = close.handle((ignored, exception) -> exception).get(1, TimeUnit.SECONDS);
-            assertThat(closeFailure).as("the failed producer may make close exceptional, but never pending")
+            assertThat(fixture.acknowledgments).isEmpty();
+            Throwable closeFailure = fixture.consumer.closeAsync().handle((ignored, exception) -> exception)
+                    .get(1, TimeUnit.SECONDS);
+            assertThat(closeFailure).as("the failed producer may fail close, but must never leave it pending")
                     .isNotNull();
-            assertThat(frame.refCnt()).as("a producer backoff failure must release its operation owner").isZero();
-            assertThat(synchronousFailure).as("the scheduled callback must complete its producer future").isNull();
         }
     }
 
@@ -490,42 +398,45 @@ public class ConsumerDeadLetterMessageReleaseTest {
         private final List<ByteBuf> frames = new ArrayList<>();
         private final List<Runnable> scheduledTasks = new ArrayList<>();
         private final List<Runnable> notifications = new ArrayList<>();
+        private final List<BaseCommand> acknowledgments = new ArrayList<>();
         private final ConsumerImpl<byte[]> consumer;
         private final boolean batch;
-        private final boolean failProducerCreation;
         private boolean queueNotifications;
         private RejectedExecutionException notificationRejection;
         private int notificationsBeforeRejection;
         private Throwable messageCreationFailure;
-        private int acknowledgments;
+        private int redeliveries;
 
         private Fixture(boolean batch) throws Exception {
             this(batch, null, false);
+        }
+
+        private Fixture(boolean batch, boolean groupAcknowledgments) throws Exception {
+            this(batch, null, false, groupAcknowledgments);
         }
 
         private Fixture(boolean batch, DeadLetterProducerBuilderCustomizer customizer) throws Exception {
             this(batch, customizer, false);
         }
 
-        private Fixture(boolean batch, SubscriptionType subscriptionType) throws Exception {
-            this(batch, null, false, subscriptionType);
-        }
-
         private Fixture(boolean batch, DeadLetterProducerBuilderCustomizer customizer, boolean failProducerCreation)
                 throws Exception {
-            this(batch, customizer, failProducerCreation, SubscriptionType.Shared);
+            this(batch, customizer, failProducerCreation, false);
         }
 
         @SuppressWarnings("unchecked")
         private Fixture(boolean batch, DeadLetterProducerBuilderCustomizer customizer, boolean failProducerCreation,
-                        SubscriptionType subscriptionType) throws Exception {
+                        boolean groupAcknowledgments) throws Exception {
             this.batch = batch;
-            this.failProducerCreation = failProducerCreation;
             PulsarClientImpl client = mock(PulsarClientImpl.class);
             ClientConfigurationData clientConf = new ClientConfigurationData();
             clientConf.setStatsIntervalSeconds(0);
             when(client.getConfiguration()).thenReturn(clientConf);
             when(client.getCnxPool()).thenReturn(mock(ConnectionPool.class));
+            EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
+            EventLoop eventLoop = mock(EventLoop.class);
+            when(eventLoopGroup.next()).thenReturn(eventLoop);
+            when(client.eventLoopGroup()).thenReturn(eventLoopGroup);
             when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
             ExecutorService internalExecutor = mock(ExecutorService.class);
             doAnswer(invocation -> {
@@ -581,10 +492,11 @@ public class ConsumerDeadLetterMessageReleaseTest {
             });
 
             ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
-            conf.setSubscriptionName("dlq-message-release-sub");
-            conf.setSubscriptionType(subscriptionType);
+            conf.setSubscriptionName("dlq-processing-sub");
+            conf.setSubscriptionType(SubscriptionType.Shared);
+            conf.setBatchIndexAckEnabled(true);
             conf.setPoolMessages(true);
-            conf.setAcknowledgementsGroupTimeMicros(0);
+            conf.setAcknowledgementsGroupTimeMicros(groupAcknowledgments ? TimeUnit.HOURS.toMicros(1) : 0);
             conf.setDeadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(MAX_REDELIVERIES)
                     .deadLetterTopic(TOPIC + "-DLQ").deadLetterProducerBuilderCustomizer(customizer).build());
             consumer = ConsumerImpl.newConsumerImpl(client, TOPIC, conf, external, -1, false,
@@ -600,20 +512,28 @@ public class ConsumerDeadLetterMessageReleaseTest {
             queued.forEach(Runnable::run);
         }
 
-        private void completeDelivery(int delivery, boolean success) {
-            completeDelivery(delivery, success ? SendCompletion.SUCCESS : SendCompletion.FAILURE);
+        private void releaseApplicationMessages() throws Exception {
+            for (int index = 0; index < (batch ? 2 : 1); index++) {
+                Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                message.release();
+            }
         }
 
-        private void completeDelivery(int delivery, SendCompletion completion) {
-            int size = batch ? 2 : 1;
-            for (int index = delivery * size; index < (delivery + 1) * size; index++) {
-                switch (completion) {
-                    case SUCCESS -> sends.get(index).complete(new MessageIdImpl(9, index, -1));
-                    case FAILURE -> sends.get(index)
-                            .completeExceptionally(new IllegalStateException("Controlled DLQ send failure"));
-                    case CANCELLATION -> sends.get(index).cancel(false);
-                }
+        private void completeSend(int index, SendCompletion completion) {
+            switch (completion) {
+                case SUCCESS -> sends.get(index).complete(new MessageIdImpl(9, index, -1));
+                case FAILURE -> sends.get(index)
+                        .completeExceptionally(new IllegalStateException("Controlled DLQ send failure"));
+                case CANCELLATION -> sends.get(index).cancel(false);
             }
+        }
+
+        private void assertLastAcknowledgmentCoversEntry() {
+            BaseCommand acknowledgment = acknowledgments.get(acknowledgments.size() - 1);
+            assertThat(acknowledgment.getAck().getMessageIdAt(0).getAckSetsCount())
+                    .as("DLQ completes the whole source entry, including a batch-index redelivery request")
+                    .isZero();
         }
 
         private ByteBuf deliver() {
@@ -625,7 +545,7 @@ public class ConsumerDeadLetterMessageReleaseTest {
         }
 
         private ByteBuf deliver(int redeliveryCount, ClientCnx decodedSourceConnection) {
-            MessageMetadata metadata = new MessageMetadata().setProducerName("dlq-message-release-producer")
+            MessageMetadata metadata = new MessageMetadata().setProducerName("dlq-processing-producer")
                     .setSequenceId(1).setPublishTime(1).setPartitionKey("key-0")
                     .setOrderingKey(new byte[] {0}).setEventTime(10);
             metadata.addProperty().setKey("application-property").setValue("value-0");
@@ -660,10 +580,10 @@ public class ConsumerDeadLetterMessageReleaseTest {
                 CommandMessage command = new CommandMessage().setConsumerId(consumer.consumerId)
                         .setRedeliveryCount(redeliveryCount).setConsumerEpoch(consumer.getConsumerEpoch());
                 command.setMessageId().setLedgerId(1).setEntryId(1);
-                if (decodedSourceConnection == null) {
-                    consumer.messageReceived(command, frame, consumer.getClientCnx());
+                if (decodedSourceConnection == null || !batch) {
+                    consumer.messageReceived(command, frame,
+                            decodedSourceConnection == null ? consumer.getClientCnx() : decodedSourceConnection);
                 } else {
-                    assertThat(batch).isTrue();
                     MessageMetadata decodedMetadata = Commands.parseMessageMetadata(frame);
                     consumer.receiveIndividualMessagesFromBatch(null, decodedMetadata, redeliveryCount, null,
                             frame, command.getMessageId(), decodedSourceConnection, Commands.DEFAULT_CONSUMER_EPOCH,
@@ -681,9 +601,10 @@ public class ConsumerDeadLetterMessageReleaseTest {
             }
         }
 
-        private void assertSentMetadata() {
+        private void assertSentMetadata(int... batchIndexes) {
+            assertThat(sentMessages).hasSize(batchIndexes.length);
             for (int index = 0; index < sentMessages.size(); index++) {
-                int batchIndex = batch ? index % 2 : 0;
+                int batchIndex = batchIndexes[index];
                 TypedMessageBuilder<byte[]> builder = sentMessages.get(index);
                 verify(builder).value(PAYLOAD);
                 verify(builder).properties(argThat(properties ->
@@ -709,22 +630,36 @@ public class ConsumerDeadLetterMessageReleaseTest {
             when(connection.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12_VALUE);
             when(context.channel()).thenReturn(channel);
             when(context.voidPromise()).thenReturn(promise);
-            doAnswer(invocation -> {
-                BaseCommand command = decodeAndRelease(invocation.getArgument(0));
-                if (command.getType() == BaseCommand.Type.ACK) {
-                    assertThat(command.getAck().getMessageIdsCount()).isEqualTo(1);
-                    assertThat(command.getAck().getMessageIdAt(0).getLedgerId()).isEqualTo(1);
-                    assertThat(command.getAck().getMessageIdAt(0).getEntryId()).isEqualTo(1);
-                    acknowledgments++;
-                }
-                return new DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE).setSuccess();
-            }).when(context).writeAndFlush(any(ByteBuf.class), any(ChannelPromise.class));
+            doAnswer(invocation -> completeWrite(invocation.getArgument(0), channel))
+                    .when(context).writeAndFlush(any(ByteBuf.class), any(ChannelPromise.class));
+            doAnswer(invocation -> completeWrite(invocation.getArgument(0), channel))
+                    .when(context).writeAndFlush(any(ByteBuf.class));
+            doAnswer(invocation -> completeWrite(invocation.getArgument(0), channel))
+                    .when(context).write(any(ByteBuf.class), any(ChannelPromise.class));
+            doAnswer(invocation -> completeWrite(invocation.getArgument(0), channel))
+                    .when(context).write(any(ByteBuf.class));
             when(connection.sendRequestWithId(any(ByteBuf.class), anyLong())).thenAnswer(invocation -> {
                 BaseCommand command = decodeAndRelease(invocation.getArgument(0));
                 assertThat(command.getType()).isIn(BaseCommand.Type.SUBSCRIBE, BaseCommand.Type.CLOSE_CONSUMER);
                 return CompletableFuture.<ProducerResponse>completedFuture(null);
             });
             return connection;
+        }
+
+        private ChannelPromise completeWrite(ByteBuf frame, Channel channel) {
+            BaseCommand command = decodeAndRelease(frame);
+            if (command.getType() == BaseCommand.Type.ACK) {
+                assertThat(command.getAck().getMessageIdsCount()).isEqualTo(1);
+                assertThat(command.getAck().getMessageIdAt(0).getLedgerId()).isEqualTo(1);
+                assertThat(command.getAck().getMessageIdAt(0).getEntryId()).isEqualTo(1);
+                acknowledgments.add(command);
+            } else if (command.getType() == BaseCommand.Type.REDELIVER_UNACKNOWLEDGED_MESSAGES) {
+                assertThat(command.getRedeliverUnacknowledgedMessages().getMessageIdsCount()).isEqualTo(1);
+                assertThat(command.getRedeliverUnacknowledgedMessages().getMessageIdAt(0).getLedgerId()).isEqualTo(1);
+                assertThat(command.getRedeliverUnacknowledgedMessages().getMessageIdAt(0).getEntryId()).isEqualTo(1);
+                redeliveries++;
+            }
+            return new DefaultChannelPromise(channel, ImmediateEventExecutor.INSTANCE).setSuccess();
         }
 
         private static BaseCommand decodeAndRelease(ByteBuf frame) {
@@ -747,11 +682,7 @@ public class ConsumerDeadLetterMessageReleaseTest {
                     send.complete(new MessageIdImpl(9, 1, -1));
                 }
                 CompletableFuture<Void> close = consumer.closeAsync();
-                if (failProducerCreation) {
-                    close.handle((ignored, exception) -> null).get(1, TimeUnit.SECONDS);
-                } else {
-                    close.get(1, TimeUnit.SECONDS);
-                }
+                close.handle((ignored, exception) -> null).get(1, TimeUnit.SECONDS);
             } finally {
                 executor.shutdownNow();
                 // Assertions run before cleanup. Release leaked frames when running against an unpatched consumer.

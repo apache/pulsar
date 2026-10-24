@@ -81,7 +81,15 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP,
                 (Consumer<Runnable>) this::addMetadataStoreListenerCleanup);
         if (properties != null) {
-            properties.forEach(bkConf::setProperty);
+            // The isolation groups of a namespace reach the placement policy through the custom metadata of each
+            // ledger. They must not become the client's default groups: the client is shared and kept after the
+            // namespace bookie affinity group is removed, and new ledgers would still be placed on those groups.
+            properties.forEach((key, value) -> {
+                if (!IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS.equals(key)
+                        && !IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS.equals(key)) {
+                    bkConf.setProperty(key, value);
+                }
+            });
         }
         if (ensemblePlacementPolicyClass.isPresent()) {
             setEnsemblePlacementPolicy(bkConf, conf, store, ensemblePlacementPolicyClass.get());
@@ -252,6 +260,15 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 conf.getProperties().getProperty(
                     NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
                     ""));
+        }
+
+        if (IsolatedBookieEnsemblePlacementPolicy.class.isAssignableFrom(policyClass)
+                && conf.getBookkeeperClientIsolationGroups() != null
+                && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
+            bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
+                    conf.getBookkeeperClientIsolationGroups());
+            bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                    conf.getBookkeeperClientSecondaryIsolationGroups());
         }
     }
 

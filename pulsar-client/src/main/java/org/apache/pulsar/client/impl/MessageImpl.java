@@ -257,18 +257,6 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         }
     }
 
-    /**
-     * Copies the data needed by DLQ processing, with independent metadata and an owned payload reference.
-     * The source must not be released while copying, and the caller must release the returned message.
-     */
-    MessageImpl<T> copyForDeadLetter() {
-        MessageImpl<T> copy = new MessageImpl<>(topic, (MessageIdImpl) messageId, msgMetadata,
-                payload.duplicate(), encryptionCtx, cnx, schema, redeliveryCount, true, consumerEpoch);
-        // Batch messages keep their per-message properties outside msgMetadata. These maps are immutable.
-        copy.properties = properties;
-        return copy;
-    }
-
     public MessageImpl(String topic, String msgId, Map<String, String> properties,
             byte[] payload, Schema<T> schema, MessageMetadata msgMetadata) {
         this(topic, msgId, properties, Unpooled.wrappedBuffer(payload), schema, msgMetadata);
@@ -291,6 +279,30 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         this.schema = schema;
         this.redeliveryCount = 0;
         this.msgMetadata = new MessageMetadata().copyFrom(msgMetadata);
+    }
+
+    private MessageImpl(MessageImpl<T> other) {
+        this.msgMetadata = new MessageMetadata().copyFrom(other.msgMetadata);
+        this.messageId = other.messageId;
+        this.topic = other.topic;
+        this.cnx = other.cnx;
+        this.payload = Unpooled.copiedBuffer(other.payload);
+        this.properties = other.properties;
+        this.schema = other.schema;
+        this.encryptionCtx = other.encryptionCtx;
+        this.redeliveryCount = other.redeliveryCount;
+        this.consumerEpoch = other.consumerEpoch;
+        if (other.brokerEntryMetadata != null) {
+            this.brokerEntryMetadata = new BrokerEntryMetadata().copyFrom(other.brokerEntryMetadata);
+        }
+    }
+
+    /**
+     * Returns a copy of this incoming message that stays readable after {@link #release()}: a pooled message
+     * is recycled and its payload released when the application releases it.
+     */
+    MessageImpl<T> unpooledCopy() {
+        return poolMessage ? new MessageImpl<>(this) : this;
     }
 
     public static MessageImpl<byte[]> deserialize(ByteBuf headersAndPayload) throws IOException {

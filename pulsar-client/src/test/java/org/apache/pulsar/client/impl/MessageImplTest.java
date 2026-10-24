@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -31,11 +30,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Base64;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -47,144 +42,16 @@ import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvid
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link MessageImpl}.
  */
 public class MessageImplTest {
-
-    @DataProvider
-    public Object[][] deadLetterCopyReleaseOrders() {
-        List<Object[]> cases = new ArrayList<>();
-        int[][] orders = {{0, 1, 2}, {0, 2, 1}, {1, 0, 2}, {1, 2, 0}, {2, 0, 1}, {2, 1, 0}};
-        for (boolean batchMessage : new boolean[] {false, true}) {
-            for (int[] order : orders) {
-                cases.add(new Object[] {batchMessage, order});
-            }
-        }
-        return cases.toArray(new Object[0][]);
-    }
-
-    @Test(dataProvider = "deadLetterCopyReleaseOrders")
-    public void testDeadLetterCopiesHaveIndependentLifetimes(boolean batchMessage, int[] releaseOrder) {
-        byte[] data = {1, 2, 3};
-        byte[] orderingKey = {4, 5};
-        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.directBuffer(data.length, data.length).writeBytes(data);
-        MessageMetadata metadata = new MessageMetadata().setPartitionKey("message-key").setOrderingKey(orderingKey)
-                .setEventTime(123).setReplicatedFrom("source-cluster").setSchemaVersion(new byte[] {6});
-        metadata.addProperty().setKey("property").setValue(batchMessage ? "batch-value" : "message-value");
-        MessageIdImpl messageId;
-        MessageImpl<byte[]> original;
-        if (batchMessage) {
-            metadata.setNumMessagesInBatch(2);
-            messageId = new BatchMessageIdImpl(1, 2, 3, 0, 2, BatchMessageIdImpl.newAckSet(2));
-            SingleMessageMetadata singleMetadata = new SingleMessageMetadata().setPartitionKey("message-key")
-                    .setOrderingKey(orderingKey).setEventTime(123);
-            singleMetadata.addProperty().setKey("property").setValue("message-value");
-            original = new MessageImpl<>("test-topic", (BatchMessageIdImpl) messageId, metadata, singleMetadata,
-                    payload, Optional.empty(), null, Schema.BYTES, 5, true, 7);
-        } else {
-            messageId = new MessageIdImpl(1, 2, 3);
-            original = new MessageImpl<>("test-topic", messageId, metadata, payload, Optional.empty(), null,
-                    Schema.BYTES, 5, true, 7);
-        }
-        payload.release();
-        MessageImpl<byte[]> cached = null;
-        MessageImpl<byte[]> sending = null;
-        try {
-            cached = original.copyForDeadLetter();
-            sending = cached.copyForDeadLetter();
-            List<MessageImpl<byte[]>> messages = List.of(original, cached, sending);
-            assertThat(payload.refCnt()).as("original, cache and send each own one reference").isEqualTo(3);
-            assertThat(cached.getDataBuffer()).isNotSameAs(original.getDataBuffer());
-            assertThat(sending.getDataBuffer()).isNotSameAs(cached.getDataBuffer());
-            assertThat(cached.getMessageBuilder()).isNotSameAs(original.getMessageBuilder());
-            int remainingReferences = messages.size();
-            for (int index : releaseOrder) {
-                messages.get(index).release();
-                assertThat(payload.refCnt()).as("each release consumes exactly its own payload reference")
-                        .isEqualTo(--remainingReferences);
-                for (MessageImpl<byte[]> message : messages) {
-                    if (message.getPayload() == null) {
-                        continue;
-                    }
-                    assertThat(message.getData()).isEqualTo(data);
-                    assertThat(message.getMessageId()).isSameAs(messageId);
-                    assertThat(message.getTopicName()).isEqualTo("test-topic");
-                    assertThat(message.getProperties()).isEqualTo(Map.of("property", "message-value"));
-                    assertThat(message.getKey()).isEqualTo("message-key");
-                    assertThat(message.getOrderingKey()).isEqualTo(orderingKey);
-                    assertThat(message.getEventTime()).isEqualTo(123);
-                    assertThat(message.getRedeliveryCount()).isEqualTo(5);
-                    assertThat(message.getConsumerEpoch()).isEqualTo(7);
-                    assertThat(message.getReaderSchema()).containsSame(Schema.BYTES);
-                    assertThat(message.getSchemaVersion()).isEqualTo(new byte[] {6});
-                }
-            }
-        } finally {
-            original.release();
-            if (cached != null) {
-                cached.release();
-            }
-            if (sending != null) {
-                sending.release();
-            }
-        }
-        assertThat(payload.refCnt()).as("all owners released").isZero();
-    }
-
-    @Test
-    public void testDeadLetterCopyHasIndependentReaderIndex() {
-        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.directBuffer(2, 2).writeBytes(new byte[] {1, 2});
-        MessageImpl<byte[]> original = new MessageImpl<>("test-topic", new MessageIdImpl(1, 2, 3),
-                new MessageMetadata(), payload, Optional.empty(), null, Schema.BYTES, 1, true, 0);
-        payload.release();
-        MessageImpl<byte[]> copy = null;
-        try {
-            copy = original.copyForDeadLetter();
-            original.getDataBuffer().readByte();
-            assertThat(original.size()).isEqualTo(1);
-            assertThat(copy.getData()).isEqualTo(new byte[] {1, 2});
-        } finally {
-            original.release();
-            if (copy != null) {
-                copy.release();
-            }
-        }
-        assertThat(payload.refCnt()).isZero();
-    }
-
-    @Test
-    public void testDeadLetterCopyOfNonPooledMessageReleasesItsOwnReference() {
-        ByteBuf payload = PulsarByteBufAllocator.DEFAULT.directBuffer(2, 2).writeBytes(new byte[] {1, 2});
-        MessageImpl<byte[]> original = new MessageImpl<>("test-topic", new MessageIdImpl(1, 2, 3),
-                new MessageMetadata(), payload, Optional.empty(), null, Schema.BYTES, 1, false, 0);
-        payload.release();
-        ByteBuf originalPayload = original.getDataBuffer();
-        MessageImpl<byte[]> copy = null;
-        try {
-            copy = original.copyForDeadLetter();
-            assertThat(originalPayload.refCnt()).isEqualTo(2);
-            copy.release();
-            assertThat(originalPayload.refCnt()).as("the copy releases even when its source is not pooled")
-                    .isEqualTo(1);
-            assertThat(original.getData()).isEqualTo(new byte[] {1, 2});
-        } finally {
-            if (copy != null) {
-                copy.release();
-            }
-            originalPayload.release();
-            original.recycle();
-        }
-        assertThat(originalPayload.refCnt()).isZero();
-    }
 
     @Test
     public void testOutgoingBrokerMetadataBeforeAndAfterRecycle() {
