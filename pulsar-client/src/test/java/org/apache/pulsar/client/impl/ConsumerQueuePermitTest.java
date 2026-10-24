@@ -33,8 +33,10 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -49,6 +51,7 @@ import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -136,6 +139,49 @@ public class ConsumerQueuePermitTest {
         }
     }
 
+    @DataProvider
+    public Object[][] parentConsumerModes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "parentConsumerModes", timeOut = 120000)
+    public void testSubscribeReplySendsCurrentEpochBeforeResizedQueuePermits(boolean hasParentConsumer)
+            throws Exception {
+        try (TestConsumer fixture = new TestConsumer(hasParentConsumer)) {
+            Connection connection = new Connection();
+            CompletableFuture<Void> opened = fixture.consumer.connectionOpened(connection.cnx);
+            assertThat(connection.subscribeEpochs).hasSize(1);
+            long subscribeEpoch = connection.subscribeEpochs.get(0);
+
+            assertThat(fixture.consumer.getCurrentReceiverQueueSize()).isEqualTo(1);
+            fixture.consumer.setCurrentReceiverQueueSize(2);
+            fixture.consumer.redeliverUnacknowledgedMessages();
+            fixture.consumer.redeliverUnacknowledgedMessages();
+            assertThat(connection.sentCommands).as("SUBSCRIBE is still pending").isEmpty();
+
+            connection.subscribeReply.complete(null);
+            opened.get(5, TimeUnit.SECONDS);
+            if (hasParentConsumer) {
+                assertThat(connection.sentCommands).extracting(BaseCommand::getType)
+                        .containsExactly(BaseCommand.Type.REDELIVER_UNACKNOWLEDGED_MESSAGES);
+                assertThat(connection.sentPermits.get()).as("child waits for parent initialization").isZero();
+            } else {
+                assertThat(connection.sentPermits.get()).as("standalone consumer initializes on subscribe")
+                        .isEqualTo(2);
+            }
+
+            fixture.consumer.initializeReceiverQueuePermits();
+            fixture.consumer.initializeReceiverQueuePermits();
+            assertThat(connection.sentCommands).extracting(BaseCommand::getType)
+                    .containsExactly(BaseCommand.Type.REDELIVER_UNACKNOWLEDGED_MESSAGES, BaseCommand.Type.FLOW);
+            assertThat(connection.sentCommands.get(0).getRedeliverUnacknowledgedMessages().getConsumerEpoch())
+                    .as("broker receives the latest epoch before any FLOW").isEqualTo(subscribeEpoch + 2);
+            assertThat(fixture.consumer.getCurrentReceiverQueueSize()).isEqualTo(2);
+            assertThat(connection.sentPermits.get()).as("resized capacity is granted once").isEqualTo(2);
+            assertThat(fixture.consumer.getAvailablePermits()).isZero();
+        }
+    }
+
     @Test(timeOut = 120000)
     public void testStaleSubscribeReplyOnSameConnectionDoesNotInitializeNewAttempt() throws Exception {
         try (TestConsumer fixture = new TestConsumer()) {
@@ -144,10 +190,14 @@ public class ConsumerQueuePermitTest {
             fixture.beforeSubscribeCompletion = subscriptionCompletions::incrementAndGet;
             CompletableFuture<ProducerResponse> firstReply = connection.subscribeReply;
             CompletableFuture<Void> firstOpen = fixture.consumer.connectionOpened(connection.cnx);
+            long firstSubscribeEpoch = connection.subscribeEpochs.get(0);
+            fixture.consumer.redeliverUnacknowledgedMessages();
 
             assertThat(fixture.consumer.changeToConnecting()).isTrue();
             CompletableFuture<ProducerResponse> secondReply = connection.newSubscription();
             CompletableFuture<Void> secondOpen = fixture.consumer.connectionOpened(connection.cnx);
+            fixture.consumer.redeliverUnacknowledgedMessages();
+            assertThat(connection.subscribeEpochs).containsExactly(firstSubscribeEpoch, firstSubscribeEpoch + 1);
             assertThat(firstOpen).isNotDone();
             assertThat(secondOpen).isNotDone();
 
@@ -157,6 +207,7 @@ public class ConsumerQueuePermitTest {
             assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Connecting);
             assertThat(secondOpen).isNotDone();
             assertThat(subscriptionCompletions.get()).isZero();
+            assertThat(connection.sentCommands).as("stale reply sends neither epoch update nor FLOW").isEmpty();
             assertThat(connection.sentPermits.get()).isZero();
             assertThat(fixture.consumer.getAvailablePermits()).isZero();
 
@@ -166,6 +217,10 @@ public class ConsumerQueuePermitTest {
             assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Ready);
             assertThat(subscriptionCompletions.get()).isEqualTo(1);
             assertThat(fixture.consumer.getCurrentReceiverQueueSize()).isEqualTo(2);
+            assertThat(connection.sentCommands).extracting(BaseCommand::getType)
+                    .containsExactly(BaseCommand.Type.REDELIVER_UNACKNOWLEDGED_MESSAGES, BaseCommand.Type.FLOW);
+            assertThat(connection.sentCommands.get(0).getRedeliverUnacknowledgedMessages().getConsumerEpoch())
+                    .isEqualTo(firstSubscribeEpoch + 2);
             assertThat(connection.sentPermits.get()).isEqualTo(2);
             assertThat(fixture.consumer.getAvailablePermits()).isZero();
             fixture.consumer.initializeReceiverQueuePermits();
@@ -297,6 +352,8 @@ public class ConsumerQueuePermitTest {
         private final ClientCnx cnx = mock(ClientCnx.class);
         private CompletableFuture<ProducerResponse> subscribeReply = new CompletableFuture<>();
         private final AtomicInteger sentPermits = new AtomicInteger();
+        private final List<BaseCommand> sentCommands = new CopyOnWriteArrayList<>();
+        private final List<Long> subscribeEpochs = new CopyOnWriteArrayList<>();
 
         Connection() {
             ChannelHandlerContext context = mock(ChannelHandlerContext.class);
@@ -304,17 +361,23 @@ public class ConsumerQueuePermitTest {
             when(cnx.ctx()).thenReturn(context);
             when(cnx.channel()).thenReturn(channel);
             when(cnx.getMaxMessageSize()).thenReturn(5 * 1024 * 1024);
+            when(cnx.getRemoteEndpointProtocolVersion()).thenReturn(Commands.getCurrentProtocolVersion());
             when(context.channel()).thenReturn(channel);
             when(context.voidPromise()).thenReturn(mock(ChannelPromise.class));
             doAnswer(invocation -> {
                 BaseCommand command = decodeAndRelease(invocation.getArgument(0));
-                assertThat(command.getType()).isEqualTo(BaseCommand.Type.FLOW);
-                sentPermits.addAndGet(command.getFlow().getMessagePermits());
+                assertThat(command.getType()).isIn(BaseCommand.Type.FLOW,
+                        BaseCommand.Type.REDELIVER_UNACKNOWLEDGED_MESSAGES);
+                sentCommands.add(command);
+                if (command.getType() == BaseCommand.Type.FLOW) {
+                    sentPermits.addAndGet(command.getFlow().getMessagePermits());
+                }
                 return mock(ChannelFuture.class);
             }).when(context).writeAndFlush(any(ByteBuf.class), any(ChannelPromise.class));
             when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong())).thenAnswer(invocation -> {
                 BaseCommand command = decodeAndRelease(invocation.getArgument(0));
                 if (command.getType() == BaseCommand.Type.SUBSCRIBE) {
+                    subscribeEpochs.add(command.getSubscribe().getConsumerEpoch());
                     CompletableFuture<ProducerResponse> reply = subscribeReply;
                     return reply;
                 }
