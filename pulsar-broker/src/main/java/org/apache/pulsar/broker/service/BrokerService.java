@@ -147,6 +147,7 @@ import org.apache.pulsar.broker.service.scalable.SegmentLoadReporter;
 import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics;
 import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics.LoadReportResult;
 import org.apache.pulsar.broker.service.scalable.SegmentOwnerState;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureReason;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.prometheus.metrics.ObserverGauge;
@@ -3409,7 +3410,13 @@ public class BrokerService implements Closeable {
                     .log("Ignoring metadata change since broker is not running");
             return;
         }
-        if (n.getType() == NotificationType.Modified && NamespaceResources.pathIsFromNamespace(n.getPath())) {
+        Optional<String> schemaId = BookkeeperSchemaStorage.schemaIdFromPath(n.getPath());
+        if (schemaId.isPresent() && (n.getType() == NotificationType.Created
+                || n.getType() == NotificationType.Modified || n.getType() == NotificationType.Deleted)) {
+            // Schema metadata is shared by all brokers. Each broker disconnects blocked producers for the topics it
+            // already owns, which covers partitioned topics without loading their other partitions.
+            disconnectProducersBlockedByIncompatibleSchema(schemaId.get());
+        } else if (n.getType() == NotificationType.Modified && NamespaceResources.pathIsFromNamespace(n.getPath())) {
             NamespaceName ns = NamespaceResources.namespaceFromPath(n.getPath());
             handlePoliciesUpdates(ns);
         } else if (n.getType() == NotificationType.Modified
@@ -3420,6 +3427,14 @@ public class BrokerService implements Closeable {
             handleDynamicConfigurationUpdates();
         }
         // Ignore unrelated notifications
+    }
+
+    private void disconnectProducersBlockedByIncompatibleSchema(String schemaId) {
+        forEachTopic(topic -> {
+            if (TopicName.get(topic.getName()).getSchemaName().equals(schemaId)) {
+                topic.disconnectProducersBlockedByIncompatibleSchema();
+            }
+        });
     }
 
     private void handleLocalPoliciesUpdates(NamespaceName namespace) {

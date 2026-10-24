@@ -127,6 +127,7 @@ import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
 import org.apache.pulsar.broker.service.scalable.ConsumerSession;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.exceptions.IncompatibleSchemaException;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
@@ -4806,6 +4807,29 @@ public class ServerCnxTest {
         assertEquals(response.getRequestId(), 1L);
         assertFalse(response.hasErrorCode());
         verify(topic).addSchema(any(SchemaData.class), eq(true));
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetOrCreateSchemaMarksReplicationProducerWhenSchemaIsIncompatible() throws Exception {
+        mockTopicAuthorization(true);
+        Topic topic = mock(Topic.class);
+        doReturn(CompletableFuture.completedFuture(Optional.of(topic))).when(brokerService)
+                .getTopicIfExists(successTopicName);
+        when(topic.addSchema(any(), eq(true)))
+                .thenReturn(FutureUtil.failedFuture(new IncompatibleSchemaException("incompatible")));
+        resetChannel();
+        setChannelConnected();
+
+        String producerName = svcConfig.getReplicatorPrefix() + ".remote-cluster";
+        channel.writeInbound(Commands.newGetOrCreateSchema(1L, successTopicName, producerName,
+                Schema.STRING.getSchemaInfo()));
+
+        CommandGetOrCreateSchemaResponse response = (CommandGetOrCreateSchemaResponse) getResponse();
+        assertEquals(response.getRequestId(), 1L);
+        assertEquals(response.getErrorCode(), ServerError.IncompatibleSchema);
+        verify(topic).markProducerBlockedByIncompatibleSchema(producerName);
 
         channel.finish();
     }

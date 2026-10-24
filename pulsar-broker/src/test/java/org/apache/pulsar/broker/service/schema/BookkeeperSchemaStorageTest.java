@@ -74,4 +74,12 @@ public class BookkeeperSchemaStorageTest {
         assertEquals(new LongSchemaVersion(version), schemaStorage.versionFromBytes(versionBytesPre240));
         assertEquals(new LongSchemaVersion(version), schemaStorage.versionFromBytes(versionBytesPost240));
     }
+
+    @Test
+    public void testSchemaIdFromPath() {
+        assertEquals(BookkeeperSchemaStorage.schemaIdFromPath("/schemas/tenant/ns/topic").orElseThrow(),
+                "tenant/ns/topic");
+        assertTrue(BookkeeperSchemaStorage.schemaIdFromPath("/schemas").isEmpty());
+        assertTrue(BookkeeperSchemaStorage.schemaIdFromPath("/managed-ledgers/topic").isEmpty());
+    }
 }

@@ -1028,9 +1028,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                 schemaRegistrationBackoff.reset();
                                 schemaRegistrationFailed = false;
                                 recoverProcessOpSendMsgFrom(cnx, msg, true, expectedCnxEpoch);
-                                return;
+                            } else {
+                                // A replication producer stays paused until the destination broker disconnects it
+                                // after a relevant schema metadata change.
+                                recoverProcessOpSendMsgFrom(cnx, msg, true, expectedCnxEpoch);
                             }
-                            recoverProcessOpSendMsgFrom(cnx, msg, true, expectedCnxEpoch);
+                            return;
                         }
                         schemaRegistrationRetryTask = cnx.ctx().channel().eventLoop().schedule(() -> {
                             synchronized (ProducerImpl.this) {
@@ -2936,11 +2939,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * 3. If using multiple version producer, the new schema was failed to registered.
      *   3-1. If the new schema is incompatible.
      *     3-1-1. If {@link #pauseSendingToPreservePublishOrderOnSchemaRegFailure} is true pause all following
-     *       publishing to avoid out-of-order issue, and retry registration with backoff.
+     *       publishing to avoid out-of-order issue.
      *     3-1-2. Otherwise, discard the failed message anc continuously publishing the following messages.
      *            Additionally, the following messages may need schema registration also.
-     *   3-2. The new schema registration failed due to other error, retry registering with backoff.
-     * 4. Retry a previously incompatible schema after backoff.
+     *   3-2. The new schema registration failed due to other error, retry registering.
      * Note: Since the current method accesses & modifies {@link #pendingMessages}, you should acquire a lock on
      *       {@link ProducerImpl} before calling method.
      */
@@ -2988,7 +2990,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             if (op.msg != null) {
                 if (Broken.equals(op.msg.getSchemaState())) {
-                    // Retry a previously incompatible schema after backoff or reconnect.
+                    // "Event 1-1" happens after "Event 3-1-1".
+                    // Maybe user has changed the schema compatibility strategy, will retry to register the new schema.
                     if (pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
                         loopEndDueToSchemaRegisterNeeded = op;
                         break;
@@ -3022,8 +3025,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                 .attr("details", SchemaUtils.jsonifySchemaInfo(msgSchemaInfo, false))
                                 .log("Publishing paused: message schema"
                                         + " incompatible with target cluster."
-                                        + " Schema registration will be retried"
-                                        + " automatically. Schema details");
+                                        + " To resume publishing, adjust the"
+                                        + " schema compatibility strategy on the target cluster."
+                                        + " Target brokers earlier than the recovery fix in 4.0.15, 4.2.6,"
+                                        + " or 5.0.1 require unloading the topic after"
+                                        + " changing the strategy. Schema details");
                         loopEndDueToSchemaRegisterNeeded = op;
                         break;
                     }
@@ -3092,8 +3098,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // After a topic unload, ask the producer retry to register schema, which avoids restart client
                 // after users changed the compatibility strategy to make the schema is compatible.
                 tryRegisterSchema(cnx, loopEndDueToSchemaRegisterNeeded, expectedEpoch);
-            } else if (failedIncompatibleSchema && pauseSendingToPreservePublishOrderOnSchemaRegFailure) {
-                // The registration failure handler schedules the retry, keeping subsequent messages queued.
+            } else if (pauseSendingToPreservePublishOrderOnSchemaRegFailure
+                    && Broken.equals(loopEndDueToSchemaRegisterNeeded.msg.getSchemaState())) {
+                // Nothing to do if the event is "Event 3-1-1", just keep stuck.
                 return;
             } else if (compareAndSetState(State.RegisteringSchema, State.Ready)) {
                 // "Event 2-1" or "Event 3-1-2" or "Event 3-2".

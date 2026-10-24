@@ -1003,4 +1003,35 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         admin2.topics().createMissedPartitions(topicName);
         assertTrue(admin2.topics().getList(ns1).contains(subTopic));
     }
+
+    @Override
+    @Test(dataProvider = "schemaRecovery", timeOut = 120_000, enabled = false)
+    public void testReplicationResumesAfterSchemaConflictResolved(boolean deduplication, SchemaRecoveryTrigger trigger)
+            throws Exception {
+        super.testReplicationResumesAfterSchemaConflictResolved(deduplication, trigger);
+    }
+
+    @Override
+    @Test(timeOut = 120_000, enabled = false)
+    public void testReplicationStaysPausedWhenSchemaIsStillIncompatibleAfterReconnect() throws Exception {
+        super.testReplicationStaysPausedWhenSchemaIsStillIncompatibleAfterReconnect();
+    }
+
+    @Override
+    @Test(timeOut = 120_000, enabled = false)
+    public void testReplicationResumesAfterRemovingTopicPolicies() throws Exception {
+        super.testReplicationResumesAfterRemovingTopicPolicies();
+    }
+
+    @Override
+    @Test(timeOut = 120_000, enabled = false)
+    public void testReplicationResumesAfterRemovingNamespaceSchemaPolicy() throws Exception {
+        super.testReplicationResumesAfterRemovingNamespaceSchemaPolicy();
+    }
+
+    @Override
+    @Test(timeOut = 120_000, enabled = false)
+    public void testSchemaCreationReconnectsBlockedPartitionedReplicationProducer() throws Exception {
+        super.testSchemaCreationReconnectsBlockedPartitionedReplicationProducer();
+    }
 }

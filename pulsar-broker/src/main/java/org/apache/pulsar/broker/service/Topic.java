@@ -318,6 +318,32 @@ public interface Topic {
     }
 
     /**
+     * Adds a marker for an in-progress schema registration.
+     */
+    default CompletableFuture<Void> addInProgressSchemaRegistrationMarker() {
+        return new CompletableFuture<>();
+    }
+
+    /**
+     * Completes a marker for an in-progress schema registration.
+     */
+    default void completeInProgressSchemaRegistrationMarker(
+            CompletableFuture<Void> inProgressSchemaRegistrationMarker) {
+    }
+
+    /**
+     * Marks an active replication producer that could not register a compatible schema.
+     */
+    default void markProducerBlockedByIncompatibleSchema(String producerName) {
+    }
+
+    /**
+     * Disconnects replication producers blocked by an incompatible schema so they can retry after a schema change.
+     */
+    default void disconnectProducersBlockedByIncompatibleSchema() {
+    }
+
+    /**
      * Delete the schema if this topic has a schema defined for it.
      */
     CompletableFuture<SchemaVersion> deleteSchema();
