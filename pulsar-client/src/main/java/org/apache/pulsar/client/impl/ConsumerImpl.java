@@ -157,6 +157,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @SuppressWarnings("unused")
     private volatile int availablePermits = 0;
 
+    // Never acquire this or incomingQueueLock while holding receiverQueuePermitLock: memory-triggered resizes
+    // can run while incomingQueueLock is held, whereas redelivery acquires this before incomingQueueLock.
+    private final Object receiverQueuePermitLock = new Object();
+    // Guarded by receiverQueuePermitLock.
+    private ReceiverQueuePermitPhase receiverQueuePermitPhase = ReceiverQueuePermitPhase.SUBSCRIBING;
+
+    private enum ReceiverQueuePermitPhase {
+        SUBSCRIBING,
+        AWAITING_INITIAL_PERMITS,
+        INITIALIZED
+    }
+
     protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
     private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
 
@@ -920,6 +932,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         long cnxEpoch;
         synchronized (this) {
             currentSize = incomingMessages.size();
+            synchronized (receiverQueuePermitLock) {
+                receiverQueuePermitPhase = ReceiverQueuePermitPhase.SUBSCRIBING;
+            }
             setClientCnx(cnx);
             cnxEpoch = connectionHandler.getEpoch();
             clearReceiverQueue(true);
@@ -982,15 +997,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         // consumer, so the broker has them when it starts dispatching and does not redeliver the
                         // acknowledged messages.
                         acknowledgmentsGroupingTracker.flush();
-                        // A redeliver while the subscribe was in flight bumped the epoch without sending it, and
-                        // the broker created the consumer with the subscribe's epoch: send the current one before
-                        // any permits, or every message dispatched with the older epoch is discarded.
-                        long consumerEpoch = CONSUMER_EPOCH.get(ConsumerImpl.this);
-                        if (consumerEpoch != subscribeEpoch) {
-                            cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
-                                    consumerId, consumerEpoch), cnx.ctx().voidPromise());
+                        synchronized (receiverQueuePermitLock) {
+                            // A redeliver while the subscribe was in flight bumped the epoch without sending it, and
+                            // the broker created the consumer with the subscribe's epoch: send the current one before
+                            // any permits, or every message dispatched with the older epoch is discarded.
+                            long consumerEpoch = CONSUMER_EPOCH.get(ConsumerImpl.this);
+                            if (consumerEpoch != subscribeEpoch) {
+                                cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
+                                        consumerId, consumerEpoch), cnx.ctx().voidPromise());
+                            }
+                            consumerIsReconnectedToBroker(cnx, currentSize);
+                            receiverQueuePermitPhase = ReceiverQueuePermitPhase.AWAITING_INITIAL_PERMITS;
                         }
-                        consumerIsReconnectedToBroker(cnx, currentSize);
                     } else {
                         // Consumer was closed while reconnecting, close the connection to make sure the broker
                         // drops the consumer on its side
@@ -1008,8 +1026,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 boolean firstTimeConnect = subscribeFuture.complete(this);
                 // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
                 // command to receive messages.
-                if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
-                    increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
+                if (!(firstTimeConnect && hasParentConsumer)) {
+                    initializeReceiverQueuePermits(cnx, cnxEpoch);
                 }
                 future.complete(null);
             }).exceptionally((e) -> {
@@ -1120,6 +1138,27 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         log.info("Subscribed to topic");
 
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
+    }
+
+    void initializeReceiverQueuePermits() {
+        synchronized (receiverQueuePermitLock) {
+            initializeReceiverQueuePermits(cnx(), connectionHandler.getEpoch());
+        }
+    }
+
+    private void initializeReceiverQueuePermits(ClientCnx cnx, long cnxEpoch) {
+        synchronized (receiverQueuePermitLock) {
+            // A failed unsubscribe restores Ready from Closing without a new subscription or initial grant.
+            if (cnx == null || connectionHandler.isSupersededAttempt(cnx, cnxEpoch)
+                    || receiverQueuePermitPhase != ReceiverQueuePermitPhase.AWAITING_INITIAL_PERMITS) {
+                return;
+            }
+            // A resize before initialization is included in this snapshot; later resizes grant only their delta.
+            // Add the initial grant under the same lock as the subscription's available-permit reset.
+            int permits = getCurrentReceiverQueueSize();
+            receiverQueuePermitPhase = ReceiverQueuePermitPhase.INITIALIZED;
+            increaseAvailablePermits(cnx, permits);
+        }
     }
 
     /**
@@ -2170,13 +2209,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected void setCurrentReceiverQueueSize(int newSize) {
         checkArgument(newSize > 0, "receiver queue size should larger than 0");
-        int oldSize = CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.getAndSet(this, newSize);
-        int delta = newSize - oldSize;
-        log.debug().attr("oldSize", oldSize)
-                .attr("newSize", newSize)
-                .attr("delta", delta)
-                .log("update currentReceiverQueueSize from to, increaseAvailablePermits by");
-        increaseAvailablePermits(delta);
+        synchronized (receiverQueuePermitLock) {
+            int oldSize = CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.getAndSet(this, newSize);
+            int delta = newSize - oldSize;
+            log.debug().attr("oldSize", oldSize)
+                    .attr("newSize", newSize)
+                    .attr("delta", delta)
+                    .log("update currentReceiverQueueSize from to, increaseAvailablePermits by");
+            ClientCnx currentCnx = cnx();
+            // Keep resize deltas while an unsubscribe is pending, since failure restores this subscription.
+            if (receiverQueuePermitPhase == ReceiverQueuePermitPhase.INITIALIZED
+                    && currentCnx != null) {
+                increaseAvailablePermits(currentCnx, delta);
+            }
+        }
     }
 
     @Override
