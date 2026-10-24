@@ -122,9 +122,9 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
      * <p>Setting either limit through its setter marks it as configured, so a configuration populated
      * directly rather than through {@code ProducerBuilderImpl} behaves the same way.
      *
-     * <p>Deliberately not part of the serialized configuration: {@code loadConf} only calls the setters of
-     * the properties in its map, which marks exactly the limits the application passed. {@code
-     * PulsarClientImpl} restores them after filling in a default, which is not application input.
+     * <p>Deliberately not part of the serialized configuration: {@code ProducerBuilderImpl.loadConf} marks
+     * the limits whose keys are in its map, including a null that resets one. {@code PulsarClientImpl}
+     * restores them after filling in a default, which is not application input.
      */
     @JsonIgnore
     private boolean maxPendingMessagesConfigured;

@@ -130,6 +130,14 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     @Override
     public ProducerBuilder<T> loadConf(Map<String, Object> config) {
         conf = ConfigurationDataUtils.updateData(config, conf.clone());
+        // A limit present in the map was configured by the application, even when its value is null, which
+        // resets it to the unset value without going through the setter that records the marker.
+        if (config.containsKey("maxPendingMessages")) {
+            conf.setMaxPendingMessagesConfigured(true);
+        }
+        if (config.containsKey("maxPendingMessagesAcrossPartitions")) {
+            conf.setMaxPendingMessagesAcrossPartitionsConfigured(true);
+        }
         return this;
     }
 
