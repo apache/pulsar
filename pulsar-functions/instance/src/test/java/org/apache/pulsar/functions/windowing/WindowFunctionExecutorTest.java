@@ -23,6 +23,7 @@ import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -39,6 +40,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.api.Context;
@@ -280,5 +282,85 @@ public class WindowFunctionExecutorTest {
         }
         System.out.println(testWindowedPulsarFunction.windows);
         long event = events.get(events.size() - 1);
+    }
+
+    @Test
+    public void testLateTupleAckedWithAtleastOnce() throws Exception {
+        windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class))).when(context)
+                .getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+
+        processOnTimeEvents();
+        // watermark = max event ts - maxLagMs = 636 - 5 = 631
+        testWindowedPulsarFunction.waterMarkEventGenerator.run();
+        assertEquals(testWindowedPulsarFunction.windows.size(), 3);
+
+        Record<?> lateRecord = processRecord(600L);
+        verify(lateRecord, times(1)).ack();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testLateTupleAckedAfterLateDataSend() throws Exception {
+        windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        windowConfig.setLateDataTopic("$late");
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+                .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+
+        CompletableFuture<MessageId> sendFuture = new CompletableFuture<>();
+        @SuppressWarnings("rawtypes")
+        TypedMessageBuilder typedMessageBuilder = mock(TypedMessageBuilder.class);
+        when(typedMessageBuilder.value(any())).thenReturn(typedMessageBuilder);
+        when(typedMessageBuilder.sendAsync()).thenReturn(sendFuture);
+        when(context.newOutputMessage(anyString(), any())).thenReturn(typedMessageBuilder);
+
+        processOnTimeEvents();
+        testWindowedPulsarFunction.waterMarkEventGenerator.run();
+
+        Record<?> lateRecord = processRecord(600L);
+        verify(lateRecord, never()).ack();
+
+        sendFuture.complete(mock(MessageId.class));
+        verify(lateRecord, times(1)).ack();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testLateTupleNotAckedWhenLateDataSendFails() throws Exception {
+        windowConfig.setProcessingGuarantees(WindowConfig.ProcessingGuarantees.ATLEAST_ONCE);
+        windowConfig.setLateDataTopic("$late");
+        doReturn(Optional.of(new Gson().fromJson(new Gson().toJson(windowConfig), Map.class)))
+                .when(context).getUserConfigValue(WindowConfig.WINDOW_CONFIG_KEY);
+
+        CompletableFuture<MessageId> sendFuture = new CompletableFuture<>();
+        @SuppressWarnings("rawtypes")
+        TypedMessageBuilder typedMessageBuilder = mock(TypedMessageBuilder.class);
+        when(typedMessageBuilder.value(any())).thenReturn(typedMessageBuilder);
+        when(typedMessageBuilder.sendAsync()).thenReturn(sendFuture);
+        when(context.newOutputMessage(anyString(), any())).thenReturn(typedMessageBuilder);
+
+        processOnTimeEvents();
+        testWindowedPulsarFunction.waterMarkEventGenerator.run();
+
+        Record<?> lateRecord = processRecord(600L);
+        sendFuture.completeExceptionally(new RuntimeException("late data send failed"));
+        verify(lateRecord, never()).ack();
+    }
+
+    private void processOnTimeEvents() throws Exception {
+        long[] timestamps = {603, 605, 607, 618, 626, 636};
+        for (long ts : timestamps) {
+            Record<?> record = processRecord(ts);
+            verify(record, never()).ack();
+        }
+    }
+
+    private Record<?> processRecord(long ts) throws Exception {
+        Record<?> record = mock(Record.class);
+        doReturn(Optional.of("test-topic")).when(record).getTopicName();
+        doReturn(record).when(context).getCurrentRecord();
+        doReturn(ts).when(record).getValue();
+        testWindowedPulsarFunction.process(ts, context);
+        return record;
     }
 }
