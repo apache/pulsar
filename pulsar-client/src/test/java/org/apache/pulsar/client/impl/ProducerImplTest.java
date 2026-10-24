@@ -35,6 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
@@ -44,6 +45,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultEventLoop;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.ReferenceCountUtil;
@@ -372,6 +374,72 @@ public class ProducerImplTest {
         assertEquals(producer.getState(), HandlerState.State.Closed);
         verify(keyTask).cancel(false);
         verify(client).cleanupProducer(producer);
+    }
+
+    @DataProvider
+    public Object[][] firstKeyLoad() {
+        return new Object[][]{
+                {null},
+                {new PulsarClientException.CryptoException("no key")},
+                {new IllegalStateException("key reader broken")},
+        };
+    }
+
+    /**
+     * The key task runs apart from the connection. When the connection is ready before the first key load has
+     * finished, the creation must wait for it: it completes once the key is loaded and fails if the load does,
+     * with a crypto error or with any other exception the key reader throws.
+     */
+    @Test(dataProvider = "firstKeyLoad")
+    @SuppressWarnings("unchecked")
+    public void testCreationWaitsForTheFirstKeyLoad(Exception keyLoadFailure) throws Exception {
+        boolean keyLoads = keyLoadFailure == null;
+        PulsarClientImpl client = mockedPulsarClient();
+        EventLoopGroup eventLoopGroup = client.eventLoopGroup();
+        AtomicReference<Runnable> keyTask = new AtomicReference<>();
+        doAnswer(invocation -> {
+            keyTask.set(invocation.getArgument(0));
+            return mock(ScheduledFuture.class);
+        }).when(eventLoopGroup).scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
+        when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
+        MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
+        if (!keyLoads) {
+            doThrow(keyLoadFailure).when(crypto).addPublicKeyCipher(any(), any());
+        }
+        ProducerConfigurationData conf = encryptedProducerConf();
+        conf.setMessageCrypto(crypto);
+        CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+        ProducerImpl<byte[]> producer = new ProducerImpl<>(client, "persistent://public/default/slow-key", conf,
+                created, 0, Schema.BYTES, null, Optional.empty());
+
+        DefaultEventLoop eventLoop = new DefaultEventLoop();
+        try {
+            ClientCnx cnx = mock(ClientCnx.class, Mockito.RETURNS_DEEP_STUBS);
+            when(cnx.ctx().channel().eventLoop()).thenReturn(eventLoop);
+            ProducerResponse response = mock(ProducerResponse.class);
+            when(response.getProducerName()).thenReturn("slow-key-producer");
+            when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong()))
+                    .thenReturn(CompletableFuture.completedFuture(response));
+
+            producer.connectionOpened(cnx).get(10, TimeUnit.SECONDS);
+            eventLoop.submit(() -> { }).get(10, TimeUnit.SECONDS);
+            assertEquals(producer.getState(), HandlerState.State.Ready);
+            assertFalse(created.isDone(), "The creation must wait for the first key load");
+
+            keyTask.get().run();
+
+            if (keyLoads) {
+                assertSame(created.get(10, TimeUnit.SECONDS), producer);
+                assertEquals(producer.getState(), HandlerState.State.Ready);
+            } else {
+                assertTrue(created.isCompletedExceptionally(), "The creation must fail without the key");
+                assertThatThrownBy(created::join).hasCauseInstanceOf(PulsarClientException.class);
+                assertEquals(producer.getState(), HandlerState.State.Closed);
+                verify(client).cleanupProducer(producer);
+            }
+        } finally {
+            eventLoop.shutdownGracefully();
+        }
     }
 
     /**
