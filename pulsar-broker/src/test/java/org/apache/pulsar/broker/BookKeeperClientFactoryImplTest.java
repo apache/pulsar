@@ -39,6 +39,7 @@ import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
+import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
@@ -169,6 +170,27 @@ public class BookKeeperClientFactoryImplTest {
                 ZkIsolatedBookieEnsemblePlacementPolicy.class);
         assertEquals(bkConf.getMinNumRacksPerWriteQuorum(), 3);
         assertTrue(bkConf.getEnforceMinNumRacksPerWriteQuorum());
+    }
+
+    @Test
+    public void testSetEnsemblePlacementPolicyUsesBrokerIsolationGroups() {
+        ClientConfiguration bkConf = new ClientConfiguration();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        MetadataStore store = mock(MetadataStore.class);
+
+        BookKeeperClientFactoryImpl.setEnsemblePlacementPolicy(bkConf, conf, store,
+                IsolatedBookieEnsemblePlacementPolicy.class);
+        assertNull(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS));
+        assertNull(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS));
+
+        conf.setBookkeeperClientIsolationGroups("broker-primary");
+        conf.setBookkeeperClientSecondaryIsolationGroups("broker-secondary");
+        BookKeeperClientFactoryImpl.setEnsemblePlacementPolicy(bkConf, conf, store,
+                IsolatedBookieEnsemblePlacementPolicy.class);
+        assertEquals(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS),
+                "broker-primary");
+        assertEquals(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS),
+                "broker-secondary");
     }
 
     @Test

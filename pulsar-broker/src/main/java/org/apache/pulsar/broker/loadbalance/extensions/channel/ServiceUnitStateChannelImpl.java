@@ -150,6 +150,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private volatile long lastOwnEventHandledAt = 0;
     private long lastOwnedServiceUnitCountAt = 0;
     private int totalOwnedServiceUnitCnt = 0;
+    // Guarded by this
+    private Runnable cancelSessionListener;
 
     public enum EventType {
         Assign,
@@ -356,7 +358,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             if (debug) {
                 log.info("Successfully started the channel tableview.");
             }
-            pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
+            unregisterSessionListener();
+            cancelSessionListener =
+                    pulsar.getLocalMetadataStore().registerCancellableSessionListener(this::handleMetadataSessionEvent);
             if (debug) {
                 log.info("Successfully registered the handleMetadataSessionEvent");
             }
@@ -398,11 +402,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return pulsar.getAdminClient();
     }
 
+    private void unregisterSessionListener() {
+        if (cancelSessionListener != null) {
+            cancelSessionListener.run();
+            cancelSessionListener = null;
+        }
+    }
+
     @Override
     public synchronized void close() throws PulsarServerException {
         channelState = Closed;
         try {
             leaderElectionService = null;
+            unregisterSessionListener();
 
             if (tableview != null) {
                 tableview.close();

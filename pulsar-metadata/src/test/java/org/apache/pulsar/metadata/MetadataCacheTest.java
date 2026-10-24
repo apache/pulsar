@@ -193,7 +193,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
         MetadataCache<MyClass> objCache2 = store2.getMetadataCache(MyClass.class);
         AtomicReference<MyClass> storeObj = new AtomicReference<MyClass>();
-        store2.registerListener(n -> {
+        store2.registerCancellableListener(n -> {
             if (n.getType() == NotificationType.Modified) {
                 CompletableFuture.runAsync(() -> {
                     try {

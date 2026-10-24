@@ -1,0 +1,57 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Device shadows on compacted topics: a building operator's gateways publish the reported state of 300,000 devices,
+# such as a thermostat's set point and readings, as 512-byte state documents keyed by the device, to four topics. The
+# broker compacts each topic whenever its messages since the last compaction exceed 4 MB, checked every 10 seconds,
+# so that a topic keeps each device's latest state. Two applications rebuild the devices' latest state from the
+# compacted topics: a digital twin service and a dashboard backend, with three pods each. Each pod reads every topic
+# compacted from the start, as a TableView does, and keeps each device's latest state, and every 30 seconds each
+# application restarts one of its pods, which rebuilds its state from the compacted topics. It measures compaction
+# under a steady stream of updates, how long a restarted pod takes to rebuild its state, and the delivery latency of
+# the updates published since a pod started. It checks that a device's state never goes back to an older one and
+# that, once the gateways have finished, every pod has each device's last state.
+extends: iot-telemetry-base.yaml
+cluster:
+  brokers:
+    env:
+      brokerServiceCompactionThresholdInBytes: "4194304"
+      brokerServiceCompactionMonitorIntervalInSeconds: "10"
+workloads:
+  iotTelemetry:
+    rate: 10000
+    payload:
+      size: 512
+    measurement:
+      seconds: 180
+    timeoutSeconds: 360
+    gateways:
+      count: 10
+      producer:
+        precreate: true
+    topics:
+      count: 4
+      prefix: persistent://public/default/iot-device-shadow-
+    applications:
+      count: 2
+      podsPerApplication: 3
+      subscriptionPrefix: digital-twin-
+      mode: compactedReaders
+    behaviors:
+      podRestarts:
+        intervalSeconds: 30
+        fraction: 0.33

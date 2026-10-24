@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.worker.rest;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.pulsar.broker.web.JsonMapperProvider;
 import org.apache.pulsar.broker.web.UnrecognizedPropertyExceptionMapper;
 import org.apache.pulsar.functions.worker.rest.api.FunctionsMetricsResource;
 import org.apache.pulsar.functions.worker.rest.api.v2.FunctionsApiV2Resource;
@@ -45,7 +46,8 @@ public final class Resources {
                         WorkerApiV2Resource.class,
                         WorkerStatsApiV2Resource.class,
                         UnrecognizedPropertyExceptionMapper.class,
-                        MultiPartFeature.class
+                        MultiPartFeature.class,
+                        JsonMapperProvider.class
                 ));
     }
 
@@ -59,7 +61,8 @@ public final class Resources {
                         SourceApiV3Resource.class,
                         SinksApiV3Resource.class,
                         SinkApiV3Resource.class,
-                        FunctionsApiV3Resource.class
+                        FunctionsApiV3Resource.class,
+                        JsonMapperProvider.class
                 ));
     }
 

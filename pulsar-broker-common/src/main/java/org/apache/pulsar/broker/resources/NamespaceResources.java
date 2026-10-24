@@ -144,6 +144,14 @@ public class NamespaceResources extends BaseResources<Policies> {
         return getCache().get(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
 
+    /**
+     * Get the namespace policies from the metadata store, rather than from the cache, which may not have caught up
+     * with an update made on another broker yet.
+     */
+    public CompletableFuture<Optional<Policies>> refreshAndGetPoliciesAsync(NamespaceName ns) {
+        return refreshAndGetAsync(joinPath(BASE_POLICIES_PATH, ns.toString()));
+    }
+
     public void setPolicies(NamespaceName ns, Function<Policies, Policies> function) throws MetadataStoreException {
         set(joinPath(BASE_POLICIES_PATH, ns.toString()), function);
     }

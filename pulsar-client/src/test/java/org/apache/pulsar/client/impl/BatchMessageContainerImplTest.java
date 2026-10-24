@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -977,4 +978,221 @@ public class BatchMessageContainerImplTest {
         }
     }
 
+    /**
+     * The entry-bucket container, the V5 producer's batcher on scalable topics, builds each bucket's entry with a
+     * default container, which stamps the transaction id of the entry's first message on every message in it. A
+     * plain message sent right after a transactional one must therefore start a new batch, or it joins the
+     * transaction: invisible until commit and dropped on abort.
+     */
+    @Test
+    public void testEntryBucketContainerKeepsPlainMessagesOutOfTransactionalBatches() throws Exception {
+        EntryBucketBatchContainer container = new EntryBucketBatchContainer(List.of());
+        container.setProducer(createTestProducer(CompressionType.NONE));
+        try {
+            container.add(newMessage(1L, 7L, 13L), null);
+
+            assertThat(container.hasSameTxn(newMessage(2L, null, null)))
+                    .as("a plain message was accepted into a transactional entry-bucket batch")
+                    .isFalse();
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    /** Messages of one transaction must still share an entry-bucket batch, and messages of two transactions not. */
+    @Test
+    public void testEntryBucketContainerBatchesMessagesOfOneTransactionTogether() throws Exception {
+        EntryBucketBatchContainer container = new EntryBucketBatchContainer(List.of());
+        container.setProducer(createTestProducer(CompressionType.NONE));
+        try {
+            container.add(newMessage(1L, 7L, 13L), null);
+
+            assertThat(container.hasSameTxn(newMessage(2L, 7L, 13L)))
+                    .as("two messages of the same transaction were split across entry-bucket batches")
+                    .isTrue();
+            assertThat(container.hasSameTxn(newMessage(3L, 7L, 14L)))
+                    .as("messages of two different transactions were put in one entry-bucket batch")
+                    .isFalse();
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    /**
+     * As in the key-based container, a bucket whose first add fails to allocate clears itself without clearing the
+     * entry-bucket container, so the transaction identity taken from that message must not survive into the next
+     * first message.
+     */
+    @Test
+    public void testEntryBucketContainerDropsTheTransactionIdentityOfAFailedFirstAdd() throws Exception {
+        ProducerImpl<?> producer = createTestProducer(CompressionType.NONE);
+        MemoryLimitController memoryLimitController = producer.client.getMemoryLimitController();
+        // fail only the first bucket-batch allocation
+        doThrow(new OutOfMemoryError("test")).doNothing()
+                .when(memoryLimitController).forceReserveMemory(anyLong());
+
+        EntryBucketBatchContainer container = new EntryBucketBatchContainer(List.of());
+        container.setProducer(producer);
+        try {
+            container.add(newMessage(1L, 7L, 13L), null);
+            assertThat(container.getNumMessagesInBatch())
+                    .as("the failed add should have left the container empty")
+                    .isZero();
+
+            container.add(newMessage(2L, null, null), null);
+
+            assertThat(container.hasSameTxn(newMessage(3L, 7L, 13L)))
+                    .as("a transactional message was admitted into a plain entry-bucket batch through the"
+                            + " transaction identity left behind by a failed add")
+                    .isFalse();
+        } finally {
+            container.discard(null);
+        }
+    }
+
+    /**
+     * Multi-message batch over the maximum message size, with compression and encryption off (the default): the
+     * batch buffer is still the one the container owns when the size check fails, so {@code discard()} is its
+     * only owner and the oversized branch must not release it as well. A second release would drop a live
+     * buffer to zero and return it to the pool while it is still referenced.
+     */
+    @Test
+    public void testOversizedBatchReleasesItsPayloadExactlyOnce() throws Exception {
+        List<ByteBuf> allocated = new ArrayList<>();
+        ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer(invocation.getArgument(0));
+            allocated.add(buffer);
+            return buffer;
+        }).when(recordingAllocator).buffer(anyInt());
+
+        ProducerImpl<?> producer = createTestProducer();
+        // encryption disabled: the real implementation returns its input unchanged
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.getMaxMessageSize()).thenReturn(1);
+        when(producer.getConnectionHandler()).thenReturn(connectionHandler);
+
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(recordingAllocator);
+        container.setProducer(producer);
+        container.add(newMessage(1L, null, null), null);
+        container.add(newMessage(2L, null, null), null);
+
+        assertEquals(allocated.size(), 1, "expected exactly one batch payload allocation");
+        ByteBuf payload = allocated.get(0);
+        // Stand in for anything else still holding the payload, so that an extra release is observable rather
+        // than being swallowed by ReferenceCountUtil.safeRelease.
+        payload.retain();
+
+        try {
+            assertNull(container.createOpSendMsg(), "an oversized batch must not produce an op to send");
+
+            assertEquals(payload.refCnt(), 1, "the oversized batch payload was released more than once");
+        } finally {
+            ReferenceCountUtil.safeRelease(payload);
+        }
+    }
+
+    /**
+     * Multi-message batch over the maximum message size, with encryption on: a successful encryption releases
+     * its input and returns a different buffer, so ownership has left the container by the time the size check
+     * fails. The oversized branch must release the encrypted output exactly once, and {@code discard()} must not
+     * touch the pre-encryption buffer, which encryption already released.
+     */
+    @Test
+    public void testOversizedEncryptedBatchReleasesItsBuffersExactlyOnce() throws Exception {
+        List<ByteBuf> allocated = new ArrayList<>();
+        ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer(invocation.getArgument(0));
+            allocated.add(buffer);
+            return buffer;
+        }).when(recordingAllocator).buffer(anyInt());
+
+        ProducerImpl<?> producer = createTestProducer();
+        List<ByteBuf> encryptedBuffers = new ArrayList<>();
+        // Mirror a successful encryption: release the input and return a different buffer.
+        doAnswer(invocation -> {
+            ByteBuf input = invocation.getArgument(1);
+            ByteBuf encrypted = ByteBufAllocator.DEFAULT.buffer(input.readableBytes());
+            encrypted.writeBytes(input, input.readerIndex(), input.readableBytes());
+            input.release();
+            encryptedBuffers.add(encrypted);
+            return encrypted;
+        }).when(producer).encryptMessage(any(), any());
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.getMaxMessageSize()).thenReturn(1);
+        when(producer.getConnectionHandler()).thenReturn(connectionHandler);
+
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(recordingAllocator);
+        container.setProducer(producer);
+        container.add(newMessage(1L, null, null), null);
+        container.add(newMessage(2L, null, null), null);
+
+        assertEquals(allocated.size(), 1, "expected exactly one batch payload allocation");
+        ByteBuf batchPayload = allocated.get(0);
+        // Stand in for anything else still holding the pre-encryption buffer, so that releasing it a second
+        // time is observable rather than being swallowed by ReferenceCountUtil.safeRelease.
+        batchPayload.retain();
+
+        try {
+            assertNull(container.createOpSendMsg(), "an oversized batch must not produce an op to send");
+
+            assertEquals(encryptedBuffers.size(), 1, "expected exactly one encryption");
+            assertEquals(batchPayload.refCnt(), 1,
+                    "the pre-encryption batch payload was released again after encryption had already released it");
+            assertEquals(encryptedBuffers.get(0).refCnt(), 0, "the encrypted payload was not released");
+        } finally {
+            ReferenceCountUtil.safeRelease(batchPayload);
+        }
+    }
+
+    /**
+     * Single-message batch over the maximum message size, with compression and encryption off: the payload is
+     * handed to the SEND command before the size check runs, and {@code cmd.release()} releases it through the
+     * {@link ByteBufPair}. That is the only release the batch buffer may get; {@code discard()} afterwards must
+     * not release the same buffer again.
+     */
+    @Test
+    public void testOversizedSingleMessageBatchReleasesItsPayloadExactlyOnce() throws Exception {
+        List<ByteBuf> allocated = new ArrayList<>();
+        ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> {
+            ByteBuf buffer = ByteBufAllocator.DEFAULT.buffer(invocation.getArgument(0));
+            allocated.add(buffer);
+            return buffer;
+        }).when(recordingAllocator).buffer(anyInt());
+
+        ProducerImpl<?> producer = createTestProducer();
+        // encryption disabled: the real implementation returns its input unchanged
+        doAnswer(invocation -> invocation.getArgument(1)).when(producer).encryptMessage(any(), any());
+        // the single-message branch uses the (producerId, sequenceId, numMessages, messageId, ...) overload
+        doAnswer(invocation -> {
+            MessageMetadata metadata = invocation.getArgument(4);
+            ByteBuf payload = invocation.getArgument(5);
+            return Commands.newSend(0L, metadata.hasSequenceId() ? metadata.getSequenceId() : 0L, 1,
+                    Commands.ChecksumType.Crc32c, metadata, payload);
+        }).when(producer).sendMessage(anyLong(), anyLong(), anyInt(), any(), any(), any());
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.getMaxMessageSize()).thenReturn(1);
+        when(producer.getConnectionHandler()).thenReturn(connectionHandler);
+
+        BatchMessageContainerImpl container = new BatchMessageContainerImpl(recordingAllocator);
+        container.setProducer(producer);
+        container.add(newMessage(1L, null, null), null);
+
+        assertEquals(allocated.size(), 1, "expected exactly one batch payload allocation");
+        ByteBuf payload = allocated.get(0);
+        // Stand in for anything else still holding the payload, so that an extra release is observable rather
+        // than being swallowed by ReferenceCountUtil.safeRelease.
+        payload.retain();
+
+        try {
+            assertNull(container.createOpSendMsg(), "an oversized batch must not produce an op to send");
+
+            assertEquals(payload.refCnt(), 1, "the oversized batch payload was released more than once");
+        } finally {
+            ReferenceCountUtil.safeRelease(payload);
+        }
+    }
 }
