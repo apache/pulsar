@@ -145,6 +145,10 @@ public class CmdConsume extends AbstractCmdConsume {
 
     /** Options that only the v4 client supports. */
     public static class V4Options implements ClientApiOptionGroups.V4ClientOptions {
+        @Option(names = "--read-compacted", description = "Read from the compacted topic. Requires a persistent topic "
+                + "and an Exclusive or Failover subscription; binary protocol only.")
+        protected boolean readCompacted = false;
+
         @Option(names = { "-stp", "--start-timestamp" }, description = "Start timestamp for consuming messages")
         protected long startTimestamp = 0L;
 
@@ -208,6 +212,16 @@ public class CmdConsume extends AbstractCmdConsume {
                     "end timestamp should be positive.");
         }
         ClientApi resolvedClientApi = resolveClientApi(commandSpec, clientApi, topic, serviceURL);
+        if (v4.readCompacted) {
+            if (isWebSocketUrl(serviceURL) || !TopicName.get(topic).isPersistent()) {
+                throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                        "--read-compacted requires a persistent topic over the binary protocol.");
+            }
+            if (subscriptionType != SubscriptionType.Exclusive && subscriptionType != SubscriptionType.Failover) {
+                throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                        "--read-compacted requires an Exclusive or Failover subscription.");
+            }
+        }
         if (resolvedClientApi == ClientApi.V4) {
             validateTimestampRange();
         } else {
