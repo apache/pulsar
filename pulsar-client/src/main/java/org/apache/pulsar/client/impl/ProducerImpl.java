@@ -2167,6 +2167,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                         conf.getAccessMode(), topicEpoch, client.conf.isEnableTransaction(),
                         conf.getInitialSubscriptionName()),
                 requestId).thenAccept(response -> {
+            if (connectionHandler.isSupersededAttempt(cnx, epoch)) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] [{}] Ignoring the response to a superseded create producer attempt on {}", topic,
+                            producerName, cnx.channel());
+                }
+                return;
+            }
             String producerName = response.getProducerName();
             long lastSequenceId = response.getLastSequenceId();
             schemaVersion = Optional.ofNullable(response.getSchemaVersion());
@@ -2213,14 +2220,39 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             future.complete(null);
         }).exceptionally((e) -> {
             Throwable cause = e.getCause();
-            cnx.removeProducer(producerId);
-            State state = getState();
-            if (state == State.Closing || state == State.Closed) {
-                // Producer was closed while reconnecting, close the connection to make sure the broker
-                // drops the producer on its side
-                cnx.channel().close();
-                future.complete(null);
-                return null;
+            // A timeout fails the attempt on another thread than the connection's. Holding the lock under which a
+            // newer attempt registers on a connection, end this attempt and clean it up before a newer attempt can
+            // register. Once ended, a disconnection no longer reconnects the producer: completing this attempt's
+            // future below does.
+            synchronized (ProducerImpl.this) {
+                if (!connectionHandler.endAttempt(cnx, epoch)) {
+                    // The producer was disconnected from cnx, or connected again, while this attempt was pending.
+                    // Its failure must neither unregister the producer from its current connection nor reconnect it,
+                    // so the attempt's future is left incomplete.
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}] [{}] Ignoring the failure of a superseded create producer attempt on {}: {}",
+                                topic, producerName, cnx.channel(), cause != null ? cause.getMessage() : null);
+                    }
+                    return null;
+                }
+                cnx.removeProducer(producerId);
+                State state = getState();
+                if (state == State.Closing || state == State.Closed) {
+                    // Producer was closed while reconnecting, close the connection to make sure the broker
+                    // drops the producer on its side
+                    cnx.channel().close();
+                    future.complete(null);
+                    return null;
+                }
+
+                if (cause instanceof TimeoutException) {
+                    // Creating the producer has timed out. We need to ensure the broker closes the producer
+                    // in case it was indeed created, otherwise it might prevent new create producer operation,
+                    // since we are not necessarily closing the connection.
+                    long closeRequestId = client.newRequestId();
+                    ByteBuf cmd = Commands.newCloseProducer(producerId, closeRequestId);
+                    cnx.sendRequestWithId(cmd, closeRequestId);
+                }
             }
 
             if (cause instanceof PulsarClientException.IncompatibleSchemaException
@@ -2233,15 +2265,6 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                             });
                     return null;
                 }
-            }
-
-            if (cause instanceof TimeoutException) {
-                // Creating the producer has timed out. We need to ensure the broker closes the producer
-                // in case it was indeed created, otherwise it might prevent new create producer operation,
-                // since we are not necessarily closing the connection.
-                long closeRequestId = client.newRequestId();
-                ByteBuf cmd = Commands.newCloseProducer(producerId, closeRequestId);
-                cnx.sendRequestWithId(cmd, closeRequestId);
             }
 
             // Close the producer since topic does not exist.
@@ -2264,7 +2287,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     PulsarClientException bqe = new PulsarClientException.ProducerBlockedQuotaExceededException(
                             format("The backlog quota of the topic %s that the producer %s produces to is exceeded",
                                     topic, producerName));
-                    failPendingMessages(cnx(), bqe);
+                    failPendingMessages(cnx, bqe);
                 }
             } else if (cause instanceof PulsarClientException.ProducerBlockedQuotaExceededError) {
                 log.warn("[{}] [{}] Producer is blocked on creation because backlog exceeded on topic.",
@@ -2278,7 +2301,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             if (cause instanceof PulsarClientException.TopicTerminatedException) {
                 setState(State.Terminated);
                 synchronized (this) {
-                    failPendingMessages(cnx(), (PulsarClientException) cause);
+                    failPendingMessages(cnx, (PulsarClientException) cause);
                 }
                 producerCreatedFuture.completeExceptionally(cause);
                 closeProducerTasks();
@@ -2286,7 +2309,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             } else if (cause instanceof PulsarClientException.ProducerFencedException) {
                 setState(State.ProducerFenced);
                 synchronized (this) {
-                    failPendingMessages(cnx(), (PulsarClientException) cause);
+                    failPendingMessages(cnx, (PulsarClientException) cause);
                 }
                 producerCreatedFuture.completeExceptionally(cause);
                 closeProducerTasks();
