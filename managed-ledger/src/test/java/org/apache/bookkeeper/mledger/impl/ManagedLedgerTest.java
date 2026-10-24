@@ -833,7 +833,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             log.info("createComplete finished, state: " + ledger.getState());
             ledger.executor.execute(createLatch::countDown);
             return o;
-        }).when(ledger).createComplete(anyInt(), any(), any());
+        }).when(ledger).createComplete(anyInt(), any(), any(), anyLong());
         ledger.internalAsyncAddEntry(op);
         createLatch.await();
         closeLatch.await();
