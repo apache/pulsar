@@ -289,6 +289,16 @@ public class ConnectionHandler {
         return cnx() != cnx || getEpoch() != epoch;
     }
 
+    /**
+     * Ends the connection attempt that {@link #switchClientCnx} started on {@code cnx} with {@code epoch}, if it is
+     * still the current one, and tells whether it was. The handler is then left without a connection, so a
+     * disconnection from {@code cnx} no longer reconnects it: only completing the failed attempt does. The caller
+     * must hold the lock under which it calls {@link #switchClientCnx}.
+     */
+    boolean endAttempt(ClientCnx cnx, long epoch) {
+        return getEpoch() == epoch && CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null);
+    }
+
     @VisibleForTesting
     public boolean isValidStateForReconnection() {
         State state = this.state.getState();
