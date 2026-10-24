@@ -142,15 +142,19 @@ public class RawBatchConverter {
         } else {
             Commands.skipMessageMetadata(payload);
         }
-        ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(payload.capacity());
+        int batchSize = metadata.getNumMessagesInBatch();
+        int uncompressedSize = metadata.getUncompressedSize();
+        long rebatchBufferCapacity = (long) uncompressedSize + 8L * batchSize;
+        int batchBufferCapacity = Math.toIntExact(Math.max((long) payload.capacity(), rebatchBufferCapacity));
+        // The rebatch buffer holds uncompressed messages. In particular, the generated metadata
+        // writer may copy partition keys directly into the destination without growing it.
+        ByteBuf batchBuffer = PulsarByteBufAllocator.DEFAULT.buffer(batchBufferCapacity);
 
         CompressionType compressionType = metadata.getCompression();
         CompressionCodec codec = CompressionCodecProvider.getCompressionCodec(compressionType);
 
-        int uncompressedSize = metadata.getUncompressedSize();
         ByteBuf uncompressedPayload = codec.decode(payload, uncompressedSize);
         try {
-            int batchSize = metadata.getNumMessagesInBatch();
             final var retainedBatchIndexes = new ArrayList<Integer>();
 
             SingleMessageMetadata emptyMetadata = new SingleMessageMetadata().setCompactedOut(true);
