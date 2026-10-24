@@ -232,6 +232,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void startReceivingMessages(List<ConsumerImpl<T>> newConsumers) {
+        startReceivingMessages(newConsumers, false);
+    }
+
+    private void startReceivingMessages(List<ConsumerImpl<T>> newConsumers, boolean refillAfterSeek) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] startReceivingMessages for {} new consumers in topics consumer, state: {}",
                 topic, newConsumers.size(), getState());
@@ -239,8 +243,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
         if (getState() == State.Ready) {
             newConsumers.forEach(consumer -> {
-                consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(),
-                        consumer.getCurrentReceiverQueueSize());
+                if (refillAfterSeek) {
+                    consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(),
+                            consumer.getCurrentReceiverQueueSize());
+                } else {
+                    consumer.initializeReceiverQueuePermits();
+                }
                 internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer, true));
             });
         }
@@ -854,7 +862,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private void afterSeek(CompletableFuture<Void> seekFuture, @Nullable Throwable throwable) {
         duringSeek = false;
         log.info("[{}] Resume receiving messages for {} since seek is done", subscription, consumers.keySet());
-        startReceivingMessages(new ArrayList<>(consumers.values()));
+        startReceivingMessages(new ArrayList<>(consumers.values()), true);
         if (throwable == null) {
             seekFuture.complete(null);
         } else {
