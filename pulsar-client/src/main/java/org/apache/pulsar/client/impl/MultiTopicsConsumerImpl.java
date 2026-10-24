@@ -1245,11 +1245,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     // The child must already be published. Sharing the parent transition lock ensures that either
     // a transition includes this child or reconciliation observes the transition's updated state.
+    // Keep construction outside this lock because constructors can invoke synchronous callbacks.
+    // See https://github.com/apache/pulsar/pull/14566 and https://github.com/apache/pulsar/pull/25009.
     private void synchronizeConsumerPauseState(ConsumerImpl<T> consumer) {
         synchronized (pauseMutex) {
             if (paused) {
                 consumer.pause();
             } else {
+                // resume() only flushes permits already owed; it does not grant the initial receive budget.
+                // On first subscription, startReceivingMessages() grants it after all partitions subscribe.
                 consumer.resume();
             }
         }

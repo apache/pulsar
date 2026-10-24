@@ -188,7 +188,6 @@ checkerframework = "3.33.0"
 jsr305 = "3.0.2"
 # Test
 testng = "7.12.0"
-jcstress = "0.16"
 mockito = "5.23.0"
 awaitility = "4.3.0"
 assertj = "3.27.7"
@@ -467,7 +466,6 @@ spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", ve
 jsr305 = { module = "com.google.code.findbugs:jsr305", version.ref = "jsr305" }
 # Test
 testng = { module = "org.testng:testng", version.ref = "testng" }
-jcstress-core = { module = "org.openjdk.jcstress:jcstress-core", version.ref = "jcstress" }
 mockito-bom = { module = "org.mockito:mockito-bom", version.ref = "mockito" }
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 awaitility = { module = "org.awaitility:awaitility", version.ref = "awaitility" }
