@@ -34,9 +34,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.AbstractExecutorService;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -56,11 +59,12 @@ import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Regression test for a single-active-consumer (Failover) subscription that becomes permanently stuck
- * when a client redeliver command races the completion of an already-dispatched managed-ledger read.
+ * Regression tests for single-active-consumer (Failover) subscriptions where a client redeliver command races the
+ * completion or failure callback of an already-dispatched managed-ledger read.
  *
  * <p><b>Four coupled state variables.</b> A caught-up Failover subscription is described by four pieces
  * of state that must stay consistent:
@@ -77,16 +81,13 @@ import org.testng.annotations.Test;
  * either queued in {@code waitingCursors} or has an in-flight read.
  *
  * <p><b>The race.</b>
- * {@code PersistentDispatcherSingleActiveConsumer#internalRedeliverUnacknowledgedMessages} unconditionally
- * clears {@code havePendingRead} and arms a fresh read via {@code readMoreEntries} <i>without</i> draining
- * a read that {@code notifyEntriesAvailable} has already dispatched. The stale read's completion
- * ({@code readEntriesComplete} / {@code readEntriesFailed}) then clears {@code havePendingRead} again:
- * there is no read-generation guard on {@code havePendingRead}, and the only staleness check is the
- * {@code readConsumer != currentConsumer} identity comparison in {@code readEntriesComplete}, which runs
- * <i>after</i> that same method has already cleared the flag at its top. When the redeliver's re-arm and
- * the stale completion interleave in the order [redeliver, then stale completion], the result is the seed
- * state &mdash; an armed wait op with {@code havePendingRead == false}. This is still benign while the
- * cursor remains in {@code waitingCursors}.
+ * {@code PersistentDispatcherSingleActiveConsumer#internalRedeliverUnacknowledgedMessages} clears
+ * {@code havePendingRead} and arms a fresh read via {@code readMoreEntries} <i>without</i> draining a read
+ * that {@code notifyEntriesAvailable} has already dispatched. The failure callback must validate its captured
+ * {@code readOpEpoch} before touching {@code havePendingRead}; otherwise an old failure can clear the ownership
+ * flag after redelivery has issued a newer waiting read. This leaves an armed wait op with
+ * {@code havePendingRead == false}, a state that is still benign while the cursor remains in
+ * {@code waitingCursors}. This regression test verifies that the current epoch guard protects that state.
  *
  * <p><b>The absorbing conversion.</b> When the last consumer disconnects, the durable-cursor path
  * ({@code AbstractDispatcherSingleActiveConsumer#removeConsumer} &rarr; {@code cancelPendingRead}, then
@@ -99,9 +100,10 @@ import org.testng.annotations.Test;
  * subsequent re-arm CAS-fails on the {@code WAITING_READ_OP_UPDATER} compare-and-set in
  * {@code ManagedCursorImpl#asyncReadEntriesWithSkipOrWait}, raising {@code ConcurrentWaitCallbackException}
  * &mdash; which {@code readEntriesFailed} returns early on instead of rescheduling &mdash; and every
- * publish's {@code notifyCursors} poll-misses. The subscription never reads again &mdash; which is exactly
- * what both tests assert behaviourally: after the disconnect a fresh consumer reconnects, and a message
- * published afterwards must actually reach that consumer's {@code sendMessages}.
+ * publish's {@code notifyCursors} poll-misses. The failure callback's {@code readOpEpoch} guard prevents a stale
+ * failure from mutating dispatcher state; the regression test checks that the new wait remains owned and that the
+ * reconnected consumer receives a later publish. It does not claim to recover every independently created orphan
+ * {@code waitingReadOp}.
  *
  * <p>The two racing events genuinely arrive on different threads: the read completion is posted to the
  * dispatcher's ordered executor by the managed-ledger/BookKeeper completion chain (the
@@ -156,6 +158,8 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
     private static final long QUIESCE_TIMEOUT_SECONDS = 10;
     private static final int QUIESCE_IDLE_ROUNDS = 4;
     private static final long DELIVERY_TIMEOUT_SECONDS = 5;
+    private static final int MIN_READ_BATCH_SIZE = 1;
+    private static final int POSITIVE_FAILOVER_DELAY_MILLIS = 1_000;
 
     private PulsarTestContext pulsarTestContext;
     private BrokerService brokerService;
@@ -195,11 +199,22 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
 
     /** Build a fresh topic/subscription/dispatcher on top of a real ledger + cursor. */
     private void buildFixture(String ledgerName) throws Exception {
+        buildFixture(ledgerName, 10, 0);
+    }
+
+    private void buildFixture(String ledgerName, int readFailureBackoffMillis) throws Exception {
+        buildFixture(ledgerName, readFailureBackoffMillis, 0);
+    }
+
+    private void buildFixture(String ledgerName, int readFailureBackoffMillis, int failoverDelayMillis)
+            throws Exception {
         ServiceConfiguration svcConfig = new ServiceConfiguration();
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setClusterName("test");
-        svcConfig.setActiveConsumerFailoverDelayTimeMillis(0);
+        svcConfig.setActiveConsumerFailoverDelayTimeMillis(failoverDelayMillis);
+        svcConfig.setDispatcherMinReadBatchSize(MIN_READ_BATCH_SIZE);
+        svcConfig.setDispatcherReadFailureBackoffInitialTimeInMs(readFailureBackoffMillis);
         svcConfig.setSystemTopicEnabled(false);
         svcConfig.setTopicLevelPoliciesEnabled(false);
 
@@ -468,6 +483,11 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
         return false;
     }
 
+    private long countDeliveries(String consumerName, Position position) {
+        Delivery expected = Delivery.of(consumerName, position);
+        return deliveries.stream().filter(expected::equals).count();
+    }
+
     private static void sleepQuietly() {
         try {
             Thread.sleep(3);
@@ -614,6 +634,141 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
         return board;
     }
 
+    @DataProvider(name = "inFlightReadOutcome")
+    public Object[][] inFlightReadOutcome() {
+        return new Object[][] {
+                {false, 0},
+                {true, 0},
+                {false, POSITIVE_FAILOVER_DELAY_MILLIS},
+                {true, POSITIVE_FAILOVER_DELAY_MILLIS}
+        };
+    }
+
+    /** A replacement active must receive unacknowledged entries regardless of the old read's outcome or delay. */
+    @Test(groups = "broker", dataProvider = "inFlightReadOutcome")
+    public void testFailoverReplaysUnackedMessagesAfterInFlightRead(boolean failRead, int failoverDelayMillis)
+            throws Exception {
+        buildFixture("sac-failover-inflight-read-" + failRead + "-" + failoverDelayMillis, 10,
+                failoverDelayMillis);
+        connect(consumer);
+        Position unacked = publish();
+        awaitBoardHasAtLeast(1);
+        Assert.assertTrue(dispatcherExecutor.runOne());
+        Assert.assertTrue(deliveries.contains(Delivery.of("c1", unacked)));
+
+        // Stop before the send completion's next-read task. Force that read through BookKeeper
+        // instead of cache, and hold its result until after the active consumer changes.
+        Position next = publish();
+        factory.getEntryCacheManager().getEntryCache(ledger).clear();
+        CompletableFuture<LedgerEntries> intercepted = new CompletableFuture<>();
+        CompletableFuture<LedgerEntries> readResult = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            intercepted.complete(entries);
+            return readResult;
+        });
+        try {
+            Assert.assertTrue(dispatcherExecutor.runOne());
+            LedgerEntries entries = intercepted.get(BOARD_WAIT_SECONDS, TimeUnit.SECONDS);
+            Consumer replacement = newMockConsumer("c2");
+            doReturn(1).when(replacement).getPriorityLevel();
+            connect(replacement);
+            Assert.assertSame(dispatcher.getActiveConsumer(), consumer);
+            disconnect(consumer);
+            Assert.assertSame(dispatcher.getActiveConsumer(), replacement);
+            Assert.assertTrue(cursor.getMarkDeletedPosition().compareTo(unacked) < 0,
+                    "The first message must still be unacknowledged");
+
+            bkc.setReadHandleInterceptor(null);
+            if (failRead) {
+                entries.close();
+                readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
+                awaitBoardHasAtLeast(1);
+                Assert.assertTrue(dispatcherExecutor.runOne(), "failed old-read callback should be queued");
+                Assert.assertEquals(dispatcher.readBatchSize, MIN_READ_BATCH_SIZE,
+                        "owner-change read failure should reduce the next read batch to the configured minimum");
+            } else {
+                readResult.complete(entries);
+            }
+
+            // Prove the replacement is live before checking whether the unacked message was skipped.
+            Assert.assertTrue(pumpUntilDelivered(replacement, next),
+                    "replacement active did not resume delivery");
+            Assert.assertTrue(deliveries.contains(Delivery.of("c2", unacked)),
+                    "New active received the next message but skipped the old active's unacked message; "
+                            + "failRead=" + failRead + ", deliveries=" + deliveries);
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+            if (!readResult.isDone()) {
+                LedgerEntries entries = intercepted.getNow(null);
+                if (entries != null) {
+                    entries.close();
+                }
+                readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
+            }
+        }
+    }
+
+    @DataProvider(name = "abaInFlightReadOutcome")
+    public Object[][] abaInFlightReadOutcome() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(groups = "broker", dataProvider = "abaInFlightReadOutcome")
+    public void testFailoverReplaysUnackedMessagesAfterActiveConsumerReturnsDuringInFlightRead(boolean failRead)
+            throws Exception {
+        buildFixture("sac-failover-aba-inflight-read-" + failRead);
+        connect(consumer);
+        Position unacked = publish();
+        awaitBoardHasAtLeast(1);
+        Assert.assertTrue(dispatcherExecutor.runOne());
+        Assert.assertTrue(deliveries.contains(Delivery.of("c1", unacked)));
+        long unackedDeliveriesBeforeFailover = countDeliveries("c1", unacked);
+
+        Position next = publish();
+        factory.getEntryCacheManager().getEntryCache(ledger).clear();
+        CompletableFuture<LedgerEntries> intercepted = new CompletableFuture<>();
+        CompletableFuture<LedgerEntries> readResult = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            intercepted.complete(entries);
+            return readResult;
+        });
+        try {
+            Assert.assertTrue(dispatcherExecutor.runOne());
+            LedgerEntries entries = intercepted.get(BOARD_WAIT_SECONDS, TimeUnit.SECONDS);
+
+            Consumer temporaryActive = newMockConsumer("c2");
+            doReturn(-1).when(temporaryActive).getPriorityLevel();
+            connect(temporaryActive);
+            Assert.assertSame(dispatcher.getActiveConsumer(), temporaryActive, "B must become active");
+            disconnect(temporaryActive);
+            Assert.assertSame(dispatcher.getActiveConsumer(), consumer, "A must become active again");
+            Assert.assertTrue(cursor.getMarkDeletedPosition().compareTo(unacked) < 0,
+                    "The first message must still be unacknowledged");
+
+            bkc.setReadHandleInterceptor(null);
+            if (failRead) {
+                entries.close();
+                readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
+            } else {
+                readResult.complete(entries);
+            }
+
+            Assert.assertTrue(pumpUntilDelivered(consumer, next), "A did not resume delivery after returning active");
+            Assert.assertTrue(countDeliveries("c1", unacked) > unackedDeliveriesBeforeFailover,
+                    "A->B->A failed read retried from the old read position and skipped redelivery of the "
+                            + "unacked message; failRead=" + failRead + ", deliveries=" + deliveries);
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+            if (!readResult.isDone()) {
+                LedgerEntries entries = intercepted.getNow(null);
+                if (entries != null) {
+                    entries.close();
+                }
+                readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
+            }
+        }
+    }
+
     // ===============================================================================================
     // (a) PRIMARY reproduction: a redeliver races the completion of an already-dispatched read. m1's ack is
     // telescoped (applied before that read completes) so the redeliver's rewind lands at the tail and the
@@ -642,6 +797,83 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
                 .log("post-redeliver-race quiescent state (observation only)");
 
         assertSubscriptionDeliversAfterReconnect("redeliver, then stale completion", seed);
+    }
+
+    /**
+     * Covers the read-failure counterpart to the stale-completion race above: keep an old BookKeeper read in flight,
+     * let redeliver install a new tail wait, then fail the old read. Its stale failure callback must not clear the
+     * dispatcher's ownership of the new wait. Disconnecting and reconnecting afterward verifies that the cursor can
+     * still be re-armed and deliver a later publish. This is regression coverage for the existing read-op epoch
+     * guard and existing {@code ConcurrentWaitCallbackException} handling.
+     */
+    @Test(groups = "broker")
+    public void testFailoverConsumerStuckWhenReadFailureRacesRedeliver() throws Exception {
+        // Keep retry work outside the test lifetime so the assertion observes the stale callback state directly.
+        buildFixture("sac-stuck-read-failure-race", 60_000);
+        Position acknowledged = publish();
+
+        factory.getEntryCacheManager().getEntryCache(ledger).clear();
+        CompletableFuture<LedgerEntries> intercepted = new CompletableFuture<>();
+        CompletableFuture<LedgerEntries> readResult = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            intercepted.complete(entries);
+            return readResult;
+        });
+        LedgerEntries entries = null;
+        try {
+            connect(consumer);
+            entries = intercepted.get(BOARD_WAIT_SECONDS, TimeUnit.SECONDS);
+
+            // Preserve the read's tail position after rewinding, so redelivery arms a new wait op while
+            // the original BookKeeper read is still in flight.
+            ackUpTo(acknowledged);
+            dispatcher.redeliverUnacknowledgedMessages(consumer, 1L);
+            awaitBoardHasAtLeast(1);
+            Assert.assertTrue(dispatcherExecutor.runOne(), "redeliver task should be queued");
+            Assert.assertTrue(cursor.hasPendingReadRequest(), "redeliver should arm a fresh tail wait");
+            Assert.assertTrue(dispatcher.havePendingRead, "dispatcher should own the fresh tail wait");
+            Assert.assertEquals(ledger.getWaitingCursorsCount(), 1,
+                    "the fresh tail wait should be registered for publish notification");
+
+            bkc.setReadHandleInterceptor(null);
+            entries.close();
+            entries = null;
+            readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
+            awaitBoardHasAtLeast(1);
+            Assert.assertTrue(dispatcherExecutor.runOne(), "failed old-read callback should be queued");
+            boolean pendingReadOwned = dispatcher.havePendingRead;
+            boolean pendingReadArmed = cursor.hasPendingReadRequest();
+            int waitingCursors = ledger.getWaitingCursorsCount();
+
+            // Disconnect/reconnect must cancel/re-arm the fresh wait, not strand it behind a stale callback.
+            disconnect(consumer);
+            Consumer replacement = newMockConsumer("c2");
+            connect(replacement);
+            Position afterReconnect = publish();
+            boolean delivered = pumpUntilDelivered(replacement, afterReconnect);
+
+            Assert.assertTrue(pendingReadOwned,
+                    "a stale failure must not clear ownership of the newer waiting read");
+            Assert.assertTrue(pendingReadArmed,
+                    "the newer read should still be armed after the stale failure");
+            Assert.assertEquals(waitingCursors, 1,
+                    "the newer waiting read must remain registered for publish notification");
+            Assert.assertTrue(delivered,
+                    "ConcurrentWaitCallbackException after reconnect left the subscription unable to read new data; "
+                            + "deliveries=" + deliveries + ", state=" + snapshot());
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+            if (entries != null) {
+                entries.close();
+            }
+            if (!readResult.isDone()) {
+                LedgerEntries pendingEntries = intercepted.getNow(null);
+                if (pendingEntries != null) {
+                    pendingEntries.close();
+                }
+                readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
+            }
+        }
     }
 
     // ===============================================================================================
