@@ -958,17 +958,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
         final CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
+            // Use the current epoch to subscribe.
+            long subscribeEpoch = CONSUMER_EPOCH.get(this);
             ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
                     priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                     conf.getReplicateSubscriptionState(),
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
-                    // Use the current epoch to subscribe.
-                    conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this), conf.isEntryBucketDispatch());
+                    conf.getSubscriptionProperties(), subscribeEpoch, conf.isEntryBucketDispatch());
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
                     if (changeToReadyState()) {
+                        // A redeliver while the subscribe was in flight bumped the epoch without sending it, and
+                        // the broker created the consumer with the subscribe's epoch: send the current one before
+                        // any permits, or every message dispatched with the older epoch is discarded.
+                        long consumerEpoch = CONSUMER_EPOCH.get(ConsumerImpl.this);
+                        if (consumerEpoch != subscribeEpoch) {
+                            cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
+                                    consumerId, consumerEpoch), cnx.ctx().voidPromise());
+                        }
                         consumerIsReconnectedToBroker(cnx, currentSize);
                     } else {
                         // Consumer was closed while reconnecting, close the connection to make sure the broker
@@ -985,13 +994,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 resetBackoff();
 
                 boolean firstTimeConnect = subscribeFuture.complete(this);
+                // Send the acks that waited for the subscription before the flow command, so the broker has them
+                // when it starts dispatching and does not redeliver the acknowledged messages.
+                acknowledgmentsGroupingTracker.flush();
                 // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
                 // command to receive messages.
                 if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
                     increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
                 }
-                // send the acks that waited for the subscription
-                acknowledgmentsGroupingTracker.flush();
                 future.complete(null);
             }).exceptionally((e) -> {
                 deregisterFromClientCnx();
@@ -1644,10 +1654,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
                 if (redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
+                    // The application may release a pooled message before it is sent to the DLQ
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
-                            Collections.singletonList(message));
+                            Collections.singletonList(message.unpooledCopy()));
                     if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
                         redeliverUnacknowledgedMessages(Collections.singleton(message.getMessageId()));
+                        // The message is not delivered to the application, which would otherwise release it
+                        message.release();
                         // The message is skipped due to reaching the max redelivery count,
                         // so we need to increase the available permits
                         increaseAvailablePermits(cnx);
@@ -1979,9 +1992,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     continue;
                 }
                 if (possibleToDeadLetter != null) {
-                    possibleToDeadLetter.add(message);
+                    // The application may release a pooled message before it is sent to the DLQ
+                    possibleToDeadLetter.add(message.unpooledCopy());
                     // Skip the message which reaches the max redelivery count.
                     if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
+                        message.release();
                         skippedMessages++;
                         continue;
                     }
@@ -2448,6 +2463,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
 
             // is channel is connected, we should send redeliver command to broker
+            // otherwise, the reconnection sends the new epoch once it has subscribed
             if (cnx != null && isConnected(cnx)) {
                 cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
                         consumerId, CONSUMER_EPOCH.get(this)), cnx.ctx().voidPromise());
