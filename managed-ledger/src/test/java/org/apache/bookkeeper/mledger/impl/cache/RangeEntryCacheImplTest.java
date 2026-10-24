@@ -53,6 +53,7 @@ import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.EntryReadCountHandler;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
@@ -940,5 +941,79 @@ public class RangeEntryCacheImplTest {
                 assertThat(e.getEntryId()).isEqualTo(i);
             }
         });
+    }
+
+    @Test
+    public void testOutOfRangeEntryFromStorageReadIsReleased() {
+        // Partial cache hit on (1,1) so the read takes the mixed path (cache hit + missing-range
+        // storage reads). The missing ranges are [0,0] and [2,3].
+        EntryImpl cached = EntryImpl.create(1, 1, Unpooled.EMPTY_BUFFER);
+        assertThat(rangeEntryCache.insert(cached)).isTrue();
+        cached.release();
+
+        // Each storage read answers beyond its missing sub-range with one extra entry:
+        // - the [0,0] read adds entry 1, which overlaps the slot already filled from the cache —
+        //   the assembly loop must not overwrite the slot (that would leak the cached copy) and
+        //   must release the duplicate;
+        // - the [2,3] read adds entry 4, which is positioned outside the requested range.
+        // A dropped entry has no other owner (the future's list is the sole reference), so the
+        // assembly loop must release it — without counting the drop as a read on the entry's
+        // read-count handler.
+        List<EntryImpl> extraEntries = new ArrayList<>();
+        List<EntryReadCountHandler> extraReadCountHandlers = new ArrayList<>();
+        doAnswer(invocation -> {
+            long firstEntry = invocation.getArgument(1);
+            long lastEntry = invocation.getArgument(2);
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(5);
+            Object ctx = invocation.getArgument(6);
+            List<Entry> entries = new ArrayList<>((int) (lastEntry - firstEntry + 2));
+            for (long entryId = firstEntry; entryId <= lastEntry; entryId++) {
+                entries.add(EntryImpl.create(1, entryId, Unpooled.EMPTY_BUFFER));
+            }
+            EntryImpl extra = EntryImpl.create(1, lastEntry + 1, Unpooled.EMPTY_BUFFER, 1);
+            extraEntries.add(extra);
+            extraReadCountHandlers.add(extra.getReadCountHandler());
+            entries.add(extra);
+            callback.readEntriesComplete(entries, ctx);
+            return null;
+        }).when(pendingReadsManager).readEntries(any(), anyLong(), anyLong(), anyLong(), any(), any(), any());
+
+        CompletableFuture<List<Entry>> result = new CompletableFuture<>();
+        rangeEntryCache.doAsyncReadEntriesByPosition(lh, PositionFactory.create(1, 0), PositionFactory.create(1, 3),
+                4, 1024 * 1024, expectedReadCount, new AsyncCallbacks.ReadEntriesCallback() {
+                    @Override
+                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                        result.complete(entries);
+                    }
+
+                    @Override
+                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                        result.completeExceptionally(exception);
+                    }
+                }, null);
+
+        List<Entry> delivered = result.join();
+        try {
+            assertThat(delivered).hasSize(4);
+            for (int i = 0; i < 4; i++) {
+                assertThat(delivered.get(i)).isNotNull();
+                assertThat(delivered.get(i).getEntryId()).isEqualTo(i);
+            }
+            // Slot 1 must still hold the copy filled from the cache, not the overlapping
+            // duplicate returned by the [0,0] storage read.
+            for (EntryImpl extra : extraEntries) {
+                assertThat(delivered.get(1)).isNotSameAs(extra);
+            }
+        } finally {
+            delivered.forEach(Entry::release);
+        }
+
+        // Both extra entries must have been dropped and released by the assembly loop, and the
+        // drop must not have counted as a read on their read-count handlers.
+        assertThat(extraEntries).hasSize(2);
+        for (int i = 0; i < extraEntries.size(); i++) {
+            assertThat(extraEntries.get(i).refCnt()).isZero();
+            assertThat(extraReadCountHandlers.get(i).getExpectedReadCount()).isEqualTo(1);
+        }
     }
 }
