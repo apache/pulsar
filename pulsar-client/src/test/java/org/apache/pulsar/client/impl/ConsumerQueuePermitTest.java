@@ -24,8 +24,12 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -206,7 +210,7 @@ public class ConsumerQueuePermitTest {
 
             // A previous SUBSCRIBE can complete after a replacement is published on the same connection.
             firstReply.complete(null);
-            firstOpen.get(5, TimeUnit.SECONDS);
+            assertThat(firstOpen).as("superseded success does not complete the attempt").isNotDone();
             assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Connecting);
             assertThat(secondOpen).isNotDone();
             assertThat(subscriptionCompletions.get()).isZero();
@@ -228,6 +232,51 @@ public class ConsumerQueuePermitTest {
             assertThat(fixture.consumer.getAvailablePermits()).isZero();
             fixture.consumer.initializeReceiverQueuePermits();
             assertThat(connection.sentPermits.get()).isEqualTo(2);
+        }
+    }
+
+    @Test(timeOut = 120000)
+    public void testStaleSubscribeTimeoutOnSameConnectionRetainsResizedQueuePermits() throws Exception {
+        try (TestConsumer fixture = new TestConsumer(false, false, 4)) {
+            Connection connection = new Connection();
+            CompletableFuture<ProducerResponse> firstReply = connection.subscribeReply;
+            CompletableFuture<Void> firstOpen = fixture.consumer.connectionOpened(connection.cnx);
+
+            fixture.consumer.connectionClosed(connection.cnx, Optional.of(0L), Optional.empty());
+            assertThat(fixture.consumer.getClientCnx()).isNull();
+            fixture.consumer.setCurrentReceiverQueueSize(2);
+            assertThat(connection.sentPermits.get()).as("resize while disconnected does not send FLOW").isZero();
+            CompletableFuture<ProducerResponse> secondReply = connection.newSubscription();
+            CompletableFuture<Void> secondOpen = fixture.consumer.connectionOpened(connection.cnx);
+            secondReply.complete(null);
+            secondOpen.get(5, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.isConnected()).isTrue();
+            assertThat(fixture.consumer.getClientCnx()).isSameAs(connection.cnx);
+            assertThat(connection.sentPermits.get()).isEqualTo(2);
+            assertThat(fixture.consumer.getAvailablePermits()).isZero();
+            long currentCnxEpoch = fixture.consumer.getConnectionHandler().getEpoch();
+            clearInvocations(fixture.client.timer());
+
+            firstReply.completeExceptionally(new PulsarClientException.TimeoutException("stale subscribe timed out"));
+
+            assertThat(firstOpen).as("superseded failure must not trigger reconnection").isNotDone();
+            assertThat(fixture.consumer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(fixture.consumer.isConnected()).isTrue();
+            assertThat(fixture.consumer.getClientCnx()).isSameAs(connection.cnx);
+            assertThat(fixture.consumer.getConnectionHandler().getEpoch()).isEqualTo(currentCnxEpoch);
+            assertThat(connection.sentPermits.get()).as("stale failure preserves the new budget").isEqualTo(2);
+            assertThat(fixture.consumer.getAvailablePermits()).isZero();
+            verify(connection.cnx, never()).removeConsumer(anyLong());
+            verify(connection.cnx.channel(), never()).close();
+            verify(connection.cnx, times(2)).sendRequestWithId(any(ByteBuf.class), anyLong());
+            verify(fixture.client.timer(), never()).newTimeout(any(), anyLong(), any(TimeUnit.class));
+
+            fixture.consumer.setCurrentReceiverQueueSize(4);
+            assertThat(fixture.consumer.getCurrentReceiverQueueSize()).isEqualTo(4);
+            assertThat(connection.sentCommands).extracting(BaseCommand::getType)
+                    .containsExactly(BaseCommand.Type.FLOW, BaseCommand.Type.FLOW);
+            assertThat(connection.sentPermits.get()).as("later growth grants only its delta").isEqualTo(4);
+            assertThat(fixture.consumer.getAvailablePermits()).isZero();
         }
     }
 
@@ -423,6 +472,10 @@ public class ConsumerQueuePermitTest {
         }
 
         TestConsumer(boolean hasParentConsumer, boolean startPaused) {
+            this(hasParentConsumer, startPaused, 2);
+        }
+
+        TestConsumer(boolean hasParentConsumer, boolean startPaused, int receiverQueueSize) {
             client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
             client.getConfiguration().setStatsIntervalSeconds(0);
             when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
@@ -433,7 +486,7 @@ public class ConsumerQueuePermitTest {
             ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
             conf.setSubscriptionName("queue-permit-test");
             conf.setSubscriptionMode(SubscriptionMode.NonDurable);
-            conf.setReceiverQueueSize(2);
+            conf.setReceiverQueueSize(receiverQueueSize);
             conf.setAutoScaledReceiverQueueSizeEnabled(true);
             conf.setStartPaused(startPaused);
             subscribeFuture = new CompletableFuture<>() {
