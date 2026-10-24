@@ -173,6 +173,98 @@ public class BrokerStatsBase extends AdminResource {
         }
     }
 
+    @GET
+    @Path("/brokers/{brokerId}/metrics")
+    @Operation(summary = "Gets the metrics for Monitoring of the given broker",
+            description = "Redirects to the given broker when it is not the one serving the request")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Gets the metrics for Monitoring of the given broker",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Metrics.class)))),
+            @ApiResponse(responseCode = "307", description = "Redirect to the given broker"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Broker not found") })
+    public Collection<Metrics> getMetrics(@PathParam("brokerId") String brokerId) throws Exception {
+        validateSuperUserAccessAndRedirect(brokerId);
+        return getMetrics();
+    }
+
+    @GET
+    @Path("/brokers/{brokerId}/mbeans")
+    @Operation(summary = "Get all the mbean details of the broker JVM of the given broker",
+            description = "Redirects to the given broker when it is not the one serving the request")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Get all the mbean details of the broker JVM of the given broker",
+                    content = @Content(array = @ArraySchema(schema = @Schema(implementation = Metrics.class)))),
+            @ApiResponse(responseCode = "307", description = "Redirect to the given broker"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Broker not found") })
+    public Collection<Metrics> getMBeans(@PathParam("brokerId") String brokerId) throws Exception {
+        validateSuperUserAccessAndRedirect(brokerId);
+        return getMBeans();
+    }
+
+    @GET
+    @Path("/brokers/{brokerId}/allocator-stats/{allocator}")
+    @Operation(summary = "Get stats for a registered Netty allocator of the given broker",
+            description = "Redirects to the given broker when it is not the one serving the request")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Get stats for a registered Netty allocator of the given broker",
+                    content = @Content(schema = @Schema(implementation = AllocatorStats.class))),
+            @ApiResponse(responseCode = "307", description = "Redirect to the given broker"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Broker not found") })
+    public AllocatorStats getAllocatorStats(@PathParam("brokerId") String brokerId,
+            @PathParam("allocator") String allocatorName) throws Exception {
+        validateSuperUserAccessAndRedirect(brokerId);
+        return getAllocatorStats(allocatorName);
+    }
+
+    @GET
+    @Path("/brokers/{brokerId}/bookieops")
+    @Operation(summary = "Get pending bookie client op stats by namespace of the given broker",
+            description = "Redirects to the given broker when it is not the one serving the request")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200",
+                    description = "Get pending bookie client op stats by namespace of the given broker",
+                    content = @Content(schema = @Schema(type = "object"),
+                            additionalPropertiesSchema =
+                            @Schema(additionalPropertiesSchema = PendingBookieOpsStats.class))),
+            @ApiResponse(responseCode = "307", description = "Redirect to the given broker"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Broker not found") })
+    public Map<String, Map<String, PendingBookieOpsStats>> getPendingBookieOpsStats(
+            @PathParam("brokerId") String brokerId) {
+        validateSuperUserAccessAndRedirect(brokerId);
+        return getPendingBookieOpsStats();
+    }
+
+    @GET
+    @Path("/brokers/{brokerId}/load-report")
+    @Operation(summary = "Get Load of the given broker",
+            description = "Redirects to the given broker when it is not the one serving the request")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get Load of the given broker",
+                    content = @Content(schema = @Schema(implementation = LoadReport.class))),
+            @ApiResponse(responseCode = "307", description = "Redirect to the given broker"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Broker not found") })
+    public LoadManagerReport getLoadReport(@PathParam("brokerId") String brokerId) throws Exception {
+        validateSuperUserAccessAndRedirect(brokerId);
+        return getLoadReport();
+    }
+
+    /**
+     * Validates super-user access and redirects the request to {@code brokerId} (an id from the brokers list)
+     * when it is not this broker. The target broker serves the same broker-specific route, so a broker that
+     * doesn't know the route fails the request instead of returning its own stats.
+     */
+    protected void validateSuperUserAccessAndRedirect(String brokerId) {
+        validateSuperUserAccess();
+        sync(() -> maybeRedirectToBroker(brokerId));
+    }
+
     protected Map<Long, Collection<ResourceUnit>> internalBrokerResourceAvailability(NamespaceName namespace) {
         try {
             validateSuperUserAccess();
