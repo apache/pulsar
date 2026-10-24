@@ -49,6 +49,8 @@ import java.util.BitSet;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -658,8 +660,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         if (txn != null) {
-            return doTransactionAcknowledgeForResponse(messageId, ackType, null, properties,
-                    new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
+            List<DeadLetterAcknowledgment> deadLetterAcknowledgments =
+                    prepareDeadLetterAcknowledgments(Collections.singletonList(messageId), ackType);
+            CompletableFuture<Void> ackFuture = doTransactionAcknowledgeForResponse(messageId, ackType, null,
+                    properties, new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
+            return registerDeadLetterCommitCleanup(txn, ackFuture, deadLetterAcknowledgments);
         }
         return acknowledgmentsGroupingTracker.addAcknowledgment(messageId, ackType, properties);
     }
@@ -680,11 +685,83 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return FutureUtil.failedFuture(exception);
         }
         if (txn != null) {
-            return doTransactionAcknowledgeForResponse(messageIdList, ackType,
+            List<DeadLetterAcknowledgment> deadLetterAcknowledgments =
+                    prepareDeadLetterAcknowledgments(messageIdList, ackType);
+            CompletableFuture<Void> ackFuture = doTransactionAcknowledgeForResponse(messageIdList, ackType,
                     properties, new TxnID(txn.getTxnIdMostBits(), txn.getTxnIdLeastBits()));
+            return registerDeadLetterCommitCleanup(txn, ackFuture, deadLetterAcknowledgments);
         } else {
             return this.acknowledgmentsGroupingTracker.addListAcknowledgment(messageIdList, ackType, properties);
         }
+    }
+
+    private record DeadLetterAcknowledgment(MessageIdAdv entryId, Set<MessageIdAdv> candidateIds) {
+    }
+
+    private List<DeadLetterAcknowledgment> prepareDeadLetterAcknowledgments(List<MessageId> messageIds,
+                                                                           AckType ackType) {
+        if (possibleSendToDeadLetterTopicMessages == null || possibleSendToDeadLetterTopicMessages.isEmpty()
+                || ackType != AckType.Individual) {
+            return Collections.emptyList();
+        }
+        Map<MessageIdAdv, Set<Integer>> acknowledgedIndexes = new HashMap<>();
+        for (MessageId messageId : messageIds) {
+            MessageIdAdv acknowledgedId = (MessageIdAdv) messageId;
+            MessageIdAdv entryId = MessageIdAdvUtils.discardBatch(acknowledgedId);
+            if (possibleSendToDeadLetterTopicMessages.containsKey(entryId)) {
+                acknowledgedIndexes.computeIfAbsent(entryId, ignored -> new HashSet<>())
+                        .add(MessageIdAdvUtils.isBatch(acknowledgedId) ? acknowledgedId.getBatchIndex() : -1);
+            }
+        }
+        List<DeadLetterAcknowledgment> acknowledgments = new ArrayList<>(acknowledgedIndexes.size());
+        for (Map.Entry<MessageIdAdv, Set<Integer>> acknowledgment : acknowledgedIndexes.entrySet()) {
+            MessageIdAdv entryId = acknowledgment.getKey();
+            List<MessageImpl<T>> candidates = possibleSendToDeadLetterTopicMessages.get(entryId);
+            if (candidates == null) {
+                continue;
+            }
+            // IDs identify this delivery without retaining its payloads. A later delivery creates different IDs.
+            Set<MessageIdAdv> candidateIds = Collections.newSetFromMap(new IdentityHashMap<>());
+            for (MessageImpl<T> candidate : candidates) {
+                MessageIdAdv candidateId = (MessageIdAdv) candidate.getMessageId();
+                if (acknowledgment.getValue().contains(-1)
+                        || acknowledgment.getValue().contains(candidateId.getBatchIndex())) {
+                    candidateIds.add(candidateId);
+                }
+            }
+            if (!candidateIds.isEmpty()) {
+                acknowledgments.add(new DeadLetterAcknowledgment(entryId, candidateIds));
+            }
+        }
+        return acknowledgments;
+    }
+
+    private CompletableFuture<Void> registerDeadLetterCommitCleanup(TransactionImpl txn,
+            CompletableFuture<Void> ackFuture, List<DeadLetterAcknowledgment> acknowledgments) {
+        if (acknowledgments.isEmpty()) {
+            return ackFuture;
+        }
+        // ConsumerBase registers this dependent future as the ACK operation: commit cannot overtake registration.
+        return ackFuture.thenRun(() -> txn.registerCommitAction(() -> {
+            for (DeadLetterAcknowledgment acknowledgment : acknowledgments) {
+                for (MessageIdAdv candidateId : acknowledgment.candidateIds()) {
+                    // A pending DLQ operation may already have captured the old candidate list.
+                    MessageIdAdvUtils.acknowledge(candidateId, true);
+                }
+                possibleSendToDeadLetterTopicMessages.computeIfPresent(acknowledgment.entryId(), (key, candidates) -> {
+                    List<MessageImpl<T>> remaining = new ArrayList<>(candidates.size());
+                    for (MessageImpl<T> candidate : candidates) {
+                        if (!acknowledgment.candidateIds().contains(candidate.getMessageId())) {
+                            remaining.add(candidate);
+                        }
+                    }
+                    if (remaining.size() == candidates.size()) {
+                        return candidates;
+                    }
+                    return remaining.isEmpty() ? null : remaining;
+                });
+            }
+        }));
     }
 
     private static void copyMessageKeysIfNeeded(Message<?> message, TypedMessageBuilder<?> typedMessageBuilderNew) {

@@ -41,6 +41,9 @@ import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.Timeout;
+import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -59,12 +62,17 @@ import org.apache.pulsar.client.api.DeadLetterProducerBuilderCustomizer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TypedMessageBuilder;
+import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.client.impl.transaction.TransactionBuilderImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionCoordinatorClientImpl;
+import org.apache.pulsar.client.impl.transaction.TransactionImpl;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
@@ -91,6 +99,11 @@ public class ConsumerDeadLetterProcessingTest {
     @DataProvider
     public Object[][] messageTypes() {
         return new Object[][] {{false}, {true}};
+    }
+
+    @DataProvider
+    public Object[][] transactionAcknowledgmentTypes() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
     }
 
     @DataProvider
@@ -391,6 +404,268 @@ public class ConsumerDeadLetterProcessingTest {
         }
     }
 
+    @Test(dataProvider = "transactionAcknowledgmentTypes", timeOut = 30000)
+    public void testTxnCommitRemovesDeadLetterCandidatesAfterAcknowledgments(boolean batch, boolean list)
+            throws Exception {
+        try (Fixture fixture = new Fixture(batch)) {
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
+            List<MessageId> messageIds = fixture.receiveAndReleaseApplicationMessages();
+            assertThat(frame.refCnt()).as("application release frees the original while the consumer stays open")
+                    .isZero();
+            List<MessageImpl<byte[]>> candidates =
+                    fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID);
+            TransactionControl transaction = fixture.newTransaction();
+            CompletableFuture<Void> acknowledgment = fixture.acknowledge(messageIds, transaction, list);
+            CompletableFuture<Void> commit = transaction.transaction.commit();
+
+            assertThat(acknowledgment).as("the broker has not accepted the transactional acknowledgment")
+                    .isNotDone();
+            assertThat(transaction.commitRequests).as("commit waits for the acknowledgment receipt").isZero();
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID))
+                    .isSameAs(candidates);
+
+            fixture.completeTransactionAcknowledgments();
+            acknowledgment.get(1, TimeUnit.SECONDS);
+            assertThat(transaction.commitRequests).isEqualTo(1);
+            assertThat(commit).as("the coordinator has not committed the transaction").isNotDone();
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID))
+                    .as("an acknowledgment receipt alone cannot discard DLQ candidates")
+                    .isSameAs(candidates);
+
+            transaction.commitResult.complete(null);
+            commit.get(1, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages())
+                    .as("successful commit removes acknowledged candidates before its future completes").isEmpty();
+            assertThat(fixture.sends).isEmpty();
+            assertThat(frame.refCnt()).isZero();
+        }
+    }
+
+    @Test(dataProvider = "messageTypes", timeOut = 30000)
+    public void testTxnPartialBatchCommitExcludesOnlyCommittedMessage(boolean list) throws Exception {
+        try (Fixture fixture = new Fixture(true)) {
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
+            List<MessageId> messageIds = fixture.receiveAndReleaseApplicationMessages();
+            assertThat(frame.refCnt()).isZero();
+            TransactionControl transaction = fixture.newTransaction();
+            CompletableFuture<Void> acknowledgment = fixture.acknowledge(messageIds.subList(0, 1), transaction, list);
+            fixture.completeTransactionAcknowledgments();
+            acknowledgment.get(1, TimeUnit.SECONDS);
+            CompletableFuture<Void> commit = transaction.transaction.commit();
+            transaction.commitResult.complete(null);
+            commit.get(1, TimeUnit.SECONDS);
+
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).containsKey(ORIGINAL_ID);
+            fixture.forwardCachedCandidates(1);
+            assertThat(frame.refCnt()).isZero();
+        }
+    }
+
+    @Test(dataProvider = "messageTypes", timeOut = 30000)
+    public void testTxnPartialCommitFiltersAlreadyScheduledDeadLetterForwarding(boolean list) throws Exception {
+        try (Fixture fixture = new Fixture(true)) {
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
+            List<MessageId> messageIds = fixture.receiveAndReleaseApplicationMessages();
+            assertThat(frame.refCnt()).isZero();
+            TransactionControl transaction = fixture.newTransaction();
+            CompletableFuture<Void> acknowledgment = fixture.acknowledge(messageIds.subList(0, 1), transaction, list);
+            fixture.completeTransactionAcknowledgments();
+            acknowledgment.get(1, TimeUnit.SECONDS);
+
+            fixture.queueNotifications = true;
+            fixture.consumer.redeliverUnacknowledgedMessages(Set.of(ORIGINAL_ID));
+            assertThat(fixture.notifications).as("DLQ forwarding captured the old candidates but has not sent them")
+                    .hasSize(1);
+            assertThat(fixture.sends).isEmpty();
+            CompletableFuture<Void> commit = transaction.transaction.commit();
+            transaction.commitResult.complete(null);
+            commit.get(1, TimeUnit.SECONDS);
+
+            fixture.runNotifications();
+            assertThat(fixture.sends).as("the scheduled task must exclude the member committed after scheduling")
+                    .hasSize(1);
+            fixture.assertSentMetadata(1);
+            fixture.completeSend(0, SendCompletion.SUCCESS);
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
+            assertThat(frame.refCnt()).isZero();
+        }
+    }
+
+    @Test(dataProvider = "messageTypes", timeOut = 30000)
+    public void testTxnPartialBatchTransactionsCanCommitOutOfOrder(boolean reverseOrder) throws Exception {
+        try (Fixture fixture = new Fixture(true)) {
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
+            List<MessageId> messageIds = fixture.receiveAndReleaseApplicationMessages();
+            assertThat(frame.refCnt()).isZero();
+            List<TransactionControl> transactions = List.of(fixture.newTransaction(), fixture.newTransaction());
+            CompletableFuture<Void> firstAck =
+                    fixture.acknowledge(messageIds.subList(0, 1), transactions.get(0), false);
+            CompletableFuture<Void> secondAck =
+                    fixture.acknowledge(messageIds.subList(1, 2), transactions.get(1), true);
+            fixture.completeTransactionAcknowledgments();
+            firstAck.get(1, TimeUnit.SECONDS);
+            secondAck.get(1, TimeUnit.SECONDS);
+            int first = reverseOrder ? 1 : 0;
+            int second = 1 - first;
+            CompletableFuture<Void> firstCommit = transactions.get(first).transaction.commit();
+            transactions.get(first).commitResult.complete(null);
+            firstCommit.get(1, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages())
+                    .as("the other transaction still owns an uncommitted batch member").containsKey(ORIGINAL_ID);
+
+            CompletableFuture<Void> secondCommit = transactions.get(second).transaction.commit();
+            transactions.get(second).commitResult.complete(null);
+            secondCommit.get(1, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages())
+                    .as("both transactions can clean their member even if the first commit changes the candidate list")
+                    .isEmpty();
+            assertThat(fixture.sends).isEmpty();
+        }
+    }
+
+    @Test(dataProvider = "transactionAcknowledgmentTypes", timeOut = 30000)
+    public void testTxnAbortPreservesDeadLetterCandidates(boolean batch, boolean list) throws Exception {
+        try (Fixture fixture = new Fixture(batch)) {
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
+            List<MessageId> messageIds = fixture.receiveAndReleaseApplicationMessages();
+            assertThat(frame.refCnt()).isZero();
+            TransactionControl transaction = fixture.newTransaction();
+            CompletableFuture<Void> acknowledgment = fixture.acknowledge(messageIds, transaction, list);
+            CompletableFuture<Void> abort = transaction.transaction.abort();
+            assertThat(transaction.abortRequests).as("abort waits for acknowledgment receipts").isZero();
+            fixture.completeTransactionAcknowledgments();
+            acknowledgment.get(1, TimeUnit.SECONDS);
+            assertThat(transaction.abortRequests).isEqualTo(1);
+            transaction.abortResult.complete(null);
+            abort.get(1, TimeUnit.SECONDS);
+
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).containsKey(ORIGINAL_ID);
+            fixture.forwardCachedCandidates(batch ? new int[] {0, 1} : new int[] {0});
+        }
+    }
+
+    @Test(dataProvider = "transactionAcknowledgmentTypes", timeOut = 30000)
+    public void testTxnAckFailurePreservesDeadLetterCandidates(boolean batch, boolean list) throws Exception {
+        try (Fixture fixture = new Fixture(batch)) {
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
+            List<MessageId> messageIds = fixture.receiveAndReleaseApplicationMessages();
+            assertThat(frame.refCnt()).isZero();
+            TransactionControl transaction = fixture.newTransaction();
+            CompletableFuture<Void> acknowledgment = fixture.acknowledge(messageIds, transaction, list);
+            CompletableFuture<Void> commit = transaction.transaction.commit();
+            IllegalStateException failure =
+                    new IllegalStateException("Controlled transactional acknowledgment failure");
+            fixture.transactionAcknowledgments.get(0).completeExceptionally(failure);
+            fixture.completeTransactionAcknowledgments();
+            assertThatThrownBy(() -> acknowledgment.get(1, TimeUnit.SECONDS)).hasCause(failure);
+            assertThat(transaction.commitRequests).isZero();
+            assertThat(transaction.abortRequests).as("a failed operation aborts rather than commits").isEqualTo(1);
+            transaction.abortResult.complete(null);
+            assertThatThrownBy(() -> commit.get(1, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(PulsarClientException.TransactionHasOperationFailedException.class);
+
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).containsKey(ORIGINAL_ID);
+            fixture.forwardCachedCandidates(batch ? new int[] {0, 1} : new int[] {0});
+        }
+    }
+
+    @Test(dataProvider = "transactionAcknowledgmentTypes", timeOut = 30000)
+    public void testTxnCommitFailurePreservesCandidatesUntilRetrySucceeds(boolean batch, boolean list)
+            throws Exception {
+        try (Fixture fixture = new Fixture(batch)) {
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
+            List<MessageId> messageIds = fixture.receiveAndReleaseApplicationMessages();
+            assertThat(frame.refCnt()).isZero();
+            List<MessageImpl<byte[]>> candidates =
+                    fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID);
+            TransactionControl transaction = fixture.newTransaction();
+            CompletableFuture<Void> acknowledgment = fixture.acknowledge(messageIds, transaction, list);
+            fixture.completeTransactionAcknowledgments();
+            acknowledgment.get(1, TimeUnit.SECONDS);
+            CompletableFuture<Void> firstCommit = transaction.transaction.commit();
+            IllegalStateException failure = new IllegalStateException("Controlled transaction commit failure");
+            transaction.commitResult.completeExceptionally(failure);
+            assertThatThrownBy(() -> firstCommit.get(1, TimeUnit.SECONDS)).hasCause(failure);
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID))
+                    .as("an uncertain commit result must preserve its candidates").isSameAs(candidates);
+
+            transaction.commitResult = new CompletableFuture<>();
+            CompletableFuture<Void> retry = transaction.transaction.commit();
+            assertThat(transaction.commitRequests).isEqualTo(2);
+            transaction.commitResult.complete(null);
+            retry.get(1, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages())
+                    .as("a later successful commit still runs the pending cleanup").isEmpty();
+            assertThat(fixture.sends).isEmpty();
+        }
+    }
+
+    @Test(dataProvider = "staleDeliveries", timeOut = 30000)
+    public void testTxnCommitDoesNotRemoveReplacementCandidates(boolean batch, boolean reconnect) throws Exception {
+        try (Fixture fixture = new Fixture(batch)) {
+            ByteBuf original = fixture.deliver(MAX_REDELIVERIES);
+            List<MessageId> messageIds = fixture.receiveAndReleaseApplicationMessages();
+            assertThat(original.refCnt()).isZero();
+            List<MessageImpl<byte[]>> originalCandidates =
+                    fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID);
+            TransactionControl transaction = fixture.newTransaction();
+            CompletableFuture<Void> acknowledgment = fixture.acknowledge(messageIds, transaction, true);
+            fixture.completeTransactionAcknowledgments();
+            acknowledgment.get(1, TimeUnit.SECONDS);
+            CompletableFuture<Void> commit = transaction.transaction.commit();
+            if (reconnect) {
+                assertThat(fixture.consumer.changeToConnecting()).isTrue();
+                fixture.consumer.connectionOpened(fixture.newConnection()).get(1, TimeUnit.SECONDS);
+            }
+            ByteBuf replacement = fixture.deliver(MAX_REDELIVERIES);
+            fixture.releaseApplicationMessages();
+            assertThat(replacement.refCnt()).isZero();
+            List<MessageImpl<byte[]>> replacementCandidates =
+                    fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID);
+            assertThat(replacementCandidates).isNotSameAs(originalCandidates);
+
+            transaction.commitResult.complete(null);
+            commit.get(1, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages().get(ORIGINAL_ID))
+                    .as("an old transaction must not remove candidates cached by a later delivery")
+                    .isSameAs(replacementCandidates);
+            fixture.forwardCachedCandidates(batch ? new int[] {0, 1} : new int[] {0});
+        }
+    }
+
+    @Test(dataProvider = "messageTypes", timeOut = 30000)
+    public void testTxnCommitAfterCloseDoesNotRestoreCandidates(boolean batch) throws Exception {
+        try (Fixture fixture = new Fixture(batch)) {
+            ByteBuf frame = fixture.deliver(MAX_REDELIVERIES);
+            List<MessageId> messageIds = fixture.receiveAndReleaseApplicationMessages();
+            assertThat(frame.refCnt()).isZero();
+            TransactionControl transaction = fixture.newTransaction();
+            CompletableFuture<Void> acknowledgment = fixture.acknowledge(messageIds, transaction, true);
+            fixture.completeTransactionAcknowledgments();
+            acknowledgment.get(1, TimeUnit.SECONDS);
+            CompletableFuture<Void> commit = transaction.transaction.commit();
+            fixture.consumer.closeAsync().get(1, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
+
+            transaction.commitResult.complete(null);
+            commit.get(1, TimeUnit.SECONDS);
+            assertThat(fixture.consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
+            assertThat(fixture.sends).isEmpty();
+        }
+    }
+
+    private static final class TransactionControl {
+        private final TransactionImpl transaction;
+        private CompletableFuture<Void> commitResult = new CompletableFuture<>();
+        private final CompletableFuture<Void> abortResult = new CompletableFuture<>();
+        private int commitRequests;
+        private int abortRequests;
+
+        private TransactionControl(TransactionImpl transaction) {
+            this.transaction = transaction;
+        }
+    }
+
     private static final class Fixture implements AutoCloseable {
         private final ExecutorService executor = MoreExecutors.newDirectExecutorService();
         private final List<CompletableFuture<MessageId>> sends = new ArrayList<>();
@@ -399,6 +674,9 @@ public class ConsumerDeadLetterProcessingTest {
         private final List<Runnable> scheduledTasks = new ArrayList<>();
         private final List<Runnable> notifications = new ArrayList<>();
         private final List<BaseCommand> acknowledgments = new ArrayList<>();
+        private final List<CompletableFuture<Void>> transactionAcknowledgments = new ArrayList<>();
+        private final PulsarClientImpl client = mock(PulsarClientImpl.class);
+        private final TransactionCoordinatorClientImpl coordinator = mock(TransactionCoordinatorClientImpl.class);
         private final ConsumerImpl<byte[]> consumer;
         private final boolean batch;
         private boolean queueNotifications;
@@ -406,6 +684,7 @@ public class ConsumerDeadLetterProcessingTest {
         private int notificationsBeforeRejection;
         private Throwable messageCreationFailure;
         private int redeliveries;
+        private long nextTransactionId;
 
         private Fixture(boolean batch) throws Exception {
             this(batch, null, false);
@@ -428,10 +707,17 @@ public class ConsumerDeadLetterProcessingTest {
         private Fixture(boolean batch, DeadLetterProducerBuilderCustomizer customizer, boolean failProducerCreation,
                         boolean groupAcknowledgments) throws Exception {
             this.batch = batch;
-            PulsarClientImpl client = mock(PulsarClientImpl.class);
             ClientConfigurationData clientConf = new ClientConfigurationData();
             clientConf.setStatsIntervalSeconds(0);
+            clientConf.setEnableTransaction(true);
             when(client.getConfiguration()).thenReturn(clientConf);
+            when(client.getTransactionCoordinatorClient()).thenReturn(coordinator);
+            Timer timer = mock(Timer.class);
+            when(client.getTimer()).thenReturn(timer);
+            when(timer.newTimeout(any(TimerTask.class), anyLong(), any(TimeUnit.class)))
+                    .thenAnswer(invocation -> mock(Timeout.class));
+            when(coordinator.addSubscriptionToTxnAsync(any(TxnID.class), anyString(), anyString()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
             when(client.getCnxPool()).thenReturn(mock(ConnectionPool.class));
             EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
             EventLoop eventLoop = mock(EventLoop.class);
@@ -512,12 +798,67 @@ public class ConsumerDeadLetterProcessingTest {
             queued.forEach(Runnable::run);
         }
 
-        private void releaseApplicationMessages() throws Exception {
+        private List<MessageId> receiveAndReleaseApplicationMessages() throws Exception {
+            List<MessageId> messageIds = new ArrayList<>();
             for (int index = 0; index < (batch ? 2 : 1); index++) {
                 Message<byte[]> message = consumer.receive(1, TimeUnit.SECONDS);
                 assertThat(message).isNotNull();
-                message.release();
+                try {
+                    messageIds.add(message.getMessageId());
+                } finally {
+                    message.release();
+                }
             }
+            return messageIds;
+        }
+
+        private void releaseApplicationMessages() throws Exception {
+            receiveAndReleaseApplicationMessages();
+        }
+
+        private TransactionControl newTransaction() throws Exception {
+            TxnID txnId = new TxnID(7, ++nextTransactionId);
+            when(coordinator.newTransactionAsync(anyLong(), any(TimeUnit.class)))
+                    .thenReturn(CompletableFuture.completedFuture(txnId));
+            TransactionImpl transaction = (TransactionImpl) new TransactionBuilderImpl(client, coordinator)
+                    .build().get(1, TimeUnit.SECONDS);
+            TransactionControl control = new TransactionControl(transaction);
+            when(coordinator.commitAsync(txnId)).thenAnswer(invocation -> {
+                control.commitRequests++;
+                return control.commitResult;
+            });
+            when(coordinator.abortAsync(txnId)).thenAnswer(invocation -> {
+                control.abortRequests++;
+                return control.abortResult;
+            });
+            return control;
+        }
+
+        private CompletableFuture<Void> acknowledge(List<MessageId> messageIds, TransactionControl transaction,
+                                                     boolean list) {
+            if (list) {
+                return consumer.acknowledgeAsync(messageIds, transaction.transaction);
+            }
+            List<CompletableFuture<Void>> futures = new ArrayList<>();
+            for (MessageId messageId : messageIds) {
+                futures.add(consumer.acknowledgeAsync(messageId, transaction.transaction));
+            }
+            return CompletableFuture.allOf(futures.toArray(CompletableFuture<?>[]::new));
+        }
+
+        private void completeTransactionAcknowledgments() {
+            transactionAcknowledgments.forEach(acknowledgment -> acknowledgment.complete(null));
+        }
+
+        private void forwardCachedCandidates(int... batchIndexes) {
+            consumer.redeliverUnacknowledgedMessages(Set.of(ORIGINAL_ID));
+            assertThat(sends).as("DLQ forwarding includes exactly the uncommitted members")
+                    .hasSize(batchIndexes.length);
+            assertSentMetadata(batchIndexes);
+            for (int index = 0; index < sends.size(); index++) {
+                completeSend(index, SendCompletion.SUCCESS);
+            }
+            assertThat(consumer.getPossibleSendToDeadLetterTopicMessages()).isEmpty();
         }
 
         private void completeSend(int index, SendCompletion completion) {
@@ -642,6 +983,13 @@ public class ConsumerDeadLetterProcessingTest {
                 BaseCommand command = decodeAndRelease(invocation.getArgument(0));
                 assertThat(command.getType()).isIn(BaseCommand.Type.SUBSCRIBE, BaseCommand.Type.CLOSE_CONSUMER);
                 return CompletableFuture.<ProducerResponse>completedFuture(null);
+            });
+            when(connection.newAckForReceipt(any(ByteBuf.class), anyLong())).thenAnswer(invocation -> {
+                BaseCommand command = decodeAndRelease(invocation.getArgument(0));
+                assertThat(command.getType()).isEqualTo(BaseCommand.Type.ACK);
+                CompletableFuture<Void> acknowledgment = new CompletableFuture<>();
+                transactionAcknowledgments.add(acknowledgment);
+                return acknowledgment;
             });
             return connection;
         }
