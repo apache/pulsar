@@ -23,11 +23,13 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
@@ -66,6 +68,10 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final TransactionCoordinatorClient tcClient;
 
     private CompletableFuture<Void> opFuture;
+    @Getter(AccessLevel.NONE)
+    private final CompletableFuture<State> terminalFuture = new CompletableFuture<>();
+    @Getter(AccessLevel.NONE)
+    private final Set<CompletableFuture<Void>> commitActions = ConcurrentHashMap.newKeySet();
 
     private volatile long opCount = 0L;
     private static final AtomicLongFieldUpdater<TransactionImpl> OP_COUNT_UPDATE =
@@ -81,7 +87,9 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     @Override
     public void run(Timeout timeout) throws Exception {
-        STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIME_OUT);
+        if (STATE_UPDATE.compareAndSet(this, State.OPEN, State.TIME_OUT)) {
+            completeTerminalState(State.TIME_OUT);
+        }
     }
 
     TransactionImpl(PulsarClientImpl client,
@@ -185,12 +193,39 @@ public class TransactionImpl implements Transaction , TimerTask {
         });
     }
 
+    /**
+     * Registers internal cleanup to run only after the coordinator confirms a successful commit.
+     * Register the action before its acknowledgment operation completes so commit waits for registration.
+     * Abort, timeout and terminal failures discard the action; retryable commit failures keep it pending.
+     */
+    public void registerCommitAction(Runnable action) {
+        CompletableFuture<Void> actionFuture = terminalFuture.thenAccept(terminalState -> {
+            if (terminalState == State.COMMITTED) {
+                action.run();
+            }
+        }).exceptionally(ex -> {
+            log.debug().attr("txnId", txnId).exception(ex).log("Transaction commit cleanup failed");
+            return null;
+        });
+        commitActions.add(actionFuture);
+        actionFuture.whenComplete((ignored, ex) -> commitActions.remove(actionFuture));
+    }
+
+    private CompletableFuture<Void> completeTerminalState(State terminalState) {
+        terminalFuture.complete(terminalState);
+        // Concurrent commit responses must also wait for cleanup already executing on another thread.
+        return FutureUtil.waitForAll(commitActions);
+    }
+
     @Override
     public CompletableFuture<Void> commit() {
         timeout.cancel();
         return checkState(State.OPEN, State.COMMITTING).thenCompose((value) -> {
+            // A timeout racing the state check must not discard cleanup for a later successful commit.
+            if (!STATE_UPDATE.compareAndSet(this, State.OPEN, State.COMMITTING) && state != State.COMMITTING) {
+                return checkState(State.COMMITTING);
+            }
             CompletableFuture<Void> commitFuture = new CompletableFuture<>();
-            this.state = State.COMMITTING;
             opFuture.whenComplete((v, e) -> {
                 if (hasOpsFailed) {
                     checkState(State.COMMITTING).thenCompose(__ -> internalAbort()).whenComplete((vx, ex) ->
@@ -203,11 +238,13 @@ public class TransactionImpl implements Transaction , TimerTask {
                                     if (ex instanceof TransactionNotFoundException
                                             || ex instanceof InvalidTxnStatusException) {
                                         this.state = State.ERROR;
+                                        completeTerminalState(State.ERROR);
                                     }
                                     commitFuture.completeExceptionally(ex);
                                 } else {
                                     this.state = State.COMMITTED;
-                                    commitFuture.complete(vx);
+                                    completeTerminalState(State.COMMITTED)
+                                            .whenComplete((ignored, cleanupError) -> commitFuture.complete(vx));
                                 }
                             });
                 }
@@ -232,10 +269,12 @@ public class TransactionImpl implements Transaction , TimerTask {
                     if (ex instanceof TransactionNotFoundException
                             || ex instanceof InvalidTxnStatusException) {
                         this.state = State.ERROR;
+                        completeTerminalState(State.ERROR);
                     }
                     abortFuture.completeExceptionally(ex);
                 } else {
                     this.state = State.ABORTED;
+                    completeTerminalState(State.ABORTED);
                     abortFuture.complete(null);
                 }
 
