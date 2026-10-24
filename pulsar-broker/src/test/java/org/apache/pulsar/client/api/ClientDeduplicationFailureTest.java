@@ -21,7 +21,6 @@ package org.apache.pulsar.client.api;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
@@ -32,13 +31,10 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -48,7 +44,6 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.TopicType;
@@ -145,141 +140,7 @@ public class ClientDeduplicationFailureTest {
         }
     }
 
-    private static class ProducerThread implements Runnable {
-
-        private volatile boolean isRunning = false;
-        private Thread thread;
-        private Producer<String> producer;
-        private long i = 1;
-        private final AtomicLong atomicLong = new AtomicLong(0);
-        private CompletableFuture<MessageId> lastMessageFuture;
-
-        public ProducerThread(Producer<String> producer) {
-            this.thread = new Thread(this);
-            this.producer = producer;
-        }
-
-        @Override
-        public void run() {
-            while (isRunning) {
-                lastMessageFuture = producer.newMessage().sequenceId(i).value("foo-" + i).sendAsync();
-                lastMessageFuture.thenAccept(messageId -> {
-                    atomicLong.incrementAndGet();
-
-                }).exceptionally(ex -> {
-                    log.info().exception(ex).log("publish exception:");
-                    return null;
-                });
-                i++;
-            }
-            log.info().attr("lastSend", i).log("done Producing! Last send");
-        }
-
-        public void start() {
-            this.isRunning = true;
-            this.thread.start();
-        }
-
-        public void stop() {
-            this.isRunning = false;
-            try {
-                log.info("Waiting for last message to complete");
-                try {
-                    this.lastMessageFuture.get(60, TimeUnit.SECONDS);
-                } catch (TimeoutException e) {
-                    throw new RuntimeException("Last message hasn't completed within timeout!");
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            log.info("Producer Thread stopped!");
-        }
-
-        public long getLastSeqId() {
-            return this.atomicLong.get();
-        }
-    }
-
-    // TODO: Test disabled since it results in a OOME
-    @Test(timeOut = 300000, groups = "quarantine", enabled = false)
-    public void testClientDeduplicationCorrectnessWithFailure() throws Exception {
-        final String namespacePortion = "dedup";
-        final String replNamespace = tenant + "/" + namespacePortion;
-        final String sourceTopic = "persistent://" + replNamespace + "/my-topic1";
-        admin.namespaces().createNamespace(replNamespace);
-        Set<String> clusters = Sets.newHashSet(Lists.newArrayList("use"));
-        admin.namespaces().setNamespaceReplicationClusters(replNamespace, clusters, false);
-        admin.namespaces().setDeduplicationStatus(replNamespace, true);
-        admin.namespaces().setRetention(replNamespace, new RetentionPolicies(-1, -1));
-        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
-                .blockIfQueueFull(true).sendTimeout(0, TimeUnit.SECONDS)
-                .topic(sourceTopic)
-                .producerName("test-producer-1")
-                .create();
-
-        ProducerThread producerThread = new ProducerThread(producer);
-        producerThread.start();
-
-        retryStrategically((test) -> {
-            try {
-                TopicStats topicStats = admin.topics().getStats(sourceTopic);
-                return topicStats.getPublishers().size() == 1 && topicStats.getPublishers().get(0).getProducerName()
-                        .equals("test-producer-1") && topicStats.getStorageSize() > 0;
-            } catch (PulsarAdminException e) {
-                return false;
-            }
-        }, 5, 200);
-
-        TopicStats topicStats = admin.topics().getStats(sourceTopic);
-        assertEquals(topicStats.getPublishers().size(), 1);
-        assertEquals(topicStats.getPublishers().get(0).getProducerName(), "test-producer-1");
-        assertTrue(topicStats.getStorageSize() > 0);
-
-        for (int i = 0; i < 5; i++) {
-            log.info("Stopping BK...");
-            bkEnsemble.stopBK();
-
-            Thread.sleep(1000 + new Random().nextInt(500));
-
-            log.info("Starting BK...");
-            bkEnsemble.startBK();
-        }
-
-        producerThread.stop();
-
-        // send last message
-        producer.newMessage().sequenceId(producerThread.getLastSeqId() + 1).value("end").send();
-        producer.close();
-
-        Reader<String> reader = pulsarClient.newReader(Schema.STRING).startMessageId(MessageId.earliest)
-                .topic(sourceTopic).create();
-        Message<String> prevMessage = null;
-        Message<String> message = null;
-        int count = 0;
-        while (true) {
-            message = reader.readNext(5, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-
-            if (message.getValue().equals("end")) {
-                log.info().attr("idReceived", prevMessage.getSequenceId()).log("Last seq Id received");
-                break;
-            }
-            if (prevMessage == null) {
-                assertEquals(message.getSequenceId(), 1);
-            } else {
-                assertEquals(message.getSequenceId(), prevMessage.getSequenceId() + 1);
-            }
-            prevMessage = message;
-            count++;
-        }
-
-        log.info().attr("messagesRead", count).log("# of messages read");
-
-        assertNotNull(prevMessage);
-        assertEquals(prevMessage.getSequenceId(), producerThread.getLastSeqId());
-    }
+    // The bounded correctness regression lives in ClientDeduplicationRecoveryTest, outside quarantine.
     @SuppressWarnings("deprecation")
 
     @Test(timeOut = 300000)

@@ -94,6 +94,13 @@ jobs:
       changed_tests: ${{ steps.changes.outputs.tests_files }}
       jdk_major_version: ${{ steps.jdk_major_version.outputs.jdk_major_version }}
       java_non_tests: ${{ steps.changes.outputs.java_non_tests }}
+      performance_network: >-
+        ${{ steps.changes.outputs.performance_network == 'true'
+        || github.event_name == 'workflow_dispatch'
+        || (github.event_name == 'schedule' && github.event.schedule == '0 6 * * *') }}
+      performance_faults: >-
+        ${{ github.event_name == 'workflow_dispatch'
+        || (github.event_name == 'schedule' && github.event.schedule == '0 6 * * *') }}
       netty_leak_detection: ${{ steps.netty_leak_detection.outputs.netty_leak_detection }}
     steps:
       - name: Cancel scheduled jobs in forks by default
@@ -494,6 +501,128 @@ jobs:
         continue-on-error: true
         with:
           action: wait
+
+  performance-network-check:
+    name: CI - Performance - Network injection
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: ['preconditions', 'build-and-license-check']
+    # Also exercise injection nightly and on manual runs, even without a matching PR change.
+    if: ${{ needs.preconditions.outputs.performance_network == 'true' }}
+    env:
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
+        with:
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+
+      - name: Restore build outputs from build job
+        uses: actions/download-artifact@v8
+        with:
+          name: gradle-build-outputs
+
+      - name: Extract build outputs
+        run: tar xf gradle-build-outputs.tar
+
+      - name: Check real network injection and cleanup
+        run: >-
+          ./gradlew :tests:performance:launcher:networkCheck
+          --tests 'org.apache.pulsar.tests.performance.launcher.NetworkImpairmentsCheck'
+          -PtestRetryCount=0 -PtestMaxParallelForks=1
+
+      - name: Preserve network-check failure artifacts
+        if: ${{ !success() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: Performance-network-check-failure
+          path: |
+            tests/performance/launcher/build/network-check/
+            tests/performance/launcher/build/reports/tests/networkCheck/
+            tests/performance/launcher/build/test-results/networkCheck/
+            /tmp/*.hprof
+            **/hs_err_*.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  performance-fault-tests:
+    name: CI - Performance - ${{ matrix.fault }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    needs: ['preconditions', 'pulsar-java-test-image']
+    # One nightly suite (JDK 21), not both daily schedules. Manual runs can reproduce it in forks.
+    if: ${{ needs.preconditions.outputs.performance_faults == 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        fault: [broker-isolation, metadata-takeover, bookie-partition, silent-client-disconnect, geo-partition]
+    env:
+      CI_JDK_MAJOR_VERSION: ${{ needs.preconditions.outputs.jdk_major_version }}
+    steps:
+      - name: checkout
+        uses: actions/checkout@v6
+
+      - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: ${{ env.JDK_DISTRIBUTION }}
+          java-version: ${{ env.CI_JDK_MAJOR_VERSION }}
+
+      - name: Setup Gradle
+        uses: ./.github/actions/setup-gradle
+        with:
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+
+      - name: Restore build outputs from build job
+        uses: actions/download-artifact@v8
+        with:
+          name: gradle-build-outputs
+
+      - name: Extract build outputs
+        run: tar xf gradle-build-outputs.tar
+
+      - name: Download docker image
+        uses: actions/download-artifact@v8
+        with:
+          name: java-test-image
+          path: /tmp
+
+      - name: Load docker image
+        run: docker load -i /tmp/java-test-image.tar.gz
+
+      - name: Run fault scenario
+        # The exact checkout's image was built and loaded above; do not rebuild it on the test VM.
+        run: >-
+          ./gradlew :tests:performance:launcher:run
+          -x :tests:java-test-image:dockerBuild
+          -Pperformance.keepLauncherLog -Pperformance.metrics=false -Pperformance.perfStat=false
+          --args='--scenario tests/performance/scenarios/iot-telemetry-ci.yaml
+          --extends network/${{ matrix.fault }} --output build/performance/${{ matrix.fault }}'
+
+      - name: Preserve fault-run artifacts
+        # A failed run writes no HTML report: keep the entire directory, including partial outputs.
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: Performance-${{ matrix.fault }}
+          path: |
+            build/performance/
+            build/container-logs/
+            tests/integration/build/container-logs/
+            **/build/reports/
+            /tmp/*.hprof
+            **/hs_err_*.log
+          retention-days: 7
+          if-no-files-found: ignore
 
   integration-tests:
     name: CI - Integration - ${{ matrix.name }}
@@ -986,6 +1115,8 @@ jobs:
       'preconditions',
       'unit-tests',
       'integration-tests',
+      'performance-network-check',
+      'performance-fault-tests',
       'system-tests',
       'macos-build',
       'codeql'
@@ -998,6 +1129,8 @@ jobs:
                    "${{ needs.preconditions.result }}" == "success" \
                 && "${{ needs.unit-tests.result }}" == "success" \
                 && "${{ needs.integration-tests.result }}" == "success" \
+                && "${{ needs.performance-network-check.result }}" == "${{ needs.preconditions.outputs.performance_network == 'true' && 'success' || 'skipped' }}" \
+                && "${{ needs.performance-fault-tests.result }}" == "${{ needs.preconditions.outputs.performance_faults == 'true' && 'success' || 'skipped' }}" \
                 && "${{ needs.system-tests.result }}" == "success" \
                 && "${{ needs.macos-build.result }}" == "success" \
                 && ( "${{ needs.codeql.result }}" == "success" || "${{ needs.codeql.result }}" == "skipped" ) \
