@@ -188,6 +188,39 @@ public class ClientBuilderImplTest {
         assertAuthWithSecret(buildClientAndGetAuth(builder), "pass1");
     }
 
+    @Test
+    public void testLoadConfKeepsAuthenticationAcrossUnrelatedProps() throws Exception {
+        MockAuthenticationSecret auth = new MockAuthenticationSecret();
+        auth.configure(secretAuthParams("pass2"));
+        // The instance replaces the authentication created from the plugin class and params, and stays across
+        // repeated loadConf calls that don't change those properties
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParams("pass1"))
+                .authentication(auth)
+                .loadConf(Collections.singletonMap("operationTimeoutMs", 5000))
+                .loadConf(Collections.singletonMap("connectionTimeoutMs", 5000));
+        assertThat(buildClientAndGetAuth(builder)).isSameAs(auth);
+    }
+
+    @Test
+    public void testLoadConfClearsAuthenticationWhenPropsCleared() throws Exception {
+        Map<String, Object> confProps = new HashMap<>();
+        confProps.put(AUTH_PLUGIN_CLASS_PROP, "");
+        confProps.put(AUTH_PARAMS_PROP, "");
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParams("pass1"))
+                .loadConf(confProps);
+        assertThatAuthIsNotSet(buildClientAndGetAuth(builder));
+    }
+
+    @Test
+    public void testLoadConfRebuildsAuthenticationWhenParamsChange() throws Exception {
+        ClientBuilder builder = PulsarClient.builder().serviceUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParams("pass1"))
+                .loadConf(Collections.singletonMap(AUTH_PARAMS_PROP, secretAuthParams("pass2")));
+        assertAuthWithSecret(buildClientAndGetAuth(builder), "pass2");
+    }
+
     private Authentication buildClientAndGetAuth(ClientBuilder builder) throws PulsarClientException {
         try (PulsarClient client = builder.build()) {
             return ((PulsarClientImpl) client).conf.getAuthentication();

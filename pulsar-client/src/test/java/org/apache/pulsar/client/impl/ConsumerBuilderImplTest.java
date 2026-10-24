@@ -19,6 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -65,6 +68,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -543,6 +547,42 @@ public class ConsumerBuilderImplTest {
         assertSame(configurationData.getBatchReceivePolicy(), original.getBatchReceivePolicy());
         assertSame(configurationData.getKeySharedPolicy(), original.getKeySharedPolicy());
         assertSame(configurationData.getPayloadProcessor(), original.getPayloadProcessor());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testLoadConfKeepsDeadLetterPolicyOfClonesIndependent() throws Exception {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        when(client.getCnxPool()).thenReturn(mock(ConnectionPool.class));
+        when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
+        when(client.getPartitionedTopicMetadata(anyString(), anyBoolean(), anyBoolean())).thenReturn(
+                CompletableFuture.failedFuture(new PulsarClientException.NotFoundException("not found")));
+        List<ConsumerConfigurationData<byte[]>> subscribed = new ArrayList<>();
+        when(client.subscribeAsync(any(ConsumerConfigurationData.class), any(), any())).thenAnswer(invocation -> {
+            subscribed.add(invocation.getArgument(0));
+            return CompletableFuture.completedFuture(mock(Consumer.class));
+        });
+
+        ConsumerBuilder<byte[]> template = new ConsumerBuilderImpl<>(client, Schema.BYTES)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(3).build());
+        template.clone()
+                .loadConf(Map.of("topicNames", List.of("persistent://public/default/topic-a"),
+                        "subscriptionName", "sub-a"))
+                .subscribeAsync().get();
+        template.clone()
+                .loadConf(Map.of("topicNames", List.of("persistent://public/default/topic-b"),
+                        "subscriptionName", "sub-b"))
+                .subscribeAsync().get();
+
+        assertEquals(subscribed.size(), 2);
+        assertEquals(subscribed.get(0).getDeadLetterPolicy().getDeadLetterTopic(),
+                "persistent://public/default/topic-a-sub-a-DLQ");
+        assertEquals(subscribed.get(1).getDeadLetterPolicy().getDeadLetterTopic(),
+                "persistent://public/default/topic-b-sub-b-DLQ");
+        assertEquals(subscribed.get(1).getDeadLetterPolicy().getRetryLetterTopic(),
+                "persistent://public/default/topic-b-sub-b-RETRY");
+        assertNull(((ConsumerBuilderImpl<byte[]>) template).getConf().getDeadLetterPolicy().getDeadLetterTopic());
     }
 
     @Test

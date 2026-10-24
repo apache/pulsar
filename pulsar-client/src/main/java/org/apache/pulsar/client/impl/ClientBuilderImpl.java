@@ -98,7 +98,11 @@ public class ClientBuilderImpl implements ClientBuilder {
         // PIP-478: reject a stale, removed PIP-337 sslFactoryPlugin key with an actionable message.
         ConfigurationDataUtils.rejectRemovedPip337TlsFactoryKeys(config);
         conf = ConfigurationDataUtils.updateData(config, conf.clone());
-        setAuthenticationFromPropsIfAvailable(conf);
+        // The authentication set on the builder is kept, unless the map changes the properties it is created from
+        if (ConfigurationDataUtils.containsAuthenticationKeys(config)) {
+            conf.setAuthentication(null);
+            setAuthenticationFromPropsIfAvailable(conf);
+        }
         return this;
     }
 
