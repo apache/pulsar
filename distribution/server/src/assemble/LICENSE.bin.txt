@@ -521,7 +521,7 @@ The Apache Software License, Version 2.0
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RoaringBitmap
-    - org.roaringbitmap-RoaringBitmap-1.6.20.jar
+    - org.roaringbitmap-RoaringBitmap-1.6.25.jar
   * OpenTelemetry
     - io.opentelemetry-opentelemetry-api-1.66.0.jar
     - io.opentelemetry-opentelemetry-api-incubator-1.66.0-alpha.jar
