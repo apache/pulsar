@@ -1132,13 +1132,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
             acquireSLANamespace();
 
-            // start function worker service if necessary
-            this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
-
             // start packages management service if necessary
             if (config.isEnablePackagesManagement()) {
                 this.startPackagesManagementService();
             }
+
+            // start function worker service if necessary
+            this.startWorkerService(brokerService.getAuthenticationService(), brokerService.getAuthorizationService());
 
             // Start the task to publish resource usage, if necessary
             this.resourceUsageTransportManager = DISABLE_RESOURCE_USAGE_TRANSPORT_MANAGER;
@@ -2251,12 +2251,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                                     AuthorizationService authorizationService)
             throws Exception {
         if (functionWorkerService.isPresent()) {
-            if (workerConfig.isUseTls() || brokerServiceUrl == null) {
+            // Like the broker's own clients, honor brokerClientTlsEnabled so that a broker with both plaintext
+            // and TLS listeners doesn't make the worker and its instances connect over plaintext.
+            boolean useTls = workerConfig.isUseTls() || config.isBrokerClientTlsEnabled();
+            if ((useTls && brokerServiceUrlTls != null) || brokerServiceUrl == null) {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrlTls);
             } else {
                 workerConfig.setPulsarServiceUrl(brokerServiceUrl);
             }
-            if (workerConfig.isUseTls() || webServiceAddress == null) {
+            if ((useTls && webServiceAddressTls != null) || webServiceAddress == null) {
                 workerConfig.setPulsarWebServiceUrl(webServiceAddressTls);
                 workerConfig.setFunctionWebServiceUrl(webServiceAddressTls);
             } else {

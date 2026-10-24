@@ -204,6 +204,8 @@ public class MessageDeduplication {
                             log.error()
                                     .exception(exception)
                                     .log("Deleted deduplication cursor error");
+                            // Leave Removing so the next checkStatus() retries the delete
+                            status = Status.Failed;
                         }
                     }
                 }, null);
