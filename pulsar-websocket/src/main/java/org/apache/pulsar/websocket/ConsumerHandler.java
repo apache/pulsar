@@ -31,7 +31,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.CustomLog;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSubscription;
 import org.apache.pulsar.client.api.Consumer;
@@ -88,8 +89,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private int maxPendingMessages = 0;
     private final AtomicInteger pendingMessages = new AtomicInteger();
-    // Ids delivered and not yet acked or nacked; only these release a slot when not in pull mode
-    private final Set<String> pendingMessageIds = ConcurrentHashMap.newKeySet();
+    // Deliveries not yet acked or nacked, counted per id since distinct messages can share an id (e.g. on
+    // non-persistent topics); only these release a slot when not in pull mode
+    private final Map<String, Integer> pendingDeliveries = new ConcurrentHashMap<>();
     private final boolean pullMode;
 
     private final LongAdder numMsgsDelivered;
@@ -215,8 +217,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
             final String messageId = dm.messageId;
             messageIdCache.put(messageId, msg.getMessageId());
-            // A redelivered id that is still pending keeps its slot instead of taking another one
-            final boolean newPending = pullMode || pendingMessageIds.add(messageId);
+            if (!pullMode) {
+                pendingDeliveries.merge(messageId, 1, Integer::sum);
+            }
 
             try {
                 getSession()
@@ -235,7 +238,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                                             .attr("msg", getSession().getRemoteSocketAddress())
                                             .attr("message", th.getMessage())
                                             .log("/ ] Failed to deliver msg to");
-                                    if (pullMode || pendingMessageIds.remove(messageId)) {
+                                    if (pullMode || releasePendingDelivery(messageId)) {
                                         pendingMessages.decrementAndGet();
                                     }
                                     // schedule receive as one of the delivery failed
@@ -245,7 +248,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 close(WebSocketError.FailedToSerializeToJSON);
             }
 
-            int pending = newPending ? pendingMessages.incrementAndGet() : pendingMessages.get();
+            int pending = pendingMessages.incrementAndGet();
             if (pending < maxPendingMessages) {
                 // Start next read in a separate thread to avoid recursion
                 service.getExecutor().execute(this::receiveMessage);
@@ -346,9 +349,18 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         consumer.unsubscribe();
     }
 
+    private boolean releasePendingDelivery(String messageId) {
+        MutableBoolean released = new MutableBoolean();
+        pendingDeliveries.computeIfPresent(messageId, (id, count) -> {
+            released.setTrue();
+            return count > 1 ? count - 1 : null;
+        });
+        return released.booleanValue();
+    }
+
     private void checkResumeReceive(String messageId) {
         // A repeated or unknown ack/nack must not release a slot, or delivery would stop being bounded
-        if (!this.pullMode && pendingMessageIds.remove(messageId)) {
+        if (!this.pullMode && releasePendingDelivery(messageId)) {
             int pending = pendingMessages.getAndDecrement();
             if (pending >= maxPendingMessages) {
                 // Resume delivery

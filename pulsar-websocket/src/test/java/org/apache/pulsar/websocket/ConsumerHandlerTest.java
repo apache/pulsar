@@ -274,6 +274,36 @@ public class ConsumerHandlerTest {
         verify(fixture.consumer, times(3)).receiveAsync();
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testDistinctMessagesSharingIdEachTakeASlot() throws Exception {
+        Fixture fixture = new Fixture(false);
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(executor).execute(any(Runnable.class));
+        when(fixture.service.getExecutor()).thenReturn(executor);
+        // Non-persistent topics deliver every non-batched message with the same id
+        when(fixture.consumer.receiveAsync()).thenAnswer(invocation -> {
+            Message<byte[]> msg = mock(Message.class);
+            when(msg.getMessageId()).thenReturn(new MessageIdImpl(0, 0, -1));
+            when(msg.getData()).thenReturn(new byte[0]);
+            return CompletableFuture.completedFuture(msg);
+        });
+        Map<String, String[]> params = new HashMap<>();
+        params.put("receiverQueueSize", new String[] {"2"});
+        ConsumerHandler handler = fixture.create(params, false);
+
+        handler.onWebSocketOpen(mock(Session.class));
+        verify(fixture.consumer, times(2)).receiveAsync();
+
+        String nack = "{\"type\":\"negativeAcknowledge\",\"messageId\":\""
+                + Base64.getEncoder().encodeToString(new MessageIdImpl(0, 0, -1).toByteArray()) + "\"}";
+        handler.onWebSocketText(nack);
+        verify(fixture.consumer, times(3)).receiveAsync();
+    }
+
     private static String messageId(long entryId) {
         return Base64.getEncoder().encodeToString(new MessageIdImpl(1, entryId, -1).toByteArray());
     }
