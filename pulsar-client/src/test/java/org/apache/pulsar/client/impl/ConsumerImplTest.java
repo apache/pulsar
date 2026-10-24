@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -43,10 +44,12 @@ import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
@@ -581,6 +584,88 @@ public class ConsumerImplTest {
         consumer.connectionOpened(clientCnx).join();
 
         verify(connectionPool).releaseConnection(clientCnx);
+    }
+
+    /**
+     * The broker can close the consumer while a subscribe attempt is pending, and the consumer then subscribes again
+     * on the same pooled connection. When the superseded attempt times out, the consumer must stay registered on the
+     * connection, and must neither close its consumer on the broker nor reconnect.
+     */
+    @Test
+    public void testSupersededSubscribeAttemptOnSameConnectionIsIgnored() {
+        ConsumerImpl<byte[]> subscriber = ConsumerImpl.newConsumerImpl(consumer.client,
+                "persistent://tenant/ns1/my-topic", consumerConf, executorProvider, -1, false,
+                new CompletableFuture<>(), null, Schema.BYTES, null, true);
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        CompletableFuture<ProducerResponse> firstSubscribe = new CompletableFuture<>();
+        AtomicInteger requests = new AtomicInteger();
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return requests.getAndIncrement() == 0 ? firstSubscribe : CompletableFuture.completedFuture(null);
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+
+        CompletableFuture<Void> firstAttempt = subscriber.connectionOpened(cnx);
+        subscriber.connectionClosed(cnx, Optional.of(0L), Optional.empty());
+        subscriber.connectionOpened(cnx).join();
+        assertThat(subscriber.isConnected()).isTrue();
+
+        firstSubscribe.completeExceptionally(new PulsarClientException.TimeoutException("subscribe timed out"));
+
+        assertThat(firstAttempt).as("a failed attempt makes the connection handler reconnect")
+                .isNotCompletedExceptionally();
+        verify(cnx, never()).removeConsumer(anyLong());
+        // Only the two subscribes: no close consumer request
+        verify(cnx, times(2)).sendRequestWithId(any(), anyLong());
+        assertThat(subscriber.isConnected()).isTrue();
+    }
+
+    /**
+     * A subscribe timeout is handled on another thread than the connection's, so the broker can close the consumer
+     * and a newer attempt can subscribe again on the same connection while the timeout is being handled. The
+     * timeout's side effects must all happen before the newer attempt subscribes.
+     */
+    @Test(timeOut = 30000)
+    public void testSubscribeTimeoutIsHandledBeforeNewerAttempt() throws Exception {
+        ConsumerImpl<byte[]> subscriber = ConsumerImpl.newConsumerImpl(consumer.client, PERSISTENT_TOPIC,
+                consumerConf, executorProvider, -1, false, new CompletableFuture<>(), null, Schema.BYTES, null, true);
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        CompletableFuture<ProducerResponse> firstSubscribe = new CompletableFuture<>();
+        List<BaseCommand.Type> requests = new CopyOnWriteArrayList<>();
+        doAnswer(invocation -> {
+            ByteBuf cmd = invocation.getArgument(0);
+            requests.add(commandType(cmd));
+            cmd.release();
+            return requests.size() == 1 ? firstSubscribe : CompletableFuture.completedFuture(null);
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        Set<Long> registered = ConcurrentHashMap.newKeySet();
+        doAnswer(invocation -> registered.add(invocation.getArgument(0))).when(cnx)
+                .registerConsumer(anyLong(), any());
+        CountDownLatch timeoutPaused = new CountDownLatch(1);
+        CountDownLatch resumeTimeout = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            timeoutPaused.countDown();
+            resumeTimeout.await();
+            return registered.remove(invocation.getArgument(0));
+        }).when(cnx).removeConsumer(anyLong());
+
+        subscriber.connectionOpened(cnx);
+        Thread timeout = new Thread(() -> firstSubscribe.completeExceptionally(
+                new PulsarClientException.TimeoutException("subscribe timed out")));
+        timeout.start();
+        assertThat(timeoutPaused.await(10, TimeUnit.SECONDS)).isTrue();
+        // While the timeout is being handled, the broker closes the consumer, and a newer attempt starts
+        subscriber.connectionClosed(cnx, Optional.of(0L), Optional.empty());
+        Thread newerAttempt = new Thread(() -> subscriber.connectionOpened(cnx).join());
+        newerAttempt.start();
+        Awaitility.await().until(() -> newerAttempt.getState() == Thread.State.BLOCKED || requests.size() > 1);
+        resumeTimeout.countDown();
+        timeout.join();
+        newerAttempt.join();
+
+        assertThat(requests).containsExactly(BaseCommand.Type.SUBSCRIBE, BaseCommand.Type.CLOSE_CONSUMER,
+                BaseCommand.Type.SUBSCRIBE);
+        assertThat(registered).as("the newer attempt's registration").containsExactly(subscriber.consumerId);
+        assertThat(subscriber.isConnected()).isTrue();
     }
 
     @Test
