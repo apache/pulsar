@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -112,7 +113,13 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
     private final MaxReadPositionCallBack maxReadPositionCallBack;
     private Future<?> recoveryReplayTask;
     /** if the first snapshot is in progress, it will pending following publishing tasks. **/
-    private final LinkedList<PendingAppendingTxnBufferTask> pendingAppendingTxnBufferTasks = new LinkedList<>();
+    private final LinkedList<PendingAppendTask> pendingAppendingTxnBufferTasks = new LinkedList<>();
+    /**
+     * Set while tasks are queued in {@link #pendingAppendingTxnBufferTasks}, and until a non-transactional publish
+     * finds the queue empty, both under its lock. Volatile so that a non-transactional publish tells without the lock
+     * that no task is queued.
+     */
+    private volatile boolean appendsQueued;
 
     private static AbortedTxnProcessor createSnapshotProcessor(PersistentTopic topic) {
         return topic.getBrokerService().getPulsar().getConfiguration().isTransactionBufferSegmentedSnapshotEnabled()
@@ -295,12 +302,46 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
         return this.txnCommittedCounter.sum();
     }
 
-    private record PendingAppendingTxnBufferTask(TxnID txnId, long sequenceId, ByteBuf buffer,
-                                         CompletableFuture<Position> pendingPublishFuture) {
+    /**
+     * A publish held back in {@link #pendingAppendingTxnBufferTasks}.
+     */
+    private sealed interface PendingAppendTask permits PendingAppendingTxnBufferTask, PendingAddEntryTask {
+        void fail(Throwable throwable);
+    }
 
-        void fail(Throwable throwable) {
+    private record PendingAppendingTxnBufferTask(TxnID txnId, long sequenceId, ByteBuf buffer,
+                                         CompletableFuture<Position> pendingPublishFuture)
+            implements PendingAppendTask {
+
+        @Override
+        public void fail(Throwable throwable) {
             buffer.release();
             pendingPublishFuture.completeExceptionally(throwable);
+        }
+    }
+
+    /**
+     * The entry of a non-transactional message, published after the transactional messages held back before it.
+     */
+    private record PendingAddEntryTask(ManagedLedger ledger, ByteBuf buffer, int numberOfMessages,
+                                       AsyncCallbacks.AddEntryCallback callback, Object ctx)
+            implements PendingAppendTask {
+
+        void addEntry() {
+            try {
+                ledger.asyncAddEntry(buffer, numberOfMessages, callback, ctx);
+            } catch (RuntimeException e) {
+                // Only this publish fails: the ones behind it still go to the ledger.
+                callback.addFailed(ManagedLedgerException.getManagedLedgerException(e), ctx);
+            } finally {
+                buffer.release();
+            }
+        }
+
+        @Override
+        public void fail(Throwable throwable) {
+            buffer.release();
+            callback.addFailed(ManagedLedgerException.getManagedLedgerException(throwable), ctx);
         }
     }
 
@@ -332,10 +373,12 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             CompletableFuture<Position> res = new CompletableFuture<>();
             buffer.retain();
             pendingAppendingTxnBufferTasks.offer(new PendingAppendingTxnBufferTask(txnId, sequenceId, buffer, res));
+            // The non-transactional publishes that follow queue behind it.
+            appendsQueued = true;
 
             final java.util.function.Consumer<Throwable> failPendingTasks = throwable -> {
                 synchronized (pendingAppendingTxnBufferTasks) {
-                    PendingAppendingTxnBufferTask pendingTask = null;
+                    PendingAppendTask pendingTask = null;
                     while ((pendingTask = pendingAppendingTxnBufferTasks.poll()) != null) {
                         pendingTask.fail(throwable);
                     }
@@ -343,7 +386,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             };
 
             final Runnable flushPendingTasks = () -> {
-                PendingAppendingTxnBufferTask pendingTask = null;
+                PendingAppendTask pendingTask = null;
                 try {
                     synchronized (pendingAppendingTxnBufferTasks) {
                         if (checkIfClosed()) {
@@ -352,11 +395,16 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                             return;
                         }
                         while ((pendingTask = pendingAppendingTxnBufferTasks.poll()) != null) {
-                            final ByteBuf data = pendingTask.buffer;
+                            if (pendingTask instanceof PendingAddEntryTask addEntryTask) {
+                                addEntryTask.addEntry();
+                                continue;
+                            }
+                            final PendingAppendingTxnBufferTask txnTask = (PendingAppendingTxnBufferTask) pendingTask;
+                            final ByteBuf data = txnTask.buffer;
                             final CompletableFuture<Position> pendingFuture =
-                                    pendingTask.pendingPublishFuture;
-                            internalAppendBufferToTxn(pendingTask.txnId, pendingTask.buffer,
-                                    pendingTask.sequenceId)
+                                    txnTask.pendingPublishFuture;
+                            internalAppendBufferToTxn(txnTask.txnId, txnTask.buffer,
+                                    txnTask.sequenceId)
                                     .whenComplete((positionAdded, ex3) -> {
                                         data.release();
                                         if (ex3 != null) {
@@ -415,6 +463,26 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
             });
             return res;
         }
+    }
+
+    @Override
+    public void addEntryInPublishOrder(ManagedLedger ledger, ByteBuf headersAndPayload, int numberOfMessages,
+                                       AsyncCallbacks.AddEntryCallback callback, Object ctx) {
+        if (appendsQueued) {
+            synchronized (pendingAppendingTxnBufferTasks) {
+                if (!pendingAppendingTxnBufferTasks.isEmpty()) {
+                    // Transactional messages published before this one are held back, while the first snapshot is
+                    // taken or the buffer recovers: the entry goes to the ledger after theirs, or fails with them.
+                    headersAndPayload.retain();
+                    pendingAppendingTxnBufferTasks.offer(new PendingAddEntryTask(ledger, headersAndPayload,
+                            numberOfMessages, callback, ctx));
+                    return;
+                }
+                // The tasks queued before were all handed to the ledger or failed.
+                appendsQueued = false;
+            }
+        }
+        ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
     }
 
     private CompletableFuture<Void> takeFirstSnapshot() {
@@ -757,7 +825,7 @@ public class TopicTransactionBuffer extends TopicTransactionBufferState implemen
                     new BrokerServiceException.ServiceUnitNotReadyException("Topic is closed");
             getTransactionBufferFuture().completeExceptionally(closeException);
             synchronized (pendingAppendingTxnBufferTasks) {
-                PendingAppendingTxnBufferTask pendingTask = null;
+                PendingAppendTask pendingTask = null;
                 while ((pendingTask = pendingAppendingTxnBufferTasks.poll()) != null) {
                     pendingTask.fail(closeException);
                 }
