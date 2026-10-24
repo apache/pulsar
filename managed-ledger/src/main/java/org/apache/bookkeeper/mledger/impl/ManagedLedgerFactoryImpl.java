@@ -1775,7 +1775,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     .withDigestType(digestType.toApiDigestType())
                     .withPassword(password)
                     .withLoggerContext(log.with().attr("cursor", cursorName).build())
-                    .execute(), this::closeBacklogRecoveryHandle);
+                    .execute(), handle -> ManagedLedgerImpl.closeReadHandleAsync(handle, log));
             // As with BookKeeperAdmin's iterator, recheck LAC after every read: an open cursor ledger
             // can reveal a newer LAC while reading entries.
             for (long entryId = 0; entryId <= readHandle.getLastAddConfirmed(); entryId++) {
@@ -1806,24 +1806,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             lastAckedMessagePosition = null;
         } finally {
             if (readHandle != null) {
-                closeBacklogRecoveryHandle(readHandle);
+                ManagedLedgerImpl.closeReadHandleAsync(readHandle, log);
             }
         }
         return lastAckedMessagePosition;
-    }
-
-    private void closeBacklogRecoveryHandle(ReadHandle handle) {
-        CompletableFuture<Void> closing;
-        try {
-            closing = handle.closeAsync();
-        } catch (Exception e) {
-            closing = CompletableFuture.failedFuture(e);
-        }
-        closing.exceptionally(error -> {
-            log.warn().attr("ledgerId", handle.getId())
-                    .exception(error).log("Unable to close cursor read handle");
-            return null;
-        });
     }
 
     private static <T> T awaitOrClose(CompletableFuture<T> future, Consumer<T> close)
