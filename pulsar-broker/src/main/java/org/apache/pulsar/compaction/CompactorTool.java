@@ -20,20 +20,29 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
+import org.apache.pulsar.broker.resources.LocalPoliciesResources;
+import org.apache.pulsar.broker.storage.BookKeeperClientContext;
+import org.apache.pulsar.broker.storage.BookKeeperPlacementPolicyConfigResolver;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -42,6 +51,10 @@ import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.internal.PropertiesUtils;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig.ParseEnsemblePlacementPolicyConfigException;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.apache.pulsar.docs.tools.CmdGenerateDocs;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -144,6 +157,45 @@ public class CompactorTool {
         return clientBuilder.build();
     }
 
+    @VisibleForTesting
+    static CompletableFuture<BookKeeperClientContext> createBookKeeperClientContext(
+            ServiceConfiguration brokerConfig,
+            BookKeeperClientFactory bkClientFactory,
+            MetadataStoreExtended store,
+            EventLoopGroup eventLoopGroup,
+            TopicName topicName,
+            Optional<LocalPolicies> localPolicies) {
+        return CompletableFuture.completedFuture(localPolicies)
+                .thenApply(policies -> BookKeeperPlacementPolicyConfigResolver.resolve(
+                        brokerConfig, topicName, policies))
+                .thenCompose(placementPolicy -> {
+                    Optional<Class<? extends EnsemblePlacementPolicy>> policyClass = placementPolicy
+                            .map(EnsemblePlacementPolicyConfig::getPolicyClass)
+                            .map(clazz -> clazz.asSubclass(EnsemblePlacementPolicy.class));
+                    Map<String, Object> policyProperties = placementPolicy
+                            .map(EnsemblePlacementPolicyConfig::getProperties)
+                            .orElse(null);
+                    return bkClientFactory.create(
+                                    brokerConfig, store, eventLoopGroup, policyClass, policyProperties)
+                            .thenApply(bookKeeper -> {
+                                try {
+                                    return BookKeeperClientContext.create(
+                                            bookKeeper, placementPolicy.orElse(null));
+                                } catch (ParseEnsemblePlacementPolicyConfigException e) {
+                                    try {
+                                        bookKeeper.close();
+                                    } catch (InterruptedException closeException) {
+                                        Thread.currentThread().interrupt();
+                                        e.addSuppressed(closeException);
+                                    } catch (BKException closeException) {
+                                        e.addSuppressed(closeException);
+                                    }
+                                    throw new CompletionException(e);
+                                }
+                            });
+                });
+    }
+
     public static void main(String[] args) throws Exception {
         Arguments arguments = new Arguments();
         CommandLine commander = new CommandLine(arguments);
@@ -180,6 +232,7 @@ public class CompactorTool {
                     """, filepath);
             throw new IllegalArgumentException(message);
         }
+        final TopicName topicName = TopicName.get(arguments.topic);
 
         @Cleanup(value = "shutdownNow")
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
@@ -199,8 +252,15 @@ public class CompactorTool {
         EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(1, false,
                 new DefaultThreadFactory("compactor-io"));
 
+        LocalPoliciesResources localPoliciesResources = new LocalPoliciesResources(
+                store, brokerConfig.getMetadataStoreOperationTimeoutSeconds());
+        Optional<LocalPolicies> localPolicies =
+                localPoliciesResources.getLocalPolicies(topicName.getNamespaceObject());
+        BookKeeperClientContext bookKeeperClientContext = createBookKeeperClientContext(
+                brokerConfig, bkClientFactory, store, eventLoopGroup, topicName, localPolicies).get();
+
         @Cleanup
-        BookKeeper bk = bkClientFactory.create(brokerConfig, store, eventLoopGroup, Optional.empty(), null).get();
+        BookKeeper bk = bookKeeperClientContext.getBookKeeper();
 
         @Cleanup
         PulsarClient pulsar = createClient(brokerConfig);
@@ -209,10 +269,12 @@ public class CompactorTool {
 
         switch (arguments.compactorType) {
             case PUBLISHING:
-                compactor = new PublishingOrderCompactor(brokerConfig, pulsar, bk, scheduler);
+                compactor = new PublishingOrderCompactor(brokerConfig, pulsar, bk, scheduler,
+                        ignored -> CompletableFuture.completedFuture(bookKeeperClientContext));
                 break;
             case EVENT_TIME:
-                compactor = new EventTimeOrderCompactor(brokerConfig, pulsar, bk, scheduler);
+                compactor = new EventTimeOrderCompactor(brokerConfig, pulsar, bk, scheduler,
+                        ignored -> CompletableFuture.completedFuture(bookKeeperClientContext));
                 break;
         }
 
