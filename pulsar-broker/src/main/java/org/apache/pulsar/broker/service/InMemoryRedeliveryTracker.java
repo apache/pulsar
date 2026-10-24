@@ -23,18 +23,17 @@ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import java.util.List;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.StampedLock;
 import org.apache.bookkeeper.mledger.Position;
 
 public class InMemoryRedeliveryTracker implements RedeliveryTracker {
     // ledgerId -> entryId -> count
     private Long2ObjectMap<Long2IntMap> trackerCache = new Long2ObjectOpenHashMap<>();
-    private final ReadWriteLock rwLock = new ReentrantReadWriteLock();
+    private final StampedLock rwLock = new StampedLock();
 
     @Override
     public int incrementAndGetRedeliveryCount(Position position) {
-        rwLock.writeLock().lock();
+        long stamp = rwLock.writeLock();
         int newCount;
         try {
             Long2IntMap entryMap = trackerCache.computeIfAbsent(position.getLedgerId(),
@@ -42,25 +41,25 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
             newCount = entryMap.getOrDefault(position.getEntryId(), 0) + 1;
             entryMap.put(position.getEntryId(), newCount);
         } finally {
-            rwLock.writeLock().unlock();
+            rwLock.unlockWrite(stamp);
         }
         return newCount;
     }
 
     @Override
     public int getRedeliveryCount(long ledgerId, long entryId) {
-        rwLock.readLock().lock();
+        long stamp = rwLock.readLock();
         try {
             Long2IntMap entryMap = trackerCache.get(ledgerId);
             return entryMap != null ? entryMap.get(entryId) : 0;
         } finally {
-            rwLock.readLock().unlock();
+            rwLock.unlockRead(stamp);
         }
     }
 
     @Override
     public void remove(Position position) {
-        rwLock.writeLock().lock();
+        long stamp = rwLock.writeLock();
         try {
             Long2IntMap entryMap = trackerCache.get(position.getLedgerId());
             if (entryMap != null) {
@@ -70,7 +69,7 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
                 }
             }
         } finally {
-            rwLock.writeLock().unlock();
+            rwLock.unlockWrite(stamp);
         }
     }
 
@@ -79,7 +78,7 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
         if (positions == null) {
             return;
         }
-        rwLock.writeLock().lock();
+        long stamp = rwLock.writeLock();
         try {
             for (Position position : positions) {
                 Long2IntMap entryMap = trackerCache.get(position.getLedgerId());
@@ -91,17 +90,17 @@ public class InMemoryRedeliveryTracker implements RedeliveryTracker {
                 }
             }
         } finally {
-            rwLock.writeLock().unlock();
+            rwLock.unlockWrite(stamp);
         }
     }
 
     @Override
     public void clear() {
-        rwLock.writeLock().lock();
+        long stamp = rwLock.writeLock();
         try {
             trackerCache.clear();
         } finally {
-            rwLock.writeLock().unlock();
+            rwLock.unlockWrite(stamp);
         }
     }
 }
