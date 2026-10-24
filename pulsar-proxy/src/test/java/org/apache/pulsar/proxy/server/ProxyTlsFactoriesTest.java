@@ -20,6 +20,10 @@ package org.apache.pulsar.proxy.server;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Set;
+import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
+import org.apache.pulsar.common.tls.impl.FileBasedTlsFactory;
+import org.apache.pulsar.tls.TlsPurpose;
 import org.testng.annotations.Test;
 
 public class ProxyTlsFactoriesTest {
@@ -64,5 +68,41 @@ public class ProxyTlsFactoriesTest {
         config.setBrokerClientJsseProvider("SunJSSE");
         config.setBrokerClientSslProvider("OPENSSL");
         assertThat(ProxyTlsFactories.brokerClientPolicy(config).jsseProvider()).isEqualTo("SunJSSE");
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
+    public void clientAuthModeMapsIntoServerFactorySettings() {
+        ProxyConfiguration config = new ProxyConfiguration();
+        assertThat(clientAuthMode(config)).as("no TLS authentication").isEqualTo(TlsClientAuthMode.NONE);
+        config.setAuthenticationEnabled(true);
+        config.setAuthenticationProviders(Set.of(AuthenticationProviderTls.class.getName()));
+        assertThat(clientAuthMode(config)).isEqualTo(TlsClientAuthMode.OPTIONAL);
+        config.setTlsRequireTrustedClientCertOnConnect(true);
+        assertThat(clientAuthMode(config)).isEqualTo(TlsClientAuthMode.REQUIRE);
+    }
+
+    @Test
+    public void clientAuthTrustReplacesServerTrustButNotBrokerClientTrust() {
+        ProxyConfiguration config = new ProxyConfiguration();
+        config.setTlsTrustCertsFilePath("/bundle.pem");
+        config.setBrokerClientTrustCertsFilePath("/broker-ca.pem");
+        config.setTlsClientAuthTrustCertsFilePath("/client-ca.pem");
+        assertThat(ProxyTlsFactories.serverPolicy(config, Set.of(), Set.of()).trustCertsFilePath())
+                .isEqualTo("/client-ca.pem");
+        assertThat(ProxyTlsFactories.serverPolicy(config, TlsPurpose.WEB, Set.of(), Set.of()).trustCertsFilePath())
+                .isEqualTo("/client-ca.pem");
+        assertThat(ProxyTlsFactories.brokerClientPolicy(config).trustCertsFilePath()).isEqualTo("/broker-ca.pem");
+
+        config.setTlsEnabledWithKeyStore(true);
+        config.setTlsTrustStore("/trust.jks");
+        config.setTlsClientAuthTrustStore("/client-ca.p12");
+        assertThat(ProxyTlsFactories.serverPolicy(config, Set.of(), Set.of()).trustStorePath())
+                .isEqualTo("/client-ca.p12");
+    }
+
+    private static TlsClientAuthMode clientAuthMode(ProxyConfiguration config) {
+        return ((FileBasedTlsFactory) ProxyTlsFactories.serverFactory(config, TlsPurpose.PROXY, Set.of(), Set.of()))
+                .settings().clientAuthMode();
     }
 }

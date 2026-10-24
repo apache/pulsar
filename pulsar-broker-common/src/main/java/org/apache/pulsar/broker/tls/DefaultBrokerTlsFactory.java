@@ -103,7 +103,7 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         policies.put(TlsPurpose.BROKER_CLIENT, brokerClientPolicy(conf));
 
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
-                .requireTrustedClientCert(conf.isTlsRequireTrustedClientCertOnConnect())
+                .clientAuthMode(conf.resolveTlsClientAuthMode())
                 .refreshIntervalSeconds(refreshIntervalSeconds(conf))
                 // Engine selection (JDK vs. OpenSSL) mapped from the broker's tlsProvider field: an explicit
                 // engine literal is honored verbatim, a JSSE provider name selects no engine, and an unset
@@ -187,14 +187,15 @@ public class DefaultBrokerTlsFactory extends FileBasedTlsFactory {
         if (conf.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(conf.getTlsKeyStoreType())
-                    .trustStoreType(conf.getTlsTrustStoreType())
                     .keyStorePath(conf.getTlsKeyStore())
-                    .keyStorePassword(conf.getTlsKeyStorePassword())
-                    .trustStorePath(conf.getTlsTrustStore())
-                    .trustStorePassword(conf.getTlsTrustStorePassword());
+                    .keyStorePassword(conf.getTlsKeyStorePassword());
+            TlsFactorySupport.applyServerTrustStore(builder, conf.getTlsClientAuthTrustStore(),
+                    conf.getTlsClientAuthTrustStoreType(), conf.getTlsClientAuthTrustStorePassword(),
+                    conf.getTlsTrustStore(), conf.getTlsTrustStoreType(), conf.getTlsTrustStorePassword());
         } else {
             builder.format(TlsPolicy.Format.PEM)
-                    .trustCertsFilePath(conf.getTlsTrustCertsFilePath())
+                    .trustCertsFilePath(TlsFactorySupport.serverTrustCertsFilePath(
+                            conf.getTlsClientAuthTrustCertsFilePath(), conf.getTlsTrustCertsFilePath()))
                     .certificateFilePath(conf.getTlsCertificateFilePath())
                     .keyFilePath(conf.getTlsKeyFilePath());
         }

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.tls.impl;
 
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
+
 /**
  * The per-consumer settings the framework bakes into a Netty {@code io.netty.handler.ssl.SslContext} when it
  * synthesizes one from a factory's {@code javax.net.ssl.SSLContext} fallback (PIP-478).
@@ -31,18 +33,19 @@ package org.apache.pulsar.common.tls.impl;
  *       peer hostname ({@code endpointIdentificationAlgorithm = "HTTPS"}). Threaded from the consumer's own
  *       hostname-verification flag ({@code tlsHostnameVerificationEnable} on the client;
  *       {@code tlsHostnameVerificationEnabled} on the proxy&rarr;broker path).</li>
- *   <li><b>Server purposes</b> — {@code requireTrustedClientCert}: whether client auth is required
- *       ({@code ClientAuth.REQUIRE}) or merely requested ({@code ClientAuth.OPTIONAL}). Threaded from
+ *   <li><b>Server purposes</b> — {@code clientAuthMode}: whether a client certificate is required
+ *       ({@code ClientAuth.REQUIRE}), merely requested ({@code ClientAuth.OPTIONAL}) or not requested
+ *       ({@code ClientAuth.NONE}). Resolved from {@code tlsClientAuthMode} and
  *       {@code tlsRequireTrustedClientCertOnConnect}.</li>
  * </ul>
  * The acquisition helper selects which field applies from the purpose's {@link
  * org.apache.pulsar.tls.TlsPurpose#role() role}, so a caller passes only the setting relevant to the
- * purpose it is acquiring via {@link #client(boolean)} or {@link #server(boolean)}.
+ * purpose it is acquiring via {@link #client(boolean)} or {@link #server(TlsClientAuthMode)}.
  *
  * @param enableHostnameVerification client-purpose hostname verification (ignored for server purposes)
- * @param requireTrustedClientCert   server-purpose client-auth requirement (ignored for client purposes)
+ * @param clientAuthMode             server-purpose client-auth mode (ignored for client purposes)
  */
-public record TlsSynthesisSpec(boolean enableHostnameVerification, boolean requireTrustedClientCert) {
+public record TlsSynthesisSpec(boolean enableHostnameVerification, TlsClientAuthMode clientAuthMode) {
 
     /**
      * A client-purpose synthesis spec.
@@ -51,16 +54,17 @@ public record TlsSynthesisSpec(boolean enableHostnameVerification, boolean requi
      * @return the spec
      */
     public static TlsSynthesisSpec client(boolean enableHostnameVerification) {
-        return new TlsSynthesisSpec(enableHostnameVerification, false);
+        return new TlsSynthesisSpec(enableHostnameVerification, TlsClientAuthMode.NONE);
     }
 
     /**
      * A server-purpose synthesis spec.
      *
-     * @param requireTrustedClientCert whether the synthesized server context requires a trusted client cert
+     * @param clientAuthMode whether the synthesized server context requires, requests or does not request a
+     *                       client certificate
      * @return the spec
      */
-    public static TlsSynthesisSpec server(boolean requireTrustedClientCert) {
-        return new TlsSynthesisSpec(false, requireTrustedClientCert);
+    public static TlsSynthesisSpec server(TlsClientAuthMode clientAuthMode) {
+        return new TlsSynthesisSpec(false, clientAuthMode);
     }
 }
