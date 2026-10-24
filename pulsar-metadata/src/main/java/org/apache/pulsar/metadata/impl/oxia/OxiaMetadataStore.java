@@ -76,6 +76,14 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     private final String identity;
     private Optional<MetadataEventSynchronizer> synchronizer;
 
+    /**
+     * Delivers the session events through the session canary, or null when the caller did not
+     * request the session watcher.
+     *
+     * @see OxiaSessionWatcher
+     */
+    private final OxiaSessionWatcher sessionWatcher;
+
     public OxiaMetadataStore(AsyncOxiaClient oxia, String identity) {
         this(oxia, identity, null);
     }
@@ -88,11 +96,31 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     @VisibleForTesting
     OxiaMetadataStore(AsyncOxiaClient oxia, String identity, MetadataEventSynchronizer synchronizer,
                       Duration requestTimeout) {
+        this(oxia, identity, synchronizer, requestTimeout, false,
+                OxiaSessionWatcher.DEFAULT_SESSION_TIMEOUT_MILLIS);
+    }
+
+    OxiaMetadataStore(AsyncOxiaClient oxia, String identity, boolean enableSessionWatcher) {
+        this(oxia, identity, enableSessionWatcher, OxiaSessionWatcher.DEFAULT_SESSION_TIMEOUT_MILLIS);
+    }
+
+    OxiaMetadataStore(
+            AsyncOxiaClient oxia, String identity, boolean enableSessionWatcher, long sessionTimeoutMillis) {
+        this(oxia, identity, null, OxiaClientBuilderImpl.DefaultRequestTimeout, enableSessionWatcher,
+                sessionTimeoutMillis);
+    }
+
+    private OxiaMetadataStore(AsyncOxiaClient oxia, String identity, MetadataEventSynchronizer synchronizer,
+                              Duration requestTimeout, boolean enableSessionWatcher,
+                              long sessionTimeoutMillis) {
         super("oxia-metadata", OpenTelemetry.noop(), null, 1);
         this.client = oxia;
         this.requestTimeout = requestTimeout;
         this.identity = identity;
         this.synchronizer = Optional.ofNullable(synchronizer);
+        this.sessionWatcher = enableSessionWatcher
+                ? new OxiaSessionWatcher(oxia, this::receivedSessionEvent, sessionTimeoutMillis)
+                : null;
         init();
     }
 
@@ -111,14 +139,21 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                 .create(serviceAddress)
                 .clientIdentifier(identity)
                 .namespace(namespace)
-                .sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()))
                 .maxRequestsPerBatch(metadataStoreConfig.getBatchingMaxOperations());
         if (StringUtils.isNotBlank(metadataStoreConfig.getConfigFilePath())) {
+            // Load the config file before setting the session timeout explicitly: the file may
+            // carry a session timeout of its own, and the pulsar metadata store configuration
+            // must win, so that the client and the session watcher agree on the session timeout.
             oxiaClientBuilder.loadConfig(metadataStoreConfig.getConfigFilePath());
         }
+        oxiaClientBuilder.sessionTimeout(Duration.ofMillis(metadataStoreConfig.getSessionTimeoutMillis()));
         client = oxiaClientBuilder.asyncClient().get();
         // The one the client was built with, which the config file can set
         requestTimeout = ((OxiaClientBuilderImpl) oxiaClientBuilder).getClientConfig().requestTimeout();
+        this.sessionWatcher = enableSessionWatcher
+                ? new OxiaSessionWatcher(client, this::receivedSessionEvent,
+                        metadataStoreConfig.getSessionTimeoutMillis())
+                : null;
         init();
     }
 
@@ -126,9 +161,22 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         updateMetadataEventSynchronizer(synchronizer.orElse(null));
 
         client.notifications(this::notificationCallback);
+        if (sessionWatcher != null) {
+            sessionWatcher.start();
+        }
     }
 
     private void notificationCallback(Notification notification) {
+        if (OxiaSessionWatcher.isCanaryKey(notification)) {
+            // The reserved canary namespace is internal to the session watcher and is never
+            // forwarded as an ordinary metadata store notification, not even when this store
+            // instance did not enable the session watcher: the canaries of other instances in
+            // the same namespace carry no state of this store.
+            if (sessionWatcher != null) {
+                sessionWatcher.handleNotification(notification);
+            }
+            return;
+        }
         if (notification instanceof Notification.KeyCreated keyCreated) {
             receivedNotification(
                     new org.apache.pulsar.metadata.api.Notification(
@@ -481,10 +529,23 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     @Override
     public void close() throws Exception {
         if (isClosed.compareAndSet(false, true)) {
-            if (client != null) {
-                client.close();
+            try {
+                if (sessionWatcher != null) {
+                    // The watcher must be closed before the client: closing the client sweeps
+                    // the session server-side, and the canary's KeyDeleted that the sweep
+                    // delivers while the notification stream is still live must find the
+                    // watcher closed, or a SessionLost would reach the listeners mid-shutdown.
+                    sessionWatcher.close();
+                }
+            } finally {
+                try {
+                    if (client != null) {
+                        client.close();
+                    }
+                } finally {
+                    super.close();
+                }
             }
-            super.close();
         }
     }
 
