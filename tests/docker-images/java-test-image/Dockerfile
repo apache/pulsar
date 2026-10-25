@@ -47,6 +47,37 @@ COPY target/java-test-functions.jar /pulsar/examples/
 # copy buildtools.jar to /pulsar/lib so that org.apache.pulsar.tests.ExtendedNettyLeakDetector can be used
 COPY target/buildtools.jar /pulsar/lib/
 
+# The tiered storage offloader, for the offloading performance tests: the Pulsar images of 4.x releases don't include the
+# offloaders, which a release publishes as apache-pulsar-offloaders-<version>-bin.tar.gz. With INSTALL_OFFLOADERS=true,
+# install the jcloud offloader of the image's Pulsar version when the image doesn't have it, from the download CDN, which
+# has only the latest releases, or else from the slower release archive, checked against the release's SHA-512. Images
+# that include it, such as this repository's and those of 5.0 and later, are left as they are. It is off by default,
+# since the tarball is 64 MB for 4.2.5 and 281 MB for 4.0.0, which only the scenarios that offload need; Docker keeps
+# the layer, so it is downloaded once for each release image.
+ARG INSTALL_OFFLOADERS=false
+ARG PULSAR_RELEASE_DOWNLOAD_URL=https://dlcdn.apache.org/pulsar
+ARG PULSAR_RELEASE_ARCHIVE_URL=https://archive.apache.org/dist/pulsar
+RUN if [ "${INSTALL_OFFLOADERS}" = "true" ] && ! ls /pulsar/offloaders/tiered-storage-jcloud-*.nar > /dev/null 2>&1; then \
+    version=$(ls /pulsar/lib | sed -n 's/^org\.apache\.pulsar-pulsar-broker-\([0-9][^-]*\)\.jar$/\1/p' | head -1) \
+    && if [ -n "${version}" ]; then \
+        name="apache-pulsar-offloaders-${version}-bin.tar.gz" \
+        && file="pulsar-${version}/${name}" \
+        && mkdir -p /pulsar/offloaders /tmp/offloaders /tmp/offloaders-download \
+        && cd /tmp/offloaders-download \
+        && { { curl -fsSL -o "${name}" "${PULSAR_RELEASE_DOWNLOAD_URL}/${file}" \
+                && curl -fsSL -o "${name}.sha512" "${PULSAR_RELEASE_DOWNLOAD_URL}/${file}.sha512"; } \
+            || { curl -fsSL -o "${name}" "${PULSAR_RELEASE_ARCHIVE_URL}/${file}" \
+                && curl -fsSL -o "${name}.sha512" "${PULSAR_RELEASE_ARCHIVE_URL}/${file}.sha512"; }; } \
+        && sha512sum -c "${name}.sha512" \
+        && tar -xzf "${name}" -C /tmp/offloaders \
+        && cp /tmp/offloaders/*/offloaders/tiered-storage-jcloud-*.nar /pulsar/offloaders/ \
+        && cd / && rm -rf /tmp/offloaders /tmp/offloaders-download \
+        && ls /pulsar/offloaders/tiered-storage-jcloud-*.nar; \
+    else \
+        echo "No offloader installed: the Pulsar version of the image wasn't found"; \
+    fi; \
+    fi
+
 ARG INSTALL_ASYNC_PROFILER=false
 ARG ASYNC_PROFILER_VERSION=4.5
 # install async-profiler from https://github.com/async-profiler/async-profiler/releases to /opt/async-profiler

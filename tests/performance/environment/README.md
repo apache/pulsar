@@ -21,11 +21,12 @@
 
 # Performance testing environment
 
-Results of a run depend on the state of the host: a CPU running at turbo frequencies slows down as it heats up and
-throttles, and daemons that manage power change CPU and device settings during a run. The scripts in `scripts/`
-configure a Linux host for consistent results across runs with a [TuneD](https://tuned-project.org/) profile, and
-restore a configuration that allows power saving afterwards. The TuneD daemon only runs between `start` and `stop`. The
-same setup gives consistent results for [the JMH microbenchmarks](../../../microbench/README.md).
+Results of a run of the [Pulsar Performance Testing Framework](../README.md) depend on the state of the host: a CPU
+running at turbo frequencies slows down as it heats up and throttles, and daemons that manage power change CPU and
+device settings during a run. The scripts in `scripts/` configure a Linux host for consistent results across runs with
+a [TuneD](https://tuned-project.org/) profile, and restore a configuration that allows power saving afterwards. The
+TuneD daemon only runs between `start` and `stop`. The same setup gives consistent results for
+[the JMH microbenchmarks](../../../microbench/README.md).
 
 `install` installs TuneD with `apt-get` when it is missing, on Debian based Linux distributions such as Debian,
 Ubuntu and Pop!_OS; on other distributions, install TuneD first. It updates Docker's logging configuration with `jq`,
@@ -35,28 +36,11 @@ on any Linux distribution where TuneD and the profile are installed.
 | Command | What it does |
 |---|---|
 | `install` | Installs TuneD when it is missing (Debian based distributions), disables TuneD's dynamic tuning, installs the `performance-testing` TuneD profile without activating it, limits the size of Docker's container logs and leaves the TuneD daemon disabled; when the profile is active, it applies the updated profile. Run once, and again after the profile changes. |
-| `start` | Checks that the host is on AC power and warns when Docker's disk is 90 % full, stops `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS), activates and verifies the `performance-testing` profile and skips the `:tests:integration:tuneKernelPerfEvents` task in `~/.gradle/gradle.properties`. |
-| `stop` | Switches TuneD to the `balanced` profile, stops TuneD, applies the system's configured dirty page limits and swappiness again, starts the stopped daemons again and removes the Gradle property. |
-| `validate` | Checks that the host is ready for performance tests, see [Checking the host](#checking-the-host). Runs on Linux and macOS. |
+| `start` | Checks that the host is on AC power and warns when Docker's disk is 90 % full, stops `thermald` (and `com.system76.PowerDaemon.service` on Pop!_OS), activates and verifies the `performance-testing` profile and skips the `:tests:integration:tuneKernelPerfEvents` task in `~/.gradle/gradle.properties`. With `--disable-write-barriers`, it also disables the write barriers of the file system that holds the containers' file systems, see [Disabling write barriers](#disabling-write-barriers). |
+| `stop` | Switches TuneD to the `balanced` profile, stops TuneD, applies the system's configured dirty page limits and swappiness again, starts the stopped daemons again, enables the write barriers that `start` disabled and removes the Gradle property. |
+| `validate` | Checks that the host is ready for performance testing, see [Checking the host](#checking-the-host). Runs on Linux and macOS. |
 
 `install`, `start` and `stop` run as root: `sudo scripts/configure-perf-test-environment.sh start`.
-
-## What the profile changes
-
-The `performance-testing` profile includes TuneD's `latency-performance` profile (performance CPU governor, CPU idle
-states limited to C1, `min_perf_pct=100`) and adds:
-
-- **Turbo disabled**, so that the CPU runs at a fixed base frequency. Turbo frequencies depend on the temperature and
-  the power budget of the CPU, which vary between runs and within a run. Absolute throughput is lower than with
-  turbo, but comparisons between runs are more reliable, and cooling down between runs matters much less.
-- `vm.swappiness=1` and NUMA balancing disabled. The host's own dirty page limits are kept, and `stop` applies the
-  system's configured dirty page limits and swappiness again after TuneD has switched back.
-- The `none` I/O scheduler, the `performance` ACPI platform profile (fans and power limits of laptops) and NVMe
-  Autonomous Power State Transitions disabled.
-- Settings for profiling and for `-XX:+UseTransparentHugePages`: the perf event and BPF limits, the NMI watchdog
-  disabled and Transparent Huge Pages in `madvise` mode with `defrag=madvise`.
-
-`stop` restores the previous values, except the profiling and Transparent Huge Pages settings, which stay in place.
 
 ## Setup
 
@@ -89,6 +73,16 @@ tmp="$(mktemp)"
 echo "$rule" >"$tmp"
 visudo -cf "$tmp" && sudo install -o root -g root -m 0440 "$tmp" /etc/sudoers.d/perf-test-environment
 rm "$tmp"
+```
+
+A command with arguments in a sudoers rule allows exactly those arguments, so the rule above doesn't allow
+`start --disable-write-barriers`, see [Disabling write barriers](#disabling-write-barriers). To allow it, set `rule`
+to this instead and run the other commands above again, which replace the rule:
+
+```sh
+rule="$USER ALL=(root) NOPASSWD: /usr/local/sbin/configure-perf-test-environment.sh start, \
+/usr/local/sbin/configure-perf-test-environment.sh start --disable-write-barriers, \
+/usr/local/sbin/configure-perf-test-environment.sh stop"
 ```
 
 The rule takes effect immediately. Check it:
@@ -131,17 +125,18 @@ sudo /usr/local/sbin/configure-perf-test-environment.sh stop
 ```
 
 Without the sudoers rule, run `tests/performance/environment/scripts/configure-perf-test-environment.sh` instead.
-See [the performance testing guide](../README.md) for the scenarios and the `profile` task.
+See [the framework's guide](../README.md) for the scenarios and the `profile` task.
 
 Before a run:
 
 - Keep the disk that holds Docker's data less than 90 % full. BookKeeper bookies switch to read-only mode when the
-  disk is 95 % full. `scripts/docker-cleanup.sh` frees space, see below.
+  disk is 95 % full. `scripts/docker-cleanup.sh` frees space, see
+  [Freeing Docker disk space](#freeing-docker-disk-space).
 - Close applications that use the CPU, such as browsers and IDEs.
 
 ## Checking the host
 
-`validate` checks that the host is ready for performance tests, for example in a script or by an AI agent before a
+`validate` checks that the host is ready for performance testing, for example in a script or by an AI agent before a
 series of runs. It runs on Linux and on macOS:
 
 ```sh
@@ -174,6 +169,51 @@ bits 1 and 3 set, 2 + 8: Docker's disk is too full and the host isn't configured
 A failed setting check while the profile is active means that the installed profile is older than the script: run
 `install` again, then `start`.
 
+## What the profile changes
+
+The `performance-testing` profile includes TuneD's `latency-performance` profile (performance CPU governor, CPU idle
+states limited to C1, `min_perf_pct=100`) and adds:
+
+- **Turbo disabled**, so that the CPU runs at a fixed base frequency. Turbo frequencies depend on the temperature and
+  the power budget of the CPU, which vary between runs and within a run. Absolute throughput is lower than with
+  turbo, but comparisons between runs are more reliable, and cooling down between runs matters much less.
+- `vm.swappiness=1` and NUMA balancing disabled. The host's own dirty page limits are kept, and `stop` applies the
+  system's configured dirty page limits and swappiness again after TuneD has switched back.
+- The `none` I/O scheduler, the `performance` ACPI platform profile (fans and power limits of laptops) and NVMe
+  Autonomous Power State Transitions disabled.
+- Settings for profiling and for `-XX:+UseTransparentHugePages`: the perf event and BPF limits, the NMI watchdog
+  disabled and Transparent Huge Pages in `madvise` mode with `defrag=madvise`.
+
+`stop` restores the previous values, except the profiling and Transparent Huge Pages settings, which stay in place.
+
+## Disabling write barriers
+
+The bookies' ledgers are in their containers' file systems, on the host's disk. Each time a bookie flushes its write
+cache, it syncs its entry logs and its RocksDB index (`fdatasync`, `fsync`), and the file system then makes the disk
+write its volatile cache too. A server's disk with power loss protection acknowledges that at once; most laptop and
+desktop disks don't, so with large unbatched entries the syncs can make the disk the limit of a run, which a production
+cluster wouldn't have: the bookies' flushes take long (`bookie_flush`), they throttle writes
+(`bookie_throttled_write`), and the broker's adds wait while no thread is busy. The bookies' journal isn't synced in
+the test cluster, and with [`journalTmpfs`](../scenarios/README.md#the-bookies-journal-on-a-tmpfs) it isn't on the
+disk at all; try that first, since it has no risk.
+
+`start --disable-write-barriers` remounts the file system that holds the containers' file systems without write
+barriers (`barrier=0` on ext4, `nobarrier` on btrfs; other file systems are left as they are), so that `fsync` no
+longer waits for the disk's cache. It finds that file system from the overlay of a disposable container: it is the
+one of Docker's data directory with Docker's own storage drivers, and of containerd's, such as `/var/lib/containerd`,
+with the containerd image store. When the host has several file systems, only that one is remounted.
+`stop`, or a `start` without the option, turns them on again, and so does a reboot.
+
+**Use it only when losing the file system's data is acceptable.** Without write barriers, the disk can write the file
+system's journal out of order. If the disk then loses its cache, in a power loss or when the host is powered off
+without shutting down, the file system can be corrupted, and with it any file on it, not only Docker's. On a host
+whose Docker data is on the root file system, that is the whole system. A crash of the kernel is less of a risk, since
+the disk keeps its power and writes its cache, but a hard reset of the disk can lose it too.
+
+```sh
+sudo scripts/configure-perf-test-environment.sh start --disable-write-barriers
+```
+
 ## Freeing Docker disk space
 
 Every `-Pdocker.tag` leaves Pulsar images of about 750 MB behind, and Docker's pruning doesn't remove tagged images.
@@ -194,3 +234,42 @@ scripts/docker-cleanup.sh
 
 It doesn't need root when your user is in the `docker` group. Set `DOCKER_ORGANIZATION` when the images were built
 with `-Pdocker.organization`.
+
+## Disassembling the JIT's code
+
+`-XX:+PrintAssembly` and JMH's `-prof perfasm` profiler need hsdis, a disassembler plugin that JDKs don't ship, since
+it links GPL-licensed binutils. `scripts/compile-and-install-hsdis.sh` builds it for the Amazon Corretto JDK that
+`java` runs and installs it into that JDK. It assumes a Corretto JDK installed with [SDKMAN!](https://sdkman.io/),
+whose JDKs are in your home directory, so that the script can install hsdis into the JDK without root. `sdk l java`
+lists the JDKs; pick one of the Corretto JDKs, whose identifiers end in `-amzn`, such as the latest LTS release:
+
+```sh
+sdk i java 25.0.4-amzn
+scripts/compile-and-install-hsdis.sh
+```
+
+It reads the Corretto version from `java -version`, such as `25.0.4.8.1`, checks out that tag of
+`https://github.com/corretto/corretto-<major>`, builds hsdis against the binutils sources with the JDK as the boot
+JDK, installs `hsdis-<arch>.so` into the JDK's `lib/server` directory and checks that the JVM loads it. It needs
+Corretto 19 or later, about 2 GB of space, and the build tools and zlib headers, which
+`sudo apt install build-essential autoconf zip unzip curl git zlib1g-dev` installs on Debian and Ubuntu. The build
+runs in a new directory under `$TMPDIR` or `/tmp`, which it removes after a successful build. Build again after
+updating the JDK. `BINUTILS_VERSION`, `HSDIS_BUILD_DIR` and `HSDIS_INSTALL_DIR` change the binutils release, the
+build directory, which is then kept, and the install directory.
+
+JMH's `-prof perfasm` also needs Linux `perf`, which samples the JIT's code. On Ubuntu, install it for the running
+kernel; the `perf` wrapper of `linux-tools-common` runs the binary of the running kernel's package:
+
+```sh
+sudo apt install linux-tools-common linux-tools-generic "linux-tools-$(uname -r)"
+perf --version
+```
+
+On Pop!_OS, those packages have no `perf` binary; `sudo apt install linux-perf` installs it. Install the tools again
+after a kernel update. `perf` needs `kernel.perf_event_paranoid` of 1 or less to sample without root, which
+`scripts/configure-perf-test-environment.sh start` sets; Ubuntu's default, 4, denies it. Then add `-prof perfasm` to
+a benchmark of [the JMH microbenchmarks](../../../microbench/README.md):
+
+```sh
+java -jar microbench/build/libs/microbench-*-benchmarks.jar ".*BenchmarkName.*" -prof perfasm
+```

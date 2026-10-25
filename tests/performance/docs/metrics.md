@@ -185,7 +185,7 @@ curl --get "$(jq -r .victoriaMetrics.prometheusApi metrics.json)query_range" \
   --data-urlencode "end=$(jq -r '.endEpochMs / 1000' metrics.json)" --data-urlencode step=5
 ```
 
-Some panels stay empty, since they show what the performance tests don't run, such as proxies, functions and
+Some panels stay empty, since they show what the scenarios don't run, such as proxies, functions and
 connectors, or metrics of Kubernetes and of the node exporter.
 
 ## Rendering panels as images

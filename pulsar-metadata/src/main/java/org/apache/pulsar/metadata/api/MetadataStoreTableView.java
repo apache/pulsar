@@ -85,5 +85,10 @@ public interface MetadataStoreTableView<T> {
      * @return entry set
      */
     Set<Map.Entry<String, T>> entrySet();
-}
 
+    /**
+     * Close the tableview: it stops following the changes of the metadata store.
+     */
+    default void close() {
+    }
+}
