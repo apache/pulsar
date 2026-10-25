@@ -1385,6 +1385,13 @@ public class BrokerService implements Closeable {
                 topicName.isPartitioned() ? TopicName.get(topicName.getPartitionedTopicName()) : topicName;
         return fetchPartitionedTopicMetadataAsync(baseTopicName)
                 .thenCompose(metadata -> {
+                    if (topicName.isPartitioned() && topicName.getPartitionIndex() >= metadata.partitions) {
+                        // Cached metadata may lag behind a new partition. Refresh once before rejecting it.
+                        return fetchPartitionedTopicMetadataAsync(baseTopicName, true);
+                    }
+                    return CompletableFuture.completedFuture(metadata);
+                })
+                .thenCompose(metadata -> {
                     if (topicName.isPartitioned()) {
                         if (metadata.partitions == 0) {
                             // Edge case: When a complete partitioned topic name is provided but metadata shows 0
