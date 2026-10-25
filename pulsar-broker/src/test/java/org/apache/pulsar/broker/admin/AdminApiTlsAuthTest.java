@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import jakarta.ws.rs.NotAuthorizedException;
+import jakarta.ws.rs.client.Client;
+import jakarta.ws.rs.client.ClientBuilder;
+import jakarta.ws.rs.client.WebTarget;
+import jakarta.ws.rs.core.GenericType;
+import jakarta.ws.rs.core.MediaType;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,15 +35,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLContext;
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.GenericType;
-import javax.ws.rs.core.MediaType;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.mutable.MutableBoolean;
+import lombok.CustomLog;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -52,7 +52,8 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.tls.NoopHostnameVerifier;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.tls.JdkSslContexts;
+import org.apache.pulsar.common.util.tls.PemReader;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
@@ -62,7 +63,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-admin")
 public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
@@ -84,7 +85,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
 
         conf.setBrokerClientAuthenticationPlugin("org.apache.pulsar.client.impl.auth.AuthenticationTls");
         conf.setBrokerClientAuthenticationParameters(
-                String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"), getTlsFileForClient("admin.key-pk8")));
+                String.format("tlsCertFile:%s,tlsKeyFile:%s", getTlsFileForClient("admin.cert"),
+                        getTlsFileForClient("admin.key-pk8")));
         conf.setBrokerClientTrustCertsFilePath(CA_CERT_FILE_PATH);
         conf.setBrokerClientTlsEnabled(true);
         conf.setNumExecutorThreadPoolSize(5);
@@ -111,12 +113,12 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
             .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
-        X509Certificate trustCertificates[] = SecurityUtility.loadCertificatesFromPemFile(
+        X509Certificate trustCertificates[] = PemReader.loadCertificatesFromPemFile(
                 CA_CERT_FILE_PATH);
-        SSLContext sslCtx = SecurityUtility.createSslContext(
+        SSLContext sslCtx = JdkSslContexts.createSslContext(
                 false, trustCertificates,
-                SecurityUtility.loadCertificatesFromPemFile(getTlsFileForClient(user + ".cert")),
-                SecurityUtility.loadPrivateKeyFromPemFile(getTlsFileForClient(user + ".key-pk8")));
+                PemReader.loadCertificatesFromPemFile(getTlsFileForClient(user + ".cert")),
+                PemReader.loadPrivateKeyFromPemFile(getTlsFileForClient(user + ".key-pk8")));
         clientBuilder.sslContext(sslCtx).hostnameVerifier(NoopHostnameVerifier.INSTANCE);
         Client client = clientBuilder.build();
 
@@ -473,7 +475,8 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
         Path keyFilePath = Paths.get(keyFile.getAbsolutePath());
         int autoCertRefreshTimeSec = 1;
         try {
-            Files.copy(Paths.get(getTlsFileForClient(user2 + ".key-pk8")), keyFilePath, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(Paths.get(getTlsFileForClient(user2 + ".key-pk8")), keyFilePath,
+                    StandardCopyOption.REPLACE_EXISTING);
             @Cleanup
             PulsarAdmin admin = PulsarAdmin.builder()
                     .allowTlsInsecureConnection(false)
@@ -503,7 +506,7 @@ public class AdminApiTlsAuthTest extends MockedPulsarServiceBaseTest {
                             new TenantInfoImpl(Set.of("foobar"), Set.of("test")));
                     success.setValue(true);
                     return true;
-                }catch(Exception e) {
+                } catch (Exception e) {
                     return false;
                 }
             }, 5, 1000);

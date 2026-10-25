@@ -19,11 +19,13 @@
 package org.apache.pulsar.broker.transaction;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.testng.Assert.assertEquals;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -31,14 +33,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.ReadOnlyCursor;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -46,6 +51,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
@@ -64,7 +70,7 @@ import org.testng.annotations.Test;
 /**
  * Pulsar client transaction test.
  */
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TransactionProduceTest extends TransactionTestBase {
 
@@ -87,6 +93,60 @@ public class TransactionProduceTest extends TransactionTestBase {
         super.internalCleanup();
     }
 
+    /**
+     * A batch carries one transaction id in its metadata, so every message in it inherits that transaction.
+     * A plain message batched together with transactional ones is therefore discarded when that transaction
+     * aborts, even though the application never sent it inside a transaction.
+     */
+    @Test
+    public void testAbortedTransactionDoesNotDiscardPlainMessageBatchedWithIt() throws Exception {
+        final String topic = NAMESPACE1 + "/txn-batch-isolation";
+        admin.topics().createNonPartitionedTopic(topic);
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("txn-batch-isolation-sub")
+                .subscribe();
+
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(60, TimeUnit.SECONDS)
+                .build().get();
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .enableBatching(true)
+                .batchingMaxMessages(100)
+                // Long enough that the two sends under test cannot be split into separate batches by the
+                // timer, short enough that a batch still closes on its own when a flush cannot reach it.
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS)
+                .create();
+
+        // The first transactional send on a topic waits for the topic to be registered with the transaction
+        // coordinator before the message reaches the batch. Get that round trip out of the way, so the two
+        // sends under test are added to the container synchronously and therefore land in one batch.
+        // A flush issued here would run before the message reaches the batch, so let the batch timer close it.
+        producer.newMessage(txn).value("warm-up").sendAsync().get(30, TimeUnit.SECONDS);
+
+        producer.newMessage(txn).value("in-txn").sendAsync();
+        CompletableFuture<MessageId> plainSend = producer.newMessage().value("plain").sendAsync();
+        producer.flush();
+        plainSend.get(30, TimeUnit.SECONDS);
+
+        // The topic's max read position does not advance past an ongoing transaction, so nothing on this topic
+        // is readable until the transaction ends. Abort it: that discards the transactional messages, and the
+        // plain one must survive because it was never part of the transaction.
+        txn.abort().get(60, TimeUnit.SECONDS);
+
+        Message<String> received = consumer.receive(30, TimeUnit.SECONDS);
+        Assert.assertNotNull(received, "the plain message was discarded by the aborted transaction");
+        Assert.assertEquals(received.getValue(), "plain");
+
+        // Both transactional messages were aborted, so nothing else may arrive.
+        Assert.assertNull(consumer.receive(3, TimeUnit.SECONDS));
+    }
 
     @Test
     public void produceAndCommitTest() throws Exception {
@@ -138,7 +198,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         for (int i = 0; i < TOPIC_PARTITION; i++) {
             ReadOnlyCursor originTopicCursor = getOriginTopicCursor(topic, i);
             Assert.assertNotNull(originTopicCursor);
-            log.info("entries count: {}", originTopicCursor.getNumberOfEntries());
+            log.info().attr("entriesCount", originTopicCursor.getNumberOfEntries()).log("entries count");
             Assert.assertEquals(messageCntPerPartition, originTopicCursor.getNumberOfEntries());
 
             List<Entry> entries = originTopicCursor.readEntries(messageCnt);
@@ -168,7 +228,8 @@ public class TransactionProduceTest extends TransactionTestBase {
             List<Entry> entries = originTopicCursor.readEntries((int) originTopicCursor.getNumberOfEntries());
             Assert.assertEquals(messageCntPerPartition + 1, entries.size());
 
-            MessageMetadata messageMetadata = Commands.parseMessageMetadata(entries.get(messageCntPerPartition).getDataBuffer());
+            MessageMetadata messageMetadata =
+                    Commands.parseMessageMetadata(entries.get(messageCntPerPartition).getDataBuffer());
             if (endAction) {
                 Assert.assertEquals(MarkerType.TXN_COMMIT_VALUE, messageMetadata.getMarkerType());
             } else {
@@ -177,7 +238,40 @@ public class TransactionProduceTest extends TransactionTestBase {
         }
 
         Assert.assertEquals(0, messageSet.size());
-        log.info("produce and {} test finished.", endAction ? "commit" : "abort");
+        log.info().attr("endAction", endAction ? "commit" : "abort").log("produce and commit/abort test finished");
+    }
+
+    @Test
+    public void testSkipMaxReadPositionTimestampWithoutReplicatedSubscriptions() throws Exception {
+        final String topic = NAMESPACE1 + "/testSkipMaxReadPositionTimestampWithoutReplicatedSubscriptions";
+        PulsarClient pulsarClient = this.pulsarClient;
+        Transaction txn = pulsarClient.newTransaction()
+                .withTransactionTimeout(5, TimeUnit.SECONDS)
+                .build().get();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient
+                .newProducer()
+                .topic(topic)
+                .sendTimeout(0, TimeUnit.SECONDS)
+                .create();
+        PersistentTopic persistentTopic = getTopic(topic);
+        long lastMaxReadPositionMovedForwardTimestamp = persistentTopic.getLastMaxReadPositionMovedForwardTimestamp();
+
+        // A transactional publish does not move the max read position until the transaction is resolved.
+        producer.newMessage(txn).value("hello world".getBytes()).send();
+        assertEquals(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp(),
+                lastMaxReadPositionMovedForwardTimestamp);
+
+        // Committing moves the max read position, but an ordinary topic does not need the snapshot timestamp.
+        txn.commit().get();
+        assertEquals(persistentTopic.getLastMaxReadPositionMovedForwardTimestamp(),
+                lastMaxReadPositionMovedForwardTimestamp);
+    }
+
+    private PersistentTopic getTopic(String topic) throws ExecutionException, InterruptedException {
+        Optional<Topic> optionalTopic = getPulsarServiceList().get(0).getBrokerService()
+                .getTopic(topic, true).get();
+        return (PersistentTopic) optionalTopic.get();
     }
 
     private void checkMessageId(List<CompletableFuture<MessageId>> futureList, boolean isFinished) {
@@ -186,7 +280,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 MessageId messageId = messageIdFuture.get(1, TimeUnit.SECONDS);
                 if (isFinished) {
                     Assert.assertNotNull(messageId);
-                    log.info("Tnx finished success! messageId: {}", messageId);
+                    log.info().attr("messageid", messageId).log("Tnx finished success! messageId");
                 } else {
                     Assert.fail("MessageId shouldn't be get before txn abort.");
                 }
@@ -195,11 +289,11 @@ public class TransactionProduceTest extends TransactionTestBase {
                     if (e instanceof TimeoutException) {
                         log.info("This is a expected exception.");
                     } else {
-                        log.error("This exception is not expected.", e);
+                        log.error().exception(e).log("This exception is not expected.");
                         Assert.fail("This exception is not expected.");
                     }
                 } else {
-                    log.error("Tnx commit failed!", e);
+                    log.error().exception(e).log("Tnx commit failed!");
                     Assert.fail("Tnx commit failed!");
                 }
             }
@@ -211,11 +305,11 @@ public class TransactionProduceTest extends TransactionTestBase {
             if (partition >= 0) {
                 topic = TopicName.get(topic).toString() + TopicName.PARTITIONED_TOPIC_SUFFIX + partition;
             }
-            return getPulsarServiceList().get(0).getManagedLedgerFactory().openReadOnlyCursor(
+            return getPulsarServiceList().get(0).getDefaultManagedLedgerFactory().openReadOnlyCursor(
                     TopicName.get(topic).getPersistenceNamingEncoding(),
-                    PositionImpl.EARLIEST, new ManagedLedgerConfig());
+                    PositionFactory.EARLIEST, new ManagedLedgerConfig());
         } catch (Exception e) {
-            log.error("Failed to get origin topic readonly cursor.", e);
+            log.error().exception(e).log("Failed to get origin topic readonly cursor.");
             Assert.fail("Failed to get origin topic readonly cursor.");
             return null;
         }
@@ -228,7 +322,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .newTransaction()
                 .withTransactionTimeout(5, TimeUnit.SECONDS)
                 .build().get();
-        log.info("init transaction {}.", txn);
+        log.info().attr("initTransaction", txn).log("init transaction.");
 
         @Cleanup
         Producer<byte[]> incomingProducer = pulsarClient.newProducer()
@@ -247,7 +341,6 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .topic(ACK_COMMIT_TOPIC)
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
@@ -255,7 +348,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         for (int i = 0; i < incomingMessageCnt; i++) {
             Message<byte[]> message = consumer.receive();
-            log.info("receive messageId: {}", message.getMessageId());
+            log.info().attr("receiveMessageId", message.getMessageId()).log("receive messageId");
             consumer.acknowledgeAsync(message.getMessageId(), txn);
         }
 
@@ -292,7 +385,7 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .newTransaction()
                 .withTransactionTimeout(30, TimeUnit.SECONDS)
                 .build().get();
-        log.info("init transaction {}.", txn);
+        log.info().attr("initTransaction", txn).log("init transaction.");
 
         @Cleanup
         Producer<byte[]> incomingProducer = pulsarClient.newProducer()
@@ -311,14 +404,13 @@ public class TransactionProduceTest extends TransactionTestBase {
                 .topic(ACK_ABORT_TOPIC)
                 .subscriptionName(subscriptionName)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .enableBatchIndexAcknowledgment(true)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
         Awaitility.await().until(consumer::isConnected);
 
         for (int i = 0; i < incomingMessageCnt; i++) {
             Message<byte[]> message = consumer.receive();
-            log.info("receive messageId: {}", message.getMessageId());
+            log.info().attr("receiveMessageId", message.getMessageId()).log("receive messageId");
             consumer.acknowledgeAsync(message.getMessageId(), txn);
         }
 
@@ -343,7 +435,7 @@ public class TransactionProduceTest extends TransactionTestBase {
         for (int i = 0; i < incomingMessageCnt; i++) {
             message = consumer.receive(2, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
-            log.info("second receive messageId: {}", message.getMessageId());
+            log.info().attr("receiveMessageId", message.getMessageId()).log("second receive messageId");
         }
 
         log.info("finish test ackAbortTest");
@@ -354,7 +446,7 @@ public class TransactionProduceTest extends TransactionTestBase {
 
         int pendingAckCount = 0;
         for (PulsarService pulsarService : getPulsarServiceList()) {
-            for (String key : pulsarService.getBrokerService().getTopics().keys()) {
+            for (String key : pulsarService.getBrokerService().getTopics().keySet()) {
                 if (key.contains(topic)) {
                     Field field = clazz.getDeclaredField("pendingAckHandle");
                     field.setAccessible(true);
@@ -365,15 +457,17 @@ public class TransactionProduceTest extends TransactionTestBase {
                     field = PendingAckHandleImpl.class.getDeclaredField("individualAckPositions");
                     field.setAccessible(true);
 
-                    Map<PositionImpl, MutablePair<PositionImpl, Long>> map =
-                            (Map<PositionImpl, MutablePair<PositionImpl, Long>>) field.get(pendingAckHandle);
+                    @SuppressWarnings("unchecked")
+                    Map<Position, MutablePair<Position, Long>> map =
+                            (Map<Position, MutablePair<Position, Long>>) field.get(pendingAckHandle);
                     if (map != null) {
                         pendingAckCount += map.size();
                     }
                 }
             }
         }
-        log.info("subscriptionName: {}, pendingAckCount: {}", subscriptionName, pendingAckCount);
+        log.info().attr("subscriptionname", subscriptionName).attr("pendingackcount", pendingAckCount)
+                .log("subscriptionName, pendingAckCount");
         return pendingAckCount;
     }
 

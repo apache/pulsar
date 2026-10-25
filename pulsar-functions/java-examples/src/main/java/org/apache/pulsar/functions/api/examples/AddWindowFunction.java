@@ -20,12 +20,12 @@ package org.apache.pulsar.functions.api.examples;
 
 import java.util.Collection;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
 /**
  * Example Function that acts on a window of tuples at a time rather than per tuple basis.
  */
-@Slf4j
+@CustomLog
 public class AddWindowFunction implements Function<Collection<Integer>, Integer> {
     @Override
     public Integer apply(Collection<Integer> integers) {

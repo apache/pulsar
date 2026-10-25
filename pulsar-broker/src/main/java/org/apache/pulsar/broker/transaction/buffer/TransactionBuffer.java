@@ -22,8 +22,11 @@ import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.transaction.exception.TransactionException;
+import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.policies.data.TransactionBufferStats;
 import org.apache.pulsar.common.policies.data.TransactionInBufferStats;
@@ -56,8 +59,7 @@ public interface TransactionBuffer {
      *
      * @param txnID the transaction id
      * @return a future represents the result of the operation
-     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
-     *         is not in the buffer.
+     * @throws TransactionBufferException.TransactionNotFoundException if the transaction is not in the buffer.
      */
     CompletableFuture<TransactionMeta> getTransactionMeta(TxnID txnID);
 
@@ -70,10 +72,29 @@ public interface TransactionBuffer {
      * @param sequenceId the sequence id of the entry in this transaction buffer.
      * @param buffer the entry buffer
      * @return a future represents the result of the operation.
-     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionSealedException if the transaction
-     *         has been sealed.
+     * @throws TransactionException.TransactionSealedException if the transaction has been sealed.
      */
     CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer);
+
+    /**
+     * Add the entry of a non-transactional message to the topic's managed ledger, after the entries of the
+     * transactional messages published before it: publishes are acknowledged in the order their entries are added,
+     * and a producer acknowledged out of order drops its connection and re-sends its pending messages. A buffer
+     * that hands the entry of a transactional message to the ledger some time after it's published holds back the
+     * non-transactional entries published in the meantime.
+     *
+     * <p>The default implementation adds the entry right away.
+     *
+     * @param ledger the topic's managed ledger
+     * @param headersAndPayload the entry, which the caller may release once this method returns
+     * @param numberOfMessages the number of messages in the entry
+     * @param callback the callback of the add
+     * @param ctx the context passed to the callback
+     */
+    default void addEntryInPublishOrder(ManagedLedger ledger, ByteBuf headersAndPayload, int numberOfMessages,
+                                        AddEntryCallback callback, Object ctx) {
+        ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
+    }
 
     /**
      * Open a {@link TransactionBufferReader} to read entries of a given transaction
@@ -82,8 +103,7 @@ public interface TransactionBuffer {
      * @param txnID transaction id
      * @param startSequenceId the sequence id to start read
      * @return a future represents the result of open operation.
-     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
-     *         is not in the buffer.
+     * @throws TransactionBufferException.TransactionNotFoundException if the transaction is not in the buffer.
      */
     CompletableFuture<TransactionBufferReader> openTransactionBufferReader(TxnID txnID, long startSequenceId);
 
@@ -95,8 +115,7 @@ public interface TransactionBuffer {
      * @param txnID the transaction id
      * @param lowWaterMark the low water mark of this transaction
      * @return a future represents the result of commit operation.
-     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
-     *         is not in the buffer.
+     * @throws TransactionBufferException.TransactionNotFoundException if the transaction is not in the buffer.
      */
     CompletableFuture<Void> commitTxn(TxnID txnID, long lowWaterMark);
 
@@ -107,8 +126,7 @@ public interface TransactionBuffer {
      * @param txnID the transaction id
      * @param lowWaterMark the low water mark of this transaction
      * @return a future represents the result of abort operation.
-     * @throws org.apache.pulsar.broker.transaction.buffer.exceptions.TransactionNotFoundException if the transaction
-     *         is not in the buffer.
+     * @throws TransactionBufferException.TransactionNotFoundException if the transaction is not in the buffer.
      */
     CompletableFuture<Void> abortTxn(TxnID txnID, long lowWaterMark);
 
@@ -132,6 +150,11 @@ public interface TransactionBuffer {
     CompletableFuture<Void> clearSnapshot();
 
     /**
+     * Clear up the snapshot of the TransactionBuffer and close it.
+     */
+    CompletableFuture<Void> clearSnapshotAndClose();
+
+    /**
      * Close the buffer asynchronously.
      *
      * @return
@@ -146,19 +169,28 @@ public interface TransactionBuffer {
      * @param readPosition the persistent position of the txn message.
      * @return whether the txn is aborted.
      */
-    boolean isTxnAborted(TxnID txnID, PositionImpl readPosition);
+    boolean isTxnAborted(TxnID txnID, Position readPosition);
+
+    /**
+     * Check if the transaction is still ongoing (not committed and not aborted).
+     *
+     * @param txnID {@link TxnID} the transaction id.
+     * @return whether the txn is ongoing (uncommitted).
+     */
+    boolean isTxnOngoing(TxnID txnID);
 
     /**
      * Sync max read position for normal publish.
-     * @param position {@link PositionImpl} the position to sync.
+     * @param position {@link Position} the position to sync.
+     * @param isMarkerMessage whether the message is marker message.
      */
-    void syncMaxReadPositionForNormalPublish(PositionImpl position);
+    void syncMaxReadPositionForNormalPublish(Position position, boolean isMarkerMessage);
 
     /**
      * Get the can read max position.
      * @return the stable position.
      */
-    PositionImpl getMaxReadPosition();
+    Position getMaxReadPosition();
 
     /**
      * Get the snapshot type.
@@ -190,14 +222,11 @@ public interface TransactionBuffer {
     TransactionBufferStats getStats(boolean lowWaterMarks);
 
     /**
-     * Wait TransactionBuffer Recovers completely.
-     * Take snapshot after TB Recovers completely.
-     * @param isTxn
-     * @return a future which has completely if isTxn = false. Or a future return by takeSnapshot.
+     * Wait TransactionBuffer recovers completely.
+     *
+     * @return a future that will be completed after the transaction buffer recover completely.
      */
-    CompletableFuture<Void> checkIfTBRecoverCompletely(boolean isTxn);
-
-
+    CompletableFuture<Void> checkIfTBRecoverCompletely();
 
     long getOngoingTxnCount();
 
