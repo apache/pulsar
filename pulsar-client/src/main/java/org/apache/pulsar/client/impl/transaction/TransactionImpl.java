@@ -72,6 +72,10 @@ public class TransactionImpl implements Transaction , TimerTask {
     private final CompletableFuture<State> terminalFuture = new CompletableFuture<>();
     @Getter(AccessLevel.NONE)
     private final Set<CompletableFuture<Void>> commitActions = ConcurrentHashMap.newKeySet();
+    @Getter(AccessLevel.NONE)
+    private final Object completionLock = new Object();
+    @Getter(AccessLevel.NONE)
+    private CompletableFuture<Void> pendingCommit;
 
     private volatile long opCount = 0L;
     private static final AtomicLongFieldUpdater<TransactionImpl> OP_COUNT_UPDATE =
@@ -213,57 +217,74 @@ public class TransactionImpl implements Transaction , TimerTask {
 
     private CompletableFuture<Void> completeTerminalState(State terminalState) {
         terminalFuture.complete(terminalState);
-        // Concurrent commit responses must also wait for cleanup already executing on another thread.
+        // Wait for any registered commit cleanup that is still executing.
         return FutureUtil.waitForAll(commitActions);
     }
 
     @Override
     public CompletableFuture<Void> commit() {
         timeout.cancel();
-        return checkState(State.OPEN, State.COMMITTING).thenCompose((value) -> {
-            // A timeout racing the state check must not discard cleanup for a later successful commit.
-            if (!STATE_UPDATE.compareAndSet(this, State.OPEN, State.COMMITTING) && state != State.COMMITTING) {
-                return checkState(State.COMMITTING);
+        CompletableFuture<Void> commitFuture;
+        synchronized (completionLock) {
+            // Join before checking state: a successful response may still be running commit cleanup.
+            if (pendingCommit != null && !pendingCommit.isDone()) {
+                return pendingCommit.thenApply(ignored -> null);
             }
-            CompletableFuture<Void> commitFuture = new CompletableFuture<>();
-            opFuture.whenComplete((v, e) -> {
-                if (hasOpsFailed) {
-                    checkState(State.COMMITTING).thenCompose(__ -> internalAbort()).whenComplete((vx, ex) ->
-                            commitFuture.completeExceptionally(
-                                    new PulsarClientException.TransactionHasOperationFailedException()));
-                } else {
-                    tcClient.commitAsync(txnId)
-                            .whenComplete((vx, ex) -> {
-                                if (ex != null) {
-                                    if (ex instanceof TransactionNotFoundException
-                                            || ex instanceof InvalidTxnStatusException) {
-                                        this.state = State.ERROR;
-                                        completeTerminalState(State.ERROR);
-                                    }
-                                    commitFuture.completeExceptionally(ex);
-                                } else {
-                                    this.state = State.COMMITTED;
-                                    completeTerminalState(State.COMMITTED)
-                                            .whenComplete((ignored, cleanupError) -> commitFuture.complete(vx));
-                                }
-                            });
+            // Compete with abort and timeout for the transition out of OPEN.
+            if (!STATE_UPDATE.compareAndSet(this, State.OPEN, State.COMMITTING)) {
+                State actualState = state;
+                if (actualState != State.COMMITTING) {
+                    return unexpectedState(actualState, State.COMMITTING);
                 }
-            });
-            return commitFuture;
+            }
+            commitFuture = new CompletableFuture<>();
+            pendingCommit = commitFuture;
+        }
+        opFuture.whenComplete((v, e) -> {
+            if (hasOpsFailed) {
+                checkState(State.COMMITTING).thenCompose(__ -> {
+                    this.state = State.ABORTING;
+                    return internalAbort();
+                }).whenComplete((vx, ex) -> commitFuture.completeExceptionally(
+                        new PulsarClientException.TransactionHasOperationFailedException()));
+            } else {
+                FutureUtil.supplySafely(() -> tcClient.commitAsync(txnId))
+                        .whenComplete((vx, ex) -> {
+                            if (ex != null) {
+                                if (ex instanceof TransactionNotFoundException
+                                        || ex instanceof InvalidTxnStatusException) {
+                                    this.state = State.ERROR;
+                                    completeTerminalState(State.ERROR);
+                                }
+                                commitFuture.completeExceptionally(ex);
+                            } else {
+                                this.state = State.COMMITTED;
+                                completeTerminalState(State.COMMITTED)
+                                        .whenComplete((ignored, cleanupError) -> commitFuture.complete(vx));
+                            }
+                        });
+            }
         });
+        // Keep caller cancellation and explicit completion from ending the shared attempt.
+        return commitFuture.thenApply(ignored -> null);
     }
 
     @Override
     public CompletableFuture<Void> abort() {
         timeout.cancel();
-        return checkState(State.OPEN, State.ABORTING).thenCompose(__ -> internalAbort());
+        if (!STATE_UPDATE.compareAndSet(this, State.OPEN, State.ABORTING)) {
+            State actualState = state;
+            if (actualState != State.ABORTING) {
+                return unexpectedState(actualState, State.ABORTING);
+            }
+        }
+        return internalAbort();
     }
 
     private CompletableFuture<Void> internalAbort() {
         CompletableFuture<Void> abortFuture = new CompletableFuture<>();
-        this.state = State.ABORTING;
         opFuture.whenComplete((v, e) -> {
-            tcClient.abortAsync(txnId).whenComplete((vx, ex) -> {
+            FutureUtil.supplySafely(() -> tcClient.abortAsync(txnId)).whenComplete((vx, ex) -> {
 
                 if (ex != null) {
                     if (ex instanceof TransactionNotFoundException
@@ -312,6 +333,10 @@ public class TransactionImpl implements Transaction , TimerTask {
                 return CompletableFuture.completedFuture(null);
             }
         }
+        return unexpectedState(actualState, expectedStates);
+    }
+
+    private CompletableFuture<Void> unexpectedState(State actualState, State... expectedStates) {
         return FutureUtil.failedFuture(new InvalidTxnStatusException("[" + txnIdMostBits + ":"
                 + txnIdLeastBits + "] with unexpected state: " + actualState.name() + ", expect: "
                 + Arrays.toString(expectedStates)));

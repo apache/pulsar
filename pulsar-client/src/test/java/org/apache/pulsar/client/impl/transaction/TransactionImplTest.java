@@ -36,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.Transaction.State;
@@ -57,6 +58,31 @@ public class TransactionImplTest {
                 {false, new InvalidTxnStatusException("Controlled terminal abort failure")},
                 {false, new TransactionNotFoundException("Controlled missing transaction during abort")}
         };
+    }
+
+    @DataProvider
+    public Object[][] duplicateCommitFailureOrders() {
+        return new Object[][] {
+                {new TransactionNotFoundException("Controlled duplicate commit failure"), true},
+                {new TransactionNotFoundException("Controlled duplicate commit failure"), false},
+                {new InvalidTxnStatusException("Controlled duplicate commit failure"), true},
+                {new InvalidTxnStatusException("Controlled duplicate commit failure"), false}
+        };
+    }
+
+    @DataProvider
+    public Object[][] callerCompletionModes() {
+        return new Object[][] {{"cancel"}, {"timeout"}, {"complete"}, {"completeExceptionally"}};
+    }
+
+    @DataProvider
+    public Object[][] terminationOperations() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @DataProvider
+    public Object[][] synchronousCoordinatorFailures() {
+        return new Object[][] {{true, true}, {true, false}, {false, true}, {false, false}};
     }
 
     @Test(timeOut = 30000)
@@ -93,15 +119,82 @@ public class TransactionImplTest {
         fixture.transaction.registerAckOp(ack);
 
         CompletableFuture<Void> commit = fixture.transaction.commit();
+        CompletableFuture<Void> anotherCommit = fixture.transaction.commit();
         verify(fixture.coordinator, never()).commitAsync(any());
         assertThat(commit).isNotDone();
+        assertThat(anotherCommit).isNotDone();
         ackReceipt.complete(null);
         verify(fixture.coordinator).commitAsync(fixture.transaction.getTxnID());
         assertThat(actions).hasValue(0);
 
         fixture.commitResponse.complete(null);
         commit.get(1, TimeUnit.SECONDS);
+        anotherCommit.get(1, TimeUnit.SECONDS);
+        verify(fixture.coordinator).commitAsync(fixture.transaction.getTxnID());
         assertThat(actions).as("commit cannot overtake ACK completion callback registration").hasValue(1);
+    }
+
+    @Test(dataProvider = "duplicateCommitFailureOrders", timeOut = 30000)
+    public void testOverlappingCommitsCannotDiscardCleanupWithADuplicateResponse(
+            TransactionCoordinatorClientException failure, boolean failureBeforeSuccess) throws Exception {
+        Fixture fixture = new Fixture();
+        CompletableFuture<Void> duplicateResponse = new CompletableFuture<>();
+        when(fixture.coordinator.commitAsync(fixture.transaction.getTxnID()))
+                .thenReturn(fixture.commitResponse, duplicateResponse);
+        AtomicInteger actions = new AtomicInteger();
+        fixture.transaction.registerCommitAction(actions::incrementAndGet);
+
+        CompletableFuture<Void> firstCommit = fixture.transaction.commit();
+        CompletableFuture<Void> secondCommit = fixture.transaction.commit();
+        if (failureBeforeSuccess) {
+            duplicateResponse.completeExceptionally(failure);
+            assertThat(secondCommit).as("both callers await the same outstanding request").isNotDone();
+            fixture.commitResponse.complete(null);
+        } else {
+            fixture.commitResponse.complete(null);
+            duplicateResponse.completeExceptionally(failure);
+        }
+
+        firstCommit.get(1, TimeUnit.SECONDS);
+        secondCommit.get(1, TimeUnit.SECONDS);
+        verify(fixture.coordinator).commitAsync(fixture.transaction.getTxnID());
+        assertThat(fixture.transaction.getState()).isEqualTo(State.COMMITTED);
+        assertThat(actions).as("an overlapping caller cannot discard successful commit cleanup").hasValue(1);
+    }
+
+    @Test(dataProvider = "callerCompletionModes", timeOut = 30000)
+    public void testCompletingOneCallerDoesNotCompleteTheSharedCommit(String completionMode) throws Exception {
+        Fixture fixture = new Fixture();
+        AtomicInteger actions = new AtomicInteger();
+        fixture.transaction.registerCommitAction(actions::incrementAndGet);
+        CompletableFuture<Void> firstCommit = fixture.transaction.commit();
+        CompletableFuture<Void> secondCommit = fixture.transaction.commit();
+        assertThat(firstCommit).isNotSameAs(secondCommit);
+
+        switch (completionMode) {
+            case "cancel" -> assertThat(firstCommit.cancel(false)).isTrue();
+            case "timeout" -> {
+                firstCommit.orTimeout(0, TimeUnit.MILLISECONDS);
+                assertThatThrownBy(() -> firstCommit.get(1, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(TimeoutException.class);
+            }
+            case "complete" -> assertThat(firstCommit.complete(null)).isTrue();
+            case "completeExceptionally" -> assertThat(firstCommit.completeExceptionally(
+                    new IllegalStateException("Controlled caller completion"))).isTrue();
+            default -> throw new AssertionError("Unknown completion mode: " + completionMode);
+        }
+
+        CompletableFuture<Void> thirdCommit = fixture.transaction.commit();
+        assertThat(secondCommit).isNotDone();
+        assertThat(thirdCommit).isNotDone();
+        verify(fixture.coordinator).commitAsync(fixture.transaction.getTxnID());
+        assertThat(actions).hasValue(0);
+        fixture.commitResponse.complete(null);
+
+        secondCommit.get(1, TimeUnit.SECONDS);
+        thirdCommit.get(1, TimeUnit.SECONDS);
+        assertThat(fixture.transaction.getState()).isEqualTo(State.COMMITTED);
+        assertThat(actions).hasValue(1);
     }
 
     @Test(timeOut = 30000)
@@ -133,6 +226,88 @@ public class TransactionImplTest {
     }
 
     @Test(timeOut = 30000)
+    public void testRetryFromFailedCommitCompletionStartsANewAttempt() throws Exception {
+        Fixture fixture = new Fixture();
+        CompletableFuture<Void> retryResponse = new CompletableFuture<>();
+        when(fixture.coordinator.commitAsync(fixture.transaction.getTxnID()))
+                .thenReturn(fixture.commitResponse, retryResponse);
+        AtomicInteger actions = new AtomicInteger();
+        fixture.transaction.registerCommitAction(actions::incrementAndGet);
+        IllegalStateException failure = new IllegalStateException("Controlled retryable commit failure");
+        CompletableFuture<Void> firstCommit = fixture.transaction.commit();
+        CompletableFuture<Void> retry = firstCommit.handle((ignored, error) -> {
+            assertThat(error).isNotNull();
+            return fixture.transaction.commit();
+        }).thenCompose(future -> future);
+
+        fixture.commitResponse.completeExceptionally(failure);
+        assertThatThrownBy(() -> firstCommit.get(1, TimeUnit.SECONDS)).hasCause(failure);
+        verify(fixture.coordinator, times(2)).commitAsync(fixture.transaction.getTxnID());
+        assertThat(retry).isNotDone();
+        retryResponse.complete(null);
+
+        retry.get(1, TimeUnit.SECONDS);
+        assertThat(actions).hasValue(1);
+        assertThat(fixture.transaction.getState()).isEqualTo(State.COMMITTED);
+    }
+
+    @Test(dataProvider = "synchronousCoordinatorFailures", timeOut = 30000)
+    public void testSynchronousCoordinatorFailureCompletesAttemptAndAllowsRetry(
+            boolean commit, boolean waitingForAck) throws Exception {
+        Fixture fixture = new Fixture();
+        CompletableFuture<Void> ack = new CompletableFuture<>();
+        if (waitingForAck) {
+            fixture.transaction.registerAckOp(ack);
+        }
+        IllegalStateException failure = new IllegalStateException("Controlled synchronous coordinator failure");
+        if (commit) {
+            when(fixture.coordinator.commitAsync(fixture.transaction.getTxnID()))
+                    .thenThrow(failure).thenReturn(fixture.commitResponse);
+        } else {
+            when(fixture.coordinator.abortAsync(fixture.transaction.getTxnID()))
+                    .thenThrow(failure).thenReturn(fixture.abortResponse);
+        }
+        AtomicInteger actions = new AtomicInteger();
+        fixture.transaction.registerCommitAction(actions::incrementAndGet);
+        CompletableFuture<Void> operation = commit ? fixture.transaction.commit() : fixture.transaction.abort();
+        ack.complete(null);
+
+        assertThatThrownBy(() -> operation.get(1, TimeUnit.SECONDS)).hasCause(failure);
+        assertThat(fixture.transaction.getState()).isEqualTo(commit ? State.COMMITTING : State.ABORTING);
+        CompletableFuture<Void> retry = commit ? fixture.transaction.commit() : fixture.transaction.abort();
+        (commit ? fixture.commitResponse : fixture.abortResponse).complete(null);
+
+        retry.get(1, TimeUnit.SECONDS);
+        assertThat(actions).hasValue(commit ? 1 : 0);
+        assertThat(fixture.transaction.getState()).isEqualTo(commit ? State.COMMITTED : State.ABORTED);
+    }
+
+    @Test(dataProvider = "terminationOperations", timeOut = 30000)
+    public void testAdmittedTerminationRejectsOppositeOperationAndTimeout(boolean commit) throws Exception {
+        Fixture fixture = new Fixture();
+        CompletableFuture<Void> ack = new CompletableFuture<>();
+        fixture.transaction.registerAckOp(ack);
+        CompletableFuture<Void> operation = commit ? fixture.transaction.commit() : fixture.transaction.abort();
+        CompletableFuture<Void> opposite = commit ? fixture.transaction.abort() : fixture.transaction.commit();
+        fixture.transaction.run(fixture.timeout);
+
+        assertThatThrownBy(() -> opposite.get(1, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(InvalidTxnStatusException.class);
+        assertThat(fixture.transaction.getState()).isEqualTo(commit ? State.COMMITTING : State.ABORTING);
+        ack.complete(null);
+        if (commit) {
+            verify(fixture.coordinator).commitAsync(fixture.transaction.getTxnID());
+            verify(fixture.coordinator, never()).abortAsync(any());
+            fixture.commitResponse.complete(null);
+        } else {
+            verify(fixture.coordinator).abortAsync(fixture.transaction.getTxnID());
+            verify(fixture.coordinator, never()).commitAsync(any());
+            fixture.abortResponse.complete(null);
+        }
+        operation.get(1, TimeUnit.SECONDS);
+    }
+
+    @Test(timeOut = 30000)
     public void testAbortDiscardsCommitActions() throws Exception {
         Fixture fixture = new Fixture();
         AtomicInteger actions = new AtomicInteger();
@@ -158,14 +333,18 @@ public class TransactionImplTest {
         fixture.transaction.registerAckOp(receipt.thenRun(() ->
                 fixture.transaction.registerCommitAction(actions::incrementAndGet)));
         CompletableFuture<Void> commit = fixture.transaction.commit();
+        CompletableFuture<Void> anotherCommit = fixture.transaction.commit();
         receipt.completeExceptionally(new IllegalStateException("Controlled ACK receipt failure"));
 
         verify(fixture.coordinator, never()).commitAsync(any());
         verify(fixture.coordinator).abortAsync(fixture.transaction.getTxnID());
         assertThat(commit).isNotDone();
+        assertThat(anotherCommit).isNotDone();
         fixture.abortResponse.complete(null);
 
         assertThatThrownBy(() -> commit.get(1, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(PulsarClientException.TransactionHasOperationFailedException.class);
+        assertThatThrownBy(() -> anotherCommit.get(1, TimeUnit.SECONDS))
                 .hasCauseInstanceOf(PulsarClientException.TransactionHasOperationFailedException.class);
         assertThat(fixture.transaction.getState()).isEqualTo(State.ABORTED);
         fixture.transaction.registerCommitAction(actions::incrementAndGet);
@@ -242,9 +421,6 @@ public class TransactionImplTest {
     @Test(timeOut = 30000)
     public void testConcurrentSuccessfulCommitsWaitForTheSameCleanup() throws Exception {
         Fixture fixture = new Fixture();
-        CompletableFuture<Void> secondResponse = new CompletableFuture<>();
-        when(fixture.coordinator.commitAsync(fixture.transaction.getTxnID()))
-                .thenReturn(fixture.commitResponse, secondResponse);
         CountDownLatch actionStarted = new CountDownLatch(1);
         CountDownLatch releaseAction = new CountDownLatch(1);
         AtomicInteger actions = new AtomicInteger();
@@ -265,9 +441,13 @@ public class TransactionImplTest {
         try {
             CompletableFuture<Void> firstResponseCompletion =
                     CompletableFuture.runAsync(() -> fixture.commitResponse.complete(null), executor);
+            CompletableFuture<Void> thirdCommit;
             try {
                 assertThat(actionStarted.await(5, TimeUnit.SECONDS)).as("the first response starts cleanup").isTrue();
-                secondResponse.complete(null);
+                assertThat(fixture.transaction.getState()).isEqualTo(State.COMMITTED);
+                thirdCommit = fixture.transaction.commit();
+                assertThat(thirdCommit).as("a caller arriving during cleanup also waits").isNotDone();
+                verify(fixture.coordinator).commitAsync(fixture.transaction.getTxnID());
                 assertThat(firstCommit).as("the first commit waits for its running cleanup").isNotDone();
                 assertThat(secondCommit).as("another successful commit must wait for the same running cleanup")
                         .isNotDone();
@@ -279,7 +459,8 @@ public class TransactionImplTest {
             firstResponseCompletion.get(5, TimeUnit.SECONDS);
             firstCommit.get(1, TimeUnit.SECONDS);
             secondCommit.get(1, TimeUnit.SECONDS);
-            assertThat(actions).as("concurrent commit responses cannot repeat the cleanup").hasValue(1);
+            thirdCommit.get(1, TimeUnit.SECONDS);
+            assertThat(actions).as("concurrent callers cannot repeat the cleanup").hasValue(1);
             assertThat(fixture.transaction.getState()).isEqualTo(State.COMMITTED);
         } finally {
             releaseAction.countDown();
