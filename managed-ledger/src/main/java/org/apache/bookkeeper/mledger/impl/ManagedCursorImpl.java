@@ -2590,14 +2590,19 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         }
 
+        IllegalArgumentException markDeleteFailure = null;
         lock.writeLock().lock();
         try {
             newPosition = setAcknowledgedPosition(newPosition);
         } catch (IllegalArgumentException e) {
-            callback.markDeleteFailed(getManagedLedgerException(e), ctx);
-            return;
+            markDeleteFailure = e;
         } finally {
             lock.writeLock().unlock();
+        }
+        if (markDeleteFailure != null) {
+            // Callbacks may wait for other operations that need to acquire the cursor lock.
+            callback.markDeleteFailed(getManagedLedgerException(markDeleteFailure), ctx);
+            return;
         }
 
         // Apply rate limiting to mark-delete operations
