@@ -34,6 +34,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -142,7 +143,9 @@ public class PulsarShell {
     private Function<Map<String, ShellCommandsProvider>, InteractiveLineReader> readerBuilder;
     private InteractiveLineReader reader;
     private final ConfigShell configShell;
-    private ExecState execState = ExecState.IDLE;
+    private volatile ExecState execState = ExecState.IDLE;
+    private volatile Thread executingThread;
+    private final AtomicBoolean interruptRequested = new AtomicBoolean();
 
     public PulsarShell(String args[]) throws IOException {
         this(args, new Properties());
@@ -229,15 +232,7 @@ public class PulsarShell {
     public void run() throws Exception {
         final Terminal terminal = TerminalBuilder.builder()
                 .nativeSignals(true)
-                .signalHandler(signal -> {
-                    if (signal == Terminal.Signal.INT || signal == Terminal.Signal.QUIT) {
-                        if (execState == ExecState.RUNNING) {
-                            throw new InterruptShellException();
-                        } else {
-                            exit(0);
-                        }
-                    }
-                })
+                .signalHandler(this::handleSignal)
                 .build();
         run((providersMap) -> {
             String serviceUrl = "";
@@ -295,6 +290,25 @@ public class PulsarShell {
                 }
             };
         }, () -> terminal);
+    }
+
+    /**
+     * Handles a terminal signal. It is invoked on jline's signal handler thread, so it must not throw: a running
+     * command is interrupted instead, and the shell exits when no command is running.
+     */
+    void handleSignal(Terminal.Signal signal) {
+        if (signal != Terminal.Signal.INT && signal != Terminal.Signal.QUIT) {
+            return;
+        }
+        if (execState == ExecState.RUNNING) {
+            final Thread thread = executingThread;
+            if (thread != null) {
+                interruptRequested.set(true);
+                thread.interrupt();
+            }
+        } else {
+            exit(0);
+        }
     }
 
     private void configureHistory(Properties properties, LineReaderBuilder readerBuilder) {
@@ -408,6 +422,10 @@ public class PulsarShell {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> quit(terminal)));
         while (true) {
             execState = ExecState.IDLE;
+            if (interruptRequested.getAndSet(false)) {
+                // A signal raced with the end of the previous command
+                Thread.interrupted();
+            }
             final List<String> words;
             try {
                 words = commandReader.readCommand();
@@ -437,12 +455,21 @@ public class PulsarShell {
             boolean commandOk = false;
             try {
                 printExecutingCommands(terminal, commandsInfo, false);
+                executingThread = Thread.currentThread();
                 systemRegistry.execute(line);
             } catch (InterruptShellException t) {
                 // no-op
             } catch (Throwable t) {
-                t.printStackTrace(terminal.writer());
+                if (!interruptRequested.get()) {
+                    t.printStackTrace(terminal.writer());
+                }
             } finally {
+                executingThread = null;
+                if (interruptRequested.getAndSet(false)) {
+                    // Clear the interrupt so it doesn't leak into reading the next command
+                    Thread.interrupted();
+                    output("Interrupted", terminal);
+                }
                 final boolean willExitWithError = mainOptions.failOnError && !commandOk;
                 if (commandsInfo != null && !willExitWithError) {
                     commandsInfo.executingCommand = null;
