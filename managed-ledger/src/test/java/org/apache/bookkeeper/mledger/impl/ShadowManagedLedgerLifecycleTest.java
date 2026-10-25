@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.bookkeeper.client.AsyncCallback;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.OpenBuilder;
@@ -42,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
@@ -69,12 +72,14 @@ public class ShadowManagedLedgerLifecycleTest extends MockedBookKeeperTestCase {
         BookKeeper bookKeeper = spy(bkc);
         CompletableFuture<Void> allowOpen = new CompletableFuture<>();
         CompletableFuture<LedgerHandle> opened = delayNextOpen(bookKeeper, allowOpen);
+        MetaStore store = spy(factory.getMetaStore());
         ShadowManagedLedgerImpl shadow = newShadow("shadow-late-initialization", source.getName(),
-                bookKeeper, factory.getMetaStore());
+                bookKeeper, store);
         CompletableFuture<Void> initialization = initialize(shadow);
         LedgerHandle lateHandle = opened.get(5, TimeUnit.SECONDS);
 
         shadow.close();
+        verify(store).unwatchManagedLedgerInfo(eq(source.getName()), any());
         allowOpen.complete(null);
 
         assertThatThrownBy(() -> initialization.get(5, TimeUnit.SECONDS))
@@ -82,6 +87,50 @@ public class ShadowManagedLedgerLifecycleTest extends MockedBookKeeperTestCase {
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> verify(lateHandle).closeAsync());
         assertThat(shadow.currentLedger).isNull();
         assertThat(shadow.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+    }
+
+    @Test
+    public void testCloseUnwatchesSourceBeforeCurrentHandleCloseCompletes() throws Exception {
+        ManagedLedgerImpl source = (ManagedLedgerImpl) factory.open("source-pending-close", defaultConfig());
+        source.addEntry(new byte[] {1});
+        BookKeeper bookKeeper = spy(bkc);
+        delayNextOpen(bookKeeper, CompletableFuture.completedFuture(null));
+        MetaStore store = spy(factory.getMetaStore());
+        AtomicReference<MetaStore.UpdateCallback<ManagedLedgerInfo>> watcher = new AtomicReference<>();
+        doAnswer(invocation -> {
+            watcher.set(invocation.getArgument(1));
+            return invocation.callRealMethod();
+        }).when(store).watchManagedLedgerInfo(eq(source.getName()), any());
+        ShadowManagedLedgerImpl shadow = newShadow("shadow-pending-close", source.getName(), bookKeeper, store);
+        initialize(shadow).get(5, TimeUnit.SECONDS);
+        LedgerHandle currentHandle = shadow.currentLedger;
+        AtomicReference<AsyncCallback.CloseCallback> handleCloseCallback = new AtomicReference<>();
+        AtomicReference<Object> handleCloseContext = new AtomicReference<>();
+        doAnswer(invocation -> {
+            handleCloseCallback.set(invocation.getArgument(0));
+            handleCloseContext.set(invocation.getArgument(1));
+            return null;
+        }).when(currentHandle).asyncClose(any(), any());
+        doAnswer(invocation -> {
+            assertThat(shadow.isClosingOrClosed()).isTrue();
+            assertThat(Thread.holdsLock(shadow)).isFalse();
+            return invocation.callRealMethod();
+        }).when(store).unwatchManagedLedgerInfo(source.getName(), watcher.get());
+        Futures.CloseFuture closing = new Futures.CloseFuture();
+        try {
+            shadow.asyncClose(closing, null);
+
+            assertThat(handleCloseCallback.get()).isNotNull();
+            assertThat(closing).isNotDone();
+            verify(store).unwatchManagedLedgerInfo(source.getName(), watcher.get());
+            assertThat(shadow.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+        } finally {
+            doCallRealMethod().when(currentHandle).asyncClose(any(), any());
+            if (handleCloseCallback.get() != null) {
+                currentHandle.asyncClose(handleCloseCallback.get(), handleCloseContext.get());
+            }
+        }
+        closing.get(5, TimeUnit.SECONDS);
     }
 
     @Test

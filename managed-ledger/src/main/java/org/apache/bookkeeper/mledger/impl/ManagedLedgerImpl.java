@@ -1938,6 +1938,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             lh = currentLedger;
         }
 
+        onCloseStarted();
+
         // Removing a cached future may close its handle inline. Keep cache locks and handle callbacks outside the
         // managed-ledger monitor, including when there is no write handle or closing that handle fails.
         factory.closeReadOnlyEntryCache(this);
@@ -1973,6 +1975,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }, null);
 
 
+    }
+
+    /** Releases subclass resources after closing is claimed, without holding the managed-ledger monitor. */
+    void onCloseStarted() {
     }
 
     private void closeAllCursors(CloseCallback callback, final Object ctx) {

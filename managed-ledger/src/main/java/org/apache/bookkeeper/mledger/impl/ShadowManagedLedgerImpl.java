@@ -423,20 +423,8 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
 
 
     @Override
-    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
-        super.asyncClose(new AsyncCallbacks.CloseCallback() {
-            @Override
-            public void closeComplete(Object callbackCtx) {
-                store.unwatchManagedLedgerInfo(sourceMLName, sourceManagedLedgerInfoCallback);
-                callback.closeComplete(callbackCtx);
-            }
-
-            @Override
-            public void closeFailed(ManagedLedgerException exception, Object callbackCtx) {
-                store.unwatchManagedLedgerInfo(sourceMLName, sourceManagedLedgerInfoCallback);
-                callback.closeFailed(exception, callbackCtx);
-            }
-        }, ctx);
+    void onCloseStarted() {
+        store.unwatchManagedLedgerInfo(sourceMLName, sourceManagedLedgerInfoCallback);
     }
 
     private boolean installSourceReadHandle(long ledgerId, LedgerHandle handle, boolean initializing) {
