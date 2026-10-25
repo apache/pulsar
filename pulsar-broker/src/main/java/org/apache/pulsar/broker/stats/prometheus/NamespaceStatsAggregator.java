@@ -159,7 +159,7 @@ public class NamespaceStatsAggregator {
         subsStats.msgInReplay = subscriptionStats.msgInReplay;
         subsStats.msgRateExpired = subscriptionStats.msgRateExpired;
         subsStats.totalMsgExpired = subscriptionStats.totalMsgExpired;
-        subsStats.msgBacklogNoDelayed = subsStats.msgBacklog - subsStats.msgDelayed;
+        subsStats.msgBacklogNoDelayed = subscriptionStats.msgBacklogNoDelayed;
         subsStats.lastExpireTimestamp = subscriptionStats.lastExpireTimestamp;
         subsStats.lastAckedTimestamp = subscriptionStats.lastAckedTimestamp;
         subsStats.lastConsumedFlowTimestamp = subscriptionStats.lastConsumedFlowTimestamp;

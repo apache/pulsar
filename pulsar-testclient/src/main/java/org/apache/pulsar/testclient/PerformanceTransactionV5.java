@@ -139,7 +139,7 @@ public class PerformanceTransactionV5 extends PerformanceTransactionBase<PulsarC
         // Deliberately not PerfClientUtils.newTransactionWithRetry: this command builds its
         // producers and consumers before opening its first transaction, so it does not hit the
         // coordinator-connect race that helper exists for, and the worker's own retry loop has to
-        // see - and count - every failed open for -ntxn to terminate.
+        // see - and count - every failed open.
         return client.newTransaction();
     }
 

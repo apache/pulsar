@@ -86,7 +86,7 @@ the run report are written for the IoT domain.
 
 | Domain | Simulation |
 |---|---|
-| Device | A device ID, which is the message key. `devices.count` sets the number of devices |
+| Device | A device ID, which is the message key. `devices.count` sets the number of devices, and `devices.keyType` whether the key is the ID as bytes, the default, or `device-<ID>` as a string |
 | Telemetry message | A message with the device ID, the device's sequence number and the send time, `payload.size` bytes long |
 | Gateway | A Pulsar client in the gateways' container, with a producer named `iot-gateway-<gateway>-topic-<topic>` for each topic. `gateways.count` sets the number of gateways; their clients share I/O threads and memory, as the clients of one process can since PIP-234 |
 | Topics | `topics.count` topics; a device's messages always go to the same topic, the device ID modulo `topics.count` |
@@ -109,6 +109,23 @@ the run report are written for the IoT domain.
 
 [The IoT telemetry scenario](scenarios/docs/iot-telemetry.md) describes the workload's settings and the maintained
 scenarios in detail.
+
+### Deduplication fault regression
+
+The telemetry tracker classifies duplicates of each device's latest tracked message; it is not a full-history
+producer-sequence deduplication oracle. For that contract, the bounded
+[`TopicDuplicationTest`](../../pulsar-broker/src/test/java/org/apache/pulsar/broker/service/persistent/TopicDuplicationTest.java)
+regression discards publish receipts after persistence, restarts the in-JVM broker over the same storage fixtures,
+then retries old sequences both immediately after recovery and after newer writes have succeeded. The immediate
+retries start inside the original batch to check recovery of its highest sequence ID. It covers two named producers
+with batching on and off, checks the entire stored backlog for distinct message IDs for the same producer sequence,
+and permits legitimate redelivery of the same stored message. It does not simulate a process crash.
+
+```bash
+./gradlew :pulsar-broker:test -PtestRetryCount=0 \
+  --tests 'TopicDuplicationTest.testDeduplicationContractAfterLostReceiptsAndRestart' \
+  --tests 'TopicDuplicationTest.testStoredSequenceOracleAllowsRedeliveryButRejectsRepublishing'
+```
 
 ## Before you start
 
@@ -228,7 +245,7 @@ Run directory: .../build/performance/2026-09-26/master/iot-telemetry/09-26-12-00
 12:00:49 Starting the gateways: 20,000 warmup and 120,000 measured message(s) at 1,000 msg/s from 100 gateway(s) to 30 topic(s)
 ...
 [01:12 measurement 40 s] Produced: 60,548 msg of 140,000 (43%) --- 1,000.9 msg/s --- 0.5 Mbit/s --- pending: 1 --- Latency: mean: 2.038 ms - med: 1.392 - 95pct: 5.463 - 99pct: 11.647 - 99.9pct: 22.079 - 99.99pct: 28.031 - Max: 28.063
-[01:12 measurement 40 s] Received: 1,215,940 msg of 2,800,000 (43%) --- 20,016.4 msg/s --- 10.2 Mbit/s --- backlog: 1,161 msg (max per application: 66) --- Latency: mean: 5.361 ms - med: 2.000 - 95pct: 16.007 - 99pct: 40.031 - 99.9pct: 70.015 - 99.99pct: 81.023 - Max: 94.015
+[01:12 measurement 40 s] Received: 1,215,940 msg of 2,800,000 (43%) --- 20,016.4 msg/s --- 10.2 Mbit/s --- backlog: 1,161 entries (max per application: 66) --- Latency: mean: 5.361 ms - med: 2.000 - 95pct: 16.007 - 99pct: 40.031 - 99.9pct: 70.015 - 99.99pct: 81.023 - Max: 94.015
 ...
 12:03:26 The gateways have finished; waiting for the applications to receive every message
 12:03:34 Every application has received every message; verifying the device sequences

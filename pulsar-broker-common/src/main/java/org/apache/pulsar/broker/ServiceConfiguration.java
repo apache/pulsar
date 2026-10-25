@@ -337,9 +337,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of threads to use for Netty IO."
-            + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
+            + " Default is set to half the available processors, but no fewer than 8 unless that exceeds twice the"
+            + " available processors: `Math.min(2 * n, Math.max(8, n / 2))` for n available processors."
+            + " Increase it when the busiest pulsar-io thread stays busy and consumers' backlogs grow"
     )
-    private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
+    private int numIOThreads = defaultNumIOThreads(Runtime.getRuntime().availableProcessors());
+
+    /**
+     * The default number of Netty IO threads for the given number of available processors: half of them, but no fewer
+     * than 8 unless that exceeds twice the processors. Fewer, busier event loops batch more work per wakeup and
+     * system call, and the threads that hand work over to them, such as a managed ledger's, wake them less often.
+     */
+    static int defaultNumIOThreads(int availableProcessors) {
+        return Math.min(2 * availableProcessors, Math.max(8, availableProcessors / 2));
+    }
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -2656,6 +2667,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "Set to a value greater than 0 to use that many MB.")
     private Long managedLedgerMaxReadsInFlightSizeInMB = null;
 
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Read ahead for cursors that read ranges of entries, such as subscriptions catching up with a"
+                    + " backlog: when a cursor reads a range, the managed ledger also reads the next range of the"
+                    + " same ledger into the entry cache, unless it's cached, so that the cursor's next read finds it"
+                    + " in the cache or joins the read in progress instead of waiting for the storage. A cursor has at"
+                    + " most one read ahead in progress; a read ahead takes no permits of"
+                    + " managedLedgerMaxReadsInFlightSizeInMB that reads are waiting for, nor ones that would leave"
+                    + " more than 70 % of the limit in use, and is skipped when the entry cache is at its eviction"
+                    + " watermark (managedLedgerCacheEvictionWatermark). Set to false to disable it"
+    )
+    private boolean managedLedgerReadAheadEnabled = true;
+
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum time to wait for acquiring permits for max reads in "
             + "flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.")
     private long managedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis = 60000;
@@ -4169,7 +4193,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
-        doc = "The directory where nar Extraction of offloaders happens"
+        doc = "The directory where nar packages are extracted. Default is java.io.tmpdir. Outside of Kubernetes,"
+            + " OS cleanup of /tmp (for example, by systemd-tmpfiles) can delete extracted files while the broker is"
+            + " running, which causes ClassNotFoundException or NoClassDefFoundError errors. In that case, set this"
+            + " to a dedicated directory that isn't cleaned up automatically."
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 

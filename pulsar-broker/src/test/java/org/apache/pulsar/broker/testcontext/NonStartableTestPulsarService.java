@@ -25,6 +25,7 @@ import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -70,7 +71,7 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
                                          ManagedLedgerStorage managedLedgerClientFactory,
                                          Function<BrokerService, BrokerService> brokerServiceCustomizer) {
         super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
-                brokerInterceptor, bookKeeperClientFactory, null);
+                brokerInterceptor, bookKeeperClientFactory, null, Optional.empty());
         setPulsarResources(pulsarResources);
         setManagedLedgerStorage(managedLedgerClientFactory);
         try {
@@ -164,6 +165,14 @@ class NonStartableTestPulsarService extends AbstractTestPulsarService {
         @Override
         public NamespaceResources getNamespaceResources() {
             return namespaceResources;
+        }
+
+        @Override
+        public void close() {
+            super.close();
+            if (topicResources != null) {
+                topicResources.close();
+            }
         }
     }
 }

@@ -337,6 +337,9 @@ func NewMetricsServicer(goInstance *goInstance) *MetricsServicer {
 		reg,
 		promhttp.HandlerOpts{
 			EnableOpenMetrics: true,
+			// A failing user collector (see FunctionContext.GetMetricsRegistry)
+			// must not hide the SDK metrics from the scrape.
+			ErrorHandling: promhttp.ContinueOnError,
 		},
 	)
 	serveMux.Handle("/", pHandler)

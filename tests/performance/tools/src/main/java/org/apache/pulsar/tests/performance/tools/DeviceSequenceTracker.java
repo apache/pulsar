@@ -38,7 +38,7 @@ import org.apache.pulsar.client.api.MessageIdAdv;
  * messages as follow the position.
  */
 final class DeviceSequenceTracker {
-    private static final int STATE_VERSION = 1;
+    static final int STATE_VERSION = 1;
     private static final int LOCK_COUNT = 1024;
     private static final int MAX_VIOLATION_SAMPLES = 100;
     // Whether a device's messages must arrive in order; without it, a message after a gap waits for the gap like an

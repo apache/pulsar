@@ -296,9 +296,10 @@ public class PatternConsumerUpdateQueue {
             log.error().attr("task", task)
                     .exception(ex)
                     .log("Pattern consumer task failed");
-            // Skip if there is already a recheck task in queue.
+            // Skip a redundant delayed retry, but still advance any queued recheck.
             synchronized (PatternConsumerUpdateQueue.this) {
                 if (recheckTaskInQueue || PatternConsumerUpdateQueue.this.closed) {
+                    triggerNextTask();
                     return null;
                 }
             }

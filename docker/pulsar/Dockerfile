@@ -67,9 +67,12 @@ RUN apk add --no-cache binutils
 #     java.desktop), and localedata is needed for non-English date/number formatting.
 #   - jdk.jcmd, jdk.jfr, jdk.management.agent: live ops/diagnostics on a running broker.
 #   - jdk.jdwp.agent: lets you attach a remote debugger (-agentlib:jdwp) inside the container.
+#   - java.compiler: not used by Pulsar itself, but connectors (no longer bundled with Pulsar,
+#     so not covered by the scan below) run on this image, and Debezium calls
+#     javax.lang.model.SourceVersion. API-only and about 250KB; it does not pull in jdk.compiler.
 #
 # Left out (verified unused by Pulsar's shipped jars via a jdeps/bytecode scan):
-#   - build/compile tools: java.compiler, jdk.compiler (also drops the ~10MB lib/ct.sym),
+#   - build/compile tools: jdk.compiler (also drops the ~10MB lib/ct.sym),
 #     jdk.javadoc, jdk.jdeps, jdk.jlink, jdk.jpackage, jdk.jartool
 #   - REPL/console: jdk.jshell, jdk.editpad, jdk.internal.ed, jdk.internal.le, jdk.jconsole
 #   - debugger client + serviceability: jdk.jdi, jdk.hotspot.agent, jdk.jstatd
@@ -80,6 +83,7 @@ RUN apk add --no-cache binutils
 #
 RUN JDK_MODULES="\
 java.base,\
+java.compiler,\
 java.datatransfer,\
 java.xml,\
 java.prefs,\
