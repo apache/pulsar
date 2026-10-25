@@ -1995,6 +1995,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         ml.addEntry("entry-1".getBytes(Encoding));
         Position p2 = ml.addEntry("entry-2".getBytes(Encoding));
         Position p3 = ml.addEntry("entry-3".getBytes(Encoding));
+        // Keep p3 from being the last entry, so marking it deleted doesn't move the cursor to the next ledger
+        ml.addEntry("entry-4".getBytes(Encoding));
 
         Map<String, Long> properties = Map.of("CompactedTopicLedger", 5L);
         cursor.markDelete(p2, properties);
@@ -7905,6 +7907,41 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
             cursor.markDelete(invalidMarkDeletePos);
         });
         assertThat(thrown.getMessage()).contains("Invalid mark deleted position");
+    }
+
+    @Test(timeOut = 20000)
+    public void testAsyncMarkDeleteBatchOnLastEntryOfRolledOverLedger() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        config.setMaxEntriesPerLedger(2);
+        config.setDeletionAtBatchIndexLevelEnabled(true);
+        // Set retention in order to not trim ledger.
+        config.setRetentionTime(20, TimeUnit.SECONDS);
+        config.setRetentionSizeInMB(1);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("testAsyncMarkDeleteBatchOnLastEntryOfRolledOverLedger", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        Position p1 = ledger.addEntry("entry-1".getBytes(Encoding));
+        Position p2 = ledger.addEntry("entry-2".getBytes(Encoding));
+
+        // Wait for new ledger created.
+        Awaitility.await().untilAsserted(() -> assertThat(ledger.getLedgersInfo().size()).isEqualTo(2));
+        long nextLedgerId = ledger.getLedgersInfo().lastKey();
+
+        // The last entry of the rolled-over ledger is a batch of 10 with indexes 5..9 not acked yet.
+        int batchSize = 10;
+        BitSet unackedIndexes = new BitSet(batchSize);
+        unackedIndexes.set(5, batchSize);
+        cursor.markDelete(AckSetStateUtil.createPositionWithAckSet(p2.getLedgerId(), p2.getEntryId(),
+                unackedIndexes.toLongArray()));
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(p1);
+        assertThat(cursor.getDeletedBatchIndexesAsLongArray(p2)).isNotNull();
+
+        // Once the whole batch is acked, the ledger is fully consumed.
+        cursor.markDelete(AckSetStateUtil.createPositionWithAckSet(p2.getLedgerId(), p2.getEntryId(),
+                new long[0]));
+        assertThat(cursor.getMarkDeletedPosition()).isEqualTo(PositionFactory.create(nextLedgerId, -1));
     }
 
     @Test(timeOut = 20000)

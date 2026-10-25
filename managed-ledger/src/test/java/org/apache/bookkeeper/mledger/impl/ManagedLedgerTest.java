@@ -6730,7 +6730,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         nonDurableCursorsMarkDeleteCompletedLatch.countDown();
 
         assertTrue(advanceCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
-        assertEquals(nonDurableCursor.getMarkDeletedPosition(), pos2);
+        // The ledger of pos2 is fully consumed, so the mark-delete moves to nextLedgerId:-1 if the rollover
+        // already added the next ledger.
+        Position markDeletedPosition = nonDurableCursor.getMarkDeletedPosition();
+        Long nextLedgerId = ledger.getNextValidLedger(pos2.getLedgerId());
+        if (nextLedgerId == null || !markDeletedPosition.equals(PositionFactory.create(nextLedgerId, -1))) {
+            assertEquals(markDeletedPosition, pos2);
+        }
         assertEquals(nonDurableCursor.getProperties(), properties);
     }
 

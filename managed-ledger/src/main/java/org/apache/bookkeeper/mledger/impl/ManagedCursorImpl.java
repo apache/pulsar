@@ -2568,8 +2568,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         boolean shouldCursorMoveForward = false;
         try {
             if (lastConfirmedEntry.getLedgerId() >= newPosition.getLedgerId()) {
-                LedgerInfo curMarkDeleteLedgerInfo = ledger.getLedgerInfo(newPosition.getLedgerId()).get();
+                // Read the next ledger before the ledger info: while a ledger is open, its info has entries == 0,
+                // and the closed info is stored before the next ledger is added. Reading in the other order could
+                // pair the open ledger's info with the next ledger of a concurrent rollover and skip its entries.
                 Long nextValidLedger = ledger.getNextValidLedger(newPosition.getLedgerId());
+                LedgerInfo curMarkDeleteLedgerInfo = ledger.getLedgerInfo(newPosition.getLedgerId()).get();
                 shouldCursorMoveForward = (nextValidLedger != null)
                         && (curMarkDeleteLedgerInfo != null
                         && newPosition.getEntryId() + 1 >= curMarkDeleteLedgerInfo.getEntries());
