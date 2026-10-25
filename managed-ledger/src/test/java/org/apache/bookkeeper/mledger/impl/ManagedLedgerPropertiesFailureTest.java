@@ -198,7 +198,7 @@ public class ManagedLedgerPropertiesFailureTest extends MockedBookKeeperTestCase
             assertThat(updatePropertiesAsync(
                     callback -> ledger.asyncSetProperty("after-failure", "value", callback, null))
                     .get(5, TimeUnit.SECONDS))
-                    .containsExactlyEntriesOf(Map.of("existing", "value", "after-failure", "value"));
+                    .containsExactlyInAnyOrderEntriesOf(Map.of("existing", "value", "after-failure", "value"));
             assertThat(ledger.asyncMigrate().get(5, TimeUnit.SECONDS)).isEqualTo(lastPosition);
         } finally {
             throwingFactory.shutdown();
