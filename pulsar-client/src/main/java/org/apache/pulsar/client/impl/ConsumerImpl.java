@@ -1436,7 +1436,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     poolMessages, consumerEpoch);
             message.setBrokerEntryMetadata(brokerEntryMetadata);
             return message;
-        } catch (IOException | IllegalStateException e) {
+        } catch (IOException | IllegalStateException | IllegalArgumentException | IndexOutOfBoundsException e) {
+            // A malformed batch fails to parse with any of these: missing required fields, an unknown wire type
+            // (IllegalArgumentException) or a truncated entry (IndexOutOfBoundsException)
             throw new IllegalStateException(e);
         } finally {
             if (singleMessagePayload != null) {
@@ -2037,12 +2039,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         SingleMessageMetadata singleMessageMetadata = new SingleMessageMetadata();
         int skippedMessages = 0;
-        int processedMessages = 0;
         try {
             for (int i = 0; i < batchSize; ++i) {
-                final MessageImpl<T> message = newSingleMessage(i, batchSize, brokerEntryMetadata, msgMetadata,
-                        singleMessageMetadata, uncompressedPayload, batchMessage, schema, true,
-                        ackBitSet, ackSetInMessageId, redeliveryCount, consumerEpoch, isEncrypted);
+                final MessageImpl<T> message;
+                try {
+                    message = newSingleMessage(i, batchSize, brokerEntryMetadata, msgMetadata,
+                            singleMessageMetadata, uncompressedPayload, batchMessage, schema, true,
+                            ackBitSet, ackSetInMessageId, redeliveryCount, consumerEpoch, isEncrypted);
+                } catch (IllegalStateException e) {
+                    // The payload can't be read past a message that fails to deserialize, so the rest of the batch
+                    // is discarded too
+                    discardCorruptedBatchTail(messageId, cnx, batchSize, i, ackBitSet, ackSetInMessageId, e);
+                    break;
+                }
                 if (message == null) {
                     // If it is not in ackBitSet, it means Broker does not want to deliver it to the client, and
                     // did not decrease the permits in the broker-side.
@@ -2069,15 +2078,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     continue;
                 }
                 executeNotifyCallback(message);
-                processedMessages++;
             }
+        } finally {
             if (ackBitSet != null) {
                 ackBitSet.recycle();
             }
-        } catch (IllegalStateException | IllegalArgumentException e) {
-            // For IllegalArgumentException see PR: https://github.com/apache/pulsar/pull/24061
-            discardCorruptedBatchMessage(messageId, cnx, batchSize,
-                    skippedMessages, processedMessages, ValidationError.BatchDeSerializeError);
         }
 
         if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
@@ -2455,36 +2460,48 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     /**
-     * When batch index ack is enabled, ack the messages that failed to deserialize by their index,
-     * while keeping successfully enqueued messages unacknowledged to avoid message loss.
+     * Discards the messages of a batch from {@code failedIndex} on, after the one at {@code failedIndex} failed to
+     * deserialize. The messages before it have already been delivered and stay unacknowledged.
+     *
+     * <p>The discarded indexes are cleared in the ack set shared by the delivered messages' ids. If none is left, the
+     * whole entry is acked now. Otherwise, the discarded indexes are acked by batch index (when batch index ack is
+     * enabled) and the whole entry is acked by the normal ack path once the application acks the delivered messages.
      */
-    private void discardCorruptedBatchMessage(MessageIdData messageId, ClientCnx currentCnx,
-            int batchSize, int skipped, int processed, ValidationError validationError) {
+    private void discardCorruptedBatchTail(MessageIdData messageId, ClientCnx currentCnx, int batchSize,
+                                           int failedIndex, BitSetRecyclable ackBitSet, BitSet ackSetInMessageId,
+                                           Exception cause) {
         log.error().attr("messageId", messageId)
                 .attr("batchSize", batchSize)
-                .attr("skipped", skipped)
-                .attr("processed", processed)
-                .attr("validationError", validationError)
-                .log("Discarding corrupted batch messages");
-        BitSetRecyclable ackBitSet = null;
-        int corruptedStartIndex = skipped + processed;
-        if (conf.isBatchIndexAckEnabled()) {
-            // When batch index ack is enabled, only ack the messages that failed to deserialize.
-            // Messages that have been successfully enqueued remain unacknowledged,
-            // waiting for the user to consume and acknowledge them normally.
-            ackBitSet = BitSetRecyclable.create();
-            ackBitSet.set(0, batchSize);
-            for (int i = corruptedStartIndex; i < batchSize; i++) {
-                ackBitSet.clear(i);
+                .attr("failedIndex", failedIndex)
+                .exception(cause)
+                .log("Discarding the corrupted messages of the batch from the failed index on");
+        BitSetRecyclable pendingAckSet = null;
+        synchronized (ackSetInMessageId) {
+            ackSetInMessageId.clear(failedIndex, batchSize);
+            if (!ackSetInMessageId.isEmpty()) {
+                pendingAckSet = BitSetRecyclable.valueOf(ackSetInMessageId.toLongArray());
             }
         }
-        ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(),
-                ackBitSet, AckType.Individual, validationError, Collections.emptyMap(), -1);
-        currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
-        if (ackBitSet != null) {
-            ackBitSet.recycle();
+        try {
+            if (pendingAckSet == null || conf.isBatchIndexAckEnabled()) {
+                ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(),
+                        pendingAckSet, AckType.Individual, ValidationError.BatchDeSerializeError,
+                        Collections.emptyMap(), -1);
+                currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
+            }
+        } finally {
+            if (pendingAckSet != null) {
+                pendingAckSet.recycle();
+            }
         }
-        increaseAvailablePermits(currentCnx, batchSize - corruptedStartIndex);
+        // The broker only charged permits for the indexes it delivered, the ones not acked in the incoming ack set
+        int permits = 0;
+        for (int i = failedIndex; i < batchSize; i++) {
+            if (!isSingleMessageAcked(ackBitSet, i)) {
+                permits++;
+            }
+        }
+        increaseAvailablePermits(currentCnx, permits);
         stats.incrementNumReceiveFailed();
     }
 

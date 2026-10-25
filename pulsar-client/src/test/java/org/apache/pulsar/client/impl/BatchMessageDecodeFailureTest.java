@@ -20,94 +20,67 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import java.util.Map;
+import io.netty.channel.ChannelHandlerContext;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import org.apache.commons.lang3.reflect.FieldUtils;
+import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.DeadLetterPolicy;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
+import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
-import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Tests for {@link ConsumerImpl#receiveIndividualMessagesFromBatch}.
- *
- * <p>Covers the following scenarios:
- * <ul>
- *   <li>Decode failure: corrupted, partial-corrupt, empty, truncated payloads</li>
- *   <li>Normal path: all valid messages enqueued successfully</li>
- *   <li>Duplicate detection: messages flagged as duplicate are skipped</li>
- *   <li>Dead letter policy: messages exceeding max redelivery count</li>
- * </ul>
- *
- * <p>Uses the same client-side mocking infrastructure as {@link ConsumerImplTest}
- * (via {@link ClientTestFixtures}) without requiring a running broker.
+ * Tests how {@link ConsumerImpl#receiveIndividualMessagesFromBatch} handles a batch with a message that fails to
+ * deserialize: the messages before it are delivered, the rest of the batch is discarded, the broker gets back the
+ * permits it charged for the discarded messages, and only the discarded messages are acknowledged.
  */
 public class BatchMessageDecodeFailureTest {
 
     private static final String TOPIC = "persistent://tenant/ns1/test-decode-failure";
+    private static final long LEDGER_ID = 1000;
+
+    private enum Corruption {
+        // payload_size is a required field, an empty SingleMessageMetadata fails checkRequiredFields()
+        MISSING_REQUIRED_FIELD,
+        // tag 0x0B has wire type 3, which the parser rejects with an IllegalArgumentException
+        UNKNOWN_WIRE_TYPE,
+        // the metadata size points past the end of the entry, which fails with an IndexOutOfBoundsException
+        TRUNCATED
+    }
 
     private ExecutorProvider executorProvider;
     private ExecutorService internalExecutor;
-    private ClientCnx mockCnx;
     private ConsumerImpl<byte[]> consumer;
-    private ConsumerStatsRecorderImpl statsRecorder;
+    private final List<BaseCommand> sentCommands = new CopyOnWriteArrayList<>();
 
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
         executorProvider = new ExecutorProvider(1, "BatchDecodeFailureTest");
         internalExecutor = Executors.newSingleThreadScheduledExecutor();
-
-        mockCnx = ClientTestFixtures.mockClientCnx();
-
-        PulsarClientImpl client = ClientTestFixtures.createPulsarClientMockWithMockedClientCnx(
-                executorProvider, internalExecutor, mockCnx);
-        ClientConfigurationData clientConf = client.getConfiguration();
-        clientConf.setOperationTimeoutMs(100);
-        // Set StatsIntervalSeconds > 0 to enable real stats recording
-        clientConf.setStatsIntervalSeconds(1);
-
-        ConsumerConfigurationData<byte[]> consumerConf = new ConsumerConfigurationData<>();
-        consumerConf.setSubscriptionName("test-sub");
-
-        CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
-        consumer = ConsumerImpl.newConsumerImpl(client, TOPIC, consumerConf,
-                executorProvider, -1, false, subscribeFuture, null, null, null,
-                true);
-        consumer.setState(HandlerState.State.Ready);
-        consumer.setClientCnx(mockCnx);
-
-        // Replace the stats field with a spy to verify incrementNumReceiveFailed calls.
-        // Use FieldUtils.writeField to inject the spy into the final field.
-        statsRecorder = spy(new ConsumerStatsRecorderImpl(consumer));
-        try {
-            FieldUtils.writeField(consumer, "stats", statsRecorder, true);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to inject spy stats recorder", e);
-        }
+        sentCommands.clear();
     }
 
     @AfterMethod(alwaysRun = true)
@@ -122,326 +95,286 @@ public class BatchMessageDecodeFailureTest {
         }
     }
 
-    /**
-     * All messages in the batch are corrupted (payload is random garbage bytes).
-     * Expected: no messages enqueued, discardCorruptedBatchMessage called,
-     * incrementNumReceiveFailed invoked once.
-     */
-    @Test
-    public void testAllMessagesCorruptedInBatch() {
-        BrokerEntryMetadata brokerEntryMetadata =
-                new BrokerEntryMetadata().setBrokerTimestamp(1).setIndex(1);
-
-        MessageMetadata metadata = new MessageMetadata()
-                .setProducerName("test-producer")
-                .setSequenceId(1)
-                .setPublishTime(1)
-                .setNumMessagesInBatch(3);
-
-        // Construct corrupted payload: invalid metadata size triggers parse failure
-        // in deSerializeSingleMessageInBatch -> readUnsignedInt returns huge value
-        ByteBuf corruptedPayload = Unpooled.buffer(100);
-        corruptedPayload.writeInt(Integer.MAX_VALUE);
-        corruptedPayload.writeBytes(new byte[50]);
-
-        consumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata, 0, null,
-                corruptedPayload, new MessageIdData().setLedgerId(1000).setEntryId(1),
-                mockCnx, DEFAULT_CONSUMER_EPOCH, false);
-
-        // No valid messages should be enqueued
-        assertEquals(consumer.numMessagesInQueue(), 0,
-                "Corrupted batch should not produce any messages in queue");
-
-        // Verify discardCorruptedBatchMessage incremented the failed counter
-        verify(statsRecorder, timeout(2000)).incrementNumReceiveFailed();
-    }
-
-    /**
-     * Partial decode failure: the first message in the batch is valid,
-     * but the second message is corrupted.
-     * Expected: the first valid message is enqueued; remaining corrupted
-     * messages are discarded.
-     */
-    @Test
-    public void testPartialDecodeFailureInBatch() throws Exception {
-        BrokerEntryMetadata brokerEntryMetadata =
-                new BrokerEntryMetadata().setBrokerTimestamp(1).setIndex(1);
-
-        MessageMetadata metadata = new MessageMetadata()
-                .setProducerName("test-producer")
-                .setSequenceId(1)
-                .setPublishTime(1)
-                .setNumMessagesInBatch(3);
-
-        ByteBuf batchBuffer = Unpooled.buffer(1000);
-
-        // First message: valid, properly serialized using Commands utility
-        Commands.serializeSingleMessageInBatchWithPayload(
-                new SingleMessageMetadata().setPartitionKey("key1"),
-                Unpooled.wrappedBuffer("hello".getBytes()), batchBuffer);
-
-        // Second message: corrupted payload (invalid metadata size)
-        batchBuffer.writeInt(Integer.MAX_VALUE);
-        batchBuffer.writeBytes(new byte[20]);
-
-        consumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata, 0, null,
-                batchBuffer, new MessageIdData().setLedgerId(2000).setEntryId(2),
-                mockCnx, DEFAULT_CONSUMER_EPOCH, false);
-
-        // The first valid message should be enqueued via executeNotifyCallback,
-        // which uses internalPinnedExecutor.execute(). Since it's async,
-        // we check the stats synchronously — discardCorruptedBatchMessage
-        // is called inline in the catch block.
-        verify(statsRecorder, timeout(2000)).incrementNumReceiveFailed();
-    }
-
-    // ==================== Normal path tests ====================
-
-    /**
-     * All messages in the batch are valid and properly serialized.
-     * Expected: all messages are enqueued via executeNotifyCallback,
-     * no receive-failed counter is incremented, and skippedMessages == 0
-     * so increaseAvailablePermits is NOT called with extra skipped count.
-     */
-    @Test
-    public void testAllValidMessagesEnqueued() throws Exception {
-        BrokerEntryMetadata brokerEntryMetadata =
-                new BrokerEntryMetadata().setBrokerTimestamp(1).setIndex(1);
-
-        int batchSize = 3;
-        MessageMetadata metadata = new MessageMetadata()
-                .setProducerName("test-producer")
-                .setSequenceId(1)
-                .setPublishTime(1)
-                .setNumMessagesInBatch(batchSize);
-
-        ByteBuf batchBuffer = Unpooled.buffer(1024);
-
-        // Serialize 3 valid messages
-        for (int i = 0; i < batchSize; i++) {
-            Commands.serializeSingleMessageInBatchWithPayload(
-                    new SingleMessageMetadata().setPartitionKey("key-" + i),
-                    Unpooled.wrappedBuffer(("payload-" + i).getBytes()), batchBuffer);
-        }
-
-        consumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata, 0, null,
-                batchBuffer, new MessageIdData().setLedgerId(5000).setEntryId(1),
-                mockCnx, DEFAULT_CONSUMER_EPOCH, false);
-
-        // All 3 messages should eventually be enqueued through the async executor.
-        // Use Awaitility since executeNotifyCallback dispatches via internalPinnedExecutor.
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(consumer.numMessagesInQueue(), batchSize,
-                        "All valid messages should be enqueued"));
-
-        // No receive-failed counter should be incremented
-        verify(statsRecorder, never()).incrementNumReceiveFailed();
-    }
-
-    // ==================== Duplicate detection tests ====================
-
-    /**
-     * When acknowledgmentsGroupingTracker.isDuplicate() returns true for a message,
-     * that message should be skipped (skippedMessages++) and not enqueued.
-     */
-    @Test
-    public void testDuplicateMessagesAreSkipped() throws Exception {
-        // Inject a mock acknowledgmentsGroupingTracker that marks all messages as duplicates
-        AcknowledgmentsGroupingTracker mockTracker = mock(AcknowledgmentsGroupingTracker.class);
-        when(mockTracker.isDuplicate(any(MessageId.class))).thenReturn(true);
-        FieldUtils.writeField(consumer, "acknowledgmentsGroupingTracker", mockTracker, true);
-
-        BrokerEntryMetadata brokerEntryMetadata =
-                new BrokerEntryMetadata().setBrokerTimestamp(1).setIndex(1);
-
-        int batchSize = 3;
-        MessageMetadata metadata = new MessageMetadata()
-                .setProducerName("test-producer")
-                .setSequenceId(1)
-                .setPublishTime(1)
-                .setNumMessagesInBatch(batchSize);
-
-        ByteBuf batchBuffer = Unpooled.buffer(1024);
-        for (int i = 0; i < batchSize; i++) {
-            Commands.serializeSingleMessageInBatchWithPayload(
-                    new SingleMessageMetadata().setPartitionKey("key-" + i),
-                    Unpooled.wrappedBuffer(("payload-" + i).getBytes()), batchBuffer);
-        }
-
-        consumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata, 0, null,
-                batchBuffer, new MessageIdData().setLedgerId(5002).setEntryId(3),
-                mockCnx, DEFAULT_CONSUMER_EPOCH, false);
-
-        // All messages are duplicates, none should be enqueued
-        assertEquals(consumer.numMessagesInQueue(), 0,
-                "Duplicate messages should not be enqueued");
-
-        // No receive-failed since there is no decode error
-        verify(statsRecorder, never()).incrementNumReceiveFailed();
-
-        // isDuplicate should have been called for each message
-        verify(mockTracker, times(batchSize)).isDuplicate(any(MessageId.class));
-    }
-
-    /**
-     * When only the second message out of 3 is a duplicate, messages at
-     * index 0 and 2 should be enqueued, message at index 1 is skipped.
-     */
-    @Test
-    public void testPartialDuplicateMessages() throws Exception {
-        AcknowledgmentsGroupingTracker mockTracker = mock(AcknowledgmentsGroupingTracker.class);
-        // Only the second call returns true (message at index 1 is duplicate)
-        when(mockTracker.isDuplicate(any(MessageId.class)))
-                .thenReturn(false)
-                .thenReturn(true)
-                .thenReturn(false);
-        FieldUtils.writeField(consumer, "acknowledgmentsGroupingTracker", mockTracker, true);
-
-        BrokerEntryMetadata brokerEntryMetadata =
-                new BrokerEntryMetadata().setBrokerTimestamp(1).setIndex(1);
-
-        int batchSize = 3;
-        MessageMetadata metadata = new MessageMetadata()
-                .setProducerName("test-producer")
-                .setSequenceId(1)
-                .setPublishTime(1)
-                .setNumMessagesInBatch(batchSize);
-
-        ByteBuf batchBuffer = Unpooled.buffer(1024);
-        for (int i = 0; i < batchSize; i++) {
-            Commands.serializeSingleMessageInBatchWithPayload(
-                    new SingleMessageMetadata().setPartitionKey("key-" + i),
-                    Unpooled.wrappedBuffer(("payload-" + i).getBytes()), batchBuffer);
-        }
-
-        consumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata, 0, null,
-                batchBuffer, new MessageIdData().setLedgerId(5003).setEntryId(4),
-                mockCnx, DEFAULT_CONSUMER_EPOCH, false);
-
-        // 2 non-duplicate messages should be enqueued
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(consumer.numMessagesInQueue(), 2,
-                        "Only non-duplicate messages should be enqueued"));
-
-        verify(statsRecorder, never()).incrementNumReceiveFailed();
-    }
-
-    // ==================== Dead letter policy tests ====================
-
-    /**
-     * Helper to create a consumer with dead letter policy enabled.
-     * The maxRedeliverCount is set so that we can test the dead letter branches.
-     */
-    private ConsumerImpl<byte[]> createConsumerWithDeadLetterPolicy(int maxRedeliverCount) throws Exception {
-        ExecutorProvider dlqExecutorProvider = new ExecutorProvider(1, "DLQ-Test");
-        ExecutorService dlqInternalExecutor = Executors.newSingleThreadScheduledExecutor();
+    private void createConsumer(boolean batchIndexAckEnabled) {
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        ChannelHandlerContext ctx = cnx.ctx();
+        doAnswer(invocation -> {
+            sentCommands.add(decodeAndRelease(invocation.getArgument(0)));
+            return null;
+        }).when(ctx).writeAndFlush(any(), any());
+        doAnswer(invocation -> {
+            sentCommands.add(decodeAndRelease(invocation.getArgument(0)));
+            return null;
+        }).when(ctx).writeAndFlush(any());
 
         PulsarClientImpl client = ClientTestFixtures.createPulsarClientMockWithMockedClientCnx(
-                dlqExecutorProvider, dlqInternalExecutor, mockCnx);
-        ClientConfigurationData clientConf = client.getConfiguration();
-        clientConf.setOperationTimeoutMs(100);
-        clientConf.setStatsIntervalSeconds(1);
+                executorProvider, internalExecutor, cnx);
+        client.getConfiguration().setOperationTimeoutMs(100);
 
         ConsumerConfigurationData<byte[]> consumerConf = new ConsumerConfigurationData<>();
         consumerConf.setSubscriptionName("test-sub");
-        consumerConf.setDeadLetterPolicy(
-                DeadLetterPolicy.builder()
-                        .maxRedeliverCount(maxRedeliverCount)
-                        .build());
+        consumerConf.setBatchIndexAckEnabled(batchIndexAckEnabled);
+        // send the acks right away, so that the test sees them without flushing the tracker
+        consumerConf.setAcknowledgementsGroupTimeMicros(0);
 
         CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
-        ConsumerImpl<byte[]> dlqConsumer = ConsumerImpl.newConsumerImpl(client, TOPIC, consumerConf,
-                dlqExecutorProvider, -1, false, subscribeFuture, null, null, null,
+        consumer = ConsumerImpl.newConsumerImpl(client, TOPIC, consumerConf,
+                executorProvider, -1, false, subscribeFuture, null, null, null,
                 true);
-        dlqConsumer.setState(HandlerState.State.Ready);
-        dlqConsumer.setClientCnx(mockCnx);
+        consumer.setState(HandlerState.State.Ready);
+        consumer.setClientCnx(cnx);
+    }
 
-        // Inject stats spy
-        ConsumerStatsRecorderImpl dlqStats = spy(new ConsumerStatsRecorderImpl(dlqConsumer));
-        FieldUtils.writeField(dlqConsumer, "stats", dlqStats, true);
+    @DataProvider
+    public Object[][] corruptions() {
+        List<Object[]> params = new ArrayList<>();
+        for (Corruption corruption : Corruption.values()) {
+            params.add(new Object[]{corruption, true});
+            params.add(new Object[]{corruption, false});
+        }
+        return params.toArray(new Object[0][]);
+    }
 
-        return dlqConsumer;
+    @DataProvider
+    public Object[][] batchIndexAck() {
+        return new Object[][]{{true}, {false}};
     }
 
     /**
-     * When redeliveryCount == maxRedeliverCount, messages should be added to
-     * possibleSendToDeadLetterTopicMessages but still enqueued (not skipped).
+     * Batch of 5 on its first delivery, index 3 corrupted: indexes 0-2 are delivered, the broker gets back the 2
+     * permits of indexes 3-4, and only indexes 3-4 are acknowledged.
+     */
+    @Test(dataProvider = "corruptions")
+    public void testCorruptedMessageInTheMiddleOfTheBatch(Corruption corruption, boolean batchIndexAckEnabled)
+            throws Exception {
+        createConsumer(batchIndexAckEnabled);
+        int permitsBefore = consumer.getAvailablePermits();
+
+        receiveBatch(1, 5, null, batchPayload(5, 3, corruption));
+
+        assertEquals(consumer.numMessagesInQueue(), 3);
+        assertEquals(consumer.getAvailablePermits() - permitsBefore, 2);
+        List<CommandAck> acks = sentAcks();
+        if (batchIndexAckEnabled) {
+            assertEquals(acks.size(), 1);
+            assertEquals(ackSetOf(acks.get(0), 1), bits(0, 1, 2));
+            assertTrue(acks.get(0).hasValidationError());
+        } else {
+            // the whole entry is acked once the application acks the delivered messages
+            assertTrue(acks.isEmpty());
+        }
+    }
+
+    /**
+     * When the first message is corrupted, nothing is delivered and the whole entry is acked.
+     */
+    @Test(dataProvider = "corruptions")
+    public void testCorruptedFirstMessageAcksTheWholeEntry(Corruption corruption, boolean batchIndexAckEnabled)
+            throws Exception {
+        createConsumer(batchIndexAckEnabled);
+        int permitsBefore = consumer.getAvailablePermits();
+
+        receiveBatch(2, 5, null, batchPayload(5, 0, corruption));
+
+        assertEquals(consumer.numMessagesInQueue(), 0);
+        assertEquals(consumer.getAvailablePermits() - permitsBefore, 5);
+        List<CommandAck> acks = sentAcks();
+        assertEquals(acks.size(), 1);
+        assertNull(ackSetOf(acks.get(0), 2));
+        assertTrue(acks.get(0).hasValidationError());
+    }
+
+    /**
+     * Redelivery of a batch of 5 where the broker only delivers index 2 (ack set {2}) and index 3 is corrupted: the
+     * broker charged no permit for indexes 3-4, and index 2, which the application holds, must stay unacknowledged.
      */
     @Test
-    @SuppressWarnings("unchecked")
-    public void testDeadLetterPolicyAtMaxRedeliverCount() throws Exception {
-        int maxRedeliverCount = 3;
-        ConsumerImpl<byte[]> dlqConsumer = createConsumerWithDeadLetterPolicy(maxRedeliverCount);
+    public void testCorruptedMessageOnPartialRedelivery() throws Exception {
+        createConsumer(true);
+        int permitsBefore = consumer.getAvailablePermits();
 
-        BrokerEntryMetadata brokerEntryMetadata =
-                new BrokerEntryMetadata().setBrokerTimestamp(1).setIndex(1);
+        receiveBatch(3, 5, bits(2).toLongArray(), batchPayload(5, 3, Corruption.MISSING_REQUIRED_FIELD));
 
-        int batchSize = 2;
+        assertEquals(consumer.numMessagesInQueue(), 1);
+        assertEquals(consumer.getAvailablePermits() - permitsBefore, 0);
+        List<CommandAck> acks = sentAcks();
+        assertEquals(acks.size(), 1);
+        assertEquals(ackSetOf(acks.get(0), 3), bits(2));
+    }
+
+    /**
+     * Redelivery of a batch of 6 with indexes 1, 2 and 4 still unacknowledged and index 4 corrupted: only index 4's
+     * permit goes back, and indexes 1-2 stay unacknowledged.
+     */
+    @Test
+    public void testCorruptedUnackedMessageOnSparseRedelivery() throws Exception {
+        createConsumer(true);
+        int permitsBefore = consumer.getAvailablePermits();
+
+        receiveBatch(4, 6, bits(1, 2, 4).toLongArray(), batchPayload(6, 4, Corruption.UNKNOWN_WIRE_TYPE));
+
+        assertEquals(consumer.numMessagesInQueue(), 2);
+        assertEquals(consumer.getAvailablePermits() - permitsBefore, 1);
+        List<CommandAck> acks = sentAcks();
+        assertEquals(acks.size(), 1);
+        assertEquals(ackSetOf(acks.get(0), 4), bits(1, 2));
+    }
+
+    /**
+     * A batch whose metadata announces more messages than the entry holds: the messages it does hold are delivered,
+     * and the missing one is discarded instead of failing the whole connection.
+     */
+    @Test(dataProvider = "batchIndexAck")
+    public void testTruncatedBatch(boolean batchIndexAckEnabled) throws Exception {
+        createConsumer(batchIndexAckEnabled);
+        int permitsBefore = consumer.getAvailablePermits();
+
+        receiveBatch(5, 3, null, batchPayload(2, -1, null));
+
+        assertEquals(consumer.numMessagesInQueue(), 2);
+        assertEquals(consumer.getAvailablePermits() - permitsBefore, 1);
+        List<CommandAck> acks = sentAcks();
+        if (batchIndexAckEnabled) {
+            assertEquals(acks.size(), 1);
+            assertEquals(ackSetOf(acks.get(0), 5), bits(0, 1));
+        } else {
+            assertTrue(acks.isEmpty());
+        }
+    }
+
+    /**
+     * After the corrupted tail is discarded, acking the delivered messages acks the whole entry, also when the
+     * broker ignores batch index acks.
+     */
+    @Test(dataProvider = "batchIndexAck")
+    public void testWholeEntryAckedOnceTheDeliveredMessagesAreAcked(boolean batchIndexAckEnabled) throws Exception {
+        createConsumer(batchIndexAckEnabled);
+
+        receiveBatch(6, 3, null, batchPayload(3, 2, Corruption.MISSING_REQUIRED_FIELD));
+        assertEquals(consumer.numMessagesInQueue(), 2);
+
+        Message<byte[]> first = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> second = consumer.receive(1, TimeUnit.SECONDS);
+        assertNotNull(first);
+        assertNotNull(second);
+        assertEquals(new String(first.getData(), StandardCharsets.UTF_8), "payload-0");
+        assertEquals(new String(second.getData(), StandardCharsets.UTF_8), "payload-1");
+
+        consumer.acknowledge(first);
+        List<CommandAck> acks = sentAcks();
+        if (batchIndexAckEnabled) {
+            assertNotNull(ackSetOf(acks.get(acks.size() - 1), 6), "the entry must not be fully acked yet");
+        } else {
+            assertTrue(acks.isEmpty(), "the entry must not be acked yet");
+        }
+
+        consumer.acknowledge(second);
+        acks = sentAcks();
+        assertNull(ackSetOf(acks.get(acks.size() - 1), 6), "the last ack must ack the whole entry");
+    }
+
+    @Test
+    public void testValidBatch() throws Exception {
+        createConsumer(true);
+        int permitsBefore = consumer.getAvailablePermits();
+
+        receiveBatch(7, 3, null, batchPayload(3, -1, null));
+
+        assertEquals(consumer.numMessagesInQueue(), 3);
+        assertEquals(consumer.getAvailablePermits() - permitsBefore, 0);
+        assertTrue(sentAcks().isEmpty());
+    }
+
+    private void receiveBatch(long entryId, int numMessagesInBatch, long[] ackSet, ByteBuf payload)
+            throws Exception {
         MessageMetadata metadata = new MessageMetadata()
                 .setProducerName("test-producer")
                 .setSequenceId(1)
                 .setPublishTime(1)
-                .setNumMessagesInBatch(batchSize);
-
-        ByteBuf batchBuffer = Unpooled.buffer(1024);
-        for (int i = 0; i < batchSize; i++) {
-            Commands.serializeSingleMessageInBatchWithPayload(
-                    new SingleMessageMetadata().setPartitionKey("key-" + i),
-                    Unpooled.wrappedBuffer(("payload-" + i).getBytes()), batchBuffer);
+                .setNumMessagesInBatch(numMessagesInBatch);
+        try {
+            consumer.receiveIndividualMessagesFromBatch(null, metadata, 0, ackSet, payload,
+                    new MessageIdData().setLedgerId(LEDGER_ID).setEntryId(entryId),
+                    consumer.getClientCnx(), DEFAULT_CONSUMER_EPOCH, false);
+        } finally {
+            payload.release();
         }
-
-        // redeliveryCount == maxRedeliverCount (3)
-        dlqConsumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata,
-                maxRedeliverCount, null, batchBuffer,
-                new MessageIdData().setLedgerId(6000).setEntryId(1),
-                mockCnx, DEFAULT_CONSUMER_EPOCH, false);
-
-        // Messages should be enqueued (redeliveryCount == max, not > max)
-        Awaitility.await().untilAsserted(() ->
-                assertEquals(dlqConsumer.numMessagesInQueue(), batchSize,
-                        "Messages at maxRedeliverCount should still be enqueued"));
-
-        // Verify possibleSendToDeadLetterTopicMessages is populated
-        Map<?, ?> deadLetterMap = (Map<?, ?>) FieldUtils.readField(
-                dlqConsumer, "possibleSendToDeadLetterTopicMessages", true);
-        assertFalse(deadLetterMap.isEmpty(),
-                "possibleSendToDeadLetterTopicMessages should be populated at maxRedeliverCount");
+        // the delivered messages are enqueued on the internal executor, wait for them
+        internalExecutor.submit(() -> { }).get();
     }
 
     /**
-     * When redeliveryCount > maxRedeliverCount, messages should be skipped
-     * (not enqueued) and redeliverUnacknowledgedMessages should be triggered.
+     * Serializes {@code numMessages} messages, with the one at {@code corruptedIndex} (if any) replaced by
+     * {@code corruption}. A corrupted message ends the payload, since nothing after it can be read anyway.
      */
-    @Test
-    public void testDeadLetterPolicyExceedsMaxRedeliverCount() throws Exception {
-        int maxRedeliverCount = 3;
-        ConsumerImpl<byte[]> dlqConsumer = createConsumerWithDeadLetterPolicy(maxRedeliverCount);
-
-        BrokerEntryMetadata brokerEntryMetadata =
-                new BrokerEntryMetadata().setBrokerTimestamp(1).setIndex(1);
-
-        int batchSize = 2;
-        MessageMetadata metadata = new MessageMetadata()
-                .setProducerName("test-producer")
-                .setSequenceId(1)
-                .setPublishTime(1)
-                .setNumMessagesInBatch(batchSize);
-
-        ByteBuf batchBuffer = Unpooled.buffer(1024);
-        for (int i = 0; i < batchSize; i++) {
+    private static ByteBuf batchPayload(int numMessages, int corruptedIndex, Corruption corruption) {
+        ByteBuf payload = Unpooled.buffer(1024);
+        for (int i = 0; i < numMessages; i++) {
+            if (i == corruptedIndex) {
+                switch (corruption) {
+                    case MISSING_REQUIRED_FIELD -> payload.writeInt(0);
+                    case UNKNOWN_WIRE_TYPE -> payload.writeInt(1).writeByte(0x0B);
+                    case TRUNCATED -> payload.writeInt(100).writeByte(0);
+                }
+                break;
+            }
+            ByteBuf singlePayload = Unpooled.wrappedBuffer(("payload-" + i).getBytes(StandardCharsets.UTF_8));
             Commands.serializeSingleMessageInBatchWithPayload(
-                    new SingleMessageMetadata().setPartitionKey("key-" + i),
-                    Unpooled.wrappedBuffer(("payload-" + i).getBytes()), batchBuffer);
+                    new SingleMessageMetadata().setPartitionKey("key-" + i), singlePayload, payload);
+            singlePayload.release();
         }
+        return payload;
+    }
 
-        // redeliveryCount > maxRedeliverCount (4 > 3)
-        dlqConsumer.receiveIndividualMessagesFromBatch(brokerEntryMetadata, metadata,
-                maxRedeliverCount + 1, null, batchBuffer,
-                new MessageIdData().setLedgerId(6001).setEntryId(2),
-                mockCnx, DEFAULT_CONSUMER_EPOCH, false);
+    private List<CommandAck> sentAcks() {
+        List<CommandAck> acks = new ArrayList<>();
+        for (BaseCommand command : sentCommands) {
+            if (command.getType() == BaseCommand.Type.ACK) {
+                acks.add(command.getAck());
+            }
+        }
+        return acks;
+    }
 
-        // Messages should be skipped (redeliveryCount > max)
-        assertEquals(dlqConsumer.numMessagesInQueue(), 0,
-                "Messages exceeding maxRedeliverCount should be skipped");
+    /**
+     * Returns the ack set the ack sends for the given entry, null when it acks the whole entry.
+     */
+    private static BitSet ackSetOf(CommandAck ack, long entryId) {
+        for (int i = 0; i < ack.getMessageIdsCount(); i++) {
+            MessageIdData id = ack.getMessageIdAt(i);
+            if (id.getLedgerId() == LEDGER_ID && id.getEntryId() == entryId) {
+                if (id.getAckSetsCount() == 0) {
+                    return null;
+                }
+                long[] ackSet = new long[id.getAckSetsCount()];
+                for (int j = 0; j < ackSet.length; j++) {
+                    ackSet[j] = id.getAckSetAt(j);
+                }
+                return BitSet.valueOf(ackSet);
+            }
+        }
+        throw new AssertionError("The ack does not include entry " + entryId);
+    }
+
+    private static BitSet bits(int... indexes) {
+        BitSet bitSet = new BitSet();
+        for (int index : indexes) {
+            bitSet.set(index);
+        }
+        return bitSet;
+    }
+
+    private static BaseCommand decodeAndRelease(ByteBuf frame) {
+        try {
+            frame.skipBytes(Integer.BYTES);
+            int commandSize = (int) frame.readUnsignedInt();
+            BaseCommand command = new BaseCommand();
+            command.parseFrom(frame, commandSize);
+            // copy the parts that the tests read, since the frame is released below
+            command.materialize();
+            return command;
+        } finally {
+            frame.release();
+        }
     }
 }
