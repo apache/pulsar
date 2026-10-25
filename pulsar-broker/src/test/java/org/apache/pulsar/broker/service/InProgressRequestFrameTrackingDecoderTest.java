@@ -74,8 +74,8 @@ public class InProgressRequestFrameTrackingDecoderTest {
                 totalUsedBytes, 50, directMemoryUsedBytes::get, 100);
         InProgressRequestFrameMemoryLimiter firstLimiter = new InProgressRequestFrameMemoryLimiter(1_000,
                 totalUsedBytes, state);
-        InProgressRequestFrameMemoryLimiter secondLimiter = new InProgressRequestFrameMemoryLimiter(1_000, totalUsedBytes,
-                state);
+        InProgressRequestFrameMemoryLimiter secondLimiter = new InProgressRequestFrameMemoryLimiter(1_000,
+                totalUsedBytes, state);
         firstLimiter.registerThrottleStateListener("first", ignored -> { });
         secondLimiter.registerThrottleStateListener("second", ignored -> { });
 
