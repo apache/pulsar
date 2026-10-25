@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Range;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
@@ -40,12 +39,11 @@ import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.proto.KeyValue;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Stat;
 
 @CustomLog
 public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
-
-    private volatile boolean closingOrClosed;
 
     public ReadOnlyManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
                                      ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
@@ -60,7 +58,17 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
         store.getManagedLedgerInfo(name, false, new MetaStoreCallback<ManagedLedgerInfo>() {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
-                state = State.LedgerOpened;
+                boolean closed;
+                synchronized (ReadOnlyManagedLedgerImpl.this) {
+                    closed = isClosingOrClosed();
+                    if (!closed) {
+                        state = State.LedgerOpened;
+                    }
+                }
+                if (closed) {
+                    future.completeExceptionally(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+                    return;
+                }
 
                 for (int i = 0; i < mlInfo.getLedgerInfosCount(); i++) {
                     LedgerInfo ls = mlInfo.getLedgerInfoAt(i);
@@ -79,47 +87,41 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                     long lastLedgerId = ledgers.lastKey();
 
                     // Fetch last add confirmed for last ledger
-                    bookKeeper.newOpenLedgerOp()
+                    CompletableFuture<ReadHandle> opening = openTemporaryReadHandle(() -> bookKeeper.newOpenLedgerOp()
                             .withRecovery(false)
                             .withLedgerId(lastLedgerId)
                             .withDigestType(config.getDigestType())
                             .withPassword(config.getPassword())
                             .withLoggerContext(log)
                             .withOrderingKey(name)
-                            .execute()
-                            .thenAccept(readHandle -> {
-                                readHandle.readLastAddConfirmedAsync().thenAccept(lastAddConfirmed -> {
-                                    LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
-                                            .setEntries(lastAddConfirmed + 1).setSize(readHandle.getLength())
-                                            .setTimestamp(clock.millis());
-                                    ledgers.put(lastLedgerId, info);
-
+                            .execute());
+                    opening.thenCompose(readHandle ->
+                            FutureUtil.supplySafely(readHandle::readLastAddConfirmedAsync)
+                                    .thenAccept(lastAddConfirmed ->
+                                            updateLastLedgerInfo(lastLedgerId, lastAddConfirmed + 1,
+                                                    readHandle.getLength()))
+                                    .exceptionally(error -> {
+                                        if (FutureUtil.unwrapCompletionException(error)
+                                                instanceof IllegalArgumentException) {
+                                            // The last ledger was empty, so we cannot read its last add confirmed.
+                                            updateLastLedgerInfo(lastLedgerId, 0, 0);
+                                        } else {
+                                            throw new CompletionException(new ManagedLedgerException(error));
+                                        }
+                                        return null;
+                                    }).whenComplete((ignored, error) -> releaseTemporaryReadHandle(opening)))
+                            .whenComplete((ignored, error) -> {
+                                Throwable cause = FutureUtil.unwrapCompletionException(error);
+                                if (cause instanceof ArrayIndexOutOfBoundsException) {
+                                    // An empty ledger can also fail while opening it.
+                                    updateLastLedgerInfo(lastLedgerId, 0, 0);
                                     future.complete(null);
-                                }).exceptionally(ex -> {
-                                    if (ex instanceof CompletionException
-                                            && ex.getCause() instanceof IllegalArgumentException) {
-                                        // The last ledger was empty, so we cannot read the last add confirmed.
-                                        LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId)
-                                                .setEntries(0).setSize(0).setTimestamp(clock.millis());
-                                        ledgers.put(lastLedgerId, info);
-                                        future.complete(null);
-                                    } else {
-                                        future.completeExceptionally(new ManagedLedgerException(ex));
-                                    }
-                                    return null;
-                                });
-                            }).exceptionally(ex -> {
-                                if (ex instanceof CompletionException
-                                        && ex.getCause() instanceof ArrayIndexOutOfBoundsException) {
-                                    // The last ledger was empty, so we cannot read the last add confirmed.
-                                    LedgerInfo info = new LedgerInfo().setLedgerId(lastLedgerId).setEntries(0)
-                                            .setSize(0).setTimestamp(clock.millis());
-                                    ledgers.put(lastLedgerId, info);
+                                } else if (error == null) {
                                     future.complete(null);
                                 } else {
-                                    future.completeExceptionally(new ManagedLedgerException(ex));
+                                    future.completeExceptionally(cause instanceof ManagedLedgerException
+                                            ? cause : new ManagedLedgerException(error));
                                 }
-                                return null;
                             });
                 } else {
                     // The read-only managed ledger is ready to use
@@ -137,10 +139,21 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
             }
         });
 
-        return future;
+        return future.thenRun(this::initializeLastConfirmedEntry);
+    }
+
+    private void updateLastLedgerInfo(long ledgerId, long entries, long length) {
+        LedgerInfo info = new LedgerInfo().setLedgerId(ledgerId).setEntries(entries).setSize(length)
+                .setTimestamp(clock.millis());
+        ledgers.put(ledgerId, info);
     }
 
     public ReadOnlyCursor createReadOnlyCursor(Position startPosition) {
+        initializeLastConfirmedEntry();
+        return new ReadOnlyCursorImpl(bookKeeper, this, startPosition, "read-only-cursor");
+    }
+
+    private void initializeLastConfirmedEntry() {
         if (ledgers.isEmpty()) {
             lastConfirmedEntry = PositionFactory.EARLIEST;
         } else if (ledgers.lastEntry().getValue().getEntries() > 0) {
@@ -157,36 +170,6 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                 lastConfirmedEntry = PositionFactory.EARLIEST;
             }
         }
-
-        return new ReadOnlyCursorImpl(bookKeeper, this, startPosition, "read-only-cursor");
-    }
-
-    @Override
-    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
-        closingOrClosed = true;
-        // There is no current write handle, so the parent's write-close callback cannot release this cache.
-        ledgerCache.forEach((ledgerId, readHandle) -> invalidateReadHandle(ledgerId));
-        super.asyncClose(callback, ctx);
-    }
-
-    @Override
-    CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
-        if (closingOrClosed) {
-            return CompletableFuture.failedFuture(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
-        }
-        CompletableFuture<ReadHandle> handle = super.getLedgerHandle(ledgerId);
-        // Close may have drained the cache before this open inserted its future. Invalidation also
-        // closes the handle if the open completes after close, without blocking either operation.
-        if (closingOrClosed) {
-            invalidateReadHandle(ledgerId);
-            return CompletableFuture.failedFuture(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
-        }
-        return handle;
-    }
-
-    @VisibleForTesting
-    boolean isClosingOrClosed() {
-        return closingOrClosed;
     }
 
     @Override

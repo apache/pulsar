@@ -36,17 +36,21 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryMBeanImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
 
 @CustomLog
 @SuppressWarnings("checkstyle:javadoctype")
-public class RangeEntryCacheManagerImpl implements EntryCacheManager {
+public class RangeEntryCacheManagerImpl implements EntryCacheManager, AutoCloseable {
 
     private volatile long maxSize;
     private volatile long evictionTriggerThreshold;
     private volatile double cacheEvictionWatermark;
     private final AtomicLong currentSize = new AtomicLong(0);
     private final ConcurrentMap<String, EntryCache> caches = new ConcurrentHashMap<>();
+    private volatile boolean closed;
+    // Read-only opens are independent owners, even when another reader or a writer has the same ledger name.
+    private final ConcurrentMap<ManagedLedger, EntryCache> readOnlyCaches = new ConcurrentHashMap<>();
     private final RangeCacheRemovalQueue rangeCacheRemovalQueue;
     private final RangeEntryCacheManagerEvictionHandler evictionHandler;
 
@@ -84,7 +88,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     }
 
     public EntryCache getEntryCache(ManagedLedger ml) {
-        if (maxSize == 0) {
+        if (closed || maxSize == 0) {
             // Cache is disabled
             return new EntryCacheDisabled((ManagedLedgerImpl) ml, inflightReadsLimiter);
         }
@@ -92,12 +96,19 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         EntryCache newEntryCache =
                 new RangeEntryCacheImpl(this, (ManagedLedgerImpl) ml, mlFactory.getConfig().isCopyEntriesInCache(),
                         rangeCacheRemovalQueue, entryLengthFunction);
-        EntryCache currentEntryCache = caches.putIfAbsent(ml.getName(), newEntryCache);
-        if (currentEntryCache != null) {
-            return currentEntryCache;
-        } else {
-            return newEntryCache;
+        EntryCache currentEntryCache = ml instanceof ReadOnlyManagedLedgerImpl
+                ? readOnlyCaches.putIfAbsent(ml, newEntryCache)
+                : caches.putIfAbsent(ml.getName(), newEntryCache);
+        EntryCache result = currentEntryCache != null ? currentEntryCache : newEntryCache;
+        if (closed) {
+            // A constructor racing with factory shutdown must not leave a newly registered cache behind.
+            if (ml instanceof ReadOnlyManagedLedgerImpl) {
+                removeReadOnlyEntryCache(ml);
+            } else {
+                removeEntryCache(ml.getName());
+            }
         }
+        return result;
     }
 
     @Override
@@ -113,13 +124,25 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
 
     @Override
     public void removeEntryCache(String name) {
-        EntryCache entryCache = caches.remove(name);
+        closeRemovedEntryCache(name, caches.remove(name));
+    }
+
+    /** Releases only the cache belonging to this read-only managed-ledger instance. */
+    public void removeReadOnlyEntryCache(ManagedLedger owner) {
+        closeRemovedEntryCache(owner.getName(), readOnlyCaches.remove(owner));
+    }
+
+    private void closeRemovedEntryCache(String name, EntryCache entryCache) {
         if (entryCache == null) {
             return;
         }
 
         long size = entryCache.getSize();
-        entryCache.clear();
+        if (entryCache instanceof RangeEntryCacheImpl rangeEntryCache) {
+            rangeEntryCache.close();
+        } else {
+            entryCache.clear();
+        }
 
         log.debug().attr("managedLedger", name)
                 .attr("sizeMb", size / MB)
@@ -244,6 +267,28 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     @Override
     public void clear() {
         caches.values().forEach(EntryCache::clear);
+        readOnlyCaches.values().forEach(EntryCache::clear);
+    }
+
+    @Override
+    public void close() {
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+        }
+        caches.forEach((name, cache) -> {
+            if (caches.remove(name, cache)) {
+                closeRemovedEntryCache(name, cache);
+            }
+        });
+        readOnlyCaches.forEach((owner, cache) -> {
+            if (readOnlyCaches.remove(owner, cache)) {
+                closeRemovedEntryCache(owner.getName(), cache);
+            }
+        });
+        inflightReadsLimiter.close();
     }
 
     public InflightReadsLimiter getInflightReadsLimiter() {
@@ -261,6 +306,11 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     @Override
     public void updateCacheEvictionExtendTTLOfRecentlyAccessed(boolean cacheEvictionExtendTTLOfRecentlyAccessed) {
         rangeCacheRemovalQueue.setExtendTTLOfRecentlyAccessed(cacheEvictionExtendTTLOfRecentlyAccessed);
+    }
+
+    @VisibleForTesting
+    int getReadOnlyEntryCacheCount() {
+        return readOnlyCaches.size();
     }
 
     @VisibleForTesting

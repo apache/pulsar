@@ -36,6 +36,7 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
@@ -84,9 +85,16 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
         }
         // Fetch the list of existing ledgers in the source managed ledger
         store.watchManagedLedgerInfo(sourceMLName, sourceManagedLedgerInfoCallback);
+        if (failInitializationIfAbandoned(callback)) {
+            store.unwatchManagedLedgerInfo(sourceMLName, sourceManagedLedgerInfoCallback);
+            return;
+        }
         store.getManagedLedgerInfo(sourceMLName, false, null, new MetaStore.MetaStoreCallback<>() {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
+                if (failInitializationIfAbandoned(callback)) {
+                    return;
+                }
                 log.debug().attr("name", name)
                         .attr("source", sourceMLName)
                         .attr("mlInfo", mlInfo)
@@ -129,18 +137,19 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
                 AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> executor.execute(() -> {
                     mbean.endDataLedgerOpenOp();
                     log.debug().attr("name", name).attr("ledgerId", lastLedgerId).log("Opened source ledger");
+                    if (isClosingOrClosed()) {
+                        if (lh != null) {
+                            closeReadHandle(lh);
+                        }
+                        callback.initializeFailed(new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+                        return;
+                    }
                     if (rc == BKException.Code.OK) {
-                        LedgerInfo info =
-                                new LedgerInfo()
-                                        .setLedgerId(lastLedgerId)
-                                        .setEntries(lh.getLastAddConfirmed() + 1)
-                                        .setSize(lh.getLength())
-                                        .setTimestamp(clock.millis());
-                        ledgers.put(lastLedgerId, info);
-
-                        //Always consider the last ledger is opened in source.
-                        STATE_UPDATER.set(ShadowManagedLedgerImpl.this, State.LedgerOpened);
-                        currentLedger = lh;
+                        if (!installSourceReadHandle(lastLedgerId, lh, true)) {
+                            callback.initializeFailed(
+                                    new ManagedLedgerAlreadyClosedException("Managed ledger is closed"));
+                            return;
+                        }
 
                         if (managedLedgerInterceptor != null) {
                             managedLedgerInterceptor
@@ -301,6 +310,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
      * 3. old ledger offload info updated (including ledger deleted from bookie by offloader)
      */
     private synchronized void processSourceManagedLedgerInfo(ManagedLedgerInfo mlInfo, Stat stat) {
+        if (isClosingOrClosed()) {
+            return;
+        }
 
         log.debug().attr("name", name)
                 .attr("source", sourceMLName)
@@ -367,19 +379,14 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
             AsyncCallback.OpenCallback opencb = (rc, lh, ctx1) -> executor.execute(() -> {
                         mbean.endDataLedgerOpenOp();
                         log.debug().attr("name", name).attr("ledgerId", lastLedgerId).log("Opened new source ledger");
+                        if (isClosingOrClosed()) {
+                            if (lh != null) {
+                                closeReadHandle(lh);
+                            }
+                            return;
+                        }
                         if (rc == BKException.Code.OK) {
-                            LedgerInfo info = new LedgerInfo()
-                                    .setLedgerId(lastLedgerId)
-                                    .setEntries(lh.getLastAddConfirmed() + 1)
-                                    .setSize(lh.getLength())
-                                    .setTimestamp(clock.millis());
-                            ledgers.put(lastLedgerId, info);
-                            currentLedger = lh;
-                            currentLedgerEntries = 0;
-                            currentLedgerSize = 0;
-                            initLastConfirmedEntry();
-                            updateLedgersIdsComplete(null);
-                            maybeUpdateCursorBeforeTrimmingConsumedLedger();
+                            installSourceReadHandle(lastLedgerId, lh, false);
                         } else if (isNoSuchLedgerExistsException(rc)) {
                             log.warn().attr("name", name).attr("ledgerId", lastLedgerId).log("Source ledger not found");
                             ledgers.remove(lastLedgerId);
@@ -416,9 +423,54 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
 
 
     @Override
-    public synchronized void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
-        store.unwatchManagedLedgerInfo(sourceMLName, sourceManagedLedgerInfoCallback);
-        super.asyncClose(callback, ctx);
+    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
+        super.asyncClose(new AsyncCallbacks.CloseCallback() {
+            @Override
+            public void closeComplete(Object callbackCtx) {
+                store.unwatchManagedLedgerInfo(sourceMLName, sourceManagedLedgerInfoCallback);
+                callback.closeComplete(callbackCtx);
+            }
+
+            @Override
+            public void closeFailed(ManagedLedgerException exception, Object callbackCtx) {
+                store.unwatchManagedLedgerInfo(sourceMLName, sourceManagedLedgerInfoCallback);
+                callback.closeFailed(exception, callbackCtx);
+            }
+        }, ctx);
+    }
+
+    private boolean installSourceReadHandle(long ledgerId, LedgerHandle handle, boolean initializing) {
+        LedgerHandle previousHandle = null;
+        boolean closed;
+        synchronized (this) {
+            closed = isClosingOrClosed();
+            if (!closed) {
+                LedgerInfo info = new LedgerInfo().setLedgerId(ledgerId)
+                        .setEntries(handle.getLastAddConfirmed() + 1).setSize(handle.getLength())
+                        .setTimestamp(clock.millis());
+                ledgers.put(ledgerId, info);
+                previousHandle = currentLedger;
+                currentLedger = handle;
+                if (initializing) {
+                    // Always consider the last ledger opened in the source.
+                    STATE_UPDATER.set(this, State.LedgerOpened);
+                } else {
+                    currentLedgerEntries = 0;
+                    currentLedgerSize = 0;
+                    initLastConfirmedEntry();
+                    updateLedgersIdsComplete(null);
+                    maybeUpdateCursorBeforeTrimmingConsumedLedger();
+                }
+            }
+        }
+        if (closed) {
+            closeReadHandle(handle);
+            return false;
+        }
+        if (previousHandle != null && previousHandle != handle) {
+            closeReadHandle(previousHandle);
+        }
+        return true;
     }
 
     @Override

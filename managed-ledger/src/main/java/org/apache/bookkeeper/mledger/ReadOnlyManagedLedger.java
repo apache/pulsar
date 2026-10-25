@@ -27,6 +27,10 @@ public interface ReadOnlyManagedLedger {
 
     long getNumberOfEntries();
 
+    /**
+     * Create a cursor that borrows this ledger. Closing the cursor does not close the ledger; its owner must call
+     * {@link #asyncClose()} after all cursors and reads have finished.
+     */
     ReadOnlyCursor createReadOnlyCursor(Position position);
 
     Map<String, String> getProperties();
