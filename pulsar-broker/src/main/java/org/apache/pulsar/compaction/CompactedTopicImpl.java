@@ -33,6 +33,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
@@ -40,17 +41,18 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.MessageIdData;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Note: If you want to guarantee that strong consistency between `compactionHorizon` and `compactedTopicContext`,
  * you need to call getting them method in "synchronized(CompactedTopicImpl){ ... }" lock block.
  */
+@CustomLog
 public class CompactedTopicImpl implements CompactedTopic {
     static final long NEWER_THAN_COMPACTED = -0xfeed0fbaL;
     static final long COMPACT_LEDGER_EMPTY = -0xfeed0fbbL;
@@ -69,20 +71,36 @@ public class CompactedTopicImpl implements CompactedTopic {
     public CompletableFuture<CompactedTopicContext> newCompactedLedger(Position p, long compactedLedgerId) {
         synchronized (this) {
             CompletableFuture<CompactedTopicContext> previousContext = compactedTopicContext;
-            compactedTopicContext = openCompactedLedger(bk, compactedLedgerId);
+            CompletableFuture<CompactedTopicContext> newCompactedLedger = openCompactedLedger(bk, compactedLedgerId);
+            compactedTopicContext = newCompactedLedger;
 
             compactionHorizon = p;
 
+            // Keep the failed context and horizon if the referenced ledger is missing. The original
+            // entries may already have been trimmed, so treating this as an uncompacted topic could
+            // return an incomplete key set and let the next compaction persist that incomplete view.
+            newCompactedLedger.whenComplete((context, exception) -> {
+                if (exception != null && isNoSuchLedgerExists(exception)) {
+                    log.warn()
+                            .attr("compactedLedgerId", compactedLedgerId)
+                            .attr("compactionHorizon", p)
+                            .log("Compacted ledger no longer exists; compacted reads will fail"
+                                    + " because the original data may have been removed");
+                }
+            });
+
             // delete the ledger from the old context once the new one is open
-            return compactedTopicContext.thenCompose(ctx -> {
+            return newCompactedLedger.thenCompose(ctx -> {
                 if (previousContext != null) {
                     previousContext.thenAccept(previousCtx -> {
                         // Print an error log here, which is not expected.
                         if (previousCtx != null && previousCtx.getLedger() != null
                                 && previousCtx.getLedger().getId() == compactedLedgerId) {
-                            log.error("[__compaction] Using the same compacted ledger to override the old one, which is"
-                                + " not expected and it may cause a ledger lost error. {} -> {}", compactedLedgerId,
-                                ctx.getLedger().getId());
+                            log.error()
+                                    .attr("compactedLedgerId", compactedLedgerId)
+                                    .attr("newLedgerId", ctx.getLedger().getId())
+                                    .log("[__compaction] Using the same compacted ledger to override the old one,"
+                                            + " which is not expected and it may cause a ledger lost error");
                         }
                     });
                     return previousContext;
@@ -145,7 +163,6 @@ public class CompactedTopicImpl implements CompactedTopic {
                 .buildAsync((entryId, executor) -> readOneMessageId(lh, entryId));
     }
 
-
     private static CompletableFuture<MessageIdData> readOneMessageId(LedgerHandle lh, long entryId) {
         CompletableFuture<MessageIdData> promise = new CompletableFuture<>();
 
@@ -184,9 +201,15 @@ public class CompactedTopicImpl implements CompactedTopic {
                                } else {
                                    promise.complete(ledger);
                                }
-                           }, null);
+                           }, null, true);
         return promise.thenApply((ledger) -> new CompactedTopicContext(
                                          ledger, createCache(ledger, DEFAULT_MAX_CACHE_SIZE)));
+    }
+
+    private static boolean isNoSuchLedgerExists(Throwable exception) {
+        Throwable cause = FutureUtil.unwrapCompletionException(exception);
+        return cause instanceof BKException
+                && Errors.isNoSuchLedgerExistsException(((BKException) cause).getCode());
     }
 
     private static CompletableFuture<Void> tryDeleteCompactedLedger(BookKeeper bk, long id) {
@@ -194,8 +217,10 @@ public class CompactedTopicImpl implements CompactedTopic {
         bk.asyncDeleteLedger(id,
                              (rc, ctx) -> {
                                  if (rc != BKException.Code.OK) {
-                                     log.warn("Error deleting compacted topic ledger {}",
-                                              id, BKException.create(rc));
+                                     log.warn()
+                                             .attr("ledgerId", id)
+                                             .attr("error", BKException.create(rc))
+                                             .log("Error deleting compacted topic ledger");
                                  } else {
                                      log.debug("Compacted topic ledger deleted successfully");
                                  }
@@ -238,21 +263,23 @@ public class CompactedTopicImpl implements CompactedTopic {
      */
     public Optional<CompactedTopicContext> getCompactedTopicContext() throws ExecutionException, InterruptedException,
             TimeoutException {
-        return compactedTopicContext == null ? Optional.empty() :
-                Optional.of(compactedTopicContext.get(30, TimeUnit.SECONDS));
+        CompletableFuture<CompactedTopicContext> context = compactedTopicContext;
+        return context == null ? Optional.empty() : Optional.of(context.get(30, TimeUnit.SECONDS));
     }
 
     @Override
     public CompletableFuture<Entry> readLastEntryOfCompactedLedger() {
-        if (compactionHorizon == null) {
+        // Capture the context once so an explicit reset cannot race the null check and composition.
+        CompletableFuture<CompactedTopicContext> context = compactedTopicContext;
+        if (compactionHorizon == null || context == null) {
             return CompletableFuture.completedFuture(null);
         }
-        return compactedTopicContext.thenCompose(context -> {
-            if (context.ledger.getLastAddConfirmed() == -1) {
+        return context.thenCompose(ctx -> {
+            if (ctx.ledger.getLastAddConfirmed() == -1) {
                 return CompletableFuture.completedFuture(null);
             }
             return readEntries(
-                    context.ledger, context.ledger.getLastAddConfirmed(), context.ledger.getLastAddConfirmed())
+                    ctx.ledger, ctx.ledger.getLastAddConfirmed(), ctx.ledger.getLastAddConfirmed())
                     .thenCompose(entries -> entries.size() > 0
                             ? CompletableFuture.completedFuture(entries.get(0))
                             : CompletableFuture.completedFuture(null));
@@ -323,7 +350,7 @@ public class CompactedTopicImpl implements CompactedTopic {
         return Optional.ofNullable(this.compactionHorizon);
     }
 
-    public void reset() {
+    public synchronized void reset() {
         this.compactionHorizon = null;
         this.compactedTopicContext = null;
     }
@@ -332,6 +359,4 @@ public class CompactedTopicImpl implements CompactedTopic {
     public CompletableFuture<CompactedTopicContext> getCompactedTopicContextFuture() {
         return compactedTopicContext;
     }
-    private static final Logger log = LoggerFactory.getLogger(CompactedTopicImpl.class);
 }
-

@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -47,21 +48,23 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "cluster-migration")
 public class ClusterMigrationTest {
 
-    private static final Logger log = LoggerFactory.getLogger(ClusterMigrationTest.class);
     protected String methodName;
 
     String namespace = "pulsar/migrationNs";
@@ -187,10 +190,10 @@ public class ClusterMigrationTest {
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r1", "r3")));
         admin1.namespaces().createNamespace(namespace, Sets.newHashSet("r1", "r3"));
         admin3.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r3"), false);
         admin1.namespaces().createNamespace(namespaceNotToMigrate, Sets.newHashSet("r1", "r3"));
         admin3.namespaces().createNamespace(namespaceNotToMigrate);
-        admin1.namespaces().setNamespaceReplicationClusters(namespaceNotToMigrate, Sets.newHashSet("r1", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespaceNotToMigrate, Sets.newHashSet("r1", "r3"), false);
 
         // Setting r4 as replication cluster for r2
         updateTenantInfo(admin2, "pulsar",
@@ -199,10 +202,10 @@ public class ClusterMigrationTest {
                 new TenantInfoImpl(Sets.newHashSet("appid1", "appid2", "appid3"), Sets.newHashSet("r2", "r4")));
         admin2.namespaces().createNamespace(namespace, Sets.newHashSet("r2", "r4"));
         admin4.namespaces().createNamespace(namespace);
-        admin2.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r2", "r4"));
+        admin2.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r2", "r4"), false);
         admin2.namespaces().createNamespace(namespaceNotToMigrate, Sets.newHashSet("r2", "r4"));
         admin4.namespaces().createNamespace(namespaceNotToMigrate);
-        admin2.namespaces().setNamespaceReplicationClusters(namespaceNotToMigrate, Sets.newHashSet("r2", "r4"));
+        admin2.namespaces().setNamespaceReplicationClusters(namespaceNotToMigrate, Sets.newHashSet("r2", "r4"), false);
 
         assertEquals(admin1.clusters().getCluster("r1").getServiceUrl(), url1.toString());
         assertEquals(admin2.clusters().getCluster("r2").getServiceUrl(), url2.toString());
@@ -261,6 +264,7 @@ public class ClusterMigrationTest {
      * (11) Restart Broker-1 and connect producer/consumer on cluster-1
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testClusterMigration() throws Exception {
         log.info("--- Starting ReplicatorTest::testClusterMigration ---");
@@ -386,10 +390,15 @@ public class ClusterMigrationTest {
             producer3.send("test2".getBytes());
         }
         log.info("Successfully published messages by migrated producers");
+        // Ack the messages: restarting broker-1 below fails the subscribe request that consumer2 sent there before
+        // it was redirected, and the client then subscribes consumer2 again, which redelivers its unacked messages.
         for (int i = 0; i < n * 3; i++) {
-            assertEquals(consumer1.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-            assertEquals(consumer2.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-
+            Message<byte[]> msg1 = consumer1.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg1.getData(), "test2".getBytes());
+            consumer1.acknowledge(msg1);
+            Message<byte[]> msg2 = consumer2.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg2.getData(), "test2".getBytes());
+            consumer2.acknowledge(msg2);
         }
 
         // create non-migrated topic which should connect to cluster-1
@@ -429,6 +438,56 @@ public class ClusterMigrationTest {
         log.info("Successfully consumed messages by migrated consumers");
     }
 
+    /**
+     * A consumer and a producer created on a migrated cluster are redirected to the new cluster without an answer to
+     * their subscribe and producer requests, which stay pending on the connection to the old cluster. When that
+     * connection closes and fails those requests, the consumer and the producer, already connected to the new
+     * cluster, must stay connected: a consumer that subscribes again drops the messages in its receiver queue.
+     */
+    @Test
+    public void testRedirectedConsumerAndProducerIgnoreTheirFirstAttempt() throws Exception {
+        final String topicName = BrokerTestUtil
+                .newUniqueName("persistent://" + namespace + "/migrationTopic");
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        // Load the topic on broker-1, through the connection that all of client1's handlers share
+        ProducerImpl<byte[]> producer1 = (ProducerImpl<byte[]>) client1.newProducer().topic(topicName).create();
+        ClientCnx cnx1 = producer1.getClientCnx();
+        AbstractTopic topic1 = (AbstractTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null).get();
+
+        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
+                pulsar2.getBrokerServiceUrl(), null);
+        admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            topic1.checkClusterMigration().get();
+            assertTrue(topic1.isMigrated());
+        });
+
+        Consumer<byte[]> consumer = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
+        Producer<byte[]> producer = client1.newProducer().topic(topicName).create();
+        int n = 5;
+        for (int i = 0; i < n; i++) {
+            producer.send(("msg-" + i).getBytes());
+        }
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(((ConsumerImpl<byte[]>) consumer).numMessagesInQueue(), n));
+
+        // Close cnx1 from its event loop, so that the task submitted next runs after the disconnection is handled
+        cnx1.ctx().executor().submit(() -> cnx1.ctx().channel().close()).get();
+        cnx1.ctx().executor().submit(() -> { }).get();
+
+        assertTrue(consumer.isConnected(), "The consumer reconnected for its first subscribe attempt");
+        assertTrue(producer.isConnected(), "The producer reconnected for its first attempt");
+        for (int i = 0; i < n; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(msg, "Message " + i + " was dropped from the receiver queue");
+            assertEquals(msg.getData(), ("msg-" + i).getBytes());
+        }
+    }
+
+    @SuppressWarnings("deprecation")
     @Test
     public void testClusterMigrationWithReplicationBacklog() throws Exception {
         log.info("--- Starting ReplicatorTest::testClusterMigrationWithReplicationBacklog ---");
@@ -451,28 +510,29 @@ public class ClusterMigrationTest {
         Consumer<byte[]> consumer3 = client3.newConsumer().topic(topicName).subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("s1").subscribe();
         AbstractTopic topic1 = (AbstractTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null).get();
-        retryStrategically((test) -> !topic1.getProducers().isEmpty(), 5, 500);
-        retryStrategically((test) -> !topic1.getSubscriptions().isEmpty(), 5, 500);
-        assertFalse(topic1.getProducers().isEmpty());
-        assertFalse(topic1.getSubscriptions().isEmpty());
+
+        Awaitility.await()
+                .untilAsserted(() -> assertFalse(topic1.getProducers().isEmpty()));
+        Awaitility.await()
+                .untilAsserted(() -> assertFalse(topic1.getSubscriptions().isEmpty()));
 
         // build backlog
         consumer1.close();
-        retryStrategically((test) -> topic1.getReplicators().size() == 1, 10, 3000);
-        assertEquals(topic1.getReplicators().size(), 1);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(topic1.getReplicators().size(), 1));
 
-       // stop service in the replication cluster to build replication backlog
+        // stop service in the replication cluster to build replication backlog
         broker3.stop();
-        retryStrategically((test) -> broker3.getPulsarService() == null, 10, 1000);
-        assertNull(pulsar3.getBrokerService());
+        Awaitility.await()
+                .untilAsserted(() -> assertNull(broker3.getPulsarService()));
 
-        //publish messages into topic in "r1" cluster
+        // publish messages into topic in "r1" cluster
         int n = 5;
         for (int i = 0; i < n; i++) {
             producer1.send("test1".getBytes());
         }
-        retryStrategically((test) -> topic1.isReplicationBacklogExist(), 10, 1000);
-        assertTrue(topic1.isReplicationBacklogExist());
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(topic1.isReplicationBacklogExist()));
 
         @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
@@ -481,10 +541,11 @@ public class ClusterMigrationTest {
         Producer<byte[]> producer2 = client2.newProducer().topic(topicName).enableBatching(false)
                 .producerName("cluster2-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
         AbstractTopic topic2 = (AbstractTopic) pulsar2.getBrokerService().getTopic(topicName, false).getNow(null).get();
-        log.info("name of topic 2 - {}", topic2.getName());
+        log.info().attr("topic", topic2.getName()).log("Name of topic 2");
         assertFalse(topic2.getProducers().isEmpty());
 
-        retryStrategically((test) -> topic2.getReplicators().size() == 1, 10, 2000);
+        Awaitility.await().atMost(20, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(topic2.getReplicators().size(), 1));
         log.info("replicators should be ready");
 
         ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
@@ -492,23 +553,15 @@ public class ClusterMigrationTest {
         admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
         log.info("update cluster migration called");
 
-        retryStrategically((test) -> {
-            try {
-                topic1.checkClusterMigration().get();
-                return true;
-            } catch (Exception e) {
-                // ok
-            }
-            return false;
-        }, 10, 500);
-
-        topic1.checkClusterMigration().get();
+        Awaitility.await().untilAsserted(() -> {
+            topic1.checkClusterMigration().get();
+        });
 
         producer1.sendAsync("test1".getBytes());
 
         // producer is disconnected from cluster-1
-        retryStrategically((test) -> topic1.getProducers().isEmpty(), 10, 500);
-        assertTrue(topic1.getProducers().isEmpty());
+        Awaitility.await()
+                .untilAsserted(() -> assertTrue(topic1.getProducers().isEmpty()));
 
         // verify that the disconnected producer is not redirected
         // to replication cluster since there is replication backlog.
@@ -516,20 +569,24 @@ public class ClusterMigrationTest {
 
         // Restart the service in cluster "r3".
         broker3.restart();
-        retryStrategically((test) -> broker3.getPulsarService() != null, 10, 1000);
-        assertNotNull(broker3.getPulsarService());
+        Awaitility.await().atMost(30, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertNotNull(broker3.getPulsarService()));
         pulsar3 = broker3.getPulsarService();
 
         // verify that the replication backlog drains once service in cluster "r3" is restarted.
-        retryStrategically((test) -> !topic1.isReplicationBacklogExist(), 10, 1000);
-        assertFalse(topic1.isReplicationBacklogExist());
+        // The replicator from r1 needs to reconnect to the restarted broker3, which may take time
+        // as the new broker's load manager channel needs to be fully initialized.
+        Awaitility.await().atMost(60, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertFalse(topic1.isReplicationBacklogExist()));
 
         // verify that the producer1 is now connected to migrated cluster "r2" since backlog is cleared.
         topic1.checkClusterMigration().get();
 
-        // verify that the producer1 is now is now connected to migrated cluster "r2" since backlog is cleared.
-        retryStrategically((test) -> topic2.getProducers().size() == 2, 10, 500);
-        assertEquals(topic2.getProducers().size(), 2);
+        // verify that the producer1 is now connected to migrated cluster "r2" since backlog is cleared.
+        // The producer reconnection uses exponential backoff after TopicMigratedException, so
+        // it may take a while for the producer to reconnect to the migrated cluster.
+        Awaitility.await().atMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(topic2.getProducers().size(), 2));
 
         client1.close();
         client2.close();
@@ -542,6 +599,7 @@ public class ClusterMigrationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testClusterMigrationWithResourceCreated() throws Exception {
         log.info("--- Starting testClusterMigrationWithResourceCreated ---");
@@ -651,6 +709,7 @@ public class ClusterMigrationTest {
         client1.close();
     }
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes")
     public void testNamespaceMigration(SubscriptionType subType, boolean isClusterMigrate, boolean isNamespaceMigrate)
             throws Exception {
@@ -869,10 +928,15 @@ public class ClusterMigrationTest {
             greenProducerNs11.send("test2".getBytes());
         }
         log.info("Successfully published messages by migrated producers");
+        // Ack the messages: restarting broker-1 below fails the subscribe request that blueConsumerNs12 sent there
+        // before it was redirected, and the client then subscribes it again, which redelivers its unacked messages.
         for (int i = 0; i < n * 3; i++) {
-            assertEquals(blueConsumerNs11.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-            assertEquals(blueConsumerNs12.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-
+            Message<byte[]> msg1 = blueConsumerNs11.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg1.getData(), "test2".getBytes());
+            blueConsumerNs11.acknowledge(msg1);
+            Message<byte[]> msg2 = blueConsumerNs12.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg2.getData(), "test2".getBytes());
+            blueConsumerNs12.acknowledge(msg2);
         }
 
         // create non-migrated topic which should connect to blue
@@ -922,6 +986,7 @@ public class ClusterMigrationTest {
         client2.close();
     }
 
+    @SuppressWarnings("deprecation")
     public void testMigrationWithReader() throws Exception {
         final String topicName = BrokerTestUtil
                 .newUniqueName("persistent://" + namespace + "/migrationTopic");
@@ -1032,6 +1097,7 @@ public class ClusterMigrationTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "NamespaceMigrationTopicSubscriptionTypes")
     public void testNamespaceMigrationWithReplicationBacklog(SubscriptionType subType, boolean isClusterMigrate,
                                                              boolean isNamespaceMigrate) throws Exception {
@@ -1120,7 +1186,7 @@ public class ClusterMigrationTest {
                 .producerName("green-producer-ns2-1").messageRoutingMode(MessageRoutingMode.SinglePartition).create();
         AbstractTopic greenTopicNs2 = (AbstractTopic) pulsar2.getBrokerService()
                 .getTopic(topicName2, false).getNow(null).get();
-        log.info("name of topic 2 - {}", greenTopicNs1.getName());
+        log.info().attr("topic", greenTopicNs1.getName()).log("Name of topic 2");
         assertFalse(greenTopicNs1.getProducers().isEmpty());
 
         retryStrategically((test) -> greenTopicNs1.getReplicators().size() == 1, 10, 2000);

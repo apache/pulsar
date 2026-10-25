@@ -37,13 +37,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
-import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.proto.FunctionDetails;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
 public class KubernetesSecretsTokenAuthProviderTest {
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConfigureAuthDataStatefulSet() {
         byte[] testBytes = new byte[]{0, 1, 2, 3, 4};
@@ -78,6 +79,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
                 .get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConfigureAuthDataStatefulSetNoCa() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
@@ -110,6 +112,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
                 .get(0).getVolumeMounts().get(0).getMountPath(), "/etc/auth");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testCacheAuthData() throws ApiException {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
@@ -119,8 +122,8 @@ public class KubernetesSecretsTokenAuthProviderTest {
         KubernetesSecretsTokenAuthProvider kubernetesSecretsTokenAuthProvider =
                 new KubernetesSecretsTokenAuthProvider();
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api,  null, (fd) -> "default");
-        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                .setNamespace("test-ns").setName("test-func").build();
+        FunctionDetails funcDetails = new FunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-ns").setName("test-func");
         Optional<FunctionAuthData> functionAuthData = kubernetesSecretsTokenAuthProvider.cacheAuthData(funcDetails,
                 new AuthenticationDataSource() {
                     @Override
@@ -138,6 +141,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
         Assert.assertTrue(StringUtils.isNotBlank(new String(functionAuthData.get().getData())));
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void configureAuthenticationConfig() {
         byte[] testBytes = new byte[]{0, 1, 2, 3, 4};
@@ -155,6 +159,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
         Assert.assertEquals(authenticationConfig.getTlsTrustCertsFilePath(), "/etc/auth/ca.pem");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void configureAuthenticationConfigNoCa() {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
@@ -172,6 +177,7 @@ public class KubernetesSecretsTokenAuthProviderTest {
     }
 
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testUpdateAuthData() throws Exception {
         CoreV1Api coreV1Api = mock(CoreV1Api.class);
@@ -180,8 +186,8 @@ public class KubernetesSecretsTokenAuthProviderTest {
         kubernetesSecretsTokenAuthProvider.initialize(coreV1Api, null, (fd) -> "default");
         // test when existingFunctionAuthData is empty
         Optional<FunctionAuthData> existingFunctionAuthData = Optional.empty();
-        Function.FunctionDetails funcDetails = Function.FunctionDetails.newBuilder().setTenant("test-tenant")
-                .setNamespace("test-ns").setName("test-func").build();
+        FunctionDetails funcDetails = new FunctionDetails().setTenant("test-tenant")
+                .setNamespace("test-ns").setName("test-func");
 
         CoreV1Api.APIcreateNamespacedSecretRequest namespacedSecretRequest = mock();
         when(coreV1Api.createNamespacedSecret(anyString(), any())).thenReturn(namespacedSecretRequest);

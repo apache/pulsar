@@ -20,7 +20,7 @@ package org.apache.pulsar.metadata.impl;
 
 import com.google.common.collect.MapMaker;
 import java.util.ArrayList;
-import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,8 +31,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+import lombok.CustomLog;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
@@ -45,11 +45,13 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.MetadataStoreProvider;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.OptionsHelper;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
-@Slf4j
+@CustomLog
 public class LocalMemoryMetadataStore extends AbstractMetadataStore implements MetadataStoreExtended {
 
     static final String MEMORY_SCHEME = "memory";
@@ -67,11 +69,18 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     private final NavigableMap<String, Value> map;
     private final AtomicLong sequentialIdGenerator;
     private MetadataEventSynchronizer synchronizer;
+    // The stores that share the data set of this store, including this one. Held by each of them, since
+    // STATIC_INSTANCE holds it weakly. Guarded by STATIC_INSTANCE
+    private final Set<LocalMemoryMetadataStore> sharedStores;
+    // The callbacks that unregister the listeners between this store and the other stores that share its data set,
+    // by the other store. A callback unregisters the listeners in both directions, so both stores hold it.
+    // Guarded by STATIC_INSTANCE.
+    private final Map<LocalMemoryMetadataStore, Runnable> sharedStoreListeners = new HashMap<>();
 
     private static final Map<String, NavigableMap<String, Value>> STATIC_MAPS = new MapMaker()
             .weakValues().makeMap();
     // Manage all instances to facilitate registration to the same listener
-    private static final Map<String, Set<AbstractMetadataStore>> STATIC_INSTANCE = new MapMaker()
+    private static final Map<String, Set<LocalMemoryMetadataStore>> STATIC_INSTANCE = new MapMaker()
             .weakValues().makeMap();
     private static final Map<String, AtomicLong> STATIC_ID_GEN_MAP = new MapMaker()
             .weakValues().makeMap();
@@ -79,35 +88,39 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     public LocalMemoryMetadataStore(String metadataURL, MetadataStoreConfig metadataStoreConfig)
             throws MetadataStoreException {
         super(metadataStoreConfig.getMetadataStoreName(), metadataStoreConfig.getOpenTelemetry(),
-                metadataStoreConfig.getNodeSizeStats());
+                metadataStoreConfig.getNodeSizeStats(), metadataStoreConfig.getNumSerDesThreads());
         String name = metadataURL.substring(MEMORY_SCHEME_IDENTIFIER.length());
         // Local means a private data set
         // update synchronizer and register sync listener
         updateMetadataEventSynchronizer(metadataStoreConfig.getSynchronizer());
         if ("local".equals(name)) {
+            sharedStores = null;
             map = new TreeMap<>();
             sequentialIdGenerator = new AtomicLong();
         } else {
             // Use a reference from a shared data set
             map = STATIC_MAPS.computeIfAbsent(name, __ -> new TreeMap<>());
-            STATIC_INSTANCE.compute(name, (key, value) -> {
-                if (value == null) {
-                    value = new HashSet<>();
-                }
-                value.forEach(v -> {
-                    registerListener(v);
-                    v.registerListener(this);
+            synchronized (STATIC_INSTANCE) {
+                sharedStores = STATIC_INSTANCE.computeIfAbsent(name, __ -> new HashSet<>());
+                sharedStores.forEach(v -> {
+                    Runnable cancelListenerOfOther = registerCancellableListener(v);
+                    Runnable cancelListener = v.registerCancellableListener(this);
+                    Runnable cancelListeners = () -> {
+                        cancelListenerOfOther.run();
+                        cancelListener.run();
+                    };
+                    sharedStoreListeners.put(v, cancelListeners);
+                    v.sharedStoreListeners.put(this, cancelListeners);
                 });
-                value.add(this);
-                return value;
-            });
+                sharedStores.add(this);
+            }
             sequentialIdGenerator = STATIC_ID_GEN_MAP.computeIfAbsent(name, __ -> new AtomicLong());
-            log.info("Created LocalMemoryDataStore for '{}'", name);
+            log.info().attr("name", name).log("Created LocalMemoryDataStore");
         }
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> storeGet(String path) {
+    public CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
         synchronized (map) {
             Value v = map.get(path);
             if (v != null) {
@@ -122,7 +135,44 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    protected CompletableFuture<Void> storeScanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
+        // Snapshot the immediate children under the lock, then dispatch outside it so a slow
+        // consumer can't stall other store operations.
+        List<GetResult> snapshot = new ArrayList<>();
+        synchronized (map) {
+            String firstKey = parentPath.equals("/") ? "/" : parentPath + "/";
+            String lastKey = parentPath.equals("/") ? "0" : parentPath + "0";
+            map.subMap(firstKey, false, lastKey, false).forEach((key, value) -> {
+                // Filter to direct children only — paths with no further "/" beyond the
+                // parent's level. Same scoping `getChildrenFromStore` applies.
+                int relStart = firstKey.length();
+                if (key.indexOf('/', relStart) >= 0) {
+                    return;
+                }
+                if (isSequenceCounterChild(key.substring(relStart))) {
+                    // Sidecar bookkeeping for SequenceKeysDeltas — not a user record.
+                    return;
+                }
+                snapshot.add(new GetResult(
+                        value.data,
+                        new Stat(key, value.version, value.createdTimestamp, value.modifiedTimestamp,
+                                value.isEphemeral(), true)));
+            });
+        }
+        try {
+            for (GetResult r : snapshot) {
+                consumer.onNext(r);
+            }
+            consumer.onCompleted();
+            return CompletableFuture.completedFuture(null);
+        } catch (Throwable t) {
+            consumer.onError(t);
+            return FutureUtil.failedFuture(t);
+        }
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -144,7 +194,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<Boolean> existsFromStore(String path) {
+    public CompletableFuture<Boolean> existsFromStore(String path, Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -156,7 +206,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
 
     @Override
     public CompletableFuture<Stat> storePut(String path, byte[] data, Optional<Long> optExpectedVersion,
-                                            EnumSet<CreateOption> options) {
+                                            Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -164,14 +214,15 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
             boolean hasVersion = optExpectedVersion.isPresent();
             int expectedVersion = optExpectedVersion.orElse(-1L).intValue();
 
-            if (options.contains(CreateOption.Sequential)) {
+            if (OptionsHelper.isSequential(opts)) {
                 path += Long.toString(sequentialIdGenerator.getAndIncrement());
             }
+            boolean ephemeral = OptionsHelper.isEphemeral(opts);
 
             long now = System.currentTimeMillis();
 
             if (hasVersion && expectedVersion == -1) {
-                Value newValue = new Value(0, data, now, now, options.contains(CreateOption.Ephemeral));
+                Value newValue = new Value(0, data, now, now, ephemeral);
                 Value existingValue = map.putIfAbsent(path, newValue);
                 if (existingValue != null) {
                     return FutureUtils.exception(new BadVersionException(""));
@@ -188,8 +239,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
                 } else {
                     long newVersion = existingValue != null ? existingValue.version + 1 : 0;
                     long createdTimestamp = existingValue != null ? existingValue.createdTimestamp : now;
-                    Value newValue = new Value(newVersion, data, createdTimestamp, now,
-                            options.contains(CreateOption.Ephemeral));
+                    Value newValue = new Value(newVersion, data, createdTimestamp, now, ephemeral);
                     map.put(path, newValue);
 
                     NotificationType type =
@@ -208,7 +258,7 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     }
 
     @Override
-    public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion) {
+    public CompletableFuture<Void> storeDelete(String path, Optional<Long> optExpectedVersion, Set<Option> opts) {
         if (!isValidPath(path)) {
             return FutureUtil.failedFuture(new MetadataStoreException.InvalidPathException(path));
         }
@@ -242,7 +292,21 @@ public class LocalMemoryMetadataStore extends AbstractMetadataStore implements M
     @Override
     public void close() throws Exception {
         if (isClosed.compareAndSet(false, true)) {
+            if (sharedStores != null) {
+                unregisterFromSharedStores();
+            }
             super.close();
+        }
+    }
+
+    private void unregisterFromSharedStores() {
+        synchronized (STATIC_INSTANCE) {
+            sharedStores.remove(this);
+            sharedStoreListeners.forEach((v, cancelListeners) -> {
+                cancelListeners.run();
+                v.sharedStoreListeners.remove(this);
+            });
+            sharedStoreListeners.clear();
         }
     }
 }

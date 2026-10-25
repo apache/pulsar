@@ -33,6 +33,7 @@ public class MessageRouterTest {
 
     public static class TestMessageRouter implements MessageRouter {
 
+        @SuppressWarnings("deprecation")
         @Override
         public int choosePartition(Message<?> msg) {
             return 1234;

@@ -27,21 +27,24 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
+import org.apache.bookkeeper.common.util.MathUtils;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.OpStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
-import org.apache.bookkeeper.util.MathUtils;
 import org.apache.bookkeeper.zookeeper.BoundExponentialBackoffRetryPolicy;
 import org.apache.bookkeeper.zookeeper.RetryPolicy;
 import org.apache.bookkeeper.zookeeper.ZooKeeperWatcherBase;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.zookeeper.AddWatchMode;
 import org.apache.zookeeper.AsyncCallback.ACLCallback;
 import org.apache.zookeeper.AsyncCallback.Children2Callback;
@@ -61,6 +64,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.Watcher.Event.EventType;
 import org.apache.zookeeper.Watcher.Event.KeeperState;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.ZooKeeper.States;
 import org.apache.zookeeper.client.ZKClientConfig;
 import org.apache.zookeeper.data.ACL;
 import org.apache.zookeeper.data.Stat;
@@ -69,8 +73,10 @@ import org.apache.zookeeper.server.quorum.QuorumPeerConfig;
 /**
  * Provide a zookeeper client to handle session expire.
  */
-@Slf4j
+@CustomLog
 public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoCloseable {
+    private static final long INITIAL_HANDLE_GENERATION = 0;
+    private static final long NO_HANDLE_GENERATION = -1;
 
     private static final int DEFAULT_RETRY_EXECUTOR_THREAD_COUNT = 1;
 
@@ -82,7 +88,15 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     // state for the zookeeper client
     private final AtomicReference<ZooKeeper> zk = new AtomicReference<ZooKeeper>();
     private final AtomicBoolean closed = new AtomicBoolean(false);
+    private final AtomicBoolean reconnectScheduled = new AtomicBoolean(false);
+    // Only accessed by the single-threaded connectExecutor.
+    private long nextHandleGeneration;
+    private final AtomicLong currentHandleGeneration = new AtomicLong();
+    private final Object reconnectLock = new Object();
+    private long reconnectingHandleGeneration = NO_HANDLE_GENERATION;
+    private long pendingReconnectHandleGeneration = NO_HANDLE_GENERATION;
     private final ZooKeeperWatcherBase watcherManager;
+    private final InitialHandleWatcher initialHandleWatcher;
 
     private final ScheduledExecutorService retryExecutor;
     private final ExecutorService connectExecutor;
@@ -114,38 +128,128 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
 
         @Override
         public void run() {
-            try {
-                ZooWorker.syncCallWithRetries(null, new ZooWorker.ZooCallable<ZooKeeper>() {
+            while (true) {
+                try {
+                    ZooWorker.syncCallWithRetries(null, new ZooWorker.ZooCallable<ZooKeeper>() {
 
-                    @Override
-                    public ZooKeeper call() throws KeeperException, InterruptedException {
-                        log.info("Reconnecting zookeeper {}.", connectString);
-                        // close the previous one
-                        closeZkHandle();
-                        ZooKeeper newZk;
-                        try {
-                            newZk = createZooKeeper();
-                        } catch (IOException | QuorumPeerConfig.ConfigException e) {
-                            log.error("Failed to create zookeeper instance to {} with config path {}",
-                                    connectString, configPath, e);
-                            throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
+                        @Override
+                        public ZooKeeper call() throws KeeperException, InterruptedException {
+                            if (closed.get()) {
+                                throw new InterruptedException("ZooKeeper client is closed");
+                            }
+                            log.info().attr("connectString", connectString).log("Reconnecting zookeeper");
+                            // close the previous one
+                            closeZkHandle();
+
+                            // ZooKeeper can deliver SyncConnected after createZooKeeper() returns but before
+                            // zk.set(newZk) publishes the new instance. Hold these events until the new instance is
+                            // published, so child watchers never observe a new-session event while
+                            // PulsarZooKeeperClient still points at the old handle.
+                            CountDownLatch newZkSetLatch = new CountDownLatch(1);
+                            CountDownLatch newZkConnectedLatch = new CountDownLatch(1);
+                            AtomicBoolean newZkPublished = new AtomicBoolean(false);
+                            AtomicReference<ZooKeeper> newZkRef = new AtomicReference<>();
+                            long newZkGeneration = ++nextHandleGeneration;
+                            Watcher forwardEventsWatcher = event -> {
+                                try {
+                                    boolean awaited = newZkSetLatch.await(sessionTimeoutMs, TimeUnit.MILLISECONDS);
+                                    if (!awaited) {
+                                        log.warn().attr("event", event)
+                                                .log("Timed out waiting for ZooKeeper instance to be published before "
+                                                        + "forwarding event");
+                                    }
+                                } catch (InterruptedException e) {
+                                    Thread.currentThread().interrupt();
+                                    log.warn()
+                                            .attr("event", event)
+                                            .exception(e)
+                                            .log("Interrupted while waiting for ZooKeeper instance to be published");
+                                    return;
+                                }
+                                if (!newZkPublished.get()) {
+                                    return;
+                                }
+                                if (event.getState() == KeeperState.SyncConnected
+                                        || (allowReadOnlyMode
+                                        && event.getState() == KeeperState.ConnectedReadOnly)) {
+                                    // The ZooKeeper connection event is authoritative. Child watchers are observers
+                                    // and must not delay or prevent the connection attempt from completing.
+                                    newZkConnectedLatch.countDown();
+                                }
+                                ZooKeeper eventSource = newZkRef.get();
+                                watcherManager.process(new HandleStateWatchedEvent(
+                                        event, newZkGeneration, eventSource.getSessionId(), eventSource.getState()));
+                            };
+
+                            ZooKeeper newZk;
+                            try {
+                                newZk = createZooKeeper(forwardEventsWatcher);
+                            } catch (IOException | QuorumPeerConfig.ConfigException e) {
+                                log.error()
+                                        .attr("connectString", connectString)
+                                        .attr("configPath", configPath)
+                                        .exception(e)
+                                        .log("Failed to create zookeeper instance");
+                                throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
+                            }
+                            newZkRef.set(newZk);
+
+                            // Publish the new instance before releasing the forwarding watcher. Wait on this handle's
+                            // connection latch rather than the watcher manager's latch, which may belong to an old
+                            // handle.
+                            synchronized (reconnectLock) {
+                                if (!closed.get()) {
+                                    zk.set(newZk);
+                                    // Publish the generation after the handle. A reader that observes the new
+                                    // generation must also observe the corresponding handle.
+                                    currentHandleGeneration.set(newZkGeneration);
+                                    newZkPublished.set(true);
+                                }
+                            }
+                            newZkSetLatch.countDown();
+                            if (!newZkPublished.get()) {
+                                newZk.close();
+                                throw new InterruptedException("ZooKeeper client is closed");
+                            }
+                            if (!newZkConnectedLatch.await(sessionTimeoutMs, TimeUnit.MILLISECONDS)) {
+                                throw KeeperException.create(KeeperException.Code.CONNECTIONLOSS);
+                            }
+                            log.info()
+                                    .attr("sessionId", Long.toHexString(newZk.getSessionId()))
+                                    .attr("connectString", connectString)
+                                    .log("ZooKeeper session is created");
+                            return newZk;
                         }
-                        waitForConnection();
-                        zk.set(newZk);
-                        log.info("ZooKeeper session {} is created to {}.",
-                                Long.toHexString(newZk.getSessionId()), connectString);
-                        return newZk;
-                    }
 
-                    @Override
-                    public String toString() {
-                        return String.format("ZooKeeper Client Creator (%s)", connectString);
-                    }
+                        @Override
+                        public String toString() {
+                            return String.format("ZooKeeper Client Creator (%s)", connectString);
+                        }
 
-                }, connectRetryPolicy, rateLimiter, createClientStats);
-            } catch (Exception e) {
-                log.error("Gave up reconnecting to ZooKeeper : ", e);
-                Runtime.getRuntime().exit(1);
+                    }, connectRetryPolicy, rateLimiter, createClientStats);
+                } catch (Exception e) {
+                    synchronized (reconnectLock) {
+                        if (!closed.get()) {
+                            log.error().exception(e).log("Gave up reconnecting to ZooKeeper");
+                            if (!Boolean.getBoolean("pulsar.test.preventExit")) {
+                                Runtime.getRuntime().exit(1);
+                            }
+                        }
+                    }
+                }
+
+                synchronized (reconnectLock) {
+                    long currentGeneration = currentHandleGeneration.get();
+                    if (!closed.get()
+                            && pendingReconnectHandleGeneration == currentGeneration
+                            && pendingReconnectHandleGeneration != reconnectingHandleGeneration) {
+                        reconnectingHandleGeneration = pendingReconnectHandleGeneration;
+                        pendingReconnectHandleGeneration = NO_HANDLE_GENERATION;
+                    } else {
+                        clearReconnectStateLocked();
+                        return;
+                    }
+                }
             }
         }
 
@@ -289,6 +393,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         return new Builder();
     }
 
+    @SuppressWarnings("deprecation")
     protected PulsarZooKeeperClient(String connectString,
                                     int sessionTimeoutMs,
                                     ZooKeeperWatcherBase watcherManager,
@@ -299,13 +404,30 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                                     double rate,
                                     boolean allowReadOnlyMode,
                                     String configPath) throws IOException, QuorumPeerConfig.ConfigException {
-        super(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode,
+        this(connectString, sessionTimeoutMs, watcherManager,
+                new InitialHandleWatcher(watcherManager, sessionTimeoutMs), connectRetryPolicy,
+                operationRetryPolicy, statsLogger, retryExecThreadCount, rate, allowReadOnlyMode, configPath);
+    }
+
+    private PulsarZooKeeperClient(String connectString,
+                                  int sessionTimeoutMs,
+                                  ZooKeeperWatcherBase watcherManager,
+                                  InitialHandleWatcher initialHandleWatcher,
+                                  RetryPolicy connectRetryPolicy,
+                                  RetryPolicy operationRetryPolicy,
+                                  StatsLogger statsLogger,
+                                  int retryExecThreadCount,
+                                  double rate,
+                                  boolean allowReadOnlyMode,
+                                  String configPath) throws IOException, QuorumPeerConfig.ConfigException {
+        super(connectString, sessionTimeoutMs, initialHandleWatcher, allowReadOnlyMode,
                 configPath == null ? null : new ZKClientConfig(configPath));
         this.connectString = connectString;
         this.configPath = configPath;
         this.sessionTimeoutMs = sessionTimeoutMs;
         this.allowReadOnlyMode =  allowReadOnlyMode;
         this.watcherManager = watcherManager;
+        this.initialHandleWatcher = initialHandleWatcher;
         this.connectRetryPolicy = connectRetryPolicy;
         this.operationRetryPolicy = operationRetryPolicy;
         this.rateLimiter = rate > 0 ? RateLimiter.create(rate) : null;
@@ -313,8 +435,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                 Executors.newScheduledThreadPool(retryExecThreadCount,
                         new ThreadFactoryBuilder().setNameFormat("ZKC-retry-executor-%d").build());
         this.connectExecutor =
-                Executors.newSingleThreadExecutor(
-                        new ThreadFactoryBuilder().setNameFormat("ZKC-connect-executor-%d").build());
+                PulsarExecutors.newSingleThreadExecutor(
+                        new ThreadFactoryBuilder().setNameFormat("ZKC-connect-executor-%d").build(), false);
         // added itself to the watcher
         watcherManager.addChildWatcher(this);
 
@@ -331,14 +453,23 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         getACLStats = scopedStatsLogger.getOpStatsLogger("get_acl");
         setACLStats = scopedStatsLogger.getOpStatsLogger("set_acl");
         syncStats = scopedStatsLogger.getOpStatsLogger("sync");
+        initialHandleWatcher.setClient(this);
     }
 
     @Override
     public void close() throws InterruptedException {
-        closed.set(true);
-        connectExecutor.shutdown();
+        synchronized (reconnectLock) {
+            closed.set(true);
+            pendingReconnectHandleGeneration = NO_HANDLE_GENERATION;
+        }
+        connectExecutor.shutdownNow();
         retryExecutor.shutdown();
-        closeZkHandle();
+        try {
+            closeZkHandle();
+            connectExecutor.awaitTermination(sessionTimeoutMs, TimeUnit.MILLISECONDS);
+        } finally {
+            clearReconnectState();
+        }
     }
 
     private void closeZkHandle() throws InterruptedException {
@@ -354,38 +485,208 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         watcherManager.waitForConnection();
     }
 
-    protected ZooKeeper createZooKeeper() throws IOException, QuorumPeerConfig.ConfigException {
+    @SuppressWarnings("deprecation")
+    protected ZooKeeper createZooKeeper(Watcher watcher) throws IOException, QuorumPeerConfig.ConfigException {
         if (null != configPath) {
-            return new ZooKeeper(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode,
+            return new ZooKeeper(connectString, sessionTimeoutMs, watcher, allowReadOnlyMode,
                     new ZKClientConfig(configPath));
         }
-        return new ZooKeeper(connectString, sessionTimeoutMs, watcherManager, allowReadOnlyMode);
+        return new ZooKeeper(connectString, sessionTimeoutMs, watcher, allowReadOnlyMode);
     }
 
     @Override
     public void process(WatchedEvent event) {
-        if (event.getType() == EventType.None
-                && event.getState() == KeeperState.Expired) {
-            onExpired();
+        long eventHandleGeneration;
+        States eventClientState;
+        if (event instanceof HandleStateWatchedEvent handleStateEvent) {
+            eventHandleGeneration = handleStateEvent.getHandleGeneration();
+            eventClientState = handleStateEvent.getClientState();
+        } else {
+            eventHandleGeneration = currentHandleGeneration.get();
+            eventClientState = getState();
+        }
+        if (event.getType() == EventType.None) {
+            if (event.getState() == KeeperState.Expired) {
+                scheduleReconnect("session expired", eventHandleGeneration);
+            } else if (event.getState() == KeeperState.AuthFailed
+                    && eventClientState == States.AUTH_FAILED) {
+                scheduleReconnect("authentication failed", eventHandleGeneration);
+            }
         }
     }
 
-    private void onExpired() {
-        if (closed.get()) {
-            // we don't schedule any tries if the client is closed.
-            return;
+    private void scheduleReconnect(String reason, long eventHandleGeneration) {
+        synchronized (reconnectLock) {
+            if (closed.get()) {
+                // we don't schedule any tries if the client is closed.
+                return;
+            }
+            long currentGeneration = currentHandleGeneration.get();
+            if (eventHandleGeneration != currentGeneration) {
+                log.debug()
+                        .attr("eventHandleGeneration", eventHandleGeneration)
+                        .attr("currentHandleGeneration", currentGeneration)
+                        .attr("reason", reason)
+                        .log("Ignoring reconnect request from a stale ZooKeeper handle");
+                return;
+            }
+            if (reconnectScheduled.get()) {
+                if (eventHandleGeneration == reconnectingHandleGeneration
+                        || eventHandleGeneration == pendingReconnectHandleGeneration) {
+                    log.debug()
+                            .attr("handleGeneration", eventHandleGeneration)
+                            .attr("reason", reason)
+                            .log("Ignoring duplicate ZooKeeper reconnect request");
+                    return;
+                }
+                pendingReconnectHandleGeneration = eventHandleGeneration;
+                return;
+            }
+            reconnectingHandleGeneration = eventHandleGeneration;
+            reconnectScheduled.set(true);
         }
 
-        log.info("ZooKeeper session {} is expired from {}.",
-                Long.toHexString(getSessionId()), connectString);
+        log.info()
+                .attr("sessionId", Long.toHexString(getSessionId()))
+                .attr("connectString", connectString)
+                .attr("reason", reason)
+                .log("Scheduling ZooKeeper reconnect");
         try {
             connectExecutor.execute(clientCreator);
         } catch (RejectedExecutionException ree) {
+            clearReconnectState();
             if (!closed.get()) {
-                log.error("ZooKeeper reconnect task is rejected : ", ree);
+                log.error().exception(ree).log("ZooKeeper reconnect task is rejected");
             }
         } catch (Exception t) {
-            log.error("Failed to submit zookeeper reconnect task due to runtime exception : ", t);
+            clearReconnectState();
+            log.error().exception(t).log("Failed to submit zookeeper reconnect task due to runtime exception");
+        }
+    }
+
+    private void clearReconnectState() {
+        synchronized (reconnectLock) {
+            clearReconnectStateLocked();
+        }
+    }
+
+    private void clearReconnectStateLocked() {
+        reconnectingHandleGeneration = NO_HANDLE_GENERATION;
+        pendingReconnectHandleGeneration = NO_HANDLE_GENERATION;
+        reconnectScheduled.set(false);
+    }
+
+    @VisibleForTesting
+    ZooKeeper getZooKeeperHandle() {
+        return zk.get();
+    }
+
+    @VisibleForTesting
+    void setZooKeeperHandle(ZooKeeper zkHandle) {
+        zk.set(zkHandle);
+    }
+
+    @VisibleForTesting
+    boolean isReconnectInProgress() {
+        return reconnectScheduled.get();
+    }
+
+    @VisibleForTesting
+    Watcher getInitialHandleWatcher() {
+        return initialHandleWatcher;
+    }
+
+    long getCurrentHandleGeneration() {
+        return currentHandleGeneration.get();
+    }
+
+    CurrentHandleIdentity getCurrentHandleIdentity() {
+        synchronized (reconnectLock) {
+            return getCurrentHandleIdentityLocked();
+        }
+    }
+
+    // The state update must be short and must not invoke listeners or perform blocking work while reconnectLock is
+    // held.
+    boolean runStateUpdateIfCurrentHandle(CurrentHandleIdentity expectedIdentity, Runnable stateUpdate) {
+        synchronized (reconnectLock) {
+            if (!expectedIdentity.equals(getCurrentHandleIdentityLocked())) {
+                return false;
+            }
+            stateUpdate.run();
+            return true;
+        }
+    }
+
+    private CurrentHandleIdentity getCurrentHandleIdentityLocked() {
+        ZooKeeper zkHandle = zk.get();
+        long sessionId = zkHandle == null ? super.getSessionId() : zkHandle.getSessionId();
+        return new CurrentHandleIdentity(currentHandleGeneration.get(), sessionId);
+    }
+
+    record CurrentHandleIdentity(long generation, long sessionId) {
+    }
+
+    static final class HandleStateWatchedEvent extends WatchedEvent {
+        private final long handleGeneration;
+        private final long sessionId;
+        private final States clientState;
+
+        HandleStateWatchedEvent(WatchedEvent event, long handleGeneration, long sessionId, States clientState) {
+            super(event.getType(), event.getState(), event.getPath(), event.getZxid());
+            this.handleGeneration = handleGeneration;
+            this.sessionId = sessionId;
+            this.clientState = clientState;
+        }
+
+        long getHandleGeneration() {
+            return handleGeneration;
+        }
+
+        long getSessionId() {
+            return sessionId;
+        }
+
+        States getClientState() {
+            return clientState;
+        }
+    }
+
+    private static final class InitialHandleWatcher implements Watcher {
+        private final ZooKeeperWatcherBase watcherManager;
+        private final int sessionTimeoutMs;
+        private final CountDownLatch clientSetLatch = new CountDownLatch(1);
+        private PulsarZooKeeperClient client;
+
+        private InitialHandleWatcher(ZooKeeperWatcherBase watcherManager, int sessionTimeoutMs) {
+            this.watcherManager = watcherManager;
+            this.sessionTimeoutMs = sessionTimeoutMs;
+        }
+
+        private void setClient(PulsarZooKeeperClient client) {
+            this.client = client;
+            clientSetLatch.countDown();
+        }
+
+        @Override
+        public void process(WatchedEvent event) {
+            try {
+                if (!clientSetLatch.await(sessionTimeoutMs, TimeUnit.MILLISECONDS)) {
+                    log.warn().attr("event", event)
+                            .log("Timed out waiting for the initial ZooKeeper handle to be initialized");
+                    return;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn().attr("event", event).exception(e)
+                        .log("Interrupted while waiting for the initial ZooKeeper handle to be initialized");
+                return;
+            }
+
+            PulsarZooKeeperClient eventSource = client;
+            watcherManager.process(new HandleStateWatchedEvent(
+                    event, INITIAL_HANDLE_GENERATION,
+                    eventSource.getInitialHandleSessionId(), eventSource.getInitialHandleState()));
         }
     }
 
@@ -428,6 +729,10 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         return zkHandle.getSessionId();
     }
 
+    private long getInitialHandleSessionId() {
+        return super.getSessionId();
+    }
+
     @Override
     public byte[] getSessionPasswd() {
         ZooKeeper zkHandle = zk.get();
@@ -461,7 +766,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             retryExecutor.schedule(r, nextRetryWaitTimeMs, TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException ree) {
             if (!closed.get()) {
-                log.error("ZooKeeper Operation {} is rejected : ", r, ree);
+                log.error().attr("operation", r).exception(ree).log("ZooKeeper Operation is rejected");
             }
         }
     }
@@ -500,7 +805,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     public void multi(final Iterable<Op> ops,
                       final MultiCallback cb,
                       final Object context) {
-        final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, createStats) {
+        final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, multiStats) {
 
             final MultiCallback multiCb = new MultiCallback() {
 
@@ -711,6 +1016,10 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         } else {
             return zkHandle.getState();
         }
+    }
+
+    private States getInitialHandleState() {
+        return super.getState();
     }
 
     @Override
@@ -1163,7 +1472,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
     }
 
     @Override
-    public void addWatch(String basePath, Watcher watcher, AddWatchMode mode, VoidCallback cb, Object ctx) {
+    public void addWatch(String basePath, Watcher watcher, AddWatchMode mode, VoidCallback cb, Object context) {
         final Runnable proc = new ZkRetryRunnable(operationRetryPolicy, rateLimiter, setStats) {
 
             final VoidCallback vCb = new VoidCallback() {
@@ -1174,7 +1483,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     if (allowRetry(worker, rc)) {
                         backOffAndRetry(that, worker.nextRetryWaitTime());
                     } else {
-                        vCb.processResult(rc, basePath, ctx);
+                        cb.processResult(rc, path, context);
                     }
                 }
 
@@ -1184,15 +1493,15 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
             void zkRun() {
                 ZooKeeper zkHandle = zk.get();
                 if (null == zkHandle) {
-                    PulsarZooKeeperClient.super.addWatch(basePath, watcher, mode, cb, ctx);
+                    PulsarZooKeeperClient.super.addWatch(basePath, watcher, mode, vCb, worker);
                 } else {
-                    zkHandle.addWatch(basePath, watcher, mode, cb, ctx);
+                    zkHandle.addWatch(basePath, watcher, mode, vCb, worker);
                 }
             }
 
             @Override
             public String toString() {
-                return String.format("setData (%s, mode = %s)", basePath, mode.name());
+                return String.format("addWatch (%s, mode = %s)", basePath, mode.name());
             }
         };
         // execute it immediately
@@ -1444,7 +1753,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         proc.run();
     }
 
-    @Slf4j
+    @CustomLog
     static final class ZooWorker {
         int attempts = 0;
         long startTimeNanos;
@@ -1544,7 +1853,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     if (null != client) {
                         client.waitForConnection();
                     }
-                    log.debug("Execute {} at {} retry attempt.", proc, attempts);
+                    log.debug().attr("proc", proc).attr("attempts", attempts).log("Execute at retry attempt");
                     if (null != rateLimiter) {
                         rateLimiter.acquire();
                     }
@@ -1563,7 +1872,8 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                     if (rethrow) {
                         statsLogger.registerFailedEvent(MathUtils.elapsedMicroSec(startTimeNanos),
                                 TimeUnit.MICROSECONDS);
-                        log.debug("Stopped executing {} after {} attempts.", proc, attempts);
+                        log.debug().attr("proc", proc).attr("attempts", attempts)
+                                .log("Stopped executing after attempts");
                         throw e;
                     }
                     TimeUnit.MILLISECONDS.sleep(retryPolicy.nextRetryWaitTime(attempts, elapsedTime));

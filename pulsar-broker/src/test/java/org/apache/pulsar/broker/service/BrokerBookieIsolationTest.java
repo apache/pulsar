@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -34,6 +35,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.BookieImpl;
 import org.apache.bookkeeper.bookie.GarbageCollectorThread;
 import org.apache.bookkeeper.bookie.ScanAndCompareGarbageCollector;
@@ -44,7 +46,7 @@ import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.LedgerManager;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.versioning.Versioned;
@@ -77,13 +79,12 @@ import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.data.ACL;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "broker")
 public class BrokerBookieIsolationTest {
 
@@ -97,7 +98,7 @@ public class BrokerBookieIsolationTest {
     @BeforeMethod
     protected void setup() throws Exception {
         // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(4, 0, () -> 0);
+        bkEnsemble = new LocalBookkeeperEnsemble(4, 0);
         bkEnsemble.start();
     }
 
@@ -126,14 +127,15 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testBookieIsolation() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
-        final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
-        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
-        final String ns3 = String.format("%s/%s/%s", tenant1, cluster, "ns3");
-        final String ns4 = String.format("%s/%s/%s", tenant1, cluster, "ns4");
+        final String ns1 = String.format("%s/%s", tenant1, "ns1");
+        final String ns2 = String.format("%s/%s", tenant1, "ns2");
+        final String ns3 = String.format("%s/%s", tenant1, "ns3");
+        final String ns4 = String.format("%s/%s", tenant1, "ns4");
         final int totalPublish = 100;
 
         final String brokerBookkeeperClientIsolationGroups = "default-group";
@@ -291,6 +293,7 @@ public class BrokerBookieIsolationTest {
         assertEquals(clientConf.getProperty(REPP_DNS_RESOLVER_CLASS), BookieRackAffinityMapping.class.getName());
     }
 
+    @SuppressWarnings("unchecked")
     private LedgerManager getLedgerManager(BookieImpl bookie1) throws IllegalAccessException {
         DbLedgerStorage ledgerStorage =
                 (DbLedgerStorage) FieldUtils.readDeclaredField(bookie1, "ledgerStorage", true);
@@ -306,11 +309,12 @@ public class BrokerBookieIsolationTest {
         return ledgerManager;
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testSetRackInfoAndAffinityGroupDuringProduce() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
-        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
+        final String ns2 = String.format("%s/%s", tenant1, "ns2");
         final int totalPublish = 100;
 
         final String brokerBookkeeperClientIsolationGroups = "default-group";
@@ -446,14 +450,15 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testStrictBookieIsolation() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
-        final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
-        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
-        final String ns3 = String.format("%s/%s/%s", tenant1, cluster, "ns3");
-        final String ns4 = String.format("%s/%s/%s", tenant1, cluster, "ns4");
+        final String ns1 = String.format("%s/%s", tenant1, "ns1");
+        final String ns2 = String.format("%s/%s", tenant1, "ns2");
+        final String ns3 = String.format("%s/%s", tenant1, "ns3");
+        final String ns4 = String.format("%s/%s", tenant1, "ns4");
         final int totalPublish = 100;
 
         final String brokerBookkeeperClientIsolationGroups = "default-group";
@@ -612,14 +617,15 @@ public class BrokerBookieIsolationTest {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testBookieIsolationWithSecondaryGroup() throws Exception {
         final String tenant1 = "tenant1";
         final String cluster = "use";
-        final String ns1 = String.format("%s/%s/%s", tenant1, cluster, "ns1");
-        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
-        final String ns3 = String.format("%s/%s/%s", tenant1, cluster, "ns3");
-        final String ns4 = String.format("%s/%s/%s", tenant1, cluster, "ns4");
+        final String ns1 = String.format("%s/%s", tenant1, "ns1");
+        final String ns2 = String.format("%s/%s", tenant1, "ns2");
+        final String ns3 = String.format("%s/%s", tenant1, "ns3");
+        final String ns4 = String.format("%s/%s", tenant1, "ns4");
         final int totalPublish = 100;
 
         final String brokerBookkeeperClientIsolationGroups = "default-group";
@@ -773,8 +779,8 @@ public class BrokerBookieIsolationTest {
 
         final String tenant1 = "tenant1";
         final String cluster = "use";
-        final String ns2 = String.format("%s/%s/%s", tenant1, cluster, "ns2");
-        final String ns3 = String.format("%s/%s/%s", tenant1, cluster, "ns3");
+        final String ns2 = String.format("%s/%s", tenant1, "ns2");
+        final String ns3 = String.format("%s/%s", tenant1, "ns3");
 
         final String brokerBookkeeperClientIsolationGroups = "default-group";
         final String tenantNamespaceIsolationGroupsPrimary = "tenant1-isolation-primary";
@@ -810,6 +816,7 @@ public class BrokerBookieIsolationTest {
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        config.setManagedLedgerMaxEntriesPerLedger(1);
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
@@ -858,6 +865,42 @@ public class BrokerBookieIsolationTest {
                         .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
                         .build());
 
+        // (4) the bookie affinity group must not become the default isolation groups of the bookkeeper client
+        // created for it: once it is removed, new ledgers fall back to the broker's isolation groups.
+        admin.namespaces().setBookieAffinityGroup(ns2,
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
+                        .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
+                        .build());
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS).build();
+
+        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
+        LedgerManager ledgerManager = getLedgerManager(bookie1);
+
+        PersistentTopic topic1 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns2, "topic1", 1);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1.getManagedLedger();
+        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+
+        admin.namespaces().deleteBookieAffinityGroup(ns2);
+        // Wait for the topic to apply the removal, with no ledger creation in flight that could still use the
+        // bookie affinity group
+        Awaitility.await().untilAsserted(() -> {
+            assertNull(ml.getConfig().getBookKeeperEnsemblePlacementPolicyClassName());
+            assertEquals(ml.getState(), ManagedLedgerImpl.State.LedgerOpened);
+        });
+        long lastLedgerBeforeRemoval = ml.getLedgersInfoAsList().get(ml.getLedgersInfoAsList().size() - 1)
+                .getLedgerId();
+
+        // Each entry fills a ledger, so publishing rolls over to ledgers created after the removal
+        createTopicAndPublish(pulsarClient, ns2, "topic1", 1);
+        Awaitility.await().untilAsserted(() -> assertTrue(ml.getLedgersInfoAsList().stream()
+                .anyMatch(ledgerInfo -> ledgerInfo.getLedgerId() > lastLedgerBeforeRemoval)));
+        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList().stream()
+                .filter(ledgerInfo -> ledgerInfo.getLedgerId() > lastLedgerBeforeRemoval)
+                .toList(), defaultBookies);
     }
 
     private void assertAffinityBookies(LedgerManager ledgerManager, List<LedgerInfo> ledgers1,
@@ -919,6 +962,4 @@ public class BrokerBookieIsolationTest {
 
         zkClient.setData(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH, jsonMapper.writeValueAsBytes(bookies), -1);
     }
-    private static final Logger log = LoggerFactory.getLogger(BrokerBookieIsolationTest.class);
-
 }

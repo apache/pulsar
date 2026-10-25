@@ -21,7 +21,7 @@ package org.apache.pulsar.metadata;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -29,7 +29,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class OxiaMetadataStoreErrorTest extends BaseMetadataStoreTest {
 
     @Test

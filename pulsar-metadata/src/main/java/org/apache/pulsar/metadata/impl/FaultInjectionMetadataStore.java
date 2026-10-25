@@ -19,11 +19,12 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
@@ -38,8 +39,9 @@ import org.apache.pulsar.metadata.api.MetadataEvent;
 import org.apache.pulsar.metadata.api.MetadataSerde;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
-import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.cache.impl.MetadataCacheImpl;
@@ -60,6 +62,7 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
         EXISTS,
         PUT,
         DELETE,
+        SCAN_CHILDREN,
     }
 
     @Data
@@ -75,104 +78,111 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public CompletableFuture<Optional<GetResult>> get(String path) {
+    public CompletableFuture<Optional<GetResult>> get(String path, Set<Option> opts) {
         Optional<MetadataStoreException> ex = programmedFailure(OperationType.GET, path);
         if (ex.isPresent()) {
             return FutureUtil.failedFuture(ex.get());
         }
 
-        return store.get(path);
+        return store.get(path, opts);
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildren(String path) {
+    public CompletableFuture<List<String>> getChildren(String path, Set<Option> opts) {
         Optional<MetadataStoreException> ex = programmedFailure(OperationType.GET_CHILDREN, path);
         if (ex.isPresent()) {
             return FutureUtil.failedFuture(ex.get());
         }
 
-        return store.getChildren(path);
+        return store.getChildren(path, opts);
     }
 
     @Override
-    public CompletableFuture<List<String>> getChildrenFromStore(String path) {
+    public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
         Optional<MetadataStoreException> ex = programmedFailure(OperationType.GET_CHILDREN, path);
         if (ex.isPresent()) {
             return FutureUtil.failedFuture(ex.get());
         }
 
-        return store.getChildrenFromStore(path);
+        return store.getChildrenFromStore(path, opts);
     }
 
     @Override
-    public CompletableFuture<Boolean> exists(String path) {
+    public CompletableFuture<Boolean> exists(String path, Set<Option> opts) {
         Optional<MetadataStoreException> ex = programmedFailure(OperationType.EXISTS, path);
         if (ex.isPresent()) {
             return FutureUtil.failedFuture(ex.get());
         }
 
-        return store.exists(path);
+        return store.exists(path, opts);
     }
 
     @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion) {
+    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion, Set<Option> opts) {
         Optional<MetadataStoreException> ex = programmedFailure(OperationType.PUT, path);
         if (ex.isPresent()) {
             return FutureUtil.failedFuture(ex.get());
         }
 
-        return store.put(path, value, expectedVersion);
+        return store.put(path, value, expectedVersion, opts);
     }
 
     @Override
-    public CompletableFuture<Stat> put(String path, byte[] value, Optional<Long> expectedVersion,
-                                       EnumSet<CreateOption> options) {
-        Optional<MetadataStoreException> ex = programmedFailure(OperationType.PUT, path);
-        if (ex.isPresent()) {
-            return FutureUtil.failedFuture(ex.get());
-        }
-
-        return store.put(path, value, expectedVersion, options);
-    }
-
-    @Override
-    public CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion) {
+    public CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
         Optional<MetadataStoreException> ex = programmedFailure(OperationType.DELETE, path);
         if (ex.isPresent()) {
             return FutureUtil.failedFuture(ex.get());
         }
 
-        return store.delete(path, expectedVersion);
+        return store.delete(path, expectedVersion, opts);
     }
 
     @Override
-    public CompletableFuture<Void> deleteRecursive(String path) {
+    public CompletableFuture<Void> deleteRecursive(String path, Set<Option> opts) {
         Optional<MetadataStoreException> ex = programmedFailure(OperationType.DELETE, path);
         if (ex.isPresent()) {
             return FutureUtil.failedFuture(ex.get());
         }
 
-        return store.deleteRecursive(path);
+        return store.deleteRecursive(path, opts);
     }
 
     @Override
-    public void registerListener(Consumer<Notification> listener) {
-        store.registerListener(listener);
+    public CompletableFuture<Void> scanChildren(String parentPath, ScanConsumer consumer, Set<Option> opts) {
+        Optional<MetadataStoreException> ex = programmedFailure(OperationType.SCAN_CHILDREN, parentPath);
+        if (ex.isPresent()) {
+            consumer.onError(ex.get());
+            return FutureUtil.failedFuture(ex.get());
+        }
+
+        return store.scanChildren(parentPath, consumer, opts);
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig cacheConfig) {
+    public AutoCloseable subscribeSequence(String prefix, Consumer<String> listener, Set<Option> opts)
+            throws MetadataStoreException {
+        return store.subscribeSequence(prefix, listener, opts);
+    }
+
+    @Override
+    public Runnable registerCancellableListener(Consumer<Notification> listener) {
+        return store.registerCancellableListener(listener);
+    }
+
+    @Override
+    public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig<?> cacheConfig) {
         return injectMetadataStoreInMetadataCache(store.getMetadataCache(clazz, cacheConfig));
     }
 
     @Override
-    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig cacheConfig) {
+    public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig<?> cacheConfig) {
         return injectMetadataStoreInMetadataCache(store.getMetadataCache(typeRef, cacheConfig));
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
-                                                 MetadataCacheConfig cacheConfig) {
+                                                 MetadataCacheConfig<?> cacheConfig) {
         return injectMetadataStoreInMetadataCache(store.getMetadataCache(serde, cacheConfig));
     }
 
@@ -188,9 +198,16 @@ public class FaultInjectionMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public void registerSessionListener(Consumer<SessionEvent> listener) {
-        store.registerSessionListener(listener);
+    public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        Runnable cancelStoreSessionListener = store.registerCancellableSessionListener(listener);
         sessionListeners.add(listener);
+        AtomicBoolean cancelled = new AtomicBoolean();
+        return () -> {
+            if (cancelled.compareAndSet(false, true)) {
+                cancelStoreSessionListener.run();
+                sessionListeners.remove(listener);
+            }
+        };
     }
 
     @Override

@@ -40,14 +40,16 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.AllArgsConstructor;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -69,7 +71,7 @@ import org.mockito.stubbing.Answer;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker")
 public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
 
@@ -197,7 +199,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
          *   2. Store the param-context and param-position of callback function for verify.
          */
         // Create TxLogBufferedWriter.
-        TxnLogBufferedWriter txnLogBufferedWriter =  new TxnLogBufferedWriter<Integer>(
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<>(
                     managedLedger, ((ManagedLedgerImpl) managedLedger).getExecutor(), transactionTimer,
                     dataSerializer, batchedWriteMaxRecords, batchedWriteMaxSize,
                     batchedWriteMaxDelayInMillis, batchEnabled, DISABLED_BUFFERED_WRITER_METRICS);
@@ -220,6 +222,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
                 positionsOfCallback.get(lightPosition).add(position);
             }
             @Override
+            @SuppressWarnings("unchecked")
             public void addFailed(ManagedLedgerException exception, Object ctx) {
                 if (contextArrayOfCallback.contains(Integer.valueOf(String.valueOf(ctx)))){
                     return;
@@ -396,8 +399,9 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
         // Cache the data flush to Bookie for Asserts.
         List<Integer> dataArrayFlushedToBookie = Collections.synchronizedList(new ArrayList<>());
-        Mockito.doAnswer(new Answer() {
+        Mockito.doAnswer(new Answer<Object>() {
             @Override
+            @SuppressWarnings("unchecked")
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 ByteBuf byteBuf = (ByteBuf) invocation.getArguments()[0];
                 byteBuf.skipBytes(4);
@@ -410,7 +414,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             }
         }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
         // Test threshold: writeMaxDelayInMillis (use timer).
-        TxnLogBufferedWriter txnLogBufferedWriter1 = new TxnLogBufferedWriter<>(managedLedger, topicExecutor,
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter1 = new TxnLogBufferedWriter<>(managedLedger, topicExecutor,
                 transactionTimer, dataSerializer, 32, 1024 * 4,
                 100, true, DISABLED_BUFFERED_WRITER_METRICS);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
@@ -423,7 +427,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         txnLogBufferedWriter1.close().get();
 
         // Test threshold: batchedWriteMaxRecords.
-        TxnLogBufferedWriter txnLogBufferedWriter2 = new TxnLogBufferedWriter<>(managedLedger, topicExecutor,
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter2 = new TxnLogBufferedWriter<>(managedLedger, topicExecutor,
                 transactionTimer, dataSerializer, 32, 1024 * 4,
                 10000, true, DISABLED_BUFFERED_WRITER_METRICS);
         for (int i = 0; i < 32; i++){
@@ -434,7 +438,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         txnLogBufferedWriter2.close();
 
         // Test threshold: batchedWriteMaxSize.
-        TxnLogBufferedWriter txnLogBufferedWriter3 = new TxnLogBufferedWriter<>(managedLedger, topicExecutor,
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter3 = new TxnLogBufferedWriter<>(managedLedger, topicExecutor,
                 transactionTimer, dataSerializer, 1024, 64 * 4,
                 10000, true, DISABLED_BUFFERED_WRITER_METRICS);
         for (int i = 0; i < 64; i++){
@@ -460,6 +464,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
      * This method is used to verify the fix for the above problem. see: https://github.com/apache/pulsar/pull/16679.
      */
     @Test
+    @SuppressWarnings("unchecked")
     public void testPendingScheduleTriggerTaskCount() throws Exception {
         // Create components.
         ArrayBlockingQueue<Runnable> workQueue = new ArrayBlockingQueue<>(65536 * 2);
@@ -471,7 +476,8 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         // Mock managed ledger and write counter.
         MockedManagedLedger mockedManagedLedger = mockManagedLedgerWithWriteCounter(mlName);
         // Start tests.
-        TxnLogBufferedWriter txnLogBufferedWriter = new TxnLogBufferedWriter<>(mockedManagedLedger.managedLedger,
+        TxnLogBufferedWriter<Integer> txnLogBufferedWriter = new TxnLogBufferedWriter<>(
+                mockedManagedLedger.managedLedger,
                 threadPoolExecutor, transactionTimer, dataSerializer, 2, 1024 * 4,
                 1, true, DISABLED_BUFFERED_WRITER_METRICS);
         TxnLogBufferedWriter.AddDataCallback callback = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
@@ -540,6 +546,67 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         threadPoolExecutor.shutdown();
     }
 
+    /**
+     * A timing flush that runs after {@link TxnLogBufferedWriter#close()} must not touch the flush context that the
+     * close task recycled: writers share the executor thread, so another writer may already be using the recycled
+     * flush context.
+     */
+    @Test
+    public void testTimingFlushAfterCloseDoesNotAffectOtherWriter() throws Exception {
+        ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
+        Mockito.when(managedLedger.getName()).thenReturn(mlName);
+        Mockito.doAnswer(invocation -> {
+            AsyncCallbacks.AddEntryCallback callback = invocation.getArgument(1);
+            callback.addComplete(PositionFactory.create(1, 1), invocation.getArgument(0),
+                    invocation.getArgument(2));
+            return null;
+        }).when(managedLedger).asyncAddEntry(Mockito.any(ByteBuf.class), Mockito.any(), Mockito.any());
+        // Both writers share the same single thread, like the writers of the topics that share a ML executor.
+        ExecutorService sharedExecutor =
+                Executors.newSingleThreadExecutor(new DefaultThreadFactory("txn-shared-executor"));
+        HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
+                1, TimeUnit.MILLISECONDS);
+        SumStrDataSerializer dataSerializer = new SumStrDataSerializer();
+        TxnLogBufferedWriter.AddDataCallback callbackA = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
+        TxnLogBufferedWriter.AddDataCallback callbackB = Mockito.mock(TxnLogBufferedWriter.AddDataCallback.class);
+        try {
+            TxnLogBufferedWriter<Integer> writerA = new TxnLogBufferedWriter<>(managedLedger, sharedExecutor,
+                    transactionTimer, dataSerializer, 2, Integer.MAX_VALUE, Integer.MAX_VALUE, true,
+                    DISABLED_BUFFERED_WRITER_METRICS);
+            // Flush once, so that writer A's current flush context is obtained on the shared executor thread.
+            writerA.asyncAddData(1, callbackA, 1);
+            writerA.asyncAddData(1, callbackA, 2);
+            Awaitility.await().untilAsserted(() ->
+                    Mockito.verify(callbackA, Mockito.times(2)).addComplete(Mockito.any(), Mockito.any()));
+            // Closing recycles writer A's current flush context on the shared executor thread.
+            writerA.close().get();
+
+            TxnLogBufferedWriter<Integer> writerB = new TxnLogBufferedWriter<>(managedLedger, sharedExecutor,
+                    transactionTimer, dataSerializer, 2, Integer.MAX_VALUE, Integer.MAX_VALUE, true,
+                    DISABLED_BUFFERED_WRITER_METRICS);
+            // The flush obtains a new flush context, which may be the one that writer A recycled.
+            writerB.asyncAddData(1, callbackB, 1);
+            writerB.asyncAddData(1, callbackB, 2);
+            // This request stays in writer B's current flush context.
+            writerB.asyncAddData(1, callbackB, 3);
+            sharedExecutor.submit(() -> { }).get();
+
+            // A timing flush of the closed writer A, e.g. one that was queued before the close task ran.
+            writerA.trigFlushByTimingTask();
+            sharedExecutor.submit(() -> { }).get();
+            Mockito.verify(callbackB, Mockito.never()).addFailed(Mockito.any(), Mockito.any());
+
+            writerB.trigFlushByTimingTask();
+            Awaitility.await().untilAsserted(() ->
+                    Mockito.verify(callbackB, Mockito.times(3)).addComplete(Mockito.any(), Mockito.any()));
+            Mockito.verify(callbackB, Mockito.never()).addFailed(Mockito.any(), Mockito.any());
+            writerB.close().get();
+        } finally {
+            transactionTimer.stop();
+            sharedExecutor.shutdownNow();
+        }
+    }
+
     private static class JsonDataSerializer implements TxnLogBufferedWriter.DataSerializer<Integer>{
 
         private static ObjectMapper objectMapper = new ObjectMapper();
@@ -589,6 +656,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
             return deserializeMergedData(new String(bytes, Charset.defaultCharset()));
         }
 
+        @SuppressWarnings("unchecked")
         public static List<Integer> deserializeMergedData(String json){
             try {
                 return objectMapper.readValue(json, ArrayList.class);
@@ -906,8 +974,10 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testFailWhenAddData() throws Exception {
         int batchedWriteMaxSize = 1024;
+        @SuppressWarnings("rawtypes")
         TxnLogBufferedWriter.DataSerializer dataSerializer =
                 new WrongDataSerializer(batchedWriteMaxSize, true, true, true);
         int writeCount = 100;
@@ -1026,7 +1096,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         AtomicInteger writeCounter = new AtomicInteger();
         ManagedLedger managedLedger = Mockito.mock(ManagedLedger.class);
         Mockito.when(managedLedger.getName()).thenReturn(mlName);
-        Mockito.doAnswer(new Answer() {
+        Mockito.doAnswer(new Answer<Object>() {
             @Override
             public Object answer(InvocationOnMock invocation) throws Throwable {
                 writeCounter.incrementAndGet();

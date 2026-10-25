@@ -117,6 +117,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByBroker0Permit() throws Exception {
 
@@ -161,6 +162,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByBroker() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
@@ -278,6 +280,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testLookupThrottlingForClientByBrokerInternalRetry() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic-" + UUID.randomUUID().toString();

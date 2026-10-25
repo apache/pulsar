@@ -24,9 +24,11 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.Entry;
@@ -39,9 +41,14 @@ import org.apache.bookkeeper.mledger.util.AbstractCASReferenceCounted;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.Commands;
 
-@Slf4j
+@CustomLog
 public final class EntryImpl extends AbstractCASReferenceCounted
         implements ReferenceCountedEntry, Comparable<EntryImpl> {
+    /**
+     * The expected read count of an entry that isn't cached and has no read count handler.
+     */
+    public static final int NO_EXPECTED_READ_COUNT = -1;
+
 
     private static final Recycler<EntryImpl> RECYCLER = new Recycler<EntryImpl>() {
         @Override
@@ -56,9 +63,21 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     private Position position;
     ByteBuf data;
     private EntryReadCountHandler readCountHandler;
+    private static final VarHandle READ_COUNT_HANDLER;
+
+    static {
+        try {
+            READ_COUNT_HANDLER = MethodHandles.lookup()
+                    .findVarHandle(EntryImpl.class, "readCountHandler", EntryReadCountHandler.class);
+        } catch (ReflectiveOperationException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+    }
     private boolean decreaseReadCountOnRelease = true;
+    // Cache readers publish metadata lazily; entry copies must see a fully initialized instance.
     @Getter @Setter
-    private MessageMetadata messageMetadata;
+    private volatile MessageMetadata messageMetadata;
+    private boolean messageMetadataInitializationFailed;
 
     private Runnable onDeallocate;
 
@@ -69,6 +88,11 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.data = ledgerEntry.getEntryBuffer();
         entry.data.retain();
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        // Reset the lazily-cached position LAST, after the id assignments: a recycled object can
+        // carry a stale Position materialized by a getPosition() call that raced past the recycle
+        // (deallocation nulls the field, but a late reader re-materializes it from the reset ids
+        // as (-1, -1)), and any racy lazy rebuild must observe the fresh legitimate ids.
+        entry.position = null;
         entry.setRefCnt(1);
         return entry;
     }
@@ -97,7 +121,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     @VisibleForTesting
     public static EntryImpl create(long ledgerId, long entryId, byte[] data) {
-        return create(ledgerId, entryId, data, 0);
+        return create(ledgerId, entryId, data, NO_EXPECTED_READ_COUNT);
     }
 
     @VisibleForTesting
@@ -107,12 +131,14 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.entryId = entryId;
         entry.data = Unpooled.wrappedBuffer(data);
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        // Reset the lazily-cached position: see create(LedgerEntry, int).
+        entry.position = null;
         entry.setRefCnt(1);
         return entry;
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data) {
-        return create(ledgerId, entryId, data, 0);
+        return create(ledgerId, entryId, data, NO_EXPECTED_READ_COUNT);
     }
 
     public static EntryImpl create(long ledgerId, long entryId, ByteBuf data, int expectedReadCount) {
@@ -122,6 +148,8 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.data = data;
         entry.data.retain();
         entry.readCountHandler = EntryReadCountHandlerImpl.maybeCreate(expectedReadCount);
+        // Reset the lazily-cached position: see create(LedgerEntry, int).
+        entry.position = null;
         entry.setRefCnt(1);
         return entry;
     }
@@ -170,7 +198,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         entry.ledgerId = other.ledgerId;
         entry.entryId = other.entryId;
         entry.data = other.data.retainedDuplicate();
-        entry.readCountHandler = other.readCountHandler;
+        entry.readCountHandler = other.getReadCountHandler();
         entry.messageMetadata = other.messageMetadata;
         entry.setRefCnt(1);
         return entry;
@@ -271,8 +299,9 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     @Override
     protected void deallocate() {
-        if (decreaseReadCountOnRelease && readCountHandler != null) {
-            readCountHandler.markRead();
+        EntryReadCountHandler handler = getReadCountHandler();
+        if (decreaseReadCountOnRelease && handler != null) {
+            handler.markRead();
         }
         // This method is called whenever the ref-count of the EntryImpl reaches 0, so that now we can recycle it
         if (onDeallocate != null) {
@@ -290,6 +319,7 @@ public final class EntryImpl extends AbstractCASReferenceCounted
         readCountHandler = null;
         decreaseReadCountOnRelease = true;
         messageMetadata = null;
+        messageMetadataInitializationFailed = false;
         recyclerHandle.recycle(this);
     }
 
@@ -300,7 +330,21 @@ public final class EntryImpl extends AbstractCASReferenceCounted
 
     @Override
     public EntryReadCountHandler getReadCountHandler() {
-        return readCountHandler;
+        // a cached entry can take a later addition's handler, see updateExpectedReadCount
+        return (EntryReadCountHandler) READ_COUNT_HANDLER.getAcquire(this);
+    }
+
+    /**
+     * Takes the read count handler of an entry that was added at this entry's position while this one is cached.
+     * A cached entry's data is immutable and kept, but its expected read count is the latest addition's, such as a
+     * read from storage, which knows how many cursors are expected to read the entry, also when it has none. The
+     * cached entry shares the latest addition's handler, as an inserted entry does, so that the reads of the entries
+     * that the addition returned, counted when they're released, count for the cached entry too.
+     *
+     * @param latest the read count handler of the latest addition, or null when it has no expected reads
+     */
+    public void updateExpectedReadCount(EntryReadCountHandler latest) {
+        READ_COUNT_HANDLER.setRelease(this, latest);
     }
 
     public void setDecreaseReadCountOnRelease(boolean enabled) {
@@ -308,14 +352,24 @@ public final class EntryImpl extends AbstractCASReferenceCounted
     }
 
     public synchronized void initializeMessageMetadataIfNeeded(String managedLedgerName) {
-        if (messageMetadata == null) {
+        if (messageMetadata == null && !messageMetadataInitializationFailed) {
             try {
                 MessageMetadata msgMetadata = new MessageMetadata();
                 Commands.parseMessageMetadata(data.duplicate(), msgMetadata);
+                // Copies of this entry share the instance across threads. Decode its lazily decoded fields now, so
+                // that readers don't decode them concurrently: a lazily decoded field is cached in a plain field, and
+                // LightProto creates an ASCII string without a constructor, so another thread could see the cached
+                // string before its contents. The volatile write below publishes the decoded fields.
+                msgMetadata.materialize();
                 this.messageMetadata = msgMetadata;
             } catch (Throwable t) {
-                log.warn("[{}] Failed to parse message metadata for entry {}:{}", managedLedgerName, ledgerId, entryId,
-                        t);
+                // The entry bytes are immutable; another cache reader cannot make a failed parse succeed.
+                messageMetadataInitializationFailed = true;
+                log.warn().attr("managedLedgerName", managedLedgerName)
+                        .attr("ledgerId", ledgerId)
+                        .attr("entryId", entryId)
+                        .exception(t)
+                        .log("Failed to parse message metadata for entry");
             }
         }
     }

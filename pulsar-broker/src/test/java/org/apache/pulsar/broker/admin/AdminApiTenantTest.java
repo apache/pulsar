@@ -24,7 +24,7 @@ import static org.testng.Assert.assertTrue;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -35,7 +35,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-@Slf4j
+@CustomLog
 public class AdminApiTenantTest extends MockedPulsarServiceBaseTest {
     private static final String CLUSTER = "test";
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -47,6 +48,7 @@ public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseT
     protected int numberOfAdditionalBrokers() {
         return BROKER_COUNT - 1;
     }
+    @SuppressWarnings("deprecation")
 
     @Override
     protected PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
@@ -138,6 +140,7 @@ public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseT
     /**
      * Ensure producer and consumer works.
      */
+    @SuppressWarnings("unchecked")
     protected void ensureProducerAndConsumerWorks(Producer producer, Consumer consumer)
             throws PulsarClientException, ExecutionException, InterruptedException {
         String messageContent = UUID.randomUUID().toString();
@@ -150,6 +153,7 @@ public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseT
     /**
      * Ensure producer and consumer works.
      */
+    @SuppressWarnings("unchecked")
     protected void ensureProducerAndConsumerWorks(Producer producer1, Producer producer2, Consumer consumer)
             throws PulsarClientException, ExecutionException, InterruptedException {
         String messageContent1 = UUID.randomUUID().toString();
@@ -172,6 +176,7 @@ public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseT
     /**
      * Ensure transaction works.
      */
+    @SuppressWarnings("unchecked")
     protected void ensureTransactionWorks(PulsarClientImpl pulsarClient, Producer producer,
                                           Consumer consumer)
             throws PulsarClientException, ExecutionException, InterruptedException {
@@ -190,5 +195,14 @@ public abstract class AutoCloseUselessClientConSupports extends MultiBrokerBaseT
         Message messageTx = (Message) consumer.receiveAsync().get();
         Assert.assertEquals(new String(messageTx.getData(), StandardCharsets.UTF_8), messageContentTx);
         consumer.acknowledge(messageTx);
+    }
+
+    @SuppressWarnings("unchecked")
+    protected void waitForTopicListWatcherStarted(Consumer<?> consumer) {
+        Awaitility.await().untilAsserted(() -> {
+            CompletableFuture<TopicListWatcher> completableFuture =
+                    ((PatternMultiTopicsConsumerImpl) consumer).getWatcherFuture();
+            assertThat(completableFuture).describedAs("Topic list watcher future should be done").isDone();
+        });
     }
 }

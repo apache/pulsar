@@ -28,7 +28,7 @@ import static org.mockito.Mockito.doReturn;
 import java.net.URI;
 import java.util.Optional;
 import java.util.concurrent.Future;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -44,7 +44,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "websocket")
-@Slf4j
+@CustomLog
 public class ProxyIdleTimeoutTest extends ProducerConsumerBase {
     protected String methodName;
     private ProxyServer proxyServer;
@@ -95,8 +95,8 @@ public class ProxyIdleTimeoutTest extends ProducerConsumerBase {
 
         try {
             produceClient.start();
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest(produceUri);
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceRequest);
             assertThat(producerFuture).succeedsWithin(2, SECONDS);
             Session session = producerFuture.get();
             Awaitility.await().during(5, SECONDS).untilAsserted(() -> assertThat(session.isOpen()).isFalse());

@@ -29,6 +29,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.schema.SchemaInfo;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Provides lookup service to find broker which serves given topic. It helps to
@@ -159,8 +160,14 @@ public interface LookupService extends AutoCloseable {
      * @param namespace : namespace-name
      * @return
      */
+    default CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
+                                                               String topicPattern, String topicsHash) {
+        return getTopicsUnderNamespace(namespace, mode, topicPattern, topicsHash, null);
+    }
+
     CompletableFuture<GetTopicsResult> getTopicsUnderNamespace(NamespaceName namespace, Mode mode,
-                                                               String topicPattern, String topicsHash);
+                                                               String topicPattern, String topicsHash,
+                                                               @Nullable Map<String, String> properties);
 
     /**
      * Returns true if the lookup service is a binary protocol lookup service.
