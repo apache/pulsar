@@ -62,6 +62,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
 
     @Setter
     private volatile EntryLengthFunction entryLengthFunction = EntryLengthFunction.DEFAULT;
+    private volatile boolean copyEntriesInCache;
 
     public RangeEntryCacheManagerImpl(ManagedLedgerFactoryImpl factory, OrderedScheduler scheduledExecutor,
                                       OpenTelemetry openTelemetry) {
@@ -73,6 +74,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
                 scheduledExecutor, openTelemetry);
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
         this.cacheEvictionWatermark = config.getCacheEvictionWatermark();
+        this.copyEntriesInCache = config.isCopyEntriesInCache();
         this.mlFactory = factory;
         this.mlFactoryMBean = factory.getMbean();
         this.rangeCacheRemovalQueue = new RangeCacheRemovalQueue(
@@ -89,13 +91,17 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
             return new EntryCacheDisabled((ManagedLedgerImpl) ml, inflightReadsLimiter);
         }
 
-        EntryCache newEntryCache =
-                new RangeEntryCacheImpl(this, (ManagedLedgerImpl) ml, mlFactory.getConfig().isCopyEntriesInCache(),
+        RangeEntryCacheImpl newEntryCache =
+                new RangeEntryCacheImpl(this, (ManagedLedgerImpl) ml, copyEntriesInCache,
                         rangeCacheRemovalQueue, entryLengthFunction);
         EntryCache currentEntryCache = caches.putIfAbsent(ml.getName(), newEntryCache);
         if (currentEntryCache != null) {
             return currentEntryCache;
         } else {
+            // The dynamic setting can change between constructing and publishing this cache. Re-read the volatile
+            // snapshot after insertion so that a cache missed by updateCopyEntriesInCache's concurrent iteration
+            // cannot remain on the old mode.
+            newEntryCache.setCopyEntries(copyEntriesInCache);
             return newEntryCache;
         }
     }
@@ -109,6 +115,16 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     @Override
     public void updateCacheEvictionWatermark(double cacheEvictionWatermark) {
         this.cacheEvictionWatermark = cacheEvictionWatermark;
+    }
+
+    public void updateCopyEntriesInCache(boolean copyEntries) {
+        copyEntriesInCache = copyEntries;
+        mlFactory.getConfig().setCopyEntriesInCache(copyEntries);
+        caches.values().forEach(entryCache -> {
+            if (entryCache instanceof RangeEntryCacheImpl rangeEntryCache) {
+                rangeEntryCache.setCopyEntries(copyEntries);
+            }
+        });
     }
 
     @Override

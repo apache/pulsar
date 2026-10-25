@@ -162,6 +162,27 @@ public class RangeEntryCacheImplTest {
                 mockRangeCacheRemovalQueue, EntryLengthFunction.DEFAULT, pendingReadsManager);
     }
 
+    @Test
+    public void shouldCopyEntriesInsertedAfterCopyModeIsEnabled() {
+        ByteBuf retainedData = Unpooled.buffer().writeByte(1);
+        EntryImpl retainedEntry = EntryImpl.create(1, 0, retainedData);
+        retainedData.release();
+        assertThat(rangeEntryCache.insert(retainedEntry)).isTrue();
+        retainedEntry.release();
+        assertThat(retainedData.refCnt()).isOne();
+
+        rangeEntryCache.setCopyEntries(true);
+        ByteBuf copiedData = Unpooled.buffer().writeByte(2);
+        EntryImpl copiedEntry = EntryImpl.create(1, 1, copiedData);
+        copiedData.release();
+        assertThat(rangeEntryCache.insert(copiedEntry)).isTrue();
+        copiedEntry.release();
+        assertThat(copiedData.refCnt()).isZero();
+
+        rangeEntryCache.clear();
+        assertThat(retainedData.refCnt()).isZero();
+    }
+
     private static ByteBuf serializeMessage(String producerName) {
         MessageMetadata metadata = new MessageMetadata()
                 .setProducerName(producerName)

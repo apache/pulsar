@@ -1943,9 +1943,25 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " from the connection. The processing messages means messages are sends to broker"
             + " but broker have not send response to client, usually waiting to write to bookies.\n\n"
             + " It's shared across all the topics running in the same broker.\n\n"
+            + " Dynamic updates apply only to connections created after the update; existing connections keep their "
+            + "current limit.\n\n"
             + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
         (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 2 / (1024 * 1024)));
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        dynamic = true,
+        doc = "Enable the in-progress request-frame memory limiter. This limiter tracks direct-memory root "
+            + "allocations of inbound frames retained by in-progress requests, independently of the existing "
+            + "payload-byte limiter controlled by "
+            + "maxMessagePublishBufferSizeInMB. The tracked memory is always exported through the "
+            + "pulsar.broker.publish.in.progress.buffer.memory.usage metric. When disabled, the broker can still "
+            + "enable this limiter locally when direct memory "
+            + "usage reaches 85% and in-progress request-frame memory exceeds half of "
+            + "maxMessagePublishBufferSizeInMB; it disables the automatic limit below 65%. Enabling this setting "
+            + "dynamically clears and disables the broker-local automatic mode.")
+    private boolean maxMessagePublishBufferSizeInMBUseInputBuffer = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a "
             + "managed ledger backing a persistent topic. It can improve write availability of topics.\n"
@@ -2645,7 +2661,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
-    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+        doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache. Without a copy, a cached entry keeps the buffer that it was received in allocated\n"
             + "while it stays in the cache. That is a buffer of the Netty connection that the entry arrived on, from\n"
             + "a client or from a bookie, such as a receive buffer or one that the TLS handler or the frame decoder\n"

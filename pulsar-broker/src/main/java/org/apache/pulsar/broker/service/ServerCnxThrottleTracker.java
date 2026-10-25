@@ -120,6 +120,15 @@ public final class ServerCnxThrottleTracker {
         IOThreadMaxPendingPublishBytesExceeded(false),
 
         /**
+         * Throttling due to direct memory retained by frames of in-progress requests exceeding the
+         * broker publish-memory limit.
+         *
+         * <p><b>Type:</b> Non-reentrant
+         * <p><b>Configuration:</b> {@link ServiceConfiguration#getMaxMessagePublishBufferSizeInMB()}
+         */
+        InProgressRequestFrameMemoryExceeded(false),
+
+        /**
          * Throttling due to topic-level publish rate limiting.
          *
          * <p>This throttling is activated when publish operations exceed the configured

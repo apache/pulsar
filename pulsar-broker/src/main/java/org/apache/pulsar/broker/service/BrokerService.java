@@ -77,6 +77,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -98,6 +99,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -202,7 +204,9 @@ import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
+import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
@@ -285,6 +289,9 @@ public class BrokerService implements Closeable {
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     @Getter
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
+    private final AtomicLong inProgressRequestFrameMemoryUsedBytes = new AtomicLong();
+    private final InProgressRequestFrameMemoryLimiterState inProgressRequestFrameMemoryLimiterState;
+    private volatile InProgressRequestFrameMemoryLimiter inProgressRequestFrameMemoryLimiter;
     @Getter
     private final TopicListSizeResultCache topicListSizeResultCache;
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
@@ -302,6 +309,7 @@ public class BrokerService implements Closeable {
     private final ObserverGauge pendingTopicLoadRequests;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsLimitCounter;
+    private final ObservableLongUpDownCounter inProgressRequestFrameMemoryUsageCounter;
 
     public static final String CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME = "pulsar.broker.connection.rate_limit.count";
     private final LongCounter rateLimitedConnectionsCounter;
@@ -394,6 +402,13 @@ public class BrokerService implements Closeable {
         this.pulsar = pulsar;
         this.clock = pulsar.getClock();
         this.dynamicConfigurationMap = prepareDynamicConfigurationMap();
+        ServiceConfiguration configuration = pulsar.getConfiguration();
+        long requestFrameMemoryLimitBytes = configuration.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L;
+        this.inProgressRequestFrameMemoryLimiterState = new InProgressRequestFrameMemoryLimiterState(
+                configuration.isMaxMessagePublishBufferSizeInMBUseInputBuffer(), inProgressRequestFrameMemoryUsedBytes,
+                requestFrameMemoryLimitBytes / 2, JvmMetrics::getJvmDirectMemoryUsed,
+                DirectMemoryUtils.jvmMaxDirectMemory());
+        this.inProgressRequestFrameMemoryLimiter = createInProgressRequestFrameMemoryLimiter();
         this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock(), producer -> {
             producer.getCnx().getThrottleTracker().markThrottled(
                     ServerCnxThrottleTracker.ThrottleType.BrokerPublishRate);
@@ -529,6 +544,13 @@ public class BrokerService implements Closeable {
                 .setUnit("{operation}")
                 .buildWithCallback(
                         measurement -> measurement.record(pulsar.getConfig().getMaxConcurrentTopicLoadRequest()));
+
+        this.inProgressRequestFrameMemoryUsageCounter = pulsar.getOpenTelemetry().getMeter()
+                .upDownCounterBuilder("pulsar.broker.publish.in.progress.buffer.memory.usage")
+                .setDescription("Direct-memory root allocations retained by inbound frames while publish requests are "
+                        + "in progress.")
+                .setUnit("By")
+                .buildWithCallback(measurement -> measurement.record(inProgressRequestFrameMemoryUsedBytes.get()));
 
         this.rateLimitedConnectionsCounter = pulsar.getOpenTelemetry().getMeter()
                 .counterBuilder(BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
@@ -1123,6 +1145,7 @@ public class BrokerService implements Closeable {
                                 scalableTopicMetrics.close();
                                 pendingTopicLoadOperationsCounter.close();
                                 pendingLookupOperationsCounter.close();
+                                inProgressRequestFrameMemoryUsageCounter.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                     if (fallbackDelayedDeliveryTrackerFactory != null) {
@@ -3707,6 +3730,11 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("maxConcurrentTopicLoadRequest",
                 (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(
                         new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
+        registerConfigurationListener("maxMessagePublishBufferSizeInMB", value -> {
+            inProgressRequestFrameMemoryLimiterState.setAutomaticEnableThresholdBytes(
+                    ((int) value) * 1024L * 1024L / 2);
+            inProgressRequestFrameMemoryLimiter = createInProgressRequestFrameMemoryLimiter();
+        });
         registerConfigurationListener("loadManagerClassName", className -> {
             pulsar.getExecutor().execute(() -> {
                 LoadManager newLoadManager = null;
@@ -3769,6 +3797,14 @@ public class BrokerService implements Closeable {
                     defaultManagedLedgerFactory.updateCacheEvictionExtendTTLOfRecentlyAccessed(
                             (boolean) extendTTLOfRecentlyAccessed);
                 });
+        registerConfigurationListener("maxMessagePublishBufferSizeInMBUseInputBuffer", enabled -> {
+            inProgressRequestFrameMemoryLimiterState.setUserEnabled((boolean) enabled);
+        });
+        registerConfigurationListener("managedLedgerCacheCopyEntries", copyEntries -> {
+            if (defaultManagedLedgerFactory.getEntryCacheManager() instanceof RangeEntryCacheManagerImpl manager) {
+                manager.updateCopyEntriesInCache((boolean) copyEntries);
+            }
+        });
 
         // add listener to update message-dispatch-rate in msg for topic
         registerConfigurationListener("dispatchThrottlingRatePerTopicInMsg", (dispatchRatePerTopicInMsg) -> {
@@ -4106,6 +4142,26 @@ public class BrokerService implements Closeable {
 
     public List<String> getDynamicConfiguration() {
         return dynamicConfigurationMap.keySet().stream().toList();
+    }
+
+    InProgressRequestFrameMemoryLimiter getInProgressRequestFrameMemoryLimiter() {
+        return inProgressRequestFrameMemoryLimiter;
+    }
+
+    long getInProgressRequestFrameMemoryUsedBytes() {
+        return inProgressRequestFrameMemoryUsedBytes.get();
+    }
+
+    boolean isInProgressRequestFrameMemoryLimiterAutomaticallyEnabled() {
+        return inProgressRequestFrameMemoryLimiterState.isAutomaticallyEnabled();
+    }
+
+    private InProgressRequestFrameMemoryLimiter createInProgressRequestFrameMemoryLimiter() {
+        ServiceConfiguration configuration = pulsar.getConfiguration();
+        long requestFrameMemoryLimitBytes = configuration.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L;
+        return new InProgressRequestFrameMemoryLimiter(requestFrameMemoryLimitBytes,
+                inProgressRequestFrameMemoryUsedBytes,
+                inProgressRequestFrameMemoryLimiterState);
     }
 
     public Map<String, String> getRuntimeConfiguration() {

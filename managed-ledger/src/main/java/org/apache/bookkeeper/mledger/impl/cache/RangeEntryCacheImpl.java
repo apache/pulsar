@@ -75,7 +75,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final RangeCache entries;
     // inserts the managed ledger's added entries, which come in order on the managed ledger's executor
     private final RangeCache.Inserter addedEntriesInserter;
-    private final boolean copyEntries;
+    private volatile boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
 
     private static final double MB = 1024 * 1024;
@@ -136,6 +136,10 @@ public class RangeEntryCacheImpl implements EntryCache {
     @Override
     public boolean insert(Entry entry) {
         return insert(entry, copyEntries, addedEntriesInserter);
+    }
+
+    void setCopyEntries(boolean copyEntries) {
+        this.copyEntries = copyEntries;
     }
 
     /**

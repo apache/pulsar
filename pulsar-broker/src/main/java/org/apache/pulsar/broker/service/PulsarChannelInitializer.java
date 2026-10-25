@@ -136,7 +136,11 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         if (pulsar.getConfiguration().isHaProxyProtocolEnabled()) {
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
         }
-        FrameDecoderUtil.addFrameDecoder(ch.pipeline(), brokerConf.getMaxMessageSize());
+        InProgressRequestFrameMemoryLimiter inProgressRequestFrameMemoryLimiter =
+                pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter();
+        ch.pipeline().addLast(FrameDecoderUtil.FRAME_DECODER_HANDLER,
+                new InProgressRequestFrameTrackingDecoder(brokerConf.getMaxMessageSize(),
+                        inProgressRequestFrameMemoryLimiter));
         // https://stackoverflow.com/questions/37535482/netty-disabling-auto-read-doesnt-work-for-bytetomessagedecoder
         // Classes such as {@link ByteToMessageDecoder} or {@link MessageToByteEncoder} are free to emit as many events
         // as they like for any given input. so, disabling auto-read on `ByteToMessageDecoder` doesn't work properly and
@@ -148,7 +152,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         ch.pipeline().addLast("flowController", new PulsarFlowControlHandler());
         // using "ChannelHandler" type to workaround an IntelliJ bug that shows a false positive error
         ChannelHandler cnx = newServerCnx(pulsar, listenerName);
-        ch.pipeline().addLast("handler", cnx);
+        ch.pipeline().addLast(ServerCnx.SERVER_CNX_HANDLER_NAME, cnx);
     }
 
     @VisibleForTesting

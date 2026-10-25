@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -39,10 +40,13 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConnectionPool;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
@@ -73,6 +77,111 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder builder) {
         super.customizeMainPulsarTestContextBuilder(builder);
         builder.enableOpenTelemetry(true);
+    }
+
+    @Test
+    public void testDynamicInProgressRequestFrameMemoryLimit() throws Exception {
+        InProgressRequestFrameMemoryLimiter previousLimiter = pulsar.getBrokerService()
+                .getInProgressRequestFrameMemoryLimiter();
+        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
+        boolean inProgressRequestFrameMemoryLimit = pulsar.getConfiguration()
+                .isMaxMessagePublishBufferSizeInMBUseInputBuffer();
+        boolean managedLedgerCacheCopyEntries = pulsar.getConfiguration().isManagedLedgerCacheCopyEntries();
+        int maxMessagePublishBufferSizeInMB = pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB();
+        InProgressRequestFrameMemoryLimiter limiter = null;
+        boolean acquired = false;
+        try {
+            assertThat(previousLimiter.isEnabled()).isFalse();
+            previousLimiter.acquire(1);
+            assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes()).isEqualTo(1);
+            previousLimiter.release(1);
+            assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes()).isZero();
+
+            admin.brokers().updateDynamicConfiguration("maxMessagePublishBufferSizeInMBUseInputBuffer", "true");
+            waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
+                    .isMaxMessagePublishBufferSizeInMBUseInputBuffer());
+            assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter())
+                    .isSameAs(previousLimiter);
+            assertThat(factory.getConfig().isCopyEntriesInCache()).isEqualTo(managedLedgerCacheCopyEntries);
+
+            admin.brokers().updateDynamicConfiguration("managedLedgerCacheCopyEntries", "true");
+            waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration().isManagedLedgerCacheCopyEntries()
+                    && factory.getConfig().isCopyEntriesInCache());
+            assertThat(pulsar.getConfiguration().isMaxMessagePublishBufferSizeInMBUseInputBuffer()).isTrue();
+
+            admin.brokers().deleteDynamicConfiguration("managedLedgerCacheCopyEntries");
+            waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration().isManagedLedgerCacheCopyEntries()
+                    == managedLedgerCacheCopyEntries
+                    && factory.getConfig().isCopyEntriesInCache() == managedLedgerCacheCopyEntries);
+            assertThat(pulsar.getConfiguration().isMaxMessagePublishBufferSizeInMBUseInputBuffer()).isTrue();
+
+            admin.brokers().updateDynamicConfiguration("maxMessagePublishBufferSizeInMB", "1");
+            waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
+                    .getMaxMessagePublishBufferSizeInMB() == 1);
+            limiter = pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter();
+            assertThat(limiter).isNotSameAs(previousLimiter);
+
+            limiter.acquire(1024L * 1024L + 1);
+            acquired = true;
+            assertThat(limiter.isThrottled()).isTrue();
+            assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes())
+                    .isEqualTo(1024L * 1024L + 1);
+
+            admin.brokers().deleteDynamicConfiguration("maxMessagePublishBufferSizeInMBUseInputBuffer");
+            waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
+                    .isMaxMessagePublishBufferSizeInMBUseInputBuffer() == inProgressRequestFrameMemoryLimit);
+            assertThat(limiter.isThrottled()).isEqualTo(inProgressRequestFrameMemoryLimit);
+        } finally {
+            if (acquired) {
+                limiter.release(1024L * 1024L + 1);
+                assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes()).isZero();
+            }
+            admin.brokers().deleteDynamicConfiguration("maxMessagePublishBufferSizeInMBUseInputBuffer");
+            admin.brokers().deleteDynamicConfiguration("managedLedgerCacheCopyEntries");
+            admin.brokers().deleteDynamicConfiguration("maxMessagePublishBufferSizeInMB");
+            waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
+                    .isMaxMessagePublishBufferSizeInMBUseInputBuffer() == inProgressRequestFrameMemoryLimit
+                    && pulsar.getConfiguration().isManagedLedgerCacheCopyEntries() == managedLedgerCacheCopyEntries
+                    && pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB()
+                            == maxMessagePublishBufferSizeInMB
+                    && factory.getConfig().isCopyEntriesInCache() == managedLedgerCacheCopyEntries);
+        }
+    }
+
+    @Test(timeOut = 30_000)
+    public void testInProgressRequestFrameMemoryTracksPublishUntilBookKeeperCompletion() throws Exception {
+        boolean inProgressRequestFrameMemoryLimit = pulsar.getConfiguration()
+                .isMaxMessagePublishBufferSizeInMBUseInputBuffer();
+        admin.brokers().updateDynamicConfiguration("maxMessagePublishBufferSizeInMBUseInputBuffer", "true");
+        waitAtMost(10, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
+                .isMaxMessagePublishBufferSizeInMBUseInputBuffer());
+        InProgressRequestFrameMemoryLimiter limiter = pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter();
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(500);
+        try {
+            try (PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build()) {
+                try (Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(newTopicName())
+                        .enableBatching(false).create()) {
+                    long usedBytesBeforePublish = limiter.usedBytes();
+                    byte[] payload = new byte[128 * 1024];
+                    List<CompletableFuture<?>> sends = new ArrayList<>();
+                    for (int i = 0; i < 16; i++) {
+                        sends.add(producer.sendAsync(payload));
+                    }
+
+                    waitAtMost(10, TimeUnit.SECONDS).until(() -> limiter.usedBytes() > usedBytesBeforePublish);
+                    assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes())
+                            .isGreaterThan(usedBytesBeforePublish);
+                    assertThat(sends).anyMatch(send -> !send.isDone());
+
+                    CompletableFuture.allOf(sends.toArray(CompletableFuture[]::new)).get(20, TimeUnit.SECONDS);
+                }
+            }
+        } finally {
+            pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(1);
+            admin.brokers().deleteDynamicConfiguration("maxMessagePublishBufferSizeInMBUseInputBuffer");
+            waitAtMost(10, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
+                    .isMaxMessagePublishBufferSizeInMBUseInputBuffer() == inProgressRequestFrameMemoryLimit);
+        }
     }
 
     /**
