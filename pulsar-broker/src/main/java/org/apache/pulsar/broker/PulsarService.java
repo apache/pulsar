@@ -28,7 +28,6 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.util.HashedWheelTimer;
-import io.netty.util.NetUtil;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
@@ -1187,17 +1186,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
         // Remove any trailing dot from the absolute FQDN in the broker id to prevent it from impacting
         // broker entries in the metadata store when making the advertised address absolute
         String brokerIdHostPart = advertisedAddress.replaceFirst("\\.$", "");
-        // The broker id is also a namespace component. IPv6 brackets and scope identifiers are
-        // only needed for connecting to the advertised address and are not valid in namespace names.
-        if (NetUtil.isValidIpV6Address(brokerIdHostPart)) {
-            if (brokerIdHostPart.startsWith("[")) {
-                brokerIdHostPart = brokerIdHostPart.substring(1, brokerIdHostPart.length() - 1);
-            }
-            int scopeIndex = brokerIdHostPart.indexOf('%');
-            if (scopeIndex >= 0) {
-                brokerIdHostPart = brokerIdHostPart.substring(0, scopeIndex);
-            }
-        }
         // Although broker id contains a hostname and port, it is not meant to be used for connecting to the broker,
         // It is simply a unique identifier for the broker.
         return String.format("%s:%s", brokerIdHostPart, config.getWebServicePort()

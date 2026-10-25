@@ -24,6 +24,7 @@ import java.util.Optional;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -62,15 +63,15 @@ public class PulsarServiceBrokerIdTest extends MockedPulsarServiceBaseTest {
     @DataProvider
     public Object[][] advertisedAddresses() {
         return new Object[][]{
-                {"[::1]", "::1", false},
-                {"[fe80::1%eth0]", "fe80::1", false},
-                {"fe80::1%eth0", "fe80::1", false},
-                {"fe80::1%3", "fe80::1", false},
+                {"[::1]", "[::1]", false},
+                {"[fe80::1%eth0]", "[fe80::1%eth0]", false},
+                {"fe80::1%eth0", "fe80::1%eth0", false},
+                {"fe80::1%3", "fe80::1%3", false},
                 {"::1", "::1", false},
                 {"127.0.0.1", "127.0.0.1", false},
                 {"localhost", "localhost", false},
                 {"localhost.", "localhost", false},
-                {"[::1]", "::1", true},
+                {"[::1]", "[::1]", true},
                 {"127.0.0.1", "127.0.0.1", true}
         };
     }
@@ -92,8 +93,11 @@ public class PulsarServiceBrokerIdTest extends MockedPulsarServiceBaseTest {
 
         int webPort = conf.getWebServicePort().or(conf::getWebServicePortTls).orElseThrow();
         assertThat(pulsar.getBrokerId()).isEqualTo(expectedHost + ":" + webPort);
-        assertThat(NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), conf).toString())
-                .isEqualTo("pulsar/" + pulsar.getBrokerId());
+        NamespaceName heartbeatNamespace = NamespaceService.getHeartbeatNamespace(pulsar.getBrokerId(), conf);
+        assertThat(NamespaceService.isHeartbeatNamespace(heartbeatNamespace)).isTrue();
+        assertThat(NamespaceService.checkHeartbeatNamespace(heartbeatNamespace)).isEqualTo(pulsar.getBrokerId());
+        NamespaceName slaNamespace = NamespaceService.getSLAMonitorNamespace(pulsar.getBrokerId(), conf);
+        assertThat(NamespaceService.getSLAMonitorBrokerName(slaNamespace)).isEqualTo(pulsar.getBrokerId());
         assertThat(pulsar.getAdvertisedAddress()).isEqualTo(advertisedAddress);
     }
 }
