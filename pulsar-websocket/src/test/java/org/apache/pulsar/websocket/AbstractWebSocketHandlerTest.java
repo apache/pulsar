@@ -57,7 +57,6 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.websocket.service.WebSocketProxyConfiguration;
 import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
 import org.eclipse.jetty.http.HttpStatus;
-import org.eclipse.jetty.websocket.api.Callback;
 import org.eclipse.jetty.websocket.api.Session;
 import org.mockito.Answers;
 import org.mockito.Mock;
@@ -396,8 +395,7 @@ public class AbstractWebSocketHandlerTest {
         assertNotNull(pingFuture);
         assertFalse(pingFuture.isDone());
 
-        webSocketHandler.onWebSocketClose(HttpStatus.INTERNAL_SERVER_ERROR_500, "INTERNAL_SERVER_ERROR_500",
-                Callback.NOOP);
+        webSocketHandler.onWebSocketClose(HttpStatus.INTERNAL_SERVER_ERROR_500, "INTERNAL_SERVER_ERROR_500");
         assertTrue(pingFuture.isDone());
 
 

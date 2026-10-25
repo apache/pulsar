@@ -262,8 +262,12 @@ public abstract class AbstractWebSocketHandler extends Session.Listener.Abstract
         }
     }
 
+    // Jetty 12.1 deprecated this for removal in favour of onWebSocketClose(int, String, Callback). Moving to it
+    // changes this public class's API: a subclass still overriding the 2-arg form would then be rejected by Jetty
+    // at endpoint registration, so the migration needs to be called out in its own change.
     @Override
-    public void onWebSocketClose(int statusCode, String reason, Callback callback) {
+    @SuppressWarnings("removal")
+    public void onWebSocketClose(int statusCode, String reason) {
         log.info()
                 .attr("remoteAddress", getSession().getRemoteSocketAddress())
                 .attr("topic", topic)
@@ -280,7 +284,6 @@ public abstract class AbstractWebSocketHandler extends Session.Listener.Abstract
                     .exception(e)
                     .log("Failed to close handler for topic");
         }
-        callback.succeed();
     }
 
     public void close(WebSocketError error) {
