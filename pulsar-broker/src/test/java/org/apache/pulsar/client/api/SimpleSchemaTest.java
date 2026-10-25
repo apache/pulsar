@@ -289,6 +289,80 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
     }
 
     @Test
+    public void autoProduceBytesRequiresSchemaVersionWhenSchemaValidationIsEnforced() throws Exception {
+        if (!schemaValidationEnforced) {
+            return;
+        }
+
+        String topic = NAMESPACE + "/auto-produce-schema-version-" + UUID.randomUUID();
+        assertAutoProduceBytesRequiresSchemaVersion(topic);
+    }
+
+    @Test
+    public void autoProduceBytesRequiresSchemaVersionWhenTopicSchemaValidationIsEnforced() throws Exception {
+        if (schemaValidationEnforced) {
+            return;
+        }
+
+        String topic = NAMESPACE + "/auto-produce-schema-version-topic-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().setSchemaValidationEnforced(topic, true);
+        assertAutoProduceBytesRequiresSchemaVersion(topic);
+    }
+
+    @Test
+    public void autoProduceBytesWithSchemaVersionCanUseBatchingWhenSchemaValidationIsEnforced() throws Exception {
+        if (!schemaValidationEnforced) {
+            return;
+        }
+
+        String topic = NAMESPACE + "/auto-produce-schema-version-batch-" + UUID.randomUUID();
+        try (Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .topic(topic)
+                .batchingMaxMessages(2)
+                .create()) {
+            CompletableFuture<MessageId> first = producer.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.STRING))
+                    .value("first".getBytes(UTF_8))
+                    .sendAsync();
+            producer.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.STRING))
+                    .value("second".getBytes(UTF_8))
+                    .sendAsync()
+                    .get();
+            first.get();
+        }
+    }
+
+    @Test
+    public void autoProduceBytesCanSendToSchemaTopicWhenSchemaValidationIsEnforced() throws Exception {
+        if (!schemaValidationEnforced) {
+            return;
+        }
+
+        String topic = NAMESPACE + "/auto-produce-existing-schema-" + UUID.randomUUID();
+        try (Producer<String> ignored = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+                Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                        .topic(topic)
+                        .enableBatching(false)
+                        .create()) {
+            producer.send("with-topic-schema".getBytes(UTF_8));
+        }
+    }
+
+    private void assertAutoProduceBytesRequiresSchemaVersion(String topic) throws Exception {
+        try (Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .topic(topic)
+                .enableBatching(false)
+                .create()) {
+            Assert.expectThrows(PulsarClientException.class,
+                    () -> producer.send("without-schema".getBytes(UTF_8)));
+
+            producer.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.STRING))
+                    .value("with-schema".getBytes(UTF_8))
+                    .send();
+        }
+    }
+
+    @Test
     public void newProducerForMessageSchemaOnTopicWithMultiVersionSchema() throws Exception {
         String topic = NAMESPACE + "/schema-test";
         Schema<V1Data> v1Schema = Schema.AVRO(V1Data.class);

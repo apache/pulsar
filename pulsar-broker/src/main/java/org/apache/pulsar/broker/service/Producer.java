@@ -101,6 +101,7 @@ public class Producer {
     private final boolean isNonPersistentTopic;
     private final boolean isShadowTopic;
     private final boolean isEncrypted;
+    private final boolean isAutoProduceBytes;
 
     private final ProducerAccessMode accessMode;
     private Optional<Long> topicEpoch;
@@ -117,6 +118,17 @@ public class Producer {
             ProducerAccessMode accessMode,
             Optional<Long> topicEpoch,
             boolean supportsPartialProducer) {
+        this(topic, cnx, producerId, producerName, appId, isEncrypted, metadata, schemaVersion, epoch,
+                userProvidedProducerName, accessMode, topicEpoch, supportsPartialProducer, false);
+    }
+
+    public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
+            boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
+            boolean userProvidedProducerName,
+            ProducerAccessMode accessMode,
+            Optional<Long> topicEpoch,
+            boolean supportsPartialProducer,
+            boolean isAutoProduceBytes) {
         final ServiceConfiguration serviceConf =  cnx.getBrokerService().pulsar().getConfiguration();
 
         this.topic = topic;
@@ -164,6 +176,7 @@ public class Producer {
         this.remoteCluster = parseRemoteClusterName(producerName, isRemote, replicatorPrefix);
 
         this.isEncrypted = isEncrypted;
+        this.isAutoProduceBytes = isAutoProduceBytes;
         this.schemaVersion = schemaVersion;
         this.accessMode = accessMode;
         this.topicEpoch = topicEpoch;
@@ -263,6 +276,22 @@ public class Producer {
                 cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
             });
             return false;
+        }
+
+        if (isAutoProduceBytes && (cnx.getBrokerService().pulsar().getConfig().isSchemaValidationEnforced()
+                || topic.getSchemaValidationEnforced())) {
+            headersAndPayload.markReaderIndex();
+            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.resetReaderIndex();
+            if (!msgMetadata.hasSchemaVersion() || msgMetadata.getSchemaVersion().length == 0) {
+                cnx.execute(() -> {
+                    cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.MetadataError,
+                            "Messages from AUTO_PRODUCE_BYTES producers must include a schema version "
+                                    + "when schema validation is enforced");
+                    cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
+                });
+                return false;
+            }
         }
 
         if (topic.isEncryptionRequired()) {

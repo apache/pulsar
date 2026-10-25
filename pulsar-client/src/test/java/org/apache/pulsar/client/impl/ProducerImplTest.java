@@ -35,6 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
@@ -78,6 +79,8 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -310,6 +313,50 @@ public class ProducerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testAutoProduceBytesWithoutSchemaUsesFeatureFlag() throws IllegalAccessException {
+        PulsarClientImpl client = mockedPulsarClient();
+        FieldUtils.writeField(client, "conf", client.getConfiguration(), true);
+        AutoProduceBytesSchema autoSchema = (AutoProduceBytesSchema) Schema.AUTO_PRODUCE_BYTES();
+        autoSchema.setSchema(Schema.STRING);
+        ProducerImpl<byte[]> producer = constructProducer(client, new ProducerConfigurationData(), autoSchema, null);
+        ClientCnx cnx = mock(ClientCnx.class);
+        when(cnx.isSupportsAutoProduceBytesWithoutSchema()).thenReturn(true);
+        AtomicReference<BaseCommand> command = new AtomicReference<>();
+        doAnswer(invocation -> {
+            command.set(parseCommand(invocation.getArgument(0)));
+            return new CompletableFuture<ProducerResponse>();
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+
+        producer.connectionOpened(cnx);
+
+        assertTrue(command.get().getProducer().isAutoProduceBytes());
+        assertFalse(command.get().getProducer().hasSchema());
+        verify(client, never()).reloadSchemaForAutoProduceProducer(anyString(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testAutoProduceBytesWithOldBrokerRegistersSchema() throws IllegalAccessException {
+        PulsarClientImpl client = mockedPulsarClient();
+        FieldUtils.writeField(client, "conf", client.getConfiguration(), true);
+        AutoProduceBytesSchema autoSchema = (AutoProduceBytesSchema) Schema.AUTO_PRODUCE_BYTES();
+        autoSchema.setSchema(Schema.STRING);
+        ProducerImpl<byte[]> producer = constructProducer(client, new ProducerConfigurationData(), autoSchema, null);
+        ClientCnx cnx = mock(ClientCnx.class);
+        AtomicReference<BaseCommand> command = new AtomicReference<>();
+        doAnswer(invocation -> {
+            command.set(parseCommand(invocation.getArgument(0)));
+            return new CompletableFuture<ProducerResponse>();
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        producer.connectionOpened(cnx);
+
+        assertTrue(command.get().getProducer().isAutoProduceBytes());
+        assertTrue(command.get().getProducer().hasSchema());
+        verify(client, never()).reloadSchemaForAutoProduceProducer(anyString(), any());
+    }
+
+    @Test
     public void testCloseNotConnectedProducerClosesInterceptorsOnce() throws Exception {
         PulsarClientImpl client = mockedPulsarClient();
         when(client.getConnection(Mockito.anyString(), Mockito.anyInt())).thenReturn(new CompletableFuture<>());
@@ -428,16 +475,35 @@ public class ProducerImplTest {
      */
     private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
             ProducerConfigurationData conf) {
-        return constructProducer(client, conf, null);
+        return constructProducer(client, conf, Schema.BYTES, null);
     }
 
     @SuppressWarnings("unchecked")
     private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
             ProducerConfigurationData conf, ProducerInterceptors interceptors) {
+        return constructProducer(client, conf, Schema.BYTES, interceptors);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
+            ProducerConfigurationData conf, Schema<byte[]> schema, ProducerInterceptors interceptors) {
         return mock(ProducerImpl.class, withSettings()
                 .useConstructor(client, "persistent://public/default/producer-impl-test", conf,
-                        new CompletableFuture<>(), 0, Schema.BYTES, interceptors, Optional.empty())
+                        new CompletableFuture<>(), 0, schema, interceptors, Optional.empty())
                 .defaultAnswer(CALLS_REAL_METHODS));
+    }
+
+    private static BaseCommand parseCommand(ByteBuf frame) {
+        try {
+            frame.skipBytes(4);
+            int commandSize = frame.readInt();
+            BaseCommand command = new BaseCommand();
+            command.parseFrom(frame, commandSize);
+            command.materialize();
+            return command;
+        } finally {
+            frame.release();
+        }
     }
 
     @Test
