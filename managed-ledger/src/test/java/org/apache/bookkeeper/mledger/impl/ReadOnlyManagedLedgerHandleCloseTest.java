@@ -259,6 +259,41 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
     }
 
     @Test
+    public void testReadPreservesExpectedReadCount() throws Exception {
+        ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS);
+        ManagedLedger ledger = factory.open("readonly-expected-read-count", config);
+        Position position = ledger.addEntry(new byte[] {1});
+        ReadOnlyManagedLedgerImpl readOnly = new ReadOnlyManagedLedgerImpl(factory, bkc, factory.getMetaStore(),
+                config, executor, ledger.getName());
+        readOnly.initialize().get(5, TimeUnit.SECONDS);
+        try {
+            // The writer and reader share this cache. Force a storage read so the supplied count is used.
+            readOnly.entryCache.clear();
+            CompletableFuture<Entry> reading = new CompletableFuture<>();
+            readOnly.asyncReadEntry(position, 3, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    reading.complete(entry);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    reading.completeExceptionally(exception);
+                }
+            }, null);
+            Entry entry = reading.get(5, TimeUnit.SECONDS);
+            try {
+                assertThat(entry.getReadCountHandler()).isNotNull();
+                assertThat(entry.getReadCountHandler().getExpectedReadCount()).isEqualTo(3);
+            } finally {
+                entry.release();
+            }
+        } finally {
+            readOnly.close();
+        }
+    }
+
+    @Test
     public void testFactoryWrapperCloseReleasesCachedHandle() throws Exception {
         ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS);
         ManagedLedger ledger = factory.open("readonly-factory-wrapper-close", config);

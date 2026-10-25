@@ -101,6 +101,8 @@ dependencies {
     testImplementation(libs.opentelemetry.sdk)
     testImplementation(libs.opentelemetry.sdk.testing)
     testImplementation(libs.joda.time)
+    // Captures slog output, which goes to its Log4j2 backend, to assert on what a test logged.
+    testImplementation(libs.log4j.core)
     testImplementation(project(":pulsar-client-messagecrypto-bc"))
     testImplementation(project(":pulsar-functions:pulsar-functions-proto"))
 }

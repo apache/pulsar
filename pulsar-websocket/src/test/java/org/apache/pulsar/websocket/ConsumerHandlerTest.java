@@ -22,31 +22,40 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.eclipse.jetty.ee10.websocket.server.JettyServerUpgradeResponse;
+import org.eclipse.jetty.websocket.api.Session;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -222,6 +231,83 @@ public class ConsumerHandlerTest {
         assertThat(fixture.builder.getConf().getDeadLetterPolicy().getDeadLetterTopic()).isEmpty();
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testRepeatedOrUnknownAckDoesNotReleasePendingSlot() throws Exception {
+        Fixture fixture = new Fixture(false);
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(executor).execute(any(Runnable.class));
+        when(fixture.service.getExecutor()).thenReturn(executor);
+        AtomicLong nextEntryId = new AtomicLong();
+        when(fixture.consumer.receiveAsync()).thenAnswer(invocation -> {
+            Message<byte[]> msg = mock(Message.class);
+            when(msg.getMessageId()).thenReturn(new MessageIdImpl(1, nextEntryId.getAndIncrement(), -1));
+            when(msg.getData()).thenReturn(new byte[0]);
+            return CompletableFuture.completedFuture(msg);
+        });
+        when(fixture.consumer.acknowledgeAsync(any(MessageId.class)))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        Map<String, String[]> params = new HashMap<>();
+        params.put("receiverQueueSize", new String[] {"1"});
+        ConsumerHandler handler = fixture.create(params, false);
+
+        handler.onWebSocketOpen(mock(Session.class));
+        // Only one message may be pending
+        verify(fixture.consumer, times(1)).receiveAsync();
+
+        String first = messageId(0);
+        String nack = "{\"type\":\"negativeAcknowledge\",\"messageId\":\"" + first + "\"}";
+        handler.onWebSocketText(nack);
+        verify(fixture.consumer, times(2)).receiveAsync();
+
+        // The first message is no longer pending, so neither these nor an unknown id may release the second's slot
+        handler.onWebSocketText(nack);
+        handler.onWebSocketText(nack);
+        handler.onWebSocketText("{\"messageId\":\"" + first + "\"}");
+        handler.onWebSocketText("{\"messageId\":\"" + messageId(42) + "\"}");
+        verify(fixture.consumer, times(2)).receiveAsync();
+
+        handler.onWebSocketText("{\"messageId\":\"" + messageId(1) + "\"}");
+        verify(fixture.consumer, times(3)).receiveAsync();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testDistinctMessagesSharingIdEachTakeASlot() throws Exception {
+        Fixture fixture = new Fixture(false);
+        ScheduledExecutorService executor = mock(ScheduledExecutorService.class);
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(executor).execute(any(Runnable.class));
+        when(fixture.service.getExecutor()).thenReturn(executor);
+        // Non-persistent topics deliver every non-batched message with the same id
+        when(fixture.consumer.receiveAsync()).thenAnswer(invocation -> {
+            Message<byte[]> msg = mock(Message.class);
+            when(msg.getMessageId()).thenReturn(new MessageIdImpl(0, 0, -1));
+            when(msg.getData()).thenReturn(new byte[0]);
+            return CompletableFuture.completedFuture(msg);
+        });
+        Map<String, String[]> params = new HashMap<>();
+        params.put("receiverQueueSize", new String[] {"2"});
+        ConsumerHandler handler = fixture.create(params, false);
+
+        handler.onWebSocketOpen(mock(Session.class));
+        verify(fixture.consumer, times(2)).receiveAsync();
+
+        String nack = "{\"type\":\"negativeAcknowledge\",\"messageId\":\""
+                + Base64.getEncoder().encodeToString(new MessageIdImpl(0, 0, -1).toByteArray()) + "\"}";
+        handler.onWebSocketText(nack);
+        verify(fixture.consumer, times(3)).receiveAsync();
+    }
+
+    private static String messageId(long entryId) {
+        return Base64.getEncoder().encodeToString(new MessageIdImpl(1, entryId, -1).toByteArray());
+    }
+
     private static Map<String, String[]> dlqParams(String destination) {
         Map<String, String[]> params = new HashMap<>();
         params.put("maxRedeliverCount", new String[] {"1"});
@@ -238,6 +324,8 @@ public class ConsumerHandlerTest {
         private final ServiceConfiguration config = new ServiceConfiguration();
         private final ConsumerBuilderImpl<byte[]> builder = spy(new ConsumerBuilderImpl<>(null, Schema.BYTES));
         private final JettyServerUpgradeResponse response = mock(JettyServerUpgradeResponse.class);
+        @SuppressWarnings("unchecked")
+        private final Consumer<byte[]> consumer = mock(Consumer.class);
 
         @SuppressWarnings({"unchecked", "deprecation"})
         Fixture(boolean authorizationEnabled) throws Exception {
@@ -245,7 +333,7 @@ public class ConsumerHandlerTest {
             AuthenticationService authentication = mock(AuthenticationService.class);
             when(service.getPulsarClient()).thenReturn(client);
             when(client.newConsumer()).thenReturn(builder);
-            doReturn(mock(Consumer.class)).when(builder).subscribe();
+            doReturn(consumer).when(builder).subscribe();
             when(service.getCryptoKeyReader()).thenReturn(Optional.empty());
             when(service.addConsumer(any())).thenReturn(true);
             when(service.isAuthenticationEnabled()).thenReturn(true);

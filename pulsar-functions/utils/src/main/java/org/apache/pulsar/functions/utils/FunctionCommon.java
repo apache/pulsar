@@ -189,7 +189,7 @@ public class FunctionCommon {
 
     public static FunctionConfig.ClientApi convertClientApi(FunctionDetails.ClientApi clientApi) {
         return switch (clientApi) {
-            case AUTO -> null;
+            case AUTO, UNRECOGNIZED -> null;
             case V4 -> FunctionConfig.ClientApi.V4;
             case V5 -> FunctionConfig.ClientApi.V5;
         };

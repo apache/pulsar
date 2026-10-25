@@ -345,24 +345,24 @@ The Apache Software License, Version 2.0
     - commons-text-1.15.0.jar
     - commons-compress-1.28.0.jar
  * Netty
-    - netty-buffer-4.2.18.Final.jar
-    - netty-codec-base-4.2.18.Final.jar
-    - netty-codec-compression-4.2.18.Final.jar
-    - netty-codec-dns-4.2.18.Final.jar
-    - netty-codec-http-4.2.18.Final.jar
-    - netty-codec-http2-4.2.18.Final.jar
-    - netty-codec-socks-4.2.18.Final.jar
-    - netty-codec-haproxy-4.2.18.Final.jar
-    - netty-common-4.2.18.Final.jar
-    - netty-handler-4.2.18.Final.jar
-    - netty-handler-proxy-4.2.18.Final.jar
-    - netty-resolver-4.2.18.Final.jar
-    - netty-resolver-dns-4.2.18.Final.jar
-    - netty-transport-4.2.18.Final.jar
-    - netty-transport-classes-epoll-4.2.18.Final.jar
-    - netty-transport-native-epoll-4.2.18.Final-linux-aarch_64.jar
-    - netty-transport-native-epoll-4.2.18.Final-linux-x86_64.jar
-    - netty-transport-native-unix-common-4.2.18.Final.jar
+    - netty-buffer-4.2.19.Final.jar
+    - netty-codec-base-4.2.19.Final.jar
+    - netty-codec-compression-4.2.19.Final.jar
+    - netty-codec-dns-4.2.19.Final.jar
+    - netty-codec-http-4.2.19.Final.jar
+    - netty-codec-http2-4.2.19.Final.jar
+    - netty-codec-socks-4.2.19.Final.jar
+    - netty-codec-haproxy-4.2.19.Final.jar
+    - netty-common-4.2.19.Final.jar
+    - netty-handler-4.2.19.Final.jar
+    - netty-handler-proxy-4.2.19.Final.jar
+    - netty-resolver-4.2.19.Final.jar
+    - netty-resolver-dns-4.2.19.Final.jar
+    - netty-transport-4.2.19.Final.jar
+    - netty-transport-classes-epoll-4.2.19.Final.jar
+    - netty-transport-native-epoll-4.2.19.Final-linux-aarch_64.jar
+    - netty-transport-native-epoll-4.2.19.Final-linux-x86_64.jar
+    - netty-transport-native-unix-common-4.2.19.Final.jar
     - netty-tcnative-boringssl-static-2.0.84.Final.jar
     - netty-tcnative-boringssl-static-2.0.84.Final-linux-aarch_64.jar
     - netty-tcnative-boringssl-static-2.0.84.Final-linux-x86_64.jar
@@ -370,12 +370,12 @@ The Apache Software License, Version 2.0
     - netty-tcnative-boringssl-static-2.0.84.Final-osx-x86_64.jar
     - netty-tcnative-boringssl-static-2.0.84.Final-windows-x86_64.jar
     - netty-tcnative-classes-2.0.84.Final.jar
-    - netty-transport-classes-io_uring-4.2.18.Final.jar
-    - netty-transport-native-io_uring-4.2.18.Final-linux-aarch_64.jar
-    - netty-transport-native-io_uring-4.2.18.Final-linux-x86_64.jar
-    - netty-resolver-dns-classes-macos-4.2.18.Final.jar
-    - netty-resolver-dns-native-macos-4.2.18.Final-osx-aarch_64.jar
-    - netty-resolver-dns-native-macos-4.2.18.Final-osx-x86_64.jar
+    - netty-transport-classes-io_uring-4.2.19.Final.jar
+    - netty-transport-native-io_uring-4.2.19.Final-linux-aarch_64.jar
+    - netty-transport-native-io_uring-4.2.19.Final-linux-x86_64.jar
+    - netty-resolver-dns-classes-macos-4.2.19.Final.jar
+    - netty-resolver-dns-native-macos-4.2.19.Final-osx-aarch_64.jar
+    - netty-resolver-dns-native-macos-4.2.19.Final-osx-x86_64.jar
  * Prometheus client
     - simpleclient-0.16.0.jar
     - simpleclient_log4j2-0.16.0.jar
@@ -395,13 +395,13 @@ The Apache Software License, Version 2.0
     - opentelemetry-common-1.66.0.jar
     - opentelemetry-context-1.66.0.jar
   * Slog
-    - slog-0.10.0.jar
+    - slog-0.10.1.jar
 
  * BookKeeper
-    - bookkeeper-common-allocator-4.18.1.jar
-    - cpu-affinity-4.18.1.jar
-    - circe-checksum-4.18.1.jar
-    - native-library-common-4.18.1.jar
+    - bookkeeper-common-allocator-4.18.2.jar
+    - cpu-affinity-4.18.2.jar
+    - circe-checksum-4.18.2.jar
+    - native-library-common-4.18.2.jar
   * AirCompressor
      - aircompressor-2.0.3.jar
  * AsyncHttpClient
@@ -427,7 +427,7 @@ The Apache Software License, Version 2.0
     - avro-protobuf-1.12.2.jar
  * RE2j -- re2j-1.8.jar
  * Spotify completable-futures -- completable-futures-0.3.6.jar
- * RoaringBitmap -- RoaringBitmap-1.6.20.jar
+ * RoaringBitmap -- RoaringBitmap-1.6.25.jar
  * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-client-fastutil-minimized)
  * JSpecify -- jspecify-1.0.1.jar
  * JetBrains Annotations -- annotations-26.1.0.jar

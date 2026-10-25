@@ -238,6 +238,34 @@ public class SharedDispatcherPermitAccountingTest extends SharedPulsarBaseTest {
         assertThat(totalAvailablePermits(context.dispatcher())).isZero();
     }
 
+    @Test(dataProvider = "flowRaceDispatcherVariants", timeOut = 30_000)
+    public void testUnblockedPermitsQueuedDuringRemovalDoNotDebitRemainingConsumer(SubType subType) throws Exception {
+        admin.namespaces().setMaxUnackedMessagesPerConsumer(getNamespace(), 1);
+        TestContext context = createTestContext(subType);
+        Consumer remaining = context.remainingConsumer();
+        Consumer removed = context.removedConsumer();
+        Awaitility.await().untilAsserted(() -> assertThat(removed.getMaxUnackedMessages()).isOne());
+        remaining.flowPermits(10);
+        removed.flowPermits(20);
+        drainBrokerWorkerGroup(context.topic());
+
+        synchronized (context.dispatcher()) {
+            simulateDispatch(context.dispatcher(), removed, 1);
+            assertThat(removed.isBlocked()).isTrue();
+            removed.flowPermits(100);
+            assertThat(removed.getAvailablePermits()).isEqualTo(19);
+            removed.redeliverUnacknowledgedMessages(DEFAULT_CONSUMER_EPOCH);
+            assertThat(removed.isBlocked()).isFalse();
+            assertThat(removed.getAvailablePermits()).isEqualTo(119);
+            assertThat(removed.getAvailablePermitsForDispatcherRemoval()).isEqualTo(19);
+            context.dispatcher().removeConsumer(removed);
+            assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(10);
+        }
+        drainBrokerWorkerGroup(context.topic());
+        assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(remaining.getAvailablePermits());
+        assertThat(totalAvailablePermits(context.dispatcher())).isEqualTo(10);
+    }
+
     @Test(timeOut = 30_000)
     public void testRejectedFlowStaysPendingAndIsExcludedFromRemoval() throws Exception {
         try (MockScope mocks = new MockScope()) {

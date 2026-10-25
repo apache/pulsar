@@ -98,35 +98,39 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         } catch (MetadataException e) {
             throw new RuntimeException(METADATA_STORE_INSTANCE + " failed initialized");
         }
-        Set<String> primaryIsolationGroups = new HashSet<>();
-        Set<String> secondaryIsolationGroups = new HashSet<>();
+        // The rack configuration is loaded even without default isolation groups, because the groups of a namespace
+        // bookie affinity group reach this policy through the custom metadata of each ledger.
+        bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
+        CompletableFuture<Void> rackConfigurationLoad = bookieMappingCache
+                .get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).thenAccept(opt -> opt.ifPresent(
+                        bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration));
+        // Initialization continues when the load fails; isolation is simply not applied until a later refresh.
+        rackConfigurationLoad.exceptionally(e -> {
+            log.warn().exception(e)
+                    .log("Failed to load bookies rack configuration while initialize the PlacementPolicy.");
+            return null;
+        });
+        initialRackConfigurationLoadFuture = rackConfigurationLoad;
+
+        // Without default isolation groups, ledgers that carry no isolation groups in their metadata are not isolated
+        defaultIsolationGroups = null;
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
+            Set<String> primaryIsolationGroups = new HashSet<>();
+            Set<String> secondaryIsolationGroups = new HashSet<>();
             String isolationGroupsString = ConfigurationStringUtil
                     .castToString(conf.getProperty(ISOLATION_BOOKIE_GROUPS));
             if (!isolationGroupsString.isEmpty()) {
                 Collections.addAll(primaryIsolationGroups, isolationGroupsString.split(","));
             }
-            // Only add the bookieMappingCache if we have defined an isolation group
-            bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-            CompletableFuture<Void> rackConfigurationLoad = bookieMappingCache
-                    .get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH).thenAccept(opt -> opt.ifPresent(
-                            bookiesRackConfiguration -> cachedRackConfiguration = bookiesRackConfiguration));
-            // Initialization continues when the load fails; isolation is simply not applied until a later refresh.
-            rackConfigurationLoad.exceptionally(e -> {
-                log.warn().exception(e)
-                        .log("Failed to load bookies rack configuration while initialize the PlacementPolicy.");
-                return null;
-            });
-            initialRackConfigurationLoadFuture = rackConfigurationLoad;
-        }
-        if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
-            String secondaryIsolationGroupsString = ConfigurationStringUtil
-                    .castToString(conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS));
-            if (!secondaryIsolationGroupsString.isEmpty()) {
-                Collections.addAll(secondaryIsolationGroups, secondaryIsolationGroupsString.split(","));
+            if (conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS) != null) {
+                String secondaryIsolationGroupsString = ConfigurationStringUtil
+                        .castToString(conf.getProperty(SECONDARY_ISOLATION_BOOKIE_GROUPS));
+                if (!secondaryIsolationGroupsString.isEmpty()) {
+                    Collections.addAll(secondaryIsolationGroups, secondaryIsolationGroupsString.split(","));
+                }
             }
+            defaultIsolationGroups = ImmutablePair.of(primaryIsolationGroups, secondaryIsolationGroups);
         }
-        defaultIsolationGroups = ImmutablePair.of(primaryIsolationGroups, secondaryIsolationGroups);
         return super.initialize(conf, optionalDnsResolver, timer, featureProvider, statsLogger, bookieAddressResolver);
     }
 
@@ -159,15 +163,14 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         // the isolation groups for filtering the bookies.
         Optional<EnsemblePlacementPolicyConfig> ensemblePlacementPolicyConfig =
                 getEnsemblePlacementPolicyConfig(customMetadata);
-        Set<BookieId> excludedBookies;
-        if (ensemblePlacementPolicyConfig.isPresent()) {
-            EnsemblePlacementPolicyConfig config = ensemblePlacementPolicyConfig.get();
-            Pair<Set<String>, Set<String>> groups = getIsolationGroup(config);
-            excludedBookies = getExcludedBookiesWithIsolationGroups(ensembleSize, groups);
-        } else {
-            excludedBookies = getExcludedBookiesWithIsolationGroups(ensembleSize, defaultIsolationGroups);
+        Pair<Set<String>, Set<String>> groups = ensemblePlacementPolicyConfig.isPresent()
+                ? getIsolationGroup(ensemblePlacementPolicyConfig.get())
+                : defaultIsolationGroups;
+        if (groups == null) {
+            // Neither the ledger metadata nor the client configuration defines isolation groups
+            return emptySet();
         }
-        return excludedBookies;
+        return getExcludedBookiesWithIsolationGroups(ensembleSize, groups);
     }
 
     private static Optional<EnsemblePlacementPolicyConfig> getEnsemblePlacementPolicyConfig(
@@ -293,7 +296,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
                         Map<String, BookieInfo> bookieGroup = allGroupsBookieMapping.get(group);
                         if (bookieGroup != null && !bookieGroup.isEmpty()) {
                             for (String bookieAddress : bookieGroup.keySet()) {
-                                if (excludedBookies.remove(BookieId.parse(bookieAddress))) {
+                                BookieId bookieId = BookieId.parse(bookieAddress);
+                                if (excludedBookies.remove(bookieId) && knownBookies.containsKey(bookieId)) {
                                     totalAvailableBookiesFromPrimaryAndSecondary += 1;
                                 }
                             }

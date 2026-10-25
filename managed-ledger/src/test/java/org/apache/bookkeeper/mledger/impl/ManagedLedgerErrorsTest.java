@@ -21,21 +21,30 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
+import java.time.Duration;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -47,12 +56,15 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedByAnotherWriterException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
@@ -662,6 +674,115 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void fencedLedgerFencesTheManagedLedgerAfterTheMetadataSessionIsLost() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = spy(new ManagedLedgerFactoryImpl(metadataStore, bkc));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "fencedLedgerFencesTheManagedLedgerAfterTheMetadataSessionIsLost", defaultConfig());
+        ledger.addEntry("entry-1".getBytes());
+        LedgerHandle fencedLedger = ledger.currentLedger;
+
+        // Another broker took the topic over and fenced the ledger after this broker lost its metadata session: the
+        // add must fail at once instead of waiting for the metadata service to check the ledger.
+        when(factory.isMetadataServiceAvailable()).thenReturn(false);
+        when(factory.isMetadataSessionLost()).thenReturn(true);
+        bkc.addEntryFailAfter(0, BKException.Code.LedgerFencedException);
+
+        ManagedLedgerException e = expectThrows(ManagedLedgerException.class,
+                () -> ledger.addEntry("entry-2".getBytes()));
+        assertThat(e, instanceOf(ManagedLedgerFencedByAnotherWriterException.class));
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.Fenced);
+        assertThat(expectThrows(ManagedLedgerException.class, () -> ledger.addEntry("entry-3".getBytes())),
+                instanceOf(ManagedLedgerFencedException.class));
+
+        PulsarMockLedgerHandle mockFencedLedger = (PulsarMockLedgerHandle) fencedLedger;
+        Awaitility.await().untilAsserted(() -> assertTrue(mockFencedLedger.getAsyncCloseCount().get() > 0,
+                "the handle of the concurrently modified ledger must be closed"));
+    }
+
+    @Test
+    public void fencedLedgerAfterTheMetadataSessionIsLostKeepsAClosedManagedLedgerClosed() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = spy(new ManagedLedgerFactoryImpl(metadataStore, bkc));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "fencedLedgerAfterTheMetadataSessionIsLostKeepsAClosedManagedLedgerClosed", defaultConfig());
+        ledger.addEntry("entry-1".getBytes());
+        LedgerHandle fencedLedger = ledger.currentLedger;
+        ledger.close();
+
+        // the failure of an add that was in flight while the managed ledger closed arrives after the session loss
+        when(factory.isMetadataSessionLost()).thenReturn(true);
+        ledger.addEntryFailedDueToConcurrentlyModified(fencedLedger, BKException.Code.LedgerFencedException);
+
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.Closed);
+    }
+
+    @Test
+    public void pendingRecheckOfAFencedLedgerFencesTheManagedLedgerWhenTheMetadataSessionIsLost() throws Exception {
+        // A real factory, not a spy: it learns of the session from the metadata store's events
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "pendingRecheckOfAFencedLedgerFencesTheManagedLedgerWhenTheMetadataSessionIsLost", defaultConfig());
+        ledger.addEntry("entry-1".getBytes());
+        long fencedLedgerId = ledger.currentLedger.getId();
+
+        // The ledger is fenced while only the connection is lost: the recheck opens it with recovery, which waits
+        // for the metadata service
+        metadataStore.triggerSessionEvent(SessionEvent.ConnectionLost);
+        CompletableFuture<Void> recovery = bkc.promiseAfter(0);
+        bkc.addEntryFailAfter(0, BKException.Code.LedgerFencedException);
+        CompletableFuture<Position> add = new CompletableFuture<>();
+        ledger.asyncAddEntry("entry-2".getBytes(), new AddEntryCallback() {
+            @Override
+            public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                add.complete(position);
+            }
+
+            @Override
+            public void addFailed(ManagedLedgerException exception, Object ctx) {
+                add.completeExceptionally(exception);
+            }
+        }, null);
+        Awaitility.await().until(ledger::isLedgerRecheckPending);
+
+        // The session is lost while the recheck waits: no other add may fail to tell the managed ledger, so the
+        // factory tells it
+        metadataStore.triggerSessionEvent(SessionEvent.SessionLost);
+
+        ExecutionException e = expectThrows(ExecutionException.class, () -> add.get(10, TimeUnit.SECONDS));
+        assertThat(e.getCause(), instanceOf(ManagedLedgerFencedByAnotherWriterException.class));
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.Fenced);
+
+        // The recheck completing later doesn't switch the fenced managed ledger to a new ledger
+        recovery.complete(null);
+        Awaitility.await().pollDelay(Duration.ofMillis(500)).untilAsserted(() -> {
+            assertEquals(ledger.getState(), ManagedLedgerImpl.State.Fenced);
+            assertEquals(ledger.currentLedger.getId(), fencedLedgerId);
+        });
+    }
+
+    @Test
+    public void fencedLedgerIsReplacedWhileTheMetadataSessionIsAlive() throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = spy(new ManagedLedgerFactoryImpl(metadataStore, bkc));
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "fencedLedgerIsReplacedWhileTheMetadataSessionIsAlive", defaultConfig());
+        ledger.addEntry("entry-1".getBytes());
+        long fencedLedgerId = ledger.currentLedger.getId();
+
+        // Only the connection is lost, so the session and its locks are still this broker's, and no other broker
+        // can own the topic: the ledger, fenced by someone else such as auto-recovery, is replaced as before.
+        when(factory.isMetadataServiceAvailable()).thenReturn(false);
+        when(factory.isMetadataSessionLost()).thenReturn(false);
+        bkc.addEntryFailAfter(0, BKException.Code.LedgerFencedException);
+
+        ledger.addEntry("entry-2".getBytes());
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.LedgerOpened);
+        assertNotEquals(ledger.currentLedger.getId(), fencedLedgerId);
+    }
+
+    @Test
     public void recoverAfterMarkDeleteError() throws Exception {
         ManagedLedger ledger = factory.open("my_test_ledger", initManagedLedgerConfig(defaultConfig()));
         ManagedCursor cursor = ledger.openCursor("my-cursor");
@@ -708,6 +829,60 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         // Since the cursor was rewind, it will be back to p0
         assertEquals(cursor.getMarkDeletedPosition(), p0);
         factory2.shutdown();
+    }
+
+    @Test(timeOut = 30000)
+    public void ledgerCreatedAfterItsCreationWasGivenUpOnIsDiscarded() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setMaxEntriesPerLedger(2);
+        config.setMetadataOperationsTimeoutSeconds(1);
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("my_test_ledger", config));
+
+        // Hold the first ledger creation before it reaches BookKeeper, as when the executor that runs it is stalled:
+        // its creation timeout is not armed yet
+        CompletableFuture<Void> stalledCreationGate = new CompletableFuture<>();
+        CompletableFuture<LedgerHandle> stalledLedger = new CompletableFuture<>();
+        AtomicBoolean firstCreation = new AtomicBoolean(true);
+        doAnswer(invocation -> {
+            if (!firstCreation.compareAndSet(true, false)) {
+                return invocation.callRealMethod();
+            }
+            CreateCallback callback = invocation.getArgument(3);
+            stalledCreationGate.thenRun(() -> ledger.asyncCreateLedger(invocation.getArgument(0),
+                    invocation.getArgument(1), invocation.getArgument(2), (rc, lh, ctx) -> {
+                        callback.createComplete(rc, lh, ctx);
+                        stalledLedger.complete(lh);
+                    }, invocation.getArgument(4), invocation.getArgument(5)));
+            return null;
+        }).when(ledger).asyncCreateLedger(any(), any(), any(), any(), any(), any());
+
+        Position p0 = ledger.addEntry("entry-0".getBytes());
+        // The second entry fills the ledger, and the creation of the next one stalls
+        ledger.addEntry("entry-1".getBytes());
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(ledger.getState(), ManagedLedgerImpl.State.CreatingLedger));
+
+        // After twice the metadata operations timeout, an add gives up on the stalled creation
+        Thread.sleep(TimeUnit.SECONDS.toMillis(2L * config.getMetadataOperationsTimeoutSeconds()) + 100);
+        expectThrows(ManagedLedgerException.class, () -> ledger.addEntry("entry-2".getBytes()));
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.WriteFailed);
+
+        // Once recovered from the write failure, a new ledger is created and written to
+        ledger.readyToCreateNewLedger();
+        Position p3 = ledger.addEntry("entry-3".getBytes());
+        LedgerHandle currentLedger = ledger.getCurrentLedger();
+        assertEquals(p3.getLedgerId(), currentLedger.getId());
+
+        // The stalled creation goes through now: its ledger is deleted, and does not replace the current one
+        stalledCreationGate.complete(null);
+        long staleLedgerId = stalledLedger.get(10, TimeUnit.SECONDS).getId();
+        Awaitility.await().untilAsserted(() -> assertFalse(bkc.getLedgers().contains(staleLedgerId)));
+        assertEquals(ledger.getCurrentLedger(), currentLedger);
+        assertEquals(ledger.getState(), ManagedLedgerImpl.State.LedgerOpened);
+        assertEquals(ledger.getLedgersInfo().keySet(), Set.of(p0.getLedgerId(), currentLedger.getId()));
+
+        Position p4 = ledger.addEntry("entry-4".getBytes());
+        assertEquals(p4.getLedgerId(), currentLedger.getId());
     }
 
 }

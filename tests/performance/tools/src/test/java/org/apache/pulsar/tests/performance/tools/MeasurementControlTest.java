@@ -62,6 +62,31 @@ public class MeasurementControlTest {
     }
 
     @Test(timeOut = 30_000)
+    public void releasesTheRunWhenTheLauncherStartsIt() throws Exception {
+        try (MeasurementControl control = MeasurementControl.start(0)) {
+            CompletableFuture<Void> started = CompletableFuture.runAsync(() -> {
+                try {
+                    control.awaitRunStart(System.nanoTime() + TimeUnit.SECONDS.toNanos(5));
+                } catch (InterruptedException e) {
+                    throw new IllegalStateException(e);
+                }
+            });
+            Thread.sleep(100);
+            assertThat(started).isNotDone();
+            assertThat(get(control, MeasurementControl.RUN_START_PATH).statusCode()).isEqualTo(405);
+            assertThat(client.send(request(control, MeasurementControl.RUN_START_PATH)
+                    .POST(HttpRequest.BodyPublishers.noBody()).build(), HttpResponse.BodyHandlers.ofString())
+                    .statusCode()).isEqualTo(200);
+            started.get(5, TimeUnit.SECONDS);
+        }
+        try (MeasurementControl control = MeasurementControl.start(0)) {
+            assertThatThrownBy(() -> control.awaitRunStart(System.nanoTime()))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Timed out waiting for the launcher to start the run");
+        }
+    }
+
+    @Test(timeOut = 30_000)
     public void failsTheProducerWhenTheLauncherNeverStartsTheMeasurement() throws Exception {
         try (MeasurementControl control = MeasurementControl.start(0)) {
             assertThatThrownBy(() -> control.awaitStart(System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(50)))

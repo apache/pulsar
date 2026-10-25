@@ -20,22 +20,29 @@ package org.apache.pulsar.tests.performance.tools;
 
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;
-import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 import java.util.SplittableRandom;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
+import java.util.function.IntFunction;
 import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 
@@ -48,6 +55,11 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                     + "the control port, for example after letting the host cool down")
     boolean awaitMeasurementStart;
 
+    @Option(names = "--await-run-start",
+            description = "Before creating the clients, wait for the launcher to start the run over the control port, "
+                    + "for example after setting up the run's network conditions")
+    boolean awaitRunStart;
+
     // What the producer is doing, for the progress stream
     private volatile String phase = "connecting";
     private volatile int warmupRound;
@@ -56,6 +68,8 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
     @Override
     public Integer call() throws Exception {
         IotScenario scenario = scenario();
+        boolean stringKeys = scenario.stringKeys();
+        IotScenario.ScheduledDelivery scheduledDelivery = scenario.behaviors().scheduledDelivery();
         Files.createDirectories(output);
         long[] deviceSequences = new long[scenario.deviceCount()];
         long[] producerSequences = new long[Math.multiplyExact(scenario.gatewayCount(), scenario.topicCount())];
@@ -75,6 +89,9 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
         if (awaitMeasurementStart && controlPort == null) {
             throw new IllegalArgumentException("--await-measurement-start needs --control-port");
         }
+        if (awaitRunStart && controlPort == null) {
+            throw new IllegalArgumentException("--await-run-start needs --control-port");
+        }
         ProgressStream progress = new ProgressStream(sendLatency, line -> {
             line.put("role", "producer");
             line.put("phase", phase);
@@ -91,23 +108,21 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             control = MeasurementControl.start(controlPort);
             control.serveProgress(progress);
             System.out.println("CONTROL_READY port=" + control.port());
+            if (awaitRunStart) {
+                phase = "awaiting-run-start";
+                control.awaitRunStart(System.nanoTime() + TimeUnit.SECONDS.toNanos(scenario.timeoutSeconds()));
+                System.out.println("RUN_START");
+                phase = "connecting";
+            }
         }
         PulsarClientSharedResources sharedResources = SharedClientResources.create(
                 scenario.gateways().producer().ioThreads(), scenario.gateways().producer().listenerThreads());
         try {
             for (int gateway = 0; gateway < scenario.gatewayCount(); gateway++) {
-                clients.add(PulsarClient.builder()
-                        .serviceUrl(scenario.serviceUrl())
-                        .sharedResources(sharedResources)
-                        .build());
+                clients.add(SharedClientResources.clientBuilder(scenario, sharedResources).build());
             }
             if (scenario.gateways().producer().precreate()) {
-                for (int gateway = 0; gateway < scenario.gatewayCount(); gateway++) {
-                    for (int topic = 0; topic < scenario.topicCount(); topic++) {
-                        int producerIndex = gateway * scenario.topicCount() + topic;
-                        producers[producerIndex] = createProducer(scenario, clients, gateway, topic);
-                    }
-                }
+                precreateProducers(scenario, clients, producers);
             }
             phase = scenario.warmupMessageCount() > 0 ? "warmup" : "measurement";
             SplittableRandom random = new SplittableRandom(0x51c0ffeeL);
@@ -155,19 +170,30 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
                     this.measurementStartEpochMs = measurementStartEpochMs;
                     phase = "measurement";
                     System.out.println("MEASUREMENT_START epochMs=" + measurementStartEpochMs);
+                    if (scenario.hasLateApplications()) {
+                        // the applications that join later count their join time from it
+                        MeasurementStartMarker.mark(coordinationDirectory(), runId, measurementStartEpochMs);
+                    }
                 }
                 long deviceSequence = deviceSequences[device]++;
                 long producerSequence = producerSequences[producerIndex]++;
-                byte[] key = ByteBuffer.allocate(Long.BYTES).putLong(device).array();
                 byte[] payload = TelemetryMessage.encode(device, deviceSequence, measurementMessage,
                         scenario.payloadBytes());
                 int completedDevice = device;
                 long sendStartedNanos = System.nanoTime();
-                producer.newMessage()
-                        .keyBytes(key)
+                TypedMessageBuilder<byte[]> message = TelemetryMessage.key(producer.newMessage(), device, stringKeys)
                         .sequenceId(producerSequence)
-                        .value(payload)
-                        .sendAsync()
+                        .value(payload);
+                if (scheduledDelivery.enabled() && measurementMessage) {
+                    long delayMillis = scheduledDelivery.minDelayMillis() + random.nextInt(
+                            scheduledDelivery.maxDelayMillis() - scheduledDelivery.minDelayMillis() + 1);
+                    // the time that the client sends to the broker, which the applications compare the receipt with
+                    long deliverAtEpochMs = System.currentTimeMillis() + delayMillis;
+                    message.deliverAt(deliverAtEpochMs)
+                            .property(IotScenario.ScheduledDelivery.DELIVER_AT_PROPERTY,
+                                    Long.toString(deliverAtEpochMs));
+                }
+                message.sendAsync()
                         .whenComplete((messageId, error) -> {
                             if (error != null) {
                                 failure.compareAndSet(null, error);
@@ -222,6 +248,10 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
             long measurementElapsedNanos = finishedNanos - measurementStartedNanos;
             sendLatency.close();
             writeState(deviceSequences);
+            if (scenario.handsOverFinalSequences()) {
+                // the applications check what they received against each device's last message
+                FinalSequencesMarker.mark(coordinationDirectory(), runId, deviceSequences);
+            }
             Files.writeString(output.resolve("gateways-summary.json"),
                     "{\n  \"sent\": " + completed.get()
                             + ",\n  \"warmupMessages\": " + warmupCompleted.get()
@@ -267,14 +297,109 @@ final class TelemetryProducer extends PerformanceTool.ScenarioCommand {
 
     private Producer<byte[]> createProducer(IotScenario scenario, List<PulsarClient> clients,
                                             int gateway, int topic) throws Exception {
-        return clients.get(gateway).newProducer()
-                .topic(scenario.topicNames().get(topic))
+        return producerBuilder(scenario, clients, gateway, topic).create();
+    }
+
+    /**
+     * Creates every gateway's producer of every topic, up to {@code precreateConcurrency} at a time, in a random
+     * order. Real gateways connect independently, many at the same time, for example when they reconnect after a
+     * broker restart. A gateway's client connects to the service URL for its lookup and then to the topic's broker;
+     * created one at a time, every gateway's two connections would reach the broker one after the other, and a broker,
+     * which assigns the connections that it accepts to its I/O threads in turn, would serve every data connection on
+     * every other I/O thread. After a creation fails, no more are started, and the failure is thrown once the started
+     * ones have completed.
+     */
+    private void precreateProducers(IotScenario scenario, List<PulsarClient> clients, Producer<byte[]>[] producers)
+            throws Exception {
+        int topicCount = scenario.topicCount();
+        int concurrency = scenario.gateways().producer().precreateConcurrency();
+        precreate(precreateOrder(producers.length, concurrency), concurrency, producers,
+                producerIndex -> producerBuilder(scenario, clients, producerIndex / topicCount,
+                        producerIndex % topicCount).createAsync());
+    }
+
+    /**
+     * Creates the objects in the given order, up to {@code concurrency} at a time, into {@code created} at their
+     * index. After a creation fails, no more are started, and the first failure is thrown once the started ones have
+     * completed.
+     */
+    static <T> void precreate(int[] order, int concurrency, T[] created, IntFunction<CompletableFuture<T>> create)
+            throws Exception {
+        Semaphore permits = new Semaphore(concurrency);
+        AtomicReference<Throwable> firstFailure = new AtomicReference<>();
+        List<CompletableFuture<?>> creations = new ArrayList<>(order.length);
+        for (int index : order) {
+            permits.acquire();
+            if (firstFailure.get() != null) {
+                permits.release();
+                break;
+            }
+            CompletableFuture<T> creation;
+            try {
+                creation = create.apply(index);
+            } catch (RuntimeException e) {
+                permits.release();
+                firstFailure.compareAndSet(null, e);
+                break;
+            }
+            creations.add(creation.whenComplete((object, failure) -> {
+                if (object != null) {
+                    created[index] = object;
+                } else {
+                    firstFailure.compareAndSet(null, failure instanceof CompletionException && failure.getCause()
+                            != null ? failure.getCause() : failure);
+                }
+                permits.release();
+            }));
+        }
+        // Waiting for the started creations also makes the created objects visible to this thread, so that they're
+        // closed with the others if a creation failed
+        CompletableFuture.allOf(creations.toArray(new CompletableFuture<?>[0])).handle((ignored, failure) -> null)
+                .get();
+        Throwable failure = firstFailure.get();
+        if (failure instanceof Exception exception) {
+            throw exception;
+        } else if (failure != null) {
+            throw new IllegalStateException("A creation failed", failure);
+        }
+    }
+
+    /**
+     * The order in which the gateways' producers are precreated: the order of the gateways and topics for a
+     * concurrency of 1, otherwise a random order, the same for every run of a scenario.
+     */
+    static int[] precreateOrder(int producerCount, int concurrency) {
+        List<Integer> order = new ArrayList<>(producerCount);
+        for (int producerIndex = 0; producerIndex < producerCount; producerIndex++) {
+            order.add(producerIndex);
+        }
+        if (concurrency > 1) {
+            Collections.shuffle(order, new Random(0x9a7e3aL));
+        }
+        return order.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    private ProducerBuilder<byte[]> producerBuilder(IotScenario scenario, List<PulsarClient> clients,
+                                                    int gateway, int topic) {
+        ProducerBuilder<byte[]> builder = clients.get(gateway).newProducer()
+                .topic(scenario.topicName(topic))
                 .producerName("iot-gateway-" + gateway + "-topic-" + topic)
-                .batcherBuilder(BatcherBuilder.KEY_BASED)
+                // Key_Shared delivers a batch to one consumer, so a batch keeps to one key, its device. With the
+                // other subscription types, a batch may mix devices.
+                .batcherBuilder(scenario.subscriptionType() == SubscriptionType.Key_Shared
+                        ? BatcherBuilder.KEY_BASED : BatcherBuilder.DEFAULT)
                 .enableBatching(scenario.gateways().producer().batchingEnabled())
                 .blockIfQueueFull(true)
-                .sendTimeout(0, TimeUnit.SECONDS)
-                .create();
+                .sendTimeout(0, TimeUnit.SECONDS);
+        Integer batchingMaxPublishDelayMillis = scenario.gateways().producer().batchingMaxPublishDelayMillis();
+        if (batchingMaxPublishDelayMillis != null) {
+            builder.batchingMaxPublishDelay(batchingMaxPublishDelayMillis, TimeUnit.MILLISECONDS);
+        }
+        Integer chunkMaxMessageSizeBytes = scenario.gateways().producer().chunkMaxMessageSizeBytes();
+        if (chunkMaxMessageSizeBytes != null) {
+            builder.enableChunking(true).chunkMaxMessageSize(chunkMaxMessageSizeBytes);
+        }
+        return builder;
     }
 
     private void writeState(long[] sequences) throws Exception {
