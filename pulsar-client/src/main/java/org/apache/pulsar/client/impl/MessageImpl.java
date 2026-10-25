@@ -397,7 +397,7 @@ public class MessageImpl<T> implements Message<T> {
         } else {
             // Need to copy into a smaller byte array
             byte[] data = new byte[payload.readableBytes()];
-            payload.readBytes(data);
+            payload.getBytes(payload.readerIndex(), data);
             return data;
         }
     }
