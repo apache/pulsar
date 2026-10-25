@@ -23,7 +23,7 @@ import static org.testng.Assert.assertEquals;
 import com.github.dockerjava.api.model.Bind;
 import java.util.stream.Stream;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -42,7 +42,7 @@ import org.testng.annotations.Test;
 /**
  * Test upgrading/downgrading Pulsar cluster from major releases.
  */
-@Slf4j
+@CustomLog
 public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
 
     @Test(timeOut = 600_000)
@@ -91,8 +91,12 @@ public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
                 .pulsarTestImage(imageNew)
                 .build();
 
-        log.info("Setting up OLD cluster {} with {} bookies, {} brokers using {}",
-                specOld.clusterName(), specOld.numBookies(), specOld.numBrokers(), imageOld);
+        log.info()
+                .attr("cluster", specOld.clusterName())
+                .attr("with", specOld.numBookies())
+                .attr("bookies", specOld.numBrokers())
+                .attr("using", imageOld)
+                .log("Setting up OLD cluster with bookies, brokers using");
 
         pulsarCluster = PulsarCluster.forSpec(specNew, network);
         pulsarCluster.closeNetworkOnExit = false;
@@ -108,8 +112,12 @@ public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
             pulsarCluster.stop();
         }
 
-        log.info("Upgrading to NEW cluster {} with {} bookies, {} brokers using {}",
-                specNew.clusterName(), specNew.numBookies(), specNew.numBrokers(), imageNew);
+        log.info()
+                .attr("cluster", specNew.clusterName())
+                .attr("with", specNew.numBookies())
+                .attr("bookies", specNew.numBrokers())
+                .attr("using", imageNew)
+                .log("Upgrading to NEW cluster with bookies, brokers using");
 
         pulsarCluster = PulsarCluster.forSpec(specNew, network);
         pulsarCluster.closeNetworkOnExit = false;
@@ -121,8 +129,12 @@ public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
             pulsarCluster.stop();
         }
 
-        log.info("Downgrading to OLD cluster {} with {} bookies, {} brokers using {}",
-                specOld.clusterName(), specOld.numBookies(), specOld.numBrokers(), imageOld);
+        log.info()
+                .attr("cluster", specOld.clusterName())
+                .attr("with", specOld.numBookies())
+                .attr("bookies", specOld.numBrokers())
+                .attr("using", imageOld)
+                .log("Downgrading to OLD cluster with bookies, brokers using");
 
         pulsarCluster = PulsarCluster.forSpec(specOld, network);
         pulsarCluster.closeNetworkOnExit = false;
@@ -139,7 +151,7 @@ public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
 
     private void publishAndConsume(String topicName, String serviceUrl, int numProduce, int numConsume)
             throws Exception {
-        log.info("publishAndConsume: topic name: {}", topicName);
+        log.info().attr("name", topicName).log("publishAndConsume: topic name");
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -151,9 +163,9 @@ public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
                 .topic(topicName)
                 .create();
 
-        log.info("Publishing {} messages", numProduce);
+        log.info().attr("publishing", numProduce).log("Publishing messages");
         for (int i = numConsume - numProduce; i < numConsume; i++) {
-            log.info("Publishing message: {}", "smoke-message-" + i);
+            log.info().attr("message", "smoke-message-" + i).log("Publishing message");
             producer.send("smoke-message-" + i);
         }
 
@@ -165,11 +177,11 @@ public class PulsarUpgradeDowngradeTest extends PulsarClusterTestBase {
                 .subscribe();
         consumer.seek(MessageId.earliest);
 
-        log.info("Consuming {} messages", numConsume);
+        log.info().attr("consuming", numConsume).log("Consuming messages");
         for (int i = 0; i < numConsume; i++) {
-            log.info("Waiting for message: {}", i);
+            log.info().attr("message", i).log("Waiting for message");
             Message<String> m = consumer.receive();
-            log.info("Received message: {}", m.getValue());
+            log.info().attr("message", m.getValue()).log("Received message");
             assertEquals("smoke-message-" + i, m.getValue());
         }
     }

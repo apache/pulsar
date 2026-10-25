@@ -29,6 +29,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
@@ -38,15 +39,13 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.common.net.ServiceURI;
 import org.apache.pulsar.common.util.PortManager;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@CustomLog
 public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ServiceUrlQuarantineTest.class);
     private String binaryServiceUrlWithUnavailableNodes;
     private String httpServiceUrlWithUnavailableNodes;
     private PulsarClientImpl pulsarClientWithBinaryServiceUrl;
@@ -55,18 +54,21 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     private PulsarClientImpl pulsarClientWithHttpServiceUrlDisableQuarantine;
     private int brokerServicePort;
     private int webServicePort;
-    private final Set<Integer> lockedFreePortSet = new HashSet<>();
+    private final Set<Integer> reservedPorts = new HashSet<>();
     private static final int UNAVAILABLE_NODES = 20;
     private static final int TIMEOUT_MS = 500;
 
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        // Pre-allocate ports for the broker because they must match the URL the test builds below.
         this.brokerServicePort = nextLockedFreePort();
         this.webServicePort = nextLockedFreePort();
         super.internalSetup();
         super.producerBaseSetup();
-        // Create a Pulsar client with some unavailable nodes
+        // Build a service URL that includes a bunch of unavailable-node ports. PortManager
+        // hands out ports outside the ephemeral range, so nothing else is going to grab them
+        // and the connection attempts to those addresses will fail as expected.
         StringBuilder binaryServiceUrlBuilder = new StringBuilder(pulsar.getBrokerServiceUrl());
         StringBuilder httpServiceUrlBuilder = new StringBuilder(pulsar.getWebServiceAddress());
         for (int i = 0; i < UNAVAILABLE_NODES; i++) {
@@ -99,9 +101,9 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
     }
 
     private int nextLockedFreePort() {
-        int newLockedFreePort = PortManager.nextLockedFreePort();
-        this.lockedFreePortSet.add(newLockedFreePort);
-        return newLockedFreePort;
+        int port = PortManager.nextLockedFreePort();
+        reservedPorts.add(port);
+        return port;
     }
 
     @Override
@@ -134,9 +136,8 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         if (pulsarClientWithHttpServiceUrlDisableQuarantine != null) {
             pulsarClientWithHttpServiceUrlDisableQuarantine.close();
         }
-        for (Integer port : lockedFreePortSet) {
-            PortManager.releaseLockedPort(port);
-        }
+        reservedPorts.forEach(PortManager::releaseLockedPort);
+        reservedPorts.clear();
     }
 
     @Test
@@ -203,7 +204,11 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                 producer.close();
                 successCount++;
             } catch (Exception e) {
-                log.warn("Failed to create consumer and producer {} for topic {}: {}", subName, topic, e.getMessage());
+                log.warn()
+                        .attr("subscription", subName)
+                        .attr("topic", topic)
+                        .exceptionMessage(e)
+                        .log("Failed to create consumer and producer");
             }
         }
         return successCount;
@@ -237,7 +242,10 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
         try {
             uri = ServiceURI.create(serviceUrl);
         } catch (IllegalArgumentException iae) {
-            log.error("Invalid service-url {} provided {}", serviceUrl, iae.getMessage(), iae);
+            log.error()
+                    .attr("url", serviceUrl)
+                    .exception(iae)
+                    .log("Invalid service-url provided");
             throw new PulsarClientException.InvalidServiceURL(iae);
         }
         String[] hosts = uri.getServiceHosts();
@@ -248,7 +256,7 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                 URI hostUri = new URI(hostUrl);
                 originAllAddresses.add(InetSocketAddress.createUnresolved(hostUri.getHost(), hostUri.getPort()));
             } catch (URISyntaxException e) {
-                log.error("Invalid host provided {}", hostUrl, e);
+                log.error().attr("provided", hostUrl).exception(e).log("Invalid host provided");
                 throw new PulsarClientException.InvalidServiceURL(e);
             }
         }
@@ -268,7 +276,11 @@ public class ServiceUrlQuarantineTest extends ProducerConsumerBase {
                         .subscribe();
                 consumer.closeAsync();
             } catch (PulsarClientException e) {
-                log.warn("Failed to create consumer {} for topic {}: {}", subName, topic, e.getMessage());
+                log.warn()
+                        .attr("subscription", subName)
+                        .attr("topic", topic)
+                        .exceptionMessage(e)
+                        .log("Failed to create consumer");
             }
         }
         // check if the unhealthy address is removed

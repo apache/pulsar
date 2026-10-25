@@ -97,8 +97,12 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
             String topic) {
         @SuppressWarnings("unchecked")
         MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
+        // copyFrom copies present fields and appends repeated fields without clearing the destination.
         msg.msgMetadata.clear();
-        msg.msgMetadata.copyFrom(msgMetadata);
+        // A plain typed builder has no metadata until a metadata field is set or accessed.
+        if (msgMetadata != null) {
+            msg.msgMetadata.copyFrom(msgMetadata);
+        }
         msg.messageId = null;
         msg.topic = topic;
         msg.cnx = null;
@@ -277,6 +281,30 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         this.msgMetadata = new MessageMetadata().copyFrom(msgMetadata);
     }
 
+    private MessageImpl(MessageImpl<T> other) {
+        this.msgMetadata = new MessageMetadata().copyFrom(other.msgMetadata);
+        this.messageId = other.messageId;
+        this.topic = other.topic;
+        this.cnx = other.cnx;
+        this.payload = Unpooled.copiedBuffer(other.payload);
+        this.properties = other.properties;
+        this.schema = other.schema;
+        this.encryptionCtx = other.encryptionCtx;
+        this.redeliveryCount = other.redeliveryCount;
+        this.consumerEpoch = other.consumerEpoch;
+        if (other.brokerEntryMetadata != null) {
+            this.brokerEntryMetadata = new BrokerEntryMetadata().copyFrom(other.brokerEntryMetadata);
+        }
+    }
+
+    /**
+     * Returns a copy of this incoming message that stays readable after {@link #release()}: a pooled message
+     * is recycled and its payload released when the application releases it.
+     */
+    MessageImpl<T> unpooledCopy() {
+        return poolMessage ? new MessageImpl<>(this) : this;
+    }
+
     public static MessageImpl<byte[]> deserialize(ByteBuf headersAndPayload) throws IOException {
         @SuppressWarnings("unchecked")
         MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
@@ -383,7 +411,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         } else {
             // Need to copy into a smaller byte array
             byte[] data = new byte[payload.readableBytes()];
-            payload.readBytes(data);
+            payload.getBytes(payload.readerIndex(), data);
             return data;
         }
     }
@@ -507,11 +535,11 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
     }
 
 
-    private KeyValueSchemaImpl getKeyValueSchema() {
+    private KeyValueSchemaImpl<?, ?> getKeyValueSchema() {
         if (schema instanceof AutoConsumeSchema) {
-            return (KeyValueSchemaImpl) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
+            return (KeyValueSchemaImpl<?, ?>) ((AutoConsumeSchema) schema).getInternalSchema(getSchemaVersion());
         } else {
-            return (KeyValueSchemaImpl) schema;
+            return (KeyValueSchemaImpl<?, ?>) schema;
         }
     }
 
@@ -556,12 +584,13 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         return this.payload.nioBuffer();
     }
 
+    @SuppressWarnings("unchecked")
     private T getKeyValueBySchemaVersion() {
-        KeyValueSchemaImpl kvSchema = getKeyValueSchema();
+        KeyValueSchemaImpl<?, ?> kvSchema = getKeyValueSchema();
         byte[] schemaVersion = getSchemaVersion();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            org.apache.pulsar.common.schema.KeyValue keyValue =
-                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
+            org.apache.pulsar.common.schema.KeyValue<?, ?> keyValue =
+                    kvSchema.decode(getKeyBytes(), getData(), schemaVersion);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
                         ((AutoConsumeSchema) schema).getSchemaInfo(schemaVersion).getType(), schemaVersion);
@@ -573,6 +602,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private T getKeyValueBySchemaId(byte[] schemaId) {
         if (schema instanceof AutoConsumeSchema) {
             throw new UnsupportedOperationException("AutoConsumeSchema is not supported with schemaId");
@@ -587,11 +617,12 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         }
     }
 
+    @SuppressWarnings("unchecked")
     private T getKeyValue() {
-        KeyValueSchemaImpl kvSchema = getKeyValueSchema();
+        KeyValueSchemaImpl<?, ?> kvSchema = getKeyValueSchema();
         if (kvSchema.getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED) {
-            org.apache.pulsar.common.schema.KeyValue keyValue =
-                    (org.apache.pulsar.common.schema.KeyValue) kvSchema.decode(getKeyBytes(), getData(), null);
+            org.apache.pulsar.common.schema.KeyValue<?, ?> keyValue =
+                    kvSchema.decode(getKeyBytes(), getData(), null);
             if (schema instanceof AutoConsumeSchema) {
                 return (T) AutoConsumeSchema.wrapPrimitiveObject(keyValue,
                         ((AutoConsumeSchema) schema).getSchemaInfo(getSchemaVersion()).getType(), null);
@@ -787,7 +818,6 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         this.recyclerHandle = recyclerHandle;
         this.redeliveryCount = 0;
         this.msgMetadata = new MessageMetadata();
-        this.brokerEntryMetadata = new BrokerEntryMetadata();
         this.consumerEpoch = DEFAULT_CONSUMER_EPOCH;
     }
 

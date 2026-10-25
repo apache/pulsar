@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.containers;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
 
 /**
@@ -29,7 +29,7 @@ import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
  * demonstrates ScyllaDB's compatibility by reusing the existing Cassandra
  * sink connector without any modifications.
  */
-@Slf4j
+@CustomLog
 public class ScyllaDBContainer<SelfT extends ChaosContainer<SelfT>> extends ChaosContainer<SelfT> {
 
     public static final String NAME = "scylladb";

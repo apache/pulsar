@@ -29,40 +29,31 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.commons.lang3.RandomUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.stats.AnalyzeSubscriptionBacklogResult;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
-public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
+public class AnalyzeBacklogSubscriptionTest extends SharedPulsarBaseTest {
 
-    @BeforeMethod
-    @Override
-    public void setup() throws Exception {
-        super.internalSetup();
-        producerBaseSetup();
+    private ServiceConfiguration conf() throws Exception {
+        return SharedPulsarCluster.get().getPulsarService().getConfiguration();
     }
 
-    @Override
-    protected void doInitConf() throws Exception {
-        super.doInitConf();
-        conf.setDispatcherMaxReadBatchSize(10);
-    }
-
-    @AfterMethod(alwaysRun = true)
-    @Override
-    public void cleanup() throws Exception {
-        super.internalCleanup();
+    @org.testng.annotations.BeforeMethod(alwaysRun = true)
+    public void setupDispatcherConfig() throws Exception {
+        conf().setDispatcherMaxReadBatchSize(10);
+        conf().setSubscriptionBacklogScanMaxEntries(10000);
     }
 
     @Test
@@ -80,7 +71,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         int batchSize = batching ? 5 : 1;
         int numEntries = numMessages / batchSize;
 
-        String topic = "persistent://my-property/my-ns/my-topic-" + batching;
+        String topic = newTopicName();
         String subName = "sub-1";
         admin.topics().createSubscription(topic, subName, MessageId.latest);
 
@@ -114,7 +105,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
         verifyBacklog(topic, "from-middle", numEntries / 2, numMessages / 2);
 
 
-        try (Consumer consumer = pulsarClient
+        try (Consumer<?> consumer = pulsarClient
                 .newConsumer()
                 .topic(topic)
                 // we want to wait for the server to process acks, in order to not have a flaky test
@@ -122,11 +113,11 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe()) {
-            Message receive1 = consumer.receive();
-            Message receive2 = consumer.receive();
-            Message receive3 = consumer.receive();
-            Message receive4 = consumer.receive();
-            Message receive5 = consumer.receive();
+            Message<?> receive1 = consumer.receive();
+            Message<?> receive2 = consumer.receive();
+            Message<?> receive3 = consumer.receive();
+            Message<?> receive4 = consumer.receive();
+            Message<?> receive5 = consumer.receive();
 
             verifyBacklog(topic, subName, numEntries, numMessages);
 
@@ -150,7 +141,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
 
             int count = numMessages - 5;
             while (count-- > 0) {
-                Message m = consumer.receive();
+                Message<?> m = consumer.receive();
                 consumer.acknowledge(m);
             }
 
@@ -181,7 +172,7 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
 
     @Test
     public void partitionedTopicNotAllowed() throws Exception {
-        String topic = "persistent://my-property/my-ns/my-partitioned-topic";
+        String topic = newTopicName();
         String subName = "sub-1";
         admin.topics().createPartitionedTopic(topic, 2);
         admin.topics().createSubscription(topic, subName, MessageId.latest);
@@ -201,9 +192,9 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void analyzeBacklogServerReturnFalseAbortedFlagWithoutLoop() throws Exception {
         int serverSubscriptionBacklogScanMaxEntries = 20;
-        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+        conf().setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
 
-        String topic = "persistent://my-property/my-ns/analyze-backlog-server-return-false-aborted-flag-without-loop";
+        String topic = newTopicName();
         String subName = "sub-1";
         int numMessages = 10;
 
@@ -217,9 +208,9 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void analyzeBacklogMaxEntriesExceedWithoutLoop() throws Exception {
         int serverSubscriptionBacklogScanMaxEntries = 20;
-        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+        conf().setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
 
-        String topic = "persistent://my-property/my-ns/analyze-backlog-max-entries-exceed-without-loop";
+        String topic = newTopicName();
         String subName = "sub-1";
         int numMessages = 25;
 
@@ -236,9 +227,9 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void analyzeBacklogServerReturnFalseAbortedFlagWithLoop() throws Exception {
         int serverSubscriptionBacklogScanMaxEntries = 20;
-        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+        conf().setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
 
-        String topic = "persistent://my-property/my-ns/analyze-backlog-server-return-false-aborted-flag-with-loop";
+        String topic = newTopicName();
         String subName = "sub-1";
         int numMessages = 45;
 
@@ -253,9 +244,9 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void analyzeBacklogMaxEntriesExceedWithLoop() throws Exception {
         int serverSubscriptionBacklogScanMaxEntries = 15;
-        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+        conf().setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
 
-        String topic = "persistent://my-property/my-ns/analyze-backlog-max-entries-exceed-with-loop";
+        String topic = newTopicName();
         String subName = "sub-1";
         int numMessages = 55;
         int backlogScanMaxEntries = 40;
@@ -275,9 +266,9 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void analyzeBacklogWithTopicUnload() throws Exception {
         int serverSubscriptionBacklogScanMaxEntries = 10;
-        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+        conf().setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
 
-        String topic = "persistent://my-property/my-ns/analyze-backlog-with-topic-unload";
+        String topic = newTopicName();
         String subName = "sub-1";
         int numMessages = 35;
 
@@ -304,9 +295,9 @@ public class AnalyzeBacklogSubscriptionTest extends ProducerConsumerBase {
     @Test
     public void analyzeBacklogWithIndividualAck() throws Exception {
         int serverSubscriptionBacklogScanMaxEntries = 20;
-        conf.setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
+        conf().setSubscriptionBacklogScanMaxEntries(serverSubscriptionBacklogScanMaxEntries);
 
-        String topic = "persistent://my-property/my-ns/analyze-backlog-with-individual-ack";
+        String topic = newTopicName();
         String subName = "sub-1";
         int messages = 55;
 

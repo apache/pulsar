@@ -36,6 +36,7 @@ public class PulsarVersionTest extends TestRetrySupport {
     private static final String clusterNamePrefix = "pulsar-version";
     private PulsarCluster pulsarCluster;
 
+    @SuppressWarnings("deprecation")
     @Override
     @BeforeClass(alwaysRun = true)
     public final void setup() throws Exception {

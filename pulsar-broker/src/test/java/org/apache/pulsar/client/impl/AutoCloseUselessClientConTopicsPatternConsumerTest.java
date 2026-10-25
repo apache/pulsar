@@ -43,6 +43,7 @@ public class AutoCloseUselessClientConTopicsPatternConsumerTest extends AutoClos
         super.pulsarResourcesSetup();
         admin.topics().createNonPartitionedTopic(TOPIC_FULL_NAME);
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testConnectionAutoReleaseWhileUsingTopicsPatternConsumer() throws Exception {

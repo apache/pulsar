@@ -156,12 +156,13 @@ public class OpenTelemetryTracingTest {
     }
 
     @Test
+    @SuppressWarnings("try")
     public void testContextPropagation() {
         spanExporter.reset();
 
         // Create a parent span
         Span parentSpan = tracer.spanBuilder("parent").startSpan();
-        try (Scope scope = parentSpan.makeCurrent()) {
+        try (Scope ignored = parentSpan.makeCurrent()) {
             // Create a producer span as child
             String topic = "test-topic";
             Span producerSpan = TracingContext.createProducerSpan(tracer, topic, Context.current());

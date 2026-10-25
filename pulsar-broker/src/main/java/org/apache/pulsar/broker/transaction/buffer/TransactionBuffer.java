@@ -22,6 +22,8 @@ import com.google.common.annotations.Beta;
 import io.netty.buffer.ByteBuf;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.transaction.exception.TransactionException;
 import org.apache.pulsar.broker.transaction.exception.buffer.TransactionBufferException;
@@ -73,6 +75,26 @@ public interface TransactionBuffer {
      * @throws TransactionException.TransactionSealedException if the transaction has been sealed.
      */
     CompletableFuture<Position> appendBufferToTxn(TxnID txnId, long sequenceId, ByteBuf buffer);
+
+    /**
+     * Add the entry of a non-transactional message to the topic's managed ledger, after the entries of the
+     * transactional messages published before it: publishes are acknowledged in the order their entries are added,
+     * and a producer acknowledged out of order drops its connection and re-sends its pending messages. A buffer
+     * that hands the entry of a transactional message to the ledger some time after it's published holds back the
+     * non-transactional entries published in the meantime.
+     *
+     * <p>The default implementation adds the entry right away.
+     *
+     * @param ledger the topic's managed ledger
+     * @param headersAndPayload the entry, which the caller may release once this method returns
+     * @param numberOfMessages the number of messages in the entry
+     * @param callback the callback of the add
+     * @param ctx the context passed to the callback
+     */
+    default void addEntryInPublishOrder(ManagedLedger ledger, ByteBuf headersAndPayload, int numberOfMessages,
+                                        AddEntryCallback callback, Object ctx) {
+        ledger.asyncAddEntry(headersAndPayload, numberOfMessages, callback, ctx);
+    }
 
     /**
      * Open a {@link TransactionBufferReader} to read entries of a given transaction
@@ -148,6 +170,14 @@ public interface TransactionBuffer {
      * @return whether the txn is aborted.
      */
     boolean isTxnAborted(TxnID txnID, Position readPosition);
+
+    /**
+     * Check if the transaction is still ongoing (not committed and not aborted).
+     *
+     * @param txnID {@link TxnID} the transaction id.
+     * @return whether the txn is ongoing (uncommitted).
+     */
+    boolean isTxnOngoing(TxnID txnID);
 
     /**
      * Sync max read position for normal publish.

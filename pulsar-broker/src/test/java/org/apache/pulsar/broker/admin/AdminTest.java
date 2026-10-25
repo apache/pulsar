@@ -22,7 +22,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
@@ -35,6 +34,12 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import jakarta.servlet.ServletContext;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.StreamingOutput;
+import jakarta.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
 import java.net.URI;
 import java.util.ArrayList;
@@ -46,12 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import javax.servlet.ServletContext;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
-import javax.ws.rs.core.UriInfo;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import org.apache.bookkeeper.conf.ClientConfiguration;
@@ -80,6 +79,8 @@ import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
+import org.apache.pulsar.common.policies.data.ClusterPolicies;
+import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.NamespaceIsolationDataImpl;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -194,6 +195,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName(configClusterName);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void internalConfiguration() throws Exception {
         ServiceConfiguration conf = pulsar.getConfiguration();
@@ -229,6 +231,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
      * (before https://github.com/apache/pulsar/pull/14384) while the Worker already uses the new one.
      * @throws Exception
      */
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
     public void internalConfigurationRetroCompatibility() throws Exception {
         OldInternalConfigurationData oldDataModel = new OldInternalConfigurationData(
@@ -255,7 +258,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("unchecked")
     public void clusters() throws Exception {
         assertEquals(asyncRequests(ctx -> clusters.getClusters(ctx)), new HashSet<>());
-        verify(clusters, never()).validateSuperUserAccessAsync();
+        verify(clusters, times(1)).validateSuperUserAccessAsync();
 
         asyncRequests(ctx -> clusters.createCluster(ctx,
                 "use", ClusterDataImpl.builder().serviceUrl("http://broker.messaging.use.example.com:8080").build()));
@@ -288,6 +291,20 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(asyncRequests(ctx -> clusters.getCluster(ctx, "use")),
                 ClusterData.builder().serviceUrl("http://new-broker.messaging.use.example.com:8080").build());
+
+        // Marking a cluster as migrated without any target url must be rejected
+        try {
+            asyncRequests(ctx -> clusters.updateClusterMigration(ctx, "use", true, new ClusterUrl()));
+            fail("should have failed");
+        } catch (RestException e) {
+            assertEquals(e.getResponse().getStatus(), Status.BAD_REQUEST.getStatusCode());
+        }
+        // ... while a target url of any kind is accepted
+        ClusterUrl migratedUrl = new ClusterUrl(null, null, "pulsar://green.example.com:6650", null);
+        asyncRequests(ctx -> clusters.updateClusterMigration(ctx, "use", true, migratedUrl));
+        ClusterPolicies migration = (ClusterPolicies) asyncRequests(ctx -> clusters.getClusterMigration(ctx, "use"));
+        assertTrue(migration.isMigrated());
+        assertEquals(migration.getMigratedClusterUrl(), migratedUrl);
 
         try {
             asyncRequests(ctx -> clusters.getNamespaceIsolationPolicies(ctx, "use"));
@@ -355,7 +372,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // clear caches to load data from metadata-store again
         MetadataCacheImpl<ClusterData> clusterCache = (MetadataCacheImpl<ClusterData>) pulsar.getPulsarResources()
                 .getClusterResources().getCache();
-        MetadataCacheImpl isolationPolicyCache = (MetadataCacheImpl) pulsar.getPulsarResources()
+        MetadataCacheImpl<?> isolationPolicyCache = (MetadataCacheImpl<?>) pulsar.getPulsarResources()
                 .getNamespaceResources().getIsolationPolicies().getCache();
         AbstractMetadataStore store = (AbstractMetadataStore) clusterCache.getStore();
         clusterCache.invalidateAll();
@@ -456,7 +473,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         } catch (RestException e) {
             assertEquals(e.getResponse().getStatus(), Status.PRECONDITION_FAILED.getStatusCode());
         }
-        verify(clusters, times(24)).validateSuperUserAccessAsync();
+        verify(clusters, times(30)).validateSuperUserAccessAsync();
     }
 
     @Test
@@ -734,6 +751,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getBrokerId).get());
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void resourceQuotas() throws Exception {
         // get Default Resource Quota
@@ -816,6 +834,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
     public void persistentTopics() throws Exception {
 
@@ -939,6 +958,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
                 false, 10);
     }
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     @Test
     public void test500Error() throws Exception {
         final String tenant = "prop-xyz";
@@ -962,7 +982,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         AsyncResponse response1 = mock(AsyncResponse.class);
         ArgumentCaptor<RestException> responseCaptor = ArgumentCaptor.forClass(RestException.class);
-        CompletableFuture<List<String>> future = new CompletableFuture();
+        CompletableFuture<List<String>> future = new CompletableFuture<>();
         future.completeExceptionally(new RuntimeException("500 error contains error message"));
         NamespaceService namespaceService = pulsar.getNamespaceService();
 

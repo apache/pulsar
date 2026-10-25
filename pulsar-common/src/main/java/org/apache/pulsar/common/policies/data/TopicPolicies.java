@@ -51,6 +51,7 @@ public class TopicPolicies implements Cloneable {
     private List<SubType> subscriptionTypesEnabled = new ArrayList<>();
     private List<String> replicationClusters;
     private List<String> shadowTopics;
+    @Builder.Default
     private Boolean isGlobal = false;
     private PersistencePolicies persistence;
     private RetentionPolicies retentionPolicies;

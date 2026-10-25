@@ -108,12 +108,14 @@ public class ProtobufNativeSchema<T extends Message> extends AbstractStructSchem
         return of(pojo, new HashMap<>());
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> ProtobufNativeSchema ofGenericClass(Class<T> pojo, Map<String, String> properties) {
         SchemaDefinition<T> schemaDefinition = SchemaDefinition.<T>builder().withPojo(pojo)
                 .withProperties(properties).build();
         return ProtobufNativeSchema.of(schemaDefinition);
     }
 
+    @SuppressWarnings("unchecked")
     public static <T> ProtobufNativeSchema of(SchemaDefinition<T> schemaDefinition) {
         Class<T> pojo = schemaDefinition.getPojo();
 
@@ -137,6 +139,7 @@ public class ProtobufNativeSchema<T extends Message> extends AbstractStructSchem
         }
     }
 
+    @SuppressWarnings("unchecked")
     public static <T extends Message> ProtobufNativeSchema<T> of(Class<T> pojo, Map<String, String> properties) {
         return ofGenericClass(pojo, properties);
     }

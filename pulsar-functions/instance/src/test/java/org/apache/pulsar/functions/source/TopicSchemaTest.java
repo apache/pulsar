@@ -25,7 +25,7 @@ import static org.testng.Assert.assertEquals;
 import com.google.protobuf.Any;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
@@ -33,10 +33,9 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufNativeSchema;
 import org.apache.pulsar.client.impl.schema.ProtobufSchema;
 import org.apache.pulsar.common.schema.SchemaType;
-import org.apache.pulsar.functions.proto.Request;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class TopicSchemaTest {
 
     @Test
@@ -50,12 +49,12 @@ public class TopicSchemaTest {
         schema = topicSchema.getSchema(topic + "2", DummyClass.class, Optional.of(SchemaType.AVRO));
         assertEquals(schema.getClass(), AvroSchema.class);
 
-        // use an arbitrary protobuf class for testing purpose
-        schema = topicSchema.getSchema(topic + "3", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF));
+        // use a standard protobuf class (not LightProto) for testing ProtobufSchema
+        schema = topicSchema.getSchema(topic + "3", Any.class, Optional.of(SchemaType.PROTOBUF));
         assertEquals(schema.getClass(), ProtobufSchema.class);
 
         schema = topicSchema
-                .getSchema(topic + "4", Request.ServiceRequest.class, Optional.of(SchemaType.PROTOBUF_NATIVE));
+                .getSchema(topic + "4", Any.class, Optional.of(SchemaType.PROTOBUF_NATIVE));
         assertEquals(schema.getClass(), ProtobufNativeSchema.class);
     }
 

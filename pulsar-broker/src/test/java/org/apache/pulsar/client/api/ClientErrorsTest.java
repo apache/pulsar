@@ -597,6 +597,7 @@ public class ClientErrorsTest {
         mockBrokerService.resetHandleProducer();
         mockBrokerService.resetHandleCloseProducer();
     }
+    @SuppressWarnings("deprecation")
 
     // failed to connect to partition at sending step if a producer which connects to broker as lazy-loading mode
     @Test
@@ -770,7 +771,7 @@ public class ClientErrorsTest {
         AtomicBoolean msgSent = new AtomicBoolean();
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channelCtx.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false, false));
             if (numOfConnections.incrementAndGet() == 2) {
                 // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();
@@ -811,7 +812,7 @@ public class ClientErrorsTest {
         CountDownLatch latch = new CountDownLatch(1);
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channelCtx.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false));
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), false, false));
             if (numOfConnections.incrementAndGet() == 2) {
                 // close the cnx immediately when trying to connect the 2nd time
                 ctx.channel().close();
@@ -840,6 +841,7 @@ public class ClientErrorsTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testCommandErrorMessageIsNull() throws Exception {
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress()).build();

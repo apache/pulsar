@@ -30,6 +30,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.DefaultBookieAddressResolver;
 import org.apache.bookkeeper.client.ITopologyAwareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackChangeNotifier;
@@ -51,18 +53,23 @@ import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * It provides the mapping of bookies to its rack from zookeeper.
  */
+@CustomLog
 public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         implements RackChangeNotifier {
-    private static final Logger LOG = LoggerFactory.getLogger(BookieRackAffinityMapping.class);
 
     public static final String BOOKIE_INFO_ROOT_PATH = "/bookies";
     public static final String METADATA_STORE_INSTANCE = "METADATA_STORE_INSTANCE";
+    /**
+     * The configuration property of a {@code Consumer<Runnable>} that receives the callback that unregisters the
+     * listener of the metadata store passed with {@link #METADATA_STORE_INSTANCE}. The factory that created the
+     * BookKeeper client runs it when the factory is closed, since the BookKeeper client doesn't close its DNS
+     * resolver.
+     */
+    public static final String METADATA_STORE_LISTENER_CLEANUP = "METADATA_STORE_LISTENER_CLEANUP";
 
     private MetadataCache<BookiesRackConfiguration> bookieMappingCache = null;
     private volatile ITopologyAwareEnsemblePlacementPolicy<BookieNode> rackawarePolicy = null;
@@ -70,6 +77,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
 
     private BookiesRackConfiguration racksWithHost = new BookiesRackConfiguration();
     private Map<String, BookieInfo> bookieInfoMap = new HashMap<>();
+    private Runnable cancelListener;
 
     static MetadataStore getMetadataStore(Configuration conf) throws MetadataException {
         MetadataStore store;
@@ -113,6 +121,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public synchronized void setConf(Configuration conf) {
         super.setConf(conf);
         MetadataStore store;
@@ -123,7 +132,13 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
         }
 
         bookieMappingCache = store.getMetadataCache(BookiesRackConfiguration.class);
-        store.registerListener(this::handleUpdates);
+        if (cancelListener != null) {
+            cancelListener.run();
+        }
+        cancelListener = store.registerCancellableListener(this::handleUpdates);
+        if (conf.getProperty(METADATA_STORE_LISTENER_CLEANUP) instanceof Consumer<?> listenerCleanup) {
+            ((Consumer<Runnable>) listenerCleanup).accept(cancelListener);
+        }
 
         try {
             var racksWithHost = bookieMappingCache.get(BOOKIE_INFO_ROOT_PATH)
@@ -134,14 +149,13 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 for (String address : bookieMapping.keySet()) {
                     bookieAddressListLastTime.add(BookieId.parse(address));
                 }
-                if (LOG.isDebugEnabled()) {
-                    LOG.debug("BookieRackAffinityMapping init, bookieAddressListLastTime {}",
-                            bookieAddressListLastTime);
-                }
+                log.debug()
+                        .attr("bookieAddressListLastTime", bookieAddressListLastTime)
+                        .log("BookieRackAffinityMapping init, bookieAddressListLastTime");
             }
             updateRacksWithHost(racksWithHost);
         } catch (ExecutionException | InterruptedException e) {
-            LOG.error("Failed to update rack info. ", e);
+            log.error().exception(e).log("Failed to update rack info");
             throw new RuntimeException(e);
         }
 
@@ -160,12 +174,12 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                             .thenApply(optRes -> optRes.orElseGet(BookiesRackConfiguration::new))
                             .thenApply(this::processRackUpdate)
                             .exceptionally(ex -> {
-                                LOG.error("Failed to update rack info. ", ex);
+                                log.error().exception(ex).log("Failed to update rack info");
                                 return null;
                             });
                 });
             } catch (NoSuchFieldException | IllegalAccessException e) {
-                LOG.error("Failed watch available bookies.", e);
+                log.error().exception(e).log("Failed watch available bookies");
             }
         }
     }
@@ -193,7 +207,7 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                         BookieId bookieId = BookieId.parse(addr);
                         BookieAddressResolver addressResolver = getBookieAddressResolver();
                         if (addressResolver == null) {
-                            LOG.warn("Bookie address resolver not yet initialized, skipping resolution");
+                            log.warn("Bookie address resolver not yet initialized, skipping resolution");
                         } else {
                             BookieSocketAddress bsa = addressResolver.resolve(bookieId);
                             newRacksWithHost.updateBookie(group, bsa.toString(), bi);
@@ -208,11 +222,14 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                                     newBookieInfoMap.put(hostIp, bi);
                                 }
                             } else {
-                                LOG.info("Network address for {} is unresolvable yet.", addr);
+                                log.info().attr("address", addr).log("Network address for is unresolvable yet");
                             }
                         }
                     } catch (BookieAddressResolver.BookieIdNotResolvedException e) {
-                        LOG.info("Network address for {} is unresolvable yet. error is {}", addr, e);
+                        log.info()
+                                .attr("address", addr)
+                                .exceptionMessage(e)
+                                .log("Network address is unresolvable yet");
                     }
                 })
         );
@@ -269,7 +286,9 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                 .thenAccept(optVal -> {
                     Set<BookieId> bookieIdSet = new HashSet<>();
                     synchronized (this) {
-                        LOG.info("Bookie rack info updated to {}. Notifying rackaware policy.", optVal);
+                        log.info()
+                                .attr("updated", optVal)
+                                .log("Bookie rack info updated to . Notifying rackaware policy");
                         this.updateRacksWithHost(optVal.orElseGet(BookiesRackConfiguration::new));
                         List<BookieId> bookieAddressList = new ArrayList<>();
                         for (Map<String, BookieInfo> bookieMapping : optVal.map(Map::values).orElse(
@@ -278,10 +297,10 @@ public class BookieRackAffinityMapping extends AbstractDNSToSwitchMapping
                                 bookieAddressList.add(BookieId.parse(addr));
                             }
                         }
-                        if (LOG.isDebugEnabled()) {
-                            LOG.debug("Bookies with rack update from {} to {}", bookieAddressListLastTime,
-                                    bookieAddressList);
-                        }
+                        log.debug()
+                                .attr("update", bookieAddressListLastTime)
+                                .attr("bookieAddressList", bookieAddressList)
+                                .log("Bookies with rack update from to");
                         bookieIdSet.addAll(bookieAddressList);
                         bookieIdSet.addAll(bookieAddressListLastTime);
                         bookieAddressListLastTime = bookieAddressList;

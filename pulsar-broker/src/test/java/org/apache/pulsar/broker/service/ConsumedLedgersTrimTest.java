@@ -27,6 +27,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -38,15 +39,12 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+@CustomLog
 @Test(groups = "broker")
 public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ConsumedLedgersTrimTest.class);
 
     @Test
     public void testConsumedLedgersTrim() throws Exception {
@@ -131,7 +129,7 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
         managedLedgerConfig.setMaxEntriesPerLedger(1000);
         managedLedgerConfig.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
         MessageId initialMessageId = persistentTopic.getLastMessageId().get();
-        LOG.info("lastmessageid " + initialMessageId);
+        log.info().attr("lastMessageId", initialMessageId).log("Last message id");
 
         int msgNum = 7;
         for (int i = 0; i < msgNum; i++) {
@@ -141,7 +139,7 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
         ManagedLedgerImpl managedLedger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
         Assert.assertEquals(managedLedger.getLedgersInfoAsList().size(), 1);
         MessageId messageIdBeforeUnload = admin.topics().getLastMessageId(topicName);
-        LOG.info("messageIdBeforeUnload " + messageIdBeforeUnload);
+        log.info().attr("messageId", messageIdBeforeUnload).log("Message id before unload");
         assertNotEquals(messageIdBeforeUnload, initialMessageId);
 
         // Unload and close the producer to force a new ledger when the topic is reloaded.
@@ -152,7 +150,7 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
         // Force-load the topic again
         admin.topics().getStats(topicName);
         MessageId messageIdAfterUnload = admin.topics().getLastMessageId(topicName);
-        LOG.info("lastmessageid " + messageIdAfterUnload);
+        log.info().attr("lastMessageId", messageIdAfterUnload).log("Last message id after unload");
         assertEquals(messageIdAfterUnload, messageIdBeforeUnload);
 
         persistentTopic = (PersistentTopic) getTopic(topicName, true).get().get();
@@ -175,7 +173,7 @@ public class ConsumedLedgersTrimTest extends SharedPulsarBaseTest {
         // lastMessageId should be available even in this case, but is must
         // refer to -1
         MessageId messageIdAfterTrim = admin.topics().getLastMessageId(topicName);
-        LOG.info("lastmessageid " + messageIdAfterTrim);
+        log.info().attr("lastMessageId", messageIdAfterTrim).log("Last message id after trim");
         assertEquals(messageIdAfterTrim, MessageId.earliest);
 
     }

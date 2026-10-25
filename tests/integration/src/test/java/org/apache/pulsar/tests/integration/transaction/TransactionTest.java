@@ -21,7 +21,7 @@ package org.apache.pulsar.tests.integration.transaction;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -37,7 +37,7 @@ import org.testng.annotations.Test;
 /**
  * Transaction integration test.
  */
-@Slf4j
+@CustomLog
 public class TransactionTest extends TransactionTestBase {
 
     /**
@@ -151,7 +151,10 @@ public class TransactionTest extends TransactionTestBase {
 
             BalanceUpdate balanceUpdate = message.getValue();
             balanceSum += balanceUpdate.getAmount();
-            log.info("balance account: {}, amount: {}", balanceUpdate.getAccount(), balanceUpdate.getAmount());
+            log.info()
+                    .attr("account", balanceUpdate.getAccount())
+                    .attr("amount", balanceUpdate.getAmount())
+                    .log("balance account: , amount");
         }
         Assert.assertEquals(receiveBalanceUpdateCnt, transferCount * 2);
         Assert.assertEquals(balanceSum, 0);

@@ -81,6 +81,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      * @param protocol
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "lookupType", timeOut = 10000)
     public void testPeerClusterTopicLookup(String protocol) throws Exception {
 
@@ -187,6 +188,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testPeerClusterInReplicationClusterListChange() throws Exception {
 

@@ -25,13 +25,10 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
 import java.io.PrintWriter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.CustomLog;
 
+@CustomLog
 public class JsonOutputter implements CommandOutputter {
-
-    static final Logger LOG = LoggerFactory.getLogger(JsonOutputter.class);
-
     public static final String ERROR_RESPONSE = "{\"error\": \"Exception writing command response to JSON\"}";
 
     private ObjectMapper mapper;
@@ -55,13 +52,14 @@ public class JsonOutputter implements CommandOutputter {
         try {
             mapper.writeValue(pw, response.toMap());
         } catch (JsonGenerationException e) {
-            LOG.warn("Exception writing command response to JSON:", e);
+            log.warn().exception(e).log("Exception writing command response to JSON");
             pw.write(ERROR_RESPONSE);
         } catch (JsonMappingException e) {
-            LOG.warn("Exception writing command response to JSON:", e);
+            log.warn().exception(e).log("Exception writing command response to JSON");
             pw.write(ERROR_RESPONSE);
         } catch (IOException e) {
-            LOG.warn("Exception writing command response as JSON to {}", clientIP, e);
+            log.warn().attr("clientIP", clientIP).exception(e)
+                    .log("Exception writing command response as JSON");
             pw.write(ERROR_RESPONSE);
         }
     }

@@ -20,12 +20,12 @@ package org.apache.pulsar.broker.service.plugin;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import lombok.CustomLog;
 import lombok.ToString;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.common.nar.NarClassLoader;
 
-@Slf4j
+@CustomLog
 @ToString
 public class EntryFilterWithClassLoader implements EntryFilter {
     private final EntryFilter entryFilter;
@@ -64,11 +64,14 @@ public class EntryFilterWithClassLoader implements EntryFilter {
             Thread.currentThread().setContextClassLoader(currentClassLoader);
         }
         if (classLoaderOwned) {
-            log.info("Closing classloader {} for EntryFilter {}", classLoader, entryFilter.getClass().getName());
+            log.info()
+                    .attr("classLoader", classLoader)
+                    .attr("name", entryFilter.getClass().getName())
+                    .log("Closing classloader for EntryFilter");
             try {
                 classLoader.close();
             } catch (IOException e) {
-                log.error("close EntryFilterWithClassLoader failed", e);
+                log.error().exception(e).log("close EntryFilterWithClassLoader failed");
             }
         }
     }

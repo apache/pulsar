@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.TreeMap;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock.IndexInputStream;
@@ -40,11 +41,9 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
-    private static final Logger log = LoggerFactory.getLogger(OffloadIndexBlockImpl.class);
 
     private static final int INDEX_MAGIC_WORD = 0x3D1FB0BC;
 
@@ -115,8 +114,9 @@ public class OffloadIndexBlockV2Impl implements OffloadIndexBlockV2 {
     @Override
     public OffloadIndexEntry getIndexEntryForEntry(long ledgerId, long messageEntryId) throws IOException {
         if (messageEntryId > getLedgerMetadata(ledgerId).getLastEntryId()) {
-            log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
-                    messageEntryId, getLedgerMetadata(ledgerId).getLastEntryId());
+            log.warn().attr("entryId", messageEntryId)
+                    .attr("lastEntryId", getLedgerMetadata(ledgerId).getLastEntryId())
+                    .log("Requested entry beyond lastEntryId");
             throw new IndexOutOfBoundsException("Entry index: " + messageEntryId
                     + " beyond lastEntryId: " + getLedgerMetadata(ledgerId).getLastEntryId());
         }

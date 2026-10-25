@@ -24,7 +24,7 @@ import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerAccessMode;
@@ -33,7 +33,7 @@ import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterI
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-impl")
 public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
 

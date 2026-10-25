@@ -54,6 +54,7 @@ public class OpportunisticStripingTest extends BkEnsemblesTestBase {
         config.getProperties().setProperty("bookkeeper_opportunisticStriping", "true");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testOpportunisticStriping() throws Exception {
 

@@ -234,6 +234,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
             return "org.apache.pulsar.proxy.server.ProxyConfigurationTest.ExceptionAuthentication1";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void configure(Map<String, String> authParams) {
             // no-op
@@ -257,6 +258,7 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
             return "org.apache.pulsar.proxy.server.ProxyConfigurationTest.ExceptionAuthentication2";
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void configure(Map<String, String> authParams) {
             // no-op

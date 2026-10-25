@@ -235,6 +235,7 @@ public interface Producer<T> extends Closeable {
      *
      * @return statistic for the producer or null if ProducerStatsRecorderImpl is disabled.
      */
+    @SuppressWarnings("deprecation")
     ProducerStats getStats();
 
     /**

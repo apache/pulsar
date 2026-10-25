@@ -33,7 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -42,7 +42,7 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class ClientDeduplicationTest extends SharedPulsarBaseTest {
 
@@ -331,7 +331,7 @@ public class ClientDeduplicationTest extends SharedPulsarBaseTest {
         final List<MessageId> sendMessageIds = sendFutures.stream().map(CompletableFuture::join)
                 .collect(Collectors.toList());
         for (int i = 0; i < sendMessageIds.size(); i++) {
-            log.info("Send msg-{} to {}", i, sendMessageIds.get(i));
+            log.info().attr("msg", i).attr("to", sendMessageIds.get(i)).log("Send msg- to");
         }
 
         final List<Long> sequenceIdList = new ArrayList<>();
@@ -340,8 +340,8 @@ public class ClientDeduplicationTest extends SharedPulsarBaseTest {
             if (msg == null) {
                 break;
             }
-            log.info("Received {}, key: {}, seq id: {}, msg id: {}",
-                    msg.getValue(), msg.getKey(), msg.getSequenceId(), msg.getMessageId());
+            log.info().attr("received", msg.getValue()).attr("key", msg.getKey()).attr("seqId", msg.getSequenceId())
+                    .attr("msgId", msg.getMessageId()).log("Received, key, seq id, msg id");
             assertNotNull(msg);
             sequenceIdList.add(msg.getSequenceId());
         }
@@ -395,7 +395,7 @@ public class ClientDeduplicationTest extends SharedPulsarBaseTest {
                         producer.newMessage().sendAsync();
                     }
                 } catch (Exception e) {
-                    log.error("Failed to send/ack messages with transaction.", e);
+                    log.error().exception(e).log("Failed to send/ack messages with transaction.");
                 } finally {
                     countDownLatch.countDown();
                 }

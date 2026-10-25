@@ -24,9 +24,9 @@ import com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import java.io.IOException;
 import org.apache.avro.NameValidator;
 import org.apache.avro.Schema;
-import org.apache.avro.SchemaParseException;
 import org.apache.pulsar.broker.service.schema.exceptions.InvalidSchemaDataException;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
+import org.apache.pulsar.common.schema.AvroSchemaCompat;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
@@ -39,10 +39,21 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
         return INSTANCE;
     }
 
-    private static final StructSchemaDataValidator INSTANCE = new StructSchemaDataValidator();
+    public static StructSchemaDataValidator of(boolean allowLegacyJacksonFormat) {
+        return allowLegacyJacksonFormat ? LEGACY_INSTANCE : INSTANCE;
+    }
+
+    // Default instance: strict Avro-only validation for SchemaType.JSON (PIP-464)
+    private static final StructSchemaDataValidator INSTANCE = new StructSchemaDataValidator(false);
+    // Legacy instance: allows Jackson JsonSchema fallback for backward compatibility
+    private static final StructSchemaDataValidator LEGACY_INSTANCE = new StructSchemaDataValidator(true);
     public static final NameValidator COMPATIBLE_NAME_VALIDATOR = new CompatibleNameValidator();
 
-    private StructSchemaDataValidator() {}
+    private final boolean allowLegacyJacksonFormat;
+
+    private StructSchemaDataValidator(boolean allowLegacyJacksonFormat) {
+        this.allowLegacyJacksonFormat = allowLegacyJacksonFormat;
+    }
 
     private static final ObjectReader JSON_SCHEMA_READER =
             ObjectMapperFactory.getMapper().reader().forType(JsonSchema.class);
@@ -51,17 +62,18 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
         byte[] data = schemaData.getData();
 
         try {
-            Schema.Parser avroSchemaParser = new Schema.Parser(COMPATIBLE_NAME_VALIDATOR);
-            avroSchemaParser.setValidateDefaults(false);
-            Schema schema = avroSchemaParser.parse(new String(data, UTF_8));
+            Schema schema = parseAvroSchema(new String(data, UTF_8), false);
             if (SchemaType.AVRO.equals(schemaData.getType())) {
                 checkAvroSchemaTypeSupported(schema);
             }
-        } catch (SchemaParseException e) {
-            if (schemaData.getType() == SchemaType.JSON) {
-                // we used JsonSchema for storing the definition of a JSON schema
-                // hence for backward compatibility consideration, we need to try
-                // to use JsonSchema to decode the schema data
+        } catch (InvalidSchemaDataException invalidSchemaDataException) {
+            throw invalidSchemaDataException;
+        } catch (Exception e) {
+            // Avro 1.12.0 may throw NullPointerException (not SchemaParseException) for
+            // non-Avro schemas, so the legacy fallback must be in the general catch block.
+            if (schemaData.getType() == SchemaType.JSON && allowLegacyJacksonFormat) {
+                // For backward compatibility with pre-2.1 schemas: try Jackson JsonSchema parsing.
+                // This fallback is only enabled when schemaJsonAllowLegacyJacksonFormat=true (PIP-464).
                 try {
                     JSON_SCHEMA_READER.readValue(data);
                 } catch (IOException ioe) {
@@ -70,11 +82,21 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
             } else {
                 throwInvalidSchemaDataException(schemaData, e);
             }
-        } catch (InvalidSchemaDataException invalidSchemaDataException) {
-            throw invalidSchemaDataException;
-        } catch (Exception e) {
-            throwInvalidSchemaDataException(schemaData, e);
         }
+    }
+
+    /**
+     * Parse an Avro schema definition the way the broker accepts it: with the compatible name validator and
+     * with named type references in the pre Avro 1.12.2 object form.
+     *
+     * @param schemaDefinition the schema definition as JSON
+     * @param validateDefaults whether to validate the default values of the schema
+     * @return the parsed schema
+     */
+    public static Schema parseAvroSchema(String schemaDefinition, boolean validateDefaults) {
+        Schema.Parser parser = new Schema.Parser(COMPATIBLE_NAME_VALIDATOR);
+        parser.setValidateDefaults(validateDefaults);
+        return parser.parse(AvroSchemaCompat.normalizeNamedTypeReferences(schemaDefinition));
     }
 
     static void checkAvroSchemaTypeSupported(Schema schema) throws InvalidSchemaDataException {
@@ -89,7 +111,7 @@ public class StructSchemaDataValidator implements SchemaDataValidator {
                 default: {
                     // INT, LONG, FLOAT, DOUBLE, BOOLEAN, STRING, BYTES.
                     // ARRAY, MAP, FIXED, NULL.
-                    LOGGER.info("Registering a special avro schema typed [{}]", schema.getType());
+                    LOGGER.info().attr("type", schema.getType()).log("Registering a special avro schema");
                 }
             }
     }

@@ -125,6 +125,7 @@ public class InProgressDeduplicationDecoratorLookupService implements LookupServ
     private static class InProgressHolder<K, V extends CompletableFuture<?>> {
         private final ConcurrentHashMap<K, V> inProgress = new ConcurrentHashMap<>();
 
+        @SuppressWarnings("deprecation")
         public V getOrComputeIfAbsent(K key, Supplier<V> supplier) {
             final MutableObject<V> newFutureCreated = new MutableObject<>();
             try {

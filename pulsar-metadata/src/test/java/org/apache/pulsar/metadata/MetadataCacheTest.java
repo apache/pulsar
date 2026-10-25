@@ -49,9 +49,9 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -76,7 +76,7 @@ import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 public class MetadataCacheTest extends BaseMetadataStoreTest {
 
     @Data
@@ -193,14 +193,14 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
 
         MetadataCache<MyClass> objCache2 = store2.getMetadataCache(MyClass.class);
         AtomicReference<MyClass> storeObj = new AtomicReference<MyClass>();
-        store2.registerListener(n -> {
+        store2.registerCancellableListener(n -> {
             if (n.getType() == NotificationType.Modified) {
                 CompletableFuture.runAsync(() -> {
                     try {
                         MyClass obj = objCache2.get(n.getPath()).get().get();
                         storeObj.set(obj);
                     } catch (Exception e) {
-                        log.error("Got exception {}", e.getMessage());
+                        log.error().attr("message", e.getMessage()).log("Got exception");
                     }
                 });
             }
@@ -520,6 +520,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
     }
 
     @Test(dataProvider = "zkImpls")
+    @SuppressWarnings("unchecked")
     public void readModifyUpdateOrCreateRetryTimeout(String provider, Supplier<String> urlSupplier) throws Exception {
         @Cleanup
         MetadataStore store = MetadataStoreFactory.create(urlSupplier.get(), MetadataStoreConfig.builder().build());
@@ -531,7 +532,7 @@ public class MetadataCacheTest extends BaseMetadataStoreTest {
                         .mandatoryStop(Duration.ofSeconds(3))).build());
 
         MetadataCache<MyClass> cacheRef = cache;
-        if (cache instanceof DualMetadataCache dc) {
+        if (cache instanceof DualMetadataCache<?> dc) {
             cacheRef = (MetadataCache<MyClass>) dc.getMetadataCache().get();
         }
 

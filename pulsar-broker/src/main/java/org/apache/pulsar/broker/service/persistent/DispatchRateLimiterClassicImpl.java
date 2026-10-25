@@ -20,12 +20,12 @@ package org.apache.pulsar.broker.service.persistent;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.util.RateLimiter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+@CustomLog
 public class DispatchRateLimiterClassicImpl extends DispatchRateLimiter {
     private volatile RateLimiter dispatchRateLimiterOnMessage;
     private volatile RateLimiter dispatchRateLimiterOnByte;
@@ -103,7 +103,7 @@ public class DispatchRateLimiterClassicImpl extends DispatchRateLimiter {
     @Override
     public synchronized void updateDispatchRate(DispatchRate dispatchRate) {
         // synchronized to prevent race condition from concurrent zk-watch
-        log.info("setting message-dispatch-rate {}", dispatchRate);
+        log.info().attr("dispatchRate", dispatchRate).log("setting message-dispatch-rate");
 
         long msgRate = dispatchRate.getDispatchThrottlingRateInMsg();
         long byteRate = dispatchRate.getDispatchThrottlingRateInByte();
@@ -210,6 +210,4 @@ public class DispatchRateLimiterClassicImpl extends DispatchRateLimiter {
             dispatchRateLimiterOnByte = null;
         }
     }
-
-    private static final Logger log = LoggerFactory.getLogger(DispatchRateLimiterClassicImpl.class);
 }

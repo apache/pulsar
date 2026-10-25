@@ -37,7 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
 import org.apache.bookkeeper.discover.BookieServiceInfo;
@@ -54,7 +54,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 
-@Slf4j
+@CustomLog
 public class PulsarRegistrationClient implements RegistrationClient {
 
     private final MetadataStoreExtended store;
@@ -70,6 +70,8 @@ public class PulsarRegistrationClient implements RegistrationClient {
     private final Map<BookieId, Versioned<BookieServiceInfo>> writableBookieInfo;
     private final Map<BookieId, Versioned<BookieServiceInfo>> readOnlyBookieInfo;
     private final FutureUtil.Sequencer<Void> sequencer;
+    private final Runnable cancelListener;
+    private final Runnable cancelSessionListener;
     private SessionEvent lastMetadataSessionEvent;
 
     public PulsarRegistrationClient(MetadataStore store,
@@ -90,12 +92,14 @@ public class PulsarRegistrationClient implements RegistrationClient {
         this.executor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-registration-client"));
 
-        store.registerListener(this::updatedBookies);
-        this.store.registerSessionListener(this::refreshBookies);
+        cancelListener = store.registerCancellableListener(this::updatedBookies);
+        cancelSessionListener = this.store.registerCancellableSessionListener(this::refreshBookies);
     }
 
     @Override
     public void close() {
+        cancelListener.run();
+        cancelSessionListener.run();
         executor.shutdownNow();
     }
 
@@ -231,7 +235,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
         sequencer.sequential(() -> {
             switch (n.getType()) {
                 case Created:
-                    log.info("Bookie {} created. path: {}", bookieId, n.getPath());
+                    log.info().attr("bookieId", bookieId).attr("path", n.getPath()).log("Bookie created");
                     if (path.startsWith(bookieReadonlyRegistrationPath)) {
                         return getReadOnlyBookies().thenAccept(bookies ->
                                 readOnlyBookiesWatchers.forEach(w ->
@@ -244,7 +248,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     if (bookieId == null) {
                         return completedFuture(null);
                     }
-                    log.info("Bookie {} modified. path: {}", bookieId, n.getPath());
+                    log.info().attr("bookieId", bookieId).attr("path", n.getPath()).log("Bookie modified");
                     if (path.startsWith(bookieReadonlyRegistrationPath)) {
                         return readBookieInfoAsReadonlyBookie(bookieId).thenApply(__ -> null);
                     }
@@ -253,7 +257,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     if (bookieId == null) {
                         return completedFuture(null);
                     }
-                    log.info("Bookie {} deleted. path: {}", bookieId, n.getPath());
+                    log.info().attr("bookieId", bookieId).attr("path", n.getPath()).log("Bookie deleted");
                     if (path.startsWith(bookieReadonlyRegistrationPath)) {
                         readOnlyBookieInfo.remove(bookieId);
                         return getReadOnlyBookies().thenAccept(bookies -> {
@@ -284,7 +288,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
             try {
                 return BookieId.parse(path.substring(slash + 1));
             } catch (IllegalArgumentException e) {
-                log.warn("Cannot decode bookieId from {}, error: {}", path, e.getMessage());
+                log.warn().attr("path", path).exceptionMessage(e).log("Cannot decode bookieId");
             }
         }
         return null;
@@ -315,12 +319,21 @@ public class PulsarRegistrationClient implements RegistrationClient {
         if ((info = writableBookieInfo.get(bookieId)) == null) {
             info = readOnlyBookieInfo.get(bookieId);
         }
-        if (log.isDebugEnabled()) {
-            log.debug("getBookieServiceInfo {} -> {}", bookieId, info);
-        }
+        log.debug().attr("bookieId", bookieId).attr("info", info).log("getBookieServiceInfo");
         if (info != null) {
             return completedFuture(info);
         } else {
+            // The bookie can be registered and still missing here, if reading its info failed when it
+            // registered. Reload it in background, without waiting, so that a retry can find it.
+            readBookieInfoAsWritableBookie(bookieId)
+                    .thenCompose(writable -> writable.isPresent()
+                            ? completedFuture(writable)
+                            : readBookieInfoAsReadonlyBookie(bookieId))
+                    .exceptionally(ex -> {
+                        log.debug().attr("bookieId", bookieId).exceptionMessage(ex)
+                                .log("Failed to reload the bookie info");
+                        return null;
+                    });
             return FutureUtils.exception(new BKException.BKBookieHandleNotAvailableException());
         }
     }
@@ -332,7 +345,8 @@ public class PulsarRegistrationClient implements RegistrationClient {
                 .thenApply((Optional<CacheGetResult<BookieServiceInfo>> bkInfoWithStats) -> {
                             if (bkInfoWithStats.isPresent()) {
                                 final CacheGetResult<BookieServiceInfo> r = bkInfoWithStats.get();
-                                log.info("Update BookieInfoCache (writable bookie) {} -> {}", bookieId, r.getValue());
+                                log.info().attr("bookieId", bookieId).attr("info", r.getValue())
+                                        .log("Update BookieInfoCache (writable bookie)");
                                 writableBookieInfo.put(bookieId,
                                         new Versioned<>(r.getValue(), new LongVersion(r.getStat().getVersion())));
                             }
@@ -348,7 +362,8 @@ public class PulsarRegistrationClient implements RegistrationClient {
                 .thenApply((Optional<CacheGetResult<BookieServiceInfo>> bkInfoWithStats) -> {
                     if (bkInfoWithStats.isPresent()) {
                         final CacheGetResult<BookieServiceInfo> r = bkInfoWithStats.get();
-                        log.info("Update BookieInfoCache (readonly bookie) {} -> {}", bookieId, r.getValue());
+                        log.info().attr("bookieId", bookieId).attr("info", r.getValue())
+                                .log("Update BookieInfoCache (readonly bookie)");
                         readOnlyBookieInfo.put(bookieId,
                                 new Versioned<>(r.getValue(), new LongVersion(r.getStat().getVersion())));
                     }

@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -52,10 +52,11 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.compaction.Compactor;
 import org.jspecify.annotations.Nullable;
 
-@Slf4j
+@CustomLog
 public abstract class AbstractBaseDispatcher extends EntryFilterSupport implements Dispatcher {
 
     private static final Gauge PENDING_BYTES_TO_DISPATCH = Gauge
@@ -122,6 +123,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
      * @see AbstractBaseDispatcher#filterEntriesForConsumer(List, EntryBatchSizes, SendMessageInfo,
      *   EntryBatchIndexesAcks, ManagedCursor, boolean, Consumer)
      */
+    @SuppressWarnings("deprecation")
     public int filterEntriesForConsumer(@Nullable MessageMetadata[] metadataArray, int startOffset,
                                         List<? extends Entry> entries, EntryBatchSizes batchSizes,
                                         SendMessageInfo sendMessageInfo,
@@ -241,13 +243,13 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             int batchSize = msgMetadata.getNumMessagesInBatch();
             long[] ackSet = null;
             if (indexesAcks != null && cursor != null) {
-                Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
                 ackSet = cursor
-                        .getDeletedBatchIndexesAsLongArray(position);
+                        .getDeletedBatchIndexesAsLongArray(entry.getLedgerId(), entry.getEntryId());
                 // some batch messages ack bit sit will be in pendingAck state, so don't send all bit sit to consumer
                 if (subscription instanceof PersistentSubscription
                         && ((PersistentSubscription) subscription)
                         .getPendingAckHandle() instanceof PendingAckHandleImpl) {
+                    Position position = PositionFactory.create(entry.getLedgerId(), entry.getEntryId());
                     Position positionInPendingAck =
                             ((PersistentSubscription) subscription).getPositionInPendingAck(position);
                     // if this position not in pendingAck state, don't need to do any op
@@ -276,10 +278,10 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                         }
                     }
                 }
+                // No explicit null write is needed for a missing ackSet. EntryBatchIndexesAcks is reset before
+                // reuse, so absent ack sets are already null.
                 if (ackSet != null) {
-                    indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
-                } else {
-                    indexesAcks.setIndexesAcks(i, null);
+                    indexesAcks.setIndexesAcks(i, batchSize, ackSet);
                 }
             }
 
@@ -328,7 +330,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     private void individualAcknowledgeMessageIfNeeded(List<Position> positions, Map<String, Long> properties) {
         if (!(subscription instanceof PulsarCompactorSubscription)) {
-            subscription.acknowledgeMessage(positions, AckType.Individual, properties);
+            subscription.acknowledgeMessageAsync(positions, AckType.Individual, properties);
         }
     }
 
@@ -368,7 +370,11 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             ReplicatedSubscriptionsSnapshot snapshot = Markers.parseReplicatedSubscriptionsSnapshot(headersAndPayload);
             subscription.processReplicatedSubscriptionSnapshot(snapshot);
         } catch (Throwable t) {
-            log.warn("Failed to process replicated subscription snapshot at {} -- {}", pos, t.getMessage(), t);
+            log.warn()
+                    .attr("pos", pos)
+
+                    .exception(t)
+                    .log("Failed to process replicated subscription snapshot at");
             return;
         }
     }
@@ -442,12 +448,13 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
         }
         if (readLimits.getLeft() == 0 || readLimits.getRight() == 0) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] message-read exceeded {} message-rate {}/{}, schedule after {}ms", getName(),
-                        limiterType.name().toLowerCase(),
-                        rateLimiter.getDispatchRateOnMsg(), rateLimiter.getDispatchRateOnByte(),
-                        MESSAGE_RATE_BACKOFF_MS);
-            }
+            log.debug()
+                    .attr("name", getName())
+                    .attr("limiterType", limiterType.name().toLowerCase())
+                    .attr("dispatchRateOnMsg", rateLimiter.getDispatchRateOnMsg())
+                    .attr("dispatchRateOnByte", rateLimiter.getDispatchRateOnByte())
+                    .attr("backoffMs", MESSAGE_RATE_BACKOFF_MS)
+                    .log("message-read exceeded message-rate, scheduling after backoff");
             reScheduleRead();
             readLimits.setLeft(-1);
             readLimits.setRight(-1L);
@@ -470,6 +477,26 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         return Commands.resolveStickyKey(metadata);
     }
 
+    /**
+     * {@link Murmur3_32Hash#makeHash(byte[])} of {@link #peekStickyKey(Entry)}, which hashes the key where it is in the
+     * entry's metadata, as {@link Commands#resolveStickyKeyHash(MessageMetadata)} does.
+     */
+    protected int peekStickyKeyHash(Entry entry) {
+        MessageMetadata metadata;
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            metadata = entryAndMetadata.getMetadata();
+        } else {
+            metadata = entry.getMessageMetadata();
+            if (metadata == null) {
+                metadata = Commands.peekMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+            }
+        }
+        if (metadata == null) {
+            return Murmur3_32Hash.getInstance().makeHash(Commands.NONE_KEY);
+        }
+        return Commands.resolveStickyKeyHash(metadata);
+    }
+
     protected String getSubscriptionName() {
         return subscription == null ? null : subscription.getName();
     }
@@ -481,7 +508,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
 
     public static void checkAndApplyReachedEndOfTopicOrTopicMigration(PersistentTopic topic, List<Consumer> consumers) {
         if (topic.isMigrated()) {
-            consumers.forEach(c -> c.topicMigrated(topic.getMigratedClusterUrl()));
+            topic.getMigratedClusterUrlAsync()
+                    .thenAccept(clusterUrl -> consumers.forEach(c -> c.topicMigrated(clusterUrl)));
         } else {
             consumers.forEach(Consumer::reachedEndOfTopic);
         }

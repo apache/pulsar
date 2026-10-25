@@ -18,18 +18,23 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import jakarta.ws.rs.client.WebTarget;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import javax.ws.rs.client.WebTarget;
-import lombok.extern.slf4j.Slf4j;
+import lombok.CustomLog;
 
-@Slf4j
+@CustomLog
 class WebTargets {
 
+    /**
+     * Appends each part as one path segment, even if it contains a '/'. A space is encoded as "%20", not as the '+'
+     * of the form encoding of {@link URLEncoder}: a plain {@code @PathParam} keeps a '+' of the path as a '+', while
+     * "%20" is a space both there and for the endpoints that read the part {@code @Encoded} and URL-decode it.
+     */
     static WebTarget addParts(WebTarget target, String[] parts) {
         if (parts != null && parts.length > 0) {
             for (String part : parts) {
-                String encode = URLEncoder.encode(part, StandardCharsets.UTF_8);
+                String encode = URLEncoder.encode(part, StandardCharsets.UTF_8).replace("+", "%20");
                 target = target.path(encode);
             }
         }

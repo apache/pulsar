@@ -41,6 +41,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.PrivateKey;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -52,13 +53,26 @@ import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException;
 import org.apache.pulsar.client.api.url.URL;
+import org.apache.pulsar.client.api.v5.internal.V5AuthenticationProvider;
 import org.apache.pulsar.client.impl.AuthenticationUtil;
+import org.apache.pulsar.client.impl.auth.v5.AthenzAuthenticationV5;
 
-public class AuthenticationAthenz implements Authentication, EncodedAuthenticationParameterSupport {
+/**
+ * Athenz authentication provider.
+ *
+ * <p>The verbatim v4 synchronous surface ({@link #getAuthData()} / {@link AuthenticationDataAthenz}) is
+ * preserved for callers of the v4 API; PIP-478 additionally exposes the v5-native body through
+ * {@link V5AuthenticationProvider} — the v5-native {@link AthenzAuthenticationV5}, which the client drives
+ * over the non-blocking binary path without bridging this class. The ZTS role-token exchange and its cache
+ * stay here, on the Athenz SDK's own transport.
+ */
+public class AuthenticationAthenz
+        implements Authentication, EncodedAuthenticationParameterSupport, V5AuthenticationProvider {
 
     private static final long serialVersionUID = 1L;
 
     private static final String APPLICATION_X_PEM_FILE = "application/x-pem-file";
+
 
     private transient KeyRefresher keyRefresher = null;
     private transient ZTSClient ztsClient = null;
@@ -95,6 +109,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         return "athenz";
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         Lock readLock = cachedRoleTokenLock.readLock();
@@ -132,6 +147,51 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         // Ensure we refresh the Athenz role token every 90 minutes to avoid using an expired
         // role token
         return (System.nanoTime() - cachedRoleTokenTimestamp) < TimeUnit.MINUTES.toNanos(cacheDurationInMinutes);
+    }
+
+    @Override
+    public org.apache.pulsar.client.api.v5.auth.Authentication v5Authentication() {
+        // PIP-478: the client drives this v5-native body. The ZTS role-token exchange and its cache stay on
+        // this shim — it runs on the Athenz SDK's own transport, which the framework does not own — and the
+        // body reads the current role token through the provider below.
+        return new AthenzAuthenticationV5(new ShimRoleTokenProvider(this));
+    }
+
+    @SuppressWarnings("deprecation")
+    private String currentRoleToken() {
+        try {
+            return getAuthData().getCommandData();
+        } catch (PulsarClientException e) {
+            // Wrap in CompletionException, not a bare RuntimeException: on the async binary path this runs
+            // inside V5AuthContexts.supplyBlocking, and BinaryAuthenticationExchange strips exactly one
+            // CompletionException layer before mapping to the v4 exception type. A RuntimeException would
+            // survive that single unwrap and flatten a GettingAuthenticationDataException (transient
+            // credential-acquisition failure) into a generic PulsarClientException.
+            throw new CompletionException(e);
+        }
+    }
+
+    private String currentRoleHeaderName() {
+        return isNotBlank(roleHeader) ? roleHeader : ZTSClient.getHeader();
+    }
+
+    private static final class ShimRoleTokenProvider implements AthenzAuthenticationV5.RoleTokenProvider {
+        private static final long serialVersionUID = 1L;
+        private final AuthenticationAthenz shim;
+
+        ShimRoleTokenProvider(AuthenticationAthenz shim) {
+            this.shim = shim;
+        }
+
+        @Override
+        public String roleToken() {
+            return shim.currentRoleToken();
+        }
+
+        @Override
+        public String roleHeaderName() {
+            return shim.currentRoleHeaderName();
+        }
     }
 
     @Override
@@ -229,7 +289,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
                         privateKey, keyId);
                 ztsClient = new ZTSClient(ztsUrl, ztsProxyUrl, tenantDomain, tenantService, siaProvider);
             }
-            ztsClient.setPrefetchAutoEnable(this.autoPrefetchEnabled);
+            ZTSClient.setPrefetchAutoEnable(this.autoPrefetchEnabled);
         }
         return ztsClient;
     }

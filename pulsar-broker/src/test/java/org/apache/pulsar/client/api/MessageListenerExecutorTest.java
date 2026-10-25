@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertTrue;
 import com.google.common.util.concurrent.Uninterruptibles;
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,41 +31,34 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
+import lombok.CustomLog;
+import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
-public class MessageListenerExecutorTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(MessageListenerExecutorTest.class);
+@CustomLog
+public class MessageListenerExecutorTest extends SharedPulsarBaseTest {
 
-    @BeforeClass(alwaysRun = true)
-    @Override
-    protected void setup() throws Exception {
-        super.internalSetup();
-        super.producerBaseSetup();
-    }
+    protected String methodName;
 
-    @AfterClass(alwaysRun = true)
-    @Override
-    protected void cleanup() throws Exception {
-        super.internalCleanup();
-    }
-
-    @Override
-    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-        // Set listenerThreads to 1 to reproduce the pr more easily in #22861
-        clientBuilder.listenerThreads(1);
+    @BeforeMethod(alwaysRun = true)
+    public void setTestMethodName(Method m) {
+        methodName = m.getName();
     }
 
     @Test
     public void testConsumerMessageListenerExecutorIsolation() throws Exception {
-        log.info("-- Starting {} test --", methodName);
+        log.info().attr("starting", methodName).log("-- Starting test");
+
+        @Cleanup
+        PulsarClient customClient = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .listenerThreads(1)
+                .build();
 
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newCachedThreadPool();
@@ -77,7 +71,8 @@ public class MessageListenerExecutorTest extends ProducerConsumerBase {
             // The maxConsumeDelayWithDisableIsolation of all consumers
             // should be greater than sleepTimeMs cause by disable MessageListenerExecutor.
             CompletableFuture<Long> maxConsumeDelayFuture = startConsumeAndComputeMaxConsumeDelay(
-                    "persistent://my-property/my-ns/testConsumerMessageListenerDisableIsolation-" + i,
+                    customClient,
+                    newTopicName(),
                     "my-sub-testConsumerMessageListenerDisableIsolation-" + i,
                     i == 0 ? Duration.ofMillis(consumeSleepTimeMs) : Duration.ofMillis(0),
                     false,
@@ -99,7 +94,8 @@ public class MessageListenerExecutorTest extends ProducerConsumerBase {
             // should be greater than sleepTimeMs, and the others should be
             // less than sleepTimeMs, cause by enable MessageListenerExecutor.
             CompletableFuture<Long> maxConsumeDelayFuture = startConsumeAndComputeMaxConsumeDelay(
-                    "persistent://my-property/my-ns/testConsumerMessageListenerEnableIsolation-" + i,
+                    customClient,
+                    newTopicName(),
                     "my-sub-testConsumerMessageListenerEnableIsolation-" + i,
                     i == 0 ? Duration.ofMillis(consumeSleepTimeMs) : Duration.ofMillis(0),
                     true,
@@ -114,10 +110,11 @@ public class MessageListenerExecutorTest extends ProducerConsumerBase {
                 .allMatch(delay -> delay < 1000);
         assertTrue(remainingAlmostNoDelay);
 
-        log.info("-- Exiting {} test --", methodName);
+        log.info().attr("exiting", methodName).log("-- Exiting test");
     }
 
-    private CompletableFuture<Long> startConsumeAndComputeMaxConsumeDelay(String topic, String subscriptionName,
+    private CompletableFuture<Long> startConsumeAndComputeMaxConsumeDelay(PulsarClient theClient, String topic,
+                                                                         String subscriptionName,
                                                                          Duration consumeSleepTime,
                                                                          boolean enableMessageListenerExecutorIsolation,
                                                                          ExecutorService executorService)
@@ -130,12 +127,12 @@ public class MessageListenerExecutorTest extends ProducerConsumerBase {
 
         AtomicLong maxConsumeDelay = new AtomicLong(-1);
         ConsumerBuilder<Long> consumerBuilder =
-                pulsarClient.newConsumer(Schema.INT64)
+                theClient.newConsumer(Schema.INT64)
                         .topic(nonIsolationTopicName.toString())
                         .subscriptionName(subscriptionName)
                         .messageListener((c1, msg) -> {
                             Assert.assertNotNull(msg, "Message cannot be null");
-                            log.debug("Received message [{}] in the listener", msg.getValue());
+                            log.debug().attr("value", msg.getValue()).log("Received message [] in the listener");
                             c1.acknowledgeAsync(msg);
                             maxConsumeDelay.set(Math.max(maxConsumeDelay.get(),
                                     System.currentTimeMillis() - msg.getValue()));
@@ -152,7 +149,7 @@ public class MessageListenerExecutorTest extends ProducerConsumerBase {
         }
 
         Consumer<Long> consumer = consumerBuilder.subscribe();
-        ProducerBuilder<Long> producerBuilder = pulsarClient.newProducer(Schema.INT64)
+        ProducerBuilder<Long> producerBuilder = theClient.newProducer(Schema.INT64)
                 .topic(nonIsolationTopicName.toString());
 
         Producer<Long> producer = producerBuilder.create();

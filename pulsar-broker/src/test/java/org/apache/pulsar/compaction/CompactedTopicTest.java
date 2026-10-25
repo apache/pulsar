@@ -382,6 +382,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(compactedMsgCount, 1);
         Assert.assertEquals(nonCompactedMsgCount, numMessages);
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testLastMessageIdForCompactedLedger() throws Exception {

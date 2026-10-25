@@ -21,8 +21,10 @@ package org.apache.pulsar.client.impl.auth.oauth2;
 import java.net.URL;
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.impl.auth.oauth2.protocol.DefaultMetadataResolver;
+import org.apache.pulsar.client.impl.auth.oauth2.protocol.TokenEndpointAuthMethod;
 
 /**
  * Factory class that allows to create {@link Authentication} instances
@@ -92,16 +94,33 @@ public final class AuthenticationFactoryOAuth2 {
 
         private URL issuerUrl;
         private URL credentialsUrl;
+        private TokenEndpointAuthMethod tokenEndpointAuthMethod = TokenEndpointAuthMethod.CLIENT_SECRET_POST;
+        private String clientId;
+        private String tlsCertFile;
+        private String tlsKeyFile;
         private String audience;
         private String scope;
         private Duration connectTimeout;
         private Duration readTimeout;
         private String trustCertsFilePath;
         private String wellKnownMetadataPath;
+        private Duration autoCertRefreshDuration;
         private double earlyTokenRefreshPercent = AuthenticationOAuth2.EARLY_TOKEN_REFRESH_PERCENT_DEFAULT;
         private ScheduledExecutorService scheduler;
 
         private ClientCredentialsBuilder() {
+        }
+
+        /**
+         * Optional token endpoint auth method.
+         * Defaults to {@code client_secret_post}.
+         *
+         * @param tokenEndpointAuthMethod the token endpoint auth method
+         * @return the builder
+         */
+        public ClientCredentialsBuilder tokenEndpointAuthMethod(TokenEndpointAuthMethod tokenEndpointAuthMethod) {
+            this.tokenEndpointAuthMethod = tokenEndpointAuthMethod;
+            return this;
         }
 
         /**
@@ -117,12 +136,50 @@ public final class AuthenticationFactoryOAuth2 {
 
         /**
          * Required credentials URL.
+         * Only used by {@code client_secret_post}
          *
          * @param credentialsUrl the credentials URL
          * @return the builder
          */
         public ClientCredentialsBuilder credentialsUrl(URL credentialsUrl) {
             this.credentialsUrl = credentialsUrl;
+            return this;
+        }
+
+        /**
+         * Optional path to the file for a client certificate.
+         * Required when {@code tokenEndpointAuthMethod} is {@code tls_client_auth}
+         *
+         * @param tlsCertFile the path to the file for a client certificate
+         * @return the builder
+         */
+        public ClientCredentialsBuilder tlsCertFile(String tlsCertFile) {
+            this.tlsCertFile = tlsCertFile;
+            return this;
+        }
+
+        /**
+         * Optional path to the file for a client private key.
+         * Required when {@code tokenEndpointAuthMethod} is {@code tls_client_auth}
+         *
+         * @param tlsKeyFile the path to the file for a client private key
+         * @return the builder
+         */
+        public ClientCredentialsBuilder tlsKeyFile(String tlsKeyFile) {
+            this.tlsKeyFile = tlsKeyFile;
+            return this;
+        }
+
+        /**
+         * Optional client identifier issued by the authorization server.
+         * Only used by {@code tls_client_auth}.
+         * Defaults to {@code pulsar-client} when not provided.
+         *
+         * @param clientId the client identifier
+         * @return the builder
+         */
+        public ClientCredentialsBuilder clientId(String clientId) {
+            this.clientId = clientId;
             return this;
         }
 
@@ -197,6 +254,17 @@ public final class AuthenticationFactoryOAuth2 {
         }
 
         /**
+         * Optional certificate refresh interval.
+         *
+         * @param autoCertRefreshDuration the Certificate refresh interval
+         * @return the builder
+         */
+        public ClientCredentialsBuilder autoCertRefreshDuration(Duration autoCertRefreshDuration) {
+            this.autoCertRefreshDuration = autoCertRefreshDuration;
+            return this;
+        }
+
+        /**
          * The fraction of the token's {@code expires_in} time at which the client starts attempting
          * a background refresh. Must be greater than 0. Values &ge; 1 disable early refresh (the default).
          *
@@ -236,16 +304,41 @@ public final class AuthenticationFactoryOAuth2 {
          * @return an Authentication object
          */
         public Authentication build() {
-            ClientCredentialsFlow flow = ClientCredentialsFlow.builder()
-                    .issuerUrl(issuerUrl)
-                    .privateKey(credentialsUrl == null ? null : credentialsUrl.toExternalForm())
-                    .audience(audience)
-                    .scope(scope)
-                    .connectTimeout(connectTimeout)
-                    .readTimeout(readTimeout)
-                    .trustCertsFilePath(trustCertsFilePath)
-                    .wellKnownMetadataPath(wellKnownMetadataPath)
-                    .build();
+            Flow flow;
+            if (tokenEndpointAuthMethod == TokenEndpointAuthMethod.CLIENT_SECRET_POST) {
+                flow = ClientCredentialsFlow.builder()
+                        .issuerUrl(issuerUrl)
+                        .privateKey(credentialsUrl == null ? null : credentialsUrl.toExternalForm())
+                        .audience(audience)
+                        .scope(scope)
+                        .connectTimeout(connectTimeout)
+                        .readTimeout(readTimeout)
+                        .trustCertsFilePath(trustCertsFilePath)
+                        .certFile(tlsCertFile)
+                        .keyFile(tlsKeyFile)
+                        .autoCertRefreshDuration(autoCertRefreshDuration)
+                        .wellKnownMetadataPath(wellKnownMetadataPath)
+                        .build();
+            } else if (tokenEndpointAuthMethod == TokenEndpointAuthMethod.TLS_CLIENT_AUTH) {
+                if (StringUtils.isBlank(tlsCertFile) || StringUtils.isBlank(tlsKeyFile)) {
+                    throw new IllegalArgumentException("Required configuration parameters: tlsCertFile, tlsKeyFile");
+                }
+                flow = TlsClientAuthFlow.builder()
+                        .issuerUrl(issuerUrl)
+                        .clientId(clientId)
+                        .certFile(tlsCertFile)
+                        .keyFile(tlsKeyFile)
+                        .audience(audience)
+                        .scope(scope)
+                        .connectTimeout(connectTimeout)
+                        .readTimeout(readTimeout)
+                        .trustCertsFilePath(trustCertsFilePath)
+                        .wellKnownMetadataPath(wellKnownMetadataPath)
+                        .autoCertRefreshDuration(autoCertRefreshDuration)
+                        .build();
+            } else {
+                throw new IllegalArgumentException("Unsupported auth method: " + tokenEndpointAuthMethod);
+            }
             return new AuthenticationOAuth2(flow, earlyTokenRefreshPercent, scheduler);
         }
 

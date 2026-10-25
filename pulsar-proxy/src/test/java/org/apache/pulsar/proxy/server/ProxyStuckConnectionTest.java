@@ -25,6 +25,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -43,8 +44,6 @@ import org.apache.pulsar.client.impl.BinaryProtoLookupService;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testcontainers.Testcontainers;
 import org.testcontainers.containers.SocatContainer;
 import org.testng.Assert;
@@ -52,9 +51,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@CustomLog
 public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(ProxyStuckConnectionTest.class);
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig;
@@ -181,14 +179,21 @@ public class ProxyStuckConnectionTest extends MockedPulsarServiceBaseTest {
                 break;
             }
             String msgString = new String(msg.getData());
-            log.info("Received message {}", msgString);
+            log.info()
+                    .attr("msgString", msgString)
+                    .log("Received message");
             try {
                 consumer.acknowledge(msg);
             } catch (PulsarClientException e) {
-                log.error("Failed to ack message {}", msgString, e);
+                log.error()
+                        .attr("msgString", msgString)
+                        .exception(e)
+                        .log("Failed to ack message");
             }
             messages.remove(msgString);
-            log.info("Remaining messages {}", messages.size());
+            log.info()
+                    .attr("size", messages.size())
+                    .log("Remaining messages");
             if (messages.size() == 0) {
                 break;
             }

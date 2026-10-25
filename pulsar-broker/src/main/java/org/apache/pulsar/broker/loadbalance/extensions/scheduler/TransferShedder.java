@@ -42,6 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
@@ -63,8 +64,6 @@ import org.apache.pulsar.broker.loadbalance.extensions.policies.IsolationPolicie
 import org.apache.pulsar.broker.loadbalance.extensions.store.LoadDataStore;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Load shedding strategy that unloads bundles from the highest loaded brokers.
@@ -89,8 +88,8 @@ import org.slf4j.LoggerFactory;
  * 9. Print more logs with a debug option(loadBalancerDebugModeEnabled=true).
  */
 @NoArgsConstructor
+@CustomLog
 public class TransferShedder implements NamespaceUnloadStrategy {
-    private static final Logger log = LoggerFactory.getLogger(TransferShedder.class);
     private static final double KB = 1024;
     private static final String CANNOT_CONTINUE_UNLOAD_MSG = "Can't continue the unload cycle.";
     private static final String CANNOT_UNLOAD_BROKER_MSG = "Can't unload broker:%s.";
@@ -220,8 +219,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 // We don't want to use the outdated load data.
                 if (now - localBrokerData.getUpdatedAt()
                         > conf.getLoadBalancerBrokerLoadDataTTLInSeconds() * 1000) {
-                    log.warn(
-                            "Ignoring broker:{} load update because the load data timestamp:{} is too old.",
+                    log.warnf(
+                            "Ignoring broker:%s load update because the load data timestamp:%s is too old.",
                             broker, localBrokerData.getUpdatedAt());
                     decisionReason = OutDatedData;
                     continue;
@@ -232,9 +231,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     var elapsed = localBrokerData.getUpdatedAt() - recentlyUnloadedBrokers.get(broker);
                     if (elapsed < conf.getLoadBalanceSheddingDelayInSeconds() * 1000) {
                         if (debug) {
-                            log.warn(
-                                    "Broker:{} load data is too early since "
-                                            + "the last transfer. elapsed {} secs < threshold {} secs",
+                            log.warnf(
+                                    "Broker:%s load data is too early since "
+                                            + "the last transfer. elapsed %s secs < threshold %s secs",
                                     broker,
                                     TimeUnit.MILLISECONDS.toSeconds(elapsed),
                                     conf.getLoadBalanceSheddingDelayInSeconds());
@@ -268,7 +267,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                 decisionReason = NoLoadData;
                 update(0.0, 0.0, 0);
                 if (debug) {
-                    log.info("There is missing load data from brokers:{}", missingLoadDataBrokers);
+                    log.info().attr("broker", missingLoadDataBrokers).log("There is missing load data from brokers");
                 }
                 return Optional.of(decisionReason);
             }
@@ -327,7 +326,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (ExecutionException | InterruptedException | TimeoutException e) {
             counter.update(Failure, Unknown);
-            log.warn("Failed to fetch available brokers. Stop unloading.", e);
+            log.warn().exception(e).log("Failed to fetch available brokers. Stop unloading");
             return decisionCache;
         }
 
@@ -340,8 +339,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     context.brokerLoadDataStore(), availableBrokers, recentlyUnloadedBrokers, conf);
             if (skipReason.isPresent()) {
                 if (debugMode) {
-                    log.warn(CANNOT_CONTINUE_UNLOAD_MSG
-                                    + " Skipped the load stat update. Reason:{}.",
+                    log.warnf(CANNOT_CONTINUE_UNLOAD_MSG
+                                    + " Skipped the load stat update. Reason:%s.",
                             skipReason.get());
                 }
                 counter.update(Skip, skipReason.get());
@@ -352,7 +351,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
 
             if (debugMode) {
-                log.info("brokers' load stats:{}", stats);
+                log.info().attr("stats", stats).log("brokers' load stats");
             }
 
             // skip metrics
@@ -371,8 +370,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
 
             if (unloadConditionHitCount <= conf.getLoadBalancerSheddingConditionHitCountThreshold()) {
                 if (debugMode) {
-                    log.info(CANNOT_CONTINUE_UNLOAD_MSG
-                                    + " Shedding condition hit count:{} is less than or equal to the threshold:{}.",
+                    log.infof(CANNOT_CONTINUE_UNLOAD_MSG
+                                    + " Shedding condition hit count:%s is less than or equal to the threshold:%s.",
                             unloadConditionHitCount, conf.getLoadBalancerSheddingConditionHitCountThreshold());
                 }
                 counter.update(Skip, HitCount);
@@ -412,9 +411,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     }
                 } else {
                     if (debugMode) {
-                        log.info(CANNOT_CONTINUE_UNLOAD_MSG
-                                        + "The overall cluster load meets the target, std:{} <= targetStd:{}."
-                                        + "minBroker:{} is not underloaded. maxBroker:{} is not overloaded.",
+                        log.infof(CANNOT_CONTINUE_UNLOAD_MSG
+                                        + "The overall cluster load meets the target, std:%s <= targetStd:%s."
+                                        + "minBroker:%s is not underloaded. maxBroker:%s is not overloaded.",
                                 stats.std(), targetStd, stats.peekMinBroker(), stats.peekMaxBroker());
                     }
                     break;
@@ -431,7 +430,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                     continue;
                 }
                 if (minBrokerLoadData.isEmpty()) {
-                    log.error("Can't transfer load to broker:{}. MinBrokerLoadData is empty.", minBroker);
+                    log.error().attr("broker", minBroker)
+                            .log("Can't transfer load. MinBrokerLoadData is empty");
                     numOfBrokersWithEmptyLoadData++;
                     continue;
                 }
@@ -606,8 +606,9 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                         if (swap) {
                             minToMaxUnloads.forEach(minToMaxUnload -> {
                                 if (debugMode) {
-                                    log.info("Decided to gain bundle:{} from min broker:{}",
-                                            minToMaxUnload.serviceUnit(), minToMaxUnload.sourceBroker());
+                                    log.info().attr("bundle", minToMaxUnload.serviceUnit())
+                                            .attr("broker", minToMaxUnload.sourceBroker())
+                                            .log("Decided to gain bundle from min broker");
                                 }
                                 var decision = new UnloadDecision();
                                 decision.setUnload(minToMaxUnload);
@@ -665,7 +666,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             } // while end
 
             if (debugMode) {
-                log.info("decisionCache:{}", decisionCache);
+                log.info().attr("decisionCache", decisionCache).log("decisionCache");
             }
 
             if (decisionCache.isEmpty()) {
@@ -683,7 +684,7 @@ public class TransferShedder implements NamespaceUnloadStrategy {
             }
 
         } catch (Throwable e) {
-            log.error("Failed to process unloading. ", e);
+            log.error().exception(e).log("Failed to process unloading. ");
             this.counter.update(Failure, Unknown);
         }
         return decisionCache;
@@ -752,7 +753,8 @@ public class TransferShedder implements NamespaceUnloadStrategy {
                         .get(context.brokerConfiguration().getMetadataStoreOperationTimeoutSeconds(),
                                 TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                log.error("Failed to filter brokers with filter: {}", filter.getClass().getName(), e);
+                log.error().attr("filter", filter.getClass().getName()).exception(e)
+                        .log("Failed to filter brokers with filter");
                 return false;
             }
         }

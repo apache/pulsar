@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -32,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -40,16 +47,14 @@ import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.awaitility.Awaitility;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
+@SuppressWarnings("unchecked")
+@CustomLog
 public class InterceptorsTest extends SharedPulsarBaseTest {
-
-    private static final Logger log = LoggerFactory.getLogger(InterceptorsTest.class);
 
     @DataProvider(name = "receiverQueueSize")
     public Object[][] getReceiverQueueSize() {
@@ -134,14 +139,15 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
                                       .value("Hello Pulsar!").send();
         Assert.assertEquals(ackCallback.get(messageId),
                             Arrays.asList(interceptor1.tag, interceptor2.tag));
-        log.info("Send result messageId: {}", messageId);
+        log.info().attr("resultMessageId", messageId).log("Send result messageId");
         MessageId messageId2 = producer.newMessage(Schema.INT32).property("INT", "Y")
                                        .value(18).send();
         Assert.assertEquals(ackCallback.get(messageId2),
                             Arrays.asList(interceptor1.tag, interceptor3.tag));
-        log.info("Send result messageId: {}", messageId2);
+        log.info().attr("resultMessageId", messageId2).log("Send result messageId");
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testProducerInterceptorsWithExceptions() throws PulsarClientException {
@@ -158,6 +164,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onSendAcknowledgement(Producer<String> producer, Message<String> message,
                                               MessageId msgId, Throwable exception) {
                 throw new IllegalArgumentException();
@@ -172,6 +179,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         Assert.assertNotNull(messageId);
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testProducerInterceptorsWithErrors() throws PulsarClientException {
@@ -188,6 +196,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onSendAcknowledgement(Producer<String> producer, Message<String> message,
                                               MessageId msgId, Throwable exception) {
                 throw new AbstractMethodError();
@@ -202,6 +211,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         Assert.assertNotNull(messageId);
         producer.close();
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testProducerInterceptorAccessMessageData() throws PulsarClientException {
@@ -220,6 +230,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onSendAcknowledgement(Producer<String> producer, Message<String> message, MessageId msgId,
                                               Throwable exception) {
                 messageDataOnSendAcknowledgement.add(new String(message.getData()));
@@ -276,6 +287,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
                 throw new AbstractMethodError();
             }
@@ -338,12 +350,13 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
 
             @Override
             public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
+                log.info().attr("onacknowledgeMessageId", messageId).exception(cause).log("onAcknowledge messageId");
             }
 
             @Override
             public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
+                log.info().attr("onacknowledgecumulativeMessageIds", messageId).exception(cause)
+                        .log("onAcknowledgeCumulative messageIds");
             }
 
             @Override
@@ -352,6 +365,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
@@ -397,6 +411,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         consumer.acknowledge(received);
         consumer.close();
 
+        @SuppressWarnings("unchecked")
         final CompletableFuture<Message<String>> future = new CompletableFuture<>();
         consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
@@ -450,12 +465,13 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
 
             @Override
             public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
+                log.info().attr("onacknowledgeMessageId", messageId).exception(cause).log("onAcknowledge messageId");
             }
 
             @Override
             public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
+                log.info().attr("onacknowledgecumulativeMessageIds", messageId).exception(cause)
+                        .log("onAcknowledgeCumulative messageIds");
             }
 
             @Override
@@ -464,6 +480,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
@@ -527,7 +544,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             @Override
             public Message<String> beforeConsume(Consumer<String> consumer, Message<String> message) {
                 beforeConsumeCount.incrementAndGet();
-                log.info("beforeConsume messageId: {}", message.getMessageId());
+                log.info().attr("beforeconsumeMessageId", message.getMessageId()).log("beforeConsume messageId");
                 return message;
             }
 
@@ -548,6 +565,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
         };
 
+        @SuppressWarnings("unchecked")
         final String topicName = newTopicName();
 
         if (partitions > 0) {
@@ -608,12 +626,13 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
 
             @Override
             public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
+                log.info().attr("onacknowledgeMessageId", messageId).exception(cause).log("onAcknowledge messageId");
             }
 
             @Override
             public void onAcknowledgeCumulative(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
+                log.info().attr("onacknowledgecumulativeMessageIds", messageId).exception(cause)
+                        .log("onAcknowledgeCumulative messageIds");
             }
 
             @Override
@@ -622,6 +641,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
@@ -683,7 +703,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
 
             @Override
             public void onAcknowledge(Consumer<String> consumer, MessageId messageId, Throwable cause) {
-                log.info("onAcknowledge messageId: {}", messageId, cause);
+                log.info().attr("onacknowledgeMessageId", messageId).exception(cause).log("onAcknowledge messageId");
             }
 
             @Override
@@ -691,7 +711,8 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
                 long acknowledged = ackHolder.stream().filter(m -> (m.compareTo(messageId) <= 0)).count();
                 Assert.assertEquals(acknowledged, 100);
                 ackHolder.clear();
-                log.info("onAcknowledgeCumulative messageIds: {}", messageId, cause);
+                log.info().attr("onacknowledgecumulativeMessageIds", messageId).exception(cause)
+                        .log("onAcknowledgeCumulative messageIds");
             }
 
             @Override
@@ -700,6 +721,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
@@ -777,6 +799,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
@@ -851,6 +874,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
                 Assert.assertTrue(latch.getCount() > 0);
                 messageIds.forEach(messageId -> latch.countDown());
@@ -920,6 +944,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onPartitionsChange(String topicName, int partitions) {
                 newPartition.set(partitions);
             }
@@ -991,7 +1016,9 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         produceAndConsume(msgCount * 2, producer, reader);
         Assert.assertFalse(interceptor1.encounterException.get());
         Assert.assertTrue(interceptor2.encounterException.get());
-        Assert.assertTrue(interceptor3.encounterException.get());
+        // interceptor3 is on reader2 (listener-based), so messages are delivered asynchronously
+        Awaitility.await().untilAsserted(
+                () -> Assert.assertTrue(interceptor3.encounterException.get()));
         Assert.assertNull(reader.readNext(3, TimeUnit.SECONDS));
     }
 
@@ -1043,6 +1070,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             }
 
             @Override
+            @SuppressWarnings("unchecked")
             public void onAckTimeoutSend(Consumer<String> consumer, Set<MessageId> messageIds) {
 
             }
@@ -1089,6 +1117,88 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testProducerInterceptorClosedOnceOnProducerClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor =
+                mock(org.apache.pulsar.client.api.interceptor.ProducerInterceptor.class);
+        when(interceptor.eligible(any())).thenReturn(true);
+        when(interceptor.beforeSend(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .intercept(interceptor)
+                .create();
+        producer.send("msg");
+        verify(interceptor).beforeSend(any(), any());
+        verify(interceptor, never()).close();
+
+        producer.close();
+        producer.close();
+
+        verify(interceptor).close();
+    }
+
+    @Test
+    public void testProducerInterceptorSharedByTwoProducersClosedForEach() throws Exception {
+        String topic = newTopicName();
+        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor =
+                mock(org.apache.pulsar.client.api.interceptor.ProducerInterceptor.class);
+        ProducerBuilder<String> builder = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .intercept(interceptor);
+        Producer<String> producer1 = builder.create();
+        Producer<String> producer2 = builder.create();
+
+        producer1.close();
+        verify(interceptor).close();
+
+        producer2.close();
+        verify(interceptor, times(2)).close();
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testConsumerInterceptorClosedOnceOnConsumerClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+        ConsumerInterceptor<String> interceptor = mock(ConsumerInterceptor.class);
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .intercept(interceptor)
+                .subscribe();
+        verify(interceptor, never()).close();
+
+        consumer.close();
+        consumer.close();
+
+        verify(interceptor).close();
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testReaderInterceptorClosedOnceOnReaderClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+        ReaderInterceptor<String> interceptor = mock(ReaderInterceptor.class);
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .intercept(interceptor)
+                .create();
+        verify(interceptor, never()).close();
+
+        reader.close();
+        reader.close();
+
+        verify(interceptor).close();
     }
 
     private void produceAndConsume(int msgCount, Producer<byte[]> producer, Reader<byte[]> reader)

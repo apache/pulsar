@@ -28,22 +28,26 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import lombok.CustomLog;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -76,7 +80,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
-@Slf4j
+@CustomLog
 public class FilterEntryTest extends BrokerTestBase {
     @BeforeMethod
     @Override
@@ -89,7 +93,6 @@ public class FilterEntryTest extends BrokerTestBase {
     protected void cleanup() throws Exception {
         internalCleanup();
     }
-
 
     @Test
     public void testOverride() throws Exception {
@@ -132,7 +135,6 @@ public class FilterEntryTest extends BrokerTestBase {
         }
         // All normal messages can be received
         assertEquals(0, counter);
-
 
         conf.setAllowOverrideEntryFilters(false);
         consumer.close();
@@ -389,7 +391,6 @@ public class FilterEntryTest extends BrokerTestBase {
                 assertNotNull(producer.newMessage().property("REJECT", "").value("1").send());
             }
 
-
             int counter = 0;
             while (true) {
                 Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
@@ -408,7 +409,6 @@ public class FilterEntryTest extends BrokerTestBase {
             assertEquals(filtered, 10);
         }
     }
-
 
     @Override
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
@@ -501,7 +501,8 @@ public class FilterEntryTest extends BrokerTestBase {
                         Message<String> message = consumer1.receive(1, TimeUnit.MINUTES);
                         if (message != null) {
                             counter++;
-                            log.info("received1 {} - {} - {}", message.getValue(), message.getProperties(), counter);
+                            log.info().attr("received1", message.getValue()).attr("properties", message.getProperties())
+                                    .attr("counter", counter).log("received1");
                             assertTrue(message.getValue().startsWith("consumer-1 "), message.getValue());
                             consumer1.acknowledgeAsync(message);
                         } else {
@@ -525,7 +526,8 @@ public class FilterEntryTest extends BrokerTestBase {
                         Message<String> message = consumer2.receive(1, TimeUnit.MINUTES);
                         if (message != null) {
                             counter++;
-                            log.info("received2 {} - {} - {}", message.getValue(), message.getProperties(), counter);
+                            log.info().attr("received2", message.getValue()).attr("properties", message.getProperties())
+                                    .attr("counter", counter).log("received2");
                             assertTrue(message.getValue().startsWith("consumer-2 "), message.getValue());
                             consumer2.acknowledgeAsync(message);
                         } else {
@@ -542,7 +544,6 @@ public class FilterEntryTest extends BrokerTestBase {
             resultConsume2.get(1, TimeUnit.MINUTES);
         }
     }
-
 
     private void verifyBacklog(String topic, String subscription,
                                int numEntries, int numMessages, int numMarkerMessages,
@@ -565,12 +566,10 @@ public class FilterEntryTest extends BrokerTestBase {
         Assert.assertEquals(numMessagesRescheduled, a1.getFilterRescheduledMessages());
     }
 
-
     @DataProvider(name = "overrideBrokerEntryFilters")
     public static Object[][] overrideBrokerEntryFilters() {
         return new Object[][]{ {true}, {false} };
     }
-
 
     @Test(dataProvider = "overrideBrokerEntryFilters")
     public void testExecuteInOrder(boolean overrideBrokerEntryFilters) throws Exception {
@@ -597,7 +596,6 @@ public class FilterEntryTest extends BrokerTestBase {
                     .getTopicReference(topic).get(), List.of());
             setMockBrokerFilter(List.of(mockFilterReject, mockFilterAccept));
         }
-
 
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
                 .subscriptionInitialPosition(Earliest)
@@ -651,6 +649,48 @@ public class FilterEntryTest extends BrokerTestBase {
         verify(mockFilterAccept, times(10))
                 .filterEntry(any(Entry.class), any(FilterContext.class));
 
+    }
 
+    @Test
+    public void testAnalyzeBacklogDoesNotShareDispatcherFilterContext() throws Exception {
+        conf.setAllowOverrideEntryFilters(true);
+        String topic = "persistent://prop/ns-abc/topic" + UUID.randomUUID();
+        String subName = "sub";
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .enableBatching(false).topic(topic).create();
+
+        // The dispatcher passes the consumer to the filters, the backlog analysis passes null
+        Set<FilterContext> dispatchContexts = Collections.synchronizedSet(
+                Collections.newSetFromMap(new IdentityHashMap<>()));
+        Set<FilterContext> analyzeContexts = Collections.synchronizedSet(
+                Collections.newSetFromMap(new IdentityHashMap<>()));
+        EntryFilter recordingFilter = mock(EntryFilter.class);
+        doAnswer(invocation -> {
+            FilterContext context = invocation.getArgument(1);
+            (context.getConsumer() != null ? dispatchContexts : analyzeContexts).add(context);
+            return EntryFilter.FilterResult.ACCEPT;
+        }).when(recordingFilter).filterEntry(any(Entry.class), any(FilterContext.class));
+        setMockFilterToTopic((PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(topic).get(), List.of(recordingFilter));
+
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(topic)
+                .subscriptionName(subName).subscribe();
+        for (int i = 0; i < 10; i++) {
+            producer.send("test");
+        }
+        // Receive without acking, so the messages stay in the backlog for the analysis
+        for (int i = 0; i < 10; i++) {
+            assertNotNull(consumer.receive(5, TimeUnit.SECONDS));
+        }
+
+        verifyBacklog(topic, subName, 10, 10, 0, 10, 10, 0, 0, 0, 0);
+
+        assertFalse(dispatchContexts.isEmpty());
+        assertFalse(analyzeContexts.isEmpty());
+        for (FilterContext context : analyzeContexts) {
+            assertFalse(dispatchContexts.contains(context));
+        }
     }
 }

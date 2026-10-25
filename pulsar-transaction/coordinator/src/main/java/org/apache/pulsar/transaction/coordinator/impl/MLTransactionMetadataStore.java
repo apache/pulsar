@@ -32,6 +32,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
+import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
@@ -59,17 +60,13 @@ import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException
 import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry;
 import org.apache.pulsar.transaction.coordinator.proto.TransactionMetadataEntry.TransactionMetadataOp;
 import org.apache.pulsar.transaction.coordinator.proto.TxnStatus;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The provider that offers managed ledger implementation of {@link TransactionMetadataStore}.
  */
+@CustomLog
 public class MLTransactionMetadataStore
         extends TransactionMetadataStoreState implements TransactionMetadataStore {
-
-    private static final Logger log = LoggerFactory.getLogger(MLTransactionMetadataStore.class);
-
     private final TransactionCoordinatorID tcID;
     private final MLTransactionLogImpl transactionLog;
     @VisibleForTesting
@@ -220,7 +217,7 @@ public class MLTransactionMetadataStore
                         }
                     } catch (InvalidTxnStatusException  e) {
                         transactionLog.deletePosition(Collections.singletonList(position));
-                        log.error(e.getMessage(), e);
+                        log.error().exception(e).log(e.getMessage());
                     }
                 }
             }), internalPinnedExecutor, completableFuture);
@@ -331,9 +328,10 @@ public class MLTransactionMetadataStore
                                 promise.complete(null);
                             } catch (InvalidTxnStatusException e) {
                                 transactionLog.deletePosition(Collections.singletonList(position));
-                                log.error("TxnID {} add produced partition error"
-                                                + " with TxnStatus: {}", txnMetaListPair.getLeft().id().toString()
-                                        , txnMetaListPair.getLeft().status().name(), e);
+                                log.error().attr("txnId", txnMetaListPair.getLeft().id())
+                                        .attr("txnStatus", txnMetaListPair.getLeft().status().name())
+                                        .exception(e)
+                                        .log("add produced partition error");
                                 promise.completeExceptionally(e);
                             }
                         });
@@ -375,9 +373,10 @@ public class MLTransactionMetadataStore
                                 promise.complete(null);
                             } catch (InvalidTxnStatusException e) {
                                 transactionLog.deletePosition(Collections.singletonList(position));
-                                log.error("TxnID : " + txnMetaListPair.getLeft().id().toString()
-                                        + " add acked subscription error with TxnStatus : "
-                                        + txnMetaListPair.getLeft().status().name(), e);
+                                log.error().attr("txnId", txnMetaListPair.getLeft().id())
+                                        .attr("txnStatus", txnMetaListPair.getLeft().status().name())
+                                        .exception(e)
+                                        .log("add acked subscription error");
                                 promise.completeExceptionally(e);
                             }
                         });
@@ -419,6 +418,14 @@ public class MLTransactionMetadataStore
                             appendLogCount.increment();
                             try {
                                 synchronized (txnMetaListPair.getLeft()) {
+                                    if (txnMetaListPair.getLeft().status() == newStatus) {
+                                        transactionLog.deletePosition(Collections.singletonList(position));
+                                        log.debug().attr("txnId", txnID)
+                                                .attr("txnStatus", newStatus)
+                                                .log("Transaction status already updated concurrently");
+                                        promise.complete(null);
+                                        return;
+                                    }
                                     txnMetaListPair.getLeft().updateTxnStatus(newStatus, expectedStatus);
                                     txnMetaListPair.getRight().add(position);
                                 }
@@ -438,17 +445,19 @@ public class MLTransactionMetadataStore
                                         onGoingTxnCount.decrement();
                                     }
                                     transactionLog.deletePosition(txnMetaListPair.getRight()).exceptionally(ex -> {
-                                        log.warn("Failed to delete transaction log position "
-                                                + "at end transaction [{}]", txnID);
+                                        log.warn().attr("txnId", txnID)
+                                                .log("Failed to delete transaction log position"
+                                                        + " at end transaction");
                                         return null;
                                     });
                                 }
                                 promise.complete(null);
                             } catch (InvalidTxnStatusException e) {
                                 transactionLog.deletePosition(Collections.singletonList(position));
-                                log.error("TxnID : " + txnMetaListPair.getLeft().id().toString()
-                                        + " add update txn status error with TxnStatus : "
-                                        + txnMetaListPair.getLeft().status().name(), e);
+                                log.error().attr("txnId", txnMetaListPair.getLeft().id())
+                                        .attr("txnStatus", txnMetaListPair.getLeft().status().name())
+                                        .exception(e)
+                                        .log("add update txn status error");
                                 promise.completeExceptionally(e);
                             }
                         });

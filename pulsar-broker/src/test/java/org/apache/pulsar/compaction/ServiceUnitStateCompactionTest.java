@@ -323,6 +323,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             Assert.assertTrue(all.isEmpty());
         }
     }
+    @SuppressWarnings("deprecation")
 
 
     @Test
@@ -335,7 +336,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .create();
 
         ((ServiceUnitStateDataConflictResolver)
-                FieldUtils.readDeclaredField(tv, "compactionStrategy", true))
+                FieldUtils.readField(tv, "compactionStrategy", true))
                 .checkBrokers(false);
         TestData testData = generateTestData();
         var topic = testData.topic;
@@ -520,6 +521,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             Assert.assertEquals(m.getValue(), testValues.get(2));
         }
     }
+    @SuppressWarnings("deprecation")
 
     @Test
     public void testSlowTableviewAfterCompaction() throws Exception {
@@ -641,6 +643,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         pulsar2.close();
 
     }
+    @SuppressWarnings({"deprecation", "unchecked"})
 
     @Test
     public void testSlowReceiveTableviewAfterCompaction() throws Exception {
@@ -676,7 +679,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 new StrategicTwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
 
         var reader = ((CompletableFuture<ReaderImpl<ServiceUnitStateData>>) FieldUtils
-                .readDeclaredField(tv, "reader", true)).get();
+                .readField(tv, "reader", true)).get();
         var consumer = spy(reader.getConsumer());
         FieldUtils.writeDeclaredField(reader, "consumer", consumer, true);
         String bundle = "bundle1";

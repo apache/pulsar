@@ -600,6 +600,7 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
             delegate.trimConsumedLedgersInBackground(promise);
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public void rollCurrentLedgerIfFull() {
             delegate.rollCurrentLedgerIfFull();
@@ -714,6 +715,11 @@ public class CustomizedManagedLedgerStorageForTest extends ManagedLedgerClientFa
         @Override
         public void updateLastActive() {
             delegate.updateLastActive();
+        }
+
+        @Override
+        public void markIdle() {
+            delegate.markIdle();
         }
 
         @Override

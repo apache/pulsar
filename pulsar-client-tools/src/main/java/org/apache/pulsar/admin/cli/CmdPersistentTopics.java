@@ -607,6 +607,7 @@ public class CmdPersistentTopics extends CmdBase {
             required = true)
         private long entryId;
 
+        @SuppressWarnings("deprecation")
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);

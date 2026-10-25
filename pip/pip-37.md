@@ -2,7 +2,6 @@
 
 - Status: Implemented
 - Author: Rajan Dhabalia
-- Discussion Thread:
 - Release: 2.6.0
 - PR: #4400
 

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.admin.impl;
 
+import static org.apache.bookkeeper.mledger.ManagedCursor.CURSOR_INTERNAL_PROPERTY_PREFIX;
+import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
 import static org.apache.pulsar.common.api.proto.CompressionType.NONE;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isSystemTopic;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isTransactionCoordinatorAssign;
@@ -30,6 +32,12 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import io.netty.buffer.ByteBuf;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response.ResponseBuilder;
+import jakarta.ws.rs.core.Response.Status;
+import jakarta.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
@@ -38,6 +46,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -47,14 +56,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.ResponseBuilder;
-import javax.ws.rs.core.Response.Status;
-import javax.ws.rs.core.StreamingOutput;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -75,6 +80,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -87,6 +93,9 @@ import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
+import org.apache.pulsar.broker.stats.TopicInternalInfo;
+import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.OffloadProcessStatus;
@@ -153,19 +162,33 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  */
 public class PersistentTopicsBase extends AdminResource {
-    private static final Logger log = LoggerFactory.getLogger(PersistentTopicsBase.class);
+    private static final io.github.merlimat.slog.Logger LOG =
+            io.github.merlimat.slog.Logger.get(PersistentTopicsBase.class);
 
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
     private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
 
     protected CompletableFuture<List<String>> internalGetListAsync(Optional<String> bundle,
+                                                                   @Nullable Map<String, String> properties) {
+        return internalGetListAsync(null, bundle, properties);
+    }
+
+    /**
+     * Get the list of persistent topics in the namespace.
+     *
+     * @param asyncResponse the async response of the REST request. When provided, the topic list heap memory limit
+     *                      is applied and the permits are held until the response completes.
+     * @param bundle the optional bundle to filter the topics
+     * @param properties the topic listing properties (PIP-452)
+     * @return the list of topics
+     */
+    protected CompletableFuture<List<String>> internalGetListAsync(@Nullable AsyncResponse asyncResponse,
+                                                                   Optional<String> bundle,
                                                                    @Nullable Map<String, String> properties) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
             .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
@@ -174,8 +197,18 @@ public class PersistentTopicsBase extends AdminResource {
                     throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
                 }
             })
-            .thenCompose(__ -> pulsar().getNamespaceService().getListOfTopicsByProperties(namespaceName,
-               CommandGetTopicsOfNamespace.Mode.PERSISTENT, properties))
+            .thenCompose(__ -> {
+                Supplier<CompletableFuture<List<String>>> topicsSupplier = () -> pulsar().getNamespaceService()
+                        .getListOfTopicsByProperties(namespaceName, CommandGetTopicsOfNamespace.Mode.PERSISTENT,
+                                properties);
+                if (asyncResponse == null) {
+                    return topicsSupplier.get();
+                }
+                return TopicListResponseMemoryLimiter.listTopics(pulsar().getBrokerService(), asyncResponse,
+                        TopicListing.namespaceTopics(namespaceName.toString(),
+                                CommandGetTopicsOfNamespace.Mode.PERSISTENT),
+                        properties, topicsSupplier);
+            })
             .thenApply(topics ->
                 topics.stream()
                     .filter(topic -> {
@@ -194,17 +227,38 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<List<String>> internalGetPartitionedTopicListAsync() {
+        return internalGetPartitionedTopicListAsync(null);
+    }
+
+    /**
+     * Get the list of partitioned topics in the namespace.
+     *
+     * @param asyncResponse the async response of the REST request. When provided, the topic list heap memory limit
+     *                      is applied and the permits are held until the response completes.
+     * @return the list of partitioned topics
+     */
+    protected CompletableFuture<List<String>> internalGetPartitionedTopicListAsync(
+            @Nullable AsyncResponse asyncResponse) {
         return validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
                 .thenCompose(__ -> namespaceResources().namespaceExistsAsync(namespaceName))
                 .thenCompose(namespaceExists -> {
                     // Validate that namespace exists, throws 404 if it doesn't exist
                     if (!namespaceExists) {
-                        log.warn("[{}] Failed to get partitioned topic list {}: Namespace does not exist",
-                                clientAppId(), namespaceName);
+                        log.warn()
+                                .attr("namespace", namespaceName)
+                                .log("Failed to get partitioned topic list : Namespace does not exist");
                         throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-                    } else {
-                        return getPartitionedTopicListAsync(TopicDomain.getEnum(domain()));
                     }
+                    TopicDomain topicDomain = TopicDomain.getEnum(domain());
+                    if (asyncResponse == null) {
+                        return getPartitionedTopicListAsync(topicDomain);
+                    }
+                    CommandGetTopicsOfNamespace.Mode mode = topicDomain == TopicDomain.persistent
+                            ? CommandGetTopicsOfNamespace.Mode.PERSISTENT
+                            : CommandGetTopicsOfNamespace.Mode.NON_PERSISTENT;
+                    return TopicListResponseMemoryLimiter.listTopics(pulsar().getBrokerService(), asyncResponse,
+                            TopicListing.partitionedTopics(namespaceName.toString(), mode), null,
+                            () -> getPartitionedTopicListAsync(topicDomain));
                 });
     }
 
@@ -223,13 +277,6 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(topicName));
     }
 
-    protected void validateCreateTopic(TopicName topicName) {
-        if (isTransactionInternalName(topicName)) {
-            log.warn("Forbidden to create transaction internal topic: {}", topicName);
-            throw new RestException(Status.BAD_REQUEST, "Cannot create topic in system topic format!");
-        }
-    }
-
     public void validateAdminOperationOnTopic(boolean authoritative) {
         validateAdminAccessForTenant(topicName.getTenant());
         validateTopicOwnership(topicName, authoritative);
@@ -239,25 +286,34 @@ public class PersistentTopicsBase extends AdminResource {
         AuthorizationService authService = pulsar().getBrokerService().getAuthorizationService();
         if (null != authService) {
             return authService.grantPermissionAsync(topicUri, actions, role, null/*additional auth-data json*/)
-                    .thenAccept(__ -> log.info("[{}] Successfully granted access for role {}: {} - topic {}",
-                            clientAppId(), role, actions, topicUri))
+                    .thenAccept(__ -> log.info()
+                            .attr("role", role)
+                            .attr("actions", actions)
+                            .attr("topic", topicUri)
+                            .log("Successfully granted access for role on topic"))
                     .exceptionally(ex -> {
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                         //The IllegalArgumentException and the IllegalStateException were historically thrown by the
                         // grantPermissionAsync method, so we catch them here to ensure backwards compatibility.
                         if (realCause instanceof MetadataStoreException.NotFoundException
                                 || realCause instanceof IllegalArgumentException) {
-                            log.warn("[{}] Failed to set permissions for topic {}: Namespace does not exist",
-                                    clientAppId(), topicUri, realCause);
+                            log.warn()
+                                    .attr("topic", topicUri)
+                                    .exception(realCause)
+                                    .log("Failed to set permissions for topic: Namespace does not exist");
                             throw new RestException(Status.NOT_FOUND, "Topic's namespace does not exist");
                         } else if (realCause instanceof MetadataStoreException.BadVersionException
                                 || realCause instanceof IllegalStateException) {
-                            log.warn("[{}] Failed to set permissions for topic {}: {}", clientAppId(), topicUri,
-                                    realCause.getMessage(), realCause);
+                            log.warn()
+                                    .attr("topic", topicUri)
+                                    .exceptionMessage(realCause)
+                                    .log("Failed to set permissions for topic");
                             throw new RestException(Status.CONFLICT, "Concurrent modification");
                         } else {
-                            log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicUri,
-                                    realCause);
+                            log.error()
+                                    .attr("topic", topicUri)
+                                    .exceptionMessage(realCause)
+                                    .log("Failed to get permissions for topic");
                             throw new RestException(realCause);
                         }
                     });
@@ -284,7 +340,10 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenAccept(unused -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Failed to get permissions for topic {}", clientAppId(), topicName, realCause);
+                    log.error()
+                            .attr("topic", topicName)
+                            .exceptionMessage(realCause)
+                            .log("Failed to get permissions for topic");
                     resumeAsyncResponseExceptionally(asyncResponse, realCause);
                     return null;
                 });
@@ -320,7 +379,10 @@ public class PersistentTopicsBase extends AdminResource {
                 })
                 ).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                    log.error("[{}] Failed to revoke permissions for topic {}", clientAppId(), topicName, realCause);
+                    log.error()
+                            .attr("topic", topicName)
+                            .exceptionMessage(realCause)
+                            .log("Failed to revoke permissions for topic");
                     resumeAsyncResponseExceptionally(asyncResponse, realCause);
                     return null;
                 });
@@ -329,6 +391,7 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalCreateNonPartitionedTopicAsync(boolean authoritative,
                                                      Map<String, String> properties) {
         return validateNonPartitionTopicNameAsync(topicName.getLocalName())
+                .thenCompose(__ -> validateShadowTopicPropertiesAsync(properties))
                 .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
                 .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
            .thenCompose(__ -> validateNamespaceOperationAsync(topicName.getNamespaceObject(),
@@ -336,19 +399,23 @@ public class PersistentTopicsBase extends AdminResource {
            .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false, false))
            .thenAccept(partitionMetadata -> {
                if (partitionMetadata.partitions > 0) {
-                   log.warn("[{}] Partitioned topic with the same name already exists {}", clientAppId(), topicName);
+                   log.warn()
+                           .attr("exists", topicName)
+                           .log("Partitioned topic with the same name already exists");
                    throw new RestException(Status.CONFLICT, "This topic already exists");
                }
            })
            .thenCompose(__ -> pulsar().getBrokerService().getTopicIfExists(topicName.toString()))
            .thenCompose(existedTopic -> {
                if (existedTopic.isPresent()) {
-                   log.warn("[{}] Topic {} already exists", clientAppId(), topicName);
+                   log.warn().attr("topic", topicName).log("Topic already exists");
                    throw new RestException(Status.CONFLICT, "This topic already exists");
                }
                return pulsar().getBrokerService().getTopic(topicName.toString(), true, properties);
            })
-           .thenAccept(__ -> log.info("[{}] Successfully created non-partitioned topic {}", clientAppId(), topicName));
+           .thenAccept(__ -> log.info()
+                   .attr("topic", topicName)
+                   .log("Successfully created non-partitioned topic"));
     }
 
     /**
@@ -434,41 +501,8 @@ public class PersistentTopicsBase extends AdminResource {
                     .thenCompose(__ -> tryCreatePartitionsAsync(expectPartitions))
                     // because we should consider the compatibility.
                     // Copy subscriptions from partition 0 instead of being created by the customer
-                    .thenCompose(__ ->
-                            admin.topics().getStatsAsync(topicName.getPartition(0).toString())
-                                    .thenCompose(stats -> {
-                                        List<CompletableFuture<Void>> futures = stats.getSubscriptions().entrySet()
-                                                // We must not re-create non-durable subscriptions on the new partitions
-                                                .stream().filter(entry -> entry.getValue().isDurable())
-                                                .map(entry -> {
-                                                    final List<CompletableFuture<Void>> innerFutures =
-                                                            new ArrayList<>(expectPartitions);
-                                                    for (int i = 0; i < expectPartitions; i++) {
-                                                        innerFutures.add(admin.topics().createSubscriptionAsync(
-                                                                        topicName.getPartition(i).toString(),
-                                                                        entry.getKey(), MessageId.earliest,
-                                                                        entry.getValue().isReplicated(),
-                                                                        entry.getValue().getSubscriptionProperties())
-                                                                .exceptionally(ex -> {
-                                                                    Throwable rc =
-                                                                            FutureUtil.unwrapCompletionException(ex);
-                                                                    if (!(rc instanceof PulsarAdminException
-                                                                            .ConflictException)) {
-                                                                        log.warn("[{}] got an error while copying"
-                                                                                        + " the subscription to the"
-                                                                                        + " partition {}.", topicName,
-                                                                                Throwables.getRootCause(rc));
-                                                                        throw FutureUtil.wrapToCompletionException(rc);
-                                                                    }
-                                                                    // Ignore subscription already exist exception
-                                                                    return null;
-                                                                }));
-                                                    }
-                                                    return FutureUtil.waitForAll(innerFutures);
-                                                }).collect(Collectors.toList());
-                                        return FutureUtil.waitForAll(futures);
-                                    })
-                    );
+                    .thenCompose(__ -> copySubscriptionsAsync(admin, topicName.getPartition(0),
+                            IntStream.range(0, expectPartitions).mapToObj(topicName::getPartition).toList()));
                 }).thenCompose(__ -> {
                     if (updateLocal) {
                         return CompletableFuture.completedFuture(null);
@@ -482,8 +516,9 @@ public class PersistentTopicsBase extends AdminResource {
                                 boolean containsCurrentCluster =
                                         replicationClusters.contains(pulsar().getConfig().getClusterName());
                                 if (!containsCurrentCluster) {
-                                    log.error("[{}] local cluster is not part of replicated cluster for namespace {}",
-                                            clientAppId(), topicName);
+                                    log.error()
+                                            .attr("namespace", topicName)
+                                            .log("local cluster is not part of replicated cluster for namespace");
                                     throw new RestException(422,
                                             "Local cluster is not part of replicate cluster list");
                                 }
@@ -499,8 +534,11 @@ public class PersistentTopicsBase extends AdminResource {
                                                         .topics().updatePartitionedTopicAsync(topicName.toString(),
                                                             expectPartitions, true, force)
                                                         .exceptionally(ex -> {
-                                                            log.warn("[{}][{}] Update remote cluster partition fail.",
-                                                                        topicName, replicationCluster, ex);
+                                                            log.warn()
+                                                                    .attr("topic", topicName)
+                                                                    .attr("replicationCluster", replicationCluster)
+                                                                    .exception(ex)
+                                                                    .log("Update remote cluster partition fail.");
                                                             throw FutureUtil.wrapToCompletionException(ex);
                                                         })
                                                 )
@@ -509,6 +547,66 @@ public class PersistentTopicsBase extends AdminResource {
                             });
                 });
             });
+    }
+
+    /**
+     * Copies the durable subscriptions of {@code sourcePartition} to {@code targetPartitions}, starting at the
+     * earliest position so that messages published before a consumer attaches are not skipped. A subscription
+     * that already exists on a target partition is left as is.
+     */
+    private CompletableFuture<Void> copySubscriptionsAsync(PulsarAdmin admin, TopicName sourcePartition,
+                                                           List<TopicName> targetPartitions) {
+        return admin.topics().getStatsAsync(sourcePartition.toString())
+                .thenCompose(stats -> {
+                    List<CompletableFuture<Void>> futures = stats.getSubscriptions().entrySet()
+                            // We must not re-create non-durable subscriptions on the new partitions
+                            .stream().filter(entry -> entry.getValue().isDurable())
+                            .map(entry -> {
+                                Map<String, String> subscriptionProperties =
+                                        filterSubscriptionPropertiesForPartitionExpansion(
+                                                entry.getValue().getSubscriptionProperties());
+                                final List<CompletableFuture<Void>> innerFutures =
+                                        new ArrayList<>(targetPartitions.size());
+                                for (TopicName targetPartition : targetPartitions) {
+                                    innerFutures.add(admin.topics().createSubscriptionAsync(
+                                                    targetPartition.toString(),
+                                                    entry.getKey(), MessageId.earliest,
+                                                    entry.getValue().isReplicated(),
+                                                    subscriptionProperties)
+                                            .exceptionally(ex -> {
+                                                Throwable rc = FutureUtil.unwrapCompletionException(ex);
+                                                if (!(rc instanceof PulsarAdminException.ConflictException)) {
+                                                    log.warn()
+                                                            .attr("topic", topicName)
+                                                            .exception(Throwables.getRootCause(rc))
+                                                            .log("Error copying subscription");
+                                                    throw FutureUtil.wrapToCompletionException(rc);
+                                                }
+                                                // Ignore subscription already exist exception
+                                                return null;
+                                            }));
+                                }
+                                return FutureUtil.waitForAll(innerFutures);
+                            }).collect(Collectors.toList());
+                    return FutureUtil.waitForAll(futures);
+                });
+    }
+
+    /**
+     * Returns the properties that can be applied to a subscription on a newly created partition.
+     *
+     * <p>Cursor internal properties belong to the source partition and must not be copied. Keep all filtering
+     * rules here so partition expansion has a single property-copy boundary.</p>
+     */
+    private static Map<String, String> filterSubscriptionPropertiesForPartitionExpansion(
+            Map<String, String> subscriptionProperties) {
+        if (subscriptionProperties == null) {
+            return null;
+        }
+
+        Map<String, String> filteredProperties = new HashMap<>(subscriptionProperties);
+        filteredProperties.keySet().removeIf(key -> key.startsWith(CURSOR_INTERNAL_PROPERTY_PREFIX));
+        return filteredProperties;
     }
 
     private CompletableFuture<Set<String>> getReplicationClusters() {
@@ -527,29 +625,92 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalCreateMissedPartitions(AsyncResponse asyncResponse) {
-        getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
-            if (metadata != null && metadata.partitions > 0) {
-                validateNamespaceOperationAsync(topicName.getNamespaceObject(),
-                        NamespaceOperation.CREATE_TOPIC)
-                .thenCompose(__ -> tryCreatePartitionsAsync(metadata.partitions)).thenAccept(v -> {
-                    asyncResponse.resume(Response.noContent().build());
-                }).exceptionally(e -> {
-                    log.error("[{}] Failed to create partitions for topic {}", clientAppId(), topicName);
-                    resumeAsyncResponseExceptionally(asyncResponse, e);
-                    return null;
-                });
-            } else {
-                throw new RestException(Status.NOT_FOUND, String.format("Topic %s does not exist", topicName));
-            }
-        }).exceptionally(ex -> {
+        Consumer<Throwable> errorHandler = ex -> {
             // If the exception is not redirect exception we need to log it.
             if (!isRedirectException(ex)) {
-                log.error("[{}] Failed to create partitions for topic {}",
-                        clientAppId(), topicName);
+                log.error()
+                        .attr("topic", topicName)
+                        .log("Failed to create partitions for topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
+        };
+        pulsar().getBrokerService().isCurrentClusterAllowed(topicName).thenAccept(allowed -> {
+            if (!allowed) {
+                resumeAsyncResponseExceptionally(asyncResponse,
+                    new RestException(Status.BAD_REQUEST, String.format("Topic [%s] is not allowed to be loaded"
+                        + " up on the current cluster, please recheck replication polices.", topicName)));
+                return;
+            }
+            getPartitionedTopicMetadataAsync(topicName, false, false).thenAccept(metadata -> {
+                if (metadata != null && metadata.partitions > 0) {
+                    validateNamespaceOperationAsync(topicName.getNamespaceObject(),
+                        NamespaceOperation.CREATE_TOPIC)
+                        .thenCompose(__ -> getMissedPartitionsAsync(metadata.partitions))
+                        .thenCompose(missedPartitions -> tryCreatePartitionsAsync(metadata.partitions)
+                                .thenCompose(__ -> copySubscriptionsToMissedPartitionsAsync(metadata.partitions,
+                                        missedPartitions)))
+                        .thenAccept(v -> {
+                            asyncResponse.resume(Response.noContent().build());
+                        }).exceptionally(e -> {
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .log("Failed to create partitions for topic");
+                            resumeAsyncResponseExceptionally(asyncResponse, e);
+                            return null;
+                        });
+                } else {
+                    resumeAsyncResponseExceptionally(asyncResponse,
+                            new RestException(Status.NOT_FOUND, String.format("Topic %s does not exist", topicName)));
+                }
+            }).exceptionally(ex -> {
+                errorHandler.accept(ex);
+                return null;
+            });
+        }).exceptionally(ex -> {
+            errorHandler.accept(ex);
             return null;
         });
+    }
+
+    /**
+     * Returns the partitions of this persistent partitioned topic that don't exist yet. A non-persistent topic has
+     * no durable subscriptions to copy, so none are returned for it.
+     */
+    private CompletableFuture<List<TopicName>> getMissedPartitionsAsync(int numPartitions) {
+        if (!topicName.isPersistent()) {
+            return CompletableFuture.completedFuture(List.of());
+        }
+        List<TopicName> partitions = IntStream.range(0, numPartitions).mapToObj(topicName::getPartition).toList();
+        List<CompletableFuture<Boolean>> existsFutures = partitions.stream()
+                .map(partition -> topicResources().persistentTopicExists(partition))
+                .toList();
+        return FutureUtil.waitForAll(existsFutures)
+                .thenApply(__ -> IntStream.range(0, numPartitions)
+                        .filter(i -> !existsFutures.get(i).join())
+                        .mapToObj(partitions::get)
+                        .toList());
+    }
+
+    /**
+     * Copies the subscriptions of the first partition that already existed to the partitions created by
+     * createMissedPartitions, as updatePartitionedTopic does for the partitions it adds.
+     */
+    private CompletableFuture<Void> copySubscriptionsToMissedPartitionsAsync(int numPartitions,
+                                                                             List<TopicName> missedPartitions) {
+        Optional<TopicName> sourcePartition = IntStream.range(0, numPartitions)
+                .mapToObj(topicName::getPartition)
+                .filter(partition -> !missedPartitions.contains(partition))
+                .findFirst();
+        if (missedPartitions.isEmpty() || sourcePartition.isEmpty()) {
+            // Nothing was created, or there is no existing partition to copy the subscriptions from
+            return CompletableFuture.completedFuture(null);
+        }
+        try {
+            return copySubscriptionsAsync(pulsar().getAdminClient(), sourcePartition.get(), missedPartitions);
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(
+                    new RestException(Status.INTERNAL_SERVER_ERROR, Throwables.getRootCause(e)));
+        }
     }
 
     protected CompletableFuture<Void> internalSetDelayedDeliveryPolicies(DelayedDeliveryPolicies deliveryPolicies,
@@ -585,9 +746,18 @@ public class PersistentTopicsBase extends AdminResource {
                         // However, when checkAllowAutoCreation is true, the client will create the topic if
                         // it doesn't exist. In this case, `partitions == 0` means the automatically created topic
                         // is a non-partitioned topic so we shouldn't check if the topic exists.
-                        return pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName)
-                                .thenCompose(brokerAllowAutoTopicCreation -> {
-                            if (checkAllowAutoCreation && brokerAllowAutoTopicCreation) {
+                        if (!checkAllowAutoCreation) {
+                            return internalCheckNonPartitionedTopicExists(topicName).thenApply(__ -> metadata);
+                        }
+                        // Only ask whether this client may create the topic when it does not exist. The existence of
+                        // a non-persistent topic is not checked, as that may need a request to its owner broker.
+                        return (topicName.isPersistent()
+                                ? pulsar().getNamespaceService().checkNonPartitionedTopicExists(topicName)
+                                : CompletableFuture.completedFuture(false))
+                                .thenCompose(exists -> exists ? CompletableFuture.completedFuture(true)
+                                        : isAllowAutoTopicCreationAsync(topicName))
+                                .thenCompose(allowAutoTopicCreation -> {
+                            if (allowAutoTopicCreation) {
                                 // Whether it exists or not, auto create a non-partitioned topic by client.
                                 return CompletableFuture.completedFuture(metadata);
                             } else {
@@ -631,10 +801,13 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Void> internalUpdatePropertiesAsync(boolean authoritative,
                                                                     Map<String, String> properties) {
         if (properties == null || properties.isEmpty()) {
-            log.warn("[{}] [{}] properties is empty, ignore update", clientAppId(), topicName);
+            log.warn()
+                    .attr("topic", topicName)
+                    .log("properties is empty, ignore update");
             return CompletableFuture.completedFuture(null);
         }
         return validateTopicOperationAsync(topicName, TopicOperation.UPDATE_METADATA)
+                .thenCompose(__ -> validateShadowTopicPropertiesAsync(properties))
                 .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenCompose(__ -> {
                     if (topicName.isPartitioned()) {
@@ -647,14 +820,30 @@ public class PersistentTopicsBase extends AdminResource {
                                 }
                                 return namespaceResources()
                                     .getPartitionedTopicResources().updatePartitionedTopicAsync(topicName,
-                                        p -> new PartitionedTopicMetadata(p.partitions,
-                                            p.properties == null ? properties
-                                                : MapUtils.putAll(p.properties, properties.entrySet().toArray())));
+                                        p -> {
+                                            validateShadowSourcePropertyUpdate(p.properties, properties);
+                                            return new PartitionedTopicMetadata(p.partitions,
+                                                p.properties == null ? properties
+                                                    : MapUtils.putAll(p.properties, properties.entrySet().toArray()));
+                                        });
                             });
                     }
                 }).thenAccept(__ ->
-                    log.info("[{}] [{}] update properties success with properties {}", clientAppId(),
-                            topicName, properties));
+                    log.info()
+                            .attr("topic", topicName)
+                            .attr("properties", properties)
+                            .log("update properties success with properties"));
+    }
+
+    private static void validateShadowSourcePropertyUpdate(Map<String, String> currentProperties,
+                                                          Map<String, String> properties) {
+        // Changing a source (or adding one to a regular topic) cannot migrate its existing ledgers and cursors.
+        if (properties.containsKey(PROPERTY_SOURCE_TOPIC_KEY)
+                && !Objects.equals(MapUtils.getString(currentProperties, PROPERTY_SOURCE_TOPIC_KEY),
+                        properties.get(PROPERTY_SOURCE_TOPIC_KEY))) {
+            throw new RestException(Status.PRECONDITION_FAILED,
+                    "Property " + PROPERTY_SOURCE_TOPIC_KEY + " cannot be changed after topic creation");
+        }
     }
 
     private CompletableFuture<Void> internalUpdateNonPartitionedTopicProperties(Map<String, String> properties) {
@@ -668,6 +857,7 @@ public class PersistentTopicsBase extends AdminResource {
                     return;
                 }
                 ManagedLedger managedLedger = ((PersistentTopic) opt.get()).getManagedLedger();
+                validateShadowSourcePropertyUpdate(managedLedger.getProperties(), properties);
                 managedLedger.asyncSetProperties(properties, new AsyncCallbacks.UpdatePropertiesCallback() {
 
                     @Override
@@ -694,6 +884,12 @@ public class PersistentTopicsBase extends AdminResource {
 
     protected CompletableFuture<Void> internalRemovePropertiesAsync(boolean authoritative, String key) {
         return validateTopicOperationAsync(topicName, TopicOperation.DELETE_METADATA)
+                .thenRun(() -> {
+                    if (PROPERTY_SOURCE_TOPIC_KEY.equals(key)) {
+                        throw new RestException(Status.PRECONDITION_FAILED,
+                                "Property " + key + " cannot be removed");
+                    }
+                })
                 .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
                 .thenCompose(__ -> {
                     if (topicName.isPartitioned()) {
@@ -715,8 +911,10 @@ public class PersistentTopicsBase extends AdminResource {
                                 });
                     }
                 }).thenAccept(__ ->
-                        log.info("[{}] remove [{}] properties success with key {}",
-                                clientAppId(), topicName, key));
+                        log.info()
+                                .attr("topic", topicName)
+                                .attr("key", key)
+                                .log("remove properties success with key"));
     }
 
     private CompletableFuture<Void> internalRemoveNonPartitionedTopicProperties(String key) {
@@ -803,7 +1001,9 @@ public class PersistentTopicsBase extends AdminResource {
                         .runWithMarkDeleteAsync(topicName, () -> namespaceResources()
                                 .getPartitionedTopicResources().deletePartitionedTopicAsync(topicName)))
                 .thenAccept(__ -> {
-                    log.info("[{}] Deleted partitioned topic {}", clientAppId(), topicName);
+                    log.info()
+                            .attr("topic", topicName)
+                            .log("Deleted partitioned topic");
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     Throwable realCause = FutureUtil.unwrapCompletionException(ex);
@@ -813,7 +1013,8 @@ public class PersistentTopicsBase extends AdminResource {
                     } else if (realCause instanceof WebApplicationException){
                         asyncResponse.resume(realCause);
                     } else if (realCause instanceof MetadataStoreException.NotFoundException) {
-                        log.warn("Namespace policies of {} not found", topicName.getNamespaceObject());
+                        log.warn().attr("namespace", topicName.getNamespaceObject())
+                                .log("Namespace policies not found");
                         asyncResponse.resume(new RestException(
                                 new RestException(Status.NOT_FOUND,
                                         getPartitionedTopicNotFoundErrorMessage(topicName.toString()))));
@@ -825,7 +1026,10 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         // If the exception is not redirect exception we need to log it.
                         if (!isRedirectException(ex)) {
-                            log.error("[{}] Fail to Delete partitioned topic {}", clientAppId(), topicName, realCause);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exceptionMessage(realCause)
+                                    .log("Fail to Delete partitioned topic");
                         }
                         asyncResponse.resume(new RestException(realCause));
                     }
@@ -841,44 +1045,54 @@ public class PersistentTopicsBase extends AdminResource {
 
     private CompletableFuture<Void> internalRemovePartitionsTopicNoAutoCreationDisableAsync(int numPartitions,
                                                                                             boolean force) {
-        return FutureUtil.waitForAll(IntStream.range(0, numPartitions)
-                .mapToObj(i -> {
-                    TopicName topicNamePartition = topicName.getPartition(i);
-                    try {
-                        CompletableFuture<Void> future = new CompletableFuture<>();
-                        pulsar().getAdminClient().topics()
-                                .deleteAsync(topicNamePartition.toString(), force)
-                                .whenComplete((r, ex) -> {
-                                    if (ex != null) {
-                                        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
-                                        if (realCause instanceof NotFoundException){
-                                            // if the sub-topic is not found, the client might not have called
-                                            // create producer or it might have been deleted earlier,
-                                            // so we ignore the 404 error.
-                                            // For all other exception,
-                                            // we fail the delete partition method even if a single
-                                            // partition is failed to be deleted
-                                            if (log.isDebugEnabled()) {
-                                                log.debug("[{}] Partition not found: {}", clientAppId(),
-                                                        topicNamePartition);
-                                            }
-                                            future.complete(null);
-                                        } else {
-                                            log.error("[{}] Failed to delete partition {}", clientAppId(),
-                                                    topicNamePartition, realCause);
-                                            future.completeExceptionally(realCause);
-                                        }
-                                    } else {
-                                        future.complete(null);
-                                    }
-                                });
-                        return future;
-                    } catch (PulsarServerException ex) {
-                        log.error("[{}] Failed to get admin client while delete partition {}",
-                                clientAppId(), topicNamePartition, ex);
-                        return FutureUtil.failedFuture(ex);
+        return FutureUtil.waitForAll(IntStream.range(0, numPartitions).mapToObj(i -> {
+            TopicName topicNamePartition = topicName.getPartition(i);
+            CompletableFuture<Void> future = new CompletableFuture<>();
+            // Skip the admin call for persistent partitions that don't exist. Inactive-topic deletion deletes all
+            // the partitions first and then calls this endpoint through the broker's own admin client, so each
+            // per-partition admin call would queue behind the outer requests in the per-broker admin client
+            // pool. With enough concurrent deletions, that pool is exhausted and every request times out.
+            // See https://github.com/apache/pulsar/issues/24879
+            // Non-persistent topics have no managed ledger to check, and their inactive-topic deletion doesn't
+            // call this endpoint, so they always go through the admin client.
+            CompletableFuture<Boolean> needAdminClientCall = topicName.isPersistent()
+                    ? pulsar().getPulsarResources().getTopicResources().persistentTopicExists(topicNamePartition)
+                    : CompletableFuture.completedFuture(true);
+            needAdminClientCall.thenCompose(deleteThroughAdminClient -> {
+                if (!deleteThroughAdminClient) {
+                    log.debug()
+                            .attr("partition", topicNamePartition)
+                            .log("Partition not found, skipping its deletion");
+                    return CompletableFuture.<Void>completedFuture(null);
+                }
+                try {
+                    return pulsar().getAdminClient().topics().deleteAsync(topicNamePartition.toString(), force);
+                } catch (PulsarServerException ex) {
+                    return FutureUtil.<Void>failedFuture(ex);
+                }
+            }).whenComplete((r, ex) -> {
+                if (ex != null) {
+                    Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+                    if (realCause instanceof NotFoundException) {
+                        // The partition was deleted after the existence check, or the client never created it:
+                        // ignore the 404. Any other failure fails the whole partitioned topic deletion.
+                        log.debug()
+                                .attr("partition", topicNamePartition)
+                                .log("Partition not found");
+                        future.complete(null);
+                    } else {
+                        log.error()
+                                .attr("partition", topicNamePartition)
+                                .exceptionMessage(realCause)
+                                .log("Failed to delete partition");
+                        future.completeExceptionally(realCause);
                     }
-                }).collect(Collectors.toList()));
+                } else {
+                    future.complete(null);
+                }
+            });
+            return future;
+        }).collect(Collectors.toList()));
     }
 
     private CompletableFuture<Void> internalRemovePartitionsAuthenticationPoliciesAsync() {
@@ -888,15 +1102,21 @@ public class PersistentTopicsBase extends AdminResource {
                     if (ex != null){
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                         if (realCause instanceof MetadataStoreException.NotFoundException) {
-                            log.warn("Namespace policies of {} not found", topicName.getNamespaceObject());
+                            log.warn()
+                                    .attr("namespace", topicName.getNamespaceObject())
+                                    .log("Namespace policies not found");
                             future.complete(null);
                         } else {
-                            log.error("Failed to delete authentication policies for partitioned topic {}",
-                                    topicName, ex);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(ex)
+                                    .log("Failed to delete authentication policies for partitioned topic");
                             future.completeExceptionally(realCause);
                         }
                     } else {
-                        log.info("Successfully delete authentication policies for partitioned topic {}", topicName);
+                        log.info()
+                                .attr("topic", topicName)
+                                .log("Successfully delete authentication policies for partitioned topic");
                         future.complete(null);
                     }
                 });
@@ -904,7 +1124,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalUnloadTopic(AsyncResponse asyncResponse, boolean authoritative) {
-        log.info("[{}] Unloading topic {}", clientAppId(), topicName);
+        log.info().attr("topic", topicName).log("Unloading topic");
         validateTopicOperationAsync(topicName, TopicOperation.UNLOAD)
         .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
         .thenAccept(__ -> {
@@ -926,8 +1146,10 @@ public class PersistentTopicsBase extends AdminResource {
                                        futures.add(pulsar().getAdminClient().topics().unloadAsync(
                                                topicNamePartition.toString()));
                                    } catch (Exception e) {
-                                       log.error("[{}] Failed to unload topic {}", clientAppId(),
-                                               topicNamePartition, e);
+                                       log.error()
+                                               .attr("topic", topicNamePartition)
+                                               .exception(e)
+                                               .log("Failed to unload topic");
                                        asyncResponse.resume(new RestException(e));
                                        return;
                                    }
@@ -941,8 +1163,10 @@ public class PersistentTopicsBase extends AdminResource {
                                        } else if (th instanceof WebApplicationException) {
                                            asyncResponse.resume(th);
                                        } else {
-                                           log.error("[{}] Failed to unload topic {}", clientAppId(), topicName,
-                                                   exception);
+                                           log.error()
+                                                   .attr("topic", topicName)
+                                                   .exception(exception)
+                                                   .log("Failed to unload topic");
                                            asyncResponse.resume(new RestException(exception));
                                        }
                                    } else {
@@ -956,8 +1180,10 @@ public class PersistentTopicsBase extends AdminResource {
                        }).exceptionally(ex -> {
                            // If the exception is not redirect exception we need to log it.
                            if (isNot307And404Exception(ex)) {
-                               log.error("[{}] Failed to get partitioned metadata while unloading topic {}",
-                                       clientAppId(), topicName, ex);
+                               log.error()
+                                       .attr("topic", topicName)
+                                       .exception(ex)
+                                       .log("Failed to get partitioned metadata while unloading topic");
                            }
                            resumeAsyncResponseExceptionally(asyncResponse, ex);
                            return null;
@@ -966,14 +1192,17 @@ public class PersistentTopicsBase extends AdminResource {
        }).exceptionally(ex -> {
            // If the exception is not redirect exception we need to log it.
            if (isNot307And404Exception(ex)) {
-               log.error("[{}] Failed to validate the global namespace ownership while unloading topic {}",
-                       clientAppId(), topicName, ex);
+               log.error()
+                       .attr("topic", topicName)
+                       .exception(ex)
+                       .log("Failed to validate the global namespace ownership while unloading topic");
            }
            resumeAsyncResponseExceptionally(asyncResponse, ex);
            return null;
        });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<DelayedDeliveryPolicies> internalGetDelayedDeliveryPolicies(boolean applied,
                                                                                             boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
@@ -1004,6 +1233,7 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<OffloadPoliciesImpl> internalGetOffloadPolicies(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> {
@@ -1019,6 +1249,7 @@ public class PersistentTopicsBase extends AdminResource {
             });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Void> internalSetOffloadPolicies(OffloadPoliciesImpl offloadPoliciesToSet,
                                                                  boolean isGlobal) {
         return pulsar().getTopicPoliciesService()
@@ -1027,6 +1258,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<InactiveTopicPolicies> internalGetInactiveTopicPolicies
             (boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
@@ -1051,6 +1283,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Integer> internalGetMaxUnackedMessagesOnSubscription(boolean applied,
                                                                                      boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
@@ -1078,6 +1311,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Integer> internalGetMaxUnackedMessagesOnConsumer(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getMaxUnackedMessagesOnConsumer)
@@ -1120,13 +1354,18 @@ public class PersistentTopicsBase extends AdminResource {
                         .thenCompose(__ -> getTopicReferenceAsync(topicName))
                         .thenCompose(topic -> topic.close(false))
                         .thenRun(() -> {
-                            log.info("[{}] Successfully unloaded topic {}", clientAppId(), topicName);
+                            log.info()
+                                    .attr("topic", topicName)
+                                    .log("Successfully unloaded topic");
                             asyncResponse.resume(Response.noContent().build());
                         })
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to unload topic {}, {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exceptionMessage(ex)
+                                .log("Failed to unload topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1140,14 +1379,18 @@ public class PersistentTopicsBase extends AdminResource {
                         .removeTransactionMetadataStore(
                                 TransactionCoordinatorID.get(topicName.getPartitionIndex())))
                 .thenRun(() -> {
-                    log.info("[{}] Successfully unloaded tc {}", clientAppId(), topicName.getPartitionIndex());
+                    log.info()
+                            .attr("tc", topicName.getPartitionIndex())
+                            .log("Successfully unloaded tc");
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to unload tc {},{}", clientAppId(),
-                                topicName.getPartitionIndex(), ex);
+                        log.error()
+                                .attr("tc", topicName.getPartitionIndex())
+                                .exceptionMessage(ex)
+                                .log("Failed to unload tc");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1205,10 +1448,8 @@ public class PersistentTopicsBase extends AdminResource {
                                                 .map(item -> topicName.getPartition(item.getKey()).toString())
                                                 .collect(Collectors.toList())
                                 ).thenAccept(topics -> {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug("activeTopics : {}", topics);
-                                    }
-                                    topics.forEach(topic -> {
+                                        log.debug().attr("activeTopics", topics).log("Active topics");
+                                                                        topics.forEach(topic -> {
                                         try {
                                             CompletableFuture<List<String>> subscriptionsAsync = pulsar()
                                                     .getAdminClient()
@@ -1232,8 +1473,10 @@ public class PersistentTopicsBase extends AdminResource {
                                 resumeAsyncResponse(asyncResponse, subscriptions, subscriptionFutures);
                             }
                         } catch (Exception e) {
-                            log.error("[{}] Failed to get list of subscriptions for {}",
-                                    clientAppId(), topicName, e);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(e)
+                                    .log("Failed to get list of subscriptions");
                             asyncResponse.resume(e);
                         }
                     } else {
@@ -1242,8 +1485,10 @@ public class PersistentTopicsBase extends AdminResource {
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get partitioned topic metadata while get"
-                                + " subscriptions for topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get partitioned topic metadata while get subscriptions for topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1252,8 +1497,11 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to validate the global namespace/topic ownership while get subscriptions"
-                        + " for topic {}", clientAppId(), topicName, ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to validate the global namespace/topic ownership while get subscriptions for"
+                                + " topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -1264,8 +1512,10 @@ public class PersistentTopicsBase extends AdminResource {
                                      List<CompletableFuture<Object>> subscriptionFutures) {
         FutureUtil.waitForAll(subscriptionFutures).whenComplete((r, ex) -> {
             if (ex != null) {
-                log.warn("[{}] Failed to get list of subscriptions for {}: {}", clientAppId(),
-                        topicName, ex.getMessage());
+                log.warn()
+                        .attr("topic", topicName)
+                        .exceptionMessage(ex)
+                        .log("Failed to get list of subscriptions");
                 if (ex instanceof PulsarAdminException) {
                     PulsarAdminException pae = (PulsarAdminException) ex;
                     if (pae.getStatusCode() == Status.NOT_FOUND.getStatusCode()) {
@@ -1292,7 +1542,10 @@ public class PersistentTopicsBase extends AdminResource {
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get list of subscriptions for {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get list of subscriptions");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1340,7 +1593,7 @@ public class PersistentTopicsBase extends AdminResource {
                             TopicName topicNamePartition = topicName.getPartition(i);
                             try {
                                 final ObjectReader managedLedgerInfoReader = objectReader()
-                                        .forType(ManagedLedgerInfo.class);
+                                        .forType(TopicInternalInfo.class);
                                 futures.add(pulsar().getAdminClient().topics()
                                         .getInternalInfoAsync(topicNamePartition.toString())
                                         .thenApply((response) -> {
@@ -1352,8 +1605,10 @@ public class PersistentTopicsBase extends AdminResource {
                                             }
                                         }));
                             } catch (PulsarServerException e) {
-                                log.error("[{}] Failed to get admin client while get managed info for {}" ,
-                                        clientAppId(), topicNamePartition, e);
+                                log.error()
+                                        .attr("topic", topicNamePartition)
+                                        .exception(e)
+                                        .log("Failed to get admin client while get managed info");
                                 throw new RestException(e);
                             }
                         }
@@ -1364,7 +1619,10 @@ public class PersistentTopicsBase extends AdminResource {
                                     asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                             getTopicNotFoundErrorMessage(topicName.toString())));
                                 } else {
-                                    log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, t);
+                                    log.error()
+                                            .attr("topic", topicName)
+                                            .exception(t)
+                                            .log("Failed to get managed info");
                                     asyncResponse.resume(new RestException(t));
                                 }
                             } else {
@@ -1385,8 +1643,10 @@ public class PersistentTopicsBase extends AdminResource {
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get partitioned metadata while get managed info for {}",
-                                clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get partitioned metadata while getting managed info");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1395,8 +1655,10 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to validate the global namespace ownership while get managed info for {}",
-                        clientAppId(), topicName, ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to validate the global namespace ownership while getting managed info");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -1413,8 +1675,12 @@ public class PersistentTopicsBase extends AdminResource {
                                         new ManagedLedgerInfoCallback() {
                                             @Override
                                             public void getInfoComplete(ManagedLedgerInfo info, Object ctx) {
-                                                asyncResponse.resume((StreamingOutput) output -> {
-                                                    objectWriter().writeValue(output, info);
+                                                getSchemaLedgerIdsAsync().thenAccept(schemaLedgers -> {
+                                                    TopicInternalInfo internalInfo =
+                                                            new TopicInternalInfo(info, schemaLedgers);
+                                                    asyncResponse.resume((StreamingOutput) output -> {
+                                                        objectWriter().writeValue(output, internalInfo);
+                                                    });
                                                 });
                                             }
 
@@ -1429,11 +1695,33 @@ public class PersistentTopicsBase extends AdminResource {
                                 return null;
                             });
                 }).exceptionally(ex -> {
-                    log.error("[{}] Failed to get managed info for {}", clientAppId(), topicName, ex);
+                    log.error()
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to get managed info");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
 
+    }
+
+    /**
+     * Reads the schema ledger ids from the schema locator, without loading the topic. Completes with null, rather
+     * than failing, when the schema storage is not BookKeeper based or the locator can't be read, so the managed
+     * ledger info is still returned.
+     */
+    private CompletableFuture<List<Long>> getSchemaLedgerIdsAsync() {
+        if (!(pulsar().getSchemaStorage() instanceof BookkeeperSchemaStorage schemaStorage)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return schemaStorage.getStoreLedgerIdsBySchemaId(topicName.getSchemaName())
+                .exceptionally(ex -> {
+                    log.warn()
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to get the schema ledgers");
+                    return null;
+                });
     }
 
     protected void internalGetPartitionedStats(AsyncResponse asyncResponse, boolean authoritative, boolean perPartition,
@@ -1516,7 +1804,10 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to get partitioned internal stats for {}", clientAppId(), topicName, ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to get partitioned internal stats for");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -1567,7 +1858,10 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to get partitioned internal stats for {}", clientAppId(), topicName, ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to get partitioned internal stats for");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -1681,15 +1975,21 @@ public class PersistentTopicsBase extends AdminResource {
                         result.setFilterRejectedMessages(rawResult.getFilterRejectedMessages());
                         result.setFilterRescheduledMessages(rawResult.getFilterRescheduledMessages());
                         result.setAborted(rawResult.getScanOutcome() != ScanOutcome.COMPLETED);
-                        log.info("[{}] analyzeBacklog topic {} subscription {} result {}", clientAppId(), subName,
-                            topicName, result);
+                        log.info()
+                                .attr("topic", subName)
+                                .attr("topic", topicName)
+                                .attr("result", result)
+                                .log("analyzeBacklog topic subscription result");
                         asyncResponse.resume(result);
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to analyze subscription backlog {} {}",
-                                clientAppId(), topicName, subName, cause);
+                        log.error()
+                                .attr("backlog", topicName)
+                                .attr("subscription", subName)
+                                .exception(cause)
+                                .log("Failed to analyze subscription backlog");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, cause);
                     return null;
@@ -1709,13 +2009,20 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                     return sub.updateSubscriptionProperties(subscriptionProperties);
                 }).thenRun(() -> {
-                    log.info("[{}][{}] Updated subscription {}", clientAppId(), topicName, subName);
+                    log.info()
+                            .attr("topic", topicName)
+                            .attr("subscription", subName)
+                            .log("Updated subscription");
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     Throwable cause = ex.getCause();
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to update subscription {} {}", clientAppId(), topicName, subName, cause);
+                        log.error()
+                                .attr("topic", topicName)
+                                .attr("subscription", subName)
+                                .exception(cause)
+                                .log("Failed to update subscription");
                     }
                     asyncResponse.resume(new RestException(cause));
                     return null;
@@ -1743,7 +2050,11 @@ public class PersistentTopicsBase extends AdminResource {
                     Throwable cause = ex.getCause();
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to update subscription {} {}", clientAppId(), topicName, subName, cause);
+                        log.error()
+                                .attr("topic", topicName)
+                                .attr("subscription", subName)
+                                .exception(cause)
+                                .log("Failed to update subscription");
                     }
                     asyncResponse.resume(new RestException(cause));
                     return null;
@@ -1773,8 +2084,11 @@ public class PersistentTopicsBase extends AdminResource {
                                     .skipAllMessagesAsync(topicNamePartition.toString(),
                                         subName));
                             } catch (Exception e) {
-                                log.error("[{}] Failed to skip all messages {} {}",
-                                    clientAppId(), topicNamePartition, subName, e);
+                                log.error()
+                                        .attr("messages", topicNamePartition)
+                                        .attr("subscription", subName)
+                                        .exception(e)
+                                        .log("Failed to skip all messages");
                                 asyncResponse.resume(new RestException(e));
                                 return CompletableFuture.completedFuture(null);
                             }
@@ -1788,8 +2102,11 @@ public class PersistentTopicsBase extends AdminResource {
                                         new RestException(Status.NOT_FOUND,
                                                 getSubNotFoundErrorMessage(topicName.toString(), subName)));
                                 } else {
-                                    log.error("[{}] Failed to skip all messages {} {}",
-                                        clientAppId(), topicName, subName, t);
+                                    log.error()
+                                            .attr("messages", topicName)
+                                            .attr("subscription", subName)
+                                            .exception(t)
+                                            .log("Failed to skip all messages");
                                     asyncResponse.resume(new RestException(t));
                                 }
                                 return null;
@@ -1805,8 +2122,11 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to skip all messages for subscription {} on topic {}",
-                        clientAppId(), subName, topicName, ex);
+                log.error()
+                        .attr("subscription", subName)
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to skip all messages for subscription on topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -1820,17 +2140,24 @@ public class PersistentTopicsBase extends AdminResource {
                     BiConsumer<Void, Throwable> biConsumer = (v, ex) -> {
                         if (ex != null) {
                             asyncResponse.resume(new RestException(ex));
-                            log.error("[{}] Failed to skip all messages {} {}",
-                                clientAppId(), topicName, subName, ex);
+                            log.error()
+                                    .attr("messages", topicName)
+                                    .attr("subscription", subName)
+                                    .exception(ex)
+                                    .log("Failed to skip all messages");
                         } else {
                             asyncResponse.resume(Response.noContent().build());
-                            log.info("[{}] Cleared backlog on {} {}", clientAppId(), topicName, subName);
+                            log.info()
+                                    .attr("topic", topicName)
+                                    .attr("subscription", subName)
+                                    .log("Cleared backlog");
                         }
                     };
-                    if (subName.startsWith(topic.getReplicatorPrefix())) {
-                        String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                    Optional<String> remoteCluster =
+                            AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                    if (remoteCluster.isPresent()) {
                         PersistentReplicator repl =
-                            (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                            (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                         if (repl == null) {
                             asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                     getSubNotFoundErrorMessage(topicName.toString(), subName)));
@@ -1849,8 +2176,11 @@ public class PersistentTopicsBase extends AdminResource {
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to skip all messages for subscription {} on topic {}",
-                                clientAppId(), subName, topicName, ex);
+                        log.error()
+                                .attr("subscription", subName)
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to skip all messages for subscription on topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -1866,7 +2196,11 @@ public class PersistentTopicsBase extends AdminResource {
         .thenCompose(partitionMetadata -> {
              if (partitionMetadata.partitions > 0) {
                  String msg = "Skip messages on a partitioned topic is not allowed";
-                 log.warn("[{}] {} {} {}", clientAppId(), msg, topicName, subName);
+                 log.warn()
+                         .attr("msg", msg)
+                         .attr("topic", topicName)
+                         .attr("subscription", subName)
+                         .log("");
                  throw new  RestException(Status.METHOD_NOT_ALLOWED, msg);
              }
              return getTopicReferenceAsync(topicName).thenCompose(t -> {
@@ -1875,17 +2209,21 @@ public class PersistentTopicsBase extends AdminResource {
                      throw new RestException(new RestException(Status.NOT_FOUND,
                              getTopicNotFoundErrorMessage(topicName.toString())));
                  }
-                 if (subName.startsWith(topic.getReplicatorPrefix())) {
-                     String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
+                 Optional<String> remoteCluster =
+                         AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                 if (remoteCluster.isPresent()) {
                      PersistentReplicator repl =
-                             (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                             (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                      if (repl == null) {
                          return FutureUtil.failedFuture(
                                  new RestException(Status.NOT_FOUND, "Replicator not found"));
                      }
                      return repl.skipMessages(numMessages).thenAccept(unused -> {
-                         log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages,
-                                 topicName, subName);
+                         log.info()
+                                 .attr("skipped", numMessages)
+                                 .attr("topic", topicName)
+                                 .attr("subscription", subName)
+                                 .log("Skipped messages");
                          asyncResponse.resume(Response.noContent().build());
                          }
                      );
@@ -1897,8 +2235,11 @@ public class PersistentTopicsBase extends AdminResource {
                                          getSubNotFoundErrorMessage(topicName.toString(), subName)));
                      }
                      return sub.skipMessages(numMessages).thenAccept(unused -> {
-                         log.info("[{}] Skipped {} messages on {} {}", clientAppId(), numMessages,
-                                 topicName, subName);
+                         log.info()
+                                 .attr("skipped", numMessages)
+                                 .attr("topic", topicName)
+                                 .attr("subscription", subName)
+                                 .log("Skipped messages");
                          asyncResponse.resume(Response.noContent().build());
                          }
                      );
@@ -1908,8 +2249,12 @@ public class PersistentTopicsBase extends AdminResource {
         ).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to skip {} messages {} {}", clientAppId(), numMessages, topicName,
-                        subName, ex);
+                log.error()
+                        .attr("skip", numMessages)
+                        .attr("messages", topicName)
+                        .attr("subscription", subName)
+                        .exception(ex)
+                        .log("Failed to skip messages");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -1920,30 +2265,40 @@ public class PersistentTopicsBase extends AdminResource {
             boolean authoritative) {
         validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES)
         .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
-        .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false))
-        .thenAccept(partitionMetadata -> {
+        .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, authoritative, false)
+                .thenCombine(isSuperUserOrTenantAdminAsync(), Pair::of))
+        .thenAccept(metadataAndIsAdmin -> {
+            final PartitionedTopicMetadata partitionMetadata = metadataAndIsAdmin.getLeft();
+            final boolean isAdmin = metadataAndIsAdmin.getRight();
             if (topicName.isPartitioned()) {
                 internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic(asyncResponse,
-                        partitionMetadata, expireTimeInSeconds, authoritative);
+                        partitionMetadata, expireTimeInSeconds, authoritative, !isAdmin);
             } else {
                 if (partitionMetadata.partitions > 0) {
                     final List<CompletableFuture<Void>> futures = new ArrayList<>(partitionMetadata.partitions);
 
-                    // expire messages for each partition topic
-                    for (int i = 0; i < partitionMetadata.partitions; i++) {
-                        TopicName topicNamePartition = topicName.getPartition(i);
-                        try {
-                            futures.add(pulsar()
-                                    .getAdminClient()
-                                    .topics()
-                                    .expireMessagesForAllSubscriptionsAsync(
-                                            topicNamePartition.toString(), expireTimeInSeconds));
-                        } catch (Exception e) {
-                            log.error("[{}] Failed to expire messages up to {} on {}",
-                                    clientAppId(), expireTimeInSeconds,
-                                    topicNamePartition, e);
-                            asyncResponse.resume(new RestException(e));
-                            return;
+                    if (!isAdmin) {
+                        futures.add(expireMessagesForAllowedSubscriptionsOfPartitionsAsync(
+                                partitionMetadata.partitions, expireTimeInSeconds));
+                    } else {
+                        // expire messages for each partition topic
+                        for (int i = 0; i < partitionMetadata.partitions; i++) {
+                            TopicName topicNamePartition = topicName.getPartition(i);
+                            try {
+                                futures.add(pulsar()
+                                        .getAdminClient()
+                                        .topics()
+                                        .expireMessagesForAllSubscriptionsAsync(
+                                                topicNamePartition.toString(), expireTimeInSeconds));
+                            } catch (Exception e) {
+                                log.error()
+                                        .attr("expireTimeInSeconds", expireTimeInSeconds)
+                                        .attr("topic", topicNamePartition)
+                                        .exception(e)
+                                        .log("Failed to expire messages");
+                                asyncResponse.resume(new RestException(e));
+                                return;
+                            }
                         }
                     }
 
@@ -1951,11 +2306,17 @@ public class PersistentTopicsBase extends AdminResource {
                         if (exception != null) {
                             Throwable t = FutureUtil.unwrapCompletionException(exception);
                             if (t instanceof PulsarAdminException) {
-                                log.warn("[{}] Failed to expire messages up to {} on {}: {}", clientAppId(),
-                                        expireTimeInSeconds, topicName, t.toString());
+                                log.warn()
+                                        .attr("expireTimeInSeconds", expireTimeInSeconds)
+                                        .attr("topic", topicName)
+                                        .exceptionMessage(t)
+                                        .log("Failed to expire messages");
                             } else {
-                                log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(),
-                                        expireTimeInSeconds, topicName, t);
+                                log.error()
+                                        .attr("expireTimeInSeconds", expireTimeInSeconds)
+                                        .attr("topic", topicName)
+                                        .exception(t)
+                                        .log("Failed to expire messages");
                             }
                             resumeAsyncResponseExceptionally(asyncResponse, t);
                             return null;
@@ -1965,15 +2326,17 @@ public class PersistentTopicsBase extends AdminResource {
                     });
                 } else {
                     internalExpireMessagesForAllSubscriptionsForNonPartitionedTopic(asyncResponse,
-                            partitionMetadata, expireTimeInSeconds, authoritative);
+                            partitionMetadata, expireTimeInSeconds, authoritative, !isAdmin);
                 }
             }
         }
         ).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to expire messages for all subscription on topic {}", clientAppId(), topicName,
-                        ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to expire messages for all subscription on topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -1985,7 +2348,8 @@ public class PersistentTopicsBase extends AdminResource {
                                                                                  PartitionedTopicMetadata
                                                                                  partitionMetadata,
                                                                                  int expireTimeInSeconds,
-                                                                                 boolean authoritative) {
+                                                                                 boolean authoritative,
+                                                                                 boolean onlyAllowedSubscriptions) {
         // validate ownership and redirect if current broker is not owner
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> getTopicReferenceAsync(topicName).thenAccept(t -> {
@@ -2000,33 +2364,29 @@ public class PersistentTopicsBase extends AdminResource {
                         return;
                     }
                     PersistentTopic topic = (PersistentTopic) t;
-                    final List<CompletableFuture<Void>> futures =
-                            new ArrayList<>((int) topic.getReplicators().size());
-                    List<String> subNames =
-                            new ArrayList<>((int) topic.getSubscriptions().size());
-                    subNames.addAll(topic.getSubscriptions().keySet().stream().filter(
-                            subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION)).toList());
-                    for (int i = 0; i < subNames.size(); i++) {
-                        try {
-                            futures.add(internalExpireMessagesByTimestampForSinglePartitionAsync(partitionMetadata,
-                                    subNames.get(i), expireTimeInSeconds));
-                        } catch (Exception e) {
-                            log.error("[{}] Failed to expire messages for all subscription up to {} on {}",
-                                    clientAppId(), expireTimeInSeconds, topicName, e);
-                            asyncResponse.resume(new RestException(e));
-                            return;
-                        }
-                    }
-
-                    FutureUtil.waitForAll(futures).handle((result, exception) -> {
+                    List<String> subNames = topic.getSubscriptions().keySet().stream().filter(
+                            subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION)).toList();
+                    CompletableFuture<List<String>> subNamesFuture = onlyAllowedSubscriptions
+                            ? filterSubscriptionsAllowedToExpireAsync(subNames)
+                            : CompletableFuture.completedFuture(subNames);
+                    subNamesFuture.thenCompose(names -> FutureUtil.waitForAll(names.stream()
+                            .map(subName -> internalExpireMessagesByTimestampForSinglePartitionAsync(
+                                    partitionMetadata, subName, expireTimeInSeconds))
+                            .toList())).handle((result, exception) -> {
                         if (exception != null) {
                             Throwable throwable = FutureUtil.unwrapCompletionException(exception);
                             if (throwable instanceof RestException) {
-                                log.warn("[{}] Failed to expire messages for all subscription up to {} on {}: {}",
-                                        clientAppId(), expireTimeInSeconds, topicName, throwable.toString());
+                                log.warn()
+                                        .attr("expireTimeInSeconds", expireTimeInSeconds)
+                                        .attr("topic", topicName)
+                                        .exceptionMessage(throwable)
+                                        .log("Failed to expire messages for all subscriptions");
                             } else {
-                                log.error("[{}] Failed to expire messages for all subscription up to {} on {}",
-                                        clientAppId(), expireTimeInSeconds, topicName, throwable);
+                                log.error()
+                                        .attr("expireTimeInSeconds", expireTimeInSeconds)
+                                        .attr("topic", topicName)
+                                        .exception(throwable)
+                                        .log("Failed to expire messages for all subscriptions");
                             }
                             resumeAsyncResponseExceptionally(asyncResponse, throwable);
                             return null;
@@ -2038,12 +2398,68 @@ public class PersistentTopicsBase extends AdminResource {
                 ).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to expire messages for all subscription up to {} on {}", clientAppId(),
-                        expireTimeInSeconds, topicName, ex);
+                log.error()
+                        .attr("expireTimeInSeconds", expireTimeInSeconds)
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to expire messages for all subscriptions");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
         });
+    }
+
+    /**
+     * Whether the caller may expire messages of the subscription, checked as for a single subscription.
+     */
+    private CompletableFuture<Boolean> canExpireSubscriptionAsync(String subName) {
+        if (AbstractReplicator.getRemoteCluster(pulsar().getConfiguration().getReplicatorPrefix(), subName)
+                .isPresent()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        return isAuthorizedAsync(validateTopicOperationAsync(topicName, TopicOperation.EXPIRE_MESSAGES, subName));
+    }
+
+    private CompletableFuture<List<String>> filterSubscriptionsAllowedToExpireAsync(List<String> subNames) {
+        List<CompletableFuture<Boolean>> checks = subNames.stream().map(this::canExpireSubscriptionAsync).toList();
+        return FutureUtil.waitForAll(checks).thenApply(__ -> {
+            List<String> allowed = new ArrayList<>();
+            for (int i = 0; i < subNames.size(); i++) {
+                if (checks.get(i).join()) {
+                    allowed.add(subNames.get(i));
+                }
+            }
+            return allowed;
+        });
+    }
+
+    /**
+     * Expires messages of the partition subscriptions that the caller may expire. Dispatched per subscription,
+     * because partition requests are made with the broker's identity.
+     */
+    private CompletableFuture<Void> expireMessagesForAllowedSubscriptionsOfPartitionsAsync(int partitions,
+                                                                                         int expireTimeInSeconds) {
+        final PulsarAdmin admin;
+        try {
+            admin = pulsar().getAdminClient();
+        } catch (PulsarServerException e) {
+            return CompletableFuture.failedFuture(e);
+        }
+        final Map<String, CompletableFuture<Boolean>> allowed = new ConcurrentHashMap<>();
+        final List<CompletableFuture<Void>> futures = new ArrayList<>(partitions);
+        for (int i = 0; i < partitions; i++) {
+            final String partition = topicName.getPartition(i).toString();
+            futures.add(ignoreNotFound(admin.topics().getSubscriptionsAsync(partition), List.<String>of())
+                    .thenCompose(subNames -> FutureUtil.waitForAll(subNames.stream()
+                            .filter(subName -> !subName.equals(Compactor.COMPACTION_SUBSCRIPTION))
+                            .map(subName -> allowed.computeIfAbsent(subName, this::canExpireSubscriptionAsync)
+                                    .thenCompose(canExpire -> canExpire
+                                            ? ignoreNotFound(admin.topics().expireMessagesAsync(partition, subName,
+                                                    expireTimeInSeconds), null)
+                                            : CompletableFuture.<Void>completedFuture(null)))
+                            .toList())));
+        }
+        return FutureUtil.waitForAll(futures);
     }
 
     protected CompletableFuture<Void> internalResetCursorAsync(String subName, long timestamp,
@@ -2085,8 +2501,12 @@ public class PersistentTopicsBase extends AdminResource {
                                             failureCount.incrementAndGet();
                                             partitionException.set(ex);
                                         } else {
-                                            log.warn("[{}] [{}] Failed to reset cursor on subscription {} to time {}",
-                                                clientAppId(), topicNamePartition, subName, timestamp, ex);
+                                            log.warn()
+                                                    .attr("topicNamePartition", topicNamePartition)
+                                                    .attr("subscription", subName)
+                                                    .attr("time", timestamp)
+                                                    .exception(ex)
+                                                    .log("Failed to reset cursor on subscription to time");
                                             future.completeExceptionally(ex);
                                             return null;
                                         }
@@ -2099,8 +2519,12 @@ public class PersistentTopicsBase extends AdminResource {
                                     return null;
                                 });
                         } catch (Exception e) {
-                            log.warn("[{}] [{}] Failed to reset cursor on subscription {} to time {}", clientAppId(),
-                                topicNamePartition, subName, timestamp, e);
+                            log.warn()
+                                    .attr("topicNamePartition", topicNamePartition)
+                                    .attr("subscription", subName)
+                                    .attr("time", timestamp)
+                                    .exception(e)
+                                    .log("Failed to reset cursor on subscription to time");
                             future.completeExceptionally(e);
                         }
                     }
@@ -2108,13 +2532,20 @@ public class PersistentTopicsBase extends AdminResource {
                     return future.whenComplete((r, ex) -> {
                         // report an error to user if unable to reset for all partitions
                         if (failureCount.get() == numPartitions) {
-                            log.warn("[{}] [{}] Failed to reset cursor on subscription {} to time {}",
-                                clientAppId(), topicName,
-                                subName, timestamp, partitionException.get());
+                            log.warn()
+                                    .attr("topic", topicName)
+                                    .attr("subscription", subName)
+                                    .attr("time", timestamp)
+                                    .attr("get", partitionException.get())
+                                    .log("Failed to reset cursor on subscription to time");
                             throw new RestException(Status.PRECONDITION_FAILED, partitionException.get().getMessage());
                         } else if (failureCount.get() > 0) {
-                            log.warn("[{}] [{}] Partial errors for reset cursor on subscription {} to time {}",
-                                clientAppId(), topicName, subName, timestamp, partitionException.get());
+                            log.warn()
+                                    .attr("topic", topicName)
+                                    .attr("subscription", subName)
+                                    .attr("time", timestamp)
+                                    .attr("get", partitionException.get())
+                                    .log("Partial errors for reset cursor on subscription to time");
                         }
                     });
                 } else {
@@ -2128,8 +2559,11 @@ public class PersistentTopicsBase extends AdminResource {
         return validateTopicOwnershipAsync(topicName, authoritative)
             .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.RESET_CURSOR, subName))
             .thenCompose(__ -> {
-                log.info("[{}] [{}] Received reset cursor on subscription {} to time {}",
-                    clientAppId(), topicName, subName, timestamp);
+                log.info()
+                        .attr("topic", topicName)
+                        .attr("subscription", subName)
+                        .attr("time", timestamp)
+                        .log("Received reset cursor on subscription to time");
                 return getTopicReferenceAsync(topicName);
             })
             .thenCompose(topic -> {
@@ -2141,8 +2575,11 @@ public class PersistentTopicsBase extends AdminResource {
                 return sub.resetCursor(timestamp);
             })
             .thenRun(() ->
-                log.info("[{}][{}] Reset cursor on subscription {} to time {}",
-                    clientAppId(), topicName, subName, timestamp));
+                log.info()
+                        .attr("topic", topicName)
+                        .attr("subscription", subName)
+                        .attr("time", timestamp)
+                        .log("Reset cursor on subscription to time"));
     }
 
     protected void internalCreateSubscription(AsyncResponse asyncResponse, String subscriptionName,
@@ -2151,8 +2588,12 @@ public class PersistentTopicsBase extends AdminResource {
         .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
         .thenAccept(__ -> {
             final MessageIdImpl targetMessageId = messageId == null ? (MessageIdImpl) MessageId.latest : messageId;
-            log.info("[{}][{}] Creating subscription {} at message id {} with properties {}", clientAppId(),
-                    topicName, subscriptionName, targetMessageId, properties);
+            log.info()
+                    .attr("topic", topicName)
+                    .attr("subscription", subscriptionName)
+                    .attr("messageId", targetMessageId)
+                    .attr("properties", properties)
+                    .log("Creating subscription at message id with properties");
             // If the topic name is a partition name, no need to get partition topic metadata again
             if (topicName.isPartitioned()) {
                 internalCreateSubscriptionForNonPartitionedTopic(asyncResponse,
@@ -2194,8 +2635,12 @@ public class PersistentTopicsBase extends AdminResource {
                                                     return null;
                                                 });
                                     } catch (Exception e) {
-                                        log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
-                                              clientAppId(), topicNamePartition, subscriptionName, targetMessageId, e);
+                                        log.warn()
+                                                .attr("topicNamePartition", topicNamePartition)
+                                                .attr("subscription", subscriptionName)
+                                                .attr("messageId", targetMessageId)
+                                                .exception(e)
+                                                .log("Failed to create subscription at message id");
                                         future.completeExceptionally(e);
                                     }
                                 }
@@ -2212,9 +2657,12 @@ public class PersistentTopicsBase extends AdminResource {
                                     }
 
                                     if (partitionException.get() != null) {
-                                        log.warn("[{}] [{}] Failed to create subscription {} at message id {}",
-                                                clientAppId(), topicName,
-                                                subscriptionName, targetMessageId, partitionException.get());
+                                        log.warn()
+                                                .attr("topic", topicName)
+                                                .attr("subscription", subscriptionName)
+                                                .attr("messageId", targetMessageId)
+                                                .exceptionMessage(partitionException.get())
+                                                .log("Failed to create subscription");
                                         if (partitionException.get() instanceof PulsarAdminException) {
                                             asyncResponse.resume(
                                                     new RestException((PulsarAdminException) partitionException.get()));
@@ -2235,8 +2683,11 @@ public class PersistentTopicsBase extends AdminResource {
                         })).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to create subscription {} on topic {}",
-                                clientAppId(), subscriptionName, topicName, ex);
+                        log.error()
+                                .attr("subscription", subscriptionName)
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to create subscription on topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -2245,8 +2696,11 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to create subscription {} on topic {}",
-                        clientAppId(), subscriptionName, topicName, ex);
+                log.error()
+                        .attr("subscription", subscriptionName)
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to create subscription on topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -2260,9 +2714,8 @@ public class PersistentTopicsBase extends AdminResource {
 
         validateTopicOwnershipAsync(topicName, authoritative)
                 .thenCompose(__ -> validateTopicOperationAsync(topicName, TopicOperation.SUBSCRIBE, subscriptionName))
-                .thenCompose(__ -> pulsar().getBrokerService().isAllowAutoTopicCreationAsync(topicName))
-                .thenCompose(isAllowAutoTopicCreation -> pulsar().getBrokerService()
-                        .getTopic(topicName.toString(), isAllowAutoTopicCreation))
+                .thenCompose(__ -> pulsar().getBrokerService()
+                        .getTopicCreatingIfAllowed(topicName, newTopicCheck(topicName)))
                 .thenApply(optTopic -> {
                     if (optTopic.isPresent()) {
                         return optTopic.get();
@@ -2282,14 +2735,21 @@ public class PersistentTopicsBase extends AdminResource {
             return subscription.resetCursor(
                     PositionFactory.create(targetMessageId.getLedgerId(), targetMessageId.getEntryId()));
         }).thenRun(() -> {
-            log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
-                    topicName, subscriptionName, targetMessageId);
+            log.info()
+                    .attr("topic", topicName)
+                    .attr("subscription", subscriptionName)
+                    .attr("messageId", targetMessageId)
+                    .log("Successfully created subscription at message id");
             asyncResponse.resume(Response.noContent().build());
         }).exceptionally(ex -> {
             Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
             if (!(t instanceof WebApplicationException)) {
-                log.warn("[{}][{}] Failed to create subscription {} at message id {}", clientAppId(), topicName,
-                        subscriptionName, targetMessageId, t);
+                log.warn()
+                        .attr("topic", topicName)
+                        .attr("subscription", subscriptionName)
+                        .attr("messageId", targetMessageId)
+                        .exception(t)
+                        .log("Failed to create subscription at message id");
             }
 
             if (t instanceof SubscriptionInvalidCursorPosition) {
@@ -2327,9 +2787,11 @@ public class PersistentTopicsBase extends AdminResource {
                                         .updateSubscriptionPropertiesAsync(topicNamePartition.toString(),
                                                 subName, subscriptionProperties));
                             } catch (Exception e) {
-                                log.error("[{}] Failed to update properties for subscription {} {}",
-                                        clientAppId(), topicNamePartition, subName,
-                                        e);
+                                log.error()
+                                        .attr("topic", topicNamePartition)
+                                        .attr("subscription", subName)
+                                        .exception(e)
+                                        .log("Failed to update properties for subscription");
                                 asyncResponse.resume(new RestException(e));
                                 return;
                             }
@@ -2347,8 +2809,11 @@ public class PersistentTopicsBase extends AdminResource {
                                             "Subscription has active connected consumers"));
                                     return null;
                                 } else {
-                                    log.error("[{}] Failed to update properties for subscription {} {}",
-                                            clientAppId(), topicName, subName, t);
+                                    log.error()
+                                            .attr("topic", topicName)
+                                            .attr("subscription", subName)
+                                            .exception(t)
+                                            .log("Failed to update properties for subscription");
                                     asyncResponse.resume(new RestException(t));
                                     return null;
                                 }
@@ -2362,8 +2827,11 @@ public class PersistentTopicsBase extends AdminResource {
                                 subscriptionProperties, authoritative);
                     }
                 }, pulsar().getExecutor()).exceptionally(ex -> {
-                    log.error("[{}] Failed to update properties for subscription {} from topic {}",
-                            clientAppId(), subName, topicName, ex);
+                    log.error()
+                            .attr("subscription", subName)
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to update properties for subscription from topic");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -2371,8 +2839,11 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to update subscription {} from topic {}",
-                        clientAppId(), subName, topicName, ex);
+                log.error()
+                        .attr("subscription", subName)
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to update subscription from topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -2406,8 +2877,11 @@ public class PersistentTopicsBase extends AdminResource {
                 .exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to analyze back log of subscription {} from topic {}",
-                                clientAppId(), subName, topicName, ex);
+                        log.error()
+                                .attr("subscription", subName)
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to analyze back log of subscription from topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -2435,9 +2909,11 @@ public class PersistentTopicsBase extends AdminResource {
                                         .getSubscriptionPropertiesAsync(topicNamePartition.toString(),
                                                 subName));
                             } catch (Exception e) {
-                                log.error("[{}] Failed to update properties for subscription {} {}",
-                                        clientAppId(), topicNamePartition, subName,
-                                        e);
+                                log.error()
+                                        .attr("topic", topicNamePartition)
+                                        .attr("subscription", subName)
+                                        .exception(e)
+                                        .log("Failed to update properties for subscription");
                                 asyncResponse.resume(new RestException(e));
                                 return;
                             }
@@ -2451,8 +2927,11 @@ public class PersistentTopicsBase extends AdminResource {
                                             getSubNotFoundErrorMessage(topicName.toString(), subName)));
                                     return null;
                                 } else {
-                                    log.error("[{}] Failed to get properties for subscription {} {}",
-                                            clientAppId(), topicName, subName, t);
+                                    log.error()
+                                            .attr("topic", topicName)
+                                            .attr("subscription", subName)
+                                            .exception(t)
+                                            .log("Failed to get properties for subscription");
                                     asyncResponse.resume(new RestException(t));
                                     return null;
                                 }
@@ -2477,8 +2956,11 @@ public class PersistentTopicsBase extends AdminResource {
                                 authoritative);
                     }
                 }, pulsar().getExecutor()).exceptionally(ex -> {
-                    log.error("[{}] Failed to update properties for subscription {} from topic {}",
-                            clientAppId(), subName, topicName, ex);
+                    log.error()
+                            .attr("subscription", subName)
+                            .attr("topic", topicName)
+                            .exception(ex)
+                            .log("Failed to update properties for subscription from topic");
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -2486,8 +2968,11 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to update subscription {} from topic {}",
-                        clientAppId(), subName, topicName, ex);
+                log.error()
+                        .attr("subscription", subName)
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to update subscription from topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -2503,8 +2988,10 @@ public class PersistentTopicsBase extends AdminResource {
                 return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                         .thenCompose(topicMetadata -> {
                             if (topicMetadata.partitions > 0) {
-                                log.warn("[{}] Not supported operation on partitioned-topic {} {}",
-                                        clientAppId(), topicName, subName);
+                                log.warn()
+                                        .attr("topic", topicName)
+                                        .attr("subscription", subName)
+                                        .log("Not supported operation on partitioned-topic");
                                 throw new CompletionException(new RestException(Status.METHOD_NOT_ALLOWED,
                                         "Reset-cursor at position is not allowed for partitioned-topic"));
                             }
@@ -2515,8 +3002,11 @@ public class PersistentTopicsBase extends AdminResource {
             }
         }).thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
         .thenCompose(__ -> {
-            log.info("[{}][{}] received reset cursor on subscription {} to position {}", clientAppId(), topicName,
-                    subName, messageId);
+            log.info()
+                    .attr("topic", topicName)
+                    .attr("subscription", subName)
+                    .attr("position", messageId)
+                    .log("received reset cursor on subscription to position");
             return validateTopicOwnershipAsync(topicName, authoritative);
         }).thenCompose(ignore -> getTopicReferenceAsync(topicName))
         .thenAccept(topic -> {
@@ -2537,15 +3027,20 @@ public class PersistentTopicsBase extends AdminResource {
                 Position seekPosition = calculatePositionAckSet(isExcluded, bi, batchIndex,
                         messageId);
                 sub.resetCursor(seekPosition).thenRun(() -> {
-                    log.info("[{}][{}] successfully reset cursor on subscription {}"
-                                    + " to position {}", clientAppId(),
-                            topicName, subName, messageId);
+                    log.info()
+                            .attr("topic", topicName)
+                            .attr("subscription", subName)
+                            .attr("position", messageId)
+                            .log("successfully reset cursor on subscription to position");
                     asyncResponse.resume(Response.noContent().build());
                 }).exceptionally(ex -> {
                     Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
-                    log.warn("[{}][{}] Failed to reset cursor on subscription {}"
-                                    + " to position {}", clientAppId(),
-                            topicName, subName, messageId, t);
+                    log.warn()
+                            .attr("topic", topicName)
+                            .attr("subscription", subName)
+                            .attr("position", messageId)
+                            .exception(t)
+                            .log("Failed to reset cursor on subscription to position");
                     if (t instanceof SubscriptionInvalidCursorPosition) {
                         asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                                 "Unable to find position for position specified: "
@@ -2565,8 +3060,12 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.warn("[{}][{}] Failed to reset cursor on subscription {} to position {}",
-                        clientAppId(), topicName, subName, messageId, ex.getCause());
+                log.warn()
+                        .attr("topic", topicName)
+                        .attr("subscription", subName)
+                        .attr("position", messageId)
+                        .exception(ex.getCause())
+                        .log("Failed to reset cursor on subscription to position");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex.getCause());
             return null;
@@ -2620,8 +3119,12 @@ public class PersistentTopicsBase extends AdminResource {
             } catch (NullPointerException npe) {
                 batchSizeFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Message not found"));
             } catch (Exception exception) {
-                log.error("[{}] Failed to get message with ledgerId {} entryId {} from {}",
-                        clientAppId(), messageId.getLedgerId(), messageId.getEntryId(), topicName, exception);
+                log.error()
+                        .attr("ledgerId", messageId.getLedgerId())
+                        .attr("entryId", messageId.getEntryId())
+                        .attr("topic", topicName)
+                        .exception(exception)
+                        .log("Failed to get message");
                 batchSizeFuture.completeExceptionally(new RestException(exception));
             }
         } else {
@@ -2674,8 +3177,9 @@ public class PersistentTopicsBase extends AdminResource {
                 return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                         .thenAccept(topicMetadata -> {
                             if (topicMetadata.partitions > 0) {
-                                log.warn("[{}] Not supported getMessageById operation on partitioned-topic {}",
-                                        clientAppId(), topicName);
+                                log.warn()
+                                        .attr("topic", topicName)
+                                        .log("Not supported getMessageById operation on partitioned-topic");
                                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                                         "GetMessageById is not allowed on partitioned-topic");
                             }
@@ -2742,7 +3246,9 @@ public class PersistentTopicsBase extends AdminResource {
             .thenCompose(__ -> getTopicReferenceAsync(topicName))
             .thenCompose(topic -> {
                 if (!(topic instanceof PersistentTopic)) {
-                    log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
+                    log.error()
+                            .attr("topic", topicName)
+                            .log("Not supported operation of non-persistent topic");
                     throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Get message ID by timestamp on a non-persistent topic is not allowed");
                 }
@@ -2770,9 +3276,10 @@ public class PersistentTopicsBase extends AdminResource {
                 long entryTimestamp = entry.getEntryTimestamp();
                 return MessageImpl.isEntryPublishedEarlierThan(entryTimestamp, timestamp);
             } catch (Exception e) {
-                log.error("[{}] Error deserializing message for message position find",
-                    topicName,
-                    e);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(e)
+                        .log("Error deserializing message for message position find");
             } finally {
                 entry.release();
             }
@@ -2809,8 +3316,10 @@ public class PersistentTopicsBase extends AdminResource {
         .thenCompose(topic -> {
             CompletableFuture<Entry> entry;
             if (!(topic instanceof PersistentTopic)) {
-                log.error("[{}] Not supported operation of non-persistent topic {} {}", clientAppId(),
-                        topicName, subName);
+                log.error()
+                        .attr("topic", topicName)
+                        .attr("subscription", subName)
+                        .log("Not supported operation of non-persistent topic");
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Peek messages on a non-persistent topic is not allowed");
             } else {
@@ -2818,9 +3327,8 @@ public class PersistentTopicsBase extends AdminResource {
                     PersistentReplicator repl = getReplicatorReference(subName, (PersistentTopic) topic);
                     entry = repl.peekNthMessage(messagePosition);
                 } else {
-                    PersistentSubscription sub =
-                            (PersistentSubscription) getSubscriptionReference(subName, (PersistentTopic) topic);
-                    entry = sub.peekNthMessage(messagePosition);
+                    entry = findOrCreateSubscriptionAsync(subName, (PersistentTopic) topic)
+                            .thenCompose(sub -> sub.peekNthMessage(messagePosition));
                 }
             }
             return entry.thenApply(e -> Pair.of(e, (PersistentTopic) topic));
@@ -2833,8 +3341,12 @@ public class PersistentTopicsBase extends AdminResource {
             } catch (NullPointerException npe) {
                 throw new RestException(Status.NOT_FOUND, "Message not found");
             } catch (Exception exception) {
-                log.error("[{}] Failed to peek message at position {} from {} {}", clientAppId(),
-                        messagePosition, topicName, subName, exception);
+                log.error()
+                        .attr("position", messagePosition)
+                        .attr("topic", topicName)
+                        .attr("subscription", subName)
+                        .exception(exception)
+                        .log("Failed to peek message");
                 throw new RestException(exception);
             } finally {
                 if (entry != null) {
@@ -2868,7 +3380,9 @@ public class PersistentTopicsBase extends AdminResource {
         }).thenCompose(__ -> getTopicReferenceAsync(topicName))
         .thenCompose(topic -> {
             if (!(topic instanceof PersistentTopic)) {
-                log.error("[{}] Not supported operation of non-persistent topic {} ", clientAppId(), topicName);
+                log.error()
+                        .attr("topic", topicName)
+                        .log("Not supported operation of non-persistent topic");
                 throw new RestException(Status.METHOD_NOT_ALLOWED,
                         "Examine messages on a non-persistent topic is not allowed");
             }
@@ -2904,9 +3418,11 @@ public class PersistentTopicsBase extends AdminResource {
                 }, null);
                 return future.thenApply(entry -> Pair.of(entry, (PersistentTopic) topic));
             } catch (ManagedLedgerException exception) {
-                log.error("[{}] Failed to examine message at position {} from {} due to {}", clientAppId(),
-                        messagePosition,
-                        topicName, exception);
+                log.error()
+                        .attr("position", messagePosition)
+                        .attr("topic", topicName)
+                        .exceptionMessage(exception)
+                        .log("Failed to examine message");
                 throw new RestException(exception);
             }
         }).thenApply(entryTopicPair -> {
@@ -3031,6 +3547,16 @@ public class PersistentTopicsBase extends AdminResource {
         if (metadata.hasTxnidMostBits()) {
             responseBuilder.header("X-Pulsar-txnid-most-bits", metadata.getTxnidMostBits());
         }
+        if (metadata.hasTxnidMostBits() && metadata.hasTxnidLeastBits()) {
+            TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
+            boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, entry.getPosition());
+            responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
+            boolean isTxnUncommitted = persistentTopic.isTxnOngoing(txnID);
+            responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
+        }
+        boolean isTxnConsumable = entry.getPosition()
+                .compareTo(persistentTopic.getMaxReadPosition()) <= 0;
+        responseBuilder.header("X-Pulsar-txn-consumable", isTxnConsumable);
         if (metadata.hasHighestSequenceId()) {
             responseBuilder.header("X-Pulsar-highest-sequence-id", metadata.getHighestSequenceId());
         }
@@ -3049,14 +3575,6 @@ public class PersistentTopicsBase extends AdminResource {
         if (metadata.hasNullPartitionKey()) {
             responseBuilder.header("X-Pulsar-null-partition-key", metadata.isNullPartitionKey());
         }
-        if (metadata.hasTxnidMostBits() && metadata.hasTxnidLeastBits()) {
-            TxnID txnID = new TxnID(metadata.getTxnidMostBits(), metadata.getTxnidLeastBits());
-            boolean isTxnAborted = persistentTopic.isTxnAborted(txnID, entry.getPosition());
-            responseBuilder.header("X-Pulsar-txn-aborted", isTxnAborted);
-        }
-        boolean isTxnUncommitted = (entry.getPosition())
-                .compareTo(persistentTopic.getMaxReadPosition()) > 0;
-        responseBuilder.header("X-Pulsar-txn-uncommitted", isTxnUncommitted);
 
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider
@@ -3098,24 +3616,22 @@ public class PersistentTopicsBase extends AdminResource {
                                 ManagedLedgerOfflineBacklog offlineTopicBacklog =
                                         new ManagedLedgerOfflineBacklog(config.getDigestType(), config.getPassword(),
                                                 pulsar().getAdvertisedAddress(), false);
-                                try {
-                                    PersistentOfflineTopicStats estimateOfflineTopicStats =
-                                            offlineTopicBacklog.estimateUnloadedTopicBacklog(
-                                                    pulsar().getBrokerService()
-                                                            .getManagedLedgerFactoryForTopic(topicName,
-                                                                    config.getStorageClassName()),
-                                                    topicName);
-                                    pulsar().getBrokerService()
-                                            .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
-                                    return CompletableFuture.completedFuture(estimateOfflineTopicStats);
-                                } catch (Exception e) {
-                                    throw new RestException(e);
-                                }
+                                return offlineTopicBacklog.estimateUnloadedTopicBacklogAsync(
+                                                pulsar().getBrokerService()
+                                                        .getManagedLedgerFactoryForTopic(topicName,
+                                                                config.getStorageClassName()),
+                                                topicName, pulsar().getExecutor())
+                                        .thenApply(estimateOfflineTopicStats -> {
+                                            pulsar().getBrokerService()
+                                                    .cacheOfflineTopicStats(topicName, estimateOfflineTopicStats);
+                                            return estimateOfflineTopicStats;
+                                        });
                             });
 
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>> internalGetBacklogQuota(
             boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
@@ -3151,8 +3667,9 @@ public class PersistentTopicsBase extends AdminResource {
                 return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                         .thenCompose(topicMetadata -> {
                             if (topicMetadata.partitions > 0) {
-                                log.warn("[{}] Not supported calculate backlog size operation on partitioned-topic {}",
-                                        clientAppId(), topicName);
+                                log.warn()
+                                        .attr("topic", topicName)
+                                        .log("Not supported calculate backlog size operation on partitioned-topic");
                                 asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
                                         "calculate backlog size is not allowed for partitioned-topic"));
                             }
@@ -3182,8 +3699,10 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (!isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to validate global namespace ownership "
-                        + "to get backlog size for topic {}", clientAppId(), topicName, ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to validate global namespace ownership to get backlog size for topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -3212,10 +3731,10 @@ public class PersistentTopicsBase extends AdminResource {
                     return getRetentionPoliciesAsync(topicName, topicPolicies)
                             .thenCompose(retentionPolicies -> {
                                 if (!checkBacklogQuota(backlogQuota, retentionPolicies)) {
-                                    log.warn(
-                                            "[{}] Failed to update backlog configuration for topic {}: conflicts with"
-                                                    + " retention quota",
-                                            clientAppId(), topicName);
+                                    log.warn()
+                                            .attr("topic", topicName)
+                                            .log("Failed to update backlog configuration for topic: conflicts with"
+                                                    + " retention quota");
                                     return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                                             "Backlog Quota exceeds configured retention quota for topic. "
                                                     + "Please increase retention quota and retry"));
@@ -3232,13 +3751,12 @@ public class PersistentTopicsBase extends AdminResource {
                                             Map<String, BacklogQuotaImpl> backLogQuotaMap =
                                                     policies.getBackLogQuotaMap();
                                             try {
-                                                log.info(
-                                                        "[{}] Successfully updated backlog quota map: namespace={}, "
-                                                                + "topic={}, map={}",
-                                                        clientAppId(),
-                                                        namespaceName,
-                                                        topicName.getLocalName(),
-                                                        objectWriter().writeValueAsString(backLogQuotaMap));
+                                                log.info()
+                                                        .attr("namespace", namespaceName)
+                                                        .attr("topic", topicName.getLocalName())
+                                                        .attr("backlogQuotaMap",
+                                                                objectWriter().writeValueAsString(backLogQuotaMap))
+                                                        .log("Successfully updated backlog quota map");
                                             } catch (JsonProcessingException ignore) {
                                             }
                                         });
@@ -3307,9 +3825,12 @@ public class PersistentTopicsBase extends AdminResource {
                     return FutureUtil.waitForAll(futures);
                 }).thenCompose(__ -> {
                     if (!pulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
-                        log.info("[{}] Skip creating partitioned for topic {} for the remote clusters {}",
-                                clientAppId(), topicName, replicationClustersSet.stream().filter(v ->
-                                        !pulsar().getConfig().getClusterName().equals(v)).collect(Collectors.toList()));
+                        log.info()
+                                .attr("topic", topicName)
+                                .attr("clusters", replicationClustersSet.stream().filter(v ->
+                                        !pulsar().getConfig().getClusterName().equals(v)).collect(Collectors
+                                                .toList())).log("Skip creating partitioned for topic for the remote"
+                                                        + " clusters");
                         return CompletableFuture.completedFuture(null);
                     }
                     // Sync to create partitioned topic on the remote cluster if needed.
@@ -3329,12 +3850,11 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal,
                         false, policies -> {
                     policies.setReplicationClusters(clusterIds);
-                    log.info("[{}] Successfully set replication clusters for namespace={}, "
-                                    + "topic={}, clusters={}",
-                            clientAppId(),
-                            namespaceName,
-                            topicName.getLocalName(),
-                            policies.getReplicationClusters());
+                    log.info()
+                            .attr("namespace", namespaceName)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("clusters", policies.getReplicationClusters())
+                            .log("Successfully set replication clusters");
                 })); // Replication clusters are typically local policy
     }
 
@@ -3343,14 +3863,14 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> pulsar().getTopicPoliciesService().updateTopicPoliciesAsync(topicName, isGlobal,
                         true, policies -> {
                     policies.setReplicationClusters(null);
-                    log.info("[{}] Successfully removed replication clusters for namespace={}, "
-                                    + "topic={}, clusters set to null",
-                            clientAppId(),
-                            namespaceName,
-                            topicName.getLocalName());
+                    log.info()
+                            .attr("namespace", namespaceName)
+                            .attr("topic", topicName.getLocalName())
+                            .log("Successfully removed replication clusters (set to null)");
                 }));
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Boolean> internalGetDeduplication(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getDeduplicationEnabled)
@@ -3370,6 +3890,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Integer> internalGetSubscriptionExpirationTime(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenApply(op -> op.map(TopicPolicies::getSubscriptionExpirationTimeInMinutes)
@@ -3395,9 +3916,11 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService()
                 .updateTopicPoliciesAsync(topicName, isGlobal, expirationTimeToSet == null, policies -> {
                     policies.setSubscriptionExpirationTimeInMinutes(expirationTimeToSet);
-                    log.info("[{}] Successfully set topic subscription expiration time: namespace={}, "
-                                    + "topic={}, time={}",
-                            clientAppId(), namespaceName, topicName.getLocalName(), expirationTimeToSet);
+                    log.info()
+                            .attr("namespace", namespaceName)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("expirationTime", expirationTimeToSet)
+                            .log("Successfully set topic subscription expiration time");
                 });
     }
 
@@ -3411,8 +3934,11 @@ public class PersistentTopicsBase extends AdminResource {
         return pulsar().getTopicPoliciesService()
                 .updateTopicPoliciesAsync(topicName, isGlobal, ttlInSecondToSet == null, policies -> {
                     policies.setMessageTTLInSeconds(ttlInSecondToSet);
-                    log.info("[{}] Successfully set topic message ttl: namespace={}, topic={}, ttl={}",
-                            clientAppId(), namespaceName, topicName.getLocalName(), ttlInSecondToSet);
+                    log.info()
+                            .attr("namespace", namespaceName)
+                            .attr("topic", topicName.getLocalName())
+                            .attr("ttl", ttlInSecondToSet)
+                            .log("Successfully set topic message ttl");
                 });
     }
 
@@ -3426,6 +3952,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenApply(policies -> policies.retention_policies);
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getRetentionPolicies).orElseGet(() -> {
@@ -3456,8 +3983,10 @@ public class PersistentTopicsBase extends AdminResource {
                                     backlogQuota = currentNamespacePolicies.backlog_quota_map.get(backlogQuotaType);
                                 }
                                 if (!checkBacklogQuota(backlogQuota, retentionToSet)) {
-                                    log.warn("[{}] Failed to update retention quota configuration for topic {}: "
-                                            + "conflicts with retention quota", clientAppId(), topicName);
+                                    log.warn()
+                                            .attr("topic", topicName)
+                                            .log("Failed to update retention quota configuration for topic:"
+                                                    + " conflicts with retention quota");
                                     return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                                             "Retention Quota must exceed configured backlog quota for topic. "
                                                     + "Please increase retention quota and retry"));
@@ -3491,10 +4020,25 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<Boolean> internalGetDispatcherPauseOnAckStatePersistent(boolean applied,
                                                                                         boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
-            .thenApply(op -> op.map(TopicPolicies::getDispatcherPauseOnAckStatePersistentEnabled)
-                .orElse(false));
-}
+            .thenCompose(op -> {
+                Boolean topicPolicy = op.map(TopicPolicies::getDispatcherPauseOnAckStatePersistentEnabled)
+                        .orElse(null);
+                if (topicPolicy != null) {
+                    return CompletableFuture.completedFuture(topicPolicy);
+                }
+                if (!applied) {
+                    return CompletableFuture.completedFuture(false);
+                }
+                return getNamespacePoliciesAsync(namespaceName).thenApply(namespacePolicies -> {
+                    Boolean namespacePolicy = namespacePolicies.dispatcherPauseOnAckStatePersistentEnabled;
+                    return namespacePolicy == null
+                            ? config().isDispatcherPauseOnAckStatePersistentEnabled()
+                            : namespacePolicy;
+                });
+            });
+    }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<PersistencePolicies> internalGetPersistence(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getPersistence)
@@ -3548,6 +4092,7 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenApply(op -> op.map(TopicPolicies::getMaxMessageSize));
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Integer> internalGetMaxProducers(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getMaxProducerPerTopic)
@@ -3589,6 +4134,7 @@ public class PersistentTopicsBase extends AdminResource {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<DispatchRateImpl> internalGetReplicatorDispatchRate(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getReplicatorDispatchRate)
@@ -3645,6 +4191,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Integer> internalGetMaxConsumers(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getMaxConsumerPerTopic)
@@ -3704,7 +4251,7 @@ public class PersistentTopicsBase extends AdminResource {
         if (topicName.isPartitioned()) {
             String msg = "Termination of a non-partitioned topic is not allowed using partitioned-terminate"
                     + ", please use terminate commands";
-            log.error("[{}] [{}] {}", clientAppId(), topicName, msg);
+            log.error().attr("topic", topicName).attr("msg", msg).log("");
             asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED, msg));
             return;
         }
@@ -3715,7 +4262,7 @@ public class PersistentTopicsBase extends AdminResource {
             if (partitionMetadata.partitions == 0) {
                 String msg = "Termination of a non-partitioned topic is not allowed using partitioned-terminate"
                         + ", please use terminate commands";
-                log.error("[{}] [{}] {}", clientAppId(), topicName, msg);
+                log.error().attr("topic", topicName).attr("msg", msg).log("");
                 asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED, msg));
                 return;
             }
@@ -3732,15 +4279,19 @@ public class PersistentTopicsBase extends AdminResource {
                                 .terminateTopicAsync(topicNamePartition.toString())
                                 .whenComplete((messageId, throwable) -> {
                                     if (throwable != null) {
-                                        log.error("[{}] Failed to terminate topic {}", clientAppId(),
-                                                topicNamePartition, throwable);
+                                        log.error()
+                                                .attr("topic", topicNamePartition)
+                                                .exception(throwable)
+                                                .log("Failed to terminate topic");
                                         asyncResponse.resume(new RestException(throwable));
                                     }
                                     messageIds.put(finalI, messageId);
                                 }));
                     } catch (Exception e) {
-                        log.error("[{}] Failed to terminate topic {}", clientAppId(), topicNamePartition,
-                                e);
+                        log.error()
+                                .attr("topic", topicNamePartition)
+                                .exception(e)
+                                .log("Failed to terminate topic");
                         throw new RestException(e);
                     }
                 }
@@ -3751,7 +4302,10 @@ public class PersistentTopicsBase extends AdminResource {
                             asyncResponse.resume(new RestException(Status.NOT_FOUND,
                                     getTopicNotFoundErrorMessage(topicName.toString())));
                         } else {
-                            log.error("[{}] Failed to terminate topic {}", clientAppId(), topicName, t);
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .exception(t)
+                                    .log("Failed to terminate topic");
                             asyncResponse.resume(new RestException(t));
                         }
                     }
@@ -3762,7 +4316,10 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to terminate topic {}", clientAppId(), topicName, ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to terminate topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -3798,9 +4355,11 @@ public class PersistentTopicsBase extends AdminResource {
                                                     .expireMessagesAsync(topicNamePartition.toString(),
                                                             subName, expireTimeInSeconds));
                                         } catch (Exception e) {
-                                            log.error("[{}] Failed to expire messages up to {} on {}",
-                                                    clientAppId(),
-                                                    expireTimeInSeconds, topicNamePartition, e);
+                                            log.error()
+                                                    .attr("expireTimeInSeconds", expireTimeInSeconds)
+                                                    .attr("topic", topicNamePartition)
+                                                    .exception(e)
+                                                    .log("Failed to expire messages");
                                             asyncResponse.resume(new RestException(e));
                                             return;
                                         }
@@ -3816,14 +4375,17 @@ public class PersistentTopicsBase extends AdminResource {
                                                 return null;
                                             } else {
                                                 if (t instanceof PulsarAdminException) {
-                                                    log.warn("[{}] Failed to expire messages up "
-                                                            + "to {} on {}: {}", clientAppId(),
-                                                                    expireTimeInSeconds, topicName,
-                                                                            t.toString());
+                                                    log.warn()
+                                                            .attr("expireTimeInSeconds", expireTimeInSeconds)
+                                                            .attr("topic", topicName)
+                                                            .exceptionMessage(t)
+                                                            .log("Failed to expire messages");
                                                 } else {
-                                                    log.error("[{}] Failed to expire messages up "
-                                                            + "to {} on {}", clientAppId(),
-                                                                    expireTimeInSeconds, topicName, t);
+                                                    log.error()
+                                                            .attr("expireTimeInSeconds", expireTimeInSeconds)
+                                                            .attr("topic", topicName)
+                                                            .exception(t)
+                                                            .log("Failed to expire messages");
                                                 }
                                                 resumeAsyncResponseExceptionally(asyncResponse, t);
                                                 return null;
@@ -3846,11 +4408,17 @@ public class PersistentTopicsBase extends AdminResource {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(cause)) {
                 if (cause instanceof RestException) {
-                    log.warn("[{}] Failed to expire messages up to {} on {}: {}", clientAppId(), expireTimeInSeconds,
-                            topicName, cause.toString());
+                    log.warn()
+                            .attr("expireTimeInSeconds", expireTimeInSeconds)
+                            .attr("topic", topicName)
+                            .exceptionMessage(cause)
+                            .log("Failed to expire messages");
                 } else {
-                    log.error("[{}] Failed to expire messages up to {} on {}", clientAppId(), expireTimeInSeconds,
-                            topicName, cause);
+                    log.error()
+                            .attr("expireTimeInSeconds", expireTimeInSeconds)
+                            .attr("topic", topicName)
+                            .exception(cause)
+                            .log("Failed to expire messages");
                 }
             }
             resumeAsyncResponseExceptionally(asyncResponse, cause);
@@ -3879,31 +4447,35 @@ public class PersistentTopicsBase extends AdminResource {
                 PersistentTopic topic = (PersistentTopic) t;
 
                 final MessageExpirer messageExpirer;
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                Optional<String> remoteCluster =
+                        AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                if (remoteCluster.isPresent()) {
+                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                 } else {
                     messageExpirer = topic.getSubscription(subName);
                 }
                 if (messageExpirer == null) {
-                    final String message = subName.startsWith(topic.getReplicatorPrefix())
+                    final String message = remoteCluster.isPresent()
                             ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
                     resultFuture.completeExceptionally(new RestException(Status.NOT_FOUND, message));
                     return;
                 }
                 if (messageExpirer.expireMessages(expireTimeInSeconds)) {
-                    log.info("[{}] Message expire started up to {} on {} {}", clientAppId(),
-                            expireTimeInSeconds, topicName, subName);
+                    log.info()
+                            .attr("expireTimeInSeconds", expireTimeInSeconds)
+                            .attr("topic", topicName)
+                            .attr("subscription", subName)
+                            .log("Message expire started up to on");
                     resultFuture.complete(null);
                 } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("Expire message by timestamp not issued on topic {} for subscription {} "
-                                + "due to ongoing message expiration not finished or subscription almost"
-                                + " catch up. If it's performed on a partitioned topic operation might "
-                                + "succeeded on other partitions, please check stats of individual "
-                                + "partition.", topicName, subName);
-                    }
-                    resultFuture.completeExceptionally(new RestException(Status.CONFLICT, "Expire message "
+                        log.debug()
+                                .attr("topic", topicName)
+                                .attr("subscription", subName)
+                                .log("Expire message by timestamp not issued:"
+                                        + " ongoing expiration or subscription"
+                                        + " almost caught up");
+                                        resultFuture.completeExceptionally(new RestException(Status.CONFLICT,
+                                                "Expire message "
                             + "by timestamp not issued on topic " + topicName + " for subscription "
                             + subName + " due to ongoing message expiration not finished or subscription "
                             + "almost catch  up. If it's performed on a partitioned topic operation might"
@@ -3924,7 +4496,11 @@ public class PersistentTopicsBase extends AdminResource {
         if (messageId.getPartitionIndex() != topicName.getPartitionIndex()) {
             String msg = "Invalid parameter for expire message by position, partition index of "
                     + "passed in message position doesn't match partition index for the topic";
-            log.warn("[{}] {} {}({}).", clientAppId(), msg, topicName, messageId);
+            log.warn()
+                    .attr("msg", msg)
+                    .attr("topic", topicName)
+                    .attr("messageId", messageId)
+                    .log(".");
             asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED, msg));
             return;
         }
@@ -3936,7 +4512,12 @@ public class PersistentTopicsBase extends AdminResource {
                         .thenCompose(topicMetadata -> {
                             if (topicMetadata.partitions > 0) {
                                 String msg = "Expire message at position is not supported for partitioned-topic";
-                                log.warn("[{}] {} {}({}) {}", clientAppId(), msg, topicName, messageId, subName);
+                                log.warn()
+                                        .attr("msg", msg)
+                                        .attr("topic", topicName)
+                                        .attr("messageId", messageId)
+                                        .attr("subscription", subName)
+                                        .log("");
                                 asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED, msg));
                             }
                             return CompletableFuture.completedFuture(null);
@@ -3947,15 +4528,22 @@ public class PersistentTopicsBase extends AdminResource {
         }).thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
         .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
         .thenCompose(__ -> {
-            log.info("[{}][{}] Received expire messages on subscription {} to position {}", clientAppId(),
-                    topicName, subName, messageId);
+            log.info()
+                    .attr("topic", topicName)
+                    .attr("subscription", subName)
+                    .attr("position", messageId)
+                    .log("Received expire messages on subscription to position");
             return internalExpireMessagesNonPartitionedTopicByPosition(asyncResponse, subName,
                     messageId, isExcluded, batchIndex);
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to expire messages up to {} on subscription {} to position {}",
-                        clientAppId(), topicName, subName, messageId, ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .attr("subscription", subName)
+                        .attr("position", messageId)
+                        .exception(ex)
+                        .log("Failed to expire messages up to on subscription to position");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -3976,14 +4564,15 @@ public class PersistentTopicsBase extends AdminResource {
             }
             try {
                 final MessageExpirer messageExpirer;
-                if (subName.startsWith(topic.getReplicatorPrefix())) {
-                    String remoteCluster = PersistentReplicator.getRemoteCluster(subName);
-                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
+                Optional<String> remoteCluster =
+                        AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), subName);
+                if (remoteCluster.isPresent()) {
+                    messageExpirer = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster.get());
                 } else {
                     messageExpirer = topic.getSubscription(subName);
                 }
                 if (messageExpirer == null) {
-                    final String message = (subName.startsWith(topic.getReplicatorPrefix()))
+                    final String message = remoteCluster.isPresent()
                             ? "Replicator not found" : getSubNotFoundErrorMessage(topicName.toString(), subName);
                     asyncResponse.resume(new RestException(Status.NOT_FOUND, message));
                     return;
@@ -3996,15 +4585,20 @@ public class PersistentTopicsBase extends AdminResource {
                     Position position = calculatePositionAckSet(isExcluded, bi, batchIndex, messageId);
                     try {
                         if (messageExpirer.expireMessages(position)) {
-                            log.info("[{}] Message expire started up to {} on {} {}", clientAppId(), position,
-                                    topicName, subName);
+                            log.info()
+                                    .attr("position", position)
+                                    .attr("topic", topicName)
+                                    .attr("subscription", subName)
+                                    .log("Message expire started up to on");
                         } else {
-                            if (log.isDebugEnabled()) {
-                                log.debug("Expire message by position not issued on topic {} for subscription {} "
-                                        + "due to ongoing message expiration not finished or subscription almost "
-                                        + "catch up.", topicName, subName);
-                            }
-                            throw new RestException(Status.CONFLICT, "Expire message by position not issued on topic "
+                                log.debug()
+                                        .attr("topic", topicName)
+                                        .attr("subscription", subName)
+                                        .log("Expire message by position not issued:"
+                                                + " ongoing expiration or subscription"
+                                                + " almost caught up");
+                                throw new RestException(Status.CONFLICT,
+                                                                "Expire message by position not issued on topic "
                                     + topicName + " for subscription " + subName + " due to ongoing"
                                     + " message expiration not finished or invalid message position provided.");
                         }
@@ -4017,28 +4611,49 @@ public class PersistentTopicsBase extends AdminResource {
                 }).exceptionally(e -> {
                     Throwable throwable = FutureUtil.unwrapCompletionException(e);
                     if (throwable instanceof RestException) {
-                        log.warn("[{}] Failed to expire messages up to {} on {} with subscription {}: {}",
-                                clientAppId(), messageId, topicName, subName, throwable.toString());
+                        log.warn()
+                                .attr("messageId", messageId)
+                                .attr("topic", topicName)
+                                .attr("subscription", subName)
+                                .exceptionMessage(throwable)
+                                .log("Failed to expire messages up to on with subscription");
                     } else {
-                        log.error("[{}] Failed to expire messages up to {} on {} with subscription {}", clientAppId(),
-                                messageId, topicName, subName, throwable);
+                        log.error()
+                                .attr("messageId", messageId)
+                                .attr("topic", topicName)
+                                .attr("subscription", subName)
+                                .exception(throwable)
+                                .log("Failed to expire messages up to on with subscription");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, throwable);
                     return null;
                 });
             } catch (Exception e) {
-                log.warn("[{}][{}] Failed to expire messages up to {} on subscription {} to position {}",
-                        clientAppId(), topicName, messageId, subName, messageId, e);
+                log.warn()
+                        .attr("topic", topicName)
+                        .attr("messageId", messageId)
+                        .attr("subscription", subName)
+                        .attr("position", messageId)
+                        .exception(e)
+                        .log("Failed to expire messages up to on subscription to position");
                 resumeAsyncResponseExceptionally(asyncResponse, e);
             }
         }).exceptionally(ex -> {
             Throwable cause = FutureUtil.unwrapCompletionException(ex);
             if (cause instanceof RestException) {
-                log.warn("[{}] Failed to expire messages up to {} on subscription {} to position {}: {}", clientAppId(),
-                        topicName, subName, messageId, cause.toString());
+                log.warn()
+                        .attr("topic", topicName)
+                        .attr("subscription", subName)
+                        .attr("position", messageId)
+                        .exceptionMessage(cause)
+                        .log("Failed to expire messages up to on subscription to position");
             } else {
-                log.error("[{}] Failed to expire messages up to {} on subscription {} to position {}", clientAppId(),
-                        topicName, subName, messageId, cause);
+                log.error()
+                        .attr("topic", topicName)
+                        .attr("subscription", subName)
+                        .attr("position", messageId)
+                        .exception(cause)
+                        .log("Failed to expire messages up to on subscription to position");
             }
             resumeAsyncResponseExceptionally(asyncResponse, cause);
             return null;
@@ -4046,7 +4661,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected void internalTriggerCompaction(AsyncResponse asyncResponse, boolean authoritative) {
-        log.info("[{}] Trigger compaction on topic {}", clientAppId(), topicName);
+        log.info().attr("topic", topicName).log("Trigger compaction on topic");
         validateTopicOperationAsync(topicName, TopicOperation.COMPACT)
         .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName))
         .thenAccept(__ -> {
@@ -4068,8 +4683,10 @@ public class PersistentTopicsBase extends AdminResource {
                                         .topics()
                                         .triggerCompactionAsync(topicNamePartition.toString()));
                             } catch (Exception e) {
-                                log.error("[{}] Failed to trigger compaction on topic {}",
-                                        clientAppId(), topicNamePartition, e);
+                                log.error()
+                                        .attr("topic", topicNamePartition)
+                                        .exception(e)
+                                        .log("Failed to trigger compaction on topic");
                                 asyncResponse.resume(new RestException(e));
                                 return;
                             }
@@ -4085,8 +4702,10 @@ public class PersistentTopicsBase extends AdminResource {
                                     asyncResponse.resume(th);
                                     return null;
                                 } else {
-                                    log.error("[{}] Failed to trigger compaction on topic {}",
-                                            clientAppId(), topicName, exception);
+                                    log.error()
+                                            .attr("topic", topicName)
+                                            .exception(exception)
+                                            .log("Failed to trigger compaction on topic");
                                     asyncResponse.resume(new RestException(exception));
                                     return null;
                                 }
@@ -4100,7 +4719,10 @@ public class PersistentTopicsBase extends AdminResource {
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to trigger compaction on topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -4109,8 +4731,10 @@ public class PersistentTopicsBase extends AdminResource {
         }).exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to validate global namespace ownership to trigger compaction on topic {}",
-                        clientAppId(), topicName, ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .exception(ex)
+                        .log("Failed to validate global namespace ownership to trigger compaction on topic");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -4132,14 +4756,19 @@ public class PersistentTopicsBase extends AdminResource {
                         resumeAsyncResponseExceptionally(asyncResponse,
                             new RestException(Status.CONFLICT, ex.getMessage()));
                     } else {
-                        log.error("[{}] Failed to trigger compaction on topic {}", clientAppId(),
-                            topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to trigger compaction on topic");
                         resumeAsyncResponseExceptionally(asyncResponse, new RestException(ex));
                     }
                 })).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to trigger compaction for {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to trigger compaction for");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -4167,14 +4796,17 @@ public class PersistentTopicsBase extends AdminResource {
                                 new RestException(Status.CONFLICT, e.getMessage()));
                         return;
                     } catch (Exception e) {
-                        log.warn("Unexpected error triggering offload", e);
+                        log.warn().exception(e).log("Unexpected error triggering offload");
                         resumeAsyncResponseExceptionally(asyncResponse, new RestException(e));
                         return;
                     }
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to trigger offload for {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to trigger offload for");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -4191,7 +4823,10 @@ public class PersistentTopicsBase extends AdminResource {
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to offload status on topic {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to offload status on topic");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -4217,7 +4852,10 @@ public class PersistentTopicsBase extends AdminResource {
                                 }).exceptionally(ex -> {
                                     Throwable throwable2 = FutureUtil.unwrapCompletionException(ex);
                                     if (throwable2 instanceof RestException) {
-                                        log.warn("Failed to authorize {} on topic {}", clientAppId, topicName);
+                                        log.warn()
+                                                .attr("authorize", clientAppId)
+                                                .attr("topic", topicName)
+                                                .log("Failed to authorize on topic");
                                         authorizationFuture.completeExceptionally(new PulsarClientException(
                                                 String.format("Authorization failed %s on topic %s with error %s",
                                                 clientAppId, topicName, throwable2.getMessage())));
@@ -4229,7 +4867,11 @@ public class PersistentTopicsBase extends AdminResource {
                     } else {
                         // throw without wrapping to PulsarClientException that considers: unknown error marked as
                         // internal server error
-                        log.warn("Failed to authorize {} on topic {}", clientAppId, topicName, throwable);
+                        log.warn()
+                                .attr("authorize", clientAppId)
+                                .attr("topic", topicName)
+                                .exception(throwable)
+                                .log("Failed to authorize on topic");
                         authorizationFuture.completeExceptionally(throwable);
                     }
                     return null;
@@ -4245,14 +4887,16 @@ public class PersistentTopicsBase extends AdminResource {
         authorizationFuture.thenCompose(__ ->
                         checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(),
                                 SystemTopicNames.isSystemTopic(topicName)))
-                .thenCompose(res ->
-                        pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
+                .thenCompose(res -> pulsar.getBrokerService().fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
+                        topicName, () -> pulsar.getBrokerService().getAuthorizationService()
+                                .allowTopicAutoCreationAsync(topicName, originalPrincipal, clientAppId,
+                                        originalAuthenticationData, authenticationData)))
                 .thenAccept(metadata -> {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId, topicName,
-                                metadata.partitions);
-                    }
-                    metadataFuture.complete(metadata);
+                        log.debug()
+                                .attr("topic", topicName)
+                                .attr("partitions", metadata.partitions)
+                                .log("Total number of partitions for topic is");
+                                        metadataFuture.complete(metadata);
                 })
                 .exceptionally(e -> {
                     metadataFuture.completeExceptionally(FutureUtil.unwrapCompletionException(e));
@@ -4266,7 +4910,18 @@ public class PersistentTopicsBase extends AdminResource {
      */
     public static CompletableFuture<PartitionedTopicMetadata> unsafeGetPartitionedTopicMetadataAsync(
         PulsarService pulsar, TopicName topicName) {
-        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture();
+        return unsafeGetPartitionedTopicMetadataAsync(pulsar, topicName,
+                () -> CompletableFuture.completedFuture(true));
+    }
+
+    /**
+     * Like {@link #unsafeGetPartitionedTopicMetadataAsync(PulsarService, TopicName)}, but auto-creating a topic from
+     * nothing is also subject to {@code newTopicCheck}, see
+     * {@code BrokerService#fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(TopicName, Supplier)}.
+     */
+    public static CompletableFuture<PartitionedTopicMetadata> unsafeGetPartitionedTopicMetadataAsync(
+        PulsarService pulsar, TopicName topicName, Supplier<CompletableFuture<Boolean>> newTopicCheck) {
+        CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
 
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
@@ -4277,13 +4932,13 @@ public class PersistentTopicsBase extends AdminResource {
         // If we don't do this, it can prevent namespace deletion due to inaccessible readers.
         checkLocalOrGetPeerReplicationCluster(pulsar, topicName.getNamespaceObject(), isSystemTopic(topicName))
             .thenCompose(res -> pulsar.getBrokerService()
-                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName))
+                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName, newTopicCheck))
             .thenAccept(metadata -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("Total number of partitions for topic {} is {}", topicName,
-                        metadata.partitions);
-                }
-                metadataFuture.complete(metadata);
+                    LOG.debug()
+                            .attr("topic", topicName)
+                            .attr("partitions", metadata.partitions)
+                            .log("Total number of partitions for topic is");
+                                metadataFuture.complete(metadata);
             }).exceptionally(ex -> {
             metadataFuture.completeExceptionally(ex.getCause());
             return null;
@@ -4326,20 +4981,35 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     /**
-     * Get the Subscription object reference from the Topic reference.
+     * Find the subscription or create it when automatic subscription creation is allowed.
      */
-    private Subscription getSubscriptionReference(String subName, PersistentTopic topic) {
-        try {
-            Subscription sub = topic.getSubscription(subName);
-            if (sub == null) {
-                sub = topic.createSubscription(subName,
-                        InitialPosition.Earliest, false, null).get();
-            }
-
-            return checkNotNull(sub);
-        } catch (Exception e) {
-            throw new RestException(Status.NOT_FOUND, getSubNotFoundErrorMessage(topicName.toString(), subName));
+    private CompletableFuture<Subscription> findOrCreateSubscriptionAsync(String subName, PersistentTopic topic) {
+        Subscription subscription = topic.getSubscription(subName);
+        if (subscription != null) {
+            return CompletableFuture.completedFuture(subscription);
         }
+
+        return pulsar().getBrokerService().isAllowAutoSubscriptionCreationAsync(topicName)
+                .thenCompose(isAllowed -> {
+                    Subscription existingSubscription = topic.getSubscription(subName);
+                    if (existingSubscription != null) {
+                        return CompletableFuture.completedFuture(existingSubscription);
+                    }
+                    if (!isAllowed) {
+                        return CompletableFuture.failedFuture(new RestException(Status.PRECONDITION_FAILED,
+                                String.format("Subscription %s does not exist for topic %s and automatic "
+                                                + "subscription creation is disabled",
+                                        subName, topicName)));
+                    }
+                    return topic.createSubscription(subName, InitialPosition.Earliest, false, null)
+                            .handle((createdSubscription, ex) -> {
+                                if (ex != null || createdSubscription == null) {
+                                    throw new RestException(Status.NOT_FOUND,
+                                            getSubNotFoundErrorMessage(topicName.toString(), subName));
+                                }
+                                return createdSubscription;
+                            });
+                });
     }
 
     /**
@@ -4347,7 +5017,8 @@ public class PersistentTopicsBase extends AdminResource {
      */
     private PersistentReplicator getReplicatorReference(String replName, PersistentTopic topic) {
         try {
-            String remoteCluster = PersistentReplicator.getRemoteCluster(replName);
+            String remoteCluster = AbstractReplicator.getRemoteCluster(topic.getReplicatorPrefix(), replName)
+                    .orElseThrow();
             PersistentReplicator repl = (PersistentReplicator) topic.getPersistentReplicator(remoteCluster);
             return checkNotNull(repl);
         } catch (Exception e) {
@@ -4385,7 +5056,7 @@ public class PersistentTopicsBase extends AdminResource {
                     }
                 }
             } catch (Exception e) {
-                log.warn("[{}] Failed to parse version {} ", clientAppId(), userAgent);
+                log.warn().attr("version", userAgent).log("Failed to parse version");
             }
         }
         return CompletableFuture.completedFuture(null);
@@ -4416,17 +5087,21 @@ public class PersistentTopicsBase extends AdminResource {
                         .thenAccept(metadata -> {
                             // Partition topic index is 0 to (number of partition - 1)
                             if (metadata.partitions > 0 && suffix >= (long) metadata.partitions) {
-                                log.warn("[{}] Can't create topic {} with \"-partition-\" followed by"
-                                                + " a number smaller than number of partition of partitioned topic {}.",
-                                        clientAppId(), topicName, partitionTopicName.getLocalName());
+                                log.warn()
+                                        .attr("topic", topicName)
+                                        .attr("partitionedTopic", partitionTopicName.getLocalName())
+                                        .log("Can't create topic with -partition- followed by"
+                                                + " a number smaller than partition count");
                                 throw new RestException(Status.PRECONDITION_FAILED,
                                         "Can't create topic " + topicName + " with \"-partition-\" followed by"
                                                 + " a number smaller than number of partition of partitioned topic "
                                                 + partitionTopicName.getLocalName());
                             } else if (metadata.partitions == 0) {
-                                log.warn("[{}] Can't create topic {} with \"-partition-\" followed by"
-                                                + " numeric value if there isn't a partitioned topic {} created.",
-                                        clientAppId(), topicName, partitionTopicName.getLocalName());
+                                log.warn()
+                                        .attr("topic", topicName)
+                                        .attr("partitionedTopic", partitionTopicName.getLocalName())
+                                        .log("Can't create topic with -partition- followed by"
+                                                + " numeric value without a partitioned topic");
                                 throw new RestException(Status.PRECONDITION_FAILED,
                                         "Can't create topic " + topicName + " with \"-partition-\" followed by"
                                                 + " numeric value if there isn't a partitioned topic "
@@ -4455,7 +5130,9 @@ public class PersistentTopicsBase extends AdminResource {
                         return;
                     }
                     if (!(topic instanceof PersistentTopic)) {
-                        log.error("[{}] Not supported operation of non-persistent topic {}", clientAppId(), topicName);
+                        log.error()
+                                .attr("topic", topicName)
+                                .log("Not supported operation of non-persistent topic");
                         asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
                                 "GetLastMessageId on a non-persistent topic is not allowed"));
                         return;
@@ -4470,7 +5147,10 @@ public class PersistentTopicsBase extends AdminResource {
                 }).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to get last messageId {}", clientAppId(), topicName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to get last messageId");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -4478,7 +5158,9 @@ public class PersistentTopicsBase extends AdminResource {
     }
     protected CompletableFuture<Void> internalTrimTopic(AsyncResponse asyncResponse, boolean authoritative) {
         if (!topicName.isPersistent()) {
-            log.info("[{}] Trim on a non-persistent topic {} is not allowed", clientAppId(), topicName);
+            log.info()
+                    .attr("topic", topicName)
+                    .log("Trim on a non-persistent topic is not allowed");
             asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
                     "Trim on a non-persistent topic is not allowed"));
             return null;
@@ -4504,7 +5186,9 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     if (!(topic instanceof PersistentTopic persistentTopic)) {
-                        log.info("[{}] Trim on a non-persistent topic {} is not allowed", clientAppId(), topicName);
+                        log.info()
+                                .attr("topic", topicName)
+                                .log("Trim on a non-persistent topic is not allowed");
                         asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Trim on a non-persistent topic is not allowed"));
                         return CompletableFuture.completedFuture(null);
@@ -4534,13 +5218,17 @@ public class PersistentTopicsBase extends AdminResource {
             try {
                 futures.add(pulsar().getAdminClient().topics().trimTopicAsync(topicNamePartition.toString()));
             } catch (Exception e) {
-                log.error("[{}] Failed to trim topic {}", clientAppId(), topicNamePartition, e);
+                log.error()
+                        .attr("topic", topicNamePartition)
+                        .exception(e)
+                        .log("Failed to trim topic");
                 return FutureUtil.failedFuture(new RestException(e));
             }
         }
         return FutureUtil.waitForAll(futures).thenAccept(asyncResponse::resume);
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<DispatchRateImpl> internalGetDispatchRate(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getDispatchRate)
@@ -4569,6 +5257,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<DispatchRate> internalGetSubscriptionDispatchRate(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getSubscriptionDispatchRate)
@@ -4640,7 +5329,6 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
-
     protected CompletableFuture<Optional<Integer>> internalGetMaxConsumersPerSubscription(boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenApply(op -> op.map(TopicPolicies::getMaxConsumersPerSubscription));
@@ -4663,6 +5351,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<Long> internalGetCompactionThreshold(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getCompactionThreshold)
@@ -4735,6 +5424,7 @@ public class PersistentTopicsBase extends AdminResource {
         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<SubscribeRate> internalGetSubscribeRate(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getSubscribeRate)
@@ -4766,25 +5456,22 @@ public class PersistentTopicsBase extends AdminResource {
     protected void handleTopicPolicyException(String methodName, Throwable thr, AsyncResponse asyncResponse) {
         Throwable cause = thr.getCause();
         if (isNot307And4xxException(cause)) {
-            log.error("[{}] Failed to perform {} on topic {}",
-                    clientAppId(), methodName, topicName, cause);
+            log.error()
+                    .attr("perform", methodName)
+                    .attr("topic", topicName)
+                    .exception(cause)
+                    .log("Failed to perform on topic");
         }
         resumeAsyncResponseExceptionally(asyncResponse, cause);
     }
 
-    protected CompletableFuture<Void> internalTruncateNonPartitionedTopicAsync(boolean authoritative) {
-        return validateAdminAccessForTenantAsync(topicName.getTenant())
-            .thenCompose(__ -> validateTopicOwnershipAsync(topicName, authoritative))
-            .thenCompose(__ -> getTopicReferenceAsync(topicName))
-            .thenCompose(Topic::truncate);
-    }
-
     protected CompletableFuture<Void> internalTruncateTopicAsync(boolean authoritative) {
-
-        // If the topic name is a partition name, no need to get partition topic metadata again
-        if (topicName.isPartitioned()) {
-            return internalTruncateNonPartitionedTopicAsync(authoritative);
-        } else {
+        // Validate tenant admin access once for partitioned, non-partitioned and partition topics
+        return validateAdminAccessForTenantAsync(topicName.getTenant()).thenCompose(__ -> {
+            // If the topic name is a partition name, no need to get partition topic metadata again
+            if (topicName.isPartitioned()) {
+                return truncateNonPartitionedTopicWithoutAccessCheckAsync(authoritative);
+            }
             return getPartitionedTopicMetadataAsync(topicName, authoritative, false).thenCompose(meta -> {
                 if (meta.partitions > 0) {
                     final List<CompletableFuture<Void>> futures = new ArrayList<>(meta.partitions);
@@ -4795,22 +5482,34 @@ public class PersistentTopicsBase extends AdminResource {
                                 pulsar().getAdminClient().topics()
                                 .truncateAsync(topicNamePartition.toString()));
                         } catch (Exception e) {
-                            log.error("[{}] Failed to truncate topic {}", clientAppId(), topicNamePartition, e);
+                            log.error()
+                                    .attr("topic", topicNamePartition)
+                                    .exception(e)
+                                    .log("Failed to truncate topic");
                             return FutureUtil.failedFuture(new RestException(e));
                         }
                     }
                     return FutureUtil.waitForAll(futures);
                 } else {
-                    return internalTruncateNonPartitionedTopicAsync(authoritative);
+                    return truncateNonPartitionedTopicWithoutAccessCheckAsync(authoritative);
                 }
             });
-        }
+        });
+    }
+
+    private CompletableFuture<Void> truncateNonPartitionedTopicWithoutAccessCheckAsync(boolean authoritative) {
+        return validateTopicOwnershipAsync(topicName, authoritative)
+            .thenCompose(__ -> getTopicReferenceAsync(topicName))
+            .thenCompose(Topic::truncate);
     }
 
     protected void internalSetReplicatedSubscriptionStatus(AsyncResponse asyncResponse, String subName,
             boolean authoritative, boolean enabled) {
-        log.info("[{}] Attempting to change replicated subscription status to {} - {} {}", clientAppId(), enabled,
-                topicName, subName);
+        log.info()
+                .attr("enabled", enabled)
+                .attr("topic", topicName)
+                .attr("subscription", subName)
+                .log("Attempting to change replicated subscription status to -");
 
         // Reject the request if the topic is not persistent
         if (!topicName.isPersistent()) {
@@ -4824,7 +5523,6 @@ public class PersistentTopicsBase extends AdminResource {
         CompletableFuture<Void> validateFuture =
                 validateTopicOperationAsync(topicName, TopicOperation.SET_REPLICATED_SUBSCRIPTION_STATUS, subName)
                         .thenCompose(__ -> validateGlobalNamespaceOwnershipAsync(namespaceName));
-
 
         CompletableFuture<Void> resultFuture;
         // If the topic name is a partition name, no need to get partition topic metadata again
@@ -4845,8 +5543,12 @@ public class PersistentTopicsBase extends AdminResource {
                                     futures.add(pulsar().getAdminClient().topics().setReplicatedSubscriptionStatusAsync(
                                             topicNamePartition.toString(), subName, enabled));
                                 } catch (Exception e) {
-                                    log.warn("[{}] Failed to change replicated subscription status to {} - {} {}",
-                                            clientAppId(), enabled, topicNamePartition, subName, e);
+                                    log.warn()
+                                            .attr("enabled", enabled)
+                                            .attr("topicNamePartition", topicNamePartition)
+                                            .attr("subscription", subName)
+                                            .exception(e)
+                                            .log("Failed to change replicated subscription status to -");
                                     resumeAsyncResponseExceptionally(asyncResponse, e);
                                     return;
                                 }
@@ -4865,8 +5567,12 @@ public class PersistentTopicsBase extends AdminResource {
                                                 "Cannot enable/disable replicated subscriptions on non-global topics"));
                                         return null;
                                     } else {
-                                        log.warn("[{}] Failed to change replicated subscription status to {} - {} {}",
-                                                clientAppId(), enabled, topicName, subName, t);
+                                        log.warn()
+                                                .attr("enabled", enabled)
+                                                .attr("topic", topicName)
+                                                .attr("subscription", subName)
+                                                .exception(t)
+                                                .log("Failed to change replicated subscription status to -");
                                         asyncResponse.resume(new RestException(t));
                                         return null;
                                     }
@@ -4885,8 +5591,12 @@ public class PersistentTopicsBase extends AdminResource {
         resultFuture.exceptionally(ex -> {
             // If the exception is not redirect exception we need to log it.
             if (isNot307And404Exception(ex)) {
-                log.warn("[{}] Failed to change replicated subscription status to {} - {} {}", clientAppId(), enabled,
-                        topicName, subName, ex);
+                log.warn()
+                        .attr("enabled", enabled)
+                        .attr("topic", topicName)
+                        .attr("subscription", subName)
+                        .exception(ex)
+                        .log("Failed to change replicated subscription status to -");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -4921,8 +5631,11 @@ public class PersistentTopicsBase extends AdminResource {
                                 }
 
                                 ((PersistentTopic) topic).checkReplicatedSubscriptionControllerState();
-                                log.info("[{}] Changed replicated subscription status to {} - {} {}", clientAppId(),
-                                        enabled, topicName, subName);
+                                log.info()
+                                        .attr("enabled", enabled)
+                                        .attr("topic", topicName)
+                                        .attr("subscription", subName)
+                                        .log("Changed replicated subscription status to -");
                                 asyncResponse.resume(Response.noContent().build());
                             } else {
                                 asyncResponse.resume(new RestException(Status.METHOD_NOT_ALLOWED,
@@ -4932,8 +5645,11 @@ public class PersistentTopicsBase extends AdminResource {
                 ).exceptionally(ex -> {
                     // If the exception is not redirect exception we need to log it.
                     if (isNot307And404Exception(ex)) {
-                        log.error("[{}] Failed to set replicated subscription status on {} {}", clientAppId(),
-                                topicName, subName, ex);
+                        log.error()
+                                .attr("topic", topicName)
+                                .attr("subscription", subName)
+                                .exception(ex)
+                                .log("Failed to set replicated subscription status on");
                     }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
@@ -4943,7 +5659,10 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalGetReplicatedSubscriptionStatus(AsyncResponse asyncResponse,
                                                            String subName,
                                                            boolean authoritative) {
-        log.info("[{}] Attempting to get replicated subscription status on {} {}", clientAppId(), topicName, subName);
+        log.info()
+                .attr("topic", topicName)
+                .attr("subscription", subName)
+                .log("Attempting to get replicated subscription status on");
 
         // Reject the request if the topic is not persistent
         if (!topicName.isPersistent()) {
@@ -4983,14 +5702,19 @@ public class PersistentTopicsBase extends AdminResource {
                                                     .getReplicatedSubscriptionStatusAsync(partition.toString(), subName)
                                                     .whenComplete((__, throwable) -> {
                                                         if (throwable != null) {
-                                                            log.error("[{}] Failed to get replicated subscriptions on"
-                                                                    + " {} {}",
-                                                                clientAppId(), partition, subName, throwable);
+                                                            log.error()
+                                                                    .attr("partition", partition)
+                                                                    .attr("subscription", subName)
+                                                                    .exception(throwable)
+                                                                    .log("Failed to get replicated subscriptions on");
                                                         }
                                                     });
                                             } catch (Exception e) {
-                                                log.warn("[{}] Failed to get replicated subscription status on {} {}",
-                                                    clientAppId(), partition, subName, e);
+                                                log.warn()
+                                                        .attr("partition", partition)
+                                                        .attr("subscription", subName)
+                                                        .exception(e)
+                                                        .log("Failed to get replicated subscription status on");
                                                 return FutureUtil.failedFuture(e);
                                             }
                                         }
@@ -5008,8 +5732,11 @@ public class PersistentTopicsBase extends AdminResource {
                                         asyncResponse.resume(new RestException(Status.PRECONDITION_FAILED,
                                                 "Cannot get replicated subscriptions on non-global topics"));
                                     } else {
-                                        log.error("[{}] Failed to get replicated subscription status on {} {}",
-                                                clientAppId(), topicName, subName, t);
+                                        log.error()
+                                                .attr("topic", topicName)
+                                                .attr("subscription", subName)
+                                                .exception(t)
+                                                .log("Failed to get replicated subscription status on");
                                         asyncResponse.resume(new RestException(t));
                                     }
                                     return null;
@@ -5026,8 +5753,11 @@ public class PersistentTopicsBase extends AdminResource {
 
         resultFuture.exceptionally(ex -> {
             if (isNot307And404Exception(ex)) {
-                log.error("[{}] Failed to get replicated subscription status on {} {}", clientAppId(),
-                        topicName, subName, ex);
+                log.error()
+                        .attr("topic", topicName)
+                        .attr("subscription", subName)
+                        .exception(ex)
+                        .log("Failed to get replicated subscription status on");
             }
             resumeAsyncResponseExceptionally(asyncResponse, ex);
             return null;
@@ -5063,8 +5793,13 @@ public class PersistentTopicsBase extends AdminResource {
                 .whenComplete((res, e) -> {
                     if (e != null) {
                         Throwable cause = FutureUtil.unwrapCompletionException(e);
-                        log.error("[{}] Failed to get replicated subscription status on {} {}", clientAppId(),
-                            topicName, subName, cause);
+                        if (isNot307And404Exception(cause)) {
+                            log.error()
+                                    .attr("topic", topicName)
+                                    .attr("subscription", subName)
+                                    .exception(cause)
+                                    .log("Failed to get replicated subscription status on");
+                        }
                         resumeAsyncResponseExceptionally(asyncResponse, e);
                     } else {
                         asyncResponse.resume(res);
@@ -5097,15 +5832,19 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Boolean> internalGetSchemaValidationEnforced(boolean applied) {
-        // Schema validation enforced is typically a local policy
         return getTopicPoliciesAsyncWithRetry(topicName)
-                .thenApply(op -> op.map(TopicPolicies::getSchemaValidationEnforced).orElseGet(() -> {
-                    if (applied) {
-                        boolean namespacePolicy = getNamespacePolicies(namespaceName).schema_validation_enforced;
-                        return namespacePolicy || pulsar().getConfiguration().isSchemaValidationEnforced();
+                .thenCompose(op -> {
+                    Boolean topicPolicy = op.map(TopicPolicies::getSchemaValidationEnforced).orElse(null);
+                    boolean brokerPolicy = pulsar().getConfiguration().isSchemaValidationEnforced();
+                    if (topicPolicy != null) {
+                        return CompletableFuture.completedFuture(applied ? topicPolicy || brokerPolicy : topicPolicy);
                     }
-                    return false; // Default if not set and not applied
-                }));
+                    if (!applied) {
+                        return CompletableFuture.completedFuture(false);
+                    }
+                    return getNamespacePoliciesAsync(namespaceName)
+                            .thenApply(policies -> policies.schema_validation_enforced || brokerPolicy);
+                });
     }
 
     protected CompletableFuture<Void> internalSetSchemaValidationEnforced(boolean schemaValidationEnforcedToSet) {
@@ -5164,7 +5903,8 @@ public class PersistentTopicsBase extends AdminResource {
                     return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                             "Only persistent topic can be set as shadow topic"));
                 }
-                futures.add(pulsar().getNamespaceService().checkTopicExistsAsync(shadowTopicName)
+                futures.add(validateShadowTopicTenantAsync(shadowTopicName)
+                        .thenCompose(__ -> pulsar().getNamespaceService().checkTopicExistsAsync(shadowTopicName))
                         .thenAccept(info -> {
                             boolean exists = info.isExists();
                             info.recycle();
@@ -5182,6 +5922,9 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     protected CompletableFuture<Void> internalSetShadowTopic(List<String> shadowTopics) {
+        if (!pulsar().getConfiguration().isEnableShadowTopics()) {
+            return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED, "Shadow topics are disabled"));
+        }
         if (!topicName.isPersistent()) {
             return FutureUtil.failedFuture(new RestException(Status.PRECONDITION_FAILED,
                     "Only persistent source topic is supported with shadow topics."));
@@ -5215,6 +5958,7 @@ public class PersistentTopicsBase extends AdminResource {
                         });
     }
 
+    @SuppressWarnings("deprecation")
     protected CompletableFuture<AutoSubscriptionCreationOverride> internalGetAutoSubscriptionCreation(boolean applied,
                                                                                                     boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
@@ -5249,8 +5993,10 @@ public class PersistentTopicsBase extends AdminResource {
                         return getPartitionedTopicMetadataAsync(topicName, authoritative, false)
                                 .thenAccept(topicMetadata -> {
                                     if (topicMetadata.partitions > 0) {
-                                        log.warn("[{}] Not supported getMessageIdByIndex operation on "
-                                                        + "partitioned-topic {}", clientAppId(), topicName);
+                                        log.warn()
+                                                .attr("topic", topicName)
+                                                .log("Not supported getMessageIdByIndex operation on"
+                                                        + " partitioned-topic");
                                         throw new RestException(Status.METHOD_NOT_ALLOWED,
                                                 "GetMessageIDByIndex is not allowed on partitioned-topic");
                                     }
@@ -5260,8 +6006,9 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> getTopicReferenceAsync(topicName))
                 .thenCompose(topic -> {
                     if (!(topic instanceof PersistentTopic persistentTopic)) {
-                        log.error("[{}] Get message id by index on a non-persistent topic {} is not allowed",
-                                clientAppId(), topicName);
+                        log.error()
+                                .attr("topic", topicName)
+                                .log("Get message id by index on a non-persistent topic is not allowed");
                         return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Get message id by index on a non-persistent topic is not allowed"));
                     }
@@ -5290,7 +6037,9 @@ public class PersistentTopicsBase extends AdminResource {
                                                 return messageIndex < index;
                                             }
                                         } catch (Throwable e) {
-                                            log.error("Error deserialize message for message position find", e);
+                                            log.error()
+                                                    .exception(e)
+                                                    .log("Error deserialize message for message position find");
                                             return false;
                                         } finally {
                                             entry.release();
@@ -5335,14 +6084,16 @@ public class PersistentTopicsBase extends AdminResource {
 
             @Override
             public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
-                log.error("[{}] Failed to read position {} on topic {}",
-                        clientAppId(), position, topicName, exception);
+                log.error()
+                        .attr("position", position)
+                        .attr("topic", topicName)
+                        .exception(exception)
+                        .log("Failed to read position on topic");
                 indexFuture.completeExceptionally(exception);
             }
         }, null);
         return indexFuture;
     }
-
 
     private static Long getIndexFromEntry(Entry entry) {
         return Commands.peekBrokerEntryMetadataToObject(entry.getDataBuffer(), brokerEntryMetadata -> {
