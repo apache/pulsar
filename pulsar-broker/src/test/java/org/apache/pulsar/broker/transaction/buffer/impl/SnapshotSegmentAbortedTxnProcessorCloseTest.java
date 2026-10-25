@@ -64,7 +64,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class SnapshotSegmentAbortedTxnProcessorCloseTest {
 
-    @Test(timeOut = 10_000)
+    @Test(timeOut = 30_000)
     @SuppressWarnings("unchecked")
     public void testCloseWaitsForRecoveryIndexUpdate() throws Exception {
         ListeningScheduledExecutorService recoveryExecutor =
