@@ -30,6 +30,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.netty.util.concurrent.Promise;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
@@ -53,6 +54,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.BiConsumer;
+import java.util.regex.Pattern;
+import javax.net.ssl.SSLException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import org.apache.commons.lang3.tuple.Pair;
@@ -125,6 +128,12 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 public class ClientCnx extends PulsarHandler {
 
     private static final Logger LOG = Logger.get(ClientCnx.class);
+
+    private static final Pattern TLS_CLIENT_AUTHENTICATION_ALERT = Pattern.compile(
+            "\\b(?:Received fatal alert: |(?:SSLV3|TLSV1|TLSV13)_ALERT_)"
+                    + "(?:certificate_required|bad_certificate|unsupported_certificate|certificate_revoked"
+                    + "|certificate_expired|certificate_unknown|unknown_ca)\\b",
+            Pattern.CASE_INSENSITIVE);
 
     // Derived instance logger with channel context, set in channelActive().
     private Logger log = LOG;
@@ -562,7 +571,18 @@ public class ClientCnx extends PulsarHandler {
     // Command Handlers
 
     @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object event) {
+        if (event instanceof SslHandshakeCompletionEvent handshake && !handshake.isSuccess()) {
+            failOnTlsAuthenticationError(handshake.cause());
+        }
+        super.userEventTriggered(ctx, event);
+    }
+
+    @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        // TLS 1.3 may report success locally before the peer rejects the client certificate, so also
+        // handle alerts received after SslHandshakeCompletionEvent.SUCCESS.
+        failOnTlsAuthenticationError(cause);
         if (state != State.Failed) {
             // No need to report stack trace for known exceptions that happen in disconnections
             log.warn().exception(cause)
@@ -575,6 +595,19 @@ public class ClientCnx extends PulsarHandler {
         }
 
         ctx.close();
+    }
+
+    private void failOnTlsAuthenticationError(Throwable cause) {
+        for (Throwable error = cause; error != null; error = error.getCause()) {
+            if (error instanceof SSLException && error.getMessage() != null
+                    && TLS_CLIENT_AUTHENTICATION_ALERT.matcher(error.getMessage()).find()) {
+                // Only explicit peer certificate alerts are terminal. A generic handshake failure,
+                // timeout or connection reset can be transient and must retain the normal retry policy.
+                connectionFuture.completeExceptionally(new PulsarClientException.InvalidConfigurationException(
+                        "TLS client authentication failed: " + error.getMessage(), error));
+                return;
+            }
+        }
     }
 
     public static boolean isKnownException(Throwable t) {
