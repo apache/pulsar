@@ -31,7 +31,8 @@ public class InProgressRequestFrameTrackingDecoderTest {
     @Test
     public void shouldTrackUsageWhenLimitingIsDisabled() {
         AtomicLong totalUsedBytes = new AtomicLong();
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, false, totalUsedBytes);
+        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, false,
+                totalUsedBytes);
 
         limiter.acquire(64);
 
@@ -47,9 +48,10 @@ public class InProgressRequestFrameTrackingDecoderTest {
     public void shouldAutomaticallyEnableAndDisableLimitingBasedOnDirectMemoryUsage() {
         AtomicLong totalUsedBytes = new AtomicLong();
         AtomicLong directMemoryUsedBytes = new AtomicLong(85);
-        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false, totalUsedBytes,
-                50, directMemoryUsedBytes::get, 100);
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes, state);
+        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
+                totalUsedBytes, 50, directMemoryUsedBytes::get, 100);
+        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes,
+                state);
 
         limiter.acquire(51);
         limiter.checkAutoLimit();
@@ -68,9 +70,10 @@ public class InProgressRequestFrameTrackingDecoderTest {
     public void shouldThrottleAllLimiterGenerationsWhenTheAutomaticGlobalLimitIsExceeded() {
         AtomicLong totalUsedBytes = new AtomicLong();
         AtomicLong directMemoryUsedBytes = new AtomicLong(85);
-        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false, totalUsedBytes,
-                50, directMemoryUsedBytes::get, 100);
-        InProgressRequestFrameMemoryLimiter firstLimiter = new InProgressRequestFrameMemoryLimiter(1_000, totalUsedBytes, state);
+        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
+                totalUsedBytes, 50, directMemoryUsedBytes::get, 100);
+        InProgressRequestFrameMemoryLimiter firstLimiter = new InProgressRequestFrameMemoryLimiter(1_000,
+                totalUsedBytes, state);
         InProgressRequestFrameMemoryLimiter secondLimiter = new InProgressRequestFrameMemoryLimiter(1_000, totalUsedBytes,
                 state);
         firstLimiter.registerThrottleStateListener("first", ignored -> { });
@@ -98,9 +101,10 @@ public class InProgressRequestFrameTrackingDecoderTest {
     public void shouldClearAutomaticLimitAndStopCheckingMemoryWhenUserEnablesLimiting() {
         AtomicLong totalUsedBytes = new AtomicLong();
         AtomicLong directMemoryUsedBytes = new AtomicLong(85);
-        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false, totalUsedBytes,
-                50, directMemoryUsedBytes::get, 100);
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes, state);
+        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
+                totalUsedBytes, 50, directMemoryUsedBytes::get, 100);
+        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes,
+                state);
 
         limiter.acquire(51);
         limiter.checkAutoLimit();
@@ -118,9 +122,10 @@ public class InProgressRequestFrameTrackingDecoderTest {
     public void shouldDisableAutomaticLimitWhenTheAutomaticThresholdIsDisabled() {
         AtomicLong totalUsedBytes = new AtomicLong();
         AtomicLong directMemoryUsedBytes = new AtomicLong(85);
-        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false, totalUsedBytes,
-                50, directMemoryUsedBytes::get, 100);
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes, state);
+        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
+                totalUsedBytes, 50, directMemoryUsedBytes::get, 100);
+        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes,
+                state);
 
         limiter.acquire(51);
         limiter.checkAutoLimit();

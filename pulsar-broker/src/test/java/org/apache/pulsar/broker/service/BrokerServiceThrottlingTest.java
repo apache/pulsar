@@ -43,9 +43,9 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConnectionPool;
@@ -155,7 +155,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         admin.brokers().updateDynamicConfiguration("maxMessagePublishBufferSizeInMBUseInputBuffer", "true");
         waitAtMost(10, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
                 .isMaxMessagePublishBufferSizeInMBUseInputBuffer());
-        InProgressRequestFrameMemoryLimiter limiter = pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter();
+        InProgressRequestFrameMemoryLimiter limiter = pulsar.getBrokerService()
+                .getInProgressRequestFrameMemoryLimiter();
         pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(500);
         try {
             try (PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build()) {
