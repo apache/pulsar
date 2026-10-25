@@ -267,6 +267,21 @@ public class ConfigurationDataUtilsTest {
     }
 
     @Test
+    public void testUpdateDataResetsNullPropertyWithDifferentFieldName() {
+        // The fields are named isNonPartitionedTopicExpected and isReplProducer
+        ProducerConfigurationData confData = new ProducerConfigurationData();
+        confData.setNonPartitionedTopicExpected(true);
+        confData.setReplProducer(true);
+        Map<String, Object> config = new HashMap<>();
+        config.put("nonPartitionedTopicExpected", null);
+        config.put("replProducer", null);
+
+        ProducerConfigurationData updated = ConfigurationDataUtils.updateData(config, confData.clone());
+        assertFalse(updated.isNonPartitionedTopicExpected());
+        assertFalse(updated.isReplProducer());
+    }
+
+    @Test
     public void testUpdateDataWithUnknownFields() {
         ReaderConfigurationData<byte[]> confData = new ReaderConfigurationData<>();
         Map<String, Object> config = new HashMap<>();

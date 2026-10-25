@@ -95,6 +95,12 @@ public final class ConfigurationDataUtils {
     private static final ObjectMapper MAPPER = create();
 
     /**
+     * Like {@link #MAPPER}, but keeps null values. Used to read the default values of the properties.
+     */
+    private static final ObjectMapper DEFAULTS_MAPPER = create()
+            .setDefaultPropertyInclusion(Include.ALWAYS);
+
+    /**
      * Reads and writes the fields directly, bypassing the setters, and keeps null values. Used to put a property
      * back to the value a new configuration instance has.
      */
@@ -150,26 +156,42 @@ public final class ConfigurationDataUtils {
 
     /**
      * With {@link #loadData}, a null value removes the property from the merged configuration, so the new instance
-     * keeps its default value. Do the same here, writing the default to the field without going through the
-     * setter, which may reject it. Like there, a null for a property that isn't serialized is ignored.
+     * keeps its default value. Do the same here. The default is written to the field when it has the name of the
+     * property, without going through the setter, which may reject it ({@code setProducerName}). A property whose
+     * field is named differently, such as a boolean field {@code isReplProducer} for {@code replProducer}, is reset
+     * through its setter. Like with {@link #loadData}, a null for a property that isn't serialized is ignored.
      */
     private static <T> T resetNullProperties(Map<String, Object> config, T target) throws IOException {
         JsonNode defaults = null;
-        ObjectNode resets = null;
+        JsonNode fieldDefaults = null;
+        ObjectNode fieldResets = null;
+        ObjectNode setterResets = null;
         for (Map.Entry<String, Object> entry : config.entrySet()) {
             if (entry.getValue() != null) {
                 continue;
             }
             if (defaults == null) {
-                defaults = FIELD_MAPPER.valueToTree(MAPPER.readValue("{}", target.getClass()));
-                resets = FIELD_MAPPER.createObjectNode();
+                Object newInstance = MAPPER.readValue("{}", target.getClass());
+                defaults = DEFAULTS_MAPPER.valueToTree(newInstance);
+                fieldDefaults = FIELD_MAPPER.valueToTree(newInstance);
+                fieldResets = FIELD_MAPPER.createObjectNode();
+                setterResets = MAPPER.createObjectNode();
             }
-            JsonNode defaultValue = defaults.get(entry.getKey());
-            if (defaultValue != null) {
-                resets.set(entry.getKey(), defaultValue);
+            String key = entry.getKey();
+            if (!defaults.has(key)) {
+                continue;
+            }
+            if (fieldDefaults.has(key)) {
+                fieldResets.set(key, fieldDefaults.get(key));
+            } else {
+                setterResets.set(key, defaults.get(key));
             }
         }
-        return resets == null ? target : FIELD_MAPPER.readerForUpdating(target).readValue(resets);
+        if (fieldResets == null) {
+            return target;
+        }
+        target = FIELD_MAPPER.readerForUpdating(target).readValue(fieldResets);
+        return MAPPER.readerForUpdating(target).readValue(setterResets);
     }
 
     /**

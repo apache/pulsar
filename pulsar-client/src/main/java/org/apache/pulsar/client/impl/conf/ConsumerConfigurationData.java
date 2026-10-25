@@ -475,6 +475,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
             @SuppressWarnings("unchecked")
             ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
             c.properties = new TreeMap<>(this.properties);
+            // topicConfiguration(...) adds to the list in place
+            c.topicConfigurations = new ArrayList<>(this.topicConfigurations);
             // subscribeAsync fills the default retry and dead letter topics into the policy, so a clone needs its
             // own copy, or a consumer would get the topics of another one subscribed from the same template
             DeadLetterPolicy policy = this.deadLetterPolicy;

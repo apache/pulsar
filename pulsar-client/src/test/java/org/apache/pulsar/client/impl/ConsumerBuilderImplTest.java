@@ -586,6 +586,21 @@ public class ConsumerBuilderImplTest {
     }
 
     @Test
+    public void testLoadConfKeepsTopicConfigurationsOfClonesIndependent() {
+        ConsumerBuilderImpl<byte[]> template = createConsumerBuilder();
+        ConsumerBuilderImpl<byte[]> first = (ConsumerBuilderImpl<byte[]>) template.clone()
+                .loadConf(Map.of("consumerName", "first"))
+                .topicConfiguration("topic-a").priorityLevel(1).build();
+        ConsumerBuilderImpl<byte[]> second = (ConsumerBuilderImpl<byte[]>) template.clone()
+                .loadConf(Map.of("consumerName", "second"))
+                .topicConfiguration("topic-a").priorityLevel(9).build();
+
+        assertEquals(first.getConf().getMatchingTopicConfiguration("topic-a").getPriorityLevel(), 1);
+        assertEquals(second.getConf().getMatchingTopicConfiguration("topic-a").getPriorityLevel(), 9);
+        assertTrue(template.getConf().getTopicConfigurations().isEmpty());
+    }
+
+    @Test
     public void testLoadConfNotModified() {
         ConsumerBuilderImpl<byte[]> consumerBuilder = createConsumerBuilder();
 
