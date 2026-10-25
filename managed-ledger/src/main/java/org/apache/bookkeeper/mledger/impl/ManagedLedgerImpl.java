@@ -2027,7 +2027,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (lh == null) {
             // No ledger to close, proceed with next step
-            closeAllCursors(callback, ctx);
+            closeReadHandlesAndCursors(callback, ctx);
             return;
         }
 
@@ -2042,17 +2042,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 return;
             }
 
-            ledgerCache.forEach((ledgerId, readHandle) -> {
-                invalidateReadHandle(ledgerId);
-            });
-
-            closeAllCursors(callback, ctx);
+            closeReadHandlesAndCursors(callback, ctx);
         }, null);
 
 
     }
 
-    private void closeAllCursors(CloseCallback callback, final Object ctx) {
+    private void closeReadHandlesAndCursors(CloseCallback callback, final Object ctx) {
+        // A recovered terminated ledger can have cached offloaded read handles without a current writing ledger.
+        ledgerCache.forEach((ledgerId, readHandle) -> invalidateReadHandle(ledgerId));
+
         // Close all cursors in parallel
         List<CompletableFuture<Void>> futures = new ArrayList<>();
         for (ManagedCursor cursor : cursors) {
