@@ -100,8 +100,6 @@ public interface ManagedLedgerFactory {
     /**
      * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
      *
-     * <p>The returned cursor owns its backing read-only ledger. Closing the cursor releases both resources.
-     *
      * @param managedLedgerName
      * @param startPosition
      *            set the cursor on that particular position. If setting to `PositionImpl.earliest` it will be
@@ -113,8 +111,6 @@ public interface ManagedLedgerFactory {
 
     /**
      * Open a {@link ReadOnlyCursor} positioned to the earliest entry for the specified managed ledger.
-     *
-     * <p>The returned cursor owns its backing read-only ledger. Closing the cursor releases both resources.
      *
      * @param managedLedgerName
      * @param startPosition
@@ -128,10 +124,6 @@ public interface ManagedLedgerFactory {
 
     /**
      * Asynchronous open a Read-only managedLedger.
-     *
-     * <p>The caller owns the returned instance and must call {@link ReadOnlyManagedLedger#asyncClose()} after use.
-     * Factory shutdown also closes outstanding instances, including opens still in progress.
-     *
      * @param managedLedgerName the unique name that identifies the managed ledger
      * @param callback
      * @param config the managed ledger configuration.

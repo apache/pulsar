@@ -32,12 +32,10 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
@@ -53,6 +51,7 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
@@ -136,10 +135,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     protected final ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = new ConcurrentHashMap<>();
     protected final ConcurrentHashMap<String, PendingInitializeManagedLedger> pendingInitializeLedgers =
         new ConcurrentHashMap<>();
-    // Each read-only open owns a separate instance, including opens of the same managed ledger.
-    // Guard admission and shutdown's snapshot with the factory monitor.
-    private final Set<ReadOnlyManagedLedgerOpen> readOnlyManagedLedgers = new HashSet<>();
-    private final RangeEntryCacheManagerImpl entryCacheManager;
+    private final EntryCacheManager entryCacheManager;
 
     private long lastStatTimestamp = System.nanoTime();
     private final ScheduledFuture<?> statsTask;
@@ -181,21 +177,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             this.createTimeMs = System.currentTimeMillis();
         }
 
-    }
-
-    private static final class ReadOnlyManagedLedgerOpen {
-        private final String name;
-        private final CompletableFuture<ReadOnlyManagedLedgerImplWrapper> result = new CompletableFuture<>();
-        // Kept separate from result so shutdown can fail an open before BookKeeper acquisition returns, while
-        // still closing an instance constructed by the acquisition racing with shutdown.
-        private final CompletableFuture<ReadOnlyManagedLedgerImplWrapper> ledgerCreated = new CompletableFuture<>();
-        private volatile ReadOnlyManagedLedgerImplWrapper ledger;
-        // Guarded by this token's monitor; all cleanup callers share the same asynchronous close attempt.
-        private CompletableFuture<Void> closing;
-
-        private ReadOnlyManagedLedgerOpen(String name) {
-            this.name = name;
-        }
     }
 
     public ManagedLedgerFactoryImpl(MetadataStoreExtended metadataStore, ClientConfiguration bkClientConfiguration)
@@ -637,127 +618,64 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     public void asyncOpenReadOnlyManagedLedger(String managedLedgerName,
                               AsyncCallbacks.OpenReadOnlyManagedLedgerCallback callback,
                               ManagedLedgerConfig config, Object ctx) {
-        ReadOnlyManagedLedgerOpen open;
-        synchronized (this) {
-            open = closed ? null : new ReadOnlyManagedLedgerOpen(managedLedgerName);
-            if (open != null) {
-                readOnlyManagedLedgers.add(open);
-            }
-        }
-        if (open == null) {
+        if (closed) {
             callback.openReadOnlyManagedLedgerFailed(
                     new ManagedLedgerException.ManagedLedgerFactoryClosedException(), ctx);
-            return;
         }
 
-        // A callback that throws must not cause the other callback to be invoked as well.
-        open.result.whenComplete((ledger, error) -> {
-            if (error == null) {
-                callback.openReadOnlyManagedLedgerComplete(ledger, ctx);
-            } else {
-                callback.openReadOnlyManagedLedgerFailed(ManagedLedgerException
-                        .getManagedLedgerException(FutureUtil.unwrapCompletionException(error)), ctx);
-            }
-        });
-        FutureUtil.supplySafely(() -> bookkeeperFactory
+        bookkeeperFactory
                 .get(new EnsemblePlacementPolicyConfig(config.getBookKeeperEnsemblePlacementPolicyClassName(),
-                        config.getBookKeeperEnsemblePlacementPolicyProperties())))
+                        config.getBookKeeperEnsemblePlacementPolicyProperties()))
                 .thenCompose(bk -> {
-                    if (closed) {
-                        return CompletableFuture.failedFuture(
-                                new ManagedLedgerException.ManagedLedgerFactoryClosedException());
-                    }
-                    open.ledger = createReadOnlyManagedLedger(bk, managedLedgerName, config,
-                            () -> removeReadOnlyManagedLedger(open));
-                    // Register the resource before initialization starts, so shutdown can release temporary
-                    // initialization handles even if reading their LAC never completes.
-                    open.ledgerCreated.complete(open.ledger);
-                    return FutureUtil.supplySafely(open.ledger::initialize);
-                }).whenComplete((__, error) -> {
-                    // Also settle creation when acquiring BookKeeper or constructing the instance failed. Cleanup
-                    // must not depend on the factory scheduler, which may already have stopped.
-                    open.ledgerCreated.complete(open.ledger);
-                    if (error != null) {
-                        open.result.completeExceptionally(error);
-                        closeReadOnlyManagedLedger(open);
-                    } else if (closed || !open.result.complete(open.ledger)) {
-                        open.result.completeExceptionally(
-                                new ManagedLedgerException.ManagedLedgerFactoryClosedException());
-                        closeReadOnlyManagedLedger(open);
-                    }
+                    ReadOnlyManagedLedgerImplWrapper roManagedLedger = new ReadOnlyManagedLedgerImplWrapper(this, bk,
+                            store, config, scheduledExecutor, managedLedgerName);
+                    return roManagedLedger.initialize().thenApply(v -> roManagedLedger);
+                }).thenAccept(roManagedLedger -> {
+                    log.info().attr("managedLedger", managedLedgerName)
+                            .log("Successfully initialize Read-only"
+                                    + " managed ledger");
+                    callback.openReadOnlyManagedLedgerComplete(roManagedLedger, ctx);
+                }).exceptionally(e -> {
+                    log.error().attr("managedLedger", managedLedgerName)
+                            .exception(e)
+                            .log("Failed to initialize Read-only"
+                                    + " managed ledger");
+                    callback.openReadOnlyManagedLedgerFailed(ManagedLedgerException
+                            .getManagedLedgerException(FutureUtil.unwrapCompletionException(e)), ctx);
+                    return null;
                 });
-    }
-
-    protected ReadOnlyManagedLedgerImplWrapper createReadOnlyManagedLedger(BookKeeper bk, String name,
-                                                                           ManagedLedgerConfig config,
-                                                                           Runnable onClosed) {
-        return new ReadOnlyManagedLedgerImplWrapper(this, bk, store, config, scheduledExecutor, name, onClosed);
-    }
-
-    private synchronized void removeReadOnlyManagedLedger(ReadOnlyManagedLedgerOpen open) {
-        readOnlyManagedLedgers.remove(open);
-    }
-
-    @VisibleForTesting
-    synchronized int getOpenReadOnlyManagedLedgerCount() {
-        return readOnlyManagedLedgers.size();
-    }
-
-    private CompletableFuture<Void> closeReadOnlyManagedLedger(ReadOnlyManagedLedgerOpen open) {
-        synchronized (open) {
-            if (open.closing == null) {
-                // Cache invalidation can wait for an in-progress cache insertion. Keep it off both the caller and
-                // the factory scheduler, which must remain free to enforce the shutdown timeout.
-                open.closing = open.ledgerCreated.thenComposeAsync(ledger -> {
-                    if (ledger == null) {
-                        removeReadOnlyManagedLedger(open);
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    return FutureUtil.supplySafely(ledger::asyncClose).whenComplete((ignored, error) -> {
-                        removeReadOnlyManagedLedger(open);
-                        if (error != null) {
-                            log.warn().attr("managedLedger", open.name).exception(error)
-                                    .log("Failed to close read-only managed ledger");
-                        }
-                    });
-                });
-            }
-            return open.closing;
-        }
     }
 
     @Override
     public ReadOnlyCursor openReadOnlyCursor(String managedLedgerName, Position startPosition,
                                              ManagedLedgerConfig config)
             throws InterruptedException, ManagedLedgerException {
-        CompletableFuture<ReadOnlyCursor> result = new CompletableFuture<>();
+        class Result {
+            ReadOnlyCursor c = null;
+            ManagedLedgerException e = null;
+        }
+        final Result r = new Result();
+        final CountDownLatch latch = new CountDownLatch(1);
         asyncOpenReadOnlyCursor(managedLedgerName, startPosition, config, new OpenReadOnlyCursorCallback() {
             @Override
             public void openReadOnlyCursorComplete(ReadOnlyCursor cursor, Object ctx) {
-                result.complete(cursor);
+                r.c = cursor;
+                latch.countDown();
             }
 
             @Override
             public void openReadOnlyCursorFailed(ManagedLedgerException exception, Object ctx) {
-                result.completeExceptionally(exception);
+                r.e = exception;
+                latch.countDown();
             }
         }, null);
-        try {
-            return FutureUtil.getAndCleanupOnInterrupt(result, this::closeAbandonedReadOnlyCursor);
-        } catch (ExecutionException error) {
-            throw ManagedLedgerException.getManagedLedgerException(FutureUtil.unwrapCompletionException(error));
-        }
-    }
 
-    private void closeAbandonedReadOnlyCursor(ReadOnlyCursor cursor) {
-        FutureUtil.supplySafely(() -> {
-            Futures.CloseFuture closing = new Futures.CloseFuture();
-            cursor.asyncClose(closing, null);
-            return closing;
-        }).exceptionally(error -> {
-            log.warn().exception(error).log("Failed to close read-only cursor after its open was interrupted");
-            return null;
-        });
+        latch.await();
+
+        if (r.e != null) {
+            throw r.e;
+        }
+        return r.c;
     }
 
     @Override
@@ -771,21 +689,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
             @Override
             public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger readOnlyManagedLedger, Object ctx) {
-                ReadOnlyCursor cursor;
-                try {
-                    cursor = new ReadOnlyCursorWithOwnedLedger(
-                            readOnlyManagedLedger.createReadOnlyCursor(startPosition), readOnlyManagedLedger);
-                } catch (Throwable error) {
-                    FutureUtil.supplySafely(readOnlyManagedLedger::asyncClose).exceptionally(closeError -> {
-                        log.warn().attr("managedLedger", managedLedgerName).exception(closeError)
-                                .log("Failed to close read-only managed ledger after cursor creation failed");
-                        return null;
-                    });
-                    callback.openReadOnlyCursorFailed(ManagedLedgerException
-                            .getManagedLedgerException(error), ctx);
-                    return;
-                }
-                callback.openReadOnlyCursorComplete(cursor, ctx);
+                callback.openReadOnlyCursorComplete(readOnlyManagedLedger.
+                        createReadOnlyCursor(startPosition), ctx);
             }
 
             @Override
@@ -793,11 +698,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 callback.openReadOnlyCursorFailed(exception, ctx);
             }
         };
-        asyncOpenReadOnlyManagedLedger(managedLedgerName, openReadOnlyManagedLedgerCallback, config, ctx);
-    }
-
-    void closeReadOnlyEntryCache(ManagedLedger ledger) {
-        entryCacheManager.removeReadOnlyEntryCache(ledger);
+        asyncOpenReadOnlyManagedLedger(managedLedgerName, openReadOnlyManagedLedgerCallback, config, null);
     }
 
     void close(ManagedLedger ledger) {
@@ -852,23 +753,17 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     public CompletableFuture<Void> shutdownAsync() throws ManagedLedgerException {
-        List<ReadOnlyManagedLedgerOpen> readOnlyLedgersToClose;
-        synchronized (this) {
-            if (closed) {
-                throw new ManagedLedgerException.ManagedLedgerFactoryClosedException();
-            }
-            closed = true;
-            readOnlyLedgersToClose = new ArrayList<>(readOnlyManagedLedgers);
-            readOnlyManagedLedgers.clear();
+        if (closed) {
+            throw new ManagedLedgerException.ManagedLedgerFactoryClosedException();
         }
+        closed = true;
 
         statsTask.cancel(true);
         flushCursorsTask.cancel(true);
         readEntryTimeoutTracker.close();
         cacheEvictionExecutor.shutdownNow();
 
-        CompletableFuture<Void> closeLedgersFuture = CompletableFuture.allOf(closeLedgersOnShutdown(),
-                closeReadOnlyLedgersOnShutdown(readOnlyLedgersToClose));
+        CompletableFuture<Void> closeLedgersFuture = closeLedgersOnShutdown();
         CompletableFuture<BookKeeper> bookkeeperFuture = isBookkeeperManaged
                 ? bookkeeperFactory.get()
                 : CompletableFuture.completedFuture(null);
@@ -882,7 +777,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     openTelemetryManagedLedgerStats.close();
                     openTelemetryCacheStats.close();
                     scheduledExecutor.shutdownNow();
-                    entryCacheManager.close();
+                    entryCacheManager.clear();
                     if (bookkeeperFactory instanceof DefaultBkFactory defaultBkFactory) {
                         try {
                             defaultBkFactory.close();
@@ -891,27 +786,6 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         }
                     }
                 });
-    }
-
-    private CompletableFuture<Void> closeReadOnlyLedgersOnShutdown(List<ReadOnlyManagedLedgerOpen> opens) {
-        List<CompletableFuture<Void>> closes = new ArrayList<>(opens.size());
-        for (ReadOnlyManagedLedgerOpen open : opens) {
-            open.result.completeExceptionally(new ManagedLedgerException.ManagedLedgerFactoryClosedException());
-            // Install the deadline before dispatching cleanup. Time out only this forwarding promise: the actual
-            // close must still finish after shutdown if a cache insertion or BookKeeper acquisition is delayed.
-            CompletableFuture<Void> closeWait = new CompletableFuture<>();
-            closes.add(FutureUtil.addTimeoutHandling(closeWait,
-                    Duration.ofMillis(shutdownLedgerCloseTimeoutMillis), scheduledExecutor,
-                    () -> FutureUtil.createTimeoutException("Timed out closing read-only managed ledger",
-                            ManagedLedgerFactoryImpl.class, "closeReadOnlyLedgersOnShutdown"))
-                    .exceptionally(error -> {
-                        log.warn().attr("managedLedger", open.name).attr("timeoutMs", shutdownLedgerCloseTimeoutMillis)
-                                .exception(error).log("Failed to close read-only managed ledger on shutdown");
-                        return null;
-                    }));
-            FutureUtil.completeAfter(closeWait, closeReadOnlyManagedLedger(open));
-        }
-        return Futures.waitForAll(closes);
     }
 
     /**
@@ -1895,7 +1769,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             if (Thread.currentThread().isInterrupted()) {
                 throw new InterruptedException();
             }
-            readHandle = FutureUtil.getAndCleanupOnInterrupt(bookKeeper.newOpenLedgerOp()
+            readHandle = awaitOrClose(bookKeeper.newOpenLedgerOp()
                     .withRecovery(false)
                     .withLedgerId(ledgerId)
                     .withDigestType(digestType.toApiDigestType())
@@ -1908,8 +1782,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 if (Thread.currentThread().isInterrupted()) {
                     throw new InterruptedException();
                 }
-                try (LedgerEntries entries = FutureUtil.getAndCleanupOnInterrupt(
-                        readHandle.readUnconfirmedAsync(entryId, entryId),
+                try (LedgerEntries entries = awaitOrClose(readHandle.readUnconfirmedAsync(entryId, entryId),
                         LedgerEntries::close)) {
                     PositionInfo positionInfo = new PositionInfo();
                     positionInfo.parseFrom(entries.getEntry(entryId).getEntryBytes());
@@ -1940,11 +1813,29 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     private void closeBacklogRecoveryHandle(ReadHandle handle) {
-        FutureUtil.supplySafely(handle::closeAsync).exceptionally(error -> {
+        CompletableFuture<Void> closing;
+        try {
+            closing = handle.closeAsync();
+        } catch (Exception e) {
+            closing = CompletableFuture.failedFuture(e);
+        }
+        closing.exceptionally(error -> {
             log.warn().attr("ledgerId", handle.getId())
                     .exception(error).log("Unable to close cursor read handle");
             return null;
         });
+    }
+
+    private static <T> T awaitOrClose(CompletableFuture<T> future, Consumer<T> close)
+            throws InterruptedException, ExecutionException {
+        try {
+            return future.get();
+        } catch (InterruptedException e) {
+            // Interrupting the wait does not cancel BookKeeper IO. Release its eventual result,
+            // which the interrupted caller can no longer receive.
+            future.thenAccept(close);
+            throw e;
+        }
     }
 
     private static final int META_READ_TIMEOUT_SECONDS = 60;

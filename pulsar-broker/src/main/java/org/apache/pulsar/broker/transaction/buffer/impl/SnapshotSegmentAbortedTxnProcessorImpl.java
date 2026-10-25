@@ -33,7 +33,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -309,17 +308,13 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
                                 () -> persistentWorker.updateSnapshotIndex(indexes.getSnapshot())));
             }
         } finally {
-            closeReadOnlyManagedLedger(managedLedger, topicName);
+            FutureUtil.supplySafely(managedLedger::asyncClose).exceptionally(error -> {
+                log.warn().attr("snapshotSegmentTopic", topicName)
+                        .exception(FutureUtil.unwrapCompletionException(error))
+                        .log("Failed to close read-only managed ledger");
+                return null;
+            });
         }
-    }
-
-    private void closeReadOnlyManagedLedger(ReadOnlyManagedLedger managedLedger, TopicName topicName) {
-        FutureUtil.supplySafely(managedLedger::asyncClose).exceptionally(error -> {
-            log.warn().attr("snapshotSegmentTopic", topicName)
-                    .exception(FutureUtil.unwrapCompletionException(error))
-                    .log("Failed to close read-only managed ledger");
-            return null;
-        });
     }
 
     private ReadOnlyManagedLedger openReadOnlyManagedLedger(TopicName topicName) throws Exception {
@@ -348,8 +343,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
                     future.completeExceptionally(e);
                     return null;
                 });
-        return wait(future, "open read only ml for " + topicName,
-                managedLedger -> closeReadOnlyManagedLedger(managedLedger, topicName));
+        return wait(future, "open read only ml for " + topicName);
     }
 
     private Entry readEntry(ReadOnlyManagedLedger managedLedger, Position position) throws Exception {
@@ -365,7 +359,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
                 future.completeExceptionally(exception);
             }
         }, null);
-        return wait(future, "read entry from " + position, Entry::release);
+        return wait(future, "read entry from " + position);
     }
 
     // This method will be deprecated and removed in version 4.x.0
@@ -460,13 +454,8 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
     }
 
     private <R> R wait(CompletableFuture<R> future, String msg) throws Exception {
-        return wait(future, msg, ignored -> { });
-    }
-
-    private <R> R wait(CompletableFuture<R> future, String msg, Consumer<R> cleanup) throws Exception {
         try {
-            return FutureUtil.getAndCleanupOnTimeoutOrInterrupt(future, getSystemClientOperationTimeoutMs(),
-                    TimeUnit.MILLISECONDS, cleanup);
+            return future.get(getSystemClientOperationTimeoutMs(), TimeUnit.MILLISECONDS);
         } catch (ExecutionException e) {
             throw new CompletionException("Failed to " + msg, e.getCause());
         }

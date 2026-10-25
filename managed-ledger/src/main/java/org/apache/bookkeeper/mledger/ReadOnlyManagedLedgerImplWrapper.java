@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
@@ -32,22 +31,12 @@ import org.apache.pulsar.common.util.FutureUtil;
 public class ReadOnlyManagedLedgerImplWrapper implements ReadOnlyManagedLedger {
 
     private final ReadOnlyManagedLedgerImpl readOnlyManagedLedger;
-    private final Runnable onClosed;
-    private final AtomicBoolean closeStarted = new AtomicBoolean();
-    private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
     public ReadOnlyManagedLedgerImplWrapper(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
                                             ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
                                             String name) {
-        this(factory, bookKeeper, store, config, scheduledExecutor, name, () -> { });
-    }
-
-    public ReadOnlyManagedLedgerImplWrapper(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-                                            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor,
-                                            String name, Runnable onClosed) {
         this.readOnlyManagedLedger =
                 new ReadOnlyManagedLedgerImpl(factory, bookKeeper, store, config, scheduledExecutor, name);
-        this.onClosed = onClosed;
     }
 
     public CompletableFuture<Void> initialize() {
@@ -76,13 +65,10 @@ public class ReadOnlyManagedLedgerImplWrapper implements ReadOnlyManagedLedger {
 
     @Override
     public CompletableFuture<Void> asyncClose() {
-        if (closeStarted.compareAndSet(false, true)) {
-            FutureUtil.completeAfter(closeFuture, FutureUtil.supplySafely(() -> {
-                Futures.CloseFuture result = new Futures.CloseFuture();
-                readOnlyManagedLedger.asyncClose(result, null);
-                return result;
-            }).whenComplete((__, ___) -> onClosed.run()));
-        }
-        return closeFuture.copy();
+        return FutureUtil.supplySafely(() -> {
+            Futures.CloseFuture closeFuture = new Futures.CloseFuture();
+            readOnlyManagedLedger.asyncClose(closeFuture, null);
+            return closeFuture;
+        });
     }
 }

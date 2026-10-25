@@ -445,21 +445,4 @@ public class FutureUtil {
             throw e;
         }
     }
-
-    /**
-     * Wait for a resource, releasing it if it arrives after the wait is interrupted or times out.
-     *
-     * <p>The source future is left intact so its eventual result can still be released. A successful wait transfers
-     * ownership to the caller and does not invoke the cleanup action.
-     */
-    public static <T> T getAndCleanupOnTimeoutOrInterrupt(CompletableFuture<T> future, long timeout, TimeUnit unit,
-                                                         Consumer<T> cleanupAction)
-            throws InterruptedException, ExecutionException, TimeoutException {
-        try {
-            return future.get(timeout, unit);
-        } catch (InterruptedException | TimeoutException e) {
-            future.thenAccept(cleanupAction);
-            throw e;
-        }
-    }
 }

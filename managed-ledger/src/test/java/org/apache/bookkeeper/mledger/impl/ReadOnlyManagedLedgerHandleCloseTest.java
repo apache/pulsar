@@ -68,7 +68,7 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
     @Override
     protected void cleanUpTestCase() throws Exception {
         openCompletion.complete(null);
-        // Restore injected close failures before releasing any handles left by a failed assertion.
+        // Initialization's temporary handle is covered by a separate fix.
         for (LedgerHandle handle : openedHandles) {
             doCallRealMethod().when(handle).closeAsync();
             handle.closeAsync().get(5, TimeUnit.SECONDS);
@@ -198,7 +198,7 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
     }
 
     @Test
-    public void testCloseDuringHandleOpenRejectsResult() throws Exception {
+    public void testCloseRejectsHandleInsertedAfterCloseStarts() throws Exception {
         ManagedLedgerConfig config = defaultConfig().setRetentionTime(1, TimeUnit.DAYS);
         ManagedLedger ledger = factory.open("readonly-close-during-open", config);
         Position position = ledger.addEntry(new byte[] {1});
@@ -235,8 +235,8 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
         closingThread.start();
 
         try {
-            // The cache owns the pending promise before the backend open starts. Let close claim that promise
-            // while the backend open is paused, then verify the caller cannot receive the late handle.
+            // Let close mark the ledger before computeIfAbsent can insert the future. The cache's write lock keeps
+            // the close-side scan from finishing until the open is allowed to proceed.
             Awaitility.await().atMost(5, TimeUnit.SECONDS).until(readOnly::isClosingOrClosed);
             allowOpenToProceed.complete(null);
 
@@ -267,7 +267,7 @@ public class ReadOnlyManagedLedgerHandleCloseTest extends MockedBookKeeperTestCa
                 config, executor, ledger.getName());
         readOnly.initialize().get(5, TimeUnit.SECONDS);
         try {
-            // Force a storage read so the supplied count is used.
+            // The writer and reader share this cache. Force a storage read so the supplied count is used.
             readOnly.entryCache.clear();
             CompletableFuture<Entry> reading = new CompletableFuture<>();
             readOnly.asyncReadEntry(position, 3, new AsyncCallbacks.ReadEntryCallback() {

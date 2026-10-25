@@ -77,7 +77,6 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final RangeCache.Inserter addedEntriesInserter;
     private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
-    private volatile boolean closed;
 
     private static final double MB = 1024 * 1024;
 
@@ -154,9 +153,6 @@ public class RangeEntryCacheImpl implements EntryCache {
         RangeCache.Inserter inserter = entries.newInserter();
         int inserted = 0;
         for (Entry entry : entriesToInsert) {
-            if (closed) {
-                break;
-            }
             if (!inserter.updateIfCached(entry.getPosition(), cached -> takeExpectedReadCount(cached, entry))
                     && insert(entry, copy, inserter)) {
                 inserted++;
@@ -177,9 +173,6 @@ public class RangeEntryCacheImpl implements EntryCache {
      * @return whether the entry was inserted
      */
     private boolean insert(Entry entry, boolean copy, RangeCache.Inserter inserter) {
-        if (closed) {
-            return false;
-        }
         int entryLength = entryLengthFunction.getEntryLength(ml, entry);
 
         log.debug().attr("position", entry.getPosition())
@@ -208,16 +201,8 @@ public class RangeEntryCacheImpl implements EntryCache {
         if (inserter.put(position, cacheEntry, entryLength)) {
             totalAddedEntriesSize.add(entryLength);
             totalAddedEntriesCount.increment();
-            try {
-                manager.entryAdded(entryLength);
-            } finally {
-                // Disposal can finish while a storage read is inserting its result. Release that late entry too,
-                // including when the factory's eviction executor has already stopped.
-                if (closed) {
-                    clear();
-                }
-            }
-            return !closed;
+            manager.entryAdded(entryLength);
+            return true;
         } else {
             // the cache already has the entry, which takes the expected read count of this addition
             inserter.updateIfCached(position, cached -> takeExpectedReadCount(cached, entry));
@@ -711,19 +696,20 @@ public class RangeEntryCacheImpl implements EntryCache {
                         batchRead, maxSizeBytes)
                 .thenApply(
                         ledgerEntries -> {
-                            final List<Entry> entriesToReturn = new ArrayList<>(entriesToRead);
-                            try (ledgerEntries) {
-                                requireNonNull(ml.getName());
-                                requireNonNull(ml.getExecutor());
-                                // We own the transformed entries until the entire conversion succeeds.
+                            requireNonNull(ml.getName());
+                            requireNonNull(ml.getExecutor());
+
+                            try {
+                                // We got the entries, we need to transform them to a List<> type
                                 long totalSize = 0;
                                 int expectedReadCountVal = expectedReadCount.getAsInt();
+                                final List<Entry> entriesToReturn = new ArrayList<>(entriesToRead);
                                 for (LedgerEntry e : ledgerEntries) {
                                     EntryImpl entry = EntryImpl.create(e, interceptor, expectedReadCountVal);
-                                    entriesToReturn.add(entry);
                                     if (ml.getConfig().isPulsarMessageEntries()) {
                                         entry.initializeMessageMetadataIfNeeded(ml.getName());
                                     }
+                                    entriesToReturn.add(entry);
                                     totalSize += entry.getLength();
                                 }
                                 if (expectedReadCountVal >= 0) {
@@ -735,19 +721,8 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 ml.getMbean().addReadEntriesSample(entriesToReturn.size(), totalSize);
 
                                 return entriesToReturn;
-                            } catch (Throwable error) {
-                                for (Entry entry : entriesToReturn) {
-                                    try {
-                                        // The failed read did not consume any of the cached entries' expected reads.
-                                        ((EntryImpl) entry).setDecreaseReadCountOnRelease(false);
-                                        entry.release();
-                                    } catch (Throwable releaseError) {
-                                        if (releaseError != error) {
-                                            error.addSuppressed(releaseError);
-                                        }
-                                    }
-                                }
-                                throw error;
+                            } finally {
+                                ledgerEntries.close();
                             }
                         });
 
@@ -775,12 +750,6 @@ public class RangeEntryCacheImpl implements EntryCache {
             CompletableFuture<List<Entry>> failedFuture = CompletableFuture.failedFuture(cause);
             return failedFuture;
         }).thenCompose(Function.identity());
-    }
-
-    /** Stops new cache insertions and releases entries retained by this owner. */
-    void close() {
-        closed = true;
-        clear();
     }
 
     @Override

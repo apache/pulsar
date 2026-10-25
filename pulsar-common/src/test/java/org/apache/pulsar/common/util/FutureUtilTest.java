@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.util;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -39,7 +37,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.assertj.core.util.Lists;
 import org.awaitility.Awaitility;
@@ -47,68 +44,6 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class FutureUtilTest {
-
-    @Test
-    public void testTimedResourceWaitTransfersOwnershipOnSuccess() throws Exception {
-        Object resource = new Object();
-        AtomicInteger cleanups = new AtomicInteger();
-        assertThat(FutureUtil.getAndCleanupOnTimeoutOrInterrupt(CompletableFuture.completedFuture(resource),
-                1, TimeUnit.SECONDS, ignored -> cleanups.incrementAndGet())).isSameAs(resource);
-        assertThat(cleanups).hasValue(0);
-    }
-
-    @Test
-    public void testTimedResourceWaitCleansLateResultAfterTimeout() {
-        CompletableFuture<Object> opening = new CompletableFuture<>();
-        AtomicInteger cleanups = new AtomicInteger();
-        assertThatThrownBy(() -> FutureUtil.getAndCleanupOnTimeoutOrInterrupt(opening,
-                0, TimeUnit.NANOSECONDS, ignored -> cleanups.incrementAndGet()))
-                .isInstanceOf(TimeoutException.class);
-        assertThat(opening).isNotDone();
-        opening.complete(new Object());
-        assertThat(cleanups).hasValue(1);
-    }
-
-    @Test
-    public void testTimedResourceWaitCleansLateResultAfterInterrupt() throws Exception {
-        CompletableFuture<Object> opening = new CompletableFuture<>();
-        CompletableFuture<Void> interrupted = new CompletableFuture<>();
-        AtomicInteger cleanups = new AtomicInteger();
-        Thread waiting = new Thread(() -> {
-            Thread.currentThread().interrupt();
-            try {
-                FutureUtil.getAndCleanupOnTimeoutOrInterrupt(opening, 5, TimeUnit.SECONDS,
-                        ignored -> cleanups.incrementAndGet());
-                interrupted.completeExceptionally(new AssertionError("Wait should have been interrupted"));
-            } catch (InterruptedException expected) {
-                interrupted.complete(null);
-            } catch (Exception error) {
-                interrupted.completeExceptionally(error);
-            }
-        }, "timed-resource-wait");
-        waiting.start();
-        try {
-            interrupted.get(5, TimeUnit.SECONDS);
-            opening.complete(new Object());
-            assertThat(cleanups).hasValue(1);
-        } finally {
-            waiting.interrupt();
-            waiting.join(TimeUnit.SECONDS.toMillis(5));
-        }
-        assertThat(waiting.isAlive()).isFalse();
-    }
-
-    @Test
-    public void testTimedResourceWaitPreservesFailureWithoutCleanup() {
-        CompletableFuture<Object> opening = new CompletableFuture<>();
-        AtomicInteger cleanups = new AtomicInteger();
-        IllegalStateException failure = new IllegalStateException("open failed");
-        opening.completeExceptionally(failure);
-        assertThatThrownBy(() -> FutureUtil.getAndCleanupOnTimeoutOrInterrupt(opening,
-                1, TimeUnit.SECONDS, ignored -> cleanups.incrementAndGet()))
-                .isInstanceOf(ExecutionException.class).hasCause(failure);
-        assertThat(cleanups).hasValue(0);
-    }
 
     @Test
     public void testCreateTimeoutException() {

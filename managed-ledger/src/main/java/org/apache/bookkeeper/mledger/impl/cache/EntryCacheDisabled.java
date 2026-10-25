@@ -25,10 +25,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntSupplier;
-import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -38,7 +36,6 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
-import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Implementation of cache that always read from BookKeeper.
@@ -145,102 +142,56 @@ public class EntryCacheDisabled implements EntryCache {
 
     private void readEntries(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
                              AsyncCallbacks.ReadEntriesCallback callback, Object ctx) {
-        FutureUtil.supplySafely(() -> ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry,
-                        ml.isBatchReadEnabled(), maxSizeBytes))
-                .whenComplete((ledgerEntries, exception) -> {
-                    Runnable completeRead = () -> {
-                        if (exception != null) {
-                            failRead(lh, firstEntry, lastEntry, callback, ctx, exception);
-                            return;
+        ReadEntryUtils.readAsync(ml, lh, firstEntry, lastEntry, ml.isBatchReadEnabled(), maxSizeBytes)
+                .thenApplyAsync(ledgerEntries -> {
+                    List<Entry> entries = new ArrayList<>();
+                    long totalSize = 0;
+                    try {
+                        for (LedgerEntry e : ledgerEntries) {
+                            // Insert the entries at the end of the list (they will be unsorted for now)
+                            EntryImpl entry = EntryImpl.create(e, interceptor, EntryImpl.NO_EXPECTED_READ_COUNT);
+                            if (ml.getConfig().isPulsarMessageEntries()) {
+                                entry.initializeMessageMetadataIfNeeded(ml.getName());
+                            }
+                            entries.add(entry);
+                            totalSize += entry.getLength();
                         }
-                        List<Entry> entries;
-                        try {
-                            entries = convertEntries(ledgerEntries);
-                        } catch (Throwable error) {
-                            failRead(lh, firstEntry, lastEntry, callback, ctx, error);
-                            return;
-                        }
-                        // Once the success callback is invoked, the caller owns the entries even if it throws.
+                    } finally {
+                        ledgerEntries.close();
+                    }
+                    ml.getMbean().recordReadEntriesOpsCacheMisses(entries.size(), totalSize);
+                    ml.getFactory().getMbean().recordCacheMiss(entries.size(), totalSize);
+                    ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
+
+                    return entries;
+                }, ml.getExecutor()).whenCompleteAsync((entries, exception) -> {
+                    if (exception == null) {
                         try {
                             callback.readEntriesComplete(entries, ctx);
-                        } catch (Throwable error) {
+                        } catch (Throwable t) {
                             log.warn().attr("managedLedger", getName())
                                     .attr("ledgerId", lh.getId())
                                     .attr("firstEntry", firstEntry)
                                     .attr("lastEntry", lastEntry)
                                     .attr("callback", "readEntriesComplete")
-                                    .exception(error)
+                                    .exception(t)
                                     .log("Read callback failed; the callback remains responsible for "
                                             + "releasing entries");
                         }
-                    };
-                    try {
-                        // Keep conversion and the callback in one task, with no second submission that can fail
-                        // after the entries have already been transformed.
-                        ml.getExecutor().execute(completeRead);
-                    } catch (RejectedExecutionException rejected) {
-                        Throwable failure = exception == null ? rejected : exception;
-                        if (ledgerEntries != null) {
-                            try {
-                                ledgerEntries.close();
-                            } catch (Throwable closeError) {
-                                if (closeError != failure) {
-                                    failure.addSuppressed(closeError);
-                                }
-                            }
+                    } else {
+                        try {
+                            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                        } catch (Throwable t) {
+                            log.warn().attr("managedLedger", getName())
+                                    .attr("ledgerId", lh.getId())
+                                    .attr("firstEntry", firstEntry)
+                                    .attr("lastEntry", lastEntry)
+                                    .attr("callback", "readEntriesFailed")
+                                    .exception(t)
+                                    .log("Read failure callback failed");
                         }
-                        // Shutdown can reject the owner executor. Complete on this thread so resources and read
-                        // permits are released instead of leaving the read pending forever.
-                        failRead(lh, firstEntry, lastEntry, callback, ctx, failure);
                     }
-                });
-    }
-
-    private List<Entry> convertEntries(LedgerEntries ledgerEntries) {
-        List<Entry> entries = new ArrayList<>();
-        long totalSize = 0;
-        try {
-            try (ledgerEntries) {
-                for (LedgerEntry e : ledgerEntries) {
-                    EntryImpl entry = EntryImpl.create(e, interceptor, EntryImpl.NO_EXPECTED_READ_COUNT);
-                    entries.add(entry);
-                    if (ml.getConfig().isPulsarMessageEntries()) {
-                        entry.initializeMessageMetadataIfNeeded(ml.getName());
-                    }
-                    totalSize += entry.getLength();
-                }
-            }
-            ml.getMbean().recordReadEntriesOpsCacheMisses(entries.size(), totalSize);
-            ml.getFactory().getMbean().recordCacheMiss(entries.size(), totalSize);
-            ml.getMbean().addReadEntriesSample(entries.size(), totalSize);
-            return entries;
-        } catch (Throwable error) {
-            for (Entry entry : entries) {
-                try {
-                    entry.release();
-                } catch (Throwable releaseError) {
-                    if (releaseError != error) {
-                        error.addSuppressed(releaseError);
-                    }
-                }
-            }
-            throw error;
-        }
-    }
-
-    private void failRead(ReadHandle lh, long firstEntry, long lastEntry, AsyncCallbacks.ReadEntriesCallback callback,
-                          Object ctx, Throwable error) {
-        try {
-            callback.readEntriesFailed(createManagedLedgerException(error), ctx);
-        } catch (Throwable callbackError) {
-            log.warn().attr("managedLedger", getName())
-                    .attr("ledgerId", lh.getId())
-                    .attr("firstEntry", firstEntry)
-                    .attr("lastEntry", lastEntry)
-                    .attr("callback", "readEntriesFailed")
-                    .exception(callbackError)
-                    .log("Read failure callback failed");
-        }
+                }, ml.getExecutor());
     }
 
     @Override
