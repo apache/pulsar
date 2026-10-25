@@ -485,14 +485,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 53;
-            portArg = 40;
-            metricsPortArg = 42;
+            totalArgs = 54;
+            portArg = 41;
+            metricsPortArg = 43;
         } else {
             extraDepsEnv = "";
-            portArg = 39;
-            metricsPortArg = 41;
-            totalArgs = 52;
+            portArg = 40;
+            metricsPortArg = 42;
+            totalArgs = 53;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -520,6 +520,7 @@ public class KubernetesRuntimeTest {
                 + extraDepsEnv
                 + " -Dpulsar.functions.instance.classpath=/pulsar/lib/*"
                 + " -Dlog4j.configurationFile=kubernetes_instance_log4j2.xml"
+                + " -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager"
                 + " -Dlog4j2.contextSelector=org.apache.logging.log4j.core.selector.BasicContextSelector "
                 + "-Dpulsar.function.log.dir=" + logDirectory + "/"
                 + FunctionCommon.getFullyQualifiedName(config.getFunctionDetails())
@@ -1029,7 +1030,10 @@ public class KubernetesRuntimeTest {
     public void testGolangConstructor() throws Exception {
         InstanceConfig config = createGolangInstanceConfig();
 
-        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.empty(),
+                null, null, AuthenticationConfig.builder()
+                        .clientAuthenticationPlugin("com.MyAuth")
+                        .clientAuthenticationParameters("{\"authParam1\": \"authParamValue1\"}").build());
 
         verifyGolangInstance(config);
     }
@@ -1099,6 +1103,8 @@ public class KubernetesRuntimeTest {
                 + ".TestSink\",\"topic\":\"container-output\",\"serDeClassName\":\"org.apache.pulsar.functions"
                 + ".runtime.serde.Utf8Serializer\",\"typeClassName\":\"java.lang.String\"},\"resources\":{\"cpu\":1"
                 + ".0,\"ram\":\"1000\",\"disk\":\"10000\"}}"));
+        assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"), "com.MyAuth");
+        assertEquals(goInstanceConfig.get("clientAuthenticationParameters"), "{\"authParam1\": \"authParamValue1\"}");
 
         // check padding and xmx
         V1Container containerSpec = container.getFunctionContainer(Collections.emptyList(), RESOURCES);

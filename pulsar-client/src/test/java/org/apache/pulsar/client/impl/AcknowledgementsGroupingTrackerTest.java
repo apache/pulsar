@@ -18,11 +18,18 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -39,17 +46,23 @@ import io.netty.util.concurrent.GenericFutureListener;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.util.TimedCompletableFuture;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -90,6 +103,132 @@ public class AcknowledgementsGroupingTrackerTest {
     @AfterClass(alwaysRun = true)
     public void teardown() throws Exception {
         eventLoopGroup.shutdownGracefully().get();
+    }
+
+    @DataProvider
+    public Object[][] resetWhileNotSubscribed() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "resetWhileNotSubscribed")
+    public void testFlushAndCleanDiscardsAllAckTypes(boolean receiptEnabled, boolean connecting) {
+        ConsumerImpl<?> resettingConsumer = mock(ConsumerImpl.class);
+        resettingConsumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        doReturn(new ConsumerStatsRecorderImpl()).when(resettingConsumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(resettingConsumer).getUnAckedMessageTracker();
+        doReturn(receiptEnabled).when(resettingConsumer).isAckReceiptEnabled();
+        doReturn(connecting ? cnx : null).when(resettingConsumer).getClientCnx();
+        doReturn(HandlerState.State.Connecting).when(resettingConsumer).getState();
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        conf.setBatchIndexAckEnabled(true);
+        conf.setAckReceiptEnabled(receiptEnabled);
+        MessageIdImpl cumulative = new MessageIdImpl(5, 1, 0);
+        MessageIdImpl individual = new MessageIdImpl(5, 2, 0);
+        BitSet ackSet = BatchMessageIdImpl.newAckSet(2);
+        BatchMessageIdImpl batch0 = new BatchMessageIdImpl(5, 3, 0, 0, 2, ackSet);
+        BatchMessageIdImpl batch1 = new BatchMessageIdImpl(5, 3, 0, 1, 2, ackSet);
+        try (var tracker = new PersistentAcknowledgmentsGroupingTracker(resettingConsumer, conf, eventLoopGroup)) {
+            tracker.addAcknowledgment(cumulative, AckType.Cumulative, Collections.emptyMap());
+            tracker.addAcknowledgment(individual, AckType.Individual, Collections.emptyMap());
+            tracker.addAcknowledgment(batch0, AckType.Individual, Collections.emptyMap());
+
+            // An ordinary disconnected flush must retain acknowledgments for retry.
+            tracker.flush();
+            assertThat(tracker.isDuplicate(cumulative)).isTrue();
+            assertThat(tracker.isDuplicate(individual)).isTrue();
+            assertThat(tracker.isDuplicate(batch0)).isTrue();
+            assertThat(tracker.isDuplicate(batch1)).isFalse();
+
+            // Seek cleanup is repeated before the new connection is installed.
+            tracker.flushAndClean();
+            tracker.flushAndClean();
+            assertThat(tracker.isDuplicate(cumulative)).isFalse();
+            assertThat(tracker.isDuplicate(individual)).isFalse();
+            assertThat(tracker.isDuplicate(batch0)).as("seek must allow replay of the acknowledged batch index")
+                    .isFalse();
+            assertThat(tracker.isDuplicate(batch1)).isFalse();
+        }
+    }
+
+    @DataProvider
+    public Object[][] delayedAckFailure() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "delayedAckFailure")
+    public void testFailedWriteCannotRestoreAcksAcrossCleanup(boolean clean, boolean legacyBroker) throws Exception {
+        ConsumerImpl<?> resettingConsumer = mock(ConsumerImpl.class);
+        resettingConsumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        doReturn(new ConsumerStatsRecorderImpl()).when(resettingConsumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(resettingConsumer).getUnAckedMessageTracker();
+        doReturn(HandlerState.State.Ready).when(resettingConsumer).getState();
+        ClientCnx connection = mock(ClientCnx.class);
+        doReturn(connection).when(resettingConsumer).getClientCnx();
+        doReturn(legacyBroker ? ProtocolVersion.v11_VALUE : ProtocolVersion.v12_VALUE)
+                .when(connection).getRemoteEndpointProtocolVersion();
+        ChannelHandlerContext delayedContext = mock(ChannelHandlerContext.class);
+        ChannelFuture pendingWrite = mock(ChannelFuture.class);
+        List<GenericFutureListener<Future<Void>>> failureListeners = new ArrayList<>();
+        doAnswer(invocation -> {
+            failureListeners.add(invocation.getArgument(0));
+            return pendingWrite;
+        }).when(pendingWrite).addListener(any());
+        doAnswer(invocation -> {
+            ReferenceCountUtil.release(invocation.getArgument(0));
+            return pendingWrite;
+        }).when(delayedContext).write(any());
+        doAnswer(invocation -> {
+            ReferenceCountUtil.release(invocation.getArgument(0));
+            return pendingWrite;
+        }).when(delayedContext).writeAndFlush(any());
+        doReturn(delayedContext).when(connection).ctx();
+
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        conf.setBatchIndexAckEnabled(true);
+        MessageIdImpl individual = new MessageIdImpl(5, 1, 0);
+        BatchMessageIdImpl oldBatch0 = new BatchMessageIdImpl(5, 2, 0, 0, 2, BatchMessageIdImpl.newAckSet(2));
+        BitSet replayAckSet = BatchMessageIdImpl.newAckSet(2);
+        BatchMessageIdImpl replayBatch0 = new BatchMessageIdImpl(5, 2, 0, 0, 2, replayAckSet);
+        BatchMessageIdImpl replayBatch1 = new BatchMessageIdImpl(5, 2, 0, 1, 2, replayAckSet);
+        try (var tracker = new PersistentAcknowledgmentsGroupingTracker(resettingConsumer, conf, eventLoopGroup)) {
+            tracker.addAcknowledgment(individual, AckType.Individual, Collections.emptyMap());
+            tracker.addAcknowledgment(oldBatch0, AckType.Individual, Collections.emptyMap());
+            tracker.flush();
+            assertThat(failureListeners).hasSize(legacyBroker ? 2 : 1);
+            assertThat(tracker.isDuplicate(individual)).isFalse();
+            assertThat(tracker.isDuplicate(oldBatch0)).isFalse();
+
+            doReturn(null).when(resettingConsumer).getClientCnx();
+            if (clean) {
+                tracker.flushAndClean();
+            }
+            // The replay creates a fresh batch ack set, and the application acknowledges index 1.
+            tracker.addAcknowledgment(replayBatch1, AckType.Individual, Collections.emptyMap());
+            assertThat(tracker.isDuplicate(replayBatch0)).isFalse();
+            assertThat(tracker.isDuplicate(replayBatch1)).isTrue();
+
+            ChannelFuture failedWrite = mock(ChannelFuture.class);
+            doReturn(false).when(failedWrite).isSuccess();
+            for (GenericFutureListener<Future<Void>> listener : failureListeners) {
+                listener.operationComplete(failedWrite);
+            }
+            assertThat(tracker.isDuplicate(individual)).as("only ordinary reconnects retry the old ACK")
+                    .isEqualTo(!clean);
+            assertThat(tracker.isDuplicate(replayBatch0)).as("old partial ACK must not cross seek cleanup")
+                    .isEqualTo(!clean);
+            assertThat(tracker.isDuplicate(replayBatch1)).isTrue();
+
+            doReturn(connection).when(resettingConsumer).getClientCnx();
+            doReturn(successCtx).when(connection).ctx();
+            tracker.flush();
+            assertThat(tracker.isDuplicate(individual)).isFalse();
+            assertThat(tracker.isDuplicate(replayBatch0)).isFalse();
+            assertThat(tracker.isDuplicate(replayBatch1)).isFalse();
+        }
     }
 
     @Test(dataProvider = "isNeedReceipt")
@@ -148,6 +287,123 @@ public class AcknowledgementsGroupingTrackerTest {
         assertFalse(tracker.isDuplicate(msg6));
 
         tracker.close();
+    }
+
+    @Test
+    public void testPeriodicFlushSkipsTrackerWithoutNewAcks() throws Exception {
+        ConsumerImpl<?> periodicConsumer = mock(ConsumerImpl.class);
+        periodicConsumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        doReturn(new ConsumerStatsRecorderImpl()).when(periodicConsumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(periodicConsumer).getUnAckedMessageTracker();
+        AtomicBoolean connected = new AtomicBoolean(true);
+        doAnswer(invocation -> connected.get() ? cnx : null).when(periodicConsumer).getClientCnx();
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.MILLISECONDS.toMicros(10));
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(periodicConsumer, conf, eventLoopGroup);
+        // runs in the tracker's shared periodic flush task (the group has one event loop), requesting itself again,
+        // to count its runs
+        AtomicInteger periodicRuns = new AtomicInteger();
+        AtomicReference<AcknowledgmentsGroupingFlushes.Registration> probeRef = new AtomicReference<>();
+        AcknowledgmentsGroupingFlushes.Registration probe = AcknowledgmentsGroupingFlushes.register(
+                eventLoopGroup.next(), conf.getAcknowledgementsGroupTimeMicros(), () -> {
+                    periodicRuns.incrementAndGet();
+                    probeRef.get().requestFlush();
+                });
+        probeRef.set(probe);
+        probe.requestFlush();
+        try {
+            // without acks, the periodic flushes don't look up the connection
+            waitForPeriodicRuns(periodicRuns, 3);
+            verify(periodicConsumer, never()).getClientCnx();
+
+            // an ack added while disconnected stays pending, and the periodic flushes retry it
+            connected.set(false);
+            tracker.addAcknowledgment(new MessageIdImpl(5, 1, 0), AckType.Individual, Collections.emptyMap());
+            Awaitility.await().untilAsserted(() -> verify(periodicConsumer, atLeast(2)).getClientCnx());
+            assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+            // until the connection is back
+            connected.set(true);
+            Awaitility.await().until(() -> tracker.getPendingIndividualAcksSize() == 0);
+
+            // once flushed, the tracker is skipped again
+            clearInvocations(periodicConsumer);
+            waitForPeriodicRuns(periodicRuns, 3);
+            verify(periodicConsumer, never()).getClientCnx();
+        } finally {
+            probe.close();
+            tracker.close();
+        }
+    }
+
+    private static void waitForPeriodicRuns(AtomicInteger periodicRuns, int runs) {
+        int start = periodicRuns.get();
+        Awaitility.await().until(() -> periodicRuns.get() >= start + runs);
+    }
+
+    @Test
+    public void testPeriodicFlushRetriesAfterAFailure() throws Exception {
+        ConsumerImpl<?> failingConsumer = mock(ConsumerImpl.class);
+        failingConsumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        doReturn(new ConsumerStatsRecorderImpl()).when(failingConsumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(failingConsumer).getUnAckedMessageTracker();
+        AtomicInteger lookups = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (lookups.incrementAndGet() == 1) {
+                throw new IllegalStateException("failing connection lookup");
+            }
+            return cnx;
+        }).when(failingConsumer).getClientCnx();
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.MILLISECONDS.toMicros(10));
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(failingConsumer, conf, eventLoopGroup);
+        try {
+            // the first periodic flush fails, and a later one sends the ack without another ack being added
+            tracker.addAcknowledgment(new MessageIdImpl(5, 1, 0), AckType.Individual, Collections.emptyMap());
+            Awaitility.await().until(() -> tracker.getPendingIndividualAcksSize() == 0);
+            assertTrue(lookups.get() >= 2);
+        } finally {
+            tracker.close();
+        }
+    }
+
+    @Test(dataProvider = "isNeedReceipt")
+    public void testFlushWithoutPendingAcksWritesNothing(boolean isNeedReceipt) throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        conf.setAckReceiptEnabled(isNeedReceipt);
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        try {
+            clearInvocations(successCtx);
+            tracker.flush();
+            verify(successCtx, never()).write(any(), any());
+            verify(successCtx, never()).writeAndFlush(any(), any());
+            verify(successCtx, never()).flush();
+
+            // a cumulative ack, flushed once, and not again by the next flush
+            MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
+            tracker.addAcknowledgment(msg1, AckType.Cumulative, Collections.emptyMap());
+            tracker.flush();
+            verify(successCtx, times(1)).flush();
+            clearInvocations(successCtx);
+            tracker.flush();
+            verify(successCtx, never()).flush();
+            // the cumulative ack still counts for the duplicate check
+            assertTrue(tracker.isDuplicate(msg1));
+
+            // an individual ack after an empty flush is sent by the next one
+            MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
+            tracker.addAcknowledgment(msg2, AckType.Individual, Collections.emptyMap());
+            tracker.flush();
+            verify(successCtx, times(1)).flush();
+            assertFalse(tracker.isDuplicate(msg2));
+        } finally {
+            tracker.close();
+        }
     }
 
     @Test(dataProvider = "isNeedReceipt")
@@ -223,8 +479,11 @@ public class AcknowledgementsGroupingTrackerTest {
 
         returnCnx.set(false);
         try {
-            tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
-            assertFalse(tracker.isDuplicate(msg1));
+            CompletableFuture<Void> ackFuture =
+                    tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
+            // Without a connection, the ack waits for the next flush instead of failing
+            assertFalse(ackFuture.isCompletedExceptionally());
+            assertTrue(tracker.isDuplicate(msg1));
         } finally {
             returnCnx.set(true);
         }
@@ -236,6 +495,70 @@ public class AcknowledgementsGroupingTrackerTest {
         // Since we were connected, the ack went out immediately
         assertFalse(tracker.isDuplicate(msg2));
         tracker.close();
+    }
+
+    @Test(dataProvider = "isNeedReceipt")
+    public void testImmediateAcksWaitForTheSubscription(boolean isNeedReceipt) throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(0);
+        conf.setAckReceiptEnabled(isNeedReceipt);
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+
+        MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
+        MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
+        MessageIdImpl msg3 = new MessageIdImpl(5, 3, 0);
+        MessageIdImpl msg4 = new MessageIdImpl(5, 4, 0);
+
+        // Reconnected but not subscribed yet: the broker would drop the acks sent on the new connection
+        doReturn(HandlerState.State.Connecting).when(consumer).getState();
+        clearInvocations(cnx);
+        try {
+            assertFalse(tracker.addAcknowledgment(msg2, AckType.Cumulative, Collections.emptyMap())
+                    .isCompletedExceptionally());
+            assertFalse(tracker.addAcknowledgment(msg4, AckType.Individual, Collections.emptyMap())
+                    .isCompletedExceptionally());
+            assertTrue(tracker.isDuplicate(msg1));
+            assertFalse(tracker.isDuplicate(msg3));
+            assertTrue(tracker.isDuplicate(msg4));
+            assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+            verifyNoInteractions(cnx);
+        } finally {
+            doReturn(HandlerState.State.Ready).when(consumer).getState();
+        }
+
+        // The flush that follows the subscription sends them
+        tracker.flush();
+        assertFalse(tracker.isDuplicate(msg4));
+        assertEquals(tracker.getPendingIndividualAcksSize(), 0);
+        tracker.close();
+    }
+
+    @Test
+    public void testIndividualAckPropertiesAreCheckedAfterInterceptor() {
+        ConsumerImpl<?> disconnectedConsumer = mock(ConsumerImpl.class);
+        doReturn(new ConsumerStatsRecorderImpl()).when(disconnectedConsumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(disconnectedConsumer).getUnAckedMessageTracker();
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(disconnectedConsumer, conf, eventLoopGroup);
+        MessageIdImpl messageId = new MessageIdImpl(5, 1, 0);
+        Map<String, Long> properties = new HashMap<>();
+        doAnswer(invocation -> {
+            properties.put("interceptor-property", 1L);
+            return null;
+        }).when(disconnectedConsumer).onAcknowledge(messageId, null);
+        try {
+            // Adding properties in the interceptor must force the immediate path. With no connection it fails,
+            // whereas incorrectly checking the initially empty map would queue a successful grouped ACK.
+            CompletableFuture<Void> result = tracker.addAcknowledgment(messageId, AckType.Individual, properties);
+            assertTrue(result.isCompletedExceptionally());
+            assertEquals(tracker.getPendingIndividualAcksSize(), 0);
+        } finally {
+            tracker.close();
+        }
     }
 
     @Test(dataProvider = "isNeedReceipt")
@@ -357,6 +680,72 @@ public class AcknowledgementsGroupingTrackerTest {
         assertFalse(tracker.isDuplicate(msg1));
         assertEquals(tracker.getPendingIndividualAcksSize(), 0);
         tracker.close();
+    }
+
+    @Test
+    public void testMixedChunkAndBatchAcksRestoreAfterWriteFailure() {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.SECONDS.toMicros(10));
+        boolean wasConnected = returnCnx.getAndSet(true);
+        boolean receiptEnabled = consumer.isAckReceiptEnabled();
+        int protocolVersion = cnx.getRemoteEndpointProtocolVersion();
+        doReturn(false).when(consumer).isAckReceiptEnabled();
+        doReturn(ProtocolVersion.v12_VALUE).when(cnx).getRemoteEndpointProtocolVersion();
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+        MessageIdImpl individual = new MessageIdImpl(5, 1, 0);
+        MessageIdImpl firstChunk = new MessageIdImpl(5, 2, 0);
+        MessageIdImpl lastChunk = new MessageIdImpl(5, 3, 0);
+        ChunkMessageIdImpl chunked = new ChunkMessageIdImpl(firstChunk, lastChunk);
+        MessageIdImpl[] chunks = {firstChunk, null, lastChunk};
+        MessageIdImpl batchPosition = new MessageIdImpl(5, 4, 0);
+        List<BaseCommand> written = new ArrayList<>();
+        ChannelHandlerContext failed = createFailedChannelHandlerContext();
+        ChannelHandlerContext capturing = mock(ChannelHandlerContext.class);
+        doAnswer(invocation -> {
+            ByteBuf command = invocation.getArgument(0);
+            ByteBuf view = command.duplicate();
+            view.skipBytes(4);
+            int commandSize = view.readInt();
+            BaseCommand parsed = new BaseCommand();
+            parsed.parseFrom(view, commandSize);
+            parsed.materialize();
+            written.add(parsed);
+            return failed.writeAndFlush(command);
+        }).when(capturing).writeAndFlush(any());
+        try {
+            consumer.unAckedChunkedMessageIdSequenceMap.put(chunked, chunks);
+            tracker.addAcknowledgment(individual, AckType.Individual, Collections.emptyMap());
+            tracker.addAcknowledgment(chunked, AckType.Individual, Collections.emptyMap());
+            tracker.doIndividualBatchAckAsync(new BatchMessageIdImpl(5, 4, 0, 3, 10, null));
+            doReturn(capturing).when(cnx).ctx();
+            tracker.flush();
+
+            assertEquals(written.size(), 1);
+            var ack = written.get(0).getAck();
+            assertEquals(ack.getMessageIdsCount(), 4);
+            for (int i = 0; i < 4; i++) {
+                assertEquals(ack.getMessageIdAt(i).getLedgerId(), 5L);
+                assertEquals(ack.getMessageIdAt(i).getEntryId(), i + 1L);
+            }
+            assertEquals(ack.getMessageIdAt(3).getAckSetAt(0), 1015L);
+            assertEquals(tracker.getPendingIndividualAcksSize(), 2);
+            assertEquals(consumer.unAckedChunkedMessageIdSequenceMap.get(chunked), chunks);
+            assertFalse(tracker.pendingIndividualBatchIndexAcks.get(batchPosition).get(3));
+
+            doReturn(successCtx).when(cnx).ctx();
+            tracker.flush();
+            assertEquals(tracker.getPendingIndividualAcksSize(), 0);
+            assertFalse(consumer.unAckedChunkedMessageIdSequenceMap.containsKey(chunked));
+            assertTrue(tracker.pendingIndividualBatchIndexAcks.isEmpty());
+        } finally {
+            doReturn(successCtx).when(cnx).ctx();
+            tracker.close();
+            consumer.unAckedChunkedMessageIdSequenceMap.remove(chunked);
+            returnCnx.set(wasConnected);
+            doReturn(receiptEnabled).when(consumer).isAckReceiptEnabled();
+            doReturn(protocolVersion).when(cnx).getRemoteEndpointProtocolVersion();
+        }
     }
 
     @Test

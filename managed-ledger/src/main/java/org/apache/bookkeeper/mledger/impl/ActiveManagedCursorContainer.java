@@ -121,6 +121,18 @@ public interface ActiveManagedCursorContainer extends Iterable<ManagedCursor> {
     }
 
     /**
+     * Returns the number of cursors at the given position or before it: the reads expected of an entry at the position
+     * in the cacheEvictionByExpectedReadCount cache eviction algorithm, such as of an entry read ahead of a cursor.
+     * @param from a cursor that is likely at the position or before it, such as the cursor that the entry was read
+     *             ahead of: the count may start from its position instead of the first cursor's
+     * @param position the position
+     * @return the number of cursors at the position or before it
+     */
+    default int getNumberOfCursorsAtPositionOrBefore(ManagedCursor from, Position position) {
+        throw new UnsupportedOperationException("This method is not supported by this implementation");
+    }
+
+    /**
      * Returns true if added entries should be cached. By default, added entries are cached if the container is not
      * empty. The implementation can override this method to change the default behavior.
      * @return true if added entries should be cached, false otherwise

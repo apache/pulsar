@@ -40,19 +40,19 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.awaitility.Awaitility;
 import org.mockito.exceptions.misusing.DisabledMockException;
 import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class BrokerDispatchRateLimiterTest extends BrokerTestBase {
-    @BeforeClass
+    @BeforeMethod
     @Override
     protected void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

@@ -33,7 +33,7 @@ val nettyTcnativeVersion: String = libs.versions.netty.tcnative.get()
 val audienceAnnotationsVersion: String = libs.versions.audience.annotations.get()
 
 // Configuration for collecting runtime dependencies
-val distLib by configurations.creating {
+val distLib = configurations.create("distLib") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = true
@@ -79,12 +79,12 @@ val distLib by configurations.creating {
 // Resolvable configurations for cross-project artifact dependencies.
 // Using configurations instead of direct task references (project().tasks.named())
 // ensures compatibility with Gradle's configure-on-demand feature.
-val runtimeAllShadowJar by configurations.creating {
+val runtimeAllShadowJar = configurations.create("runtimeAllShadowJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
 }
-val apiExamplesJar by configurations.creating {
+val apiExamplesJar = configurations.create("apiExamplesJar") {
     isCanBeResolved = true
     isCanBeConsumed = false
     isTransitive = false
@@ -103,7 +103,9 @@ dependencies {
     distLib(project(":pulsar-broker-auth-oidc"))
     distLib(project(":pulsar-broker-auth-sasl"))
     distLib(project(":pulsar-client-auth-sasl"))
-    distLib(libs.bookkeeper.prometheus.metrics.provider)
+    // Pulsar's own BookKeeper stats provider, built on the Prometheus Java client 1.x. It replaces
+    // org.apache.bookkeeper.stats:prometheus-metrics-provider, which is still on the legacy simpleclient.
+    distLib(project(":pulsar-bookkeeper-prometheus-metrics-provider"))
     distLib(project(":pulsar-package-management:pulsar-package-bookkeeper-storage")) {
         exclude(group = "org.objenesis")
     }
@@ -124,6 +126,9 @@ dependencies {
     distLib(libs.log4j.web)
     distLib(libs.log4j.layout.template.json)
     distLib(libs.log4j.slf4j2.impl)
+    distLib(libs.log4j.jul)
+    // The async loggers that bin/pulsar enables need the LMAX Disruptor
+    distLib(libs.disruptor)
     distLib(libs.simpleclient.log4j2)
 
     // Metrics
@@ -191,7 +196,7 @@ dependencies {
 val pulsarVersion = project.version.toString()
 val rootDir = rootProject.projectDir
 
-val serverDistTar by tasks.registering(Tar::class) {
+val serverDistTar = tasks.register<Tar>("serverDistTar") {
     archiveBaseName.set("apache-pulsar")
     archiveVersion.set(pulsarVersion)
     archiveClassifier.set("bin")
@@ -328,7 +333,7 @@ val serverDistTar by tasks.registering(Tar::class) {
 }
 
 // Consumable configuration exposing the server distribution tarball
-val serverDistElements by configurations.creating {
+val serverDistElements = configurations.create("serverDistElements") {
     isCanBeConsumed = true
     isCanBeResolved = false
     outgoing {
@@ -346,7 +351,7 @@ binaryLicenseCheck {
 
 // Export the runtime classpath to a file for bin/ scripts to use
 // when running Pulsar from a development build (without lib/ directory)
-val exportClasspath by tasks.registering {
+val exportClasspath = tasks.register("exportClasspath") {
     val outputFile = layout.buildDirectory.file("classpath.txt")
     outputs.file(outputFile)
     doLast {

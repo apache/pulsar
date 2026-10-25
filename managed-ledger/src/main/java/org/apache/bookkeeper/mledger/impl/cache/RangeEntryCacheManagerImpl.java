@@ -86,7 +86,7 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     public EntryCache getEntryCache(ManagedLedger ml) {
         if (maxSize == 0) {
             // Cache is disabled
-            return new EntryCacheDisabled((ManagedLedgerImpl) ml);
+            return new EntryCacheDisabled((ManagedLedgerImpl) ml, inflightReadsLimiter);
         }
 
         EntryCache newEntryCache =
@@ -136,7 +136,8 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     Optional<CompletableFuture<Void>> triggerEvictionWhenNeeded() {
         long currentSize = this.currentSize.get();
 
-        // Trigger a single eviction in background. While the eviction is running we stop inserting entries in the cache
+        // Trigger a single eviction in background. While it is running, a new trigger returns the running eviction's
+        // future instead of starting another one. Inserting entries in the cache doesn't wait for it.
         if (currentSize > evictionTriggerThreshold) {
             CompletableFuture<Void> evictionCompletionFuture = null;
             while (evictionCompletionFuture == null) {
@@ -208,6 +209,11 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     @VisibleForTesting
     public Pair<Integer, Long> getNonEvictableSize() {
         return evictionHandler.getNonEvictableSize();
+    }
+
+    /** Whether the cache has reached its eviction watermark, above which reads ahead don't add entries. */
+    boolean isAtEvictionWatermark() {
+        return maxSize > 0 && getSize() >= (long) (maxSize * cacheEvictionWatermark);
     }
 
     @Override

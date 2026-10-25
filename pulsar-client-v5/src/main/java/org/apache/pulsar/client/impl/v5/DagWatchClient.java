@@ -22,6 +22,7 @@ import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -67,6 +68,13 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
     private final CompletableFuture<ClientSegmentLayout> initialLayoutFuture = new CompletableFuture<>();
     private final Backoff reconnectBackoff;
     private volatile LayoutChangeListener listener;
+    /**
+     * The layout the listener was last handed: at first the initial layout, which the caller of
+     * {@link #start} applies itself before setting the listener.
+     */
+    private volatile ClientSegmentLayout notifiedLayout;
+    /** Calls to {@link #notifyListener} not served yet; see there. */
+    private final AtomicInteger pendingNotifications = new AtomicInteger();
     private volatile ClientCnx cnx;
     private volatile boolean closed = false;
     private volatile boolean usingProxy = false;
@@ -171,6 +179,10 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
 
         ClientSegmentLayout newLayout = ClientSegmentLayout.fromProto(dag, resolvedTn);
         ClientSegmentLayout oldLayout = currentLayout.getAndSet(newLayout);
+        if (oldLayout == null) {
+            // The initial layout: the caller of start() applies it, not the listener.
+            notifiedLayout = newLayout;
+        }
 
         log.info().attr("oldEpoch", oldLayout != null ? oldLayout.epoch() : "none")
                 .attr("newEpoch", newLayout.epoch())
@@ -184,14 +196,35 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         // Complete the initial layout future if this is the first update
         initialLayoutFuture.complete(newLayout);
 
-        LayoutChangeListener l = listener;
-        if (l != null) {
-            try {
-                l.onLayoutChange(newLayout, oldLayout);
-            } catch (Exception e) {
-                log.error().exception(e).log("Error in layout change listener");
-            }
+        notifyListener();
+    }
+
+    /**
+     * Hand the listener the current layout if it hasn't had it yet. Both the I/O thread, on every
+     * update, and {@link #setListener} call this, so the listener calls are serialized here without
+     * holding a lock while the listener runs: the call that finds no other in progress delivers, and
+     * delivers again for each call made meanwhile. The listener gets the layouts in order and the
+     * current one last, skipping any replaced before it could be delivered.
+     */
+    private void notifyListener() {
+        if (pendingNotifications.getAndIncrement() != 0) {
+            return;
         }
+        do {
+            LayoutChangeListener l = listener;
+            ClientSegmentLayout layout = currentLayout.get();
+            ClientSegmentLayout previous = notifiedLayout;
+            if (l != null && layout != previous) {
+                notifiedLayout = layout;
+                try {
+                    l.onLayoutChange(layout, previous);
+                } catch (Throwable e) {
+                    // Not just Exception: whatever escapes this loop leaves pendingNotifications above zero,
+                    // and nothing would be delivered after it.
+                    log.error().exception(e).log("Error in layout change listener");
+                }
+            }
+        } while (pendingNotifications.decrementAndGet() != 0);
     }
 
     @Override
@@ -203,7 +236,7 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
             initialLayoutFuture.completeExceptionally(
                     error == ServerError.TopicNotFound
                             ? new PulsarClientException.NotFoundException(detail)
-                            : new PulsarClientException(detail));
+                            : ClientCnx.getPulsarClientException(error, detail));
         }
         // After the initial layout has arrived, broker-side errors on this session
         // (e.g., metadata unavailable) are transient — a reconnect typically clears
@@ -230,6 +263,13 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
 
     private void scheduleReconnect() {
         if (closed) {
+            return;
+        }
+        if (v4Client.isClosed()) {
+            // The owning client is shutting down: its connections are being torn down and any
+            // reconnect would only keep the event loop busy (delaying its graceful shutdown)
+            // and fail at the handshake.
+            log.debug("Client is closing; not scheduling DAG watch reconnect");
             return;
         }
         long delayMs = reconnectBackoff.next().toMillis();
@@ -261,8 +301,14 @@ final class DagWatchClient implements DagWatchSession, AutoCloseable {
         return currentLayout.get();
     }
 
+    /**
+     * Set the listener for the layouts that follow the initial one, which {@link #start} completes with
+     * and the caller applies itself first. A layout that arrived meanwhile is handed to the listener right
+     * away: the broker pushes each layout only once.
+     */
     void setListener(LayoutChangeListener listener) {
         this.listener = listener;
+        notifyListener();
     }
 
     long sessionId() {

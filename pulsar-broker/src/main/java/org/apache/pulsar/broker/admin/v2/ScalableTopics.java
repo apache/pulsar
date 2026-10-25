@@ -49,28 +49,37 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.impl.TopicListResponseMemoryLimiter;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.AutoScaleConfig;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicController;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
+import org.apache.pulsar.broker.service.scalable.SegmentTopicStatsBuilder;
+import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PolicyName;
 import org.apache.pulsar.common.policies.data.PolicyOperation;
+import org.apache.pulsar.common.policies.data.ScalableTopicStats;
+import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.scalable.ScalableTopicConstants;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 
@@ -78,7 +87,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
  * Admin REST API for scalable topics (topic:// domain).
  *
  * <p>Provides operations to create, delete, list, and inspect scalable topics,
- * as well as segment split/merge operations.
+ * to manage their permissions, as well as segment split/merge operations.
  */
 @CustomLog
 @Path("/scalable")
@@ -115,14 +124,19 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         Map<String, String> propertyFilters = parseKeyValuePairs(properties);
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.GET_TOPICS)
-                .thenCompose(__ -> propertyFilters.isEmpty()
-                        ? resources().listScalableTopicsAsync(namespaceName)
-                        : resources().findScalableTopicsByPropertiesAsync(
-                                namespaceName, propertyFilters))
+                .thenCompose(__ -> TopicListResponseMemoryLimiter.listTopics(pulsar().getBrokerService(),
+                        asyncResponse,
+                        TopicListing.scalableTopics(namespaceName.toString()), propertyFilters,
+                        () -> propertyFilters.isEmpty()
+                                ? resources().listScalableTopicsAsync(namespaceName)
+                                : resources().findScalableTopicsByPropertiesAsync(
+                                        namespaceName, propertyFilters)))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error().attr("clientAppId", clientAppId()).attr("namespace", namespaceName)
-                            .exception(ex).log("Failed to list scalable topics");
+                    if (!isTopicListLimitRejection(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("namespace", namespaceName)
+                                .exception(ex).log("Failed to list scalable topics");
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -162,7 +176,8 @@ public class ScalableTopics extends AdminResource {
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
-            @ApiResponse(responseCode = "409", description = "Scalable topic already exists"),
+            @ApiResponse(responseCode = "409", description = "Scalable topic already exists, or is being created "
+                    + "or migrated to"),
             @ApiResponse(responseCode = "412", description = "Invalid configuration"),
             @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void createScalableTopic(
@@ -178,7 +193,9 @@ public class ScalableTopics extends AdminResource {
             @RequestBody(description = "Key value pair properties for the topic metadata")
             Map<String, String> properties) {
         validateNamespaceName(tenant, namespace);
-        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        String decodedTopic = Codec.decode(encodedTopic);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, decodedTopic);
+        validateCreateTopic(tn);
 
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.CREATE_TOPIC)
                 .thenCompose(__ -> {
@@ -190,8 +207,12 @@ public class ScalableTopics extends AdminResource {
                     ScalableTopicMetadata metadata = ScalableTopicController.createInitialMetadata(
                             numInitialSegments,
                             pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                            pulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment(),
                             props);
-                    return resources().createScalableTopicAsync(tn, metadata)
+                    // The creation lock keeps the creation from interleaving with a migration of the
+                    // regular topic of the same name.
+                    return resources().runWithCreationLock(tn,
+                                    lock -> resources().createScalableTopicAsync(tn, metadata))
                             .thenCompose(ignored -> createInitialSegmentTopicsAsync(tn, metadata));
                 })
                 .thenAccept(__ -> {
@@ -205,6 +226,9 @@ public class ScalableTopics extends AdminResource {
                     if (cause instanceof MetadataStoreException.AlreadyExistsException) {
                         asyncResponse.resume(new RestException(Response.Status.CONFLICT,
                                 "Scalable topic already exists: " + tn));
+                    } else if (cause instanceof MetadataStoreException.LockBusyException) {
+                        asyncResponse.resume(new RestException(Response.Status.CONFLICT,
+                                "A migration or another creation of the scalable topic is in progress: " + tn));
                     } else {
                         log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
                                 .exception(ex).log("Failed to create scalable topic");
@@ -255,8 +279,8 @@ public class ScalableTopics extends AdminResource {
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have produce permission on the topic"),
             @ApiResponse(responseCode = "404", description = "Topic doesn't exist"),
-            @ApiResponse(responseCode = "409", description = "Already a scalable topic, or legacy v4 clients are "
-                    + "still connected and force was not set"),
+            @ApiResponse(responseCode = "409", description = "Already a scalable topic, being created as one, or "
+                    + "legacy v4 clients are still connected and force was not set"),
             @ApiResponse(responseCode = "500", description = "Internal server error")})
     public void migrateToScalable(
             @Suspended final AsyncResponse asyncResponse,
@@ -269,11 +293,12 @@ public class ScalableTopics extends AdminResource {
             @Parameter(description = "Migrate even if legacy v4 clients are still connected to the topic")
             @QueryParam("force") @DefaultValue("false") boolean force) {
         validateNamespaceName(tenant, namespace);
+        String decodedTopic = Codec.decode(encodedTopic);
         // The scalable topic's canonical identity uses the topic:// domain; the migration
         // source is the same name in the persistent:// domain.
-        TopicName scalableName = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+        TopicName scalableName = TopicName.get(TopicDomain.topic.value(), namespaceName, decodedTopic);
         TopicName persistentBase =
-                TopicName.get(TopicDomain.persistent.value(), namespaceName, encodedTopic);
+                TopicName.get(TopicDomain.persistent.value(), namespaceName, decodedTopic);
 
         validateTopicOperationAsync(persistentBase, TopicOperation.MIGRATE_TO_SCALABLE)
                 .thenCompose(__ -> doMigrateToScalableAsync(scalableName, persistentBase, force))
@@ -287,6 +312,10 @@ public class ScalableTopics extends AdminResource {
                     if (cause instanceof MetadataStoreException.AlreadyExistsException) {
                         asyncResponse.resume(new RestException(Response.Status.CONFLICT,
                                 "Topic is already scalable: " + scalableName));
+                    } else if (cause instanceof MetadataStoreException.LockBusyException) {
+                        asyncResponse.resume(new RestException(Response.Status.CONFLICT,
+                                "A creation of the scalable topic, or another migration, is in progress: "
+                                        + scalableName));
                     } else {
                         log.error().attr("clientAppId", clientAppId()).attr("topic", scalableName)
                                 .exception(ex).log("Failed to migrate topic to scalable");
@@ -299,21 +328,40 @@ public class ScalableTopics extends AdminResource {
     /**
      * Orchestrate a regular-to-scalable migration:
      * <ol>
+     *   <li>take the creation lock of the scalable topic, so no creation of the same topic, on any
+     *       broker, can interleave with the steps up to the commit (see
+     *       {@link ScalableTopicResources#runWithCreationLock});</li>
      *   <li>reject if scalable metadata already exists;</li>
      *   <li>resolve the source topic's existence + partition count;</li>
      *   <li>unless {@code force}, reject if any legacy v4 client is still connected;</li>
      *   <li>build the migrated layout (sealed legacy parents + active children);</li>
      *   <li>create the new child segment topics;</li>
+     *   <li>grant on the scalable topic the permissions granted on the regular topic, so the
+     *       roles allowed on it keep their access through the new segments;</li>
      *   <li>atomically write the scalable metadata (the commit point — connected V5 lookup
      *       sessions transition from the synthetic layout to the real DAG via the metadata
-     *       watch);</li>
+     *       watch), and release the lock;</li>
      *   <li>terminate the old topics so no further v4 writes can land — they become the
      *       drainable sealed parent segments.</li>
      * </ol>
      */
     private CompletableFuture<Void> doMigrateToScalableAsync(TopicName scalableName,
                                                              TopicName persistentBase, boolean force) {
-        return resources().getScalableTopicMetadataAsync(scalableName).thenCompose(existing -> {
+        return resources().runWithCreationLock(scalableName,
+                        lock -> createMigratedScalableTopicAsync(scalableName, persistentBase, force, lock))
+                .thenCompose(partitions -> terminateLegacyTopicsAsync(persistentBase, partitions));
+    }
+
+    /**
+     * The steps of {@link #doMigrateToScalableAsync} that run under the creation lock of the scalable
+     * topic, up to its creation. Completes with the partition count of the regular topic.
+     */
+    private CompletableFuture<Integer> createMigratedScalableTopicAsync(TopicName scalableName,
+                                                                       TopicName persistentBase, boolean force,
+                                                                       ScalableTopicResources.CreationLock lock) {
+        // Read the store, not the cache, which may miss a creation completed on another broker
+        // just before the lock was taken.
+        return resources().getScalableTopicMetadataAsync(scalableName, true).thenCompose(existing -> {
             if (existing.isPresent()) {
                 throw new RestException(Response.Status.CONFLICT,
                         "Topic is already scalable: " + scalableName);
@@ -334,10 +382,22 @@ public class ScalableTopics extends AdminResource {
         }).thenCompose(partitions -> {
             ScalableTopicMetadata metadata =
                     ScalableTopicController.createMigratedMetadata(persistentBase, partitions,
-                            pulsar().getConfiguration().getScalableTopicEntryBucketBudget());
+                            pulsar().getConfiguration().getScalableTopicEntryBucketBudget(),
+                            pulsar().getConfiguration().getScalableTopicEntryBucketMaxPerSegment());
+            // The new segments are authorized with the permissions of the scalable topic, a distinct
+            // identity, while the legacy segments keep those of the persistent:// topics they wrap. So
+            // grant the regular topic's permissions on the scalable topic before the commit: the V5
+            // clients that follow the layout change are then authorized on the new segments as soon as
+            // they see them. Namespace permissions apply to both topics already. Those of a single
+            // partition are not copied: the new segments mix its data with the other partitions' data.
+            // Both steps check that the creation lock is still held first: a broker that lost it, as when
+            // its metadata session expired during the steps above, must not make them.
             return createMigratedChildTopicsAsync(scalableName, metadata)
+                    .thenCompose(__ -> lock.checkHeld())
+                    .thenCompose(__ -> getAuthorizationService().copyPermissionsAsync(persistentBase, scalableName))
+                    .thenCompose(__ -> lock.checkHeld())
                     .thenCompose(__ -> resources().createScalableTopicAsync(scalableName, metadata))
-                    .thenCompose(__ -> terminateLegacyTopicsAsync(persistentBase, partitions));
+                    .thenApply(__ -> partitions);
         });
     }
 
@@ -631,6 +691,151 @@ public class ScalableTopics extends AdminResource {
                 });
     }
 
+    // --- Permissions ---
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/permissions")
+    @Operation(summary = "Get permissions on a scalable topic.",
+            description = "Retrieve the effective permissions for a scalable topic. These permissions are defined"
+                    + " by the permissions set at the namespace level combined (union) with any eventual specific"
+                    + " permission set on the topic, and apply to every segment of the topic."
+                    + " Returns a map structure: Map<String, Set<AuthAction>>.")
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Get permissions on a scalable topic.",
+                    content = @Content(schema = @Schema(type = "object"),
+                            additionalPropertiesArraySchema = @ArraySchema(
+                                    schema = @Schema(implementation = AuthAction.class), uniqueItems = true))),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Tenant, namespace or scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void getPermissions(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, Codec.decode(encodedTopic));
+
+        validateAdminAccessForTenantAsync(tenant)
+                .thenCompose(__ -> checkTopicExistsForPermissionsAsync(tn))
+                .thenCompose(__ -> getAuthorizationService().getPermissionsAsync(tn))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (isNot307And404Exception(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .exception(ex).log("Failed to get permissions on scalable topic");
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{topic}/permissions/{role}")
+    @Operation(summary = "Grant a new permission to a role on a scalable topic.",
+            description = "The permission applies to every segment of the topic.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Operation successful"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Tenant, namespace or scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "409", description = "Concurrent modification"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void grantPermissions(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Client role to which grant permissions", required = true)
+            @PathParam("role") String role,
+            @RequestBody(description = "Actions to be granted (produce,functions,consume)",
+                    content = @Content(schema = @Schema(allowableValues = {"produce", "functions", "consume"})))
+                    Set<AuthAction> actions) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, Codec.decode(encodedTopic));
+
+        validateAdminAccessForTenantAsync(tenant)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> checkTopicExistsForPermissionsAsync(tn))
+                .thenCompose(__ -> getAuthorizationService().grantPermissionAsync(tn, actions, role, null))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    if (isNot307And404Exception(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn).attr("role", role)
+                                .exception(ex).log("Failed to grant permissions on scalable topic");
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @DELETE
+    @Path("/{tenant}/{namespace}/{topic}/permissions/{role}")
+    @Operation(summary = "Revoke permissions on a scalable topic.",
+            description = "Revoke the permissions granted to a role on the topic itself. Permissions granted at"
+                    + " the namespace level are not affected.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Operation successful"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Tenant, namespace or scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "409", description = "Concurrent modification"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void revokePermissions(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Client role to which revoke permissions", required = true)
+            @PathParam("role") String role) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, Codec.decode(encodedTopic));
+
+        validateAdminAccessForTenantAsync(tenant)
+                .thenCompose(__ -> validatePoliciesReadOnlyAccessAsync())
+                .thenCompose(__ -> checkTopicExistsForPermissionsAsync(tn))
+                .thenCompose(__ -> getAuthorizationService().revokePermissionAsync(tn, role))
+                .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
+                .exceptionally(ex -> {
+                    if (isNot307And404Exception(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn).attr("role", role)
+                                .exception(ex).log("Failed to revoke permissions on scalable topic");
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    /**
+     * Like the permission operations on a regular topic, fail with a 404 if the scalable topic doesn't exist,
+     * unless {@code allowAclChangesOnNonExistentTopics} is set.
+     */
+    private CompletableFuture<Void> checkTopicExistsForPermissionsAsync(TopicName tn) {
+        if (pulsar().getConfiguration().isAllowAclChangesOnNonExistentTopics()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return resources().scalableTopicExistsAsync(tn).thenAccept(exists -> {
+            if (!exists) {
+                throw new RestException(Response.Status.NOT_FOUND, "Scalable topic not found: " + tn);
+            }
+        });
+    }
+
     // --- Delete ---
 
     @DELETE
@@ -638,6 +843,8 @@ public class ScalableTopics extends AdminResource {
     @Operation(summary = "Delete a scalable topic and all its segments.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Scalable topic deleted successfully"),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker is not the controller leader for this topic"),
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
@@ -656,16 +863,40 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
 
+        // Served by the controller leader, so the broker holding the elected controller is the
+        // one that stops it below.
         validateNamespaceOperationAsync(namespaceName, NamespaceOperation.DELETE_TOPIC)
+                .thenCompose(__ -> redirectToControllerLeaderIfNeeded(tn))
                 .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
                 .thenCompose(optMd -> {
                     if (optMd.isEmpty()) {
                         throw new RestException(Response.Status.NOT_FOUND,
                                 "Scalable topic not found: " + tn);
                     }
-                    // Delete metadata first, then best-effort clean up segment topics
-                    return resources().deleteScalableTopicAsync(tn)
-                            .thenCompose(__ -> deleteSegmentTopics(tn, optMd.get(), force));
+                    // Stop the controller before deleting the metadata: still running, its
+                    // leader election re-acquires the lock the delete removes, under the deleted
+                    // path, and it keeps serving consumers from the deleted layout. Mark the
+                    // topic deleted first, so the controllers following it on other brokers
+                    // don't take the lock over once it is released. Then remove the permissions
+                    // granted on the topic, as deleting a regular topic does, so a topic created
+                    // again with the same name doesn't inherit them (a failure leaves the topic
+                    // marked, for a retried delete). Then delete metadata, then best-effort clean
+                    // up segment topics and the schema they share (deleting a segment topic
+                    // leaves the schema in place). The segments are read again after the
+                    // release, to include those of a split that was still in flight.
+                    return resources().markScalableTopicDeletedAsync(tn)
+                            .thenCompose(__ -> releaseController(tn))
+                            .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn, true))
+                            .thenCompose(latest -> getAuthorizationService().removePermissionsAsync(tn)
+                                    .thenCompose(__ -> resources().deleteScalableTopicAsync(tn))
+                                    .thenCompose(__ -> deleteSegmentTopics(tn, latest.orElse(optMd.get()),
+                                            force)))
+                            .thenCompose(__ -> pulsar().getBrokerService().deleteSchema(tn)
+                                    .exceptionally(ex -> {
+                                        log.warn().attr("topic", tn).exceptionMessage(ex)
+                                                .log("Failed to delete schema of scalable topic");
+                                        return null;
+                                    }));
                 })
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("topic", tn)
@@ -673,8 +904,10 @@ public class ScalableTopics extends AdminResource {
                     asyncResponse.resume(Response.noContent().build());
                 })
                 .exceptionally(ex -> {
-                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
-                            .exception(ex).log("Failed to delete scalable topic");
+                    if (!isRedirectException(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .exception(ex).log("Failed to delete scalable topic");
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -684,11 +917,13 @@ public class ScalableTopics extends AdminResource {
 
     @GET
     @Path("/{tenant}/{namespace}/{topic}/stats")
-    @Operation(summary = "Get aggregated stats for a scalable topic.")
+    @Operation(summary = "Get the stats of a scalable topic as a whole: the segment DAG with per-segment"
+            + " load, the subscriptions with their backlog across segments, and the producers.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Get aggregated stats for a scalable topic.",
-                    content = @Content(schema = @Schema(
-                            implementation = org.apache.pulsar.common.policies.data.ScalableTopicStats.class))),
+            @ApiResponse(responseCode = "200", description = "The stats of the scalable topic.",
+                    content = @Content(schema = @Schema(implementation = ScalableTopicStats.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker is not the controller leader for this topic"),
             @ApiResponse(responseCode = "401",
                     description = "Don't have permission to administrate resources on this tenant"),
             @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
@@ -705,12 +940,85 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
 
+        // Served by the controller leader: the STREAM consumer sessions (connected state,
+        // segment assignment) only exist in the leader's memory.
         validateTopicOperationAsync(tn, TopicOperation.GET_STATS)
-                .thenCompose(__ -> withScalableTopicService(svc -> svc.getStats(tn)))
+                .thenCompose(__ -> onControllerLeader(tn, svc -> svc.getStats(tn)))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
-                    log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
-                            .exception(ex).log("Failed to get stats for scalable topic");
+                    if (!isRedirectException(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .exception(ex).log("Failed to get stats for scalable topic");
+                    }
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{topic}/segments/{segmentId}/stats")
+    @Operation(summary = "Get the stats of a single segment of a scalable topic: the stats of the topic"
+            + " backing the segment, trimmed to what matters for a segment, served by its owning broker.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "The stats of the segment's backing topic.",
+                    content = @Content(schema = @Schema(implementation = SegmentTopicStats.class))),
+            @ApiResponse(responseCode = "307", description = "Current broker doesn't serve the segment"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission on the namespace"),
+            @ApiResponse(responseCode = "404",
+                    description = "Scalable topic, segment, or the segment's backing topic doesn't exist"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void getSegmentStats(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Segment ID", required = true)
+            @PathParam("segmentId") long segmentId,
+            @Parameter(description = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateTopicOperationAsync(tn, TopicOperation.GET_STATS)
+                .thenCompose(__ -> resources().getScalableTopicMetadataAsync(tn))
+                .thenCompose(optMd -> {
+                    if (optMd.isEmpty()) {
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Scalable topic not found: " + tn);
+                    }
+                    SegmentInfo segment = optMd.get().getSegments().get(segmentId);
+                    if (segment == null) {
+                        throw new RestException(Response.Status.NOT_FOUND,
+                                "Segment " + segmentId + " not found in scalable topic " + tn);
+                    }
+                    TopicName backingTopic = TopicName.get(SegmentTopicName.backingTopicName(tn, segment));
+                    return validateTopicOwnershipAsync(backingTopic, authoritative)
+                            .thenCompose(__ -> pulsar().getBrokerService()
+                                    .getTopicIfExists(backingTopic.toString()))
+                            .thenCompose(optTopic -> {
+                                if (optTopic.isEmpty()) {
+                                    throw new RestException(Response.Status.NOT_FOUND,
+                                            "Segment topic not found: " + backingTopic);
+                                }
+                                return optTopic.get().asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
+                                        .thenApply(stats -> SegmentTopicStatsBuilder.fromTopicStats(stats,
+                                                optTopic.get() instanceof PersistentTopic persistentTopic
+                                                        && persistentTopic.getManagedLedger().isTerminated(),
+                                                optTopic.get().getSubscriptions()));
+                            });
+                })
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    if (isNot307And404Exception(ex)) {
+                        log.error().attr("clientAppId", clientAppId()).attr("topic", tn)
+                                .attr("segmentId", segmentId)
+                                .exception(ex).log("Failed to get segment stats for scalable topic");
+                    }
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
@@ -899,6 +1207,9 @@ public class ScalableTopics extends AdminResource {
     @Operation(summary = "Split a segment into two halves.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Segment split successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
             @ApiResponse(responseCode = "404", description = "Scalable topic or segment doesn't exist"),
             @ApiResponse(responseCode = "412", description = "Segment is not active or cannot be split"),
             @ApiResponse(responseCode = "500", description = "Internal server error")})
@@ -915,7 +1226,7 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
 
-        validateSuperUserAccessAsync()
+        validateSegmentLayoutOperationAsync(tn)
                 .thenCompose(__ -> onControllerLeader(tn, svc -> svc.splitSegment(tn, segmentId)))
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId())
@@ -933,10 +1244,71 @@ public class ScalableTopics extends AdminResource {
     }
 
     @POST
+    @Path("/{tenant}/{namespace}/{topic}/rebucket/{segmentId}")
+    @Operation(summary = "Rebucket a segment: roll it over to a same-range successor with a new "
+            + "entry-bucket count.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Segment rebucketed successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Scalable topic doesn't exist"),
+            @ApiResponse(responseCode = "412", description = "Segment is unknown, not active, "
+                    + "or the bucket count is invalid or unchanged"),
+            @ApiResponse(responseCode = "500", description = "Internal server error")})
+    public void rebucketSegment(
+            @Suspended final AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Segment ID to rebucket", required = true)
+            @PathParam("segmentId") long segmentId,
+            @Parameter(description = "Entry-bucket count for the successor segment", required = true)
+            @QueryParam("bucketCount") int bucketCount) {
+        validateNamespaceName(tenant, namespace);
+        TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
+
+        validateSegmentLayoutOperationAsync(tn)
+                .thenCompose(__ -> onControllerLeader(tn,
+                        svc -> svc.rebucketSegment(tn, segmentId, bucketCount)))
+                .thenAccept(__ -> {
+                    log.info().attr("clientAppId", clientAppId())
+                            .attr("segmentId", segmentId).attr("bucketCount", bucketCount)
+                            .attr("topic", tn)
+                            .log("Rebucketed segment of scalable topic");
+                    asyncResponse.resume(Response.noContent().build());
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof IllegalArgumentException) {
+                        // Segment-level validation (unknown, sealed, bad or unchanged bucket
+                        // count): a client error, not a server one.
+                        log.info().attr("clientAppId", clientAppId())
+                                .attr("segmentId", segmentId).attr("topic", tn)
+                                .attr("reason", cause.getMessage()).log("Rebucket rejected");
+                        asyncResponse.resume(new RestException(
+                                Response.Status.PRECONDITION_FAILED, cause.getMessage()));
+                        return null;
+                    }
+                    log.error().attr("clientAppId", clientAppId())
+                            .attr("segmentId", segmentId).attr("topic", tn)
+                            .exception(ex).log("Failed to rebucket segment");
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    @POST
     @Path("/{tenant}/{namespace}/{topic}/merge/{segmentId1}/{segmentId2}")
     @Operation(summary = "Merge two adjacent segments into one.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Segments merged successfully"),
+            @ApiResponse(responseCode = "401",
+                    description = "Don't have permission to administrate resources on this tenant"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
             @ApiResponse(responseCode = "404", description = "Scalable topic or segment doesn't exist"),
             @ApiResponse(responseCode = "412", description = "Segments are not active or not adjacent"),
             @ApiResponse(responseCode = "500", description = "Internal server error")})
@@ -955,7 +1327,7 @@ public class ScalableTopics extends AdminResource {
         validateNamespaceName(tenant, namespace);
         TopicName tn = TopicName.get(TopicDomain.topic.value(), namespaceName, encodedTopic);
 
-        validateSuperUserAccessAsync()
+        validateSegmentLayoutOperationAsync(tn)
                 .thenCompose(__ -> onControllerLeader(tn,
                         svc -> svc.mergeSegments(tn, segmentId1, segmentId2)))
                 .thenAccept(__ -> {
@@ -975,6 +1347,16 @@ public class ScalableTopics extends AdminResource {
     }
 
     // --- Internal helpers ---
+
+    /**
+     * Authorize a manual change of the segment layout (split, merge, rebucket) as the equivalent operation on a
+     * partitioned topic, a change of its partition count: by default, tenant admins and super users may make it.
+     * Tenant admins already shape the layout through the number of initial segments and the auto split/merge
+     * policy override.
+     */
+    private CompletableFuture<Void> validateSegmentLayoutOperationAsync(TopicName tn) {
+        return validateTopicPolicyOperationAsync(tn, PolicyName.PARTITION, PolicyOperation.WRITE);
+    }
 
     /**
      * Resolve the local scalable-topic service and pass it to {@code op}. Surfaces a 503
@@ -1004,8 +1386,10 @@ public class ScalableTopics extends AdminResource {
 
     /**
      * If this broker is not the elected controller leader for {@code tn}, redirect the
-     * request to the leader via HTTP 307. Read-only endpoints (like {@code getStats}) do
-     * not need this guard and should not call it.
+     * request to the leader via HTTP 307. Needed by every endpoint that mutates the layout
+     * or the subscriptions, and by {@code getStats}, which reports the leader's in-memory
+     * consumer sessions; purely metadata-backed reads (like {@code getScalableTopicMetadata})
+     * don't need it.
      *
      * <p>The leader brokerId is read from the controller lock znode and resolved to an HTTP
      * service URL via {@link org.apache.pulsar.broker.namespace.NamespaceService#createLookupResult}.
@@ -1077,9 +1461,26 @@ public class ScalableTopics extends AdminResource {
     }
 
     /**
+     * Stop this broker's controller for {@code tn}, if it holds one, closing its leader election.
+     * Best-effort: a failure is logged and the delete goes on.
+     */
+    private CompletableFuture<Void> releaseController(TopicName tn) {
+        ScalableTopicService svc = pulsar().getBrokerService().getScalableTopicService();
+        if (svc == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return svc.releaseController(tn).exceptionally(ex -> {
+            log.warn().attr("topic", tn).exceptionMessage(ex)
+                    .log("Failed to release the controller of the scalable topic being deleted");
+            return null;
+        });
+    }
+
+    /**
      * Best-effort delete the underlying topic for every segment in the DAG. Uses the
      * segment-aware admin endpoint, which routes to the segment-owning broker via the
-     * standard bundle-ownership lookup.
+     * standard bundle-ownership lookup, and for a legacy segment of a migrated topic the
+     * regular topic endpoint, which the {@code persistent://} topic it wraps needs.
      */
     private CompletableFuture<Void> deleteSegmentTopics(TopicName parentTopic,
                                                          ScalableTopicMetadata metadata,
@@ -1088,9 +1489,11 @@ public class ScalableTopics extends AdminResource {
             var admin = pulsar().getAdminClient();
             CompletableFuture<?>[] futures = metadata.getSegments().values().stream()
                     .map(seg -> {
-                        String segmentTopicName = SegmentTopicName.fromParent(
-                                parentTopic, seg.hashRange(), seg.segmentId()).toString();
-                        return admin.scalableTopics().deleteSegmentAsync(segmentTopicName, force)
+                        String segmentTopicName = SegmentTopicName.backingTopicName(parentTopic, seg);
+                        CompletableFuture<Void> delete = seg.isLegacy()
+                                ? admin.topics().deleteAsync(segmentTopicName, force)
+                                : admin.scalableTopics().deleteSegmentAsync(segmentTopicName, force);
+                        return delete
                                 .exceptionally(ex -> {
                                     log.warn().attr("segment", segmentTopicName).exceptionMessage(ex)
                                             .log("Failed to delete segment topic");

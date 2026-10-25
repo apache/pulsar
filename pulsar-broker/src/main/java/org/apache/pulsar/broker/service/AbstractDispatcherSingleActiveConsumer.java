@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -65,6 +66,9 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     private volatile int isClosed = FALSE;
 
     protected boolean isFirstRead = true;
+    // For compacted reads: the position from which the subscription has been reading the original ledger, after its
+    // compacted snapshot. Later compactions must not move it back to the compacted ledger past that point.
+    protected Position originalLedgerReadPosition;
     private static final int CONSUMER_CONSISTENT_HASH_REPLICAS = 100;
 
     public AbstractDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
@@ -242,6 +246,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
 
         if (consumers.isEmpty()) {
             isFirstRead = true;
+            originalLedgerReadPosition = null;
         }
 
         consumers.add(consumer);

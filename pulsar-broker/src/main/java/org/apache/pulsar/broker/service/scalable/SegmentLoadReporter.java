@@ -22,8 +22,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleSupplier;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.service.scalable.SegmentOwnerMetrics.LoadReportResult;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Writes per-segment {@link SegmentLoadStats} to the metadata store on behalf of the broker
@@ -53,13 +55,20 @@ public class SegmentLoadReporter {
     private final ScalableTopicResources resources;
     /** Re-read on every sample so the broker config knob is honored dynamically. */
     private final DoubleSupplier rateChangeThreshold;
+    private final SegmentOwnerMetrics metrics;
 
     /** Last value written per load-record path, so we can skip immaterial updates. */
     private final ConcurrentHashMap<String, SegmentLoadStats> lastWritten = new ConcurrentHashMap<>();
 
     public SegmentLoadReporter(ScalableTopicResources resources, DoubleSupplier rateChangeThreshold) {
+        this(resources, rateChangeThreshold, null);
+    }
+
+    public SegmentLoadReporter(ScalableTopicResources resources, DoubleSupplier rateChangeThreshold,
+                               SegmentOwnerMetrics metrics) {
         this.resources = resources;
         this.rateChangeThreshold = rateChangeThreshold;
+        this.metrics = metrics;
     }
 
     public SegmentLoadReporter(ScalableTopicResources resources, double rateChangeThreshold) {
@@ -81,6 +90,15 @@ public class SegmentLoadReporter {
      */
     public CompletableFuture<Boolean> reportIfChanged(TopicName topic, long segmentId,
                                                       SegmentLoadStats current) {
+        return FutureUtil.supplySafely(() -> report(topic, segmentId, current)).whenComplete((written, error) -> {
+            if (metrics != null) {
+                metrics.recordLoadReport(error != null ? LoadReportResult.FAILED
+                        : written ? LoadReportResult.WRITTEN : LoadReportResult.UNCHANGED);
+            }
+        });
+    }
+
+    private CompletableFuture<Boolean> report(TopicName topic, long segmentId, SegmentLoadStats current) {
         String path = resources.segmentLoadPath(topic, segmentId);
         double threshold = rateChangeThreshold.getAsDouble();
         SegmentLoadStats last = lastWritten.get(path);
@@ -125,9 +143,9 @@ public class SegmentLoadReporter {
     static boolean isMaterialChange(SegmentLoadStats last, SegmentLoadStats current,
                                     double threshold) {
         return changed(last.msgRateIn(), current.msgRateIn(), threshold)
-                || changed(last.bytesRateIn(), current.bytesRateIn(), threshold)
+                || changed(last.byteRateIn(), current.byteRateIn(), threshold)
                 || changed(last.msgRateOut(), current.msgRateOut(), threshold)
-                || changed(last.bytesRateOut(), current.bytesRateOut(), threshold);
+                || changed(last.byteRateOut(), current.byteRateOut(), threshold);
     }
 
     private static boolean changed(double last, double current, double threshold) {

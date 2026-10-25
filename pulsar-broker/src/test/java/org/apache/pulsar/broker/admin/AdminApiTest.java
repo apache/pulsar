@@ -66,7 +66,6 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
 import lombok.Value;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -76,6 +75,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.stats.TopicInternalInfo;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.GetStatsOptions;
@@ -591,11 +591,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // wait config to be updated
         Awaitility.await().until(() -> {
-            return conf.getLoadBalancerSheddingIntervalMinutes() == 10;
+            return pulsar.getConfiguration().getLoadBalancerSheddingIntervalMinutes() == 10;
         });
 
         // verify value is updated
-        assertEquals(conf.getLoadBalancerSheddingIntervalMinutes(), 10);
+        assertEquals(pulsar.getConfiguration().getLoadBalancerSheddingIntervalMinutes(), 10);
     }
 
     @Test
@@ -1397,9 +1397,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
         partitionedManagedLedgerInfo.version = 0L;
         partitionedManagedLedgerInfo.partitions.put(partitionTopic0,
-            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic0InfoResponse, TopicInternalInfo.class));
         partitionedManagedLedgerInfo.partitions.put(partitionTopic1,
-            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic1InfoResponse, TopicInternalInfo.class));
 
         String expectedResult = ObjectMapperFactory.getMapper()
                 .writer().writeValueAsString(partitionedManagedLedgerInfo);
@@ -1747,6 +1747,24 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         for (Producer<byte[]> producer : producers) {
             producer.close();
         }
+    }
+
+    @Test
+    public void testNamespaceSplitBundleWithFlowOrQpsAlgorithmUsesRequestedAlgorithm() throws Exception {
+        final String namespace = "prop-xyz/flow-or-qps-split";
+        final String topicName = "persistent://" + namespace + "/topic-1";
+        admin.namespaces().createNamespace(namespace, 1);
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.lookups().lookupTopic(topicName);
+
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", true,
+                    NamespaceBundleSplitAlgorithm.FLOW_OR_QPS_EQUALLY_DIVIDE);
+        } catch (Exception e) {
+            fail("split bundle with flow_or_qps_equally_divide shouldn't have thrown exception", e);
+        }
+
+        assertEquals(admin.namespaces().getBundles(namespace).getNumBundles(), 1);
     }
 
     @Test
@@ -4114,6 +4132,31 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             // reset config
             pulsar.getConfiguration().setAllowAclChangesOnNonExistentTopics(false);
         }
+    }
+
+    @Test
+    @SneakyThrows
+    public void testDeleteTopicAlsoDeletePermissionGranted() {
+        String namespace = BrokerTestUtil.newUniqueName("prop-xyz/ns");
+        admin.namespaces().createNamespace(namespace);
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + namespace + "/tp");
+        String role = "test-role";
+        Set<AuthAction> permissions = EnumSet.of(AuthAction.produce, AuthAction.consume);
+
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().grantPermission(topic, role, permissions);
+        Awaitility.await().untilAsserted(() -> {
+            Policies nsPolicies = admin.namespaces().getPolicies(namespace);
+            assertTrue(nsPolicies.auth_policies.getTopicAuthentication().containsKey(topic));
+            assertThat(admin.topics().getPermissions(topic)).containsEntry(role, permissions);
+        });
+
+        // Verify: the permission record will be removed after the topic was removed.
+        admin.topics().delete(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Policies nsPolicies = admin.namespaces().getPolicies(namespace);
+            assertFalse(nsPolicies.auth_policies.getTopicAuthentication().containsKey(topic));
+        });
     }
 
     @Test

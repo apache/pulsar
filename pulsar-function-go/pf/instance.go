@@ -21,19 +21,18 @@ package pf
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
-
 	"github.com/apache/pulsar-client-go/pulsar"
-
 	log "github.com/apache/pulsar/pulsar-function-go/logutil"
 	pb "github.com/apache/pulsar/pulsar-function-go/pb"
 	prometheus_client "github.com/prometheus/client_model/go"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type goInstance struct {
@@ -199,36 +198,25 @@ CLOSE:
 }
 
 const (
-	authPluginToken = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
-	authPluginNone  = ""
+	authPluginToken  = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+	authPluginOAuth2 = "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2"
+	authPluginNone   = ""
 )
 
 func (gi *goInstance) setupClient() error {
 	ic := gi.context.instanceConf
+
+	authentication, err := newAuthentication(ic)
+	if err != nil {
+		return err
+	}
 
 	clientOpts := pulsar.ClientOptions{
 		URL:                        ic.pulsarServiceURL,
 		TLSTrustCertsFilePath:      ic.tlsTrustCertsPath,
 		TLSAllowInsecureConnection: ic.tlsAllowInsecure,
 		TLSValidateHostname:        ic.tlsHostnameVerification,
-	}
-
-	switch ic.authPlugin {
-	case authPluginToken:
-		switch {
-		case strings.HasPrefix(ic.authParams, "file://"):
-			clientOpts.Authentication = pulsar.NewAuthenticationTokenFromFile(ic.authParams[7:])
-		case strings.HasPrefix(ic.authParams, "token:"):
-			clientOpts.Authentication = pulsar.NewAuthenticationToken(ic.authParams[6:])
-		case ic.authParams == "":
-			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
-		default:
-			return fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
-		}
-	case authPluginNone:
-		clientOpts.Authentication, _ = pulsar.NewAuthentication("", "") // ret: auth.NewAuthDisabled()
-	default:
-		return fmt.Errorf("unknown auth provider: %s", ic.authPlugin)
+		Authentication:             authentication,
 	}
 
 	client, err := pulsar.NewClient(clientOpts)
@@ -239,6 +227,51 @@ func (gi *goInstance) setupClient() error {
 	}
 	gi.client = client
 	return nil
+}
+
+// newAuthentication creates the client authentication from the auth plugin and
+// params the function worker passes to the instance.
+func newAuthentication(ic *instanceConf) (pulsar.Authentication, error) {
+	switch ic.authPlugin {
+	case authPluginToken:
+		switch {
+		case strings.HasPrefix(ic.authParams, "file://"):
+			return pulsar.NewAuthenticationTokenFromFile(ic.authParams[7:]), nil
+		case strings.HasPrefix(ic.authParams, "token:"):
+			return pulsar.NewAuthenticationToken(ic.authParams[6:]), nil
+		case ic.authParams == "":
+			return nil, fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
+		default:
+			return nil, fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
+		}
+	case authPluginOAuth2:
+		var params map[string]string
+		if err := json.Unmarshal([]byte(ic.authParams), &params); err != nil {
+			return nil, fmt.Errorf("invalid authParams for auth plugin %s - expecting a JSON map: %w",
+				authPluginOAuth2, err)
+		}
+		if len(params) == 0 {
+			return nil, fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginOAuth2)
+		}
+		// The Java client defaults to the client credentials flow, the Go client requires the type
+		if _, ok := params["type"]; !ok {
+			params["type"] = "client_credentials"
+		}
+		encoded, err := json.Marshal(params)
+		if err != nil {
+			return nil, err
+		}
+		authentication, err := pulsar.NewAuthentication(authPluginOAuth2, string(encoded))
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure auth plugin %s: %w", authPluginOAuth2, err)
+		}
+		return authentication, nil
+	case authPluginNone:
+		authentication, _ := pulsar.NewAuthentication("", "") // ret: auth.NewAuthDisabled()
+		return authentication, nil
+	default:
+		return nil, fmt.Errorf("unknown auth provider: %s", ic.authPlugin)
+	}
 }
 
 func (gi *goInstance) setupProducer() error {
@@ -261,39 +294,16 @@ func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
 		gi.context.instanceConf.funcDetails.Namespace,
 		gi.context.instanceConf.funcDetails.Name), gi.context.instanceConf.instanceID)
 
-	batchBuilderType := pulsar.DefaultBatchBuilder
+	// Compression and batching come from the function's producerSpec; everything else is fixed by
+	// the runtime.
+	options := producerOptionsFromSpec(gi.context.instanceConf.funcDetails.Sink.ProducerSpec)
+	options.Topic = topicName
+	options.Properties = properties
+	// Set send timeout to be infinity to prevent potential deadlock with consumer
+	// that might happen when consumer is blocked due to unacked messages
+	options.SendTimeout = 0
 
-	compressionType := pulsar.LZ4
-	if gi.context.instanceConf.funcDetails.Sink.ProducerSpec != nil {
-		switch gi.context.instanceConf.funcDetails.Sink.ProducerSpec.CompressionType {
-		case pb.CompressionType_NONE:
-			compressionType = pulsar.NoCompression
-		case pb.CompressionType_ZLIB:
-			compressionType = pulsar.ZLib
-		case pb.CompressionType_ZSTD:
-			compressionType = pulsar.ZSTD
-		default:
-			compressionType = pulsar.LZ4 // go doesn't support SNAPPY yet
-		}
-
-		batchBuilder := gi.context.instanceConf.funcDetails.Sink.ProducerSpec.BatchBuilder
-		if batchBuilder != "" {
-			if batchBuilder == "KEY_BASED" {
-				batchBuilderType = pulsar.KeyBasedBatchBuilder
-			}
-		}
-	}
-
-	producer, err := gi.client.CreateProducer(pulsar.ProducerOptions{
-		Topic:                   topicName,
-		Properties:              properties,
-		CompressionType:         compressionType,
-		BatchingMaxPublishDelay: time.Millisecond * 10,
-		BatcherBuilderType:      batchBuilderType,
-		SendTimeout:             0,
-		// Set send timeout to be infinity to prevent potential deadlock with consumer
-		// that might happen when consumer is blocked due to unacked messages
-	})
+	producer, err := gi.client.CreateProducer(options)
 	if err != nil {
 		gi.stats.incrTotalSysExceptions(err)
 		log.Errorf("create producer error:%s", err.Error())
@@ -303,11 +313,50 @@ func (gi *goInstance) getProducer(topicName string) (pulsar.Producer, error) {
 	return producer, err
 }
 
-func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
+// resolveSubscriptionType picks the consumer subscription type for the function.
+//
+// The ordering flags are applied after the explicit SubscriptionType, matching the Java and Python
+// runtimes: retainOrdering requires a single consumer per partition, so it selects Failover, and
+// retainKeyOrdering selects KeyShared. Ordering wins when both are set, which is the precedence
+// python_instance.py applies.
+//
+// EFFECTIVELY_ONCE needs no arm here: instanceConf.go refuses it before an instance is built.
+func resolveSubscriptionType(configured pb.SubscriptionType, retainOrdering,
+	retainKeyOrdering bool) pulsar.SubscriptionType {
 	subscriptionType := pulsar.Shared
-	if int32(gi.context.instanceConf.funcDetails.Source.SubscriptionType) == pb.SubscriptionType_value["FAILOVER"] {
+	if int32(configured) == pb.SubscriptionType_value["FAILOVER"] {
 		subscriptionType = pulsar.Failover
 	}
+
+	if retainOrdering {
+		subscriptionType = pulsar.Failover
+	} else if retainKeyOrdering {
+		subscriptionType = pulsar.KeyShared
+	}
+
+	return subscriptionType
+}
+
+// resolveNackRedeliveryDelay returns the negative-ack redelivery delay to apply, or zero to leave
+// the client default in place.
+//
+// SourceSpec.NegativeAckRedeliveryDelayMs is a proto3 scalar with no presence, so an unset field
+// reads as 0. Only a positive value is applied, matching the guard the Java runtime uses in
+// JavaInstanceRunnable; a zero left in ConsumerOptions is treated by the client as unset, so the
+// default applies either way.
+func resolveNackRedeliveryDelay(delayMs uint64) time.Duration {
+	if delayMs == 0 {
+		return 0
+	}
+
+	return time.Duration(delayMs) * time.Millisecond
+}
+
+func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
+	subscriptionType := resolveSubscriptionType(
+		gi.context.instanceConf.funcDetails.Source.SubscriptionType,
+		gi.context.instanceConf.funcDetails.RetainOrdering,
+		gi.context.instanceConf.funcDetails.RetainKeyOrdering)
 
 	funcDetails := gi.context.instanceConf.funcDetails
 	subscriptionName := funcDetails.Tenant + "/" + funcDetails.Namespace + "/" + funcDetails.Name
@@ -319,6 +368,8 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		funcDetails.Tenant,
 		funcDetails.Namespace,
 		funcDetails.Name), gi.context.instanceConf.instanceID)
+
+	nackRedeliveryDelay := resolveNackRedeliveryDelay(funcDetails.Source.NegativeAckRedeliveryDelayMs)
 
 	channel := make(chan pulsar.ConsumerMessage)
 
@@ -338,39 +389,43 @@ func (gi *goInstance) setupConsumer() (chan pulsar.ConsumerMessage, error) {
 		if consumerConf.ReceiverQueueSize != nil {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:     topicName.Name,
-					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
-					SubscriptionName:  subscriptionName,
-					Properties:        properties,
-					Type:              subscriptionType,
-					MessageChannel:    channel,
+					TopicsPattern:       topicName.Name,
+					ReceiverQueueSize:   int(consumerConf.ReceiverQueueSize.Value),
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:             topicName.Name,
-					SubscriptionName:  subscriptionName,
-					Properties:        properties,
-					Type:              subscriptionType,
-					ReceiverQueueSize: int(consumerConf.ReceiverQueueSize.Value),
-					MessageChannel:    channel,
+					Topic:               topicName.Name,
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					ReceiverQueueSize:   int(consumerConf.ReceiverQueueSize.Value),
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 			}
 		} else {
 			if consumerConf.IsRegexPattern {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					TopicsPattern:    topicName.Name,
-					SubscriptionName: subscriptionName,
-					Properties:       properties,
-					Type:             subscriptionType,
-					MessageChannel:   channel,
+					TopicsPattern:       topicName.Name,
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 			} else {
 				consumer, err = gi.client.Subscribe(pulsar.ConsumerOptions{
-					Topic:            topicName.Name,
-					SubscriptionName: subscriptionName,
-					Properties:       properties,
-					Type:             subscriptionType,
-					MessageChannel:   channel,
+					Topic:               topicName.Name,
+					SubscriptionName:    subscriptionName,
+					Properties:          properties,
+					Type:                subscriptionType,
+					MessageChannel:      channel,
+					NackRedeliveryDelay: nackRedeliveryDelay,
 				})
 
 			}
@@ -505,18 +560,13 @@ func (gi *goInstance) setupLogHandler() error {
 }
 
 func (gi *goInstance) addLogTopicHandler() {
-	// Clear StrEntry regardless gi.context.logAppender is set or not
-	defer func() {
-		log.StrEntry = nil
-	}()
-
+	// Drain the captured entries regardless gi.context.logAppender is set or not
 	if gi.context.logAppender == nil {
+		log.DrainEntries()
 		return
 	}
 
-	for _, logByte := range log.StrEntry {
-		gi.context.logAppender.Append([]byte(logByte))
-	}
+	gi.context.logAppender.Flush()
 }
 
 func (gi *goInstance) closeLogTopic() {
@@ -626,9 +676,9 @@ func (gi *goInstance) getAndResetMetrics() *pb.MetricsData {
 	return metricsData
 }
 
-func (gi *goInstance) resetMetrics() *empty.Empty {
+func (gi *goInstance) resetMetrics() *emptypb.Empty {
 	gi.stats.reset()
-	return &empty.Empty{}
+	return &emptypb.Empty{}
 }
 
 // This method is used to get the required metrics for Prometheus.
@@ -705,11 +755,12 @@ func (gi *goInstance) getAvgProcessLatency() float32 {
 	return float32(*sum) / float32(*count)
 }
 
-func (gi *goInstance) getLastInvocation() float32 {
+func (gi *goInstance) getLastInvocation() float64 {
 	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + LastInvocation)
 	// "pulsar_function_" + "last_invocation", GaugeVec.
+	// float64, as a float32 would round an epoch-millis timestamp to ~2 minutes.
 	val := metric.GetGauge().Value
-	return float32(*val)
+	return *val
 }
 
 func (gi *goInstance) getTotalProcessedSuccessfully1min() float32 {

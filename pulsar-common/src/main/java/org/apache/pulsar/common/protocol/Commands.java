@@ -27,6 +27,7 @@ import com.google.common.base.Strings;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -46,6 +47,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.PulsarVersion;
 import org.apache.pulsar.client.api.KeySharedPolicy;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.Range;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -117,6 +119,7 @@ import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 
@@ -138,6 +141,13 @@ public class Commands {
     public static final short magicCrc32c = 0x0e01;
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicBrokerEntryMetadata = 0x0e02;
+
+    /**
+     * Payloads up to this size are copied into a single buffer when broker entry metadata is prepended; larger ones
+     * are wrapped in a composite instead. Matches the size below which the BookKeeper client copies entries anyway.
+     */
+    @VisibleForTesting
+    static final int BROKER_ENTRY_METADATA_COPY_THRESHOLD = 16 * 1024;
     private static final int checksumSize = 4;
 
     @VisibleForTesting
@@ -1125,6 +1135,42 @@ public class Commands {
         return serializeWithSize(cmd);
     }
 
+    /**
+     * Serialize existing message IDs without allocating a tuple and boxed coordinates for each acknowledgement.
+     * Individual IDs are written first, followed by batch-index IDs with their supplied acknowledgement masks.
+     * Both lists and the masks are read synchronously and are not retained by the returned command.
+     */
+    public static ByteBuf newMultiMessageAck(long consumerId,
+                                            List<? extends MessageIdAdv> individualAcks,
+                                            List<? extends Map.Entry<? extends MessageIdAdv, ConcurrentBitSet>>
+                                                    batchIndexAcks,
+                                            long requestId) {
+        BaseCommand cmd = localCmd(Type.ACK);
+        CommandAck ack = cmd.setAck()
+                .setConsumerId(consumerId)
+                .setAckType(AckType.Individual);
+        for (int i = 0; i < individualAcks.size(); i++) {
+            MessageIdAdv id = individualAcks.get(i);
+            ack.addMessageId().setLedgerId(id.getLedgerId()).setEntryId(id.getEntryId());
+        }
+        for (int i = 0; i < batchIndexAcks.size(); i++) {
+            Map.Entry<? extends MessageIdAdv, ConcurrentBitSet> entry = batchIndexAcks.get(i);
+            MessageIdAdv id = entry.getKey();
+            MessageIdData msgId = ack.addMessageId().setLedgerId(id.getLedgerId()).setEntryId(id.getEntryId());
+            ConcurrentBitSet bitSet = entry.getValue();
+            if (bitSet != null) {
+                long[] ackSet = bitSet.toLongArray();
+                for (int j = 0; j < ackSet.length; j++) {
+                    msgId.addAckSet(ackSet[j]);
+                }
+            }
+        }
+        if (requestId >= 0) {
+            ack.setRequestId(requestId);
+        }
+        return serializeWithSize(cmd);
+    }
+
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, BitSetRecyclable ackSet, AckType ackType,
                                  ValidationError validationError, Map<String, Long> properties, long requestId) {
         return newAck(consumerId, ledgerId, entryId, ackSet, ackType, validationError,
@@ -1805,6 +1851,19 @@ public class Commands {
     }
 
     /**
+     * Client -> Broker: a scalable consumer is cleanly leaving its subscription; the
+     * controller unregisters it and rebalances immediately instead of waiting out the
+     * disconnect grace period. Acknowledged with {@code CommandSuccess}.
+     */
+    public static ByteBuf newScalableTopicUnsubscribe(long requestId, long consumerId) {
+        BaseCommand cmd = localCmd(Type.SCALABLE_TOPIC_UNSUBSCRIBE);
+        cmd.setScalableTopicUnsubscribe()
+                .setRequestId(requestId)
+                .setConsumerId(consumerId);
+        return serializeWithSize(cmd);
+    }
+
+    /**
      * Broker -> Client: response to a scalable-topic subscribe request. On success the
      * caller must populate the nested {@link ScalableConsumerAssignment} via
      * {@code response.setAssignment()} before serializing; on failure the error and
@@ -2020,36 +2079,44 @@ public class Commands {
         int checksumReaderIndex = -1;
 
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize, headersSize);
-        headers.writeInt(totalSize); // External frame
+        try {
+            headers.writeInt(totalSize); // External frame
 
-        // Write cmd
-        headers.writeInt(cmdSize);
-        cmd.writeTo(headers);
+            // Write cmd
+            headers.writeInt(cmdSize);
+            cmd.writeTo(headers);
 
-        // Create checksum placeholder
-        if (includeChecksum) {
-            headers.writeShort(magicCrc32c);
-            checksumReaderIndex = headers.writerIndex();
-            headers.writerIndex(headers.writerIndex() + checksumSize); // skip 4 bytes of checksum
+            // Create checksum placeholder
+            if (includeChecksum) {
+                headers.writeShort(magicCrc32c);
+                checksumReaderIndex = headers.writerIndex();
+                headers.writerIndex(headers.writerIndex() + checksumSize); // skip 4 bytes of checksum
+            }
+
+            // Write metadata
+            headers.writeInt(msgMetadataSize);
+            msgMetadata.writeTo(headers);
+
+            // write checksum at created checksum-placeholder
+            if (includeChecksum) {
+                headers.markReaderIndex();
+                headers.readerIndex(checksumReaderIndex + checksumSize);
+                int metadataChecksum = computeChecksum(headers);
+                int computedChecksum = resumeChecksum(metadataChecksum, payload);
+                // set computed checksum
+                headers.setInt(checksumReaderIndex, computedChecksum);
+                headers.resetReaderIndex();
+            }
+
+            // Create the pair last so it becomes the single owner of both buffers on success: if anything above
+            // throws (e.g. an OOM while serializing the command or metadata), the header is released here instead
+            // of being orphaned. The payload is deliberately not touched on failure; releasing it on a failed
+            // send remains a pre-existing gap on the caller side.
+            return ByteBufPair.get(headers, payload);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(headers);
+            throw t;
         }
-
-        // Write metadata
-        headers.writeInt(msgMetadataSize);
-        msgMetadata.writeTo(headers);
-
-        ByteBufPair command = ByteBufPair.get(headers, payload);
-
-        // write checksum at created checksum-placeholder
-        if (includeChecksum) {
-            headers.markReaderIndex();
-            headers.readerIndex(checksumReaderIndex + checksumSize);
-            int metadataChecksum = computeChecksum(headers);
-            int computedChecksum = resumeChecksum(metadataChecksum, payload);
-            // set computed checksum
-            headers.setInt(checksumReaderIndex, computedChecksum);
-            headers.resetReaderIndex();
-        }
-        return command;
     }
 
     public static ByteBuf addBrokerEntryMetadata(ByteBuf headerAndPayload,
@@ -2073,6 +2140,24 @@ public class Commands {
         }
 
         int brokerMetaSize = brokerEntryMetadata.getSerializedSize();
+        int payloadSize = headerAndPayload.readableBytes();
+
+        if (payloadSize <= BROKER_ENTRY_METADATA_COPY_THRESHOLD) {
+            // For small payloads, produce a single contiguous buffer. A composite reaching the socket goes through
+            // nioBuffers(), which allocates two NIO views per component on every flush (BK write and each consumer
+            // dispatch), and makes every metadata parse walk the components. At this size the copy is cheaper than
+            // that, and it happens once at publish while the entry is written and parsed many more times.
+            int totalSize = 6 + brokerMetaSize + payloadSize;
+            ByteBuf entry = PulsarByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
+            entry.writeShort(Commands.magicBrokerEntryMetadata);
+            entry.writeInt(brokerMetaSize);
+            brokerEntryMetadata.writeTo(entry);
+            entry.writeBytes(headerAndPayload, headerAndPayload.readerIndex(), payloadSize);
+            headerAndPayload.release();
+            return entry;
+        }
+
+        // For large payloads the copy would cost more than the per-flush view allocations it saves.
         ByteBuf brokerMeta =
                 PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
         brokerMeta.writeShort(Commands.magicBrokerEntryMetadata);
@@ -2360,12 +2445,52 @@ public class Commands {
         int headersSize = 4 + 4 + cmdSize;
 
         ByteBuf headers = PulsarByteBufAllocator.DEFAULT.buffer(headersSize);
-        headers.writeInt(totalSize); // External frame
+        try {
+            headers.writeInt(totalSize); // External frame
 
-        // Write cmd
-        headers.writeInt(cmdSize);
-        cmd.writeTo(headers);
-        return ByteBufPair.get(headers, metadataAndPayload);
+            // Write cmd
+            headers.writeInt(cmdSize);
+            cmd.writeTo(headers);
+            return ByteBufPair.get(headers, metadataAndPayload);
+        } catch (Throwable t) {
+            ReferenceCountUtil.safeRelease(headers);
+            throw t;
+        }
+    }
+
+    /**
+     * Writes a message command and a copy of its metadata and payload into {@code out}, in the wire format of
+     * {@link #serializeCommandMessageWithSize(BaseCommand, ByteBuf)}. The reader index of {@code metadataAndPayload}
+     * is left unchanged, and its reference count too, since its bytes are copied.
+     */
+    public static void serializeCommandMessageWithSize(BaseCommand cmd, ByteBuf metadataAndPayload, ByteBuf out) {
+        int payloadSize = metadataAndPayload.readableBytes();
+        serializeCommandMessageHeaderWithSize(cmd, payloadSize, out);
+        copyMetadataAndPayload(metadataAndPayload, payloadSize, out);
+    }
+
+    /**
+     * Writes the sizes and the command of a message frame whose metadata and payload take {@code payloadSize} bytes
+     * into {@code out}, and makes room for them, which {@link #copyMetadataAndPayload} writes after it.
+     */
+    public static void serializeCommandMessageHeaderWithSize(BaseCommand cmd, int payloadSize, ByteBuf out) {
+        int cmdSize = cmd.getSerializedSize();
+        out.ensureWritable(4 + 4 + cmdSize + payloadSize);
+        out.writeInt(4 + cmdSize + payloadSize); // External frame
+        out.writeInt(cmdSize);
+        cmd.writeTo(out);
+    }
+
+    /**
+     * Copies {@code payloadSize} bytes from the reader index of {@code metadataAndPayload} into {@code out}, leaving
+     * the reader index and the reference count of {@code metadataAndPayload} unchanged.
+     */
+    public static void copyMetadataAndPayload(ByteBuf metadataAndPayload, int payloadSize, ByteBuf out) {
+        // out.writeBytes isn't used, since it has a performance issue with the adaptive allocator until
+        // https://github.com/netty/netty/pull/17840 has been merged: an adaptive buffer copies from a buffer of
+        // another kind, such as a slice of a cached entry, through NIO buffer views that it allocates for each copy
+        metadataAndPayload.getBytes(metadataAndPayload.readerIndex(), out, out.writerIndex(), payloadSize);
+        out.writerIndex(out.writerIndex() + payloadSize);
     }
 
     public static MessageMetadata peekMessageMetadata(ByteBuf metadataAndPayload, String subscription,
@@ -2430,6 +2555,11 @@ public class Commands {
         }
     }
 
+    /**
+     * The key that Key_Shared dispatch hashes: the ordering key, else the partition key, decoded when it is Base64,
+     * else the producer name and sequence ID. {@link #resolveStickyKeyHash(MessageMetadata)} hashes the same key, so a
+     * change to the priority here changes it there too.
+     */
     public static byte[] resolveStickyKey(MessageMetadata metadata) {
         byte[] stickyKey;
         if (metadata.hasOrderingKey()) {
@@ -2447,6 +2577,24 @@ public class Commands {
             stickyKey = NONE_KEY;
         }
         return stickyKey;
+    }
+
+    /**
+     * {@link Murmur3_32Hash#makeHash(byte[])} of {@link #resolveStickyKey(MessageMetadata)}, which hashes the key where
+     * it is: an ordering key in the metadata's buffer, and a partition key from its string, decoding a Base64 key and
+     * encoding a plain one to UTF-8 as it hashes them. It follows resolveStickyKey's priority of the keys, and leaves
+     * the other keys to it.
+     */
+    public static int resolveStickyKeyHash(MessageMetadata metadata) {
+        if (metadata.hasOrderingKey()) {
+            return Murmur3_32Hash.makeHash(metadata.getOrderingKeySlice());
+        } else if (metadata.hasPartitionKey()) {
+            if (metadata.isPartitionKeyB64Encoded()) {
+                return Murmur3_32Hash.makeHashBase64(metadata.getPartitionKey());
+            }
+            return Murmur3_32Hash.makeHashUtf8(metadata.getPartitionKey());
+        }
+        return Murmur3_32Hash.getInstance().makeHash(resolveStickyKey(metadata));
     }
 
     public static int getCurrentProtocolVersion() {

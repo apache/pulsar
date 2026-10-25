@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.metadata.impl.oxia;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.opentelemetry.api.OpenTelemetry;
+import io.oxia.client.OxiaClientBuilderImpl;
 import io.oxia.client.api.AsyncOxiaClient;
 import io.oxia.client.api.Notification;
 import io.oxia.client.api.OxiaClientBuilder;
 import io.oxia.client.api.PutResult;
+import io.oxia.client.api.RangeScanConsumer;
 import io.oxia.client.api.Version;
 import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
 import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
@@ -44,6 +47,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import lombok.CustomLog;
@@ -65,15 +70,29 @@ import org.apache.pulsar.metadata.impl.AbstractMetadataStore;
 public class OxiaMetadataStore extends AbstractMetadataStore {
 
     private final AsyncOxiaClient client;
+    // The request timeout of the client, which also bounds the index scans (see IndexScan)
+    private final Duration requestTimeout;
 
     private final String identity;
     private Optional<MetadataEventSynchronizer> synchronizer;
 
     public OxiaMetadataStore(AsyncOxiaClient oxia, String identity) {
+        this(oxia, identity, null);
+    }
+
+    @VisibleForTesting
+    OxiaMetadataStore(AsyncOxiaClient oxia, String identity, MetadataEventSynchronizer synchronizer) {
+        this(oxia, identity, synchronizer, OxiaClientBuilderImpl.DefaultRequestTimeout);
+    }
+
+    @VisibleForTesting
+    OxiaMetadataStore(AsyncOxiaClient oxia, String identity, MetadataEventSynchronizer synchronizer,
+                      Duration requestTimeout) {
         super("oxia-metadata", OpenTelemetry.noop(), null, 1);
         this.client = oxia;
+        this.requestTimeout = requestTimeout;
         this.identity = identity;
-        this.synchronizer = Optional.empty();
+        this.synchronizer = Optional.ofNullable(synchronizer);
         init();
     }
 
@@ -98,6 +117,8 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             oxiaClientBuilder.loadConfig(metadataStoreConfig.getConfigFilePath());
         }
         client = oxiaClientBuilder.asyncClient().get();
+        // The one the client was built with, which the config file can set
+        requestTimeout = ((OxiaClientBuilderImpl) oxiaClientBuilder).getClientConfig().requestTimeout();
         init();
     }
 
@@ -105,7 +126,6 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         updateMetadataEventSynchronizer(synchronizer.orElse(null));
 
         client.notifications(this::notificationCallback);
-        super.registerSyncListener(synchronizer);
     }
 
     private void notificationCallback(Notification notification) {
@@ -251,44 +271,36 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
             ScanConsumer consumer, Set<Option> opts) {
         // Index entries are stored at "<parentPath>/<secondaryKey>" by doStorePut, where
         // parentPath == scanPathPrefix for records directly under the prefix. The API uses
-        // inclusive-on-both-sides bounds; Oxia's list(start, end, ...) is half-open, so we
-        // append a sentinel character to the upper bound to widen the half-open range to
-        // include `toKeyInclusive`. We use '~' (0x7E) — it lex-sorts after every printable
-        // ASCII byte, which is a safe choice for the secondary keys callers actually use today
-        // (numeric-encoded timestamps, fixed-tag enums, etc.). Callers that need full byte-range
-        // coverage can pass `toKeyInclusive=null` or use a different scheme.
+        // inclusive-on-both-sides bounds; Oxia's rangeScan(start, end, ...) is half-open, and it compares
+        // the bounds with whole index entries, which Oxia stores as the secondary key, a 0x01
+        // separator and the escaped primary key. So the end that follows the entries of
+        // `toKeyInclusive`, and precedes those of the keys that extend it (e.g. "k-12" for "k-1"),
+        // is `toKeyInclusive` followed by 0x02. Without `toKeyInclusive`, the range ends at the end
+        // of the level of the records, as the range [path + "/", path + "//") of
+        // getChildrenFromStore does with Oxia's hierarchical key sorting.
+        // The ranges follow that sorting, which orders the secondary keys by their number of '/'
+        // first: a range without `toKeyInclusive` leaves out the keys with a '/' (e.g.
+        // "tenant/ns1"), and the range ["b", "tenant/ns1"] also returns "zz".
         String scopedFrom = fromKeyInclusive == null
                 ? scanPathPrefix + "/"
                 : scanPathPrefix + "/" + fromKeyInclusive;
         String scopedTo = toKeyInclusive == null
-                ? scanPathPrefix + "0"   // '0' (0x30) is the lex successor of '/' (0x2F)
-                : scanPathPrefix + "/" + toKeyInclusive + "~";
-        Set<ListOption> listOpts = new HashSet<>(listOptions(opts));
-        listOpts.add(ListOption.UseIndex(indexName));
-        CompletableFuture<Void> done = new CompletableFuture<>();
-        client.list(scopedFrom, scopedTo, listOpts)
-                .thenCompose(primaryKeys -> {
-                    // Native indexes already enforced the range; fallbackFilter is unused here
-                    // (it's the scan-and-filter compat-path predicate).
-                    CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
-                    for (String key : primaryKeys) {
-                        chain = chain
-                                .thenCompose(__ -> storeGet(key, opts))
-                                .thenAccept(opt -> opt.ifPresent(consumer::onNext));
-                    }
-                    return chain;
-                })
-                .whenComplete((v, ex) -> {
-                    if (ex != null) {
-                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                        consumer.onError(cause);
-                        done.completeExceptionally(cause);
-                    } else {
-                        consumer.onCompleted();
-                        done.complete(null);
-                    }
-                });
-        return done;
+                ? scanPathPrefix + "//"
+                : scanPathPrefix + "/" + toKeyInclusive + "\u0002";
+        // The scan reads the records along with the index: each shard returns the records it holds.
+        // Getting them by their key afterwards would miss the records written with a partition key,
+        // since a get without that key goes to the shard of the record's key, not of its partition key.
+        // Native indexes already enforced the range; fallbackFilter is unused here (it's the
+        // scan-and-filter compat-path predicate).
+        Set<RangeScanOption> scanOpts = new HashSet<>(rangeScanOptions(opts));
+        scanOpts.add(RangeScanOption.UseIndex(indexName));
+        IndexScan scan = new IndexScan(consumer);
+        try {
+            client.rangeScan(scopedFrom, scopedTo, scan, scanOpts);
+        } catch (Throwable t) {
+            scan.fail(t);
+        }
+        return scan.done;
     }
 
     private CompletableFuture<Stat> doStorePut(
@@ -487,4 +499,85 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
     }
 
     private record PathWithPutResult(String path, PutResult result) {}
+
+    /**
+     * Passes the records of an index range scan on to a {@link ScanConsumer}, and fails the scan when it doesn't end
+     * within the request timeout, as {@code list} does: the client retries the scan of a shard that doesn't answer
+     * with no deadline, and doesn't report the failed attempts, so the scan would wait for as long as a shard is
+     * unavailable.
+     */
+    private final class IndexScan implements RangeScanConsumer {
+
+        private final ScanConsumer consumer;
+        private final CompletableFuture<Void> done = new CompletableFuture<>();
+        // Completed when the scan ends, which cancels its timeout
+        private final CompletableFuture<Void> deadline = new CompletableFuture<>();
+        // Guarded by this: the client doesn't overlap its callbacks, but the timeout can come at any time
+        private boolean ended;
+        private Throwable consumerError;
+
+        IndexScan(ScanConsumer consumer) {
+            this.consumer = consumer;
+            // Handled off the timer thread, which the JDK shares among all the orTimeout calls
+            deadline.orTimeout(requestTimeout.toMillis(), TimeUnit.MILLISECONDS)
+                    .exceptionallyAsync(__ -> {
+                        fail(new TimeoutException("The index scan did not end within the request timeout of "
+                                + requestTimeout.toMillis() + " ms"));
+                        return null;
+                    });
+        }
+
+        @Override
+        public synchronized boolean onNext(io.oxia.client.api.GetResult result) {
+            if (ended) {
+                // The scan timed out: stop it
+                return false;
+            }
+            if (result.version().createdTimestamp() == 0) {
+                // A record deleted after the scan read its index entry: Oxia returns it as not found, without a
+                // version or a value
+                return true;
+            }
+            try {
+                consumer.onNext(new GetResult(result.value(), convertStat(result.key(), result.version())));
+                return true;
+            } catch (Throwable t) {
+                // Stopping the scan makes the client call onCompleted, which fails it
+                consumerError = t;
+                return false;
+            }
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            fail(FutureUtil.unwrapCompletionException(throwable));
+        }
+
+        @Override
+        public synchronized void onCompleted() {
+            if (consumerError != null) {
+                fail(consumerError);
+            } else if (end()) {
+                consumer.onCompleted();
+                done.complete(null);
+            }
+        }
+
+        synchronized void fail(Throwable cause) {
+            if (end()) {
+                consumer.onError(cause);
+                done.completeExceptionally(cause);
+            }
+        }
+
+        // Called with the monitor held: true for the one call that ends the scan
+        private boolean end() {
+            if (ended) {
+                return false;
+            }
+            ended = true;
+            deadline.complete(null);
+            return true;
+        }
+    }
 }

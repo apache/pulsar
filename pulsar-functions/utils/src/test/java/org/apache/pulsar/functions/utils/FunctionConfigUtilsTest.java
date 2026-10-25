@@ -19,16 +19,21 @@
 package org.apache.pulsar.functions.utils;
 
 import static org.apache.pulsar.common.functions.FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE;
+import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.GO;
 import static org.apache.pulsar.common.functions.FunctionConfig.Runtime.PYTHON;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import com.google.common.primitives.Bytes;
 import com.google.gson.Gson;
 import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -41,6 +46,7 @@ import org.apache.pulsar.client.impl.schema.JSONSchema;
 import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.CryptoConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.Resources;
 import org.apache.pulsar.common.functions.WindowConfig;
@@ -57,6 +63,7 @@ import org.apache.pulsar.functions.proto.RetryDetails;
 import org.apache.pulsar.functions.proto.SinkSpec;
 import org.apache.pulsar.functions.proto.SourceSpec;
 import org.apache.pulsar.functions.proto.SubscriptionType;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -132,6 +139,65 @@ public class FunctionConfigUtilsTest {
                 new Gson().toJson(functionConfig),
                 new Gson().toJson(convertedConfig)
         );
+    }
+
+    @DataProvider(name = "pulsarClientMemoryLimit")
+    public Object[][] pulsarClientMemoryLimit() {
+        return new Object[][] {
+                {new MemoryLimit().setLimitInBytes(1024L)},
+                {new MemoryLimit().setPercentOfMaxDirectMemory(25.0)},
+                {new MemoryLimit().setLimitInBytes(1024L).setPercentOfMaxDirectMemory(25.0)},
+        };
+    }
+
+    @Test(dataProvider = "pulsarClientMemoryLimit")
+    public void testConvertPulsarClientMemoryLimit(MemoryLimit memoryLimit) {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setPulsarClientMemoryLimit(memoryLimit);
+
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        assertEquals(FunctionConfigUtils.convertFromDetails(functionDetails).getPulsarClientMemoryLimit(),
+                memoryLimit);
+    }
+
+    @Test
+    public void testConvertWithoutPulsarClientMemoryLimit() {
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(createFunctionConfig());
+        assertFalse(functionDetails.hasPulsarClientMemoryLimit());
+        assertNull(FunctionConfigUtils.convertFromDetails(functionDetails).getPulsarClientMemoryLimit());
+    }
+
+    @DataProvider(name = "invalidPulsarClientMemoryLimit")
+    public Object[][] invalidPulsarClientMemoryLimit() {
+        return new Object[][] {
+                {new MemoryLimit().setLimitInBytes(0L)},
+                {new MemoryLimit().setLimitInBytes(-1L)},
+                {new MemoryLimit().setPercentOfMaxDirectMemory(0.0)},
+                {new MemoryLimit().setPercentOfMaxDirectMemory(100.1)},
+        };
+    }
+
+    @Test(dataProvider = "invalidPulsarClientMemoryLimit", expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Pulsar client memory limit .*")
+    public void testValidateInvalidPulsarClientMemoryLimit(MemoryLimit memoryLimit) {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setPulsarClientMemoryLimit(memoryLimit);
+        FunctionConfigUtils.doCommonChecks(functionConfig);
+    }
+
+    @Test
+    public void testMergePulsarClientMemoryLimit() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setPulsarClientMemoryLimit(new MemoryLimit().setLimitInBytes(1024L));
+
+        // an update without a limit keeps the existing one
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, createFunctionConfig());
+        assertEquals(mergedConfig.getPulsarClientMemoryLimit(), new MemoryLimit().setLimitInBytes(1024L));
+
+        FunctionConfig newFunctionConfig = createFunctionConfig();
+        newFunctionConfig.setPulsarClientMemoryLimit(new MemoryLimit().setPercentOfMaxDirectMemory(25.0));
+        mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, newFunctionConfig);
+        assertEquals(mergedConfig.getPulsarClientMemoryLimit(), new MemoryLimit().setPercentOfMaxDirectMemory(25.0));
     }
 
     @SuppressWarnings("deprecation")
@@ -532,6 +598,64 @@ public class FunctionConfigUtilsTest {
         );
     }
 
+    @Test
+    public void testPythonFunctionAcceptsMessageRetriesAndDeadLetterTopic() {
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(3);
+        functionConfig.setDeadLetterTopic("test-dlq");
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test
+    public void testPythonFunctionAcceptsMessageRetriesWithoutADeadLetterTopic() {
+        // The client defaults the topic to "<topic>-<subscription>-DLQ" when it is left empty.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(1);
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "maxMessageRetries must be at least 1 in python.*")
+    public void testPythonFunctionRejectsZeroMessageRetries() {
+        // Zero asks for no redelivery before the dead letter topic, which the Python client cannot
+        // express, so the dead letter topic would never receive anything.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(0);
+        functionConfig.setDeadLetterTopic("test-dlq");
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test
+    public void testPythonFunctionTreatsNegativeMessageRetriesAsUnset() {
+        // doPythonChecks refuses exactly 0; a negative count means "unset", as it does on the Java path,
+        // and convert() emits retryDetails only for a count >= 0. Pinned so tightening that guard to <= 0
+        // cannot pass silently.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setMaxMessageRetries(-1);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+
+        assertFalse(FunctionConfigUtils.convert(functionConfig).hasRetryDetails());
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Dead Letter Topic specified, however max retries is set to infinity")
+    public void testPythonFunctionRejectsDeadLetterTopicWithoutMessageRetries() {
+        // doCommonChecks refuses a dead letter topic nothing can route to: with maxMessageRetries unset the
+        // redelivery count is infinite, so the topic would never receive anything. Same shape as the zero
+        // case above, reached from the other side.
+        FunctionConfig functionConfig = createPythonFunctionConfig();
+        functionConfig.setDeadLetterTopic("test-dlq");
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    private FunctionConfig createPythonFunctionConfig() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setRuntime(FunctionConfig.Runtime.PYTHON);
+        return functionConfig;
+    }
+
     @SuppressWarnings("deprecation")
     private FunctionConfig createFunctionConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
@@ -762,5 +886,128 @@ public class FunctionConfigUtilsTest {
             assertEquals(producerSpec2.getCryptoSpec().getProducerEncryptionKeyNameAt(i),
                     producerSpec.getCryptoSpec().getProducerEncryptionKeyNameAt(i));
         }
+    }
+
+    private static FunctionConfig minimalGoFunctionConfig() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant("test-tenant");
+        functionConfig.setNamespace("test-namespace");
+        functionConfig.setName("test-function");
+        functionConfig.setInputs(Collections.singletonList("persistent://public/default/input"));
+        functionConfig.setRuntime(GO);
+        functionConfig.setGo("/path/to/function");
+        return functionConfig;
+    }
+
+    @Test
+    public void testGoFunctionAcceptsRetainKeyOrdering() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainKeyOrdering(true);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+
+        // The KeyShared subscription the Go runtime selects has to survive conversion, otherwise the
+        // instance never sees it.
+        assertEquals(FunctionConfigUtils.convert(functionConfig).getSource().getSubscriptionType(),
+                SubscriptionType.KEY_SHARED);
+    }
+
+    @Test
+    public void testGoFunctionAcceptsRetainOrdering() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainOrdering(true);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+
+        assertEquals(FunctionConfigUtils.convert(functionConfig).getSource().getSubscriptionType(),
+                SubscriptionType.FAILOVER);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Only one of retain ordering or retain key ordering can be set")
+    public void testGoFunctionRejectsBothOrderingModes() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainOrdering(true);
+        functionConfig.setRetainKeyOrdering(true);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp =
+                    "When effectively once processing guarantee is specified, retain Key ordering cannot be set")
+    public void testGoFunctionRejectsRetainKeyOrderingWithEffectivelyOnce() {
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setRetainKeyOrdering(true);
+        functionConfig.setProcessingGuarantees(EFFECTIVELY_ONCE);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
+    public void testGoFunctionStillRejectsMessageRetries() {
+        // The Go runtime does not honour retryDetails yet, so its guard stays until it does.
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setMaxMessageRetries(3);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test(expectedExceptions = IllegalArgumentException.class,
+            expectedExceptionsMessageRegExp = "Message retries not yet supported in Go function")
+    public void testGoFunctionRejectsZeroMessageRetries() {
+        // doGolangChecks refuses every count >= 0, not only a positive one -- unlike Python, which refuses
+        // only 0. Pinned so the two guards cannot be quietly aligned.
+        FunctionConfig functionConfig = minimalGoFunctionConfig();
+        functionConfig.setMaxMessageRetries(0);
+
+        FunctionConfigUtils.validateNonJavaFunction(functionConfig);
+    }
+
+    @Test
+    public void testConvertClientApi() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        functionConfig.setInputSpecs(new HashMap<>());
+        functionConfig.setInputs(Collections.singletonList("topic://public/default/in"));
+        functionConfig.setOutput("topic://public/default/out");
+        FunctionDetails functionDetails = FunctionConfigUtils.convert(functionConfig);
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.AUTO);
+        assertThat(FunctionConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
+
+        functionConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        functionDetails = FunctionConfigUtils.convert(functionConfig);
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.V5);
+        assertThat(FunctionConfigUtils.convertFromDetails(functionDetails).getClientApi())
+                .isEqualTo(FunctionConfig.ClientApi.V5);
+
+        functionConfig.setClientApi(FunctionConfig.ClientApi.V4);
+        assertThatThrownBy(() -> FunctionConfigUtils.convert(functionConfig))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("clientApi V4 cannot be used with topic 'topic://public/default/in'");
+    }
+
+    @Test
+    public void testConvertFromDetailsWithUnknownClientApi() {
+        byte[] details = FunctionConfigUtils.convert(createFunctionConfig()).toByteArray();
+        // clientApi (field 24, varint) set to 9, a number that no ClientApi value has
+        byte[] unknownClientApi = {(byte) 0xC0, 0x01, 0x09};
+        FunctionDetails functionDetails = new FunctionDetails();
+        functionDetails.parseFrom(Bytes.concat(details, unknownClientApi));
+
+        assertThat(functionDetails.getClientApi()).isEqualTo(FunctionDetails.ClientApi.UNRECOGNIZED);
+        assertThat(FunctionConfigUtils.convertFromDetails(functionDetails).getClientApi()).isNull();
+    }
+
+    @Test
+    public void testMergeClientApi() {
+        FunctionConfig functionConfig = createFunctionConfig();
+        FunctionConfig mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig,
+                createUpdatedFunctionConfig("clientApi", FunctionConfig.ClientApi.V5));
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
+
+        functionConfig.setClientApi(FunctionConfig.ClientApi.V5);
+        mergedConfig = FunctionConfigUtils.validateUpdate(functionConfig, createFunctionConfig());
+        assertThat(mergedConfig.getClientApi()).isEqualTo(FunctionConfig.ClientApi.V5);
     }
 }

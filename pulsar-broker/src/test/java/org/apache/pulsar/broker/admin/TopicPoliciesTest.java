@@ -149,6 +149,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        conf.setEnableShadowTopics(true);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setForceDeleteNamespaceAllowed(true);
         super.internalSetup();
@@ -3809,10 +3810,11 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         CompletableFuture<Long> future2 = (CompletableFuture<Long>) field.get(persistentTopic);
         Awaitility.await().untilAsserted(() -> assertTrue(future2.isDone()));
 
+        // A new subscription, since "sub" has already acknowledged the remaining message
         consumer = pulsarClient.newConsumer()
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .readCompacted(true)
-                .topic(topicPoliciesTopic).subscriptionName("sub").subscribe();
+                .topic(topicPoliciesTopic).subscriptionName("sub2").subscribe();
         count = 0;
         while (true) {
             Message<?> message = consumer.receive(1, TimeUnit.SECONDS);
@@ -4057,6 +4059,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         // Reload polices into memory.
         // Verify: policies was deleted.
         admin.topics().delete(tpName, false);
+        // Finish compacting the deletion events before a new reader checks for available messages.
+        triggerAndWaitNewTopicCompaction(tpNameChangeEvents);
         Awaitility.await().untilAsserted(() -> {
             // Reload polices into memory.
             // Verify: policies was affected.
