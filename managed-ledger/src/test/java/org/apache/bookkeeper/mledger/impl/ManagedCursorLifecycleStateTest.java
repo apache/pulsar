@@ -102,6 +102,39 @@ public class ManagedCursorLifecycleStateTest {
     }
 
     @Test(dataProvider = "cacheEvictionModes", timeOut = 15000)
+    public void testAnotherCursorCanChangeActivityWhileFlagPublicationIsPaused(boolean expectedReadCount)
+            throws Exception {
+        Fixture fixture = createFixture(expectedReadCount);
+        PausingLedger ledger = fixture.ledger();
+        ManagedCursorImpl first = new ManagedCursorImpl(fixture.bookKeeper(), ledger, "first");
+        ManagedCursorImpl second = new ManagedCursorImpl(fixture.bookKeeper(), ledger, "second");
+        ExecutorService callers = Executors.newFixedThreadPool(2,
+                new DefaultThreadFactory("independent-cursor-activity", true));
+        try {
+            Future<?> firstActivation = callers.submit(first::setActive);
+            assertThat(ledger.firstActivationAdded.await(3, TimeUnit.SECONDS))
+                    .as("first cursor registration completed before its activity flag is published").isTrue();
+            Future<?> secondTransition = callers.submit(() -> {
+                second.setActive();
+                assertThat(ledger.isCursorActive(second)).isTrue();
+                second.setInactive();
+            });
+            // The first cursor no longer needs the container, so another cursor can complete its own transition.
+            secondTransition.get(1, TimeUnit.SECONDS);
+            ledger.resumeFirstActivation.countDown();
+            firstActivation.get(3, TimeUnit.SECONDS);
+            assertThat(first.isActive()).isTrue();
+            assertThat(ledger.isCursorActive(first)).isTrue();
+            assertThat(second.isActive()).isFalse();
+            assertThat(ledger.isCursorActive(second)).isFalse();
+        } finally {
+            ledger.resumeFirstActivation.countDown();
+            callers.shutdownNow();
+            assertThat(callers.awaitTermination(3, TimeUnit.SECONDS)).as("independent cursor callers stopped").isTrue();
+        }
+    }
+
+    @Test(dataProvider = "cacheEvictionModes", timeOut = 15000)
     public void testActivityFlagMatchesContainerAfterConcurrentActivation(boolean expectedReadCount) throws Exception {
         Fixture fixture = createFixture(expectedReadCount);
         PausingLedger ledger = fixture.ledger();
