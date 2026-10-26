@@ -28,7 +28,8 @@ import static org.testng.Assert.assertNotNull;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.resolver.NameResolver;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
@@ -83,7 +84,8 @@ public class HttpClientTest {
 
     @BeforeClass(alwaysRun = true)
     void beforeClass() {
-        eventLoopGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("HttpClientTest"));
+        eventLoopGroup = new MultiThreadIoEventLoopGroup(1, new DefaultThreadFactory("HttpClientTest"),
+                NioIoHandler.newFactory());
         timer = new HashedWheelTimer(new DefaultThreadFactory("HttpClientTest-timer"));
         // Default JDK-backed resolver is sufficient; we only hit 127.0.0.1.
         nameResolver = DnsResolverUtil.adaptToNameResolver(null);
