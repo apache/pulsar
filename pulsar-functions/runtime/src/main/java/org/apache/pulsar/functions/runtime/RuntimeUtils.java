@@ -557,6 +557,8 @@ public class RuntimeUtils {
     }
 
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
+        // An IPv6 host address is not bracketed here, which URI parsing would reject.
+        @SuppressWarnings("deprecation")
         URL url = new URL(String.format("http://%s:%s", InetAddress.getLocalHost().getHostAddress(), metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
