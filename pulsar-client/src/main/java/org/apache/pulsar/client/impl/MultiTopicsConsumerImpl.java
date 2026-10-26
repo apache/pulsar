@@ -1183,7 +1183,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             CompletableFuture<Consumer<T>> subscribeFuture = new CompletableFuture<>();
             subscribeAllPartitionsFuture = subscribeFuture.thenAccept(__ -> {});
 
-            consumers.compute(topicName, (key, existingValue) -> {
+            ConsumerImpl<T> consumer = consumers.compute(topicName, (key, existingValue) -> {
                 if (existingValue != null) {
                     String errorMessage =
                             String.format("[%s] Failed to subscribe for topic [%s] in topics consumer. "
@@ -1197,6 +1197,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     return newConsumer;
                 }
             });
+            synchronizeConsumerPauseState(consumer);
         }
 
         subscribeAllPartitionsFuture.thenAccept(finalFuture -> {
@@ -1231,21 +1232,39 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private ConsumerImpl<T> createInternalConsumer(ConsumerConfigurationData<T> configurationData, String partitionName,
                                                    int partitionIndex, CompletableFuture<Consumer<T>> subFuture,
                                                    boolean createIfDoesNotExist, Schema<T> schema) {
+        // only the consumer's own topic: a copy of every topic's name for each consumer would take memory and time
+        // in the square of the number of topics
+        configurationData = configurationData.cloneForTopic(partitionName);
         BatchReceivePolicy internalBatchReceivePolicy = BatchReceivePolicy.builder()
                 .maxNumMessages(Math.max(configurationData.getReceiverQueueSize() / 2, 1))
                 .maxNumBytes(-1)
                 .timeout(1, TimeUnit.MILLISECONDS)
                 .build();
         configurationData.setBatchReceivePolicy(internalBatchReceivePolicy);
-        configurationData.setStartPaused(paused);
-        // only the consumer's own topic: a copy of every topic's name for each consumer would take memory and time
-        // in the square of the number of topics
-        configurationData = configurationData.cloneForTopic(partitionName);
+        // A child can connect or reconnect before it is published in consumers. Keep it paused until
+        // publication and reconciliation with the parent so it cannot send FLOW with a stale state.
+        configurationData.setStartPaused(true);
         return ConsumerImpl.newConsumerImpl(client, partitionName,
                 configurationData, client.externalExecutorProvider(),
                 partitionIndex, true, listener != null, subFuture,
                 startMessageId, schema, this.internalConsumerInterceptors,
                 createIfDoesNotExist, startMessageRollbackDurationInSec);
+    }
+
+    // The child must already be published. Sharing the parent transition lock ensures that either
+    // a transition includes this child or reconciliation observes the transition's updated state.
+    // Keep construction outside this lock because constructors can invoke synchronous callbacks.
+    // See https://github.com/apache/pulsar/pull/14566 and https://github.com/apache/pulsar/pull/25009.
+    private void synchronizeConsumerPauseState(ConsumerImpl<T> consumer) {
+        synchronized (pauseMutex) {
+            if (paused) {
+                consumer.pause();
+            } else {
+                // resume() only flushes permits already owed; it does not grant the initial receive budget.
+                // On first subscription, startReceivingMessages() grants it after all partitions subscribe.
+                consumer.resume();
+            }
+        }
     }
 
     // handling failure during subscribe new topic, unsubscribe success created partitions
@@ -1519,6 +1538,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                         .log("Creating consumer for");
             return newConsumerSupplier.get();
         });
+        // Reconcile after compute publishes the child, without holding a map lock together with pauseMutex.
+        synchronizeConsumerPauseState(consumer);
         // return the subscribe future
         return consumer.subscribeFuture();
     }
