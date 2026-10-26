@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
@@ -30,9 +31,11 @@ import static org.mockito.Mockito.anySet;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -42,9 +45,12 @@ import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.SucceededFuture;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,9 +62,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -68,6 +77,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongHashMap;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -88,6 +98,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedConstruction;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -272,6 +283,81 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         verify(consumer, times(1)).disconnect();
         assertEquals(0, persistentDispatcher.getConsumers().size());
         assertTrue(persistentDispatcher.getSelector().getConsumerKeyHashRanges().isEmpty());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testMarkDeleteCleanupDoesNotLeavePhantomStickyKeyHash() throws Exception {
+        int stickyKeyHash = 123;
+        ConcurrentLongLongHashMap refCounts = ConcurrentLongLongHashMap.newBuilder()
+                .concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
+        CountDownLatch incrementRead = new CountDownLatch(1);
+        CountDownLatch finishIncrement = new CountDownLatch(1);
+        AtomicBoolean pauseIncrement = new AtomicBoolean();
+        AtomicReference<Thread> cleanupThread = new AtomicReference<>();
+        ExecutorService executor = Executors.newFixedThreadPool(2,
+                new DefaultThreadFactory("redelivery-hash-test"));
+
+        persistentDispatcher.close().join();
+        // Preserve the real map operations and pause only between the increment's get and put.
+        try (MockedConstruction<ConcurrentLongLongHashMap> construction = mockConstruction(
+                ConcurrentLongLongHashMap.class, withSettings().defaultAnswer(delegatesTo(refCounts)),
+                (map, context) -> doAnswer(invocation -> {
+                    long count = refCounts.get(stickyKeyHash);
+                    if (pauseIncrement.compareAndSet(true, false)) {
+                        incrementRead.countDown();
+                        assertThat(finishIncrement.await(10, TimeUnit.SECONDS)).isTrue();
+                    }
+                    return count;
+                }).when(map).get(stickyKeyHash))) {
+            try {
+                persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                        topicMock, cursorMock, subscriptionMock, configMock,
+                        new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
+                PersistentStickyKeyDispatcherMultipleConsumers dispatcher = persistentDispatcher;
+                assertThat(construction.constructed()).hasSize(1);
+                assertThat(dispatcher.addMessageToReplay(1, 1, stickyKeyHash)).isTrue();
+                assertThat(refCounts.get(stickyKeyHash)).isEqualTo(1);
+
+                doReturn(PositionFactory.create(1, 1)).when(cursorMock).getMarkDeletedPosition();
+                pauseIncrement.set(true);
+                var addition = executor.submit(() -> dispatcher.addMessageToReplay(1, 2, stickyKeyHash));
+                assertThat(incrementRead.await(10, TimeUnit.SECONDS)).isTrue();
+                var cleanup = executor.submit(() -> {
+                    cleanupThread.set(Thread.currentThread());
+                    dispatcher.markDeletePositionMoveForward();
+                });
+                // Before the fix cleanup completes during the paused increment. With the fix it waits
+                // on the same dispatcher monitor, so release the increment once that is established.
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
+                    if (cleanup.isDone()) {
+                        return true;
+                    }
+                    Thread thread = cleanupThread.get();
+                    ThreadInfo info = thread == null ? null
+                            : ManagementFactory.getThreadMXBean().getThreadInfo(thread.getId());
+                    return info != null && info.getThreadState() == Thread.State.BLOCKED
+                            && info.getLockInfo() != null
+                            && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(dispatcher);
+                });
+                finishIncrement.countDown();
+                assertThat(addition.get(10, TimeUnit.SECONDS)).isTrue();
+                cleanup.get(10, TimeUnit.SECONDS);
+                assertThat(dispatcher.redeliveryMessages.size()).isEqualTo(1);
+                long countAfterConcurrentUpdate = refCounts.get(stickyKeyHash);
+
+                doReturn(PositionFactory.create(1, 2)).when(cursorMock).getMarkDeletedPosition();
+                dispatcher.markDeletePositionMoveForward();
+                assertThat(dispatcher.redeliveryMessages.isEmpty()).isTrue();
+                assertThat(dispatcher.redeliveryMessages.containsStickyKeyHash(stickyKeyHash))
+                        .as("no phantom hash after replay is empty; count after concurrent update=%s, final count=%s",
+                                countAfterConcurrentUpdate, refCounts.get(stickyKeyHash))
+                        .isFalse();
+            } finally {
+                finishIncrement.countDown();
+                executor.shutdownNow();
+                assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+            }
+        }
     }
 
     @Test
