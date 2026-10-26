@@ -97,31 +97,42 @@ public class MessageImplTest {
     @Test(dataProvider = "releaseOrder")
     public void testReleaseKeepsBrokerMetadataOfPooledBatchSiblings(boolean releaseFirstMessageFirst) {
         BrokerEntryMetadata sharedBrokerMetadata = new BrokerEntryMetadata().setBrokerTimestamp(123).setIndex(456);
-        MessageMetadata batchMetadata = new MessageMetadata().setNumMessagesInBatch(2);
-        List<MessageImpl<byte[]>> messages = new ArrayList<>();
-        for (int i = 0; i < 2; i++) {
-            MessageImpl<byte[]> message = MessageImpl.create("test-topic", new BatchMessageIdImpl(1, 2, -1, i, 2, null),
-                    batchMetadata, new SingleMessageMetadata(), Unpooled.wrappedBuffer(new byte[]{(byte) i}),
-                    Optional.empty(), null, Schema.BYTES, 0, true, Commands.DEFAULT_CONSUMER_EPOCH);
-            message.setBrokerEntryMetadata(sharedBrokerMetadata);
-            messages.add(message);
+        List<MessageImpl<byte[]>> liveMessages = new ArrayList<>();
+        try {
+            liveMessages.add(newPooledBatchMessage(0, sharedBrokerMetadata));
+            liveMessages.add(newPooledBatchMessage(1, sharedBrokerMetadata));
+            int releasedBatchIndex = releaseFirstMessageFirst ? 0 : 1;
+            int liveBatchIndex = 1 - releasedBatchIndex;
+            MessageImpl<byte[]> live = liveMessages.get(liveBatchIndex);
+
+            // a released message is no longer live, so it must not be released again in the finally block
+            liveMessages.remove(releasedBatchIndex).release();
+
+            assertTrue(live.hasBrokerPublishTime());
+            assertEquals(live.getBrokerPublishTime().orElseThrow().longValue(), 123L);
+            assertTrue(live.hasIndex());
+            // the index of a batch message is the entry index minus the number of messages after it in the batch
+            assertEquals(live.getIndex().orElseThrow().longValue(), 455L + liveBatchIndex);
+            assertTrue(sharedBrokerMetadata.hasBrokerTimestamp());
+            assertTrue(sharedBrokerMetadata.hasIndex());
+        } finally {
+            liveMessages.forEach(MessageImpl::release);
         }
-        MessageImpl<byte[]> first = messages.get(0);
-        MessageImpl<byte[]> second = messages.get(1);
-        MessageImpl<byte[]> released = releaseFirstMessageFirst ? first : second;
-        MessageImpl<byte[]> live = releaseFirstMessageFirst ? second : first;
+    }
 
-        released.release();
-
-        assertTrue(live.hasBrokerPublishTime());
-        assertEquals(live.getBrokerPublishTime().orElseThrow().longValue(), 123L);
-        assertTrue(live.hasIndex());
-        // the index of a batch message is the entry index minus the number of messages after it in the batch
-        assertEquals(live.getIndex().orElseThrow().longValue(), live == first ? 455L : 456L);
-        assertTrue(sharedBrokerMetadata.hasBrokerTimestamp());
-        assertTrue(sharedBrokerMetadata.hasIndex());
-
-        live.release();
+    private static MessageImpl<byte[]> newPooledBatchMessage(int batchIndex, BrokerEntryMetadata brokerMetadata) {
+        ByteBuf payload = Unpooled.wrappedBuffer(new byte[]{(byte) batchIndex});
+        try {
+            MessageImpl<byte[]> message = MessageImpl.create("test-topic",
+                    new BatchMessageIdImpl(1, 2, -1, batchIndex, 2, null),
+                    new MessageMetadata().setNumMessagesInBatch(2), new SingleMessageMetadata(), payload,
+                    Optional.empty(), null, Schema.BYTES, 0, true, Commands.DEFAULT_CONSUMER_EPOCH);
+            message.setBrokerEntryMetadata(brokerMetadata);
+            return message;
+        } finally {
+            // the pooled message retains the payload, so release the reference owned by this method
+            payload.release();
+        }
     }
 
     @Test
