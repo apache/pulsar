@@ -18,72 +18,83 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
+import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 
 /**
  * OffloadReadHandle is a wrapper of ReadHandle to offload read operations.
  */
 public final class OffloadReadHandle implements ReadHandle {
-    private static final AtomicBoolean INITIALIZED = new AtomicBoolean(false);
-    private static volatile long flowPermits = -1L;
-    private static volatile AsyncTokenBucket tokenBucket;
-
     private final ReadHandle delegate;
-    private final long averageEntrySize;
+    private final AsyncTokenBucket tokenBucket;
+    private final ScheduledExecutorService scheduledExecutor;
 
-    private OffloadReadHandle(ReadHandle handle, ManagedLedgerConfig config,
-                              ManagedLedgerInfo.LedgerInfo ledgerInfo) {
-        initialize(config);
+    private OffloadReadHandle(ReadHandle handle, AsyncTokenBucket tokenBucket,
+                              ScheduledExecutorService scheduledExecutor) {
         this.delegate = Objects.requireNonNull(handle);
-        Objects.requireNonNull(ledgerInfo);
-        long averageEntrySize = ledgerInfo.getSize() / ledgerInfo.getEntries();
-        if (averageEntrySize <= 0) {
-            averageEntrySize = 1;
-        }
-        this.averageEntrySize = averageEntrySize;
+        this.tokenBucket = tokenBucket;
+        this.scheduledExecutor = Objects.requireNonNull(scheduledExecutor);
     }
 
-    private static void initialize(ManagedLedgerConfig config) {
-        if (INITIALIZED.compareAndSet(false, true)) {
-            flowPermits = config.getManagedLedgerOffloadFlowPermitsPerSecond();
-            if (flowPermits > 0) {
-                tokenBucket = AsyncTokenBucket.builder().initialTokens(0).capacity(2 * flowPermits)
-                        .rate(flowPermits).build();
-            }
+    public static CompletableFuture<ReadHandle> create(ReadHandle handle, AsyncTokenBucket tokenBucket,
+                                                       ScheduledExecutorService scheduledExecutor) {
+        try {
+            return CompletableFuture.completedFuture(new OffloadReadHandle(handle, tokenBucket, scheduledExecutor));
+        } catch (Throwable t) {
+            return CompletableFuture.failedFuture(t);
         }
-    }
-
-    public static CompletableFuture<ReadHandle> create(ReadHandle handle, ManagedLedgerConfig config,
-                                                       ManagedLedgerInfo.LedgerInfo ledgerInfo) {
-        return CompletableFuture.completedFuture(new OffloadReadHandle(handle, config, ledgerInfo));
     }
 
     @Override
     public CompletableFuture<LedgerEntries> readAsync(long firstEntry, long lastEntry) {
-        long numEntries = lastEntry - firstEntry + 1;
-        long numBytes = numEntries * averageEntrySize;
+        CompletableFuture<LedgerEntries> result = new CompletableFuture<>();
+        readAsyncWithThrottling(firstEntry, lastEntry, result);
+        return result;
+    }
 
-        long delayMillis;
-        // block the offloader thread if the flow control permits is exceeded.
-        while ((delayMillis = calculateDelayMillis(numBytes)) > 0) {
-            try {
-                Thread.sleep(delayMillis);
-            } catch (InterruptedException ex) {
-                return CompletableFuture.failedFuture(ex);
-            }
+    private void readAsyncWithThrottling(long firstEntry, long lastEntry,
+                                         CompletableFuture<LedgerEntries> result) {
+        if (result.isDone()) {
+            return;
         }
-
-        return delegate.readAsync(firstEntry, lastEntry);
+        try {
+            if (tokenBucket != null && !tokenBucket.containsTokens()) {
+                long delayNanos = tokenBucket.calculateThrottlingDuration();
+                if (delayNanos > 0) {
+                    scheduledExecutor.schedule(() -> readAsyncWithThrottling(firstEntry, lastEntry, result),
+                            delayNanos, TimeUnit.NANOSECONDS);
+                    return;
+                }
+            }
+            delegate.readAsync(firstEntry, lastEntry).whenComplete((entries, error) -> {
+                if (error != null) {
+                    result.completeExceptionally(error);
+                    return;
+                }
+                try {
+                    if (tokenBucket != null) {
+                        long bytesRead = 0;
+                        for (LedgerEntry entry : entries) {
+                            bytesRead += entry.getLength();
+                        }
+                        tokenBucket.consumeTokens(bytesRead);
+                    }
+                    result.complete(entries);
+                } catch (Throwable t) {
+                    result.completeExceptionally(t);
+                }
+            });
+        } catch (Throwable t) {
+            result.completeExceptionally(t);
+        }
     }
 
     @Override
@@ -137,31 +148,4 @@ public final class OffloadReadHandle implements ReadHandle {
         return this.delegate.getLedgerMetadata();
     }
 
-
-    private static synchronized long calculateDelayMillis(long numBytes) {
-        if (flowPermits <= 0) {
-            return 0;
-        }
-        if (numBytes <= 0) {
-            return 0;
-        }
-
-        if (tokenBucket.containsTokens()) {
-            long token = tokenBucket.getTokens();
-            if (token > 0) {
-                // To prevent flowPermits is less than each batch size.
-                tokenBucket.consumeTokens(numBytes);
-                return 0;
-            }
-        }
-
-        return TimeUnit.NANOSECONDS.toMillis(tokenBucket.calculateThrottlingDuration());
-    }
-
-    @VisibleForTesting
-    public void reset() {
-        INITIALIZED.set(false);
-        flowPermits = -1L;
-        tokenBucket = null;
-    }
 }

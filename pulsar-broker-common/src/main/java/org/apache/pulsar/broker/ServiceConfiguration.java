@@ -2913,7 +2913,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private long managedLedgerOffloadThresholdInSeconds = -1L;
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
-        doc = "The number of bytes permitted per second to offload on this broker"
+        doc = "The number of bytes permitted per second to read from bookies for offloading on this broker."
+                + " A non-positive value disables offload read throttling."
     )
     private long managedLedgerOffloadFlowPermitsPerSecond = -1;
     @FieldContext(

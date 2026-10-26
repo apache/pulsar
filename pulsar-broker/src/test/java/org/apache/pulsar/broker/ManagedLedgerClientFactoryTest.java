@@ -72,4 +72,24 @@ public class ManagedLedgerClientFactoryTest {
                     .isEqualTo(maxExtensions);
         }
     }
+
+    @Test
+    public void testOffloadFlowPermitsAtStartup() throws Exception {
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setManagedLedgerOffloadFlowPermitsPerSecond(1_234);
+        conf.setBookkeeperClientExposeStatsToPrometheus(false);
+        BookKeeperClientFactory bookkeeperProvider = mock(BookKeeperClientFactory.class);
+        when(bookkeeperProvider.create(any(), any(), any(), any(), isNull(), any()))
+                .thenReturn(CompletableFuture.completedFuture(mock(BookKeeper.class)));
+        try (ManagedLedgerClientFactory factory = spy(new ManagedLedgerClientFactory())) {
+            doReturn(mock(ManagedLedgerFactoryImpl.class)).when(factory)
+                    .createManagedLedgerFactory(any(), any(), any(), any(), any());
+            factory.initialize(conf, mock(MetadataStoreExtended.class), bookkeeperProvider,
+                    mock(EventLoopGroup.class), OpenTelemetry.noop());
+            ArgumentCaptor<ManagedLedgerFactoryConfig> config =
+                    ArgumentCaptor.forClass(ManagedLedgerFactoryConfig.class);
+            verify(factory).createManagedLedgerFactory(any(), any(), any(), config.capture(), any());
+            assertThat(config.getValue().getManagedLedgerOffloadFlowPermitsPerSecond()).isEqualTo(1_234);
+        }
+    }
 }

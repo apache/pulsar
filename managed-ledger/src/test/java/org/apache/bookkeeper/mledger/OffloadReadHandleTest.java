@@ -18,125 +18,210 @@
  */
 package org.apache.bookkeeper.mledger;
 
-import com.google.common.collect.Lists;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
-import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
-import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
-import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.mockito.Mockito;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.testng.Assert;
-import org.testng.annotations.DataProvider;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-public class OffloadReadHandleTest extends MockedBookKeeperTestCase {
+public class OffloadReadHandleTest {
+    private final List<ScheduledTask> scheduledTasks = new ArrayList<>();
+    private AtomicLong clock;
+    private ScheduledExecutorService scheduler;
 
-    @DataProvider(name = "flowPermits")
-    public Object[][] permits() {
-        return new Object[][]{
-                {-1L},
-                {0L},
-                {50L},
-                {100L},
-                {10000L}
-        };
+    @BeforeMethod
+    public void setUp() {
+        clock = new AtomicLong(TimeUnit.SECONDS.toNanos(100));
+        scheduledTasks.clear();
+        scheduler = mock(ScheduledExecutorService.class);
+        doAnswer(invocation -> {
+            scheduledTasks.add(new ScheduledTask(invocation.getArgument(0), invocation.getArgument(1),
+                    invocation.getArgument(2)));
+            return mock(ScheduledFuture.class);
+        }).when(scheduler).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
     }
-
-    @Test(dataProvider = "flowPermits")
-    public void testFlowPermits(long flowPermits) throws Exception {
-        OffloadReadHandle handle = (OffloadReadHandle) initializeReadHandle(flowPermits);
-        try {
-            long start = System.currentTimeMillis();
-            handle.read(1, 1);
-            handle.read(1, 1);
-            handle.read(1, 1);
-            handle.read(1, 1);
-            handle.read(1, 1);
-
-            long actualDuration = System.currentTimeMillis() - start;
-            if (flowPermits <= 0L) {
-                Assert.assertEquals(actualDuration, 4000D, 4000D);
-            } else if (flowPermits == 50L) {
-                long expectDuration = 8000;
-                Assert.assertEquals(actualDuration, expectDuration, expectDuration * 0.2D);
-            } else if (flowPermits == 100L) {
-                long expectDuration = 4000;
-                Assert.assertEquals(actualDuration, expectDuration, expectDuration * 0.2D);
-            } else if (flowPermits == 10000L) {
-                Assert.assertEquals(actualDuration, 1000D, 1000D);
-            }
-        } finally {
-            handle.close();
-            handle.reset();
-        }
-    }
-
 
     @Test
-    public void testOffloadFlowPermitsMultiThreads() throws Exception {
-        OffloadReadHandle handle = (OffloadReadHandle) initializeReadHandle(1000);
-        AtomicBoolean failed = new AtomicBoolean(false);
-        CountDownLatch latch = new CountDownLatch(10);
-        try {
-            long start = System.currentTimeMillis();
-            for (int i = 0; i < 10; i++) {
-                new Thread(() -> {
-                    for (int j = 0; j < 10; j++) {
-                        try {
-                            handle.read(1, 1);
-                        } catch (Exception e) {
-                            failed.set(true);
-                        }
-                    }
-                    latch.countDown();
-                }).start();
-            }
+    public void testReadAsyncRechecksAfterScheduledDelayWithoutBlocking() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(1_000_000_000L, 0, 1);
+        LedgerEntries entries = entries(1);
+        ReadHandle delegate = delegateReturning(entries);
+        ReadHandle handle = create(delegate, tokenBucket);
 
-            latch.await();
+        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 0);
 
-            Assert.assertFalse(failed.get());
-            long actualDuration = System.currentTimeMillis() - start;
-            long expectDuration = TimeUnit.SECONDS.toMillis(10);
-            Assert.assertEquals(actualDuration, expectDuration, expectDuration * 0.2D);
-        } finally {
-            handle.close();
-            handle.reset();
-        }
+        Assert.assertFalse(readFuture.isDone());
+        assertOnlyScheduledTask(1);
+        runNextScheduledTask();
+        Assert.assertFalse(readFuture.isDone());
+        verify(delegate, never()).readAsync(anyLong(), anyLong());
+        assertOnlyScheduledTask(1);
+
+        clock.incrementAndGet();
+        runNextScheduledTask();
+
+        Assert.assertSame(readFuture.join(), entries);
+        verify(delegate).readAsync(0, 0);
+        verify(entries, never()).close();
+        Assert.assertEquals(scheduledTasks.size(), 0);
     }
 
+    @Test
+    public void testReadAsyncConsumesActualBytesAfterSuccessfulRead() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 1_000, 1);
+        LedgerEntries entries = entries(30, 70);
+        ReadHandle handle = create(delegateReturning(entries), tokenBucket);
 
-    private ReadHandle initializeReadHandle(long flowPermits) throws Exception {
-        ByteBuf buf = ByteBufAllocator.DEFAULT.buffer(100);
-        for (int a = 0; a < 100; a++) {
-            buf.writeByte(0);
+        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 1);
+
+        Assert.assertSame(readFuture.join(), entries);
+        Assert.assertEquals(tokenBucket.getTokens(), 900);
+        verify(entries, never()).close();
+    }
+
+    @Test
+    public void testReadAsyncDoesNotConsumeTokensAfterFailedRead() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 100, 1);
+        RuntimeException readFailure = new RuntimeException("read failed");
+        ReadHandle delegate = mock(ReadHandle.class);
+        when(delegate.readAsync(anyLong(), anyLong()))
+                .thenReturn(CompletableFuture.failedFuture(readFailure));
+        ReadHandle handle = create(delegate, tokenBucket);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 0);
+
+        CompletionException thrown = Assert.expectThrows(CompletionException.class, readFuture::join);
+        Assert.assertSame(thrown.getCause(), readFailure);
+        Assert.assertEquals(tokenBucket.getTokens(), 100);
+    }
+
+    @Test
+    public void testReadAsyncReturnsEmptyEntriesWithoutConsumingTokens() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 100, 1);
+        LedgerEntries entries = entries();
+        ReadHandle handle = create(delegateReturning(entries), tokenBucket);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, -1);
+
+        Assert.assertSame(readFuture.join(), entries);
+        Assert.assertEquals(tokenBucket.getTokens(), 100);
+        verify(entries, never()).close();
+    }
+
+    @Test
+    public void testReadAsyncBypassesSchedulingWhenThrottlingIsDisabled() {
+        LedgerEntries entries = entries(10);
+        ReadHandle handle = create(delegateReturning(entries), null);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 0);
+
+        Assert.assertSame(readFuture.join(), entries);
+        verify(scheduler, never()).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        verify(entries, never()).close();
+    }
+
+    @Test
+    public void testReadAsyncReturnsFailureWhenSchedulingIsRejected() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 0, 1);
+        RejectedExecutionException schedulingFailure = new RejectedExecutionException("scheduler closed");
+        doThrow(schedulingFailure).when(scheduler)
+                .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+        ReadHandle handle = create(mock(ReadHandle.class), tokenBucket);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 0);
+
+        CompletionException thrown = Assert.expectThrows(CompletionException.class, readFuture::join);
+        Assert.assertSame(thrown.getCause(), schedulingFailure);
+    }
+
+    @Test
+    public void testReadAsyncReturnsFailureWhenDelegateThrowsSynchronously() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 100, 1);
+        RuntimeException readFailure = new RuntimeException("synchronous read failure");
+        ReadHandle delegate = mock(ReadHandle.class);
+        when(delegate.readAsync(anyLong(), anyLong())).thenThrow(readFailure);
+        ReadHandle handle = create(delegate, tokenBucket);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 0);
+
+        CompletionException thrown = Assert.expectThrows(CompletionException.class, readFuture::join);
+        Assert.assertSame(thrown.getCause(), readFailure);
+        Assert.assertEquals(tokenBucket.getTokens(), 100);
+    }
+
+    private ReadHandle create(ReadHandle delegate, AsyncTokenBucket tokenBucket) {
+        return OffloadReadHandle.create(delegate, tokenBucket, scheduler).join();
+    }
+
+    private AsyncTokenBucket newTokenBucket(long rate, long initialTokens, long targetTokensAfterThrottling) {
+        return AsyncTokenBucket.builder()
+                .clock(clock::get)
+                .addTokensResolutionNanos(0)
+                .initialTokens(initialTokens)
+                .capacity(Math.max(1, initialTokens))
+                .rate(rate)
+                .targetAmountOfTokensAfterThrottling(targetTokensAfterThrottling)
+                .build();
+    }
+
+    private static ReadHandle delegateReturning(LedgerEntries entries) {
+        ReadHandle delegate = mock(ReadHandle.class);
+        when(delegate.readAsync(anyLong(), anyLong()))
+                .thenReturn(CompletableFuture.completedFuture(entries));
+        return delegate;
+    }
+
+    private static LedgerEntries entries(long... lengths) {
+        List<LedgerEntry> entryList = new ArrayList<>();
+        for (int i = 0; i < lengths.length; i++) {
+            LedgerEntry entry = mock(LedgerEntry.class);
+            when(entry.getLength()).thenReturn(lengths[i]);
+            entryList.add(entry);
         }
-        LedgerEntry entry = LedgerEntryImpl.create(1, 1, buf.readableBytes(), buf);
-        List<LedgerEntry> entryList = Lists.newArrayList(entry);
-        LedgerEntries entries = LedgerEntriesImpl.create(entryList);
-        ReadHandle handle = Mockito.mock(ReadHandle.class);
-        Mockito.doAnswer(inv -> CompletableFuture.completedFuture(entries)).when(handle)
-                .readAsync(Mockito.anyLong(), Mockito.anyLong());
-        Mockito.doAnswer(inv -> {
-            entries.close();
-            return CompletableFuture.completedFuture(null);
-        }).when(handle).closeAsync();
+        LedgerEntries entries = mock(LedgerEntries.class);
+        when(entries.iterator()).thenReturn(entryList.iterator());
+        return entries;
+    }
 
-        ManagedLedgerConfig config = new ManagedLedgerConfig();
-        config.setManagedLedgerOffloadFlowPermitsPerSecond(flowPermits);
+    private void assertOnlyScheduledTask(long expectedDelayNanos) {
+        Assert.assertEquals(scheduledTasks.size(), 1);
+        ScheduledTask task = scheduledTasks.get(0);
+        Assert.assertEquals(task.delay, expectedDelayNanos);
+        Assert.assertEquals(task.unit, TimeUnit.NANOSECONDS);
+    }
 
-        CompletableFuture<ReadHandle> future = OffloadReadHandle.create(handle, config,
-                new ManagedLedgerInfo.LedgerInfo().setLedgerId(1)
-                        .setEntries(1).setSize(100));
+    private void runNextScheduledTask() {
+        scheduledTasks.remove(0).runnable.run();
+    }
 
-        return future.get();
+    private static final class ScheduledTask {
+        private final Runnable runnable;
+        private final long delay;
+        private final TimeUnit unit;
+
+        private ScheduledTask(Runnable runnable, long delay, TimeUnit unit) {
+            this.runnable = runnable;
+            this.delay = delay;
+            this.unit = unit;
+        }
     }
 }

@@ -4522,7 +4522,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             prepareLedgerInfoForOffloaded(ledgerId, uuid, driverName, driverMetadata)
                 .thenCompose((ignore) -> getLedgerHandle(ledgerId))
-                .thenCompose(h -> OffloadReadHandle.create(h, config, info))
+                .thenCompose(h -> OffloadReadHandle.create(h, factory.getOffloadTokenBucket(), scheduledExecutor))
                 .thenCompose(readHandle -> config.getLedgerOffloader().offload(readHandle, uuid, extraMetadata))
                 .thenCompose((ignore) -> {
                         return Retries.run(Backoff.exponentialJittered(TimeUnit.SECONDS.toMillis(1),
