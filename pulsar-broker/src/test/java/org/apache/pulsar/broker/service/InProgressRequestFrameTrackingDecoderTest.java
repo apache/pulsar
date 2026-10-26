@@ -49,18 +49,22 @@ public class InProgressRequestFrameTrackingDecoderTest {
         AtomicLong totalUsedBytes = new AtomicLong();
         AtomicLong directMemoryUsedBytes = new AtomicLong(85);
         InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
-                totalUsedBytes, 50, directMemoryUsedBytes::get, 100);
+                totalUsedBytes, 150, 100, directMemoryUsedBytes::get, 100);
         InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes,
                 state);
 
-        limiter.acquire(51);
-        limiter.checkAutoLimit();
+        limiter.acquire(151);
+        limiter.updateAutomaticLimitEnabledState();
 
         assertThat(state.isAutomaticallyEnabled()).isTrue();
         assertThat(limiter.isEnabled()).isTrue();
+        assertThat(limiter.isThrottled()).isFalse();
+
+        limiter.acquire(1);
+        assertThat(limiter.isThrottled()).isTrue();
 
         directMemoryUsedBytes.set(64);
-        limiter.release(51);
+        limiter.release(152);
 
         assertThat(state.isAutomaticallyEnabled()).isFalse();
         assertThat(limiter.isEnabled()).isFalse();
@@ -71,7 +75,7 @@ public class InProgressRequestFrameTrackingDecoderTest {
         AtomicLong totalUsedBytes = new AtomicLong();
         AtomicLong directMemoryUsedBytes = new AtomicLong(85);
         InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
-                totalUsedBytes, 50, directMemoryUsedBytes::get, 100);
+                totalUsedBytes, 150, 100, directMemoryUsedBytes::get, 100);
         InProgressRequestFrameMemoryLimiter firstLimiter = new InProgressRequestFrameMemoryLimiter(1_000,
                 totalUsedBytes, state);
         InProgressRequestFrameMemoryLimiter secondLimiter = new InProgressRequestFrameMemoryLimiter(1_000,
@@ -79,20 +83,21 @@ public class InProgressRequestFrameTrackingDecoderTest {
         firstLimiter.registerThrottleStateListener("first", ignored -> { });
         secondLimiter.registerThrottleStateListener("second", ignored -> { });
 
-        firstLimiter.acquire(51);
-        firstLimiter.checkAutoLimit();
+        firstLimiter.acquire(151);
+        firstLimiter.updateAutomaticLimitEnabledState();
         assertThat(state.isAutomaticallyEnabled()).isTrue();
         assertThat(firstLimiter.isThrottled()).isFalse();
         assertThat(secondLimiter.isThrottled()).isFalse();
 
-        secondLimiter.acquire(50);
+        secondLimiter.acquire(1);
         assertThat(firstLimiter.isThrottled()).isTrue();
         assertThat(secondLimiter.isThrottled()).isTrue();
 
-        secondLimiter.release(50);
+        firstLimiter.release(52);
         assertThat(firstLimiter.isThrottled()).isTrue();
         assertThat(secondLimiter.isThrottled()).isTrue();
-        firstLimiter.release(1);
+
+        firstLimiter.release(50);
         assertThat(firstLimiter.isThrottled()).isFalse();
         assertThat(secondLimiter.isThrottled()).isFalse();
     }
@@ -102,16 +107,16 @@ public class InProgressRequestFrameTrackingDecoderTest {
         AtomicLong totalUsedBytes = new AtomicLong();
         AtomicLong directMemoryUsedBytes = new AtomicLong(85);
         InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
-                totalUsedBytes, 50, directMemoryUsedBytes::get, 100);
+                totalUsedBytes, 150, 100, directMemoryUsedBytes::get, 100);
         InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes,
                 state);
 
-        limiter.acquire(51);
-        limiter.checkAutoLimit();
+        limiter.acquire(151);
+        limiter.updateAutomaticLimitEnabledState();
         assertThat(state.isAutomaticallyEnabled()).isTrue();
 
         state.setUserEnabled(true);
-        limiter.checkAutoLimit();
+        limiter.updateAutomaticLimitEnabledState();
 
         assertThat(state.isUserEnabled()).isTrue();
         assertThat(state.isAutomaticallyEnabled()).isFalse();
@@ -123,15 +128,15 @@ public class InProgressRequestFrameTrackingDecoderTest {
         AtomicLong totalUsedBytes = new AtomicLong();
         AtomicLong directMemoryUsedBytes = new AtomicLong(85);
         InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
-                totalUsedBytes, 50, directMemoryUsedBytes::get, 100);
+                totalUsedBytes, 150, 100, directMemoryUsedBytes::get, 100);
         InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes,
                 state);
 
-        limiter.acquire(51);
-        limiter.checkAutoLimit();
+        limiter.acquire(151);
+        limiter.updateAutomaticLimitEnabledState();
         assertThat(state.isAutomaticallyEnabled()).isTrue();
 
-        state.setAutomaticEnableThresholdBytes(-1);
+        state.setAutomaticThresholdBytes(-1, -1);
 
         assertThat(state.isAutomaticallyEnabled()).isFalse();
         assertThat(limiter.isEnabled()).isFalse();

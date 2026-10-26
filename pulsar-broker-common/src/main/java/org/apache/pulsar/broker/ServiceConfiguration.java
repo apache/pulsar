@@ -1958,10 +1958,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "maxMessagePublishBufferSizeInMB. The tracked memory is always exported through the "
             + "pulsar.broker.publish.in.progress.buffer.memory.usage metric. When disabled, the broker can still "
             + "enable this limiter locally when direct memory "
-            + "usage reaches 85% and in-progress request-frame memory exceeds half of "
+            + "usage reaches 85% and in-progress request-frame memory exceeds 1.5 times "
             + "maxMessagePublishBufferSizeInMB; it disables the automatic limit below 65%. Enabling this setting "
             + "dynamically clears and disables the broker-local automatic mode.")
-    private boolean maxMessagePublishBufferSizeInMBUseInputBuffer = false;
+    private boolean inProgressRequestFrameMemoryLimitEnabled = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a "
             + "managed ledger backing a persistent topic. It can improve write availability of topics.\n"

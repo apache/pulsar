@@ -42,7 +42,8 @@ final class InProgressRequestFrameMemoryLimiter {
 
     InProgressRequestFrameMemoryLimiter(long limitBytes, boolean enabled, AtomicLong totalUsedBytes) {
         this(limitBytes, totalUsedBytes, new InProgressRequestFrameMemoryLimiterState(enabled, totalUsedBytes,
-                limitBytes / 2, () -> 0, Long.MAX_VALUE));
+                InProgressRequestFrameMemoryLimiterState.automaticEnableThresholdBytes(limitBytes), limitBytes,
+                () -> 0, Long.MAX_VALUE));
     }
 
     InProgressRequestFrameMemoryLimiter(long limitBytes, AtomicLong totalUsedBytes,
@@ -86,7 +87,7 @@ final class InProgressRequestFrameMemoryLimiter {
         if (state.isAutomaticallyEnabled()) {
             // A periodic direct-memory check is unnecessary: this limiter affects only subsequent inbound requests,
             // and releasing an in-progress root buffer is the relevant event that can make those requests runnable.
-            state.checkAutoLimit();
+            state.updateAutomaticLimitEnabledState();
         }
         unregisterFromStateIfUnused();
     }
@@ -167,8 +168,8 @@ final class InProgressRequestFrameMemoryLimiter {
         return state.isEnabled();
     }
 
-    void checkAutoLimit() {
-        state.checkAutoLimit();
+    void updateAutomaticLimitEnabledState() {
+        state.updateAutomaticLimitEnabledState();
     }
 
     void onEnabledStateChanged() {

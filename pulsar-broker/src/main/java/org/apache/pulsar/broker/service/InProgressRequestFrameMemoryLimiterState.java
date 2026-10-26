@@ -38,13 +38,16 @@ final class InProgressRequestFrameMemoryLimiterState {
     private boolean automaticallyEnabled;
     private boolean automaticallyThrottled;
     private long automaticEnableThresholdBytes;
+    private long automaticThrottleLimitBytes;
 
     InProgressRequestFrameMemoryLimiterState(boolean userEnabled, AtomicLong totalUsedBytes,
                                               long automaticEnableThresholdBytes,
+                                              long automaticThrottleLimitBytes,
                                               LongSupplier directMemoryUsedBytesSupplier, long maxDirectMemoryBytes) {
         this.userEnabled = userEnabled;
         this.totalUsedBytes = totalUsedBytes;
         this.automaticEnableThresholdBytes = automaticEnableThresholdBytes;
+        this.automaticThrottleLimitBytes = automaticThrottleLimitBytes;
         this.directMemoryUsedBytesSupplier = directMemoryUsedBytesSupplier;
         this.maxDirectMemoryBytes = maxDirectMemoryBytes;
     }
@@ -55,6 +58,10 @@ final class InProgressRequestFrameMemoryLimiterState {
 
     void unregister(InProgressRequestFrameMemoryLimiter limiter) {
         limiters.remove(limiter);
+    }
+
+    static long automaticEnableThresholdBytes(long limitBytes) {
+        return limitBytes > Long.MAX_VALUE / 3 ? Long.MAX_VALUE : limitBytes * 3 / 2;
     }
 
     synchronized boolean isEnabled() {
@@ -88,16 +95,17 @@ final class InProgressRequestFrameMemoryLimiterState {
         }
     }
 
-    void setAutomaticEnableThresholdBytes(long thresholdBytes) {
+    void setAutomaticThresholdBytes(long enableThresholdBytes, long throttleLimitBytes) {
         boolean notifyLimiters;
         synchronized (this) {
-            automaticEnableThresholdBytes = thresholdBytes;
+            automaticEnableThresholdBytes = enableThresholdBytes;
+            automaticThrottleLimitBytes = throttleLimitBytes;
             notifyLimiters = automaticallyEnabled;
-            if (automaticallyEnabled && thresholdBytes <= 0) {
+            if (automaticallyEnabled && (enableThresholdBytes <= 0 || throttleLimitBytes <= 0)) {
                 automaticallyEnabled = false;
                 automaticallyThrottled = false;
             } else if (automaticallyEnabled) {
-                automaticallyThrottled = totalUsedBytes.get() > automaticLimitBytes(thresholdBytes);
+                automaticallyThrottled = totalUsedBytes.get() > throttleLimitBytes;
             }
         }
         if (notifyLimiters) {
@@ -113,9 +121,9 @@ final class InProgressRequestFrameMemoryLimiterState {
             }
             boolean previousThrottled = automaticallyThrottled;
             if (automaticallyThrottled) {
-                automaticallyThrottled = totalUsedBytes.get() > automaticEnableThresholdBytes;
+                automaticallyThrottled = totalUsedBytes.get() > automaticResumeThresholdBytes();
             } else {
-                automaticallyThrottled = totalUsedBytes.get() > automaticLimitBytes(automaticEnableThresholdBytes);
+                automaticallyThrottled = totalUsedBytes.get() > automaticThrottleLimitBytes;
             }
             stateChanged = previousThrottled != automaticallyThrottled;
         }
@@ -124,7 +132,7 @@ final class InProgressRequestFrameMemoryLimiterState {
         }
     }
 
-    void checkAutoLimit() {
+    void updateAutomaticLimitEnabledState() {
         synchronized (this) {
             if (userEnabled || maxDirectMemoryBytes <= 0) {
                 return;
@@ -148,9 +156,10 @@ final class InProgressRequestFrameMemoryLimiterState {
             } else if (directMemoryUsedBytes >= percentageOf(maxDirectMemoryBytes,
                     ENABLE_DIRECT_MEMORY_USAGE_PERCENT)
                     && automaticEnableThresholdBytes > 0
+                    && automaticThrottleLimitBytes > 0
                     && totalUsedBytes.get() > automaticEnableThresholdBytes) {
                 automaticallyEnabled = true;
-                automaticallyThrottled = totalUsedBytes.get() > automaticLimitBytes(automaticEnableThresholdBytes);
+                // The automatic limit affects subsequent requests. Their tracked roots update the throttle state.
                 stateChanged = true;
             }
             enabled = automaticallyEnabled;
@@ -174,7 +183,7 @@ final class InProgressRequestFrameMemoryLimiterState {
         return value / 100 * percentage + value % 100 * percentage / 100;
     }
 
-    private static long automaticLimitBytes(long thresholdBytes) {
-        return thresholdBytes > Long.MAX_VALUE / 2 ? Long.MAX_VALUE : thresholdBytes * 2;
+    private long automaticResumeThresholdBytes() {
+        return automaticThrottleLimitBytes / 2;
     }
 }

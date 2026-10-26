@@ -77,7 +77,7 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof ByteBuf buffer) {
             RootBuffer root = rootFor(buffer);
-            limiter.checkAutoLimit();
+            limiter.updateAutomaticLimitEnabledState();
             super.channelRead(ctx, new TrackedByteBuf(buffer, root));
         } else {
             super.channelRead(ctx, msg);

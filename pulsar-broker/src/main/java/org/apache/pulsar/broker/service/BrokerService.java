@@ -405,8 +405,10 @@ public class BrokerService implements Closeable {
         ServiceConfiguration configuration = pulsar.getConfiguration();
         long requestFrameMemoryLimitBytes = configuration.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L;
         this.inProgressRequestFrameMemoryLimiterState = new InProgressRequestFrameMemoryLimiterState(
-                configuration.isMaxMessagePublishBufferSizeInMBUseInputBuffer(), inProgressRequestFrameMemoryUsedBytes,
-                requestFrameMemoryLimitBytes / 2, JvmMetrics::getJvmDirectMemoryUsed,
+                configuration.isInProgressRequestFrameMemoryLimitEnabled(), inProgressRequestFrameMemoryUsedBytes,
+                InProgressRequestFrameMemoryLimiterState.automaticEnableThresholdBytes(requestFrameMemoryLimitBytes),
+                requestFrameMemoryLimitBytes,
+                JvmMetrics::getJvmDirectMemoryUsed,
                 DirectMemoryUtils.jvmMaxDirectMemory());
         this.inProgressRequestFrameMemoryLimiter = createInProgressRequestFrameMemoryLimiter();
         this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock(), producer -> {
@@ -3731,8 +3733,12 @@ public class BrokerService implements Closeable {
                 (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(
                         new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
         registerConfigurationListener("maxMessagePublishBufferSizeInMB", value -> {
-            inProgressRequestFrameMemoryLimiterState.setAutomaticEnableThresholdBytes(
-                    ((int) value) * 1024L * 1024L / 2);
+            long requestFrameMemoryLimitBytes = ((int) value) * 1024L * 1024L;
+            long automaticEnableThresholdBytes =
+                    InProgressRequestFrameMemoryLimiterState.automaticEnableThresholdBytes(
+                            requestFrameMemoryLimitBytes);
+            inProgressRequestFrameMemoryLimiterState.setAutomaticThresholdBytes(
+                    automaticEnableThresholdBytes, requestFrameMemoryLimitBytes);
             inProgressRequestFrameMemoryLimiter = createInProgressRequestFrameMemoryLimiter();
         });
         registerConfigurationListener("loadManagerClassName", className -> {
@@ -3797,7 +3803,7 @@ public class BrokerService implements Closeable {
                     defaultManagedLedgerFactory.updateCacheEvictionExtendTTLOfRecentlyAccessed(
                             (boolean) extendTTLOfRecentlyAccessed);
                 });
-        registerConfigurationListener("maxMessagePublishBufferSizeInMBUseInputBuffer", enabled -> {
+        registerConfigurationListener("inProgressRequestFrameMemoryLimitEnabled", enabled -> {
             inProgressRequestFrameMemoryLimiterState.setUserEnabled((boolean) enabled);
         });
         registerConfigurationListener("managedLedgerCacheCopyEntries", copyEntries -> {
