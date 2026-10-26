@@ -57,6 +57,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -1860,9 +1861,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
 
         PulsarService pulsar = pulsarTestContext.getPulsarService();
-        final URL brokerUrl = new URL(
+        final URL brokerUrl = URI.create(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort()
-                        .get());
+                        .get()).toURL();
         @Cleanup
         PulsarClient client = spy(PulsarClient.builder().serviceUrl(brokerUrl.toString()).build());
         PulsarClientImpl clientImpl = (PulsarClientImpl) client;
