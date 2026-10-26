@@ -261,10 +261,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 compressionConfigForManagedCursorInfo);
         this.config = config;
         long offloadFlowPermitsPerSecond = config.getManagedLedgerOffloadFlowPermitsPerSecond();
+        long offloadTokenBucketCapacity = offloadFlowPermitsPerSecond > Long.MAX_VALUE / 2
+                ? Long.MAX_VALUE
+                : 2 * offloadFlowPermitsPerSecond;
         this.offloadTokenBucket = offloadFlowPermitsPerSecond > 0
                 ? AsyncTokenBucket.builder()
                         .initialTokens(0)
-                        .capacity(2 * offloadFlowPermitsPerSecond)
+                        .capacity(offloadTokenBucketCapacity)
                         .rate(offloadFlowPermitsPerSecond)
                         .build()
                 : null;

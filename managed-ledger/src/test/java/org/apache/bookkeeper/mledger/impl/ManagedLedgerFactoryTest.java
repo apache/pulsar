@@ -84,6 +84,18 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         }
     }
 
+    @Test
+    public void testOffloadTokenBucketCapacityDoesNotOverflow() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setManagedLedgerOffloadFlowPermitsPerSecond(Long.MAX_VALUE);
+        ManagedLedgerFactoryImpl factoryWithLargeLimit = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+        try {
+            assertThat(factoryWithLargeLimit.getOffloadTokenBucket().getCapacity()).isEqualTo(Long.MAX_VALUE);
+        } finally {
+            factoryWithLargeLimit.shutdownAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
     @Test(timeOut = 20000)
     public void testGetManagedLedgerInfoWithClose() throws Exception {
         ManagedLedgerConfig conf = defaultConfig();

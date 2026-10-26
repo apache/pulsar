@@ -99,6 +99,56 @@ public class OffloadReadHandleTest {
     }
 
     @Test
+    public void testReadAsyncConsumesActualBytesOnlyAfterDelegateCompletes() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 1_000, 1);
+        LedgerEntries entries = entries(30, 70);
+        CompletableFuture<LedgerEntries> delegateFuture = new CompletableFuture<>();
+        ReadHandle delegate = mock(ReadHandle.class);
+        when(delegate.readAsync(anyLong(), anyLong())).thenReturn(delegateFuture);
+        ReadHandle handle = create(delegate, tokenBucket);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 1);
+
+        Assert.assertFalse(readFuture.isDone());
+        Assert.assertEquals(tokenBucket.getTokens(), 1_000);
+        delegateFuture.complete(entries);
+        Assert.assertSame(readFuture.join(), entries);
+        Assert.assertEquals(tokenBucket.getTokens(), 900);
+        verify(entries, never()).close();
+    }
+
+    @Test
+    public void testReadAsyncClosesEntriesWhenCancelledBeforeDelegateCompletes() {
+        LedgerEntries entries = entries(10);
+        CompletableFuture<LedgerEntries> delegateFuture = new CompletableFuture<>();
+        ReadHandle delegate = mock(ReadHandle.class);
+        when(delegate.readAsync(anyLong(), anyLong())).thenReturn(delegateFuture);
+        ReadHandle handle = create(delegate, null);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 0);
+
+        Assert.assertTrue(readFuture.cancel(false));
+        delegateFuture.complete(entries);
+        Assert.assertTrue(readFuture.isCancelled());
+        verify(entries).close();
+    }
+
+    @Test
+    public void testReadAsyncClosesEntriesWhenAccountingFails() {
+        AsyncTokenBucket tokenBucket = newTokenBucket(100, 100, 1);
+        RuntimeException accountingFailure = new RuntimeException("accounting failed");
+        LedgerEntries entries = mock(LedgerEntries.class);
+        when(entries.iterator()).thenThrow(accountingFailure);
+        ReadHandle handle = create(delegateReturning(entries), tokenBucket);
+
+        CompletableFuture<LedgerEntries> readFuture = handle.readAsync(0, 0);
+
+        CompletionException thrown = Assert.expectThrows(CompletionException.class, readFuture::join);
+        Assert.assertSame(thrown.getCause(), accountingFailure);
+        verify(entries).close();
+    }
+
+    @Test
     public void testReadAsyncDoesNotConsumeTokensAfterFailedRead() {
         AsyncTokenBucket tokenBucket = newTokenBucket(100, 100, 1);
         RuntimeException readFailure = new RuntimeException("read failed");

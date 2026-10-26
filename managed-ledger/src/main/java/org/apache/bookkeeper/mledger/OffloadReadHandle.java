@@ -87,9 +87,17 @@ public final class OffloadReadHandle implements ReadHandle {
                         }
                         tokenBucket.consumeTokens(bytesRead);
                     }
-                    result.complete(entries);
                 } catch (Throwable t) {
+                    try {
+                        entries.close();
+                    } catch (Throwable closeException) {
+                        t.addSuppressed(closeException);
+                    }
                     result.completeExceptionally(t);
+                    return;
+                }
+                if (!result.complete(entries)) {
+                    entries.close();
                 }
             });
         } catch (Throwable t) {
