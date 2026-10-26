@@ -18,13 +18,22 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.CompositeByteBuf;
-import java.io.IOException;
+import io.netty.buffer.Unpooled;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.schema.SchemaDefinition;
@@ -36,26 +45,143 @@ import org.apache.pulsar.client.impl.schema.generic.MultiVersionSchemaInfoProvid
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
+import org.apache.pulsar.common.compression.CompressionCodecZLib;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
-
-import static org.mockito.Mockito.when;
-import static org.testng.AssertJUnit.fail;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link MessageImpl}.
  */
 public class MessageImplTest {
+
+    @DataProvider(name = "messageBufferTypes")
+    public Object[][] messageBufferTypes() {
+        return new Object[][]{
+                {true, false},
+                {true, true},
+                {false, false},
+                {false, true}
+        };
+    }
+
+    @Test(dataProvider = "messageBufferTypes")
+    public void testRepeatedGetDataOfBatchMessage(boolean pooledMessage, boolean directBuffer) {
+        ByteBuf source = directBuffer ? Unpooled.directBuffer(6) : Unpooled.buffer(6);
+        try {
+            source.writeBytes(new byte[]{0, 1, 2, 3, 4, 5});
+            ByteBuf payload = source.slice(1, 4).readerIndex(1);
+            MessageImpl<byte[]> message = MessageImpl.create("test-topic", new BatchMessageIdImpl(1, 2, -1, 0),
+                    new MessageMetadata().setNumMessagesInBatch(1), new SingleMessageMetadata(), payload,
+                    Optional.empty(), null, Schema.BYTES, 0, pooledMessage, Commands.DEFAULT_CONSUMER_EPOCH);
+            try {
+                assertRepeatedGetData(message, new byte[]{2, 3, 4});
+            } finally {
+                if (pooledMessage) {
+                    message.release();
+                } else {
+                    message.getDataBuffer().release();
+                }
+            }
+        } finally {
+            source.release();
+        }
+        assertThat(source.refCnt()).as("source buffer references after message release").isZero();
+    }
+
+    @Test
+    public void testRepeatedGetDataOfZlibBatchMessages() throws Exception {
+        byte[][] expected = {{1, 2, 3, 4}, {5, 6, 7}};
+        ByteBuf batch = Unpooled.buffer();
+        try {
+            for (byte[] data : expected) {
+                ByteBuf payload = Unpooled.wrappedBuffer(data);
+                try {
+                    Commands.serializeSingleMessageInBatchWithPayload(new SingleMessageMetadata(), payload, batch);
+                } finally {
+                    payload.release();
+                }
+            }
+            CompressionCodecZLib codec = new CompressionCodecZLib();
+            ByteBuf compressed = codec.encode(batch);
+            try {
+                ByteBuf uncompressed = codec.decode(compressed, batch.readableBytes());
+                try {
+                    assertThat(uncompressed.hasArray()).as("ZLIB decoded batch uses heap memory").isTrue();
+                    for (int i = 0; i < expected.length; i++) {
+                        SingleMessageMetadata singleMetadata = new SingleMessageMetadata();
+                        ByteBuf payload = Commands.deSerializeSingleMessageInBatch(
+                                uncompressed, singleMetadata, i, expected.length);
+                        try {
+                            MessageImpl<byte[]> message = MessageImpl.create("test-topic",
+                                    new BatchMessageIdImpl(1, 2, -1, i),
+                                    new MessageMetadata().setNumMessagesInBatch(expected.length), singleMetadata,
+                                    payload, Optional.empty(), null, Schema.BYTES, 0, true,
+                                    Commands.DEFAULT_CONSUMER_EPOCH);
+                            try {
+                                assertRepeatedGetData(message, expected[i]);
+                            } finally {
+                                message.release();
+                            }
+                        } finally {
+                            payload.release();
+                        }
+                    }
+                } finally {
+                    uncompressed.release();
+                }
+                assertThat(uncompressed.refCnt()).as("decoded batch references after message release").isZero();
+            } finally {
+                compressed.release();
+            }
+        } finally {
+            batch.release();
+        }
+    }
+
+    private static void assertRepeatedGetData(MessageImpl<byte[]> message, byte[] expected) {
+        int readerIndex = message.getDataBuffer().readerIndex();
+        for (int i = 0; i < 2; i++) {
+            assertThat(message.getData()).as("payload on read %s", i).containsExactly(expected);
+            assertThat(message.size()).as("message size after read %s", i).isEqualTo(expected.length);
+            assertThat(message.getDataBuffer().readerIndex()).as("reader index after read %s", i)
+                    .isEqualTo(readerIndex);
+        }
+    }
+
+    @Test
+    public void testOutgoingBrokerMetadataBeforeAndAfterRecycle() {
+        MessageImpl<byte[]> message = MessageImpl.create(new MessageMetadata(),
+                ByteBuffer.wrap(new byte[1]), Schema.BYTES, "test-topic");
+        try {
+            assertFalse(message.hasBrokerPublishTime());
+            assertFalse(message.hasIndex());
+            assertTrue(message.getBrokerPublishTime().isEmpty());
+            assertTrue(message.getIndex().isEmpty());
+            message.setBrokerEntryMetadata(new BrokerEntryMetadata().setBrokerTimestamp(123).setIndex(456));
+            assertEquals(message.getBrokerPublishTime().orElseThrow().longValue(), 123L);
+            assertEquals(message.getIndex().orElseThrow().longValue(), 456L);
+        } finally {
+            message.getDataBuffer().release();
+            message.recycle();
+        }
+
+        MessageImpl<byte[]> next = MessageImpl.create(new MessageMetadata(),
+                ByteBuffer.wrap(new byte[1]), Schema.BYTES, "test-topic");
+        try {
+            assertFalse(next.hasBrokerPublishTime());
+            assertFalse(next.hasIndex());
+            assertTrue(next.getBrokerPublishTime().isEmpty());
+            assertTrue(next.getIndex().isEmpty());
+        } finally {
+            next.getDataBuffer().release();
+            next.recycle();
+        }
+    }
 
     @Test
     public void testGetSequenceIdNotAssociated() {
@@ -109,13 +235,15 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
         AvroSchema<SchemaTestUtils.Bar> barSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         SchemaTestUtils.Foo foo = new SchemaTestUtils.Foo();
         foo.setField1("field1");
         foo.setField2("field2");
@@ -124,7 +252,7 @@ public class MessageImplTest {
         bar.setField1(true);
 
         // // Check kv.encoding.type default, not set value
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
@@ -136,6 +264,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testInlineGetProducerDataAssigned() {
 
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
@@ -153,7 +282,7 @@ public class MessageImplTest {
         bar.setField1(true);
 
         // Check kv.encoding.type INLINE
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("inline");
         MessageImpl<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> msg = MessageImpl.create(
@@ -165,6 +294,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -181,7 +311,7 @@ public class MessageImplTest {
         bar.setField1(true);
 
         // Check kv.encoding.type SPRAERATE
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
         builder.setPartitionKey(Base64.getEncoder().encodeToString(fooSchema.encode(foo)));
@@ -195,6 +325,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultAVROVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -202,7 +333,8 @@ public class MessageImplTest {
                 SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -214,7 +346,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
@@ -230,6 +362,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedAVROVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -250,7 +383,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
         builder.setSchemaVersion(new byte[10]);
@@ -268,14 +401,16 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultJSONVersionGetProducerDataAssigned() {
-        JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(
-                SchemaTestUtils.Foo.class).build());
-        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(
-                SchemaTestUtils.Bar.class).build());
+        JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -287,7 +422,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
@@ -303,6 +438,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedJSONVersionGetProducerDataAssigned() {
         JSONSchema<SchemaTestUtils.Foo> fooSchema = JSONSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -323,7 +459,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
         builder.setSchemaVersion(new byte[10]);
@@ -341,14 +477,16 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testDefaultAVROJSONVersionGetProducerDataAssigned() {
-        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(
-                SchemaTestUtils.Foo.class).build());
-        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(
-                SchemaTestUtils.Bar.class).build());
+        AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
+        JSONSchema<SchemaTestUtils.Bar> barSchema = JSONSchema.of(
+                SchemaDefinition.<SchemaTestUtils.Bar>builder().withPojo(SchemaTestUtils.Bar.class).build());
 
         MultiVersionSchemaInfoProvider multiVersionSchemaInfoProvider = mock(MultiVersionSchemaInfoProvider.class);
-        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema = Schema.KeyValue(fooSchema, barSchema);
+        Schema<KeyValue<SchemaTestUtils.Foo, SchemaTestUtils.Bar>> keyValueSchema =
+                Schema.KeyValue(fooSchema, barSchema);
         keyValueSchema.setSchemaInfoProvider(multiVersionSchemaInfoProvider);
         when(multiVersionSchemaInfoProvider.getSchemaByVersion(any(byte[].class)))
                 .thenReturn(CompletableFuture.completedFuture(keyValueSchema.getSchemaInfo()));
@@ -360,7 +498,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("default");
         builder.setSchemaVersion(new byte[10]);
@@ -376,6 +514,7 @@ public class MessageImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testSeparatedAVROJSONVersionGetProducerDataAssigned() {
         AvroSchema<SchemaTestUtils.Foo> fooSchema = AvroSchema.of(
                 SchemaDefinition.<SchemaTestUtils.Foo>builder().withPojo(SchemaTestUtils.Foo.class).build());
@@ -396,7 +535,7 @@ public class MessageImplTest {
         SchemaTestUtils.Bar bar = new SchemaTestUtils.Bar();
         bar.setField1(true);
 
-        byte[] encodeBytes = keyValueSchema.encode(new KeyValue(foo, bar));
+        byte[] encodeBytes = keyValueSchema.encode(new KeyValue<>(foo, bar));
         MessageMetadata builder = new MessageMetadata()
                 .setProducerName("separated");
         builder.setSchemaVersion(new byte[10]);
@@ -428,7 +567,7 @@ public class MessageImplTest {
 
     @Test(timeOut = 30000)
     public void testMessageBrokerAndEntryMetadataTimestampMissed() {
-        int MOCK_BATCH_SIZE = 10;
+        int mockBatchSize = 10;
         String data = "test-message";
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
@@ -441,7 +580,7 @@ public class MessageImplTest {
                     .setSequenceId(1);
             byteBuf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, messageMetadata, byteBuf);
             BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata()
-                            .setIndex(MOCK_BATCH_SIZE - 1);
+                            .setIndex(mockBatchSize - 1);
 
             int brokerMetaSize = brokerMetadata.getSerializedSize();
             ByteBuf  brokerMeta = PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
@@ -466,7 +605,7 @@ public class MessageImplTest {
             long brokerEntryTimestamp = System.currentTimeMillis();
             brokerMetadata = new BrokerEntryMetadata()
                     .setBrokerTimestamp(brokerEntryTimestamp)
-                    .setIndex(MOCK_BATCH_SIZE - 1);
+                    .setIndex(mockBatchSize - 1);
 
             brokerMetaSize = brokerMetadata.getSerializedSize();
             brokerMeta = PulsarByteBufAllocator.DEFAULT.buffer(brokerMetaSize + 6, brokerMetaSize + 6);
@@ -479,14 +618,14 @@ public class MessageImplTest {
             entryTimestamp = Commands.getEntryTimestamp(compositeByteBuf);
             assertFalse(MessageImpl.isEntryExpired(24 * 3600, entryTimestamp));
             assertEquals(entryTimestamp, brokerEntryTimestamp);
-        } catch (IOException e) {
+        } catch (Exception e) {
             fail();
         }
     }
 
     @Test(timeOut = 30000)
     public void testParseMessageMetadataWithBrokerEntryMetadata() {
-        int MOCK_BATCH_SIZE = 10;
+        int mockBatchSize = 10;
         String data = "test-message";
         ByteBuf byteBuf = PulsarByteBufAllocator.DEFAULT.buffer(data.length(), data.length());
         byteBuf.writeBytes(data.getBytes(StandardCharsets.UTF_8));
@@ -502,7 +641,7 @@ public class MessageImplTest {
 
         // build broker entry metadata
         BrokerEntryMetadata brokerMetadata = new BrokerEntryMetadata()
-                .setIndex(MOCK_BATCH_SIZE - 1);
+                .setIndex(mockBatchSize - 1);
 
         // build final data which contains broker entry metadata
         int brokerMetaSize = brokerMetadata.getSerializedSize();

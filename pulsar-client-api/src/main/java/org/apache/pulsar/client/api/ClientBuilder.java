@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
 import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
-
 /**
  * Builder interface that is used to configure and construct a {@link PulsarClient} instance.
  *
@@ -121,6 +120,44 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder serviceUrlProvider(ServiceUrlProvider serviceUrlProvider);
 
     /**
+     * Configure the service URL init quarantine duration.
+     * For single host serviceUrl, this setting has no effect.
+     *
+     * <p>When the client is unable to connect to an endpoint from serviceUrl with multiple hosts, that endpoint
+     *  will be quarantined for a specific duration that is determined in a certain exponential way.
+     * The init value of a single quarantine duration is set by
+     * @param serviceUrlQuarantineInitDuration. A successful usage of the endpoint will reset the
+     * duration to the initial value and move it back to the available addresses pool.
+     *
+     * <p>
+     * A value of 0 means don't quarantine any endpoints even if they fail.
+     * @param serviceUrlQuarantineInitDuration the initial quarantine duration
+     * for unavailable endpoint. Defaults to 60 seconds.
+     * @param unit the time unit for the quarantine duration
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlQuarantineInitDuration(long serviceUrlQuarantineInitDuration, TimeUnit unit);
+
+    /**
+     * Configure the service URL max quarantine duration.
+     * For single host serviceUrl, this setting has no effect.
+     *
+     * <p>When the client is unable to connect to an endpoint from serviceUrl with multiple hosts, that endpoint
+     * will be quarantined for a specific duration that is determined in a certain exponential way.
+     * The max value of a single quarantine duration is set by
+     * @param serviceUrlQuarantineMaxDuration. A successful usage of the endpoint will reset the
+     * duration to the initial value and move it back to the available addresses pool.
+     *
+     * <p>
+     * A value of 0 means don't quarantine any endpoints even if they fail.
+     * @param serviceUrlQuarantineMaxDuration the maximum quarantine duration for
+     * unavailable endpoint. Defaults to 1 day.
+     * @param unit the time unit for the quarantine duration
+     * @return the client builder instance
+     */
+    ClientBuilder serviceUrlQuarantineMaxDuration(long serviceUrlQuarantineMaxDuration, TimeUnit unit);
+
+    /**
      * Configure the listenerName that the broker will return the corresponding `advertisedListener`.
      *
      * @param name the listener name
@@ -130,6 +167,8 @@ public interface ClientBuilder extends Serializable, Cloneable {
 
     /**
      * Release the connection if it is not used for more than {@param connectionMaxIdleSeconds} seconds.
+     * Defaults to 60 seconds.
+     *
      * @return the client builder instance
      */
     ClientBuilder connectionMaxIdleSeconds(int connectionMaxIdleSeconds);
@@ -342,7 +381,12 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1.
      * Server Identity hostname verification.
      *
-     * @see <a href="https://tools.ietf.org/html/rfc2818">RFC 818</a>
+     * <p>The CN is only a fallback, and only on the default engines: it is consulted when the client connects by
+     * hostname and the certificate carries no {@code dNSName} SAN, and ignored once any is present. A client that
+     * pins Conscrypt as its JSSE provider verifies against the SAN alone and never falls back to the CN (Pulsar
+     * 5.0, PIP-478). A connection to an IP literal is matched against {@code iPAddress} SANs, never the CN.
+     *
+     * @see <a href="https://tools.ietf.org/html/rfc2818">RFC 2818</a>
      *
      * @param enableTlsHostnameVerification whether to enable TLS hostname verification
      * @return the client builder instance
@@ -437,9 +481,8 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder tlsProtocols(Set<String> tlsProtocols);
 
     /**
-     * Configure a limit on the amount of direct memory that will be allocated by this client instance.
-     * <p>
-     * <b>Note: at this moment this is only limiting the memory for producers.</b>
+     * Configure a limit on the amount of direct memory that will be allocated by this client instance
+     * <i>(default: 64 MB)</i>.
      * <p>
      * Setting this to 0 will disable the limit.
      *
@@ -577,6 +620,44 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder openTelemetry(io.opentelemetry.api.OpenTelemetry openTelemetry);
 
     /**
+     * Enable OpenTelemetry distributed tracing.
+     *
+     * <p>When enabled, interceptors are automatically added to all producers and consumers
+     * to create spans for message publishing and consumption, and automatically propagate trace context
+     * via message properties.
+     *
+     * <p>This method is useful when OpenTelemetry is configured globally (e.g., via Java Agent or
+     * {@link io.opentelemetry.api.GlobalOpenTelemetry}) and you just want to enable tracing interceptors
+     * without explicitly setting an OpenTelemetry instance.
+     *
+     * <p>Example with Java Agent:
+     * <pre>{@code
+     * // When using -javaagent:opentelemetry-javaagent.jar
+     * PulsarClient client = PulsarClient.builder()
+     *     .serviceUrl("pulsar://localhost:6650")
+     *     .enableTracing(true)  // Use GlobalOpenTelemetry
+     *     .build();
+     * }</pre>
+     *
+     * <p>Example with GlobalOpenTelemetry:
+     * <pre>{@code
+     * // Configure GlobalOpenTelemetry elsewhere in your application
+     * GlobalOpenTelemetry.set(myOpenTelemetry);
+     *
+     * // Just enable tracing in the client
+     * PulsarClient client = PulsarClient.builder()
+     *     .serviceUrl("pulsar://localhost:6650")
+     *     .enableTracing(true)
+     *     .build();
+     * }</pre>
+     *
+     * @param tracingEnabled whether to enable tracing (default: false)
+     * @return the client builder instance
+     * @since 4.2.0
+     */
+    ClientBuilder enableTracing(boolean tracingEnabled);
+
+    /**
      * The clock used by the pulsar client.
      *
      * <p>The clock is currently used by producer for setting publish timestamps.
@@ -598,7 +679,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      *
      * @param proxyServiceUrl proxy service url
      * @param proxyProtocol   protocol to decide type of proxy routing eg: SNI-routing
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder proxyServiceUrl(String proxyServiceUrl, ProxyProtocol proxyProtocol);
 
@@ -606,7 +687,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * If enable transaction, start the transactionCoordinatorClient with pulsar client.
      *
      * @param enableTransaction whether enable transaction feature
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder enableTransaction(boolean enableTransaction);
 
@@ -614,35 +695,122 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * Set dns lookup bind address and port.
      * @param address dnsBindAddress
      * @param port dnsBindPort
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder dnsLookupBind(String address, int port);
 
     /**
      * Set dns lookup server addresses.
      * @param addresses dnsServerAddresses
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder dnsServerAddresses(List<InetSocketAddress> addresses);
 
     /**
      *  Set socks5 proxy address.
      * @param socks5ProxyAddress
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder socks5ProxyAddress(InetSocketAddress socks5ProxyAddress);
 
     /**
      *  Set socks5 proxy username.
      * @param socks5ProxyUsername
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder socks5ProxyUsername(String socks5ProxyUsername);
 
     /**
      *  Set socks5 proxy password.
      * @param socks5ProxyPassword
-     * @return
+     * @return the client builder instance
      */
     ClientBuilder socks5ProxyPassword(String socks5ProxyPassword);
+
+    /**
+     * Set the scope that controls which connections are routed through the SOCKS5 proxy.
+     *
+     * <p>The default is {@link Socks5ProxyScope#BINARY_ONLY}, which preserves the pre-existing
+     * behavior where the SOCKS5 proxy only applied to Pulsar binary protocol connections to brokers.
+     * HTTP lookup and failover HTTP clients inside {@code PulsarClient} were not affected.
+     *
+     * <p>Set to {@link Socks5ProxyScope#HTTP_ONLY} or {@link Socks5ProxyScope#BOTH} to also route
+     * HTTP/HTTPS lookup traffic and failover HTTP clients through the SOCKS5 proxy.
+     *
+     * @param socks5ProxyScope the scope selector; must not be {@code null}
+     * @return the client builder instance
+     * @see Socks5ProxyScope
+     */
+    ClientBuilder socks5ProxyScope(Socks5ProxyScope socks5ProxyScope);
+
+    /**
+     * Set the class name of a custom {@code PulsarTlsFactory} (PIP-478) used to build the client's TLS
+     * engines. An empty value or the literal {@code "default"} selects the built-in file-based factory
+     * composed from the {@code tls*} settings; any other value is instantiated reflectively via its public
+     * no-arg constructor. This is the by-name successor of the removed PIP-337 {@code sslFactoryPlugin}.
+     *
+     * @param tlsFactoryClassName the {@code PulsarTlsFactory} class name (blank/{@code default} for built-in)
+     * @return the client builder instance
+     */
+    ClientBuilder tlsFactoryClassName(String tlsFactoryClassName);
+
+    /**
+     * Set the configuration parameters passed to a custom {@link #tlsFactoryClassName(String)} as its init
+     * params (PIP-478). Accepts a JSON object or a comma-separated {@code key=value} list; ignored by the
+     * built-in file-based factory.
+     *
+     * @param tlsFactoryConfig the factory configuration (JSON object or {@code key=value} list)
+     * @return the client builder instance
+     */
+    ClientBuilder tlsFactoryConfig(String tlsFactoryConfig);
+
+    /**
+     * Set Cert Refresh interval in seconds.
+     * @param autoCertRefreshSeconds
+     * @return the client builder instance
+     */
+    ClientBuilder autoCertRefreshSeconds(int autoCertRefreshSeconds);
+
+    /**
+     * Set the properties used for topic lookup.
+     * <p>
+     * When the broker performs topic lookup, these lookup properties will be taken into consideration in a customized
+     * load manager.
+     * <p>
+     * Note: The lookup properties are only used in topic lookup when:
+     * - The protocol is binary protocol, i.e. the service URL starts with "pulsar://" or "pulsar+ssl://"
+     * - The `loadManagerClassName` config in broker is a class that implements the `ExtensibleLoadManager` interface
+     */
+    ClientBuilder lookupProperties(Map<String, String> properties);
+
+    /**
+     * Set the description.
+     *
+     * <p> By default, when the client connects to the broker, a version string like "Pulsar-Java-v<x.y.z>" will be
+     * carried and saved by the broker. The client version string could be queried from the topic stats.
+     *
+     * <p> This method provides a way to add more description to a specific PulsarClient instance. If it's configured,
+     * the description will be appended to the original client version string, with '-' as the separator.
+     *
+     * <p>For example, if the client version is 3.0.0, and the description is "forked", the final client version string
+     * will be "Pulsar-Java-v3.0.0-forked".
+     *
+     * @param description the description of the current PulsarClient instance
+     * @throws IllegalArgumentException if the length of description exceeds 64
+     */
+    ClientBuilder description(String description);
+
+    /**
+     * Provide a set of shared client resources to be reused by this client.
+     * <p>
+     * Providing a shared resource instance allows PulsarClient instances to share resources
+     * (such as IO/event loops, timers, executors, DNS resolver/cache) with other PulsarClient
+     * instances, reducing memory footprint and thread usage when creating many clients in the same JVM.
+     *
+     * @param sharedResources the shared resources instance created with {@link PulsarClientSharedResources#builder()}
+     * @return the client builder instance
+     * @see PulsarClientSharedResources
+     * @see PulsarClientSharedResourcesBuilder
+     */
+    ClientBuilder sharedResources(PulsarClientSharedResources sharedResources);
 }

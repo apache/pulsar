@@ -22,8 +22,9 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import java.io.InputStream;
+import java.time.Duration;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.avro.AvroTypeException;
 import org.apache.commons.codec.binary.Hex;
 import org.apache.commons.lang3.SerializationException;
@@ -33,19 +34,18 @@ import org.apache.pulsar.client.api.schema.SchemaReader;
 import org.apache.pulsar.client.impl.schema.SchemaUtils;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The multi version reader abstract class, implement it will handle the multi version schema.
  */
+@CustomLog
 public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
 
     protected final SchemaReader<T> providerSchemaReader;
     protected SchemaInfoProvider schemaInfoProvider;
 
     LoadingCache<BytesSchemaVersion, SchemaReader<T>> readerCache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<BytesSchemaVersion, SchemaReader<T>>() {
+            .expireAfterAccess(Duration.ofMinutes(30)).build(new CacheLoader<BytesSchemaVersion, SchemaReader<T>>() {
                 @Override
                 public SchemaReader<T> load(BytesSchemaVersion schemaVersion) {
                     return loadReader(schemaVersion);
@@ -72,8 +72,10 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
             return schemaVersion == null ? read(inputStream) :
                     getSchemaReader(schemaVersion).read(inputStream);
         } catch (ExecutionException e) {
-            LOG.error("Can't get generic schema for topic {} schema version {}",
-                    schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
+            log.error().attr("topic", schemaInfoProvider.getTopicName())
+                    .attr("version", Hex.encodeHexString(schemaVersion))
+                    .exception(e)
+                    .log("Can't get generic schema");
             throw new RuntimeException("Can't get generic schema for topic " + schemaInfoProvider.getTopicName());
         }
     }
@@ -91,8 +93,10 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
             if (e instanceof AvroTypeException) {
                 throw new SchemaSerializationException(e);
             }
-            LOG.error("Can't get generic schema for topic {} schema version {}",
-                    schemaInfoProvider.getTopicName(), Hex.encodeHexString(schemaVersion), e);
+            log.error().attr("topic", schemaInfoProvider.getTopicName())
+                    .attr("version", Hex.encodeHexString(schemaVersion))
+                    .exception(e)
+                    .log("Can't get generic schema");
             throw new RuntimeException("Can't get generic schema for topic " + schemaInfoProvider.getTopicName());
         }
     }
@@ -129,6 +133,4 @@ public abstract class AbstractMultiVersionReader<T> implements SchemaReader<T> {
             );
         }
     }
-
-    protected static final Logger LOG = LoggerFactory.getLogger(AbstractMultiVersionReader.class);
 }

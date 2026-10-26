@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import javax.ws.rs.client.WebTarget;
+import jakarta.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -32,8 +32,8 @@ public class ProxyStatsImpl extends BaseResource implements ProxyStats {
 
     private final WebTarget adminProxyStats;
 
-    public ProxyStatsImpl(WebTarget target, Authentication auth, long readTimeoutMs) {
-        super(auth, readTimeoutMs);
+    public ProxyStatsImpl(WebTarget target, Authentication auth, long requestTimeoutMs) {
+        super(auth, requestTimeoutMs);
         adminProxyStats = target.path("/proxy-stats");
     }
 

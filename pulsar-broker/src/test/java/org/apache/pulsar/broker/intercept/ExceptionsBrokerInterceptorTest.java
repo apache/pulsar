@@ -18,10 +18,13 @@
  */
 package org.apache.pulsar.broker.intercept;
 
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,12 +66,15 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
     protected void customizeMainPulsarTestContextBuilder(PulsarTestContext.Builder pulsarTestContextBuilder) {
         Map<String, BrokerInterceptorWithClassLoader> listenerMap = new HashMap<>();
         BrokerInterceptor interceptor = new ExceptionsBrokerInterceptor();
-        NarClassLoader narClassLoader = mock(NarClassLoader.class);
+        // The filter chain uses this context class loader for resource and service-provider lookup.
+        NarClassLoader narClassLoader = mock(NarClassLoader.class,
+                delegatesTo(new URLClassLoader(new URL[0], getClass().getClassLoader())));
         listenerMap.put(interceptorName, new BrokerInterceptorWithClassLoader(interceptor, narClassLoader));
         pulsarTestContextBuilder.brokerInterceptor(new BrokerInterceptors(listenerMap));
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testMessageAckedExceptions() throws Exception {
         String topic = "persistent://public/default/test";
         String subName = "test-sub";
@@ -77,14 +83,14 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
 
         BrokerInterceptors listener = (BrokerInterceptors) pulsar.getBrokerInterceptor();
         assertNotNull(listener);
-        BrokerInterceptorWithClassLoader brokerInterceptor = listener.getInterceptors().get(interceptorName);
+        BrokerInterceptorWithClassLoader brokerInterceptor = listener.getInterceptors().get(0);
         assertNotNull(brokerInterceptor);
         BrokerInterceptor interceptor = brokerInterceptor.getInterceptor();
         assertTrue(interceptor instanceof ExceptionsBrokerInterceptor);
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
-        ConsumerImpl consumer = (ConsumerImpl) pulsarClient
+        ConsumerImpl<?> consumer = (ConsumerImpl) pulsarClient
                 .newConsumer()
                 .topic(topic)
                 .subscriptionName(subName)
@@ -95,14 +101,14 @@ public class ExceptionsBrokerInterceptorTest extends ProducerConsumerBase {
         Awaitility.await().until(() -> ((ExceptionsBrokerInterceptor) interceptor).getProducerCount().get() == 1);
         Awaitility.await().until(() -> ((ExceptionsBrokerInterceptor) interceptor).getConsumerCount().get() == 1);
 
-        for (int i = 0; i < messageNumber; i ++) {
+        for (int i = 0; i < messageNumber; i++) {
             producer.send("test".getBytes(StandardCharsets.UTF_8));
         }
 
         int receiveCounter = 0;
-        Message message;
-        while((message = consumer.receive(3, TimeUnit.SECONDS)) != null) {
-            receiveCounter ++;
+        Message<?> message;
+        while ((message = consumer.receive(3, TimeUnit.SECONDS)) != null) {
+            receiveCounter++;
             consumer.acknowledge(message);
         }
         assertEquals(receiveCounter, 10);

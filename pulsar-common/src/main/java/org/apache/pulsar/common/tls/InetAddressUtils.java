@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
+
+/*
  * From Apache HTTP client
  */
 

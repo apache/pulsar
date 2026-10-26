@@ -21,15 +21,27 @@ package org.apache.pulsar.client.api;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
+import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.AckSetStateUtil;
+import org.apache.bookkeeper.mledger.impl.ActiveManagedCursorContainer;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.SystemTopicBasedTopicPoliciesService;
+import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.GetStatsOptions;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -38,17 +50,19 @@ import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-@Slf4j
+@CustomLog
 @Test(groups = "broker-api")
 public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase {
 
     private static final int MAX_UNACKED_RANGES_TO_PERSIST = 50;
+    private static final int MAX_BATCH_DELETED_INDEX_TO_PERSIST = 2;
 
     @BeforeClass(alwaysRun = true)
     @Override
@@ -65,6 +79,8 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
 
     protected void doInitConf() throws Exception {
         conf.setManagedLedgerMaxUnackedRangesToPersist(MAX_UNACKED_RANGES_TO_PERSIST);
+        conf.setManagedLedgerMaxBatchDeletedIndexToPersist(MAX_BATCH_DELETED_INDEX_TO_PERSIST);
+        conf.setAcknowledgmentAtBatchIndexLevelEnabled(true);
     }
 
     private void enablePolicyDispatcherPauseOnAckStatePersistent(String tpName) {
@@ -99,8 +115,8 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
         Dispatcher dispatcher = persistentTopic.getSubscription(cursorName).getDispatcher();
-        if (dispatcher instanceof PersistentDispatcherMultipleConsumers) {
-            ((PersistentDispatcherMultipleConsumers) dispatcher).readMoreEntries();
+        if (dispatcher instanceof AbstractPersistentDispatcherMultipleConsumers) {
+            ((AbstractPersistentDispatcherMultipleConsumers) dispatcher).readMoreEntriesAsync();
         } else if (dispatcher instanceof PersistentDispatcherSingleActiveConsumer) {
             PersistentDispatcherSingleActiveConsumer persistentDispatcherSingleActiveConsumer =
                     ((PersistentDispatcherSingleActiveConsumer) dispatcher);
@@ -145,6 +161,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         RESET_CURSOR;
     }
 
+    @SuppressWarnings("unchecked")
     private ReceivedMessages<String> ackOddMessagesOnly(Consumer<String>...consumers) throws Exception {
         return receiveAndAckMessages((msgId, msgV) -> Integer.valueOf(msgV) % 2 == 1, consumers);
     }
@@ -214,6 +231,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     }
 
     @Test(dataProvider = "typesOfSetDispatcherPauseOnAckStatePersistent")
+    @SuppressWarnings("unchecked")
     public void testBrokerDynamicConfig(TypeOfUpdateTopicConfig type) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -267,7 +285,79 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         });
     }
 
+    @Test
+    public void testPauseOnBatchDeletedIndexLimitExceeded() throws Exception {
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String subscription = "s1";
+
+        enablePolicyDispatcherPauseOnAckStatePersistent(tpName);
+        admin.topics().createNonPartitionedTopic(tpName);
+        admin.topics().createSubscription(tpName, subscription, MessageId.earliest);
+
+        List<MessageIdImpl> messageIds = new ArrayList<>();
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(tpName)
+                .enableBatching(false).create();
+        for (int i = 0; i < 4; i++) {
+            messageIds.add((MessageIdImpl) producer.send("m-" + i));
+        }
+
+        PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
+        PersistentSubscription persistentSubscription =
+                (PersistentSubscription) persistentTopic.getSubscription(subscription);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) persistentSubscription.getCursor();
+        cursor.delete(PositionFactory.create(messageIds.get(0).getLedgerId(), messageIds.get(0).getEntryId()));
+        long[][] ackSets = {{2L}, {Long.MIN_VALUE, 1L}, {5L, 0L, 3L}};
+        for (int i = 0; i < ackSets.length; i++) {
+            MessageIdImpl messageId = messageIds.get(i + 1);
+            cursor.delete(AckSetStateUtil.createPositionWithAckSet(
+                    messageId.getLedgerId(), messageId.getEntryId(), ackSets[i]));
+        }
+        Assert.assertFalse(cursor.isCursorDataFullyPersistable());
+
+        // Zero queue + no receive yet: avoid ConsumerImpl's post-subscribe Flow race with
+        // afterAckMessages() that can deliver backlog before the dispatcher is paused.
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(tpName)
+                .subscriptionName(subscription).subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(0).enableBatchIndexAcknowledgment(true).isAckReceiptEnabled(true)
+                .subscribe();
+        persistentSubscription.getDispatcher().afterAckMessages(null, null);
+
+        cancelPendingRead(tpName, subscription);
+        triggerNewReadMoreEntries(tpName, subscription);
+
+        final String specifiedMessage = "9876543210";
+        producer.send(specifiedMessage);
+        CompletableFuture<Message<String>> pausedReceive = consumer.receiveAsync();
+        try {
+            pausedReceive.get(2, TimeUnit.SECONDS);
+            Assert.fail("expected timeout while dispatcher is paused");
+        } catch (TimeoutException expected) {
+            // Dispatcher should stay paused while batch-deleted index exceeds the persist cap.
+        }
+        Assert.assertFalse(pausedReceive.isDone());
+
+        for (int i = 0; i < ackSets.length; i++) {
+            MessageIdImpl messageId = messageIds.get(i + 1);
+            cursor.delete(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId()));
+        }
+        Assert.assertTrue(cursor.isCursorDataFullyPersistable());
+        persistentSubscription.getDispatcher().afterAckMessages(null, null);
+
+        cancelPendingRead(tpName, subscription);
+        triggerNewReadMoreEntries(tpName, subscription);
+
+        Message<String> resumedReceive = pausedReceive.get(5, TimeUnit.SECONDS);
+        Assert.assertNotNull(resumedReceive);
+        Assert.assertEquals(resumedReceive.getValue(), specifiedMessage);
+
+        producer.close();
+        consumer.close();
+        admin.topics().delete(tpName, false);
+    }
+
     @Test(dataProvider = "multiConsumerSubscriptionTypes")
+    @SuppressWarnings("unchecked")
     public void testPauseOnAckStatPersist(SubscriptionType subscriptionType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -314,6 +404,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     }
 
     @Test(dataProvider = "skipTypes")
+    @SuppressWarnings("unchecked")
     public void testUnPauseOnSkipEntries(SkipType skipType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -366,8 +457,8 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     private void skipMessages(String tpName, String subscription, SkipType skipType, Consumer c) throws Exception {
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopic(tpName, false).join().get();
-        Position LAC = persistentTopic.getManagedLedger().getLastConfirmedEntry();
-        MessageIdImpl LACMessageId = new MessageIdImpl(LAC.getLedgerId(), LAC.getEntryId(), -1);
+        Position lac = persistentTopic.getManagedLedger().getLastConfirmedEntry();
+        MessageIdImpl lacMessageId = new MessageIdImpl(lac.getLedgerId(), lac.getEntryId(), -1);
         if (skipType == SkipType.SKIP_ENTRIES) {
             while (true) {
                 GetStatsOptions getStatsOptions = new GetStatsOptions(
@@ -386,13 +477,14 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         } else if (skipType == SkipType.CLEAR_BACKLOG){
             admin.topics().skipAllMessages(tpName, subscription);
         } else if (skipType == SkipType.SEEK) {
-            c.seek(LACMessageId);
+            c.seek(lacMessageId);
         } else if (skipType == SkipType.RESET_CURSOR) {
-            admin.topics().resetCursor(tpName, subscription, LACMessageId, false);
+            admin.topics().resetCursor(tpName, subscription, lacMessageId, false);
         }
     }
 
     @Test(dataProvider = "singleConsumerSubscriptionTypes")
+    @SuppressWarnings("unchecked")
     public void testSingleConsumerDispatcherWillNotPause(SubscriptionType subscriptionType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -435,6 +527,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     }
 
     @Test(dataProvider = "multiConsumerSubscriptionTypes")
+    @SuppressWarnings("unchecked")
     public void testPauseOnAckStatPersistNotAffectReplayRead(SubscriptionType subscriptionType) throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
         final String subscription = "s1";
@@ -488,6 +581,7 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
     }
 
     @Test(dataProvider = "multiConsumerSubscriptionTypes")
+    @SuppressWarnings("unchecked")
     public void testMultiConsumersPauseOnAckStatPersistNotAffectReplayRead(SubscriptionType subscriptionType)
             throws Exception {
         final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
@@ -547,6 +641,51 @@ public class SubscriptionPauseOnAckStatPersistTest extends ProducerConsumerBase 
         p1.close();
         c3.close();
         c4.close();
+        admin.topics().delete(tpName, false);
+    }
+
+    @Test(dataProvider = "multiConsumerSubscriptionTypes")
+    public void testNeverCallCursorIsCursorDataFullyPersistableIfDisabledTheFeature(SubscriptionType subscriptionType)
+            throws Exception {
+        final String tpName = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
+        final String mlName = TopicName.get(tpName).getPersistenceNamingEncoding();
+        final String subscription = "s1";
+        final int msgSendCount = 100;
+        // Inject a injection to record the counter of calling "cursor.isCursorDataFullyPersistable".
+        final ManagedLedgerImpl ml = (ManagedLedgerImpl) pulsar.getDefaultManagedLedgerFactory().open(mlName);
+        final ManagedCursorImpl cursor = (ManagedCursorImpl) ml.openCursor(subscription);
+        final ManagedCursorImpl spyCursor = Mockito.spy(cursor);
+        AtomicInteger callingIsCursorDataFullyPersistableCounter = new AtomicInteger();
+        Mockito.doAnswer(invocation -> {
+            callingIsCursorDataFullyPersistableCounter.incrementAndGet();
+            return invocation.callRealMethod();
+        }).when(spyCursor).isCursorDataFullyPersistable();
+        final ManagedCursorContainer cursors = WhiteboxImpl.getInternalState(ml, "cursors");
+        final ActiveManagedCursorContainer activeCursors = WhiteboxImpl.getInternalState(ml, "activeCursors");
+        cursors.removeCursor(cursor.getName());
+        activeCursors.removeCursor(cursor.getName());
+        cursors.add(spyCursor, null);
+        activeCursors.add(spyCursor, null);
+
+        // Pub & Sub.
+        Consumer<String> c1 = pulsarClient.newConsumer(Schema.STRING).topic(tpName).subscriptionName(subscription)
+                .isAckReceiptEnabled(true).subscriptionType(subscriptionType).subscribe();
+        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING).topic(tpName).enableBatching(false).create();
+        for (int i = 0; i < msgSendCount; i++) {
+            p1.send(Integer.valueOf(i).toString());
+        }
+        for (int i = 0; i < msgSendCount; i++) {
+            Message<String> m = c1.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(m);
+            c1.acknowledge(m);
+        }
+        // Verify: the counter of calling "cursor.isCursorDataFullyPersistable".
+        // In expected the counter should be "0", to avoid flaky, verify it is less than 5.
+        Assert.assertTrue(callingIsCursorDataFullyPersistableCounter.get() < 5);
+
+        // cleanup.
+        p1.close();
+        c1.close();
         admin.topics().delete(tpName, false);
     }
 }

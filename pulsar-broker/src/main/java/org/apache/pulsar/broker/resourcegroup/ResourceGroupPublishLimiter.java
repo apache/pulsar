@@ -18,19 +18,26 @@
  */
 package org.apache.pulsar.broker.resourcegroup;
 
+import org.apache.pulsar.broker.qos.MonotonicClock;
 import org.apache.pulsar.broker.resourcegroup.ResourceGroup.BytesAndMessagesCount;
 import org.apache.pulsar.broker.service.PublishRateLimiterImpl;
+import org.apache.pulsar.broker.service.ServerCnxThrottleTracker;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.ResourceGroup;
-import org.apache.pulsar.common.util.qos.MonotonicSnapshotClock;
 
 public class ResourceGroupPublishLimiter extends PublishRateLimiterImpl  {
     private volatile long publishMaxMessageRate;
     private volatile long publishMaxByteRate;
 
-    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, MonotonicSnapshotClock monotonicSnapshotClock) {
-        super(monotonicSnapshotClock);
+    public ResourceGroupPublishLimiter(ResourceGroup resourceGroup, MonotonicClock monotonicClock) {
+        super(monotonicClock, producer -> {
+            producer.getCnx().getThrottleTracker().markThrottled(
+                ServerCnxThrottleTracker.ThrottleType.ResourceGroupPublishRate);
+        }, producer -> {
+            producer.getCnx().getThrottleTracker().unmarkThrottled(
+                ServerCnxThrottleTracker.ThrottleType.ResourceGroupPublishRate);
+        });
         update(resourceGroup);
     }
 

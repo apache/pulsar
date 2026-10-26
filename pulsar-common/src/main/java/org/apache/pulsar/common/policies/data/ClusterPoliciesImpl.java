@@ -18,8 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
-import io.swagger.annotations.ApiModel;
-import io.swagger.annotations.ApiModelProperty;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -27,23 +26,23 @@ import lombok.NoArgsConstructor;
 /**
  * The configuration data for a cluster.
  */
-@ApiModel(
-        value = "ClusterPolicies",
+@Schema(
+        name = "ClusterPolicies",
         description = "The local cluster policies for a cluster"
 )
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 public final class ClusterPoliciesImpl implements  ClusterPolicies, Cloneable {
-    @ApiModelProperty(
+    @Schema(
             name = "migrated",
-            value = "flag to check if cluster is migrated to different cluster",
+            description = "Flag to check if the cluster is migrated to a different cluster",
             example = "true/false"
     )
     private boolean migrated;
-    @ApiModelProperty(
+    @Schema(
             name = "migratedClusterUrl",
-            value = "url of cluster where current cluster is migrated"
+            description = "URL of the cluster to which the current cluster is migrated"
     )
     private ClusterUrl migratedClusterUrl;
 

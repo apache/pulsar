@@ -31,7 +31,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -134,8 +134,8 @@ public class OffloadReadHandleTest extends MockedBookKeeperTestCase {
         config.setManagedLedgerOffloadFlowPermitsPerSecond(flowPermits);
 
         CompletableFuture<ReadHandle> future = OffloadReadHandle.create(handle, config,
-                MLDataFormats.ManagedLedgerInfo.LedgerInfo.newBuilder().setLedgerId(1)
-                        .setEntries(1).setSize(100).build());
+                new ManagedLedgerInfo.LedgerInfo().setLedgerId(1)
+                        .setEntries(1).setSize(100));
 
         return future.get();
     }

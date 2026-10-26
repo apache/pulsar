@@ -19,20 +19,22 @@
 package org.apache.pulsar.client.util;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
+import lombok.CustomLog;
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
+import org.apache.pulsar.common.util.PulsarExecutors;
 
-@Slf4j
+@CustomLog
 public class ExecutorProvider {
     private final int numThreads;
     private final List<Pair<ExecutorService, ExtendedThreadFactory>> executors;
@@ -54,20 +56,40 @@ public class ExecutorProvider {
         public Thread newThread(Runnable r) {
             Thread thread = super.newThread(r);
             thread.setUncaughtExceptionHandler((t, e) ->
-                    log.error("Thread {} got uncaught Exception", t.getName(), e));
+                    log.error().attr("thread", t.getName()).exception(e).log("Thread got uncaught Exception"));
             this.thread = thread;
             return thread;
         }
     }
 
+    /**
+     * A task that {@link #shutdownNow()} doesn't discard. If it was given to an executor with {@code execute()} and
+     * is still queued when the executor is shut down, it runs on the thread calling {@code shutdownNow()} once the
+     * executor has terminated, so never concurrently with the executor's other tasks. For cleanup that must happen
+     * even if the executor is busy when it is shut down. A {@link ScheduledExecutorProvider} doesn't support it:
+     * its executors wrap the tasks they queue.
+     */
+    public interface CleanupTask extends Runnable {
+    }
+
     public ExecutorProvider(int numThreads, String poolName) {
+        this(numThreads, poolName, Thread.currentThread().isDaemon());
+    }
+
+    public ExecutorProvider(int numThreads, String poolName, boolean daemon) {
+        this(numThreads, poolName, daemon, ExtendedThreadFactory::new);
+    }
+
+    @VisibleForTesting
+    public ExecutorProvider(
+            int numThreads, String poolName, boolean daemon,
+            BiFunction<String/* poolName */, Boolean/* daemon */, ExtendedThreadFactory> threadFactoryCreator) {
         checkArgument(numThreads > 0);
         this.numThreads = numThreads;
         Objects.requireNonNull(poolName);
         executors = new ArrayList<>(numThreads);
         for (int i = 0; i < numThreads; i++) {
-            ExtendedThreadFactory threadFactory = new ExtendedThreadFactory(
-                    poolName, Thread.currentThread().isDaemon());
+            ExtendedThreadFactory threadFactory = threadFactoryCreator.apply(poolName, daemon);
             ExecutorService executor = createExecutor(threadFactory);
             executors.add(Pair.of(executor, threadFactory));
         }
@@ -76,7 +98,7 @@ public class ExecutorProvider {
     }
 
     protected ExecutorService createExecutor(ExtendedThreadFactory threadFactory) {
-       return Executors.newSingleThreadExecutor(threadFactory);
+        return PulsarExecutors.newSingleThreadExecutor(threadFactory);
     }
 
     public ExecutorService getExecutor() {
@@ -100,18 +122,37 @@ public class ExecutorProvider {
         executors.forEach(entry -> {
             ExecutorService executor = entry.getKey();
             ExtendedThreadFactory threadFactory = entry.getValue();
-            executor.shutdownNow();
+            List<Runnable> discardedTasks = executor.shutdownNow();
             try {
-                if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
-                    log.warn("Failed to terminate executor with pool name {} within timeout. The following are stack"
-                            + " traces of still running threads.\n{}",
-                            poolName, getThreadDump(threadFactory.getThread()));
+                if (executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                    runCleanupTasks(discardedTasks);
+                } else {
+                    log.warn().attr("name", poolName)
+                            .attr("threads", getThreadDump(threadFactory.getThread()))
+                            .log("Failed to terminate executor with pool"
+                                    + " name within timeout. The following are"
+                                    + " stack traces of still running"
+                                    + " threads.\n");
                 }
             } catch (InterruptedException e) {
                 log.warn("Shutdown of thread pool was interrupted");
             }
         });
         isShutdown = true;
+    }
+
+    // Only called once the executor that discarded the tasks has terminated.
+    private void runCleanupTasks(List<Runnable> discardedTasks) {
+        for (Runnable task : discardedTasks) {
+            if (task instanceof CleanupTask) {
+                try {
+                    task.run();
+                } catch (Throwable t) {
+                    log.warn().attr("name", poolName).exception(t)
+                            .log("Cleanup task failed after the executor was shut down");
+                }
+            }
+        }
     }
 
     public boolean isShutdown() {

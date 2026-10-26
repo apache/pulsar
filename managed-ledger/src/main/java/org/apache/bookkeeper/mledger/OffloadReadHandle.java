@@ -27,8 +27,8 @@ import org.apache.bookkeeper.client.api.LastConfirmedAndEntry;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
-import org.apache.bookkeeper.mledger.proto.MLDataFormats;
-import org.apache.pulsar.common.util.qos.AsyncTokenBucket;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 
 /**
  * OffloadReadHandle is a wrapper of ReadHandle to offload read operations.
@@ -42,7 +42,7 @@ public final class OffloadReadHandle implements ReadHandle {
     private final long averageEntrySize;
 
     private OffloadReadHandle(ReadHandle handle, ManagedLedgerConfig config,
-                              MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo) {
+                              ManagedLedgerInfo.LedgerInfo ledgerInfo) {
         initialize(config);
         this.delegate = Objects.requireNonNull(handle);
         Objects.requireNonNull(ledgerInfo);
@@ -64,7 +64,7 @@ public final class OffloadReadHandle implements ReadHandle {
     }
 
     public static CompletableFuture<ReadHandle> create(ReadHandle handle, ManagedLedgerConfig config,
-                                                       MLDataFormats.ManagedLedgerInfo.LedgerInfo ledgerInfo) {
+                                                       ManagedLedgerInfo.LedgerInfo ledgerInfo) {
         return CompletableFuture.completedFuture(new OffloadReadHandle(handle, config, ledgerInfo));
     }
 
@@ -146,7 +146,7 @@ public final class OffloadReadHandle implements ReadHandle {
             return 0;
         }
 
-        if (tokenBucket.containsTokens(true)) {
+        if (tokenBucket.containsTokens()) {
             long token = tokenBucket.getTokens();
             if (token > 0) {
                 // To prevent flowPermits is less than each batch size.

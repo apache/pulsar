@@ -25,15 +25,15 @@ import io.prometheus.client.Gauge;
 import io.prometheus.client.Summary;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
+import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.FunctionStatus;
 
 /**
  * Function stats.
  */
-@Slf4j
+@CustomLog
 @Getter
 @Setter
 public class FunctionStatsManager extends ComponentStatsManager {
@@ -108,10 +108,10 @@ public class FunctionStatsManager extends ComponentStatsManager {
     private Counter.Child statTotalRecordsReceivedChild1min;
 
     @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions =
+    private EvictingQueue<FunctionStatus.ExceptionInformation> latestUserExceptions =
             EvictingQueue.create(10);
     @Getter
-    private EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions =
+    private EvictingQueue<FunctionStatus.ExceptionInformation> latestSystemExceptions =
             EvictingQueue.create(10);
 
     private final RateLimiter userExceptionRateLimiter;
@@ -267,7 +267,7 @@ public class FunctionStatsManager extends ComponentStatsManager {
 
     public void addUserException(Throwable ex) {
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
+        FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestUserExceptions.add(info);
 
         // report exception throw prometheus
@@ -279,7 +279,7 @@ public class FunctionStatsManager extends ComponentStatsManager {
 
     public void addSystemException(Throwable ex) {
         long ts = System.currentTimeMillis();
-        InstanceCommunication.FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
+        FunctionStatus.ExceptionInformation info = getExceptionInfo(ex, ts);
         latestSystemExceptions.add(info);
 
         // report exception throw prometheus
@@ -336,20 +336,13 @@ public class FunctionStatsManager extends ComponentStatsManager {
         statlastInvocationChild.set(ts);
     }
 
-    private Long processTimeStart;
+
 
     @Override
-    public void processTimeStart() {
-        processTimeStart = System.nanoTime();
-    }
-
-    @Override
-    public void processTimeEnd() {
-        if (processTimeStart != null) {
-            double endTimeMs = ((double) System.nanoTime() - processTimeStart) / 1.0E6D;
+    public void processTimeEnd(long startTime) {
+            double endTimeMs = ((double) System.nanoTime() - startTime) / 1.0E6D;
             statProcessLatencyChild.observe(endTimeMs);
             statProcessLatency1minChild.observe(endTimeMs);
-        }
     }
 
     @Override
@@ -425,12 +418,12 @@ public class FunctionStatsManager extends ComponentStatsManager {
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSourceExceptions() {
         return emptyQueue;
     }
 
     @Override
-    public EvictingQueue<InstanceCommunication.FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
+    public EvictingQueue<FunctionStatus.ExceptionInformation> getLatestSinkExceptions() {
         return emptyQueue;
     }
 

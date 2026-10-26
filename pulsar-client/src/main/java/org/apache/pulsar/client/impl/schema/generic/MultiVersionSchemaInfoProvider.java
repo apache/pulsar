@@ -22,31 +22,29 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import org.apache.pulsar.client.api.schema.SchemaInfoProvider;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.protocol.schema.BytesSchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Multi version generic schema provider by guava cache.
  */
+@CustomLog
 public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
-
-    private static final Logger LOG = LoggerFactory.getLogger(MultiVersionSchemaInfoProvider.class);
 
     private final TopicName topicName;
     private final PulsarClientImpl pulsarClient;
 
     private final LoadingCache<BytesSchemaVersion, CompletableFuture<SchemaInfo>> cache = CacheBuilder.newBuilder()
         .maximumSize(100000)
-        .expireAfterAccess(30, TimeUnit.MINUTES)
+        .expireAfterAccess(Duration.ofMinutes(30))
         .build(new CacheLoader<BytesSchemaVersion, CompletableFuture<SchemaInfo>>() {
             @Override
             public CompletableFuture<SchemaInfo> load(BytesSchemaVersion schemaVersion) {
@@ -73,8 +71,10 @@ public class MultiVersionSchemaInfoProvider implements SchemaInfoProvider {
             }
             return cache.get(BytesSchemaVersion.of(schemaVersion));
         } catch (ExecutionException e) {
-            LOG.error("Can't get schema for topic {} schema version {}",
-                    topicName.toString(), new String(schemaVersion, StandardCharsets.UTF_8), e);
+            log.error().attr("topic", topicName.toString())
+                    .attr("version", new String(schemaVersion, StandardCharsets.UTF_8))
+                    .exception(e)
+                    .log("Can't get schema for topic schema version");
             return FutureUtil.failedFuture(e.getCause());
         }
     }

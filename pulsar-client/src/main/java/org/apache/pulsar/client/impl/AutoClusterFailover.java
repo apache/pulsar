@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.base.Strings;
+import io.netty.resolver.AddressResolver;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -29,9 +30,9 @@ import java.util.Objects;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import lombok.CustomLog;
 import lombok.Data;
 import lombok.NonNull;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AutoClusterFailoverBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -39,7 +40,15 @@ import org.apache.pulsar.client.api.ServiceUrlProvider;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 
-@Slf4j
+/**
+ * A service URL provider that automatically fails over from the primary Pulsar service URL to one of
+ * the secondary service URLs and switches back after the primary service recovers.
+ *
+ * <p>Each instance is tied to the lifecycle of one {@link PulsarClient}. Once initialized by a
+ * Pulsar client, it must not be reused by another client. Create a new provider instance for each
+ * Pulsar client.
+ */
+@CustomLog
 @Data
 public class AutoClusterFailover implements ServiceUrlProvider {
     private PulsarClientImpl pulsarClient;
@@ -63,6 +72,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     private final long intervalMs;
     private static final int TIMEOUT = 30_000;
     private final PulsarServiceNameResolver resolver;
+    private AddressResolver<InetSocketAddress> addressResolver;
 
     private AutoClusterFailover(AutoClusterFailoverBuilderImpl builder) {
         this.primary = builder.primary;
@@ -84,8 +94,12 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     }
 
     @Override
-    public void initialize(PulsarClient client) {
+    public synchronized void initialize(PulsarClient client) {
+        if (this.pulsarClient != null) {
+            throw new IllegalStateException("ServiceUrlProvider has already been initialized");
+        }
         this.pulsarClient = (PulsarClientImpl) client;
+        this.addressResolver = pulsarClient.getAddressResolver();
         ClientConfigurationData config = pulsarClient.getConfiguration();
         if (config != null) {
             this.primaryAuthentication = config.getAuthentication();
@@ -120,7 +134,7 @@ public class AutoClusterFailover implements ServiceUrlProvider {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         this.executor.shutdown();
     }
 
@@ -128,12 +142,18 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         try {
             resolver.updateServiceUrl(url);
             InetSocketAddress endpoint = resolver.resolveHost();
-            Socket socket = new Socket();
-            socket.connect(new InetSocketAddress(endpoint.getHostName(), endpoint.getPort()), TIMEOUT);
-            socket.close();
+            if (!endpoint.isUnresolved()) {
+                // create an unresolved endpoint to ensure that DNS lookup is performed again
+                endpoint = InetSocketAddress.createUnresolved(endpoint.getHostString(), endpoint.getPort());
+            }
+            // Use Netty's DNS resolver and settings to resolve the host name
+            InetSocketAddress resolvedEndpoint = addressResolver.resolve(endpoint).get(TIMEOUT, TimeUnit.MILLISECONDS);
+            try (Socket socket = new Socket()) {
+                socket.connect(resolvedEndpoint, TIMEOUT);
+            }
             return true;
         } catch (Exception e) {
-            log.warn("Failed to probe available, url: {}", url, e);
+            log.warn().attr("url", url).exception(e).log("Failed to probe available, url");
             return false;
         }
     }
@@ -164,8 +184,10 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             pulsarClient.reloadLookUp();
             currentPulsarServiceUrl = target;
         } catch (IOException e) {
-            log.error("Current Pulsar service is {}, "
-                    + "failed to switch back to {} ", currentPulsarServiceUrl, target, e);
+            log.error().attr("currentPulsarServiceUrl", currentPulsarServiceUrl)
+                    .attr("target", target)
+                    .exception(e)
+                    .log("Failed to switch back to primary Pulsar service");
         }
     }
 
@@ -185,10 +207,11 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         } else if (currentTimestamp - failedTimestamp >= failoverDelayNs) {
             for (String targetServiceUrl : targetServiceUrls) {
                 if (probeAvailable(targetServiceUrl)) {
-                    log.info("Current Pulsar service is {}, it has been down for {} ms, "
-                                    + "switch to the service {}. The current service down at {}",
-                            currentPulsarServiceUrl, nanosToMillis(currentTimestamp - failedTimestamp),
-                            targetServiceUrl, failedTimestamp);
+                    log.info().attr("currentServiceUrl", currentPulsarServiceUrl)
+                            .attr("downTimeMs", nanosToMillis(currentTimestamp - failedTimestamp))
+                            .attr("targetServiceUrl", targetServiceUrl)
+                            .attr("failedTimestamp", failedTimestamp)
+                            .log("Switching to target service after current service went down");
                     updateServiceUrl(targetServiceUrl,
                             authentications != null ? authentications.get(targetServiceUrl) : null,
                             tlsTrustCertsFilePaths != null ? tlsTrustCertsFilePaths.get(targetServiceUrl) : null,
@@ -197,10 +220,10 @@ public class AutoClusterFailover implements ServiceUrlProvider {
                     failedTimestamp = -1;
                     break;
                 } else {
-                    log.warn("Current Pulsar service is {}, it has been down for {} ms. "
-                                    + "Failed to switch to service {}, "
-                                    + "because it is not available, continue to probe next pulsar service.",
-                        currentPulsarServiceUrl, nanosToMillis(currentTimestamp - failedTimestamp), targetServiceUrl);
+                    log.warn().attr("currentServiceUrl", currentPulsarServiceUrl)
+                            .attr("downTimeMs", nanosToMillis(currentTimestamp - failedTimestamp))
+                            .attr("targetServiceUrl", targetServiceUrl)
+                            .log("Target service is not available, continue probing next service");
                 }
             }
         }
@@ -221,19 +244,19 @@ public class AutoClusterFailover implements ServiceUrlProvider {
             failedTimestamp = currentTimestamp;
         } else if (currentTimestamp - failedTimestamp >= failoverDelayNs) {
             if (probeAvailable(targetServiceUrl)) {
-                log.info("Current Pulsar service is {}, it has been down for {} ms, "
-                                + "switch to the service {}. The current service down at {}",
-                        currentPulsarServiceUrl, nanosToMillis(currentTimestamp - failedTimestamp),
-                        targetServiceUrl, failedTimestamp);
+                log.info().attr("currentServiceUrl", currentPulsarServiceUrl)
+                        .attr("downTimeMs", nanosToMillis(currentTimestamp - failedTimestamp))
+                        .attr("targetServiceUrl", targetServiceUrl)
+                        .attr("failedTimestamp", failedTimestamp)
+                        .log("Switching to target service after current service went down");
                 updateServiceUrl(targetServiceUrl, authentication, tlsTrustCertsFilePath,
                         tlsTrustStorePath, tlsTrustStorePassword);
                 failedTimestamp = -1;
             } else {
-                log.error("Current Pulsar service is {}, it has been down for {} ms. "
-                                + "Failed to switch to service {}, "
-                                + "because it is not available",
-                        currentPulsarServiceUrl, nanosToMillis(currentTimestamp - failedTimestamp),
-                        targetServiceUrl);
+                log.error().attr("currentServiceUrl", currentPulsarServiceUrl)
+                        .attr("downTimeMs", nanosToMillis(currentTimestamp - failedTimestamp))
+                        .attr("targetServiceUrl", targetServiceUrl)
+                        .log("Target service is not available, failed to switch");
             }
         }
     }
@@ -252,10 +275,10 @@ public class AutoClusterFailover implements ServiceUrlProvider {
         if (recoverTimestamp == -1) {
             recoverTimestamp = currentTimestamp;
         } else if (currentTimestamp - recoverTimestamp >= switchBackDelayNs) {
-            log.info("Current Pulsar service is secondary: {}, "
-                            + "the primary service: {} has been recover for {} ms, "
-                            + "switch back to the primary service",
-                    currentPulsarServiceUrl, target, nanosToMillis(currentTimestamp - recoverTimestamp));
+            log.info().attr("secondaryServiceUrl", currentPulsarServiceUrl)
+                    .attr("primaryServiceUrl", target)
+                    .attr("recoveredMs", nanosToMillis(currentTimestamp - recoverTimestamp))
+                    .log("Primary service has recovered, switching back");
             updateServiceUrl(target, authentication, tlsTrustCertsFilePath, tlsTrustStorePath, tlsTrustStorePassword);
             recoverTimestamp = -1;
         }
