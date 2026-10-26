@@ -5589,6 +5589,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().delete(topic, false);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTopicPartitionCannotBeCreatedAfterTopicDeleted() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");

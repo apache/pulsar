@@ -30,6 +30,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import io.opentelemetry.api.common.Attributes;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.util.HashSet;
@@ -1013,7 +1014,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             pulsar1.start();
             ns1 = pulsar1.getBrokerService();
 
-            url1 = new URL(pulsar1.getWebServiceAddress());
+            url1 = URI.create(pulsar1.getWebServiceAddress()).toURL();
             admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
             // Start region 2
@@ -1040,7 +1041,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             pulsar2.start();
             ns2 = pulsar2.getBrokerService();
 
-            url2 = new URL(pulsar2.getWebServiceAddress());
+            url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
             admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
             // Start region 3
@@ -1066,7 +1067,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             pulsar3.start();
             ns3 = pulsar3.getBrokerService();
 
-            url3 = new URL(pulsar3.getWebServiceAddress());
+            url3 = URI.create(pulsar3.getWebServiceAddress()).toURL();
             admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
             // Provision the global namespace

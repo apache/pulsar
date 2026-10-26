@@ -1041,7 +1041,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // the first replay read stays in flight until the test completes it
         CompletableFuture<Runnable> firstReplayRead = new CompletableFuture<>();
         doAnswer(invocationOnMock -> {
-            Set<Position> positions = new TreeSet<>(invocationOnMock.getArgument(0, Set.class));
+            Set<Position> positions = new TreeSet<>(invocationOnMock.<Set<Position>>getArgument(0));
             List<Entry> entries = allEntries.stream()
                     .filter(entry -> positions.contains(entry.getPosition()))
                     .toList();
@@ -1154,7 +1154,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // the first replay read stays in flight until the test completes it
         CompletableFuture<Runnable> firstReplayRead = new CompletableFuture<>();
         doAnswer(invocationOnMock -> {
-            Set<Position> positions = new TreeSet<>(invocationOnMock.getArgument(0, Set.class));
+            Set<Position> positions = new TreeSet<>(invocationOnMock.<Set<Position>>getArgument(0));
             List<Entry> entries = allEntries.stream()
                     .filter(entry -> positions.contains(entry.getPosition()))
                     .toList();
@@ -1285,7 +1285,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // the first replay read stays in flight until the test completes it
         CompletableFuture<Runnable> firstReplayRead = new CompletableFuture<>();
         doAnswer(invocationOnMock -> {
-            Set<Position> positions = new TreeSet<>(invocationOnMock.getArgument(0, Set.class));
+            Set<Position> positions = new TreeSet<>(invocationOnMock.<Set<Position>>getArgument(0));
             List<Entry> entries = allEntries.stream()
                     .filter(entry -> positions.contains(entry.getPosition()))
                     .toList();

@@ -132,7 +132,7 @@ public class ConsumerTest {
         CompletableFuture<Void> firstPersistence = new CompletableFuture<>();
         CompletableFuture<Void> secondPersistence = new CompletableFuture<>();
         when(subscription.acknowledgeMessageAsync(any(), eq(CommandAck.AckType.Individual), any()))
-                .thenReturn(firstPersistence, secondPersistence);
+                .thenReturn(firstPersistence).thenReturn(secondPersistence);
         CommandAck ack = new CommandAck().setConsumerId(2).setAckType(CommandAck.AckType.Individual);
         ack.addMessageId().setLedgerId(7).setEntryId(1);
         try {
