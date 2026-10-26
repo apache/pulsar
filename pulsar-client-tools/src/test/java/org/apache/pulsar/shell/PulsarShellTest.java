@@ -268,6 +268,72 @@ public class PulsarShellTest {
     }
 
     @Test
+    public void testInterruptRacingCommandCompletionDoesNotReachNextCommand() throws Exception {
+        final ByteArrayOutputStream output = new ByteArrayOutputStream();
+        Terminal terminal = TerminalBuilder.builder()
+                .streams(new ByteArrayInputStream(new byte[0]), output)
+                .dumb(true)
+                .build();
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        linereader.addCmd("client produce -m first my-topic");
+        linereader.addCmd("client produce -m second my-topic");
+        linereader.addCmd("quit");
+
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        final CountDownLatch firstStarted = new CountDownLatch(1);
+        final CountDownLatch firstMayFinish = new CountDownLatch(1);
+        final CountDownLatch firstFinished = new CountDownLatch(1);
+        final AtomicBoolean secondInterrupted = new AtomicBoolean();
+        final AtomicBoolean secondRan = new AtomicBoolean();
+        testPulsarShell.cmdProduceCustomizer = cmdProduce -> {
+            try {
+                doAnswer(invocation -> {
+                    firstStarted.countDown();
+                    assertTrue(firstMayFinish.await(10, TimeUnit.SECONDS));
+                    firstFinished.countDown();
+                    return 0;
+                }).doAnswer(invocation -> {
+                    secondRan.set(true);
+                    try {
+                        Thread.sleep(200);
+                    } catch (InterruptedException e) {
+                        secondInterrupted.set(true);
+                    }
+                    return 0;
+                }).when(cmdProduce).call();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        };
+
+        // Deliver Ctrl-C after the first command's work is done but before the shell retires it: holding the
+        // lock keeps the shell from retiring the command until the signal has been delivered.
+        final Thread signaller = new Thread(() -> {
+            try {
+                assertTrue(firstStarted.await(10, TimeUnit.SECONDS));
+                synchronized (testPulsarShell.interruptLock) {
+                    firstMayFinish.countDown();
+                    assertTrue(firstFinished.await(10, TimeUnit.SECONDS));
+                    testPulsarShell.handleSignal(Terminal.Signal.INT);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        signaller.start();
+        testPulsarShell.run((a) -> linereader, () -> terminal);
+        signaller.join();
+
+        assertTrue(secondRan.get());
+        assertFalse(secondInterrupted.get(), "the interrupt for the first command reached the second one");
+        assertEquals((int) testPulsarShell.exitCode, 0);
+        final String out = output.toString(StandardCharsets.UTF_8);
+        assertTrue(out.contains("Interrupted"), out);
+    }
+
+    @Test
     public void testSubstituteVariables() throws Exception {
         Map<String, String> vars = new HashMap<>();
         vars.put("mytopic", "the-topic");

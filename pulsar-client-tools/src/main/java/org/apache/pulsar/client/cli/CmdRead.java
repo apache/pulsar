@@ -286,8 +286,10 @@ public class CmdRead extends AbstractCmdConsume {
             }
             readerSocket.awaitClose(2, TimeUnit.SECONDS);
         } catch (Exception e) {
-            LOG.error("Error while reading messages");
-            LOG.error(e.getMessage(), e);
+            if (!isInterruption(e)) {
+                LOG.error("Error while reading messages");
+                LOG.error(e.getMessage(), e);
+            }
             returnCode = -1;
         } finally {
             LOG.info("{} messages successfully read", numMessagesRead);

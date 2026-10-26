@@ -415,7 +415,9 @@ public class CmdProduce extends AbstractCmd {
             }
             produceSocket.close();
         } catch (Exception e) {
-            log.error().exception(e).log("Error while producing messages");
+            if (!isInterruption(e)) {
+                log.error().exception(e).log("Error while producing messages");
+            }
             returnCode = -1;
         } finally {
             log.infof("%d messages successfully produced", numMessagesSent);
