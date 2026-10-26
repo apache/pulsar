@@ -1960,7 +1960,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "enable this limiter locally when direct memory "
             + "usage reaches 85% and in-progress request-frame memory exceeds 1.5 times "
             + "maxMessagePublishBufferSizeInMB; it disables the automatic limit below 65%. Enabling this setting "
-            + "dynamically clears and disables the broker-local automatic mode.")
+            + "dynamically clears and disables the broker-local automatic mode. Both modes compare broker-wide "
+            + "retained frame memory against the limit captured when each connection was created, and resume at "
+            + "half that limit. The automatic activation threshold follows the current broker configuration; "
+            + "automatic activation starts enforcing the policy on subsequent inbound reads.")
     private boolean inProgressRequestFrameMemoryLimitEnabled = false;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a "

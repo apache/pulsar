@@ -19,262 +19,271 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import io.netty.util.ReferenceCountUtil;
+import java.nio.ByteOrder;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
+@Test(groups = "broker")
 public class InProgressRequestFrameTrackingDecoderTest {
 
-    @Test
-    public void shouldTrackUsageWhenLimitingIsDisabled() {
-        AtomicLong totalUsedBytes = new AtomicLong();
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, false,
-                totalUsedBytes);
-
-        limiter.acquire(64);
-
-        assertThat(limiter.usedBytes()).isEqualTo(64);
-        assertThat(totalUsedBytes).hasValue(64);
-        assertThat(limiter.isThrottled()).isFalse();
-
-        limiter.release(64);
-        assertThat(totalUsedBytes).hasValue(0);
-    }
-
-    @Test
-    public void shouldAutomaticallyEnableAndDisableLimitingBasedOnDirectMemoryUsage() {
-        AtomicLong totalUsedBytes = new AtomicLong();
-        AtomicLong directMemoryUsedBytes = new AtomicLong(85);
-        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
-                totalUsedBytes, 150, 100, directMemoryUsedBytes::get, 100);
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes,
-                state);
-
-        limiter.acquire(151);
-        limiter.updateAutomaticLimitEnabledState();
-
-        assertThat(state.isAutomaticallyEnabled()).isTrue();
-        assertThat(limiter.isEnabled()).isTrue();
-        assertThat(limiter.isThrottled()).isFalse();
-
-        limiter.acquire(1);
-        assertThat(limiter.isThrottled()).isTrue();
-
-        directMemoryUsedBytes.set(64);
-        limiter.release(152);
-
-        assertThat(state.isAutomaticallyEnabled()).isFalse();
-        assertThat(limiter.isEnabled()).isFalse();
-    }
-
-    @Test
-    public void shouldThrottleAllLimiterGenerationsWhenTheAutomaticGlobalLimitIsExceeded() {
-        AtomicLong totalUsedBytes = new AtomicLong();
-        AtomicLong directMemoryUsedBytes = new AtomicLong(85);
-        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
-                totalUsedBytes, 150, 100, directMemoryUsedBytes::get, 100);
-        InProgressRequestFrameMemoryLimiter firstLimiter = new InProgressRequestFrameMemoryLimiter(1_000,
-                totalUsedBytes, state);
-        InProgressRequestFrameMemoryLimiter secondLimiter = new InProgressRequestFrameMemoryLimiter(1_000,
-                totalUsedBytes, state);
-        firstLimiter.registerThrottleStateListener("first", ignored -> { });
-        secondLimiter.registerThrottleStateListener("second", ignored -> { });
-
-        firstLimiter.acquire(151);
-        firstLimiter.updateAutomaticLimitEnabledState();
-        assertThat(state.isAutomaticallyEnabled()).isTrue();
-        assertThat(firstLimiter.isThrottled()).isFalse();
-        assertThat(secondLimiter.isThrottled()).isFalse();
-
-        secondLimiter.acquire(1);
-        assertThat(firstLimiter.isThrottled()).isTrue();
-        assertThat(secondLimiter.isThrottled()).isTrue();
-
-        firstLimiter.release(52);
-        assertThat(firstLimiter.isThrottled()).isTrue();
-        assertThat(secondLimiter.isThrottled()).isTrue();
-
-        firstLimiter.release(50);
-        assertThat(firstLimiter.isThrottled()).isFalse();
-        assertThat(secondLimiter.isThrottled()).isFalse();
-    }
-
-    @Test
-    public void shouldClearAutomaticLimitAndStopCheckingMemoryWhenUserEnablesLimiting() {
-        AtomicLong totalUsedBytes = new AtomicLong();
-        AtomicLong directMemoryUsedBytes = new AtomicLong(85);
-        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
-                totalUsedBytes, 150, 100, directMemoryUsedBytes::get, 100);
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes,
-                state);
-
-        limiter.acquire(151);
-        limiter.updateAutomaticLimitEnabledState();
-        assertThat(state.isAutomaticallyEnabled()).isTrue();
-
-        state.setUserEnabled(true);
-        limiter.updateAutomaticLimitEnabledState();
-
-        assertThat(state.isUserEnabled()).isTrue();
-        assertThat(state.isAutomaticallyEnabled()).isFalse();
-        assertThat(limiter.isEnabled()).isTrue();
-    }
-
-    @Test
-    public void shouldDisableAutomaticLimitWhenTheAutomaticThresholdIsDisabled() {
-        AtomicLong totalUsedBytes = new AtomicLong();
-        AtomicLong directMemoryUsedBytes = new AtomicLong(85);
-        InProgressRequestFrameMemoryLimiterState state = new InProgressRequestFrameMemoryLimiterState(false,
-                totalUsedBytes, 150, 100, directMemoryUsedBytes::get, 100);
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(100, totalUsedBytes,
-                state);
-
-        limiter.acquire(151);
-        limiter.updateAutomaticLimitEnabledState();
-        assertThat(state.isAutomaticallyEnabled()).isTrue();
-
-        state.setAutomaticThresholdBytes(-1, -1);
-
-        assertThat(state.isAutomaticallyEnabled()).isFalse();
-        assertThat(limiter.isEnabled()).isFalse();
+    @DataProvider
+    public Object[][] bufferTypes() {
+        return new Object[][] { { false }, { true } };
     }
 
     @Test
     public void shouldNotCountHeapBuffersAsDirectMemory() {
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, true);
-        EmbeddedChannel channel = new EmbeddedChannel(new InProgressRequestFrameTrackingDecoder(1024, limiter));
-
-        assertThat(channel.writeInbound(Unpooled.buffer(128, 128).writeInt(8).writeZero(8))).isTrue();
-        ByteBuf frame = channel.readInbound();
-
-        assertThat(limiter.usedBytes()).isZero();
-        frame.release();
-        assertThat(channel.finishAndReleaseAll()).isFalse();
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                64, () -> 0, Long.MAX_VALUE);
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new InProgressRequestFrameTrackingDecoder(1024, controller.getCurrentLimiter()));
+        try {
+            assertThat(channel.writeInbound(Unpooled.buffer(128, 128).writeInt(8).writeZero(8))).isTrue();
+            ByteBuf frame = channel.readInbound();
+            assertThat(controller.getRetainedFrameBytes()).isZero();
+            frame.release();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+        assertThat(controller.getRetainedFrameBytes()).isZero();
     }
 
     @Test
-    public void shouldRetainRootCapacityUntilAllFramesAreReleased() {
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, true);
+    public void shouldUseLatestThrottleStateWhenEventLoopNotificationsAreDelayed() {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                100, () -> 0, 100);
+        InProgressRequestFrameMemoryLimiter limiter = controller.getCurrentLimiter();
+        ServerCnx serverCnx = mock(ServerCnx.class);
+        ServerCnxThrottleTracker throttleTracker = mock(ServerCnxThrottleTracker.class);
+        when(serverCnx.getThrottleTracker()).thenReturn(throttleTracker);
         EmbeddedChannel channel = new EmbeddedChannel(new InProgressRequestFrameTrackingDecoder(1024, limiter));
-        ByteBuf input = frames(128, 8, 8);
+        channel.pipeline().addLast(ServerCnx.SERVER_CNX_HANDLER_NAME, serverCnx);
+        try {
+            controller.acquire(101);
+            controller.onInboundRead();
+            assertThat(limiter.isThrottled()).isTrue();
+            controller.release(101);
+            assertThat(limiter.isThrottled()).isFalse();
 
-        assertThat(channel.writeInbound(input)).isTrue();
-        ByteBuf firstFrame = channel.readInbound();
-        ByteBuf secondFrame = channel.readInbound();
-        assertThat(limiter.usedBytes()).isEqualTo(128);
-        assertThat(limiter.isThrottled()).isTrue();
+            channel.runPendingTasks();
+            verify(throttleTracker, never()).markThrottled(
+                    ServerCnxThrottleTracker.ThrottleType.InProgressRequestFrameMemoryExceeded);
+            verify(throttleTracker, times(2)).unmarkThrottled(
+                    ServerCnxThrottleTracker.ThrottleType.InProgressRequestFrameMemoryExceeded);
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
 
-        firstFrame.release();
-        assertThat(limiter.usedBytes()).isEqualTo(128);
+    @Test(dataProvider = "bufferTypes")
+    public void shouldRetainRootCapacityUntilAllFramesAreReleased(boolean pooled) {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                64, () -> 0, Long.MAX_VALUE);
+        InProgressRequestFrameMemoryLimiter limiter = controller.getCurrentLimiter();
+        EmbeddedChannel channel = new EmbeddedChannel(new InProgressRequestFrameTrackingDecoder(1024, limiter));
+        ByteBuf firstFrame = null;
+        ByteBuf secondFrame = null;
+        try {
+            assertThat(channel.writeInbound(frames(pooled, 128, 8, 8))).isTrue();
+            firstFrame = channel.readInbound();
+            secondFrame = channel.readInbound();
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(128);
+            assertThat(limiter.isThrottled()).isTrue();
 
-        secondFrame.release();
-        assertThat(limiter.usedBytes()).isZero();
-        assertThat(limiter.isThrottled()).isFalse();
-        assertThat(channel.finishAndReleaseAll()).isFalse();
+            firstFrame.release();
+            firstFrame = null;
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(128);
+
+            secondFrame.release();
+            secondFrame = null;
+            assertThat(controller.getRetainedFrameBytes()).isZero();
+            assertThat(limiter.isThrottled()).isFalse();
+        } finally {
+            ReferenceCountUtil.safeRelease(firstFrame);
+            ReferenceCountUtil.safeRelease(secondFrame);
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test(dataProvider = "bufferTypes")
+    public void shouldWaitForRetainedDuplicateBeforeReleasingRootCapacity(boolean pooled) {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                64, () -> 0, Long.MAX_VALUE);
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new InProgressRequestFrameTrackingDecoder(1024, controller.getCurrentLimiter()));
+        ByteBuf frame = null;
+        ByteBuf duplicate = null;
+        try {
+            assertThat(channel.writeInbound(frames(pooled, 128, 8))).isTrue();
+            frame = channel.readInbound();
+            duplicate = frame.retainedDuplicate();
+            frame.release();
+            frame = null;
+
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(128);
+            duplicate.release();
+            duplicate = null;
+            assertThat(controller.getRetainedFrameBytes()).isZero();
+        } finally {
+            ReferenceCountUtil.safeRelease(frame);
+            ReferenceCountUtil.safeRelease(duplicate);
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test(dataProvider = "bufferTypes")
+    public void shouldWaitForRetainedFrameBeforeReleasingRootCapacity(boolean pooled) {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                64, () -> 0, Long.MAX_VALUE);
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new InProgressRequestFrameTrackingDecoder(1024, controller.getCurrentLimiter()));
+        try {
+            assertThat(channel.writeInbound(frames(pooled, 128, 8))).isTrue();
+            ByteBuf frame = channel.readInbound();
+            frame.retain();
+            frame.release();
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(128);
+            frame.release();
+            assertThat(controller.getRetainedFrameBytes()).isZero();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test(dataProvider = "bufferTypes")
+    public void shouldTrackNestedViewsAndReleaseMultipleReferences(boolean pooled) {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                64, () -> 0, Long.MAX_VALUE);
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new InProgressRequestFrameTrackingDecoder(1024, controller.getCurrentLimiter()));
+        ByteBuf frame = null;
+        ByteBuf duplicate = null;
+        try {
+            assertThat(channel.writeInbound(frames(pooled, 128, 8))).isTrue();
+            frame = channel.readInbound();
+            duplicate = frame.retainedDuplicate();
+            duplicate.retain(2);
+            ByteBuf view = duplicate.slice().asReadOnly().order(ByteOrder.LITTLE_ENDIAN);
+            frame.release();
+            frame = null;
+            duplicate.release(2);
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(128);
+            view.release();
+            duplicate = null;
+            assertThat(controller.getRetainedFrameBytes()).isZero();
+        } finally {
+            ReferenceCountUtil.safeRelease(frame);
+            ReferenceCountUtil.safeRelease(duplicate);
+            channel.finishAndReleaseAll();
+        }
     }
 
     @Test
-    public void shouldWaitForRetainedDuplicateBeforeReleasingRootCapacity() {
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, true);
-        EmbeddedChannel channel = new EmbeddedChannel(new InProgressRequestFrameTrackingDecoder(1024, limiter));
+    public void shouldAccountForCumulationCapacityGrowthWithinAPooledAllocation() {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(false,
+                100, () -> 0, Long.MAX_VALUE);
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new InProgressRequestFrameTrackingDecoder(1024, controller.getCurrentLimiter()));
+        try {
+            ByteBuf input = PooledByteBufAllocator.DEFAULT.directBuffer(17, 1024).writeInt(32).writeZero(4);
+            assertThat(channel.writeInbound(input)).isFalse();
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(17);
 
-        assertThat(channel.writeInbound(frames(128, 8))).isTrue();
-        ByteBuf frame = channel.readInbound();
-        ByteBuf duplicate = frame.retainedDuplicate();
-        frame.release();
-
-        assertThat(limiter.usedBytes()).isEqualTo(128);
-        duplicate.release();
-        assertThat(limiter.usedBytes()).isZero();
-        assertThat(channel.finishAndReleaseAll()).isFalse();
-    }
-
-    @Test
-    public void shouldWaitForRetainedFrameBeforeReleasingRootCapacity() {
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, true);
-        EmbeddedChannel channel = new EmbeddedChannel(new InProgressRequestFrameTrackingDecoder(1024, limiter));
-
-        assertThat(channel.writeInbound(frames(128, 8))).isTrue();
-        ByteBuf frame = channel.readInbound();
-        frame.retain();
-        frame.release();
-
-        assertThat(limiter.usedBytes()).isEqualTo(128);
-        frame.release();
-        assertThat(limiter.usedBytes()).isZero();
-        assertThat(channel.finishAndReleaseAll()).isFalse();
+            assertThat(channel.writeInbound(Unpooled.directBuffer(12, 12).writeZero(12))).isFalse();
+            assertThat(input.capacity()).isGreaterThan(17);
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(input.capacity());
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+        assertThat(controller.getRetainedFrameBytes()).isZero();
     }
 
     @Test
     public void shouldAccountForIncompleteCumulationAndReleaseItOnClose() {
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, true);
-        EmbeddedChannel channel = new EmbeddedChannel(new InProgressRequestFrameTrackingDecoder(1024, limiter));
-        ByteBuf partialFrame = Unpooled.directBuffer(128, 128).writeInt(8).writeZero(4);
-
-        assertThat(channel.writeInbound(partialFrame)).isFalse();
-        assertThat(limiter.usedBytes()).isEqualTo(128);
-        assertThat(limiter.isThrottled()).isTrue();
-
-        assertThat(channel.finishAndReleaseAll()).isFalse();
-        assertThat(limiter.usedBytes()).isZero();
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                64, () -> 0, Long.MAX_VALUE);
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new InProgressRequestFrameTrackingDecoder(1024, controller.getCurrentLimiter()));
+        try {
+            ByteBuf partialFrame = Unpooled.directBuffer(128, 128).writeInt(8).writeZero(4);
+            assertThat(channel.writeInbound(partialFrame)).isFalse();
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(128);
+            assertThat(controller.getCurrentLimiter().isThrottled()).isTrue();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+        assertThat(controller.getRetainedFrameBytes()).isZero();
     }
 
     @Test
     public void shouldAccountForExpandedIncompleteCumulation() {
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(1, true);
-        EmbeddedChannel channel = new EmbeddedChannel(new InProgressRequestFrameTrackingDecoder(1024, limiter));
-        ByteBuf firstPart = Unpooled.directBuffer(8, 8).writeInt(16).writeZero(4);
-        ByteBuf secondPart = Unpooled.directBuffer(128, 128).writeZero(4);
-
-        assertThat(channel.writeInbound(firstPart)).isFalse();
-        assertThat(channel.writeInbound(secondPart)).isFalse();
-        assertThat(limiter.usedBytes()).isPositive();
-
-        assertThat(channel.finishAndReleaseAll()).isFalse();
-        assertThat(limiter.usedBytes()).isZero();
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                1, () -> 0, Long.MAX_VALUE);
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new InProgressRequestFrameTrackingDecoder(1024, controller.getCurrentLimiter()));
+        try {
+            ByteBuf firstPart = Unpooled.directBuffer(8, 8).writeInt(16).writeZero(4);
+            ByteBuf secondPart = Unpooled.directBuffer(128, 128).writeZero(4);
+            assertThat(channel.writeInbound(firstPart)).isFalse();
+            assertThat(channel.writeInbound(secondPart)).isFalse();
+            assertThat(controller.getRetainedFrameBytes()).isPositive();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+        assertThat(controller.getRetainedFrameBytes()).isZero();
     }
 
-    @Test
-    public void shouldOnlyNotifyConnectionsWhenThrottleStateChanges() {
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, true);
-        AtomicInteger notifications = new AtomicInteger();
-        limiter.registerThrottleStateListener("connection", ignored -> notifications.incrementAndGet());
-
-        limiter.acquire(65);
-        assertThat(notifications).hasValue(1);
-        limiter.acquire(1);
-        assertThat(notifications).hasValue(1);
-        limiter.release(34);
-        assertThat(notifications).hasValue(2);
-    }
-
-    @Test
-    public void shouldNotifyNewListenerOnceWhenItRegistersWhileThrottled() {
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, true);
-        limiter.acquire(65);
-        AtomicInteger notifications = new AtomicInteger();
-
-        limiter.registerThrottleStateListener("connection", ignored -> notifications.incrementAndGet());
-
-        assertThat(notifications).hasValue(1);
+    @Test(dataProvider = "bufferTypes")
+    public void shouldTrackFramesAfterTheirConnectionCloses(boolean pooled) {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                64, () -> 0, Long.MAX_VALUE);
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new InProgressRequestFrameTrackingDecoder(1024, controller.getCurrentLimiter()));
+        ByteBuf frame = null;
+        try {
+            assertThat(channel.writeInbound(frames(pooled, 128, 8))).isTrue();
+            frame = channel.readInbound();
+            assertThat(controller.getRegisteredLimiterCount()).isEqualTo(1);
+            channel.finishAndReleaseAll();
+            assertThat(controller.getRegisteredLimiterCount()).isZero();
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(128);
+            frame.release();
+            frame = null;
+            assertThat(controller.getRetainedFrameBytes()).isZero();
+        } finally {
+            ReferenceCountUtil.safeRelease(frame);
+            channel.finishAndReleaseAll();
+        }
     }
 
     @Test
     public void shouldReleaseRootCapacityWhenChannelClosesWithUnreadFrames() {
-        InProgressRequestFrameMemoryLimiter limiter = new InProgressRequestFrameMemoryLimiter(64, true);
-        EmbeddedChannel channel = new EmbeddedChannel(new InProgressRequestFrameTrackingDecoder(1024, limiter));
-
-        assertThat(channel.writeInbound(frames(128, 8))).isTrue();
-        assertThat(limiter.usedBytes()).isEqualTo(128);
-        assertThat(channel.finishAndReleaseAll()).isTrue();
-        assertThat(limiter.usedBytes()).isZero();
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                64, () -> 0, Long.MAX_VALUE);
+        EmbeddedChannel channel = new EmbeddedChannel(
+                new InProgressRequestFrameTrackingDecoder(1024, controller.getCurrentLimiter()));
+        try {
+            assertThat(channel.writeInbound(frames(false, 128, 8))).isTrue();
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(128);
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+        assertThat(controller.getRetainedFrameBytes()).isZero();
     }
 
-    private static ByteBuf frames(int capacity, int... payloadLengths) {
-        ByteBuf input = Unpooled.directBuffer(capacity, capacity);
+    private static ByteBuf frames(boolean pooled, int capacity, int... payloadLengths) {
+        ByteBuf input = pooled ? PooledByteBufAllocator.DEFAULT.directBuffer(capacity, capacity)
+                : Unpooled.directBuffer(capacity, capacity);
         for (int payloadLength : payloadLengths) {
             input.writeInt(payloadLength);
             input.writeZero(payloadLength);

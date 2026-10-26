@@ -83,6 +83,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testDynamicInProgressRequestFrameMemoryLimit() throws Exception {
         InProgressRequestFrameMemoryLimiter previousLimiter = pulsar.getBrokerService()
                 .getInProgressRequestFrameMemoryLimiter();
+        InProgressRequestFrameMemoryController controller = previousLimiter.getController();
         ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         boolean inProgressRequestFrameMemoryLimit = pulsar.getConfiguration()
                 .isInProgressRequestFrameMemoryLimitEnabled();
@@ -91,15 +92,15 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         InProgressRequestFrameMemoryLimiter limiter = null;
         boolean acquired = false;
         try {
-            assertThat(previousLimiter.isEnabled()).isFalse();
-            previousLimiter.acquire(1);
+            assertThat(controller.isEnabled()).isFalse();
+            controller.acquire(1);
             assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes()).isEqualTo(1);
-            previousLimiter.release(1);
+            controller.release(1);
             assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes()).isZero();
 
             admin.brokers().updateDynamicConfiguration("inProgressRequestFrameMemoryLimitEnabled", "true");
             waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
-                    .isInProgressRequestFrameMemoryLimitEnabled());
+                    .isInProgressRequestFrameMemoryLimitEnabled() && controller.isEnabled());
             assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter())
                     .isSameAs(previousLimiter);
             assertThat(factory.getConfig().isCopyEntriesInCache()).isEqualTo(managedLedgerCacheCopyEntries);
@@ -116,34 +117,49 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             assertThat(pulsar.getConfiguration().isInProgressRequestFrameMemoryLimitEnabled()).isTrue();
 
             admin.brokers().updateDynamicConfiguration("maxMessagePublishBufferSizeInMB", "1");
-            waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
-                    .getMaxMessagePublishBufferSizeInMB() == 1);
+            waitAtMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB()).isEqualTo(1);
+                assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter())
+                        .isNotSameAs(previousLimiter);
+            });
             limiter = pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter();
             assertThat(limiter).isNotSameAs(previousLimiter);
+            assertThat(limiter.getController()).isSameAs(controller);
+            assertThat(limiter.getLimitBytes()).isEqualTo(1024L * 1024L);
+            assertThat(previousLimiter.getLimitBytes()).isEqualTo(maxMessagePublishBufferSizeInMB * 1024L * 1024L);
+            limiter.registerThrottleStateListener("test-connection", () -> { });
 
-            limiter.acquire(1024L * 1024L + 1);
+            controller.acquire(1024L * 1024L + 1);
             acquired = true;
+            controller.onInboundRead();
             assertThat(limiter.isThrottled()).isTrue();
             assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes())
                     .isEqualTo(1024L * 1024L + 1);
 
             admin.brokers().deleteDynamicConfiguration("inProgressRequestFrameMemoryLimitEnabled");
             waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
-                    .isInProgressRequestFrameMemoryLimitEnabled() == inProgressRequestFrameMemoryLimit);
+                    .isInProgressRequestFrameMemoryLimitEnabled() == inProgressRequestFrameMemoryLimit
+                    && controller.isEnabled() == inProgressRequestFrameMemoryLimit);
             assertThat(limiter.isThrottled()).isEqualTo(inProgressRequestFrameMemoryLimit);
         } finally {
             if (acquired) {
-                limiter.release(1024L * 1024L + 1);
+                controller.release(1024L * 1024L + 1);
                 assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes()).isZero();
+            }
+            if (limiter != null) {
+                limiter.unregisterThrottleStateListener("test-connection");
             }
             admin.brokers().deleteDynamicConfiguration("inProgressRequestFrameMemoryLimitEnabled");
             admin.brokers().deleteDynamicConfiguration("managedLedgerCacheCopyEntries");
             admin.brokers().deleteDynamicConfiguration("maxMessagePublishBufferSizeInMB");
             waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
                     .isInProgressRequestFrameMemoryLimitEnabled() == inProgressRequestFrameMemoryLimit
+                    && controller.isEnabled() == inProgressRequestFrameMemoryLimit
                     && pulsar.getConfiguration().isManagedLedgerCacheCopyEntries() == managedLedgerCacheCopyEntries
                     && pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB()
                             == maxMessagePublishBufferSizeInMB
+                    && pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter().getLimitBytes()
+                            == maxMessagePublishBufferSizeInMB * 1024L * 1024L
                     && factory.getConfig().isCopyEntriesInCache() == managedLedgerCacheCopyEntries);
         }
     }
@@ -152,24 +168,25 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     public void testInProgressRequestFrameMemoryTracksPublishUntilBookKeeperCompletion() throws Exception {
         boolean inProgressRequestFrameMemoryLimit = pulsar.getConfiguration()
                 .isInProgressRequestFrameMemoryLimitEnabled();
-        admin.brokers().updateDynamicConfiguration("inProgressRequestFrameMemoryLimitEnabled", "true");
-        waitAtMost(10, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
-                .isInProgressRequestFrameMemoryLimitEnabled());
-        InProgressRequestFrameMemoryLimiter limiter = pulsar.getBrokerService()
-                .getInProgressRequestFrameMemoryLimiter();
-        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(500);
+        InProgressRequestFrameMemoryController controller = pulsar.getBrokerService()
+                .getInProgressRequestFrameMemoryLimiter().getController();
         try {
+            admin.brokers().updateDynamicConfiguration("inProgressRequestFrameMemoryLimitEnabled", "true");
+            waitAtMost(10, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
+                    .isInProgressRequestFrameMemoryLimitEnabled() && controller.isEnabled());
+            pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(500);
             try (PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build()) {
                 try (Producer<byte[]> producer = client.newProducer(Schema.BYTES).topic(newTopicName())
                         .enableBatching(false).create()) {
-                    long usedBytesBeforePublish = limiter.usedBytes();
+                    long usedBytesBeforePublish = controller.getRetainedFrameBytes();
                     byte[] payload = new byte[128 * 1024];
                     List<CompletableFuture<?>> sends = new ArrayList<>();
                     for (int i = 0; i < 16; i++) {
                         sends.add(producer.sendAsync(payload));
                     }
 
-                    waitAtMost(10, TimeUnit.SECONDS).until(() -> limiter.usedBytes() > usedBytesBeforePublish);
+                    waitAtMost(10, TimeUnit.SECONDS).until(() ->
+                            controller.getRetainedFrameBytes() > usedBytesBeforePublish);
                     assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes())
                             .isGreaterThan(usedBytesBeforePublish);
                     assertThat(sends).anyMatch(send -> !send.isDone());
@@ -181,7 +198,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(1);
             admin.brokers().deleteDynamicConfiguration("inProgressRequestFrameMemoryLimitEnabled");
             waitAtMost(10, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
-                    .isInProgressRequestFrameMemoryLimitEnabled() == inProgressRequestFrameMemoryLimit);
+                    .isInProgressRequestFrameMemoryLimitEnabled() == inProgressRequestFrameMemoryLimit
+                    && controller.isEnabled() == inProgressRequestFrameMemoryLimit);
         }
     }
 

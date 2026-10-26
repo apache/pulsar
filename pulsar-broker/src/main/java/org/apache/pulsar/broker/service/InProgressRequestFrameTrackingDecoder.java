@@ -24,6 +24,7 @@ import io.netty.buffer.WrappedByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import java.nio.ByteOrder;
 import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.concurrent.RejectedExecutionException;
@@ -38,12 +39,14 @@ import org.apache.pulsar.common.protocol.Commands;
  */
 final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameDecoder {
     private final InProgressRequestFrameMemoryLimiter limiter;
+    private final InProgressRequestFrameMemoryController controller;
     private final Map<ByteBuf, RootBuffer> roots = new IdentityHashMap<>();
     private ChannelHandlerContext context;
 
     InProgressRequestFrameTrackingDecoder(int maxMessageSize, InProgressRequestFrameMemoryLimiter limiter) {
         super(maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4);
         this.limiter = limiter;
+        this.controller = limiter.getController();
         setCumulator(this::cumulate);
     }
 
@@ -51,8 +54,15 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
         context = ctx;
         limiter.registerThrottleStateListener(ctx.channel().id(),
-                throttled -> executeSafely(ctx, () -> setThrottled(throttled)));
+                () -> executeSafely(ctx, () -> setThrottled(limiter.isThrottled())));
         super.handlerAdded(ctx);
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        super.channelActive(ctx);
+        // Registration may precede activation and ServerCnx's initial auto-read setup.
+        setThrottled(limiter.isThrottled());
     }
 
     @Override
@@ -77,7 +87,7 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof ByteBuf buffer) {
             RootBuffer root = rootFor(buffer);
-            limiter.updateAutomaticLimitEnabledState();
+            controller.onInboundRead();
             super.channelRead(ctx, new TrackedByteBuf(buffer, root));
         } else {
             super.channelRead(ctx, msg);
@@ -104,6 +114,9 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
                 return expandCumulation(alloc, cumulation, in);
             }
             cumulation.writeBytes(in, in.readerIndex(), required);
+            if (cumulation instanceof TrackedByteBuf tracked) {
+                tracked.root.updateCapacity();
+            }
             in.readerIndex(in.writerIndex());
             return cumulation;
         } finally {
@@ -133,11 +146,17 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
         if (buffer instanceof TrackedByteBuf trackedByteBuf) {
             return trackedByteBuf.root;
         }
+        ByteBuf allocation = buffer;
+        while (allocation.unwrap() != null) {
+            allocation = allocation.unwrap();
+        }
         synchronized (roots) {
-            RootBuffer root = roots.get(buffer);
+            RootBuffer root = roots.get(allocation);
             if (root == null) {
-                root = new RootBuffer(buffer, buffer.capacity());
-                roots.put(buffer, root);
+                root = new RootBuffer(allocation, roots, controller);
+                roots.put(allocation, root);
+            } else {
+                root.retainReference(1);
             }
             return root;
         }
@@ -145,6 +164,7 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
 
     private static void executeSafely(ChannelHandlerContext ctx, Runnable task) {
         try {
+            // Let the current input reach its downstream owners before pausing subsequent reads.
             ctx.executor().execute(task);
         } catch (RejectedExecutionException ignored) {
             // The channel is closing and no longer needs a throttle state update.
@@ -168,24 +188,60 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
         }
     }
 
-    private final class RootBuffer {
+    private static final class RootBuffer {
         private final ByteBuf buffer;
-        private final long capacity;
+        private final Map<ByteBuf, RootBuffer> roots;
+        private final InProgressRequestFrameMemoryController controller;
+        // Pooled retained views have independent Netty refCnts. Count the explicit owners of this root across
+        // those views, while leaving their actual reference counting and deallocation entirely to Netty.
+        private int references = 1;
+        private long capacity;
 
-        RootBuffer(ByteBuf buffer, long capacity) {
+        RootBuffer(ByteBuf buffer, Map<ByteBuf, RootBuffer> roots,
+                   InProgressRequestFrameMemoryController controller) {
             this.buffer = buffer;
-            this.capacity = buffer.isDirect() ? capacity : 0;
-            limiter.acquire(this.capacity);
+            this.roots = roots;
+            this.controller = controller;
+            this.capacity = buffer.isDirect() ? buffer.capacity() : 0;
+            controller.acquire(this.capacity);
         }
 
-        void beforeRelease() {
+        void retainReference(int increment) {
             synchronized (roots) {
-                roots.remove(buffer, this);
+                references += increment;
             }
         }
 
-        void released() {
-            limiter.release(capacity);
+        void updateCapacity() {
+            long delta;
+            synchronized (roots) {
+                long newCapacity = buffer.isDirect() ? buffer.capacity() : 0;
+                delta = newCapacity - capacity;
+                capacity = newCapacity;
+            }
+            if (delta > 0) {
+                controller.acquire(delta);
+            } else if (delta < 0) {
+                controller.release(-delta);
+            }
+        }
+
+        boolean release(ByteBuf view, int decrement) {
+            boolean deallocated;
+            boolean lastReference;
+            synchronized (roots) {
+                deallocated = view.release(decrement);
+                references -= decrement;
+                lastReference = references == 0;
+                if (lastReference) {
+                    // Remove the identity before another input can register the pooled allocation after recycling.
+                    roots.remove(buffer, this);
+                }
+            }
+            if (lastReference) {
+                controller.release(capacity);
+            }
+            return deallocated;
         }
     }
 
@@ -200,12 +256,14 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
         @Override
         public ByteBuf retain() {
             buf.retain();
+            root.retainReference(1);
             return this;
         }
 
         @Override
         public ByteBuf retain(int increment) {
             buf.retain(increment);
+            root.retainReference(increment);
             return this;
         }
 
@@ -216,7 +274,9 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
 
         @Override
         public ByteBuf retainedDuplicate() {
-            return new TrackedByteBuf(buf.retainedDuplicate(), root);
+            ByteBuf view = buf.retainedDuplicate();
+            root.retainReference(1);
+            return new TrackedByteBuf(view, root);
         }
 
         @Override
@@ -231,12 +291,16 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
 
         @Override
         public ByteBuf retainedSlice() {
-            return new TrackedByteBuf(buf.retainedSlice(), root);
+            ByteBuf view = buf.retainedSlice();
+            root.retainReference(1);
+            return new TrackedByteBuf(view, root);
         }
 
         @Override
         public ByteBuf retainedSlice(int index, int length) {
-            return new TrackedByteBuf(buf.retainedSlice(index, length), root);
+            ByteBuf view = buf.retainedSlice(index, length);
+            root.retainReference(1);
+            return new TrackedByteBuf(view, root);
         }
 
         @Override
@@ -246,7 +310,9 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
 
         @Override
         public ByteBuf readRetainedSlice(int length) {
-            return new TrackedByteBuf(buf.readRetainedSlice(length), root);
+            ByteBuf view = buf.readRetainedSlice(length);
+            root.retainReference(1);
+            return new TrackedByteBuf(view, root);
         }
 
         @Override
@@ -255,27 +321,18 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
         }
 
         @Override
+        public ByteBuf order(ByteOrder endianness) {
+            return endianness == order() ? this : new TrackedByteBuf(buf.order(endianness), root);
+        }
+
+        @Override
         public boolean release() {
-            if (buf.refCnt() == 1) {
-                root.beforeRelease();
-            }
-            boolean released = buf.release();
-            if (released) {
-                root.released();
-            }
-            return released;
+            return root.release(buf, 1);
         }
 
         @Override
         public boolean release(int decrement) {
-            if (buf.refCnt() == decrement) {
-                root.beforeRelease();
-            }
-            boolean released = buf.release(decrement);
-            if (released) {
-                root.released();
-            }
-            return released;
+            return root.release(buf, decrement);
         }
     }
 }

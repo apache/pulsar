@@ -18,172 +18,50 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Consumer;
-
-/** Tracks direct-memory roots retained by inbound request frames and optionally applies backpressure. */
+/**
+ * An immutable limit shared by connections created in the same configuration generation.
+ * Manual and automatic modes compare broker-wide retained frame memory against this generation's limit.
+ */
 final class InProgressRequestFrameMemoryLimiter {
-    private final Object mutex = new Object();
-    private final ConcurrentMap<Object, Consumer<Boolean>> throttleStateListeners = new ConcurrentHashMap<>();
-    private final AtomicLong usedBytes = new AtomicLong();
-    private final AtomicLong totalUsedBytes;
+    private final InProgressRequestFrameMemoryController controller;
     private final long limitBytes;
-    private final InProgressRequestFrameMemoryLimiterState state;
-    private boolean registeredWithState;
-    private boolean throttled;
+    private volatile boolean throttled;
 
-    InProgressRequestFrameMemoryLimiter(long limitBytes, boolean enabled) {
-        this(limitBytes, enabled, new AtomicLong());
-    }
-
-    InProgressRequestFrameMemoryLimiter(long limitBytes, boolean enabled, AtomicLong totalUsedBytes) {
-        this(limitBytes, totalUsedBytes, new InProgressRequestFrameMemoryLimiterState(enabled, totalUsedBytes,
-                InProgressRequestFrameMemoryLimiterState.automaticEnableThresholdBytes(limitBytes), limitBytes,
-                () -> 0, Long.MAX_VALUE));
-    }
-
-    InProgressRequestFrameMemoryLimiter(long limitBytes, AtomicLong totalUsedBytes,
-                                        InProgressRequestFrameMemoryLimiterState state) {
+    InProgressRequestFrameMemoryLimiter(long limitBytes, InProgressRequestFrameMemoryController controller) {
         this.limitBytes = limitBytes;
-        this.totalUsedBytes = totalUsedBytes;
-        this.state = state;
+        this.controller = controller;
     }
 
-    void registerThrottleStateListener(Object listenerKey, Consumer<Boolean> listener) {
-        throttleStateListeners.put(listenerKey, listener);
-        registerWithState();
-        List<Consumer<Boolean>> throttleStateListenersToNotify;
-        boolean throttled;
-        synchronized (mutex) {
-            boolean previousThrottled = this.throttled;
-            throttled = updateThrottledState();
-            if (previousThrottled != throttled) {
-                throttleStateListenersToNotify = new ArrayList<>(throttleStateListeners.values());
-            } else {
-                throttleStateListenersToNotify = throttled ? List.of(listener) : null;
-            }
-        }
-        if (throttleStateListenersToNotify != null) {
-            notifyThrottleStateListeners(throttleStateListenersToNotify, throttled);
-        }
+    InProgressRequestFrameMemoryController getController() {
+        return controller;
+    }
+
+    long getLimitBytes() {
+        return limitBytes;
+    }
+
+    void registerThrottleStateListener(Object listenerKey, Runnable listener) {
+        controller.registerThrottleStateListener(this, listenerKey, listener);
     }
 
     void unregisterThrottleStateListener(Object listenerKey) {
-        throttleStateListeners.remove(listenerKey);
-        unregisterFromStateIfUnused();
+        controller.unregisterThrottleStateListener(this, listenerKey);
     }
 
-    void acquire(long bytes) {
-        registerWithState();
-        updateUsage(bytes);
-    }
-
-    void release(long bytes) {
-        updateUsage(-bytes);
-        if (state.isAutomaticallyEnabled()) {
-            // A periodic direct-memory check is unnecessary: this limiter affects only subsequent inbound requests,
-            // and releasing an in-progress root buffer is the relevant event that can make those requests runnable.
-            state.updateAutomaticLimitEnabledState();
-        }
-        unregisterFromStateIfUnused();
-    }
-
-    private void registerWithState() {
-        synchronized (mutex) {
-            if (!registeredWithState) {
-                state.register(this);
-                registeredWithState = true;
-            }
-        }
-    }
-
-    private void unregisterFromStateIfUnused() {
-        synchronized (mutex) {
-            if (registeredWithState && throttleStateListeners.isEmpty() && usedBytes.get() == 0) {
-                state.unregister(this);
-                registeredWithState = false;
-            }
-        }
-    }
-
-    private void updateUsage(long delta) {
-        usedBytes.addAndGet(delta);
-        totalUsedBytes.addAndGet(delta);
-        if (state.isAutomaticallyEnabled()) {
-            state.updateAutomaticThrottleState();
-            return;
-        }
-        if (!state.isEnabled()) {
-            return;
-        }
-        List<Consumer<Boolean>> throttleStateListenersToNotify;
-        boolean throttled;
-        synchronized (mutex) {
-            if (!state.isEnabled()) {
-                return;
-            }
-            boolean previousThrottled = this.throttled;
-            throttled = updateThrottledState();
-            throttleStateListenersToNotify = previousThrottled == throttled
-                    ? null : new ArrayList<>(throttleStateListeners.values());
-        }
-        if (throttleStateListenersToNotify != null) {
-            notifyThrottleStateListeners(throttleStateListenersToNotify, throttled);
-        }
-    }
-
-    private boolean updateThrottledState() {
-        if (state.isAutomaticallyEnabled()) {
-            throttled = state.isAutomaticallyThrottled();
-        } else if (!state.isEnabled() || limitBytes <= 0) {
+    // Called only while holding the controller monitor. Release events may recover, but cannot start throttling.
+    boolean updateThrottledState(boolean enabled, long usedBytes, boolean allowNewThrottle) {
+        boolean previouslyThrottled = throttled;
+        if (!enabled || limitBytes <= 0) {
             throttled = false;
         } else if (throttled) {
-            throttled = usedBytes.get() > limitBytes / 2;
-        } else {
-            throttled = usedBytes.get() > limitBytes;
+            throttled = usedBytes > limitBytes / 2;
+        } else if (allowNewThrottle) {
+            throttled = usedBytes > limitBytes;
         }
-        return throttled;
-    }
-
-    private void notifyThrottleStateListeners(List<Consumer<Boolean>> throttleStateListenersToNotify,
-                                              boolean throttled) {
-        throttleStateListenersToNotify.forEach(listener -> listener.accept(throttled));
+        return previouslyThrottled != throttled;
     }
 
     boolean isThrottled() {
-        synchronized (mutex) {
-            return throttled;
-        }
+        return throttled;
     }
-
-    long usedBytes() {
-        return usedBytes.get();
-    }
-
-    boolean isEnabled() {
-        return state.isEnabled();
-    }
-
-    void updateAutomaticLimitEnabledState() {
-        state.updateAutomaticLimitEnabledState();
-    }
-
-    void onEnabledStateChanged() {
-        List<Consumer<Boolean>> throttleStateListenersToNotify;
-        boolean throttled;
-        synchronized (mutex) {
-            boolean previousThrottled = this.throttled;
-            throttled = updateThrottledState();
-            throttleStateListenersToNotify = previousThrottled == throttled
-                    ? null : new ArrayList<>(throttleStateListeners.values());
-        }
-        if (throttleStateListenersToNotify != null) {
-            notifyThrottleStateListeners(throttleStateListenersToNotify, throttled);
-        }
-    }
-
 }
