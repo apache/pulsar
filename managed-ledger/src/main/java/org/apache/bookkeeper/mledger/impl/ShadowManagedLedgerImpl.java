@@ -50,6 +50,10 @@ import org.apache.pulsar.metadata.api.Stat;
 public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     private final String sourceMLName;
     private volatile Stat sourceLedgersStat;
+    // Kept so that closing this instance unwatches the source only if no other instance has started watching it
+    private final MetaStore.UpdateCallback<ManagedLedgerInfo> sourceManagedLedgerInfoCallback =
+            (managedLedgerInfo, stat) ->
+                    executor.execute(() -> processSourceManagedLedgerInfo(managedLedgerInfo, stat));
 
     public ShadowManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper,
                                    MetaStore store, ManagedLedgerConfig config,
@@ -75,10 +79,11 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
     }
 
     private void doInitialize(ManagedLedgerInitializeLedgerCallback callback, Object ctx) {
+        if (failInitializationIfAbandoned(callback)) {
+            return;
+        }
         // Fetch the list of existing ledgers in the source managed ledger
-        store.watchManagedLedgerInfo(sourceMLName, (managedLedgerInfo, stat) ->
-                executor.execute(() -> processSourceManagedLedgerInfo(managedLedgerInfo, stat))
-        );
+        store.watchManagedLedgerInfo(sourceMLName, sourceManagedLedgerInfoCallback);
         store.getManagedLedgerInfo(sourceMLName, false, null, new MetaStore.MetaStoreCallback<>() {
             @Override
             public void operationComplete(ManagedLedgerInfo mlInfo, Stat stat) {
@@ -187,6 +192,9 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
 
     @Override
     protected synchronized void initializeBookKeeper(ManagedLedgerInitializeLedgerCallback callback) {
+        if (failInitializationIfAbandoned(callback)) {
+            return;
+        }
         log.debug().attr("name", name).attr("ledgers", ledgers).log("Initializing bookkeeper for shadowManagedLedger");
 
         // Calculate total entries and size
@@ -409,7 +417,7 @@ public class ShadowManagedLedgerImpl extends ManagedLedgerImpl {
 
     @Override
     public synchronized void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx) {
-        store.unwatchManagedLedgerInfo(sourceMLName);
+        store.unwatchManagedLedgerInfo(sourceMLName, sourceManagedLedgerInfoCallback);
         super.asyncClose(callback, ctx);
     }
 

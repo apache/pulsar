@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import lombok.CustomLog;
@@ -213,7 +212,7 @@ public class ConsumerInterceptors<T> implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         for (int i = 0, interceptorsSize = interceptors.size(); i < interceptorsSize; i++) {
             try {
                 interceptors.get(i).close();

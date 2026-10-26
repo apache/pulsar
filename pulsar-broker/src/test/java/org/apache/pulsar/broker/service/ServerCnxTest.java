@@ -2339,7 +2339,7 @@ public class ServerCnxTest {
 
         Object response;
 
-        // Sending multiple subscribe commands for the same consumer should succeed
+        // A second subscribe command for a live consumer closes it and asks the client to retry
 
         ByteBuf subscribe1 = Commands.newSubscribe(successTopicName, //
                 successSubName, 1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0,
@@ -2356,10 +2356,22 @@ public class ServerCnxTest {
                 "test" /* consumer name */, 0 /* avoid reseting cursor */);
         channel.writeInbound(subscribe2);
 
-        // 2nd subscribe succeeds
+        // 2nd subscribe fails with a retriable error, and the existing consumer is closed
+        response = getResponse();
+        assertEquals(response.getClass(), CommandError.class);
+        assertEquals(((CommandError) response).getRequestId(), 2);
+        assertEquals(((CommandError) response).getError(), ServerError.ServiceNotReady);
+        assertFalse(serverCnx.getConsumers().containsKey(1L));
+
+        ByteBuf subscribe3 = Commands.newSubscribe(successTopicName, //
+                successSubName, 1 /* consumer id */, 3 /* request id */, SubType.Exclusive, 0,
+                "test" /* consumer name */, 0 /* avoid reseting cursor */);
+        channel.writeInbound(subscribe3);
+
+        // The retry creates a new consumer
         response = getResponse();
         assertEquals(response.getClass(), CommandSuccess.class);
-        assertEquals(((CommandSuccess) response).getRequestId(), 2);
+        assertEquals(((CommandSuccess) response).getRequestId(), 3);
 
         channel.finish();
     }
@@ -3028,6 +3040,38 @@ public class ServerCnxTest {
         // cursor is mocked
         // verify nothing is sent out on the wire after ack
         assertNull(channel.outboundMessages().peek());
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testGetLastMessageIdAsyncFailureRepliesWithOriginalRequestId() throws Exception {
+        CompletableFuture<Position> lastDispatchablePositionFuture = new CompletableFuture<>();
+        doReturn(lastDispatchablePositionFuture).when(ledgerMock)
+                .getLastDispatchablePosition(any(), any());
+
+        resetChannel();
+        setChannelConnected();
+
+        ByteBuf clientCommand = Commands.newSubscribe(successTopicName, successSubName, //
+                1 /* consumer id */, 1 /* request id */, SubType.Exclusive, 0, "test" /* consumer name */,
+                0 /* avoid reseting cursor */);
+        channel.writeInbound(clientCommand);
+        assertTrue(getResponse() instanceof CommandSuccess);
+
+        long getLastMessageIdRequestId = 42;
+        channel.writeInbound(Commands.newGetLastMessageId(1 /* consumer id */, getLastMessageIdRequestId));
+        assertNull(channel.outboundMessages().peek());
+
+        // The next frame on the same connection makes the decoder clear and reuse its command object
+        channel.writeInbound(Commands.newFlow(1 /* consumer id */, 1 /* message permits */));
+
+        lastDispatchablePositionFuture.completeExceptionally(new RuntimeException("injected failure"));
+
+        Object response = getResponse();
+        assertThat(response).isInstanceOfSatisfying(CommandError.class, error -> {
+            assertThat(error.getRequestId()).isEqualTo(getLastMessageIdRequestId);
+            assertThat(error.getError()).isEqualTo(ServerError.UnknownError);
+        });
         channel.finish();
     }
     @SuppressWarnings("deprecation")
@@ -3865,8 +3909,14 @@ public class ServerCnxTest {
                     }
                     return false;
                 };
-                // assert no consumer-delete event occur
-                assertFalse(deleteTimesMark.getAllValues().contains(existingConsumerFuture));
+                if (futureWillDoneAfterDelayTimes.intValue() == 1) {
+                    // already complete: the existing consumer is closed before its future is removed
+                    Mockito.verify(mockConsumer).close();
+                    assertTrue(deleteTimesMark.getAllValues().contains(existingConsumerFuture));
+                } else {
+                    // not complete yet: assert no consumer-delete event occur
+                    assertFalse(deleteTimesMark.getAllValues().contains(existingConsumerFuture));
+                }
                 // assert without another error occur
                 assertTrue(responseAssert.test(responseAssert));
                 // Server will not close the connection

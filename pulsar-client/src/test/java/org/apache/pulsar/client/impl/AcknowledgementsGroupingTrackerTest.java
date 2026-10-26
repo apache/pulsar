@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.clearInvocations;
@@ -28,6 +29,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -101,6 +103,132 @@ public class AcknowledgementsGroupingTrackerTest {
     @AfterClass(alwaysRun = true)
     public void teardown() throws Exception {
         eventLoopGroup.shutdownGracefully().get();
+    }
+
+    @DataProvider
+    public Object[][] resetWhileNotSubscribed() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "resetWhileNotSubscribed")
+    public void testFlushAndCleanDiscardsAllAckTypes(boolean receiptEnabled, boolean connecting) {
+        ConsumerImpl<?> resettingConsumer = mock(ConsumerImpl.class);
+        resettingConsumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        doReturn(new ConsumerStatsRecorderImpl()).when(resettingConsumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(resettingConsumer).getUnAckedMessageTracker();
+        doReturn(receiptEnabled).when(resettingConsumer).isAckReceiptEnabled();
+        doReturn(connecting ? cnx : null).when(resettingConsumer).getClientCnx();
+        doReturn(HandlerState.State.Connecting).when(resettingConsumer).getState();
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        conf.setBatchIndexAckEnabled(true);
+        conf.setAckReceiptEnabled(receiptEnabled);
+        MessageIdImpl cumulative = new MessageIdImpl(5, 1, 0);
+        MessageIdImpl individual = new MessageIdImpl(5, 2, 0);
+        BitSet ackSet = BatchMessageIdImpl.newAckSet(2);
+        BatchMessageIdImpl batch0 = new BatchMessageIdImpl(5, 3, 0, 0, 2, ackSet);
+        BatchMessageIdImpl batch1 = new BatchMessageIdImpl(5, 3, 0, 1, 2, ackSet);
+        try (var tracker = new PersistentAcknowledgmentsGroupingTracker(resettingConsumer, conf, eventLoopGroup)) {
+            tracker.addAcknowledgment(cumulative, AckType.Cumulative, Collections.emptyMap());
+            tracker.addAcknowledgment(individual, AckType.Individual, Collections.emptyMap());
+            tracker.addAcknowledgment(batch0, AckType.Individual, Collections.emptyMap());
+
+            // An ordinary disconnected flush must retain acknowledgments for retry.
+            tracker.flush();
+            assertThat(tracker.isDuplicate(cumulative)).isTrue();
+            assertThat(tracker.isDuplicate(individual)).isTrue();
+            assertThat(tracker.isDuplicate(batch0)).isTrue();
+            assertThat(tracker.isDuplicate(batch1)).isFalse();
+
+            // Seek cleanup is repeated before the new connection is installed.
+            tracker.flushAndClean();
+            tracker.flushAndClean();
+            assertThat(tracker.isDuplicate(cumulative)).isFalse();
+            assertThat(tracker.isDuplicate(individual)).isFalse();
+            assertThat(tracker.isDuplicate(batch0)).as("seek must allow replay of the acknowledged batch index")
+                    .isFalse();
+            assertThat(tracker.isDuplicate(batch1)).isFalse();
+        }
+    }
+
+    @DataProvider
+    public Object[][] delayedAckFailure() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "delayedAckFailure")
+    public void testFailedWriteCannotRestoreAcksAcrossCleanup(boolean clean, boolean legacyBroker) throws Exception {
+        ConsumerImpl<?> resettingConsumer = mock(ConsumerImpl.class);
+        resettingConsumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        doReturn(new ConsumerStatsRecorderImpl()).when(resettingConsumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(resettingConsumer).getUnAckedMessageTracker();
+        doReturn(HandlerState.State.Ready).when(resettingConsumer).getState();
+        ClientCnx connection = mock(ClientCnx.class);
+        doReturn(connection).when(resettingConsumer).getClientCnx();
+        doReturn(legacyBroker ? ProtocolVersion.v11_VALUE : ProtocolVersion.v12_VALUE)
+                .when(connection).getRemoteEndpointProtocolVersion();
+        ChannelHandlerContext delayedContext = mock(ChannelHandlerContext.class);
+        ChannelFuture pendingWrite = mock(ChannelFuture.class);
+        List<GenericFutureListener<Future<Void>>> failureListeners = new ArrayList<>();
+        doAnswer(invocation -> {
+            failureListeners.add(invocation.getArgument(0));
+            return pendingWrite;
+        }).when(pendingWrite).addListener(any());
+        doAnswer(invocation -> {
+            ReferenceCountUtil.release(invocation.getArgument(0));
+            return pendingWrite;
+        }).when(delayedContext).write(any());
+        doAnswer(invocation -> {
+            ReferenceCountUtil.release(invocation.getArgument(0));
+            return pendingWrite;
+        }).when(delayedContext).writeAndFlush(any());
+        doReturn(delayedContext).when(connection).ctx();
+
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        conf.setBatchIndexAckEnabled(true);
+        MessageIdImpl individual = new MessageIdImpl(5, 1, 0);
+        BatchMessageIdImpl oldBatch0 = new BatchMessageIdImpl(5, 2, 0, 0, 2, BatchMessageIdImpl.newAckSet(2));
+        BitSet replayAckSet = BatchMessageIdImpl.newAckSet(2);
+        BatchMessageIdImpl replayBatch0 = new BatchMessageIdImpl(5, 2, 0, 0, 2, replayAckSet);
+        BatchMessageIdImpl replayBatch1 = new BatchMessageIdImpl(5, 2, 0, 1, 2, replayAckSet);
+        try (var tracker = new PersistentAcknowledgmentsGroupingTracker(resettingConsumer, conf, eventLoopGroup)) {
+            tracker.addAcknowledgment(individual, AckType.Individual, Collections.emptyMap());
+            tracker.addAcknowledgment(oldBatch0, AckType.Individual, Collections.emptyMap());
+            tracker.flush();
+            assertThat(failureListeners).hasSize(legacyBroker ? 2 : 1);
+            assertThat(tracker.isDuplicate(individual)).isFalse();
+            assertThat(tracker.isDuplicate(oldBatch0)).isFalse();
+
+            doReturn(null).when(resettingConsumer).getClientCnx();
+            if (clean) {
+                tracker.flushAndClean();
+            }
+            // The replay creates a fresh batch ack set, and the application acknowledges index 1.
+            tracker.addAcknowledgment(replayBatch1, AckType.Individual, Collections.emptyMap());
+            assertThat(tracker.isDuplicate(replayBatch0)).isFalse();
+            assertThat(tracker.isDuplicate(replayBatch1)).isTrue();
+
+            ChannelFuture failedWrite = mock(ChannelFuture.class);
+            doReturn(false).when(failedWrite).isSuccess();
+            for (GenericFutureListener<Future<Void>> listener : failureListeners) {
+                listener.operationComplete(failedWrite);
+            }
+            assertThat(tracker.isDuplicate(individual)).as("only ordinary reconnects retry the old ACK")
+                    .isEqualTo(!clean);
+            assertThat(tracker.isDuplicate(replayBatch0)).as("old partial ACK must not cross seek cleanup")
+                    .isEqualTo(!clean);
+            assertThat(tracker.isDuplicate(replayBatch1)).isTrue();
+
+            doReturn(connection).when(resettingConsumer).getClientCnx();
+            doReturn(successCtx).when(connection).ctx();
+            tracker.flush();
+            assertThat(tracker.isDuplicate(individual)).isFalse();
+            assertThat(tracker.isDuplicate(replayBatch0)).isFalse();
+            assertThat(tracker.isDuplicate(replayBatch1)).isFalse();
+        }
     }
 
     @Test(dataProvider = "isNeedReceipt")
@@ -351,8 +479,11 @@ public class AcknowledgementsGroupingTrackerTest {
 
         returnCnx.set(false);
         try {
-            tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
-            assertFalse(tracker.isDuplicate(msg1));
+            CompletableFuture<Void> ackFuture =
+                    tracker.addAcknowledgment(msg1, AckType.Individual, Collections.emptyMap());
+            // Without a connection, the ack waits for the next flush instead of failing
+            assertFalse(ackFuture.isCompletedExceptionally());
+            assertTrue(tracker.isDuplicate(msg1));
         } finally {
             returnCnx.set(true);
         }
@@ -363,6 +494,43 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.addAcknowledgment(msg2, AckType.Individual, Collections.emptyMap());
         // Since we were connected, the ack went out immediately
         assertFalse(tracker.isDuplicate(msg2));
+        tracker.close();
+    }
+
+    @Test(dataProvider = "isNeedReceipt")
+    public void testImmediateAcksWaitForTheSubscription(boolean isNeedReceipt) throws Exception {
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setAcknowledgementsGroupTimeMicros(0);
+        conf.setAckReceiptEnabled(isNeedReceipt);
+        PersistentAcknowledgmentsGroupingTracker tracker =
+                new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup);
+
+        MessageIdImpl msg1 = new MessageIdImpl(5, 1, 0);
+        MessageIdImpl msg2 = new MessageIdImpl(5, 2, 0);
+        MessageIdImpl msg3 = new MessageIdImpl(5, 3, 0);
+        MessageIdImpl msg4 = new MessageIdImpl(5, 4, 0);
+
+        // Reconnected but not subscribed yet: the broker would drop the acks sent on the new connection
+        doReturn(HandlerState.State.Connecting).when(consumer).getState();
+        clearInvocations(cnx);
+        try {
+            assertFalse(tracker.addAcknowledgment(msg2, AckType.Cumulative, Collections.emptyMap())
+                    .isCompletedExceptionally());
+            assertFalse(tracker.addAcknowledgment(msg4, AckType.Individual, Collections.emptyMap())
+                    .isCompletedExceptionally());
+            assertTrue(tracker.isDuplicate(msg1));
+            assertFalse(tracker.isDuplicate(msg3));
+            assertTrue(tracker.isDuplicate(msg4));
+            assertEquals(tracker.getPendingIndividualAcksSize(), 1);
+            verifyNoInteractions(cnx);
+        } finally {
+            doReturn(HandlerState.State.Ready).when(consumer).getState();
+        }
+
+        // The flush that follows the subscription sends them
+        tracker.flush();
+        assertFalse(tracker.isDuplicate(msg4));
+        assertEquals(tracker.getPendingIndividualAcksSize(), 0);
         tracker.close();
     }
 

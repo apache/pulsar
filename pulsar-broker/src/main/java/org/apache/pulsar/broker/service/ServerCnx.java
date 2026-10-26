@@ -2334,12 +2334,28 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         commandSender.sendErrorResponse(requestId, error,
                                 "Consumer that failed is already present on the connection");
                     } else {
+                        // A client re-subscribes only after clearing its receiver queue, so the messages already
+                        // dispatched to the existing consumer would stay unacked on it. Close it so that they are
+                        // redelivered, and let the client retry with a fresh consumer.
                         Consumer consumer = existingConsumerFuture.getNow(null);
                         log.warn()
                                 .attr("consumerId", consumerId)
                                 .attr("consumer", consumer)
-                                .log("Consumer with the same id is already created:" + "consumerId=, consumer");
-                        commandSender.sendSuccessResponse(requestId);
+                                .log("Consumer with the same id is already created, closing it");
+                        try {
+                            consumer.close();
+                            if (brokerInterceptor != null) {
+                                brokerInterceptor.consumerClosed(this, consumer, consumer.getMetadata());
+                            }
+                        } catch (BrokerServiceException e) {
+                            log.warn()
+                                    .attr("consumer", consumer)
+                                    .exceptionMessage(e)
+                                    .log("Error closing the existing consumer with the same id");
+                        }
+                        consumers.remove(consumerId, existingConsumerFuture);
+                        commandSender.sendErrorResponse(requestId, ServerError.ServiceNotReady,
+                                "Consumer with the same id was already present on the connection");
                     }
                     return null;
                 }
@@ -3464,11 +3480,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     protected void handleGetLastMessageId(CommandGetLastMessageId getLastMessageId) {
         checkArgument(state == State.Connected);
 
+        // Capture command fields up front: the decoder reuses the command object for the next frame,
+        // so it must not be read from the async continuations below.
+        final long requestId = getLastMessageId.getRequestId();
         CompletableFuture<Consumer> consumerFuture = consumers.get(getLastMessageId.getConsumerId());
 
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
-            long requestId = getLastMessageId.getRequestId();
 
             Topic topic = consumer.getSubscription().getTopic();
             topic.checkIfTransactionBufferRecoverCompletely()
@@ -3492,12 +3510,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              consumer.readCompacted());
                     return null;
                  }).exceptionally(e -> {
-                     writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
+                     writeAndFlush(Commands.newError(requestId,
                              ServerError.UnknownError, "Failed to recover Transaction Buffer."));
                      return null;
                  });
         } else {
-            writeAndFlush(Commands.newError(getLastMessageId.getRequestId(),
+            writeAndFlush(Commands.newError(requestId,
                     ServerError.MetadataError, "Consumer not found"));
         }
     }

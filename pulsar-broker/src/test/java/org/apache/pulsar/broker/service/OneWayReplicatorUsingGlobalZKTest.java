@@ -408,6 +408,11 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
     }
 
     @Test(enabled = false)
+    public void testNamespaceLevelReplicationRemoteConflictTopicExist() throws Exception {
+        super.testNamespaceLevelReplicationRemoteConflictTopicExist();
+    }
+
+    @Test(enabled = false)
     public void testConcurrencyOfUnloadBundleAndRecreateProducer2() throws Exception {
         super.testConcurrencyOfUnloadBundleAndRecreateProducer2();
     }

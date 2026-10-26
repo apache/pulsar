@@ -1031,6 +1031,15 @@ public class AuthorizationService {
         return provider.removePermissionsAsync(topicName);
     }
 
+    /**
+     * Grant on a topic the permissions granted on another topic itself.
+     *
+     * @see AuthorizationProvider#copyPermissionsAsync(TopicName, TopicName)
+     */
+    public CompletableFuture<Void> copyPermissionsAsync(TopicName sourceTopicName, TopicName targetTopicName) {
+        return provider.copyPermissionsAsync(sourceTopicName, targetTopicName);
+    }
+
     public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName) {
         return provider.getPermissionsAsync(topicName);
     }
