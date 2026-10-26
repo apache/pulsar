@@ -700,7 +700,7 @@ public class ConsumerImplTest {
         // consumer's lock, here by asking for redelivery, would otherwise deadlock with the flush.
         CountDownLatch interceptorEntered = new CountDownLatch(1);
         CountDownLatch interceptorRelease = new CountDownLatch(1);
-        ConsumerInterceptor<byte[]> interceptor = mock(ConsumerInterceptor.class);
+        ConsumerInterceptor<byte[]> interceptor = mock();
         doAnswer(invocation -> {
             interceptorEntered.countDown();
             interceptorRelease.await();
@@ -813,7 +813,7 @@ public class ConsumerImplTest {
 
     @Test
     public void testCloseNotConnectedConsumerClosesInterceptorsOnce() throws Exception {
-        ConsumerInterceptor<byte[]> interceptor = mock(ConsumerInterceptor.class);
+        ConsumerInterceptor<byte[]> interceptor = mock();
         createConsumer(new ConsumerConfigurationData<>(), topic, interceptor);
 
         consumer.closeAsync().get(5, TimeUnit.SECONDS);
@@ -860,7 +860,7 @@ public class ConsumerImplTest {
         List<MessageImpl<byte[]>> messages = new ArrayList<>(numMessages);
         for (int i = 0; i < numMessages; i++) {
             int index = i;
-            MessageImpl<byte[]> message = mock(MessageImpl.class, withSettings().stubOnly());
+            MessageImpl<byte[]> message = mock(withSettings().stubOnly());
             when(message.size()).thenReturn(100);
             doAnswer(invocation -> releaseCounts.incrementAndGet(index)).when(message).release();
             messages.add(message);
