@@ -25,6 +25,7 @@ import io.oxia.client.api.Notification;
 import io.oxia.client.api.OxiaClientBuilder;
 import io.oxia.client.api.PutResult;
 import io.oxia.client.api.Version;
+import io.oxia.client.api.exceptions.AlreadyClosedException;
 import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
 import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
 import io.oxia.client.api.options.DeleteOption;
@@ -258,7 +259,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         if (actEx instanceof UnexpectedVersionIdException || actEx instanceof KeyAlreadyExistsException) {
             return CompletableFuture.failedFuture(
                     new MetadataStoreException.BadVersionException(actEx));
-        } else if (actEx instanceof IllegalStateException) {
+        } else if (actEx instanceof AlreadyClosedException || actEx instanceof IllegalStateException) {
             return CompletableFuture.failedFuture(new MetadataStoreException.AlreadyClosedException(actEx));
         } else if (actEx instanceof MetadataStoreException) {
             return CompletableFuture.failedFuture(actEx);
