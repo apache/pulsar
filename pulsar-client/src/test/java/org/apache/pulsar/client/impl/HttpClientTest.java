@@ -147,4 +147,26 @@ public class HttpClientTest {
                     .withHeader("Authorization", equalTo("Bearer test-token")));
         }
     }
+
+    @Test
+    public void testHttpsLookup() throws Exception {
+        WireMockServer httpsServer = new WireMockServer(WireMockConfiguration.wireMockConfig()
+                .port(0).httpsPort(0));
+        httpsServer.start();
+        try {
+            httpsServer.stubFor(get(urlPathMatching(LOOKUP_PATH))
+                    .willReturn(aResponse().withHeader("Content-Type", "application/json").withBody(EXPECTED_BODY)));
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl("https://localhost:" + httpsServer.httpsPort());
+            // WireMock's built-in keystore is self-signed. Exercise Pulsar's custom SSL engine with AHC 3.x.
+            conf.setTlsAllowInsecureConnection(true);
+            try (HttpClient httpClient = new HttpClient(conf, eventLoopGroup, timer, nameResolver)) {
+                LookupData result = httpClient.get(LOOKUP_PATH, LookupData.class).get(10, TimeUnit.SECONDS);
+                assertEquals(result.getBrokerUrl(), "pulsar://broker-b:6650");
+                httpsServer.verify(getRequestedFor(urlPathMatching(LOOKUP_PATH)));
+            }
+        } finally {
+            httpsServer.stop();
+        }
+    }
 }

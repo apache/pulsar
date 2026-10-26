@@ -22,7 +22,6 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.flow.FlowControlHandler;
 import io.netty.handler.flush.FlushConsolidationHandler;
 import io.netty.handler.ssl.SslHandler;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +35,7 @@ import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
 import org.apache.pulsar.common.util.PulsarSslConfiguration;
 import org.apache.pulsar.common.util.PulsarSslFactory;
+import org.apache.pulsar.common.util.netty.PulsarFlowControlHandler;
 
 @Slf4j
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
@@ -98,7 +98,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         // as they like for any given input. so, disabling auto-read on `ByteToMessageDecoder` doesn't work properly and
         // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
         // auto-read.
-        ch.pipeline().addLast("flowController", new FlowControlHandler());
+        ch.pipeline().addLast("flowController", new PulsarFlowControlHandler());
         // using "ChannelHandler" type to workaround an IntelliJ bug that shows a false positive error
         ChannelHandler cnx = newServerCnx(pulsar, listenerName);
         ch.pipeline().addLast("handler", cnx);

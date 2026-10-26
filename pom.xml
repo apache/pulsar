@@ -189,8 +189,7 @@ flexible messaging model and an intuitive client API.</description>
     <snappy.version>1.1.10.8</snappy.version> <!-- ZooKeeper server -->
     <dropwizardmetrics.version>4.1.12.1</dropwizardmetrics.version> <!-- ZooKeeper server -->
     <curator.version>5.7.1</curator.version>
-    <netty.version>4.1.139.Final</netty.version>
-    <netty-iouring.version>0.0.26.Final</netty-iouring.version>
+    <netty.version>4.2.19.Final</netty.version>
     <jetty.version>12.1.13</jetty.version>
     <!-- Jetty 9 is used in tiered-storage/file-system tests and pulsar-io/alluxio -->
     <jetty9.version>9.4.58.v20250814</jetty9.version>
@@ -264,7 +263,7 @@ flexible messaging model and an intuitive client API.</description>
     <prometheus-jmx.version>0.16.1</prometheus-jmx.version>
     <confluent.version>8.1.1</confluent.version>
     <aircompressor.version>2.0.3</aircompressor.version>
-    <asynchttpclient.version>2.16.1</asynchttpclient.version>
+    <asynchttpclient.version>3.0.14</asynchttpclient.version>
     <commons-lang3.version>3.19.0</commons-lang3.version>
     <commons-io.version>2.22.0</commons-io.version>
     <commons-codec.version>1.22.1</commons-codec.version>
@@ -308,7 +307,7 @@ flexible messaging model and an intuitive client API.</description>
     <!-- zstd-jni is only used for testcase,
     the core logic is switched to java implementation of zstd in org.apache.commons:commons-compress -->
     <zstd-jni.version>1.5.7-3</zstd-jni.version>
-    <netty-reactive-streams.version>2.0.6</netty-reactive-streams.version>
+    <netty-reactive-streams.version>2.0.20</netty-reactive-streams.version>
     <opentelemetry.version>1.62.0</opentelemetry.version>
     <opentelemetry.alpha.version>${opentelemetry.version}-alpha</opentelemetry.alpha.version>
     <opentelemetry.instrumentation.version>2.28.1</opentelemetry.instrumentation.version>
@@ -769,29 +768,6 @@ flexible messaging model and an intuitive client API.</description>
         <version>${jackson.version}</version>
         <type>pom</type>
         <scope>import</scope>
-      </dependency>
-
-      <dependency>
-        <groupId>io.netty.incubator</groupId>
-        <artifactId>netty-incubator-transport-classes-io_uring</artifactId>
-        <version>${netty-iouring.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.netty.incubator</groupId>
-        <artifactId>netty-incubator-transport-native-io_uring</artifactId>
-        <version>${netty-iouring.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>io.netty.incubator</groupId>
-        <artifactId>netty-incubator-transport-native-io_uring</artifactId>
-        <version>${netty-iouring.version}</version>
-        <classifier>linux-x86_64</classifier>
-      </dependency>
-      <dependency>
-        <groupId>io.netty.incubator</groupId>
-        <artifactId>netty-incubator-transport-native-io_uring</artifactId>
-        <version>${netty-iouring.version}</version>
-        <classifier>linux-aarch_64</classifier>
       </dependency>
 
       <dependency>

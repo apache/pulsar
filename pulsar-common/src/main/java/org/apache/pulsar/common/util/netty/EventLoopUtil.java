@@ -20,6 +20,8 @@ package org.apache.pulsar.common.util.netty;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.IoEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
 import io.netty.channel.SelectStrategy;
 import io.netty.channel.epoll.Epoll;
 import io.netty.channel.epoll.EpollChannelOption;
@@ -35,11 +37,11 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.incubator.channel.uring.IOUring;
-import io.netty.incubator.channel.uring.IOUringDatagramChannel;
-import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
-import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
-import io.netty.incubator.channel.uring.IOUringSocketChannel;
+import io.netty.channel.uring.IoUring;
+import io.netty.channel.uring.IoUringDatagramChannel;
+import io.netty.channel.uring.IoUringIoHandler;
+import io.netty.channel.uring.IoUringServerSocketChannel;
+import io.netty.channel.uring.IoUringSocketChannel;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import lombok.extern.slf4j.Slf4j;
@@ -58,7 +60,7 @@ public class EventLoopUtil {
     public static EventLoopGroup newEventLoopGroup(int nThreads, boolean enableBusyWait, ThreadFactory threadFactory) {
         if (Epoll.isAvailable()) {
             if (isIoUringEnabledAndAvailable()) {
-                return new IOUringEventLoopGroup(nThreads, threadFactory);
+                return new MultiThreadIoEventLoopGroup(nThreads, threadFactory, IoUringIoHandler.newFactory());
             } else {
                 if (!enableBusyWait) {
                     // Regular Epoll based event loop
@@ -90,13 +92,18 @@ public class EventLoopUtil {
         }
     }
 
+    private static boolean isIoUring(EventLoopGroup eventLoopGroup) {
+        return eventLoopGroup instanceof IoEventLoopGroup
+                && ((IoEventLoopGroup) eventLoopGroup).isIoType(IoUringIoHandler.class);
+    }
+
     private static boolean isIoUringEnabledAndAvailable() {
         // By default, io_uring will not be enabled, even if available. The environment variable will be used:
         // enable.io_uring=1
         boolean ioUringEnabled = StringUtils.equalsAnyIgnoreCase(System.getProperty(ENABLE_IO_URING), "1", "true");
         if (ioUringEnabled) {
-            // Throw exception if IOUring cannot be used
-            IOUring.ensureAvailability();
+            // Throw exception if io_uring cannot be used
+            IoUring.ensureAvailability();
         }
         return ioUringEnabled;
     }
@@ -108,8 +115,8 @@ public class EventLoopUtil {
      * @return
      */
     public static Class<? extends SocketChannel> getClientSocketChannelClass(EventLoopGroup eventLoopGroup) {
-        if (eventLoopGroup instanceof IOUringEventLoopGroup) {
-            return IOUringSocketChannel.class;
+        if (isIoUring(eventLoopGroup)) {
+            return IoUringSocketChannel.class;
         } else if (eventLoopGroup instanceof EpollEventLoopGroup) {
             return EpollSocketChannel.class;
         } else {
@@ -127,7 +134,7 @@ public class EventLoopUtil {
     public static Class<? extends SocketChannel> getClientSocketChannelClass() {
         if (Epoll.isAvailable()) {
             if (isIoUringEnabledAndAvailable()) {
-                return IOUringSocketChannel.class;
+                return IoUringSocketChannel.class;
             } else {
                 return EpollSocketChannel.class;
             }
@@ -137,8 +144,8 @@ public class EventLoopUtil {
     }
 
     public static Class<? extends ServerSocketChannel> getServerSocketChannelClass(EventLoopGroup eventLoopGroup) {
-        if (eventLoopGroup instanceof IOUringEventLoopGroup) {
-            return IOUringServerSocketChannel.class;
+        if (isIoUring(eventLoopGroup)) {
+            return IoUringServerSocketChannel.class;
         } else if (eventLoopGroup instanceof EpollEventLoopGroup) {
             return EpollServerSocketChannel.class;
         } else {
@@ -156,7 +163,7 @@ public class EventLoopUtil {
     public static Class<? extends ServerSocketChannel> getServerSocketChannelClass() {
         if (Epoll.isAvailable()) {
             if (isIoUringEnabledAndAvailable()) {
-                return IOUringServerSocketChannel.class;
+                return IoUringServerSocketChannel.class;
             } else {
                 return EpollServerSocketChannel.class;
             }
@@ -166,8 +173,8 @@ public class EventLoopUtil {
     }
 
     public static Class<? extends DatagramChannel> getDatagramChannelClass(EventLoopGroup eventLoopGroup) {
-        if (eventLoopGroup instanceof IOUringEventLoopGroup) {
-            return IOUringDatagramChannel.class;
+        if (isIoUring(eventLoopGroup)) {
+            return IoUringDatagramChannel.class;
         } else if (eventLoopGroup instanceof EpollEventLoopGroup) {
             return EpollDatagramChannel.class;
         } else {
@@ -185,7 +192,7 @@ public class EventLoopUtil {
     public static Class<? extends DatagramChannel> getDatagramChannelClass() {
         if (Epoll.isAvailable()) {
             if (isIoUringEnabledAndAvailable()) {
-                return IOUringDatagramChannel.class;
+                return IoUringDatagramChannel.class;
             } else {
                 return EpollDatagramChannel.class;
             }

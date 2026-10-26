@@ -36,6 +36,12 @@
 
   <dependencies>
 
+    <!-- AHC 3.x loads HTTP/2 handlers even when HTTP/1.1 is used. -->
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-codec-http2</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-broker-common</artifactId>

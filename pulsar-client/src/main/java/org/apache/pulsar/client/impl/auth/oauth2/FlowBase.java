@@ -101,10 +101,10 @@ abstract class FlowBase implements Flow {
         confBuilder.setUseProxyProperties(true);
         confBuilder.setFollowRedirect(true);
         confBuilder.setConnectTimeout(
-                getParameterDurationToMillis(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
+                getParameterDuration(CONFIG_PARAM_CONNECT_TIMEOUT, connectTimeout,
                         DEFAULT_CONNECT_TIMEOUT));
         confBuilder.setReadTimeout(
-                getParameterDurationToMillis(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT));
+                getParameterDuration(CONFIG_PARAM_READ_TIMEOUT, readTimeout, DEFAULT_READ_TIMEOUT));
         confBuilder.setUserAgent(String.format("Pulsar-Java-v%s", PulsarVersion.getVersion()));
         boolean hasCertFile = StringUtils.isNotBlank(certFile);
         boolean hasKeyFile = StringUtils.isNotBlank(keyFile);
@@ -171,10 +171,6 @@ abstract class FlowBase implements Flow {
         } catch (Exception e) {
             log.error("Failed to refresh SSL context", e);
         }
-    }
-
-    private int getParameterDurationToMillis(String name, Duration value, Duration defaultValue) {
-        return (int) getParameterDuration(name, value, defaultValue).toMillis();
     }
 
     private long getParameterDurationToSeconds(String name, Duration value, Duration defaultValue) {
