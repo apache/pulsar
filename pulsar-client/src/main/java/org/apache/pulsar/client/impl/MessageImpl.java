@@ -753,9 +753,9 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         if (msgMetadata != null) {
             msgMetadata.clear();
         }
-        if (brokerEntryMetadata != null) {
-            brokerEntryMetadata.clear();
-        }
+        // The broker entry metadata can be shared with the other messages of the same batch, so only drop the
+        // reference instead of clearing the shared instance.
+        brokerEntryMetadata = null;
         cnx = null;
         messageId = null;
         topic = null;
