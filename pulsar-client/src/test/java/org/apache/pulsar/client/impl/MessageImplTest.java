@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -47,6 +48,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.BrokerEntryMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
+import org.apache.pulsar.common.compression.CompressionCodecZLib;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
@@ -58,6 +60,100 @@ import org.testng.annotations.Test;
  * Unit test of {@link MessageImpl}.
  */
 public class MessageImplTest {
+
+    @DataProvider(name = "messageBufferTypes")
+    public Object[][] messageBufferTypes() {
+        return new Object[][]{
+                {true, false},
+                {true, true},
+                {false, false},
+                {false, true}
+        };
+    }
+
+    @Test(dataProvider = "messageBufferTypes")
+    public void testRepeatedGetDataOfBatchMessage(boolean pooledMessage, boolean directBuffer) {
+        ByteBuf source = directBuffer ? Unpooled.directBuffer(6) : Unpooled.buffer(6);
+        try {
+            source.writeBytes(new byte[]{0, 1, 2, 3, 4, 5});
+            ByteBuf payload = source.slice(1, 4).readerIndex(1);
+            MessageImpl<byte[]> message = MessageImpl.create("test-topic", new BatchMessageIdImpl(1, 2, -1, 0),
+                    new MessageMetadata().setNumMessagesInBatch(1), new SingleMessageMetadata(), payload,
+                    Optional.empty(), null, Schema.BYTES, 0, pooledMessage, Commands.DEFAULT_CONSUMER_EPOCH);
+            try {
+                assertRepeatedGetData(message, new byte[]{2, 3, 4});
+            } finally {
+                if (pooledMessage) {
+                    message.release();
+                } else {
+                    message.getDataBuffer().release();
+                }
+            }
+        } finally {
+            source.release();
+        }
+        assertThat(source.refCnt()).as("source buffer references after message release").isZero();
+    }
+
+    @Test
+    public void testRepeatedGetDataOfZlibBatchMessages() throws Exception {
+        byte[][] expected = {{1, 2, 3, 4}, {5, 6, 7}};
+        ByteBuf batch = Unpooled.buffer();
+        try {
+            for (byte[] data : expected) {
+                ByteBuf payload = Unpooled.wrappedBuffer(data);
+                try {
+                    Commands.serializeSingleMessageInBatchWithPayload(new SingleMessageMetadata(), payload, batch);
+                } finally {
+                    payload.release();
+                }
+            }
+            CompressionCodecZLib codec = new CompressionCodecZLib();
+            ByteBuf compressed = codec.encode(batch);
+            try {
+                ByteBuf uncompressed = codec.decode(compressed, batch.readableBytes());
+                try {
+                    assertThat(uncompressed.hasArray()).as("ZLIB decoded batch uses heap memory").isTrue();
+                    for (int i = 0; i < expected.length; i++) {
+                        SingleMessageMetadata singleMetadata = new SingleMessageMetadata();
+                        ByteBuf payload = Commands.deSerializeSingleMessageInBatch(
+                                uncompressed, singleMetadata, i, expected.length);
+                        try {
+                            MessageImpl<byte[]> message = MessageImpl.create("test-topic",
+                                    new BatchMessageIdImpl(1, 2, -1, i),
+                                    new MessageMetadata().setNumMessagesInBatch(expected.length), singleMetadata,
+                                    payload, Optional.empty(), null, Schema.BYTES, 0, true,
+                                    Commands.DEFAULT_CONSUMER_EPOCH);
+                            try {
+                                assertRepeatedGetData(message, expected[i]);
+                            } finally {
+                                message.release();
+                            }
+                        } finally {
+                            payload.release();
+                        }
+                    }
+                } finally {
+                    uncompressed.release();
+                }
+                assertThat(uncompressed.refCnt()).as("decoded batch references after message release").isZero();
+            } finally {
+                compressed.release();
+            }
+        } finally {
+            batch.release();
+        }
+    }
+
+    private static void assertRepeatedGetData(MessageImpl<byte[]> message, byte[] expected) {
+        int readerIndex = message.getDataBuffer().readerIndex();
+        for (int i = 0; i < 2; i++) {
+            assertThat(message.getData()).as("payload on read %s", i).containsExactly(expected);
+            assertThat(message.size()).as("message size after read %s", i).isEqualTo(expected.length);
+            assertThat(message.getDataBuffer().readerIndex()).as("reader index after read %s", i)
+                    .isEqualTo(readerIndex);
+        }
+    }
 
     @Test
     public void testOutgoingBrokerMetadataBeforeAndAfterRecycle() {
