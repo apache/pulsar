@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.cli.ClientApi;
 import org.apache.pulsar.cli.ClientApiOptionGroups;
 import org.apache.pulsar.client.api.Authentication;
@@ -213,7 +214,8 @@ public class CmdConsume extends AbstractCmdConsume {
         }
         ClientApi resolvedClientApi = resolveClientApi(commandSpec, clientApi, topic, serviceURL);
         if (v4.readCompacted) {
-            if (isWebSocketUrl(serviceURL) || !TopicName.get(topic).isPersistent()) {
+            String topicToValidate = isRegex ? topic : StringUtils.trim(topic);
+            if (isWebSocketUrl(serviceURL) || !TopicName.get(topicToValidate).isPersistent()) {
                 throw new CommandLine.ParameterException(commandSpec.commandLine(),
                         "--read-compacted requires a persistent topic over the binary protocol.");
             }

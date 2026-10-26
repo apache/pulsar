@@ -20,9 +20,7 @@ package org.apache.pulsar.client.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -30,13 +28,15 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -85,28 +85,39 @@ public class TestCmdConsume {
 
     @DataProvider(name = "readCompactedSubscriptions")
     public Object[][] readCompactedSubscriptions() {
-        return new Object[][] {
-            {true, "Exclusive"}, {true, "Failover"},
-            {false, "Exclusive"}, {false, "Failover"},
-        };
+        List<Object[]> cases = new ArrayList<>();
+        for (boolean readCompacted : new boolean[]{true, false}) {
+            for (String subscriptionType : List.of("Exclusive", "Failover")) {
+                cases.add(new Object[]{readCompacted, subscriptionType, "persistent://public/default/t", false});
+                cases.add(new Object[]{readCompacted, subscriptionType, " persistent://public/default/t ", false});
+                cases.add(new Object[]{readCompacted, subscriptionType, "persistent://public/default/t.* ", true});
+            }
+        }
+        return cases.toArray(Object[][]::new);
     }
 
     @Test(dataProvider = "readCompactedSubscriptions")
     @SuppressWarnings("unchecked")
-    public void testReadCompactedConsumer(boolean readCompacted, String subscriptionType) throws Exception {
+    public void testReadCompactedConsumer(boolean readCompacted, String subscriptionType,
+                                         String topic, boolean regex) throws Exception {
         ClientBuilder clientBuilder = mock(ClientBuilder.class);
-        PulsarClient client = mock(PulsarClient.class);
-        ConsumerBuilder<ByteBuffer> builder = mock(ConsumerBuilder.class, RETURNS_SELF);
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConsumerBuilderImpl<ByteBuffer> builder = new ConsumerBuilderImpl<>(client, Schema.BYTEBUFFER);
         Consumer<ByteBuffer> consumer = mock(Consumer.class);
         Message<ByteBuffer> message = mock(Message.class);
         when(clientBuilder.build()).thenReturn(client);
         when(client.newConsumer(Schema.BYTEBUFFER)).thenReturn(builder);
-        when(builder.subscribe()).thenReturn(consumer);
+        when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
+        when(client.subscribeAsync(builder.getConf(), Schema.BYTEBUFFER, null))
+                .thenReturn(CompletableFuture.completedFuture(consumer));
         when(consumer.receive(5, TimeUnit.SECONDS)).thenReturn(message);
 
         CmdConsume command = new CmdConsume();
         List<String> args = new ArrayList<>(List.of("-s", "sub", "-t", subscriptionType,
-                "--hide-content", "persistent://public/default/t"));
+                "--hide-content", topic));
+        if (regex) {
+            args.add("--regex");
+        }
         if (readCompacted) {
             args.add("--read-compacted");
         }
@@ -115,12 +126,15 @@ public class TestCmdConsume {
         command.updateV4Config(() -> clientBuilder);
 
         assertThat(command.run()).isZero();
-        if (readCompacted) {
-            verify(builder).readCompacted(true);
+        assertThat(builder.getConf().isReadCompacted()).isEqualTo(readCompacted);
+        if (regex) {
+            assertThat(builder.getConf().getTopicsPattern().pattern()).isEqualTo(topic);
+            assertThat(builder.getConf().getTopicNames()).isEmpty();
         } else {
-            verify(builder, never()).readCompacted(true);
+            assertThat(builder.getConf().getTopicNames()).containsExactly("persistent://public/default/t");
+            assertThat(builder.getConf().getTopicsPattern()).isNull();
         }
-        verify(builder).subscribe();
+        verify(client).subscribeAsync(builder.getConf(), Schema.BYTEBUFFER, null);
         verify(consumer).acknowledge(message);
         verify(message).release();
     }

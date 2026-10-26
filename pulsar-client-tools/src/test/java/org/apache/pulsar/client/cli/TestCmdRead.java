@@ -20,9 +20,7 @@ package org.apache.pulsar.client.cli;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
@@ -30,13 +28,14 @@ import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.ReaderBuilderImpl;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import picocli.CommandLine;
@@ -68,24 +67,30 @@ public class TestCmdRead {
 
     @DataProvider(name = "readCompactedValues")
     public Object[][] readCompactedValues() {
-        return new Object[][] {{true}, {false}};
+        return new Object[][] {
+            {true, "persistent://public/default/t"},
+            {false, "persistent://public/default/t"},
+            {true, " persistent://public/default/t "},
+            {false, " persistent://public/default/t "},
+        };
     }
 
     @Test(dataProvider = "readCompactedValues")
     @SuppressWarnings("unchecked")
-    public void testReadCompactedReader(boolean readCompacted) throws Exception {
+    public void testReadCompactedReader(boolean readCompacted, String topic) throws Exception {
         ClientBuilder clientBuilder = mock(ClientBuilder.class);
-        PulsarClient client = mock(PulsarClient.class);
-        ReaderBuilder<ByteBuffer> builder = mock(ReaderBuilder.class, RETURNS_SELF);
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ReaderBuilderImpl<ByteBuffer> builder = new ReaderBuilderImpl<>(client, Schema.BYTEBUFFER);
         Reader<ByteBuffer> reader = mock(Reader.class);
         Message<ByteBuffer> message = mock(Message.class);
         when(clientBuilder.build()).thenReturn(client);
         when(client.newReader(Schema.BYTEBUFFER)).thenReturn(builder);
-        when(builder.create()).thenReturn(reader);
+        when(client.createReaderAsync(builder.getConf(), Schema.BYTEBUFFER))
+                .thenReturn(CompletableFuture.completedFuture(reader));
         when(reader.readNext(5, TimeUnit.SECONDS)).thenReturn(message);
 
         CmdRead command = new CmdRead();
-        List<String> args = new ArrayList<>(List.of("--hide-content", "persistent://public/default/t"));
+        List<String> args = new ArrayList<>(List.of("-m", "earliest", "--hide-content", topic));
         if (readCompacted) {
             args.add("--read-compacted");
         }
@@ -94,12 +99,9 @@ public class TestCmdRead {
         command.updateV4Config(() -> clientBuilder);
 
         assertThat(command.run()).isZero();
-        if (readCompacted) {
-            verify(builder).readCompacted(true);
-        } else {
-            verify(builder, never()).readCompacted(true);
-        }
-        verify(builder).create();
+        assertThat(builder.getConf().getTopicNames()).containsExactly("persistent://public/default/t");
+        assertThat(builder.getConf().isReadCompacted()).isEqualTo(readCompacted);
+        verify(client).createReaderAsync(builder.getConf(), Schema.BYTEBUFFER);
         verify(message).release();
     }
 
