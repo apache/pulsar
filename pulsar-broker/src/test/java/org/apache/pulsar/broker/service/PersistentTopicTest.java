@@ -50,8 +50,9 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.local.LocalIoHandler;
 import io.netty.util.ReferenceCountUtil;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -228,7 +229,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
 
-        eventLoopGroup = new DefaultEventLoopGroup();
+        eventLoopGroup = new MultiThreadIoEventLoopGroup(LocalIoHandler.newFactory());
         doReturn(eventLoopGroup.next()).when(channel).eventLoop();
         doReturn(channel).when(ctx).channel();
         doReturn(ctx).when(serverCnx).ctx();

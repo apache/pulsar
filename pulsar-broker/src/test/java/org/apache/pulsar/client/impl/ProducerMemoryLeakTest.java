@@ -220,6 +220,9 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
         return new Object[][] {{false, 0}, {false, 1}, {false, 2}, {true, 0}, {true, 1}, {true, 2}};
     }
 
+    // The custom task-queue factory is only exposed by the deprecated NioEventLoopGroup constructor, and the
+    // resolver mirrors DnsResolverGroupImpl, which also uses the deprecated traceEnabled/channelType builders.
+    @SuppressWarnings("deprecation")
     @Test(dataProvider = "chunkWriteFailures")
     public void testChunkedSendStopsAfterRejectedWrite(boolean blockIfQueueFull, int rejectedChunk) throws Exception {
         AtomicReference<Thread> rejectNextTaskFrom = new AtomicReference<>();
