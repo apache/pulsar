@@ -570,4 +570,43 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         subscribeFuture2.get().unsubscribe();
         admin.topics().delete(topicName);
     }
+
+    @Test
+    public void testConsistentHashingAssignmentIsBalanced() throws Exception {
+        conf.setActiveConsumerFailoverConsistentHashing(true);
+        final String topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/failover-balanced");
+        final String subName = "sub1";
+        final int numPartitions = 10;
+        admin.topics().createPartitionedTopic(topicName, numPartitions);
+        List<String> names = List.of("consumer-0", "consumer-1", "consumer-2", "consumer-3");
+        List<Consumer<byte[]>> consumers = new ArrayList<>();
+        try {
+            for (String name : names) {
+                consumers.add(pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                        .subscriptionType(SubscriptionType.Failover).consumerName(name).subscribe());
+            }
+            assertBalancedAssignment(topicName, subName, numPartitions, names);
+
+            consumers.remove(0).close();
+            assertBalancedAssignment(topicName, subName, numPartitions, names.subList(1, names.size()));
+        } finally {
+            conf.setActiveConsumerFailoverConsistentHashing(false);
+            for (Consumer<byte[]> consumer : consumers) {
+                consumer.close();
+            }
+            admin.topics().deletePartitionedTopic(topicName);
+        }
+    }
+
+    // The broker's active consumer of every partition is the one picked by the balanced assignment
+    private void assertBalancedAssignment(String topicName, String subName, int numPartitions, List<String> names) {
+        int[] expected = AbstractDispatcherSingleActiveConsumer.balancedAssignment(topicName, numPartitions, names);
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < numPartitions; i++) {
+                String partition = TopicName.get(topicName).getPartition(i).toString();
+                assertEquals(admin.topics().getStats(partition).getSubscriptions().get(subName)
+                        .getActiveConsumerName(), names.get(expected[i]), partition);
+            }
+        });
+    }
 }
