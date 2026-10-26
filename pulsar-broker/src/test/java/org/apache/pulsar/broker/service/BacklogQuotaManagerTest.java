@@ -613,6 +613,7 @@ public class BacklogQuotaManagerTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void subscriptionBacklogAgeStatsDisabledByDefault() throws Exception {
         config.setPreciseTimeBasedBacklogQuotaCheck(true);
@@ -640,6 +641,7 @@ public class BacklogQuotaManagerTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void subscriptionBacklogAgeSkipsNonDurableReader() throws Exception {
         config.setPreciseTimeBasedBacklogQuotaCheck(true);
@@ -677,6 +679,7 @@ public class BacklogQuotaManagerTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void subscriptionBacklogAgeCacheRemovedAfterSubscriptionDeleteAndRecreate() throws Exception {
         config.setPreciseTimeBasedBacklogQuotaCheck(true);

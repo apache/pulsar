@@ -62,7 +62,8 @@ public class PulsarAuthorizationProviderTest {
         when(pulsarResources.getTenantResources()).thenReturn(tenantResources);
 
         PulsarAuthorizationProvider provider = new PulsarAuthorizationProvider();
-        provider.initialize(new ServiceConfiguration(), pulsarResources);
+        provider.initialize(AuthorizationProvider.InitialContext.builder()
+                .config(new ServiceConfiguration()).pulsarResources(pulsarResources).build());
         return provider;
     }
 
@@ -142,7 +143,8 @@ public class PulsarAuthorizationProviderTest {
         when(pulsarResources.getNamespaceResources()).thenReturn(namespaceResources);
 
         PulsarAuthorizationProvider provider = new PulsarAuthorizationProvider();
-        provider.initialize(conf, pulsarResources);
+        provider.initialize(AuthorizationProvider.InitialContext.builder()
+                .config(conf).pulsarResources(pulsarResources).build());
         return provider;
     }
 

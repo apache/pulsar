@@ -70,6 +70,8 @@ public class ProtobufNativeSchemaTest {
      * @throws InvalidProtocolBufferException if the decoded bytes are not a valid FileDescriptorSet
      * @throws JSONException if the JSON string is invalid
      */
+    // Its successor, alwaysPrintFieldsWithNoPresence(), would skip the unset proto2 fields this prints.
+    @SuppressWarnings("deprecation")
     private static JSONObject fdsToJson(String b64)
             throws IllegalArgumentException, InvalidProtocolBufferException, JSONException {
         DescriptorProtos.FileDescriptorSet fds =
