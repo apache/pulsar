@@ -295,11 +295,8 @@ The Apache Software License, Version 2.0
     - org.apache.commons-commons-text-1.15.0.jar
  * Netty
     - io.netty-netty-buffer-4.2.19.Final.jar
-    - io.netty-netty-codec-4.2.19.Final.jar
     - io.netty-netty-codec-base-4.2.19.Final.jar
     - io.netty-netty-codec-compression-4.2.19.Final.jar
-    - io.netty-netty-codec-marshalling-4.2.19.Final.jar
-    - io.netty-netty-codec-protobuf-4.2.19.Final.jar
     - io.netty-netty-codec-dns-4.2.19.Final.jar
     - io.netty-netty-codec-http-4.2.19.Final.jar
     - io.netty-netty-codec-http2-4.2.19.Final.jar
@@ -328,6 +325,9 @@ The Apache Software License, Version 2.0
     - io.netty-netty-transport-classes-io_uring-4.2.19.Final.jar
     - io.netty-netty-transport-native-io_uring-4.2.19.Final-linux-x86_64.jar
     - io.netty-netty-transport-native-io_uring-4.2.19.Final-linux-aarch_64.jar
+    - io.netty.incubator-netty-incubator-transport-classes-io_uring-0.0.26.Final.jar
+    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.26.Final-linux-x86_64.jar
+    - io.netty.incubator-netty-incubator-transport-native-io_uring-0.0.26.Final-linux-aarch_64.jar
  * Prometheus client
     - io.prometheus.jmx-collector-0.16.1.jar
     - io.prometheus-simpleclient-0.16.0.jar
@@ -447,7 +447,7 @@ The Apache Software License, Version 2.0
  * Javassist -- org.javassist-javassist-3.25.0-GA.jar
  * Kotlin Standard Lib
      - org.jetbrains.kotlin-kotlin-stdlib-2.2.21.jar
-     - org.jetbrains-annotations-13.0.jar
+     - org.jetbrains-annotations-26.1.0.jar
  * gRPC
     - io.grpc-grpc-all-1.75.0.jar
     - io.grpc-grpc-auth-1.75.0.jar

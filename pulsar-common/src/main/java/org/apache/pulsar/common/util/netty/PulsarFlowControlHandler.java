@@ -230,7 +230,7 @@ public class PulsarFlowControlHandler extends ChannelDuplexHandler {
             return RECYCLER.get();
         }
 
-        private final Handle<RecyclableArrayDeque> handle;
+        private final transient Handle<RecyclableArrayDeque> handle;
 
         private RecyclableArrayDeque(int numElements, Handle<RecyclableArrayDeque> handle) {
             super(numElements);
