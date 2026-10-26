@@ -2467,9 +2467,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             keyGeneratorTask.cancel(false);
         }
         if (firstKeyLoad != null) {
-            // A creation still waiting for the key must not wait for a task that will not run anymore.
-            firstKeyLoad.completeExceptionally(new PulsarClientException.AlreadyClosedException(
-                    String.format("The producer %s of the topic %s was closed before its key was loaded",
+            // The creation of a producer that encrypts can wait for the key, or for a reconnection after it, and
+            // nothing else completes it once the producer has closed: fail it here, whatever stage it has reached.
+            // A creation that has already completed, or already failed with its own cause, is not affected.
+            producerCreatedFuture.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                    String.format("The producer %s of the topic %s was closed before it was created",
                             producerName, topic)));
         }
 
@@ -2486,16 +2488,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             producerCreatedFuture.complete(this);
             return;
         }
-        firstKeyLoad.whenComplete((v, closed) -> {
-            if (closed != null || isTerminalState()) {
-                producerCreatedFuture.completeExceptionally(closed != null ? closed
-                        : new PulsarClientException.AlreadyClosedException(String.format(
-                                "The producer %s of the topic %s was closed before its key was loaded",
-                                producerName, topic)));
-            } else if (getState() == State.Ready) {
+        firstKeyLoad.thenRun(() -> {
+            if (getState() == State.Ready) {
                 producerCreatedFuture.complete(this);
             }
-            // Otherwise the producer is reconnecting: the next switch to Ready completes the creation.
+            // Otherwise the producer is reconnecting, and the next switch to Ready completes the creation, or it
+            // has ended, and closeProducerTasks() has failed the creation.
         });
     }
 
@@ -3279,6 +3277,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 // stays in the client and keeps the connection it is about to open, which registers it on the
                 // broker and then reconnects it as if it had been created.
                 closeAsync();
+            } else if (e instanceof RuntimeException) {
+                // A later refresh: leave it to the task wrapper to log, as before.
+                throw (RuntimeException) e;
             }
         }
     }

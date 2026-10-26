@@ -491,6 +491,26 @@ public class ProducerImplTest {
     }
 
     /**
+     * The key can load while the producer is reconnecting, so the creation waits for the next connection. A close
+     * before that connection must fail the creation too: nothing else would complete it anymore.
+     */
+    @Test
+    public void testCreationFailsWhenTheProducerIsClosedWhileReconnectingAfterTheKeyLoaded() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            waiting.producer.connectionClosed(waiting.cnx, Optional.empty(), Optional.empty());
+            waiting.keyTask.get().run();
+            assertFalse(waiting.created.isDone(), "A reconnecting producer is not created yet");
+
+            waiting.producer.closeAsync().get(10, TimeUnit.SECONDS);
+
+            assertTrue(waiting.created.isCompletedExceptionally(), "The creation must not stay pending");
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        }
+    }
+
+    /**
      * A connection failure that ends the creation runs the terminal cleanup; the key task scheduled by the
      * constructor must be cancelled by it, so it is scheduled before the producer connects.
      */
