@@ -109,6 +109,11 @@
 
     <dependency>
       <groupId>io.netty</groupId>
+      <artifactId>netty-transport-classes-epoll</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
       <artifactId>netty-transport-native-epoll</artifactId>
       <classifier>linux-x86_64</classifier>
     </dependency>
@@ -161,19 +166,19 @@
     </dependency>
 
     <dependency>
-      <groupId>io.netty.incubator</groupId>
-      <artifactId>netty-incubator-transport-classes-io_uring</artifactId>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-classes-io_uring</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>io.netty.incubator</groupId>
-      <artifactId>netty-incubator-transport-native-io_uring</artifactId>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-io_uring</artifactId>
       <classifier>linux-x86_64</classifier>
     </dependency>
 
     <dependency>
-      <groupId>io.netty.incubator</groupId>
-      <artifactId>netty-incubator-transport-native-io_uring</artifactId>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-transport-native-io_uring</artifactId>
       <classifier>linux-aarch_64</classifier>
     </dependency>
 
