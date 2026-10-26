@@ -192,6 +192,7 @@ public class HttpClientTest {
             }
 
             @Override
+            @Deprecated
             public void configure(Map<String, String> authParams) {
             }
 

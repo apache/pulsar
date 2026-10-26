@@ -324,7 +324,7 @@ public class PulsarLedgerMetadataListenerTest {
             if (thread == null) {
                 return false;
             }
-            ThreadInfo info = ManagementFactory.getThreadMXBean().getThreadInfo(thread.getId());
+            ThreadInfo info = ManagementFactory.getThreadMXBean().getThreadInfo(thread.threadId());
             return info != null && info.getThreadState() == Thread.State.BLOCKED
                     && info.getLockInfo() != null
                     && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(monitor);

@@ -444,6 +444,7 @@ public class ClusterMigrationTest {
      * connection closes and fails those requests, the consumer and the producer, already connected to the new
      * cluster, must stay connected: a consumer that subscribes again drops the messages in its receiver queue.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testRedirectedConsumerAndProducerIgnoreTheirFirstAttempt() throws Exception {
         final String topicName = BrokerTestUtil

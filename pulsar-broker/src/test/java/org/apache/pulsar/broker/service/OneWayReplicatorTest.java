@@ -182,6 +182,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         config.setManagedLedgerStorageClassName(TestManagedLedgerStorage.class.getName());
     }
 
+    // Verifies the deprecated inbound msgRateIn/msgThroughputIn replicator stats, which are still reported.
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 45 * 1000)
     public void testReceiverSideReplicationStats() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
