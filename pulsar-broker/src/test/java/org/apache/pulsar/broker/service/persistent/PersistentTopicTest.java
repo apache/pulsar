@@ -1244,7 +1244,9 @@ public class PersistentTopicTest extends BrokerTestBase {
                     removalStarted.countDown();
                     return allowRemoval.thenComposeAsync(ignored -> {
                         try {
-                            return (CompletableFuture<Void>) invocation.callRealMethod();
+                            @SuppressWarnings("unchecked")
+                            CompletableFuture<Void> result = (CompletableFuture<Void>) invocation.callRealMethod();
+                            return result;
                         } catch (Throwable error) {
                             return CompletableFuture.failedFuture(error);
                         }
