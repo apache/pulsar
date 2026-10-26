@@ -415,8 +415,8 @@ public class ProducerImplTest {
         when(client.getConfiguration()).thenReturn(clientConfigurationData);
         when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
-        when(eventLoopGroup.scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any()))
-                .thenReturn(mock(ScheduledFuture.class));
+        doReturn(mock(ScheduledFuture.class)).when(eventLoopGroup)
+                .scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
         when(client.eventLoopGroup()).thenReturn(eventLoopGroup);
         return client;
     }
@@ -830,7 +830,7 @@ public class ProducerImplTest {
     /** A failed command serialization must release the payload instead of orphaning it. */
     @Test
     public void testSendMessageFailureReleasesPayload() throws Exception {
-        ProducerImpl<byte[]> producer = mock(ProducerImpl.class, CALLS_REAL_METHODS);
+        ProducerImpl<byte[]> producer = mock(CALLS_REAL_METHODS);
         doThrow(new RuntimeException("mocked serialization failure"))
                 .when(producer)
                 .sendMessage(anyLong(), anyLong(), anyInt(), any(), any(), any());
@@ -846,7 +846,7 @@ public class ProducerImplTest {
     /** A failing compression stage must release the source payload the codec left with the caller. */
     @Test
     public void testApplyCompressionFailureReleasesSource() throws Exception {
-        ProducerImpl<byte[]> producer = mock(ProducerImpl.class, CALLS_REAL_METHODS);
+        ProducerImpl<byte[]> producer = mock(CALLS_REAL_METHODS);
         doThrow(new RuntimeException("mocked compression failure"))
                 .when(producer)
                 .applyCompression(any());
@@ -861,7 +861,7 @@ public class ProducerImplTest {
     /** A failing encryption stage must release the source payload encryptMessage() left with the caller. */
     @Test
     public void testEncryptMessageFailureReleasesSource() throws Exception {
-        ProducerImpl<byte[]> producer = mock(ProducerImpl.class, CALLS_REAL_METHODS);
+        ProducerImpl<byte[]> producer = mock(CALLS_REAL_METHODS);
         doThrow(new PulsarClientException("mocked encryption failure"))
                 .when(producer)
                 .encryptMessage(any(), any());
@@ -900,7 +900,7 @@ public class ProducerImplTest {
      */
     @Test
     public void testDeferredCommandConstructionFailureThenRecovery() throws Exception {
-        ProducerImpl<byte[]> producer = mock(ProducerImpl.class, CALLS_REAL_METHODS);
+        ProducerImpl<byte[]> producer = mock(CALLS_REAL_METHODS);
         AtomicInteger sendCalls = new AtomicInteger();
         ByteBufPair builtCmd = mock(ByteBufPair.class);
         doAnswer(invocation -> {

@@ -289,6 +289,8 @@ public class AcknowledgementsGroupingTrackerTest {
         tracker.close();
     }
 
+    // Mockito.clearInvocations(T...) is not @SafeVarargs.
+    @SuppressWarnings("unchecked")
     @Test
     public void testPeriodicFlushSkipsTrackerWithoutNewAcks() throws Exception {
         ConsumerImpl<?> periodicConsumer = mock(ConsumerImpl.class);

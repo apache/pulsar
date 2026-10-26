@@ -732,17 +732,15 @@ public class ProducerMemoryLeakTest extends SharedPulsarBaseTest {
         return new MsgPayloadTouchableMessageBuilder<T>(producer, schema);
     }
 
-    private static class MsgPayloadTouchableMessageBuilder<T> extends TypedMessageBuilderImpl {
+    private static class MsgPayloadTouchableMessageBuilder<T> extends TypedMessageBuilderImpl<T> {
 
         public volatile ByteBuf payload;
 
-        @SuppressWarnings("unchecked")
-        public <T> MsgPayloadTouchableMessageBuilder(ProducerBase producer, Schema<T> schema) {
+        public MsgPayloadTouchableMessageBuilder(ProducerBase<?> producer, Schema<T> schema) {
             super(producer, schema);
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public Message<T> getMessage() {
             MessageImpl<T> msg = (MessageImpl<T>) super.getMessage();
             payload = msg.getPayload();
