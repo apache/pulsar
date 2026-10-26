@@ -598,10 +598,48 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
     }
 
+    @Test
+    public void testConsistentHashingRebalancesWhenPartitionsAreAdded() throws Exception {
+        conf.setActiveConsumerFailoverConsistentHashing(true);
+        List<String> names = List.of("consumer-0", "consumer-1");
+        // A topic whose partition 0 has to move to another consumer when the topic grows from 2 to 4 partitions
+        String prefix = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/failover-expansion");
+        String topicName = null;
+        for (int i = 0; topicName == null; i++) {
+            String candidate = prefix + "-" + i;
+            if (AbstractDispatcherSingleActiveConsumer.balancedAssignment(candidate, 2, names)[0]
+                    != AbstractDispatcherSingleActiveConsumer.balancedAssignment(candidate, 4, names)[0]) {
+                topicName = candidate;
+            }
+        }
+        final String subName = "sub1";
+        admin.topics().createPartitionedTopic(topicName, 2);
+        List<Consumer<byte[]>> consumers = new ArrayList<>();
+        try {
+            for (String name : names) {
+                consumers.add(pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                        .subscriptionType(SubscriptionType.Failover).consumerName(name)
+                        .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS).subscribe());
+            }
+            assertBalancedAssignment(topicName, subName, 2, names);
+
+            // The consumers stay connected and subscribe to the new partitions on their own
+            admin.topics().updatePartitionedTopic(topicName, 4);
+            assertBalancedAssignment(topicName, subName, 4, names);
+        } finally {
+            conf.setActiveConsumerFailoverConsistentHashing(false);
+            for (Consumer<byte[]> consumer : consumers) {
+                consumer.close();
+            }
+            admin.topics().deletePartitionedTopic(topicName);
+        }
+    }
+
     // The broker's active consumer of every partition is the one picked by the balanced assignment
     private void assertBalancedAssignment(String topicName, String subName, int numPartitions, List<String> names) {
         int[] expected = AbstractDispatcherSingleActiveConsumer.balancedAssignment(topicName, numPartitions, names);
-        Awaitility.await().untilAsserted(() -> {
+        // New partitions have no stats until the consumers subscribe to them
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
             for (int i = 0; i < numPartitions; i++) {
                 String partition = TopicName.get(topicName).getPartition(i).toString();
                 assertEquals(admin.topics().getStats(partition).getSubscriptions().get(subName)

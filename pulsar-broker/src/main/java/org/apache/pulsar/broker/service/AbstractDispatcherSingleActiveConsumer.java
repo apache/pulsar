@@ -187,6 +187,20 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     }
 
     /**
+     * Re-picks the active consumer when partitions are added to the partitioned topic, because consistent hashing
+     * assigns the partitions by the partition count.
+     */
+    public synchronized void onPartitionsUpdate(int partitions) {
+        if (partitions <= numPartitions) {
+            return;
+        }
+        numPartitions = partitions;
+        if (serviceConfig.isActiveConsumerFailoverConsistentHashing() && closeFuture == null && !consumers.isEmpty()) {
+            pickAndScheduleActiveConsumer();
+        }
+    }
+
+    /**
      * Consistent hashing selection for a partition of a partitioned topic, see {@link #balancedAssignment}.
      *
      * @return the index of the selected consumer
@@ -197,7 +211,7 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
         numPartitions = Math.max(numPartitions, subscription.getTopic().getBrokerService()
                 .fetchPartitionedTopicMetadataIfCachedAndAsyncLoad(TopicName.get(partitionedTopicName)).partitions);
         // shortcut: until the partition count is cached, or when the table is too big, the partition uses the hash
-        // ring until the next consumer change. Re-pick on metadata load if that shows up in practice.
+        // ring until the next consumer change or partition update. Re-pick on metadata load if that shows up.
         if (numPartitions <= partitionIndex || (long) numPartitions * consumersSize > MAX_BALANCED_HASHING_PAIRS) {
             return peekConsumerIndexFromHashRing(makeHashRing(consumersSize));
         }
