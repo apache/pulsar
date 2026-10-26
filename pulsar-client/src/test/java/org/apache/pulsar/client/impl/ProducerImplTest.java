@@ -325,7 +325,7 @@ public class ProducerImplTest {
         verify(interceptor).close();
     }
 
-    private ProducerConfigurationData encryptedProducerConf() {
+    private static ProducerConfigurationData encryptedProducerConf() {
         ProducerConfigurationData conf = new ProducerConfigurationData();
         conf.setEncryptionKeys(new TreeSet<>(Collections.singleton("key")));
         conf.setCryptoKeyReader(mock(CryptoKeyReader.class));
@@ -390,55 +390,103 @@ public class ProducerImplTest {
      * finished, the creation must wait for it: it completes once the key is loaded and fails if the load does,
      * with a crypto error or with any other exception the key reader throws.
      */
-    @Test(dataProvider = "firstKeyLoad")
-    @SuppressWarnings("unchecked")
-    public void testCreationWaitsForTheFirstKeyLoad(Exception keyLoadFailure) throws Exception {
-        boolean keyLoads = keyLoadFailure == null;
-        PulsarClientImpl client = mockedPulsarClient();
-        EventLoopGroup eventLoopGroup = client.eventLoopGroup();
-        AtomicReference<Runnable> keyTask = new AtomicReference<>();
-        doAnswer(invocation -> {
-            keyTask.set(invocation.getArgument(0));
-            return mock(ScheduledFuture.class);
-        }).when(eventLoopGroup).scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
-        when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
-        MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
-        if (!keyLoads) {
-            doThrow(keyLoadFailure).when(crypto).addPublicKeyCipher(any(), any());
-        }
-        ProducerConfigurationData conf = encryptedProducerConf();
-        conf.setMessageCrypto(crypto);
-        CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
-        ProducerImpl<byte[]> producer = new ProducerImpl<>(client, "persistent://public/default/slow-key", conf,
-                created, 0, Schema.BYTES, null, Optional.empty());
+    /** A producer that encrypts, whose key task is captured instead of run, connected through a mocked cnx. */
+    private static final class ProducerWaitingForItsKey implements AutoCloseable {
+        final PulsarClientImpl client = mockedPulsarClient();
+        final AtomicReference<Runnable> keyTask = new AtomicReference<>();
+        final CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+        final DefaultEventLoop eventLoop = new DefaultEventLoop();
+        final ClientCnx cnx = mock(ClientCnx.class, Mockito.RETURNS_DEEP_STUBS);
+        final ProducerImpl<byte[]> producer;
 
-        DefaultEventLoop eventLoop = new DefaultEventLoop();
-        try {
-            ClientCnx cnx = mock(ClientCnx.class, Mockito.RETURNS_DEEP_STUBS);
+        @SuppressWarnings("unchecked")
+        ProducerWaitingForItsKey(Exception keyLoadFailure) throws Exception {
+            EventLoopGroup eventLoopGroup = client.eventLoopGroup();
+            doAnswer(invocation -> {
+                keyTask.set(invocation.getArgument(0));
+                return mock(ScheduledFuture.class);
+            }).when(eventLoopGroup).scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
+            when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
+            MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
+            if (keyLoadFailure != null) {
+                doThrow(keyLoadFailure).when(crypto).addPublicKeyCipher(any(), any());
+            }
+            ProducerConfigurationData conf = encryptedProducerConf();
+            conf.setMessageCrypto(crypto);
+            producer = new ProducerImpl<>(client, "persistent://public/default/slow-key", conf, created, 0,
+                    Schema.BYTES, null, Optional.empty());
+
             when(cnx.ctx().channel().eventLoop()).thenReturn(eventLoop);
             ProducerResponse response = mock(ProducerResponse.class);
             when(response.getProducerName()).thenReturn("slow-key-producer");
             when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong()))
                     .thenReturn(CompletableFuture.completedFuture(response));
+        }
 
+        /** Opens the connection and waits for the producer to be ready on it. */
+        void connect() throws Exception {
             producer.connectionOpened(cnx).get(10, TimeUnit.SECONDS);
             eventLoop.submit(() -> { }).get(10, TimeUnit.SECONDS);
             assertEquals(producer.getState(), HandlerState.State.Ready);
-            assertFalse(created.isDone(), "The creation must wait for the first key load");
+        }
 
-            keyTask.get().run();
-
-            if (keyLoads) {
-                assertSame(created.get(10, TimeUnit.SECONDS), producer);
-                assertEquals(producer.getState(), HandlerState.State.Ready);
-            } else {
-                assertTrue(created.isCompletedExceptionally(), "The creation must fail without the key");
-                assertThatThrownBy(created::join).hasCauseInstanceOf(PulsarClientException.class);
-                assertEquals(producer.getState(), HandlerState.State.Closed);
-                verify(client).cleanupProducer(producer);
-            }
-        } finally {
+        @Override
+        public void close() {
             eventLoop.shutdownGracefully();
+        }
+    }
+
+    @Test(dataProvider = "firstKeyLoad")
+    public void testCreationWaitsForTheFirstKeyLoad(Exception keyLoadFailure) throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(keyLoadFailure)) {
+            waiting.connect();
+            assertFalse(waiting.created.isDone(), "The creation must wait for the first key load");
+
+            waiting.keyTask.get().run();
+
+            if (keyLoadFailure == null) {
+                assertSame(waiting.created.get(10, TimeUnit.SECONDS), waiting.producer);
+                assertEquals(waiting.producer.getState(), HandlerState.State.Ready);
+            } else {
+                assertTrue(waiting.created.isCompletedExceptionally(), "The creation must fail without the key");
+                assertThatThrownBy(waiting.created::join).hasCauseInstanceOf(PulsarClientException.class);
+                assertEquals(waiting.producer.getState(), HandlerState.State.Closed);
+                verify(waiting.client).cleanupProducer(waiting.producer);
+            }
+        }
+    }
+
+    /**
+     * A connection lost while the creation waits for the key is not a failure: the producer reconnects, and the
+     * creation completes once it is ready again with the key loaded.
+     */
+    @Test
+    public void testCreationWaitsThroughAReconnectForTheFirstKeyLoad() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            waiting.producer.connectionClosed(waiting.cnx, Optional.empty(), Optional.empty());
+            assertEquals(waiting.producer.getState(), HandlerState.State.Connecting);
+
+            waiting.keyTask.get().run();
+            assertFalse(waiting.created.isDone(), "A reconnecting producer is not created yet");
+            assertFalse(waiting.producer.isTerminalState());
+
+            waiting.connect();
+            assertSame(waiting.created.get(10, TimeUnit.SECONDS), waiting.producer);
+        }
+    }
+
+    /** A producer closed while its creation waits for the key fails the creation instead of leaving it pending. */
+    @Test
+    public void testCreationFailsWhenTheProducerIsClosedBeforeTheFirstKeyLoad() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+
+            waiting.producer.closeAsync().get(10, TimeUnit.SECONDS);
+
+            assertTrue(waiting.created.isCompletedExceptionally(), "The creation must not stay pending");
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
         }
     }
 

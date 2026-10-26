@@ -2466,6 +2466,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
             keyGeneratorTask.cancel(false);
         }
+        if (firstKeyLoad != null) {
+            // A creation still waiting for the key must not wait for a task that will not run anymore.
+            firstKeyLoad.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                    String.format("The producer %s of the topic %s was closed before its key was loaded",
+                            producerName, topic)));
+        }
 
         stats.cancelStatsTimeout();
     }
@@ -2480,14 +2486,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             producerCreatedFuture.complete(this);
             return;
         }
-        firstKeyLoad.thenRun(() -> {
-            if (getState() == State.Ready) {
-                producerCreatedFuture.complete(this);
-            } else {
-                producerCreatedFuture.completeExceptionally(new PulsarClientException.AlreadyClosedException(
-                        String.format("The producer %s of the topic %s was closed before its key was loaded",
+        firstKeyLoad.whenComplete((v, closed) -> {
+            if (closed != null || isTerminalState()) {
+                producerCreatedFuture.completeExceptionally(closed != null ? closed
+                        : new PulsarClientException.AlreadyClosedException(String.format(
+                                "The producer %s of the topic %s was closed before its key was loaded",
                                 producerName, topic)));
+            } else if (getState() == State.Ready) {
+                producerCreatedFuture.complete(this);
             }
+            // Otherwise the producer is reconnecting: the next switch to Ready completes the creation.
         });
     }
 
