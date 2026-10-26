@@ -43,6 +43,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -4126,6 +4127,46 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         deleteCallbackLatch.await();
         assertEquals(readPosition, cursor.getReadPosition());
         assertEquals(markDeletePosition, cursor.getMarkDeletedPosition());
+    }
+
+    @Test(timeOut = 30000)
+    public void testMarkDeleteFailureCallbackRunsOutsideCursorLock() throws Exception {
+        ManagedLedger ledger = factory.open("testMarkDeleteFailureCallbackRunsOutsideCursorLock",
+                new ManagedLedgerConfig());
+        ManagedCursor cursor = ledger.openCursor("c1");
+        Position first = ledger.addEntry("entry1".getBytes(Encoding));
+        Position second = ledger.addEntry("entry2".getBytes(Encoding));
+        cursor.markDelete(second);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mark-delete-callback"));
+        CompletableFuture<Void> callbackCompleted = new CompletableFuture<>();
+        try {
+            cursor.asyncMarkDelete(first, new MarkDeleteCallback() {
+                @Override
+                public void markDeleteComplete(Object ctx) {
+                    callbackCompleted.completeExceptionally(new AssertionError("Expected mark-delete to fail"));
+                }
+
+                @Override
+                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                    try {
+                        assertThat(exception.getCause()).isInstanceOf(IllegalArgumentException.class);
+                        // A non-empty replay acquires the cursor read lock even when every position is acknowledged.
+                        Future<Set<? extends Position>> replay = executor.submit(() -> cursor.asyncReplayEntries(
+                                Set.of(first), mock(ReadEntriesCallback.class), null));
+                        assertEquals(replay.get(10, TimeUnit.SECONDS), Set.of(first));
+                        callbackCompleted.complete(null);
+                    } catch (Exception | AssertionError e) {
+                        callbackCompleted.completeExceptionally(e);
+                    }
+                }
+            }, null);
+            callbackCompleted.get(10, TimeUnit.SECONDS);
+            assertEquals(cursor.getMarkDeletedPosition(), second);
+        } finally {
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+        }
     }
 
     @Test
