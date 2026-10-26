@@ -36,7 +36,6 @@ import org.apache.pulsar.common.protocol.FrameDecoderUtil;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
 import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
 import org.apache.pulsar.common.tls.impl.TlsSynthesisSpec;
-import org.apache.pulsar.common.util.netty.PulsarFlowControlHandler;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
 import org.apache.pulsar.tls.TlsHandle;
@@ -137,15 +136,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
         }
         FrameDecoderUtil.addFrameDecoder(ch.pipeline(), brokerConf.getMaxMessageSize());
-        // https://stackoverflow.com/questions/37535482/netty-disabling-auto-read-doesnt-work-for-bytetomessagedecoder
-        // Classes such as {@link ByteToMessageDecoder} or {@link MessageToByteEncoder} are free to emit as many events
-        // as they like for any given input. so, disabling auto-read on `ByteToMessageDecoder` doesn't work properly and
-        // ServerCnx ends up reading higher number of messages and broker can not throttle the messages by disabling
-        // auto-read.
-        // PulsarFlowControlHandler is used instead of Netty's FlowControlHandler since Netty 4.2.15 changed the
-        // behavior to ignore setAutoRead(false) made by a downstream handler while queued messages are being
-        // delivered, which breaks throttling of already buffered messages. See PulsarFlowControlHandler javadoc.
-        ch.pipeline().addLast("flowController", new PulsarFlowControlHandler());
+        // Backpressure pauses subsequent automatic socket reads. Deliver complete frames from data already read
+        // directly to ServerCnx so they can finish processing and release their input buffers. A queue here would
+        // retain the same allocations while hiding those requests from pending-publish accounting. This deliberately
+        // allows the current read batch to overshoot publish-rate and pending-request thresholds.
         // using "ChannelHandler" type to workaround an IntelliJ bug that shows a false positive error
         ChannelHandler cnx = newServerCnx(pulsar, listenerName);
         ch.pipeline().addLast("handler", cnx);
