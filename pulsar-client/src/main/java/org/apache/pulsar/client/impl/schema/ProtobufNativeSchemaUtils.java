@@ -30,7 +30,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import lombok.CustomLog;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.RegExUtils;
 import org.apache.pulsar.client.api.SchemaSerializationException;
 import org.apache.pulsar.common.protocol.schema.ProtobufNativeSchemaData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -161,7 +161,7 @@ public class ProtobufNativeSchemaUtils {
     }
 
     private static Descriptors.Descriptor findLegacyRootMessage(Descriptors.FileDescriptor file, String name) {
-        return findRootMessage(file, StringUtils.removeFirst(name, file.getPackage()).replaceFirst("\\.", ""));
+        return findRootMessage(file, RegExUtils.removeFirst(name, file.getPackage()).replaceFirst("\\.", ""));
     }
 
     private static ExtensionRegistry nativeSchemaExtensions() throws ReflectiveOperationException {

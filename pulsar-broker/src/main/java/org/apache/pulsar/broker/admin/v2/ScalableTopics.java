@@ -1428,6 +1428,8 @@ public class ScalableTopics extends AdminResource {
                                                     + " has no web service URL configured"));
                                 }
                                 try {
+                                    // Lookup URLs may not be strict URIs; keep URL(String)'s lenient parsing.
+                                    @SuppressWarnings("deprecation")
                                     URL url = new URL(redirectUrl);
                                     URI redirect = UriBuilder.fromUri(uri.getRequestUri())
                                             .host(url.getHost())

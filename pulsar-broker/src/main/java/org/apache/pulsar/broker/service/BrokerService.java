@@ -1835,6 +1835,8 @@ public class BrokerService implements Closeable {
                 ClusterData data = clusterDataOp
                         .orElseThrow(() -> new MetadataStoreException.NotFoundException(cluster));
                 warnOnStalePip337ClusterFactory(cluster, data);
+                // statsInterval(0) turns off the legacy stats recorder; there is no non-deprecated equivalent.
+                @SuppressWarnings("deprecation")
                 ClientBuilder clientBuilder = PulsarClient.builder()
                         .enableTcpNoDelay(false)
                         .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
