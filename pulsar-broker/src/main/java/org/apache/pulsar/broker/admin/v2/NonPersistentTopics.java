@@ -218,14 +218,14 @@ public class NonPersistentTopics extends PersistentTopics {
     }
 
     // Also handles the inherited 'application/vnd.partitioned-topic-metadata+json' createPartitionedTopic
-    // overload: non-persistent topics validate the topic name only.
+    // overload: non-persistent topics validate the partitioned topic name only.
     @Override
     protected void validateAndCreatePartitionedTopic(AsyncResponse asyncResponse, String tenant, String namespace,
             String encodedTopic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         try {
             validateNamespaceName(tenant, namespace);
             validateGlobalNamespaceOwnership();
-            validateTopicName(tenant, namespace, encodedTopic);
+            validatePartitionedTopicName(tenant, namespace, encodedTopic);
             validateCreateTopic(topicName);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly, properties);
         } catch (Exception e) {

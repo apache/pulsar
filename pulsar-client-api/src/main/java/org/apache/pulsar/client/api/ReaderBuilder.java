@@ -342,6 +342,8 @@ public interface ReaderBuilder<T> extends Cloneable {
      * @param interceptors the list of interceptors to intercept the reader created by this builder.
      * @return the reader builder instance
      */
+    // @SafeVarargs cannot be applied to an abstract method; implementations declare it on their final override.
+    @SuppressWarnings("unchecked")
     ReaderBuilder<T> intercept(ReaderInterceptor<T>... interceptors);
 
     /**

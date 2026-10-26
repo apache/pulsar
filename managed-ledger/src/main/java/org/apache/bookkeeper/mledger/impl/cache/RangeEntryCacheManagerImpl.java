@@ -211,6 +211,11 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         return evictionHandler.getNonEvictableSize();
     }
 
+    /** Whether the cache has reached its eviction watermark, above which reads ahead don't add entries. */
+    boolean isAtEvictionWatermark() {
+        return maxSize > 0 && getSize() >= (long) (maxSize * cacheEvictionWatermark);
+    }
+
     @Override
     public long getMaxSize() {
         return maxSize;
