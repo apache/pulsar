@@ -229,7 +229,7 @@ public class ProxyService implements Closeable {
         this.authenticationService = authenticationService;
 
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
-                .channelType(EventLoopUtil.getDatagramChannelClass(workerGroup))
+                .datagramChannelType(EventLoopUtil.getDatagramChannelClass(workerGroup))
                 .socketChannelType(EventLoopUtil.getClientSocketChannelClass(workerGroup), true);
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
 
