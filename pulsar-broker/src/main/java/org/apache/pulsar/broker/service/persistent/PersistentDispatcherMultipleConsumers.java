@@ -670,7 +670,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     public void markDeletePositionMoveForward() {
         Position markDeletePosition = cursor.getMarkDeletedPosition();
         if (markDeletePosition != null) {
-            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            synchronized (this) {
+                // Replay positions and sticky-key hash counts must be updated under the dispatcher lock.
+                redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            }
             for (Consumer consumer : consumerList) {
                 consumer.removePendingAcksUpToPositionAndDecrementUnacked(
                         markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
