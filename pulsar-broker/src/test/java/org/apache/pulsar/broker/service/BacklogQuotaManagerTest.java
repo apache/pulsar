@@ -36,6 +36,7 @@ import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -168,7 +169,7 @@ public class BacklogQuotaManagerTest {
             }, BrokerOpenTelemetryTestUtil.getOpenTelemetrySdkBuilderConsumer(openTelemetryMetricReader));
             pulsar.start();
 
-            adminUrl = new URL("http://127.0.0.1" + ":" + pulsar.getListenPortHTTP().get());
+            adminUrl = URI.create("http://127.0.0.1" + ":" + pulsar.getListenPortHTTP().get()).toURL();
             admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();
             prometheusMetricsClient = new PrometheusMetricsClient("127.0.0.1", pulsar.getListenPortHTTP().get());
 
