@@ -3165,7 +3165,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
             Consumer consumer = consumerFuture.getNow(null);
             Subscription subscription = consumer.getSubscription();
-            // Message acks are silently ignored during topic transfer. Note that the transferring flag is only set when
+            // Message acks are rejected during topic transfer. Note that the transferring flag is only set when
             // the Extensible Load Manager is enabled.
             if (subscription.getTopic().isTransferring()) {
                 var pulsar = getBrokerService().getPulsar();
@@ -3178,6 +3178,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .attr("ignoredAckCount", ignoredAckCount)
                         .attr("ignoredAckTotalCount", ignoredAckTotalCount)
                         .log("Ignoring message acks during topic transfer. Total ignored ack count");
+                if (hasRequestId) {
+                    writeAndFlush(Commands.newAckResponse(requestId, ServerError.ServiceNotReady,
+                            "The topic is being transferred", consumerId));
+                }
                 return;
             }
             consumer.messageAcked(ack, hasRequestId).thenRun(() -> {
@@ -3205,6 +3209,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     .attr("consumerId", ack.getConsumerId())
                     .attr("messageIdsCount", ack.getMessageIdsCount())
                     .log("Consumer future is not complete (not complete or error), discarding received command ack");
+            if (hasRequestId) {
+                writeAndFlush(Commands.newAckResponse(requestId, ServerError.ConsumerNotFound,
+                        "The consumer is not connected", consumerId));
+            }
         }
     }
 
