@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -36,6 +37,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,6 +55,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -271,13 +275,152 @@ public class BrokerServiceTopicDeletionTest {
         }
     }
 
+    @DataProvider
+    public Object[][] replaceQueuedLoadBeforeFailure() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "replaceQueuedLoadBeforeFailure", timeOut = 60000)
+    @SuppressWarnings("unchecked")
+    public void testQueuedOwnershipFailureCleansOnlyItsGenerationAndAdvancesQueue(boolean replaceBeforeFailure)
+            throws Exception {
+        context.close();
+        context = null;
+        String name = "persistent://prop/ns-abc/queued-ownership-failure-" + UUID.randomUUID();
+        String followingName = name + "-following";
+        String triggerName = name + "-trigger";
+        try (InitializingTopicFixture fixture = new InitializingTopicFixture(new CompletableFuture<>(), 30)) {
+            fixture.setup();
+            fixture.acquireOwnership(name);
+            fixture.acquireOwnership(followingName);
+            fixture.acquireOwnership(triggerName);
+            BrokerService realBroker = fixture.service().getBrokerService();
+            // Retain real unloaded metadata so deletion after the failed reload has actual work to do.
+            PersistentTopic seeded = (PersistentTopic) realBroker.getTopic(name, true)
+                    .get(10, TimeUnit.SECONDS).orElseThrow();
+            seeded.close().get(10, TimeUnit.SECONDS);
+            Awaitility.await().untilAsserted(() -> assertThat(realBroker.getTopics()).doesNotContainKey(name));
+            CompletableFuture<Void> ownership = new CompletableFuture<>();
+            CompletableFuture<Void> dequeued = new CompletableFuture<>();
+            AtomicInteger ownershipChecks = new AtomicInteger();
+            doAnswer(invocation -> {
+                int check = ownershipChecks.incrementAndGet();
+                if (check == 1) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                if (check == 2) {
+                    dequeued.complete(null);
+                    return ownership;
+                }
+                return invocation.callRealMethod();
+            }).when(realBroker).checkTopicNsOwnership(name);
+            doReturn(CompletableFuture.completedFuture(null)).when(realBroker).checkTopicNsOwnership(followingName);
+            CompletableFuture<Void> queued = new CompletableFuture<>();
+            CompletableFuture<Void> followingQueued = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                TopicLoadingContext loadingContext = invocation.getArgument(0);
+                CompletableFuture<Optional<Topic>> result =
+                        (CompletableFuture<Optional<Topic>>) invocation.callRealMethod();
+                String topicName = loadingContext.getTopicName().toString();
+                if (topicName.equals(name)) {
+                    queued.complete(null);
+                } else if (topicName.equals(followingName)) {
+                    followingQueued.complete(null);
+                }
+                return result;
+            }).when(realBroker).loadOrCreatePersistentTopic(any());
+            Semaphore originalPermits = realBroker.topicLoadRequestSemaphore.get();
+            Semaphore permits = new Semaphore(0);
+            realBroker.topicLoadRequestSemaphore.set(permits);
+            try {
+                CompletableFuture<Optional<Topic>> loading = realBroker.getTopic(name, true);
+                queued.get(10, TimeUnit.SECONDS);
+                CompletableFuture<Optional<Topic>> following = realBroker.getTopic(followingName, true);
+                followingQueued.get(10, TimeUnit.SECONDS);
+                assertThat(loading).isNotDone();
+                assertThat(following).isNotDone();
+                permits.release();
+                realBroker.getTopic(triggerName, true).get(10, TimeUnit.SECONDS);
+                dequeued.get(10, TimeUnit.SECONDS);
+                assertThat(permits.availablePermits()).as("dequeued ownership check precedes permit acquisition")
+                        .isEqualTo(1);
+                CompletableFuture<Optional<Topic>> replacement = null;
+                if (replaceBeforeFailure) {
+                    replacement = new CompletableFuture<>();
+                    realBroker.getTopics().put(name, replacement);
+                    realBroker.loadOrCreatePersistentTopic(new TopicLoadingContext(TopicName.get(name), true,
+                            replacement, mock(PulsarStats.class))).get(10, TimeUnit.SECONDS);
+                }
+                ServiceUnitNotReadyException failure = new ServiceUnitNotReadyException("Ownership was lost in queue");
+                ScheduledExecutorService actualExecutor = fixture.service().getExecutor();
+                ScheduledExecutorService observingExecutor = mock(ScheduledExecutorService.class,
+                        delegatesTo(actualExecutor));
+                AtomicReference<CompletableFuture<Void>> cleanupTask = new AtomicReference<>();
+                Thread completingThread = Thread.currentThread();
+                doAnswer(invocation -> {
+                    Runnable action = invocation.getArgument(0);
+                    if (Thread.currentThread() == completingThread) {
+                        CompletableFuture<Void> completed = new CompletableFuture<>();
+                        cleanupTask.set(completed);
+                        actualExecutor.execute(() -> {
+                            try {
+                                action.run();
+                                completed.complete(null);
+                            } catch (Throwable error) {
+                                completed.completeExceptionally(error);
+                            }
+                        });
+                    } else {
+                        actualExecutor.execute(action);
+                    }
+                    return null;
+                }).when(observingExecutor).execute(any(Runnable.class));
+                doReturn(observingExecutor).when(fixture.service()).getExecutor();
+                try {
+                    ownership.completeExceptionally(failure);
+                } finally {
+                    doReturn(actualExecutor).when(fixture.service()).getExecutor();
+                }
+                if (cleanupTask.get() != null) {
+                    // Observe the actual executor task, rather than racing the loader's asynchronous cache removal.
+                    cleanupTask.get().get(10, TimeUnit.SECONDS);
+                }
+                assertThatThrownBy(() -> loading.get(10, TimeUnit.SECONDS)).hasRootCause(failure);
+                PersistentTopic next = (PersistentTopic) following.get(10, TimeUnit.SECONDS).orElseThrow();
+                assertThat(next.getManagedLedger().addEntry(new byte[] {1})).isNotNull();
+                Awaitility.await().untilAsserted(() -> assertThat(permits.availablePermits()).isEqualTo(1));
+                if (replacement != null) {
+                    PersistentTopic replacementTopic = (PersistentTopic) replacement.join().orElseThrow();
+                    assertThat(realBroker.getTopics().get(name)).isSameAs(replacement);
+                    assertThat(replacementTopic.getManagedLedger().addEntry(new byte[] {2})).isNotNull();
+                } else {
+                    // Retry as a client would after ownership recovers. No test removes the failed cache entry.
+                    Awaitility.await().untilAsserted(() ->
+                            assertThat(realBroker.deleteTopic(name, true)).succeedsWithin(1, TimeUnit.SECONDS));
+                    assertThat(fixture.service().getPulsarResources().getTopicResources()
+                            .persistentTopicExists(TopicName.get(name)).get(10, TimeUnit.SECONDS)).isFalse();
+                    PersistentTopic recreated = (PersistentTopic) realBroker.getTopic(name, true)
+                            .get(10, TimeUnit.SECONDS).orElseThrow();
+                    assertThat(recreated.getManagedLedger().addEntry(new byte[] {3})).isNotNull();
+                }
+            } finally {
+                ownership.complete(null);
+                realBroker.topicLoadRequestSemaphore.set(originalPermits);
+            }
+        }
+    }
+
     private static class InitializingTopicFixture extends BrokerTestBase implements AutoCloseable {
         private final CompletableFuture<Void> initialization;
 
         private InitializingTopicFixture(CompletableFuture<Void> initialization) {
+            this(initialization, 5);
+        }
+
+        private InitializingTopicFixture(CompletableFuture<Void> initialization, int timeoutSeconds) {
             this.initialization = initialization;
             conf.setTopicFactoryClassName(BrokerTestInterceptor.TestTopicFactory.class.getName());
-            conf.setTopicLoadTimeoutSeconds(5);
+            conf.setTopicLoadTimeoutSeconds(timeoutSeconds);
         }
 
         @Override
@@ -297,6 +440,10 @@ public class BrokerServiceTopicDeletionTest {
 
         private PulsarService service() {
             return pulsar;
+        }
+
+        private void acquireOwnership(String topicName) throws Exception {
+            admin.lookups().lookupTopic(topicName);
         }
 
         @Override
