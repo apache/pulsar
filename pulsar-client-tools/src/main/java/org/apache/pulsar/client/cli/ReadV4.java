@@ -75,6 +75,7 @@ final class ReadV4 {
             ReaderBuilder<?> builder = client.newReader(schema)
                     .topic(topic)
                     .startMessageId(parseMessageId(cmd.startMessageId))
+                    .readCompacted(v4.readCompacted)
                     .poolMessages(v4.poolMessages);
 
             if (v4.startMessageIdInclusive) {
