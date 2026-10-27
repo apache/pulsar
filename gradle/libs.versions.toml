@@ -274,7 +274,7 @@ protobuf-bom = { module = "com.google.protobuf:protobuf-bom", version.ref = "pro
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
 protobuf-java-util = { module = "com.google.protobuf:protobuf-java-util", version.ref = "protobuf" }
 grpc-bom = { module = "io.grpc:grpc-bom", version.ref = "grpc" }
-grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
+grpc-netty = { module = "io.grpc:grpc-netty", version.ref = "grpc" }
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
 # Guava
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
