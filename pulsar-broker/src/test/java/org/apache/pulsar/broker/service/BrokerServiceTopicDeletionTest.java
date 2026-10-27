@@ -32,10 +32,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
@@ -352,39 +354,7 @@ public class BrokerServiceTopicDeletionTest {
                             replacement, mock(PulsarStats.class))).get(10, TimeUnit.SECONDS);
                 }
                 ServiceUnitNotReadyException failure = new ServiceUnitNotReadyException("Ownership was lost in queue");
-                ScheduledExecutorService actualExecutor = fixture.service().getExecutor();
-                ScheduledExecutorService observingExecutor = mock(ScheduledExecutorService.class,
-                        delegatesTo(actualExecutor));
-                AtomicReference<CompletableFuture<Void>> cleanupTask = new AtomicReference<>();
-                Thread completingThread = Thread.currentThread();
-                doAnswer(invocation -> {
-                    Runnable action = invocation.getArgument(0);
-                    if (Thread.currentThread() == completingThread) {
-                        CompletableFuture<Void> completed = new CompletableFuture<>();
-                        cleanupTask.set(completed);
-                        actualExecutor.execute(() -> {
-                            try {
-                                action.run();
-                                completed.complete(null);
-                            } catch (Throwable error) {
-                                completed.completeExceptionally(error);
-                            }
-                        });
-                    } else {
-                        actualExecutor.execute(action);
-                    }
-                    return null;
-                }).when(observingExecutor).execute(any(Runnable.class));
-                doReturn(observingExecutor).when(fixture.service()).getExecutor();
-                try {
-                    ownership.completeExceptionally(failure);
-                } finally {
-                    doReturn(actualExecutor).when(fixture.service()).getExecutor();
-                }
-                if (cleanupTask.get() != null) {
-                    // Observe the actual executor task, rather than racing the loader's asynchronous cache removal.
-                    cleanupTask.get().get(10, TimeUnit.SECONDS);
-                }
+                fixture.failOwnershipAndAwaitCleanup(ownership, failure);
                 assertThatThrownBy(() -> loading.get(10, TimeUnit.SECONDS)).hasRootCause(failure);
                 PersistentTopic next = (PersistentTopic) following.get(10, TimeUnit.SECONDS).orElseThrow();
                 assertThat(next.getManagedLedger().addEntry(new byte[] {1})).isNotNull();
@@ -412,6 +382,8 @@ public class BrokerServiceTopicDeletionTest {
 
     private static class InitializingTopicFixture extends BrokerTestBase implements AutoCloseable {
         private final CompletableFuture<Void> initialization;
+        private final AtomicReference<Thread> cleanupTrackingThread = new AtomicReference<>();
+        private final List<CompletableFuture<Void>> trackedCleanupTasks = new CopyOnWriteArrayList<>();
 
         private InitializingTopicFixture(CompletableFuture<Void> initialization) {
             this(initialization, 5);
@@ -426,6 +398,48 @@ public class BrokerServiceTopicDeletionTest {
         @Override
         protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
             return spy(brokerService);
+        }
+
+        @Override
+        protected void beforePulsarStart(PulsarService service) throws Exception {
+            super.beforePulsarStart(service);
+            ScheduledExecutorService actualExecutor = service.getExecutor();
+            ScheduledExecutorService observingExecutor = mock(ScheduledExecutorService.class,
+                    delegatesTo(actualExecutor));
+            doAnswer(invocation -> {
+                Runnable action = invocation.getArgument(0);
+                if (Thread.currentThread() == cleanupTrackingThread.get()) {
+                    CompletableFuture<Void> completed = new CompletableFuture<>();
+                    trackedCleanupTasks.add(completed);
+                    actualExecutor.execute(() -> {
+                        try {
+                            action.run();
+                            completed.complete(null);
+                        } catch (Throwable error) {
+                            completed.completeExceptionally(error);
+                        }
+                    });
+                } else {
+                    actualExecutor.execute(action);
+                }
+                return null;
+            }).when(observingExecutor).execute(any(Runnable.class));
+            // Install this once before the broker starts. Re-stubbing a live PulsarService spy can race an
+            // unrelated background getter and attach the executor answer to that invocation instead.
+            doReturn(observingExecutor).when(service).getExecutor();
+        }
+
+        private void failOwnershipAndAwaitCleanup(CompletableFuture<Void> ownership, Throwable failure)
+                throws Exception {
+            assertThat(cleanupTrackingThread.getAndSet(Thread.currentThread())).isNull();
+            try {
+                ownership.completeExceptionally(failure);
+            } finally {
+                cleanupTrackingThread.set(null);
+            }
+            assertThat(trackedCleanupTasks).as("failed queued load must dispatch its cache cleanup").hasSize(1);
+            CompletableFuture.allOf(trackedCleanupTasks.toArray(CompletableFuture[]::new))
+                    .get(10, TimeUnit.SECONDS);
         }
 
         @Override
