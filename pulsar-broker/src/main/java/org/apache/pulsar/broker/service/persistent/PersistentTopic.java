@@ -1830,16 +1830,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                             ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
                                                 @Override
                                                 public void deleteLedgerComplete(Object ctx) {
-                                                    brokerService.removeTopicFromCache(PersistentTopic.this);
-
-                                                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-
-                                                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
-
-                                                    unregisterTopicPolicyListener();
-
-                                                    log.info("Topic deleted");
-                                                    deleteFuture.complete(null);
+                                                    CompletableFuture<Void> cacheRemoval = brokerService
+                                                            .removeTopicFromCache(PersistentTopic.this);
+                                                    FutureUtil.completeAfter(deleteFuture, cacheRemoval.thenRun(() -> {
+                                                        dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+                                                        subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
+                                                        unregisterTopicPolicyListener();
+                                                        log.info("Topic deleted");
+                                                    }));
                                                 }
 
                                                 @Override
