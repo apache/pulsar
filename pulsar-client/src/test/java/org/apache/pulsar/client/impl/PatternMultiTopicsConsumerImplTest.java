@@ -48,12 +48,15 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
@@ -194,6 +197,108 @@ public class PatternMultiTopicsConsumerImplTest {
             assertThat(consumer.getPartitions()).containsExactlyInAnyOrder("persistent://tenant/namespace/topic1",
                     "persistent://tenant/namespace/topic2");
         });
+    }
+
+    @Test
+    public void testLookupDiscoveryWhileInitialWatcherIsPending() throws Exception {
+        timer.stop();
+        timer = mock(Timer.class);
+        when(clientMock.timer()).thenReturn(timer);
+        Deque<Timeout> scheduled = new ConcurrentLinkedDeque<>();
+        doAnswer(invocation -> {
+            TimerTask task = invocation.getArgument(0);
+            if (!(task instanceof PatternMultiTopicsConsumerImpl)) {
+                return mock(Timeout.class);
+            }
+            assertThat(invocation.<Long>getArgument(1)).isEqualTo(7L);
+            assertThat(invocation.<TimeUnit>getArgument(2)).isEqualTo(TimeUnit.SECONDS);
+            Timeout timeout = mock(Timeout.class);
+            AtomicBoolean cancelled = new AtomicBoolean();
+            when(timeout.task()).thenReturn(task);
+            when(timeout.isCancelled()).thenAnswer(ignored -> cancelled.get());
+            when(timeout.cancel()).thenAnswer(ignored -> cancelled.compareAndSet(false, true));
+            scheduled.add(timeout);
+            return timeout;
+        }).when(timer).newTimeout(any(), anyLong(), any());
+
+        TopicsPattern pattern =
+                TopicsPatternFactory.create("persistent://tenant/namespace/.*", TopicsPattern.RegexImplementation.JDK);
+        CopyOnWriteArrayList<String> topics = new CopyOnWriteArrayList<>();
+        topics.add("persistent://tenant/namespace/topic1");
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAutoUpdatePartitions(false);
+        conf.setTopicNames(new HashSet<>(topics));
+        conf.setPatternAutoDiscoveryPeriod(7);
+        CompletableFuture<CommandWatchTopicListSuccess> initialWatch = new CompletableFuture<>();
+        AtomicInteger watchRequests = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (watchRequests.incrementAndGet() == 1) {
+                return initialWatch;
+            }
+            List<String> snapshot = new ArrayList<>(topics);
+            return CompletableFuture.completedFuture(new CommandWatchTopicListSuccess()
+                    .setRequestId(invocation.getArgument(0)).setWatcherId(invocation.getArgument(1))
+                    .setTopicsHash(TopicList.calculateHash(snapshot)).addAllTopics(snapshot));
+        }).when(cnx).newWatchTopicList(anyLong(), anyLong(), any(), any(), any());
+        doReturn(true).when(cnx).isSupportsTopicWatchers();
+        doReturn(true).when(cnx).isSupportsTopicWatcherReconcile();
+        doReturn(CompletableFuture.completedFuture(new CommandSuccess()))
+                .when(cnx).newWatchTopicListClose(any(), anyLong());
+        AtomicInteger lookupRequests = new AtomicInteger();
+        LookupService lookup = clientMock.getLookup();
+        doAnswer(invocation -> {
+            lookupRequests.incrementAndGet();
+            List<String> snapshot = new ArrayList<>(topics);
+            return CompletableFuture.completedFuture(
+                    new GetTopicsResult(snapshot, TopicList.calculateHash(snapshot), true, true));
+        }).when(lookup).getTopicsUnderNamespace(any(), any(), any(), any(), any());
+
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(conf, pattern);
+        try {
+            assertThat(consumer.subscribeFuture).succeedsWithin(Duration.ofSeconds(5));
+            Awaitility.await().untilAsserted(() -> assertThat(scheduled).hasSize(1));
+            assertThat(consumer.getWatcherFuture()).isNotDone();
+            assertThat(watchRequests.get()).isEqualTo(1);
+            assertThat(lookupRequests.get()).isZero();
+
+            topics.add("persistent://tenant/namespace/topic2");
+            Timeout fallbackTimeout = scheduled.poll();
+            fallbackTimeout.task().run(fallbackTimeout);
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(consumer.getPartitions()).containsExactlyInAnyOrderElementsOf(topics);
+                assertThat(lookupRequests.get()).isEqualTo(1);
+                assertThat(scheduled).hasSize(1);
+            });
+            assertThat(consumer.getWatcherFuture()).isNotDone();
+            Timeout pendingFallback = scheduled.peek();
+
+            initialWatch.complete(new CommandWatchTopicListSuccess().setRequestId(0).setWatcherId(0)
+                    .setTopicsHash(TopicList.calculateHash(topics)).addAllTopics(new ArrayList<>(topics)));
+            assertThat(consumer.getWatcherFuture()).succeedsWithin(Duration.ofSeconds(5));
+            assertThat(pendingFallback.isCancelled()).isTrue();
+            assertThat(scheduled.stream().filter(timeout -> !timeout.isCancelled())).hasSize(1);
+
+            topics.add("persistent://tenant/namespace/topic3");
+            Timeout reconcileTimeout = consumer.getRecheckPatternTimeout();
+            reconcileTimeout.task().run(reconcileTimeout);
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(consumer.getPartitions()).containsExactlyInAnyOrderElementsOf(topics);
+                assertThat(watchRequests.get()).isEqualTo(2);
+            });
+            assertThat(lookupRequests.get()).isEqualTo(1);
+            assertThat(consumer.supportsTopicListWatcherReconcile()).isTrue();
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(reconcileTimeout.isCancelled()).isTrue();
+                assertThat(consumer.getRecheckPatternTimeout()).isNotSameAs(reconcileTimeout);
+            });
+        } finally {
+            Timeout activeTimeout = consumer.getRecheckPatternTimeout();
+            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+            if (activeTimeout != null) {
+                assertThat(activeTimeout.isCancelled()).isTrue();
+            }
+            assertThat(consumer.getRecheckPatternTimeout()).isNull();
+        }
     }
 
     @Test
