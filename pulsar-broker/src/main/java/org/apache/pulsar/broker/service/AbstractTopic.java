@@ -118,6 +118,7 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
 
     // Producers currently connected to this topic
     protected final ConcurrentHashMap<String, Producer> producers;
+    private final Set<CompletableFuture<Void>> schemaRegistrationMarkers = ConcurrentHashMap.newKeySet();
 
     protected final BrokerService brokerService;
 
@@ -807,6 +808,58 @@ public abstract class AbstractTopic implements Topic, TopicPolicyListener {
     @Override
     public Map<String, Producer> getProducers() {
         return producers;
+    }
+
+    @Override
+    public CompletableFuture<Void> addInProgressSchemaRegistrationMarker() {
+        CompletableFuture<Void> inProgressSchemaRegistrationMarker = new CompletableFuture<>();
+        schemaRegistrationMarkers.add(inProgressSchemaRegistrationMarker);
+        return inProgressSchemaRegistrationMarker;
+    }
+
+    @Override
+    public void completeInProgressSchemaRegistrationMarker(
+            CompletableFuture<Void> inProgressSchemaRegistrationMarker) {
+        schemaRegistrationMarkers.remove(inProgressSchemaRegistrationMarker);
+        inProgressSchemaRegistrationMarker.complete(null);
+    }
+
+    @Override
+    public void markProducerBlockedByIncompatibleSchema(String producerName) {
+        Producer producer = producers.get(producerName);
+        if (producer != null && producer.isRemote()) {
+            producer.markBlockedByIncompatibleSchema();
+        }
+    }
+
+    @Override
+    public void disconnectProducersBlockedByIncompatibleSchema() {
+        if (schemaRegistrationMarkers.isEmpty()) {
+            disconnectProducersBlockedByIncompatibleSchemaNow();
+        } else {
+            FutureUtil.waitForAll(new ArrayList<>(schemaRegistrationMarkers))
+                    .handle((__, ex) -> {
+                        disconnectProducersBlockedByIncompatibleSchemaNow();
+                        return null;
+                    });
+        }
+    }
+
+    private void disconnectProducersBlockedByIncompatibleSchemaNow() {
+        producers.values().stream()
+                .filter(producer -> producer.isRemote() && producer.isBlockedByIncompatibleSchema())
+                .forEach(Producer::disconnect);
+    }
+
+    protected void disconnectProducersBlockedByIncompatibleSchemaIfSchemaValidationChanged(
+            SchemaCompatibilityStrategy previousStrategy, Boolean previousAllowAutoUpdateSchema,
+            Boolean previousAllowAutoUpdateSchemaWithReplicator) {
+        if (previousStrategy != getSchemaCompatibilityStrategy()
+                || !Objects.equals(previousAllowAutoUpdateSchema, isAllowAutoUpdateSchema)
+                || !Objects.equals(previousAllowAutoUpdateSchemaWithReplicator,
+                        isAllowAutoUpdateSchemaWithReplicator)) {
+            disconnectProducersBlockedByIncompatibleSchema();
+        }
     }
 
 

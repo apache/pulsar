@@ -69,6 +69,7 @@ import org.jspecify.annotations.NonNull;
 @CustomLog
 public class BookkeeperSchemaStorage implements SchemaStorage {
     private static final String SchemaPath = "/schemas";
+    private static final String SchemaPathPrefix = SchemaPath + "/";
     private static final byte[] LedgerPassword = "".getBytes();
 
     private final MetadataStoreExtended store;
@@ -514,7 +515,17 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @NonNull
     private static String getSchemaPath(String schemaId) {
-        return SchemaPath + "/" + schemaId;
+        return SchemaPathPrefix + schemaId;
+    }
+
+    /**
+     * Returns the schema identifier for a schema metadata path, or an empty value when the path is unrelated.
+     */
+    public static Optional<String> schemaIdFromPath(String path) {
+        if (!path.startsWith(SchemaPathPrefix) || path.split("/").length != 5) {
+            return Optional.empty();
+        }
+        return Optional.of(path.substring(SchemaPathPrefix.length()));
     }
 
     @NonNull
