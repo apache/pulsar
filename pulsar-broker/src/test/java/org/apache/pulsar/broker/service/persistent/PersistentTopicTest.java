@@ -23,7 +23,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -777,6 +779,54 @@ public class PersistentTopicTest extends BrokerTestBase {
     @DataProvider
     public Object[][] deletedTopicCacheRemoval() {
         return new Object[][] {{false}, {true}};
+    }
+
+    @DataProvider
+    public Object[][] postCacheCleanupFailures() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "postCacheCleanupFailures", timeOut = 60000)
+    public void testDeleteCompletesExceptionallyWhenPostCacheCleanupFails(boolean failDispatchCleanup)
+            throws Exception {
+        String topicName = "persistent://prop/ns-abc/delete-cleanup-failure-" + UUID.randomUUID();
+        TopicName parsedTopic = TopicName.get(topicName);
+        conf.setDispatchThrottlingRatePerTopicInMsg(1);
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        doReturn(brokerService).when(pulsar).getBrokerService();
+        DispatchRateLimiter limiter = mock(DispatchRateLimiter.class);
+        DispatchRateLimiterFactory factory = spy(brokerService.getDispatchRateLimiterFactory());
+        doReturn(limiter).when(factory).createTopicDispatchRateLimiter(any(PersistentTopic.class));
+        doReturn(factory).when(brokerService).getDispatchRateLimiterFactory();
+        TopicPoliciesService policiesService = spy(pulsar.getTopicPoliciesService());
+        doReturn(policiesService).when(pulsar).getTopicPoliciesService();
+        PersistentTopic topic = (PersistentTopic) brokerService.getTopic(topicName, true)
+                .get(10, TimeUnit.SECONDS).orElseThrow();
+        assertThat(topic.getDispatchRateLimiter()).contains(limiter);
+        RuntimeException failure = new RuntimeException("Injected post-cache-removal cleanup failure");
+        if (failDispatchCleanup) {
+            doThrow(failure).when(limiter).close();
+        } else {
+            doThrow(failure).when(policiesService).unregisterListener(eq(parsedTopic), any(TopicPolicyListener.class));
+        }
+        try {
+            CompletableFuture<Void> deletion = topic.delete();
+            assertThatThrownBy(() -> deletion.get(10, TimeUnit.SECONDS)).hasRootCause(failure);
+            assertThat(deletion).isCompletedExceptionally();
+            assertThat(topic.isFenced()).isFalse();
+            assertThat(brokerService.getTopics()).doesNotContainKey(topicName);
+            assertThat(pulsar.getPulsarResources().getTopicResources().persistentTopicExists(parsedTopic)
+                    .get(10, TimeUnit.SECONDS)).isFalse();
+        } finally {
+            doNothing().when(limiter).close();
+            doCallRealMethod().when(policiesService)
+                    .unregisterListener(eq(parsedTopic), any(TopicPolicyListener.class));
+        }
+        // The ledger was really deleted before cleanup failed. Retry must still complete through its NoNode path.
+        topic.delete().get(10, TimeUnit.SECONDS);
+        PersistentTopic recreated = (PersistentTopic) brokerService.getTopic(topicName, true)
+                .get(10, TimeUnit.SECONDS).orElseThrow();
+        assertThat(recreated).isNotSameAs(topic);
     }
 
     @Test(dataProvider = "deletedTopicCacheRemoval", timeOut = 60000)
