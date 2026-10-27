@@ -62,7 +62,6 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
 
     @Setter
     private volatile EntryLengthFunction entryLengthFunction = EntryLengthFunction.DEFAULT;
-    private volatile boolean copyEntriesInCache;
 
     public RangeEntryCacheManagerImpl(ManagedLedgerFactoryImpl factory, OrderedScheduler scheduledExecutor,
                                       OpenTelemetry openTelemetry) {
@@ -74,7 +73,6 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
                 scheduledExecutor, openTelemetry);
         this.evictionTriggerThreshold = (long) (maxSize * evictionTriggerThresholdPercent);
         this.cacheEvictionWatermark = config.getCacheEvictionWatermark();
-        this.copyEntriesInCache = config.isCopyEntriesInCache();
         this.mlFactory = factory;
         this.mlFactoryMBean = factory.getMbean();
         this.rangeCacheRemovalQueue = new RangeCacheRemovalQueue(
@@ -92,16 +90,12 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
         }
 
         RangeEntryCacheImpl newEntryCache =
-                new RangeEntryCacheImpl(this, (ManagedLedgerImpl) ml, copyEntriesInCache,
+                new RangeEntryCacheImpl(this, (ManagedLedgerImpl) ml,
                         rangeCacheRemovalQueue, entryLengthFunction);
         EntryCache currentEntryCache = caches.putIfAbsent(ml.getName(), newEntryCache);
         if (currentEntryCache != null) {
             return currentEntryCache;
         } else {
-            // The dynamic setting can change between constructing and publishing this cache. Re-read the volatile
-            // snapshot after insertion so that a cache missed by updateCopyEntriesInCache's concurrent iteration
-            // cannot remain on the old mode.
-            newEntryCache.setCopyEntries(copyEntriesInCache);
             return newEntryCache;
         }
     }
@@ -118,13 +112,13 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     }
 
     public void updateCopyEntriesInCache(boolean copyEntries) {
-        copyEntriesInCache = copyEntries;
         mlFactory.getConfig().setCopyEntriesInCache(copyEntries);
-        caches.values().forEach(entryCache -> {
-            if (entryCache instanceof RangeEntryCacheImpl rangeEntryCache) {
-                rangeEntryCache.setCopyEntries(copyEntries);
-            }
-        });
+    }
+
+    boolean isCopyEntriesInCache() {
+        // Read the shared volatile policy on insertion. Per-cache snapshots can miss or overwrite updates while
+        // a cache is being constructed or published; existing entries deliberately keep their original buffers.
+        return mlFactory.getConfig().isCopyEntriesInCache();
     }
 
     @Override

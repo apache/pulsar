@@ -49,6 +49,7 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -158,7 +159,8 @@ public class RangeEntryCacheImplTest {
     }
 
     private RangeEntryCacheImpl createRangeEntryCache(boolean copyEntries) {
-        return new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, copyEntries,
+        when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(copyEntries);
+        return new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger,
                 mockRangeCacheRemovalQueue, EntryLengthFunction.DEFAULT, pendingReadsManager);
     }
 
@@ -171,7 +173,7 @@ public class RangeEntryCacheImplTest {
         retainedEntry.release();
         assertThat(retainedData.refCnt()).isOne();
 
-        rangeEntryCache.setCopyEntries(true);
+        when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(true);
         ByteBuf copiedData = Unpooled.buffer().writeByte(2);
         EntryImpl copiedEntry = EntryImpl.create(1, 1, copiedData);
         copiedData.release();
@@ -181,6 +183,54 @@ public class RangeEntryCacheImplTest {
 
         rangeEntryCache.clear();
         assertThat(retainedData.refCnt()).isZero();
+    }
+
+    @Test
+    public void shouldCopyBatchEntriesWhenCopyModeIsEnabled() {
+        when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(true);
+        ByteBuf source = Unpooled.directBuffer(128).writeInt(42);
+        EntryImpl entry = EntryImpl.create(1, 0, source);
+        source.release();
+        try {
+            try {
+                assertThat(rangeEntryCache.insert(List.of(entry), false)).isOne();
+            } finally {
+                entry.release();
+            }
+            assertThat(source.refCnt()).isZero();
+            assertThat(rangeEntryCache.getSize()).isEqualTo(Integer.BYTES);
+        } finally {
+            rangeEntryCache.clear();
+        }
+    }
+
+    @Test
+    public void shouldUseUpdatedCopyModeWhenStorageReadCompletes() {
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ThreadBoundExecutor.class));
+        when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+        ByteBuf source = Unpooled.directBuffer(128).writeInt(42);
+        LedgerEntries ledgerEntries = LedgerEntriesImpl.create(new ArrayList<>(List.of(
+                LedgerEntryImpl.create(1, 0, Integer.BYTES, source))));
+        CompletableFuture<LedgerEntries> storageRead = new CompletableFuture<>();
+        when(lh.readAsync(0, 0)).thenReturn(storageRead);
+        CompletableFuture<List<Entry>> result = rangeEntryCache.readFromStorage(lh, 0, 0, NO_MAX_SIZE_LIMIT,
+                expectedReadCount);
+        try {
+            when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(true);
+            storageRead.complete(ledgerEntries);
+            assertThat(result).isCompleted();
+            List<Entry> readEntries = result.getNow(null);
+            try {
+                assertThat(readEntries).hasSize(1);
+            } finally {
+                readEntries.forEach(Entry::release);
+            }
+            assertThat(rangeEntryCache.getSize()).isEqualTo(Integer.BYTES);
+            // Check while the cached entry is still alive; clearing the cache would also free an uncopied source.
+            assertThat(source.refCnt()).isZero();
+        } finally {
+            rangeEntryCache.clear();
+        }
     }
 
     private static ByteBuf serializeMessage(String producerName) {
@@ -302,7 +352,7 @@ public class RangeEntryCacheImplTest {
     public void testBatchInsertSkipsCachedEntriesBeforeCopyingThem() {
         // records the entries that the cache prepares for an insert: it computes their length before copying them
         List<Long> prepared = new ArrayList<>();
-        rangeEntryCache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, false,
+        rangeEntryCache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger,
                 mockRangeCacheRemovalQueue, (ml, entry) -> {
                     prepared.add(entry.getEntryId());
                     return entry.getLength();
@@ -809,7 +859,7 @@ public class RangeEntryCacheImplTest {
             return Optional.of(handle);
         }).when(inflightReadsLimiter).acquire(anyLong(), any());
 
-        RangeEntryCacheImpl cache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, false,
+        RangeEntryCacheImpl cache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger,
                 mockRangeCacheRemovalQueue, EntryLengthFunction.DEFAULT, mock(PendingReadsManager.class));
 
         ReadHandle readHandle = mock(ReadHandle.class);
@@ -870,7 +920,7 @@ public class RangeEntryCacheImplTest {
             return Optional.of(handle);
         }).when(inflightReadsLimiter).acquire(anyLong(), any());
 
-        RangeEntryCacheImpl cache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, false,
+        RangeEntryCacheImpl cache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger,
                 mockRangeCacheRemovalQueue, EntryLengthFunction.DEFAULT, mock(PendingReadsManager.class));
 
         // Use LedgerHandle mock so batch read path is taken
