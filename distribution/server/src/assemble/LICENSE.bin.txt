@@ -459,7 +459,6 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-stub-1.84.0.jar
     - io.grpc-grpc-api-1.84.0.jar
     - io.grpc-grpc-netty-1.84.0.jar
-    - io.grpc-grpc-netty-shaded-1.84.0.jar
     - io.grpc-grpc-services-1.84.0.jar
     - io.grpc-grpc-util-1.84.0.jar
     - io.grpc-grpc-inprocess-1.84.0.jar

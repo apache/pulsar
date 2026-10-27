@@ -42,7 +42,7 @@ import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.grpc.netty.shaded.io.netty.util.concurrent.FastThreadLocal;
+import io.netty.util.concurrent.FastThreadLocal;
 import jakarta.ws.rs.NotAcceptableException;
 import jakarta.ws.rs.core.Response.Status;
 import java.net.URI;
