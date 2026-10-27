@@ -1645,6 +1645,15 @@ public class BrokerService implements Closeable {
             return cachedFuture.handle((ignored, error) -> null)
                     .thenCompose(ignored -> deleteTopicInternal(topic, forceDelete));
         }
+        if (cachedFuture != null && cachedFuture.isCompletedExceptionally()) {
+            if (topics.get(topic) != cachedFuture) {
+                return deleteTopicInternal(topic, forceDelete);
+            }
+            // A timeout completes the public future before initialization and its managed-ledger cleanup finish.
+            // Only the loader may remove this entry, otherwise a replacement can reuse the ledger it will close.
+            return FutureUtil.failedFuture(new ServiceUnitNotReadyException(
+                    "Topic loading cleanup is still pending for " + topic + ". Please redo the lookup."));
+        }
         Optional<Topic> optTopic = cachedFuture == null ? Optional.empty() : extractTopic(cachedFuture);
         if (cachedFuture != null && optTopic.isEmpty()) {
             topics.remove(topic, cachedFuture);

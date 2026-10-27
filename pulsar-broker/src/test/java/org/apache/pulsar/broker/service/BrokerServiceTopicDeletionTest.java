@@ -23,26 +23,36 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -173,6 +183,15 @@ public class BrokerServiceTopicDeletionTest {
         assertThat(metadataDeletes.get()).isZero();
         if (failed) {
             loading.completeExceptionally(new IllegalStateException("Loading failed"));
+            CompletableFuture<Void> failedDeletion = deletion;
+            assertThatThrownBy(() -> failedDeletion.get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(ServiceUnitNotReadyException.class);
+            assertThat(broker.getTopics().get(name)).as("the loader still owns failed-load resource cleanup")
+                    .isSameAs(loading);
+            assertThat(metadataDeletes.get()).isZero();
+            // The loading lifecycle, rather than deletion, removes the failed entry after its cleanup.
+            broker.getTopics().remove(name, loading);
+            deletion = broker.deleteTopic(name, true);
         } else {
             loading.complete(Optional.empty());
         }
@@ -180,6 +199,111 @@ public class BrokerServiceTopicDeletionTest {
         deletion.get(5, TimeUnit.SECONDS);
         assertThat(metadataDeletes.get()).isEqualTo(1);
         assertThat(broker.getTopics()).doesNotContainKey(name);
+    }
+
+    @Test(timeOut = 60000)
+    @SuppressWarnings("unchecked")
+    public void testDeleteDoesNotExposeTimedOutInitializationLedgerToReplacement() throws Exception {
+        context.close();
+        context = null;
+        CompletableFuture<Void> initialization = new CompletableFuture<>();
+        CompletableFuture<PersistentTopic> initializationStarted = new CompletableFuture<>();
+        CompletableFuture<Void> originalClosed = new CompletableFuture<>();
+        String name = "persistent://prop/ns-abc/delete-timed-out-initialization-" + UUID.randomUUID();
+        AtomicInteger initializations = new AtomicInteger();
+        BrokerTestInterceptor.INSTANCE.setPersistentTopicDecorator(topic -> {
+            if (!topic.getName().equals(name) || initializations.getAndIncrement() != 0) {
+                return topic;
+            }
+            PersistentTopic decorated = spy(topic);
+            doAnswer(invocation -> {
+                CompletableFuture<Void> initialized = (CompletableFuture<Void>) invocation.callRealMethod();
+                return initialized.thenCompose(ignored -> {
+                    initializationStarted.complete(decorated);
+                    return initialization;
+                });
+            }).when(decorated).initialize(any(TopicLoadingContext.class));
+            doAnswer(invocation -> {
+                CompletableFuture<Void> closing = (CompletableFuture<Void>) invocation.callRealMethod();
+                closing.whenComplete((ignored, error) -> {
+                    if (error == null) {
+                        originalClosed.complete(null);
+                    } else {
+                        originalClosed.completeExceptionally(error);
+                    }
+                });
+                return closing;
+            }).when(decorated).close();
+            return decorated;
+        });
+        try (InitializingTopicFixture fixture = new InitializingTopicFixture(initialization)) {
+            fixture.setup();
+            BrokerService realBroker = fixture.service().getBrokerService();
+            CompletableFuture<Optional<Topic>> loading = realBroker.getTopic(name, true);
+            PersistentTopic original = initializationStarted.get(10, TimeUnit.SECONDS);
+            ManagedLedgerImpl originalLedger = (ManagedLedgerImpl) original.getManagedLedger();
+            assertThatThrownBy(() -> loading.get(10, TimeUnit.SECONDS)).hasCauseInstanceOf(TimeoutException.class);
+            assertThat(realBroker.getTopics().get(name)).isSameAs(loading);
+            IllegalStateException authFailure = new IllegalStateException("Injected authorization cleanup failure");
+            doAnswer(invocation -> {
+                invocation.<CompletableFuture<Void>>getArgument(1).completeExceptionally(authFailure);
+                return null;
+            }).when(realBroker).deleteTopicAuthenticationWithRetry(eq(name), any(), anyInt());
+            assertThatThrownBy(() -> realBroker.deleteTopic(name, true).get(10, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class);
+
+            CompletableFuture<Optional<Topic>> retry = realBroker.getTopic(name, true);
+            PersistentTopic replacement = retry == loading ? null
+                    : (PersistentTopic) retry.get(10, TimeUnit.SECONDS).orElseThrow();
+            initialization.complete(null);
+            originalClosed.get(10, TimeUnit.SECONDS);
+            Awaitility.await().untilAsserted(() -> assertThat(realBroker.getTopics().get(name)).isNotSameAs(loading));
+            if (replacement == null) {
+                replacement = (PersistentTopic) realBroker.getTopic(name, true).get(10, TimeUnit.SECONDS).orElseThrow();
+            }
+            assertThat(replacement.getManagedLedger()).as("late cleanup must not close the replacement ledger")
+                    .isNotSameAs(originalLedger);
+            assertThat(replacement.getManagedLedger().addEntry(new byte[] {1})).isNotNull();
+            assertThat(realBroker.getTopicReference(name)).contains(replacement);
+        } finally {
+            initialization.complete(null);
+            BrokerTestInterceptor.INSTANCE.reset();
+        }
+    }
+
+    private static class InitializingTopicFixture extends BrokerTestBase implements AutoCloseable {
+        private final CompletableFuture<Void> initialization;
+
+        private InitializingTopicFixture(CompletableFuture<Void> initialization) {
+            this.initialization = initialization;
+            conf.setTopicFactoryClassName(BrokerTestInterceptor.TestTopicFactory.class.getName());
+            conf.setTopicLoadTimeoutSeconds(5);
+        }
+
+        @Override
+        protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+            return spy(brokerService);
+        }
+
+        @Override
+        protected void setup() throws Exception {
+            baseSetup();
+        }
+
+        @Override
+        protected void cleanup() throws Exception {
+            internalCleanup();
+        }
+
+        private PulsarService service() {
+            return pulsar;
+        }
+
+        @Override
+        public void close() throws Exception {
+            initialization.complete(null);
+            cleanup();
+        }
     }
 
     @Test
