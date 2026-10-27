@@ -22,6 +22,10 @@ import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import io.netty.channel.ChannelHandlerContext;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -55,6 +59,8 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     private final Supplier<String> localStateTopicsHashSupplier;
     private final CompletableFuture<TopicListWatcher> watcherFuture;
     private final IntSupplier nextRecheckPatternEpochSupplier;
+    private final Set<ClientCnx> timedOutWatchConnections = new HashSet<>();
+    private volatile boolean closing;
 
     private final AtomicInteger previousExceptionCount = new AtomicInteger();
     private final AtomicReference<ClientCnx> clientCnxUsedForWatcherRegistration = new AtomicReference<>();
@@ -117,7 +123,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     @Override
     public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
         State state = getState();
-        if (state == State.Closing || state == State.Closed) {
+        if (closing || state == State.Closing || state == State.Closed) {
             setState(State.Closed);
             deregisterFromClientCnx();
             client.getCnxPool().releaseConnection(cnx);
@@ -150,7 +156,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                             localStateTopicsHash)
                     .thenAccept(response -> {
                         synchronized (TopicListWatcher.this) {
-                            if (!changeToReadyState()) {
+                            if (closing || !changeToReadyState()) {
                                 // Remove only this watcher; the connection may be shared by other handlers.
                                 setState(State.Closed);
                                 deregisterFromClientCnx();
@@ -166,8 +172,9 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                         future.complete(null);
                     }).exceptionally((e) -> {
                         Throwable cause = FutureUtil.unwrapCompletionException(e);
+                        recordWatchTimeout(cnx, cause);
                         deregisterFromClientCnx();
-                        if (getState() == State.Closing || getState() == State.Closed) {
+                        if (closing || getState() == State.Closing || getState() == State.Closed) {
                             // The failed request may still have created a watcher on the broker.
                             closeWatcherAndReleaseConnection(cnx);
                             future.complete(null);
@@ -201,6 +208,41 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                     });
         }
         return future;
+    }
+
+    private void recordWatchTimeout(ClientCnx cnx, Throwable error) {
+        if (!(error instanceof PulsarClientException.TimeoutException)) {
+            return;
+        }
+        boolean closeConnection;
+        synchronized (timedOutWatchConnections) {
+            timedOutWatchConnections.removeIf(connection -> !connection.channel().isActive());
+            closeConnection = closing;
+            if (!closeConnection && cnx.channel().isActive()) {
+                timedOutWatchConnections.add(cnx);
+            }
+        }
+        if (closeConnection && cnx.channel().isActive()) {
+            cnx.channel().close();
+        }
+    }
+
+    private void closeTimedOutWatchConnections() {
+        List<ClientCnx> connections;
+        synchronized (timedOutWatchConnections) {
+            closing = true;
+            connections = new ArrayList<>(timedOutWatchConnections);
+            timedOutWatchConnections.clear();
+        }
+        // Older brokers may acknowledge CLOSE before a timed-out WATCH finishes authorization and registers.
+        // Another successful request cannot prove that old authorization finished. Preserve shared connections
+        // while open, but reset these uncertain connections at close so old brokers cannot retain orphan watchers.
+        // Other handlers using a shared connection reconnect normally. Never close channels under the tracking lock.
+        for (ClientCnx cnx : connections) {
+            if (cnx.channel().isActive()) {
+                cnx.channel().close();
+            }
+        }
     }
 
     private void closeWatcherAndReleaseConnection(ClientCnx cnx) {
@@ -243,6 +285,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     }
 
     public CompletableFuture<Void> closeAsync() {
+        closeTimedOutWatchConnections();
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         // since we set closed flag in PatternMultiTopicsConsumerImpl, it is ok to directly cancel watcherFuture whether
         // it's completed or not to make sure watcherFuture is completed
@@ -335,7 +378,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
      */
     public CompletableFuture<CommandWatchTopicListSuccess> reconcile(String localStateTopicsHash) {
         ClientCnx c = cnx();
-        if (c == null || !isConnected()) {
+        if (closing || c == null || !isConnected()) {
             CompletableFuture<CommandWatchTopicListSuccess> f = new CompletableFuture<>();
             f.completeExceptionally(new IllegalStateException("Watcher is not connected"));
             return f;
@@ -343,7 +386,14 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         long requestId = client.newRequestId();
         // Use the convenience ClientCnx overload that accepts a topicsHash
         return c.newWatchTopicList(requestId, watcherId, namespace.toString(),
-                topicsPattern.inputPattern(), localStateTopicsHash);
+                topicsPattern.inputPattern(), localStateTopicsHash).whenComplete((response, error) -> {
+                    if (error != null) {
+                        recordWatchTimeout(c, FutureUtil.unwrapCompletionException(error));
+                    }
+                    if (closing) {
+                        closeWatcherAndReleaseConnection(c);
+                    }
+                });
     }
 
     public boolean supportsReconcile() {

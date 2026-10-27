@@ -335,7 +335,7 @@ public class TopicListWatcherTest {
             verify(clientCnx).removeTopicListWatcher(7);
             verify(clientCnx).newWatchTopicListClose(any(), anyLong());
             verify(clientCnx, times(connectionsPerBroker == 0 ? 1 : 0)).close();
-            verify(clientCnx.channel(), never()).close();
+            verify(clientCnx.channel(), times(success ? 0 : 1)).close();
             verify(timer, never()).newTimeout(any(), anyLong(), any());
         }
     }
@@ -357,6 +357,144 @@ public class TopicListWatcherTest {
             verify(clientCnx, times(connectionsPerBroker == 0 ? 1 : 0)).close();
             verify(clientCnx.channel(), never()).close();
             verify(timer, never()).newTimeout(any(), anyLong(), any());
+        }
+    }
+
+    @DataProvider
+    public Object[][] timeoutBeforeClose() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "timeoutBeforeClose")
+    public void testInitialWatchTimeoutClosesUncertainSharedConnectionAtClose(boolean timeoutFirst) throws Exception {
+        try (ConnectionPool pool = newConnectionPool(1)) {
+            when(client.getCnxPool()).thenReturn(pool);
+            ClientCnx cnx = mockClientCnx();
+            CompletableFuture<CommandWatchTopicListSuccess> response = new CompletableFuture<>();
+            when(cnx.newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any())).thenReturn(response);
+            clientCnxFuture.complete(cnx);
+            if (timeoutFirst) {
+                response.completeExceptionally(new PulsarClientException.TimeoutException("WATCH timed out"));
+                assertThat(watcherFuture).isNotDone();
+                verify(cnx.channel(), never()).close();
+            }
+
+            watcher.closeAsync().join();
+            if (!timeoutFirst) {
+                verify(cnx.channel(), never()).close();
+                response.completeExceptionally(new PulsarClientException.TimeoutException("WATCH timed out"));
+            }
+
+            // An old broker may still authorize the timed-out request after acknowledging WATCH_CLOSE.
+            verify(cnx.channel()).close();
+            verify(cnx, never()).close();
+            assertThat(watcher.getState()).isEqualTo(HandlerState.State.Closed);
+            if (timeoutFirst) {
+                ArgumentCaptor<TimerTask> retry = ArgumentCaptor.forClass(TimerTask.class);
+                verify(timer).newTimeout(retry.capture(), anyLong(), any());
+                retry.getValue().run(null);
+                verify(cnx).newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any());
+            }
+        }
+    }
+
+    @Test(dataProvider = "timeoutBeforeClose")
+    public void testReconcileTimeoutClosesUncertainSharedConnectionAtClose(boolean timeoutFirst) throws Exception {
+        try (ConnectionPool pool = newConnectionPool(1)) {
+            when(client.getCnxPool()).thenReturn(pool);
+            ClientCnx cnx = mockClientCnx();
+            CompletableFuture<CommandWatchTopicListSuccess> response = new CompletableFuture<>();
+            when(cnx.newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any()))
+                    .thenReturn(CompletableFuture.completedFuture(new CommandWatchTopicListSuccess()
+                            .setRequestId(0).setWatcherId(7).setTopicsHash("FEED")), response);
+            clientCnxFuture.complete(cnx);
+            CompletableFuture<CommandWatchTopicListSuccess> reconcile = watcher.reconcile("FEED");
+            if (timeoutFirst) {
+                response.completeExceptionally(new PulsarClientException.TimeoutException("Reconcile timed out"));
+                assertThat(reconcile).isCompletedExceptionally();
+                verify(cnx.channel(), never()).close();
+            }
+
+            watcher.closeAsync().join();
+            if (!timeoutFirst) {
+                verify(cnx.channel(), never()).close();
+                response.completeExceptionally(new PulsarClientException.TimeoutException("Reconcile timed out"));
+            }
+
+            verify(cnx.channel()).close();
+            verify(cnx, never()).close();
+            assertThat(reconcile).isCompletedExceptionally();
+        }
+    }
+
+    @Test
+    public void testLateReconcileSuccessClosesOnlyWatcherOnSharedConnection() throws Exception {
+        try (ConnectionPool pool = newConnectionPool(1)) {
+            when(client.getCnxPool()).thenReturn(pool);
+            ClientCnx cnx = mockClientCnx();
+            CompletableFuture<CommandWatchTopicListSuccess> response = new CompletableFuture<>();
+            when(cnx.newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any()))
+                    .thenReturn(CompletableFuture.completedFuture(new CommandWatchTopicListSuccess()
+                            .setRequestId(0).setWatcherId(7).setTopicsHash("FEED")), response);
+            clientCnxFuture.complete(cnx);
+            watcher.reconcile("FEED");
+
+            watcher.closeAsync().join();
+            response.complete(new CommandWatchTopicListSuccess().setRequestId(1).setWatcherId(7).setTopicsHash("FEED"));
+
+            verify(cnx, times(2)).newWatchTopicListClose(any(), anyLong());
+            verify(cnx.channel(), never()).close();
+            verify(cnx, never()).close();
+        }
+    }
+
+    @Test
+    public void testCloseRetainsUncertainConnectionAcrossSuccessfulRetry() throws Exception {
+        try (ConnectionPool pool = newConnectionPool(1)) {
+            when(client.getCnxPool()).thenReturn(pool);
+            ClientCnx first = mockClientCnx();
+            ClientCnx second = mockClientCnx();
+            CompletableFuture<CommandWatchTopicListSuccess> response = new CompletableFuture<>();
+            when(first.newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any())).thenReturn(response);
+            when(second.newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any()))
+                    .thenReturn(CompletableFuture.completedFuture(new CommandWatchTopicListSuccess()
+                            .setRequestId(1).setWatcherId(7).setTopicsHash("FEED")));
+            when(client.getConnection(anyString(), anyInt()))
+                    .thenReturn(CompletableFuture.completedFuture(Pair.of(second, false)));
+            clientCnxFuture.complete(first);
+            response.completeExceptionally(new PulsarClientException.TimeoutException("First WATCH timed out"));
+            ArgumentCaptor<TimerTask> retry = ArgumentCaptor.forClass(TimerTask.class);
+            verify(timer).newTimeout(retry.capture(), anyLong(), any());
+            retry.getValue().run(null);
+            assertThat(watcherFuture).isCompletedWithValue(watcher);
+            verify(first.channel(), never()).close();
+            verify(second.channel(), never()).close();
+
+            watcher.closeAsync().join();
+
+            verify(first.channel()).close();
+            verify(second.channel(), never()).close();
+            verify(second).newWatchTopicListClose(any(), anyLong());
+        }
+    }
+
+    @Test
+    public void testKnownReconcileErrorDoesNotMarkSharedConnectionUncertain() throws Exception {
+        try (ConnectionPool pool = newConnectionPool(1)) {
+            when(client.getCnxPool()).thenReturn(pool);
+            ClientCnx cnx = mockClientCnx();
+            when(cnx.newWatchTopicList(anyLong(), anyLong(), anyString(), anyString(), any()))
+                    .thenReturn(CompletableFuture.completedFuture(new CommandWatchTopicListSuccess()
+                                    .setRequestId(0).setWatcherId(7).setTopicsHash("FEED")),
+                            CompletableFuture.failedFuture(new PulsarClientException.TooManyRequestsException(
+                                    "Broker rejected the request")));
+            clientCnxFuture.complete(cnx);
+            assertThat(watcher.reconcile("FEED")).isCompletedExceptionally();
+
+            watcher.closeAsync().join();
+
+            verify(cnx.channel(), never()).close();
+            verify(cnx).newWatchTopicListClose(any(), anyLong());
         }
     }
 
