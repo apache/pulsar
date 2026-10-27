@@ -274,7 +274,9 @@ public class CmdConsume extends AbstractCmdConsume {
                 }
             }
         } catch (Exception e) {
-            LOG.error("Authentication plugin error: " + e.getMessage());
+            if (!isInterruption(e)) {
+                LOG.error("Authentication plugin error: " + e.getMessage());
+            }
             return -1;
         }
         CompletableFuture<Void> connected = new CompletableFuture<>();
@@ -282,7 +284,9 @@ public class CmdConsume extends AbstractCmdConsume {
         try {
             consumeClient.start();
         } catch (Exception e) {
-            LOG.error("Failed to start websocket-client", e);
+            if (!isInterruption(e)) {
+                LOG.error("Failed to start websocket-client", e);
+            }
             return -1;
         }
 
@@ -291,7 +295,9 @@ public class CmdConsume extends AbstractCmdConsume {
             consumeClient.connect(consumerSocket, consumeRequest);
             connected.get();
         } catch (Exception e) {
-            LOG.error("Failed to create web-socket session", e);
+            if (!isInterruption(e)) {
+                LOG.error("Failed to create web-socket session", e);
+            }
             return -1;
         }
 
@@ -329,12 +335,16 @@ public class CmdConsume extends AbstractCmdConsume {
         try {
             consumeClient.stop();
         } catch (Exception e) {
-            LOG.error("Failed to stop websocket-client", e);
+            if (!isInterruption(e)) {
+                LOG.error("Failed to stop websocket-client", e);
+            }
         }
         try {
             httpClient.stop();
         } catch (Exception e) {
-            LOG.error("Failed to stop http-client", e);
+            if (!isInterruption(e)) {
+                LOG.error("Failed to stop http-client", e);
+            }
         }
         return returnCode;
     }

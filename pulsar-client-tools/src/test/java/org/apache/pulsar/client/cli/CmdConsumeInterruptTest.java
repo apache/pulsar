@@ -27,6 +27,10 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -101,6 +105,44 @@ public class CmdConsumeInterruptTest {
             assertFalse(command.isAlive());
             assertEquals(exitCode.get(), -1);
             assertTrue(errors.events().isEmpty(), "unexpected error logs: " + errors.events());
+        }
+    }
+
+    @Test
+    public void testInterruptedWebSocketHandshakeDoesNotLogError() throws Exception {
+        // A server that accepts the connection but never answers the WebSocket upgrade, so the command
+        // stays blocked waiting for the session to be created.
+        final CountDownLatch accepted = new CountDownLatch(1);
+        try (ServerSocket server = new ServerSocket(0, 50, InetAddress.getLoopbackAddress())) {
+            final Thread acceptor = new Thread(() -> {
+                try (Socket ignored = server.accept()) {
+                    accepted.countDown();
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(30));
+                } catch (IOException | InterruptedException e) {
+                    // closing the server ends the test
+                }
+            });
+            acceptor.setDaemon(true);
+            acceptor.start();
+
+            final Properties properties = new Properties();
+            properties.setProperty("serviceUrl", "ws://127.0.0.1:" + server.getLocalPort() + "/");
+            final PulsarClientTool tool = new PulsarClientTool(properties);
+
+            final AtomicInteger exitCode = new AtomicInteger(Integer.MIN_VALUE);
+            final Thread command = new Thread(() -> exitCode.set(tool.run(new String[]{
+                    "consume", "-s", "sub", "-n", "0", "persistent://public/default/interrupted"})));
+            try (ErrorCapture errors = ErrorCapture.attach(PulsarClientTool.class)) {
+                command.start();
+                assertTrue(accepted.await(10, TimeUnit.SECONDS));
+                command.interrupt();
+                command.join(TimeUnit.SECONDS.toMillis(10));
+                assertFalse(command.isAlive());
+                assertEquals(exitCode.get(), -1);
+                assertTrue(errors.events().isEmpty(), "unexpected error logs: " + errors.events());
+            } finally {
+                acceptor.interrupt();
+            }
         }
     }
 
