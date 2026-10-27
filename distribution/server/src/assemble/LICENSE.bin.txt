@@ -458,6 +458,7 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-protobuf-lite-1.84.0.jar
     - io.grpc-grpc-stub-1.84.0.jar
     - io.grpc-grpc-api-1.84.0.jar
+    - io.grpc-grpc-netty-1.84.0.jar
     - io.grpc-grpc-netty-shaded-1.84.0.jar
     - io.grpc-grpc-services-1.84.0.jar
     - io.grpc-grpc-util-1.84.0.jar
@@ -495,8 +496,8 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.github.oxia-db-oxia-client-api-0.9.5.jar
-    - io.github.oxia-db-oxia-client-0.9.5.jar
+    - io.github.oxia-db-oxia-client-api-0.10.2.jar
+    - io.github.oxia-db-oxia-client-0.10.2.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens

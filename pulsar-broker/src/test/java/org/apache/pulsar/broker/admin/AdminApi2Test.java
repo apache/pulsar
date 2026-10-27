@@ -378,7 +378,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final int newPartitions = 8;
         final String partitionedTopicName = "persistent://" + defaultNamespace + "/" + topicName;
 
-        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
+        URL pulsarUrl = URI.create(pulsar.getWebServiceAddress()).toURL();
 
         admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         // validate partition topic is created
@@ -3768,7 +3768,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final int newPartitions = 8;
         final String partitionedTopicName = "persistent://" + defaultNamespace + "/" + topicName;
 
-        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
+        URL pulsarUrl = URI.create(pulsar.getWebServiceAddress()).toURL();
 
         admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         @Cleanup
