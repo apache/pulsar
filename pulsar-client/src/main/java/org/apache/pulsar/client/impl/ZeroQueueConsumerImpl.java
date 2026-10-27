@@ -97,7 +97,8 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             synchronized (ZeroQueueConsumerImpl.this) {
                 pendingReceives.add(result);
                 cancellationHandler.setCancelAction(() -> pendingReceives.remove(result));
-                if (isConnected()) {
+                // Cancellation or timeout may have completed the future before registration.
+                if (!result.isDone() && isConnected()) {
                     increaseAvailablePermits(cnx());
                 }
             }
@@ -109,8 +110,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
         // Just being cautious
         if (incomingMessages.size() > 0) {
             log.error("The incoming message queue should never be greater than 0 when Queue size is 0");
-            incomingMessages.forEach(Message::release);
-            incomingMessages.clear();
+            clearIncomingMessages();
         }
 
         Message<T> message;
@@ -124,6 +124,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             }
             do {
                 message = incomingMessages.take();
+                decreaseIncomingMessageSize(message);
                 lastDequeuedMessageId = message.getMessageId();
                 ClientCnx msgCnx = ((MessageImpl<?>) message).getCnx();
                 // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
@@ -135,6 +136,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                         break;
                     }
                 }
+                message.release();
             } while (true);
 
             stats.updateNumMsgsReceived(message);
@@ -146,7 +148,7 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             // Finally blocked is invoked in case the block on incomingMessages is interrupted
             waitingOnReceiveForZeroQueueSize = false;
             // Clearing the queue in case there was a race with messageReceived
-            incomingMessages.clear();
+            clearIncomingMessages();
         }
     }
 
@@ -252,14 +254,15 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
     private void rejectBatchMessageByClosingConsumer(MessageIdImpl messageId) {
         log.warn().attr("messageId", messageId)
                 .log("Closing consumer - due to unsupported received batch-message with zero receiver queue size");
-        // close connection
-        closeAsync().handle((ok, e) -> {
-            // notify callback with failure result
+        internalPinnedExecutor.execute(() -> {
+            // notify callback with failure result before closing, since closing fails the pending receives
+            // with a generic AlreadyClosedException
             notifyPendingReceivedCallback(null,
                     new PulsarClientException.InvalidMessageException(
                             format("Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
                                     subscription, consumerName)));
-            return null;
+            // close connection
+            closeAsync();
         });
     }
 }

@@ -19,8 +19,11 @@
 package org.apache.pulsar.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -36,6 +39,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -64,6 +68,8 @@ import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore.OperationType;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.apache.pulsar.packages.management.core.MockedPackagesStorageProvider;
+import org.apache.pulsar.packages.management.core.PackagesManagement;
 import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.pulsar.zookeeper.ZookeeperServerTest;
 import org.apache.zookeeper.CreateMode;
@@ -124,6 +130,36 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
 
         WorkerService actualWorkerService = pulsarService.getWorkerService();
         assertSame(expectedWorkerService, actualWorkerService);
+    }
+
+    /**
+     * Verifies that the packages management service is available when the function worker service starts, so the
+     * function instances the worker schedules right after a broker restart can download their package URLs.
+     */
+    @Test
+    public void testPackagesManagementStartsBeforeWorkerService() throws Exception {
+        AtomicReference<PulsarService> pulsarRef = new AtomicReference<>();
+        AtomicReference<PackagesManagement> packagesManagementAtWorkerStart = new AtomicReference<>();
+        WorkerService workerService = mock(WorkerService.class);
+        doAnswer(invocation -> {
+            packagesManagementAtWorkerStart.set(pulsarRef.get().getPackagesManagement());
+            return null;
+        }).when(workerService).start(any(), any(), any());
+
+        @Cleanup
+        PulsarTestContext context = PulsarTestContext.builder()
+                .configCustomizer(config -> {
+                    config.setEnablePackagesManagement(true);
+                    config.setPackagesManagementStorageProvider(MockedPackagesStorageProvider.class.getName());
+                })
+                .functionWorkerService(workerService)
+                .pulsarServiceCustomizer(pulsarRef::set)
+                .build();
+
+        verify(workerService).start(any(), any(), any());
+        assertThat(packagesManagementAtWorkerStart.get())
+                .isNotNull()
+                .isSameAs(context.getPulsarService().getPackagesManagement());
     }
 
     /**
@@ -487,6 +523,15 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
                 && event.getLoggerName().equals(OwnershipCache.class.getName())
                 && event.getMessage().getFormattedMessage().contains("Resource lock has expired"));
         assertThat(expiryLogged).as("INFO expiry while shuttingDown=%s", shuttingDown).isEqualTo(!shuttingDown);
+    }
+
+    @Test
+    public void testWebSocketServiceSharesBrokerConfigurationStore() throws Exception {
+        // Only the broker's own (here mocked) client reaches the configuration store, as with a TLS store set up
+        // through configurationStoreConfigPath; a WebSocket service opening its own client fails the startup.
+        conf.setWebSocketServiceEnabled(true);
+        setup();
+        assertThat(pulsar.getWebSocketService()).as("embedded WebSocket service").isNotNull();
     }
 
     @Test

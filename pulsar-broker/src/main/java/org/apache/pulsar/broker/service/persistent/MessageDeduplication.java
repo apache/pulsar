@@ -204,6 +204,8 @@ public class MessageDeduplication {
                             log.error()
                                     .exception(exception)
                                     .log("Deleted deduplication cursor error");
+                            // Leave Removing so the next checkStatus() retries the delete
+                            status = Status.Failed;
                         }
                     }
                 }, null);
@@ -636,6 +638,7 @@ public class MessageDeduplication {
 
         final var cursor = managedCursor;
         if (cursor == null) {
+            snapshotTaking.set(false);
             log.warn()
                     .attr("position", position)
                     .log("Cursor is null when taking snapshot for");

@@ -30,10 +30,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.common.FileSource;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
-import com.github.tomakehurst.wiremock.extension.Parameters;
-import com.github.tomakehurst.wiremock.extension.ResponseTransformer;
+import com.github.tomakehurst.wiremock.extension.ResponseTransformerV2;
+import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -69,13 +68,12 @@ public class AsyncHttpConnectorTest {
     WireMockServer server;
     ConcurrencyTestTransformer concurrencyTestTransformer = new ConcurrencyTestTransformer();
 
-    private static class CopyRequestBodyToResponseBodyTransformer extends ResponseTransformer {
+    private static class CopyRequestBodyToResponseBodyTransformer implements ResponseTransformerV2 {
         @Override
         public com.github.tomakehurst.wiremock.http.Response transform(
-                com.github.tomakehurst.wiremock.http.Request request,
-                com.github.tomakehurst.wiremock.http.Response response, FileSource fileSource, Parameters parameters) {
+                com.github.tomakehurst.wiremock.http.Response response, ServeEvent serveEvent) {
             return com.github.tomakehurst.wiremock.http.Response.Builder.like(response)
-                    .body(request.getBodyAsString())
+                    .body(serveEvent.getRequest().getBodyAsString())
                     .build();
         }
 
@@ -90,15 +88,14 @@ public class AsyncHttpConnectorTest {
         }
     }
 
-    private static class ConcurrencyTestTransformer extends ResponseTransformer {
+    private static class ConcurrencyTestTransformer implements ResponseTransformerV2 {
         private static final long DELAY_MS = 100;
         private final AtomicInteger concurrencyCounter = new AtomicInteger(0);
         private final AtomicInteger maxConcurrency = new AtomicInteger(0);
 
         @Override
         public com.github.tomakehurst.wiremock.http.Response transform(
-                com.github.tomakehurst.wiremock.http.Request request,
-                com.github.tomakehurst.wiremock.http.Response response, FileSource fileSource, Parameters parameters) {
+                com.github.tomakehurst.wiremock.http.Response response, ServeEvent serveEvent) {
             int currentCounter = concurrencyCounter.incrementAndGet();
             maxConcurrency.updateAndGet(v -> Math.max(v, currentCounter));
             try {

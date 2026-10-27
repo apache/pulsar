@@ -661,6 +661,7 @@ public class BrokerBkEnsemblesTest extends BkEnsemblesTestBase {
      * Terminating a topic closes the current ledger under the publishes that are still in flight. The topic must not
      * stay fenced afterwards: a terminated topic still has to be drained, so consumers must be able to subscribe to it.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testConsumerCanSubscribeAfterTerminateWithInFlightPublish() throws Exception {
         final String namespace = BrokerTestUtil.newUniqueName("prop/ns");

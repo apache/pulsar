@@ -207,7 +207,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     private final LoadingCache<String, SchemaInfoProvider> schemaProviderLoadingCache =
             CacheBuilder.newBuilder().maximumSize(100000)
-                    .expireAfterAccess(30, TimeUnit.MINUTES)
+                    .expireAfterAccess(Duration.ofMinutes(30))
                     .build(new CacheLoader<String, SchemaInfoProvider>() {
 
                         @Override
@@ -1013,6 +1013,12 @@ public class PulsarClientImpl implements PulsarClient {
                         Optional.empty());
             }
             producers.add(producer);
+            // The creation can fail before this line runs, from another thread or from a connection that fails at
+            // once, in which case the producer has already closed or failed and removed itself from the client. Do
+            // not keep it then.
+            if (producer.isTerminalState()) {
+                cleanupProducer(producer);
+            }
         }).exceptionally(ex -> {
             log.warn().attr("topic", topic).exceptionMessage(ex).log("Failed to get partitioned topic metadata");
             producerCreatedFuture.completeExceptionally(ex);

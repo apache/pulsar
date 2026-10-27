@@ -106,6 +106,40 @@ public class InflightReadsLimiterTest {
     }
 
     @Test
+    public void tryAcquireWhenBelowUtilizationThresholdTakesOnlyPermitsWithinItThatAreNotAwaited() throws Exception {
+        InflightReadsLimiter limiter =
+                new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,
+                        mock(ScheduledExecutorService.class), OpenTelemetry.noop());
+        assertThat(InflightReadsLimiter.TRY_ACQUIRE_UTILIZATION_THRESHOLD).isEqualTo(0.7);
+        // more than 70 % of the limit is never in use after it
+        assertThat(limiter.tryAcquireWhenBelowUtilizationThreshold(71)).isEmpty();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(100);
+        Optional<InflightReadsLimiter.Handle> first = limiter.tryAcquireWhenBelowUtilizationThreshold(40);
+        assertThat(first).isPresent();
+        assertThat(first.get().success()).isTrue();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(60);
+        // the rest of the permits within the threshold
+        assertThat(limiter.tryAcquireWhenBelowUtilizationThreshold(31)).isEmpty();
+        Optional<InflightReadsLimiter.Handle> second = limiter.tryAcquireWhenBelowUtilizationThreshold(30);
+        assertThat(second).isPresent();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(30);
+        assertThat(limiter.tryAcquireWhenBelowUtilizationThreshold(1)).isEmpty();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(30);
+        limiter.release(second.get());
+        // a read waiting for permits keeps them for itself, though the permits would stay within the threshold
+        AtomicReference<InflightReadsLimiter.Handle> queued = new AtomicReference<>();
+        assertThat(limiter.acquire(80, queued::set)).isEmpty();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(60);
+        assertThat(limiter.tryAcquireWhenBelowUtilizationThreshold(10)).isEmpty();
+        limiter.release(first.get());
+        assertThat(queued.get()).isNotNull();
+        assertThat(queued.get().success()).isTrue();
+        assertThat(limiter.getRemainingBytes()).isEqualTo(20);
+        limiter.release(queued.get());
+        assertThat(limiter.tryAcquireWhenBelowUtilizationThreshold(10)).isPresent();
+    }
+
+    @Test
     public void testNotEnoughPermits() throws Exception {
         InflightReadsLimiter limiter =
                 new InflightReadsLimiter(100, ACQUIRE_QUEUE_SIZE, ACQUIRE_TIMEOUT_MILLIS,

@@ -83,6 +83,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import lombok.AccessLevel;
 import lombok.CustomLog;
 import lombok.Getter;
@@ -170,6 +171,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.common.configuration.FieldContext;
+import org.apache.pulsar.common.configuration.FieldContextValidator;
 import org.apache.pulsar.common.intercept.AppendIndexMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.intercept.BrokerEntryMetadataUtils;
@@ -231,6 +233,8 @@ public class BrokerService implements Closeable {
                     "futureWithDeadline(...)");
     private static final double GRACEFUL_SHUTDOWN_QUIET_PERIOD_RATIO_OF_TOTAL_TIMEOUT = 0.25d;
     private static final double GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT = 0.5d;
+    private static final Supplier<CompletableFuture<Boolean>> ALLOW_NEW_TOPIC =
+            () -> CompletableFuture.completedFuture(true);
 
     private static final Histogram backlogQuotaCheckDuration = Histogram.build()
             .name("pulsar_storage_backlog_quota_check_duration_seconds")
@@ -378,6 +382,8 @@ public class BrokerService implements Closeable {
 
     private final TopicEventsDispatcher topicEventsDispatcher = new TopicEventsDispatcher();
     private volatile boolean unloaded = false;
+    // set when the broker starts shutting down, so that topic loads waiting for a permit are failed
+    private volatile boolean pendingTopicLoadsRejected = false;
 
     // semaphore for limiting the concurrency of ledger deletion at broker level,
     // thus all managed ledgers sharing the same semaphore
@@ -619,7 +625,7 @@ public class BrokerService implements Closeable {
             bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-            bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+            bootstrap.childOption(ChannelOption.RECVBUF_ALLOCATOR,
                     new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
             EventLoopUtil.enableTriggeredMode(bootstrap);
             DefaultThreadFactory defaultThreadFactory =
@@ -647,7 +653,7 @@ public class BrokerService implements Closeable {
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-        bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+        bootstrap.childOption(ChannelOption.RECVBUF_ALLOCATOR,
             new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
         bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
         EventLoopUtil.enableTriggeredMode(bootstrap);
@@ -1234,6 +1240,9 @@ public class BrokerService implements Closeable {
         if (unloaded) {
             return;
         }
+        // unloading a bundle waits for the topic futures cached for it, including the ones of the topic loads that
+        // wait for a permit, which could otherwise only complete when the topic load times out
+        rejectPendingTopicLoads();
         try {
             log.info("Unloading namespace-bundles...");
             // make broker-node unavailable from the cluster
@@ -1311,6 +1320,40 @@ public class BrokerService implements Closeable {
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing) {
         return getTopic(topic, createIfMissing, null);
+    }
+
+    /**
+     * Loads the topic and, when it does not exist, creates it if
+     * {@link #isAllowAutoTopicCreationAsync(TopicName, Supplier)} allows it with {@code newTopicCheck}. The check is
+     * only made for a topic that does not exist, so loading an existing topic does not depend on it.
+     */
+    public CompletableFuture<Optional<Topic>> getTopicCreatingIfAllowed(
+            final TopicName topicName, final Supplier<CompletableFuture<Boolean>> newTopicCheck) {
+        CompletableFuture<Optional<Topic>> existingTopic = topicName.isPersistent()
+                ? getTopic(topicName.toString(), false)
+                // A non-persistent topic only exists while it is loaded; trying to load it would report a failure
+                // to topic event listeners.
+                : CompletableFuture.completedFuture(getTopicReference(topicName.toString()));
+        return existingTopic.thenCompose(optTopic -> {
+            if (optTopic.isPresent()) {
+                return CompletableFuture.completedFuture(optTopic);
+            }
+            evictMissingTopicFuture(topicName.toString());
+            return isAllowAutoTopicCreationAsync(topicName, newTopicCheck)
+                    .thenCompose(isAllowed -> getTopic(topicName.toString(), isAllowed));
+        });
+    }
+
+    /**
+     * Removes the future cached for the topic when it is a completed load that found the topic missing. A load removes
+     * that future from the cache asynchronously, so creating the topic right after could otherwise get it back. The
+     * cached future may come from another load than the caller's, when two of them raced.
+     */
+    private void evictMissingTopicFuture(String topic) {
+        CompletableFuture<Optional<Topic>> cached = topics.get(topic);
+        if (cached != null && cached.isDone() && !cached.isCompletedExceptionally() && cached.join().isEmpty()) {
+            topics.remove(topic, cached);
+        }
     }
 
     public CompletableFuture<Optional<Topic>> getTopic(final String topic, boolean createIfMissing,
@@ -1792,6 +1835,8 @@ public class BrokerService implements Closeable {
                 ClusterData data = clusterDataOp
                         .orElseThrow(() -> new MetadataStoreException.NotFoundException(cluster));
                 warnOnStalePip337ClusterFactory(cluster, data);
+                // statsInterval(0) turns off the legacy stats recorder; there is no non-deprecated equivalent.
+                @SuppressWarnings("deprecation")
                 ClientBuilder clientBuilder = PulsarClient.builder()
                         .enableTcpNoDelay(false)
                         .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
@@ -2190,6 +2235,10 @@ public class BrokerService implements Closeable {
                     } else {
                         pendingTopicLoadingQueue.add(ImmutablePair.of(context, queueTrace));
                         log.debug().attr("topic", topic).log("topic-loading for added into pending queue");
+                        if (pendingTopicLoadsRejected) {
+                            // the broker started shutting down concurrently, after the queue had been drained
+                            failPendingTopicLoads();
+                        }
                     }
                 }).exceptionally(ex -> {
                     failTopicFuture(topic, topicFuture, ex);
@@ -2387,6 +2436,17 @@ public class BrokerService implements Closeable {
             // took the bundle over from, must not open, and so recover, the new owner's ledger.
             context.trace(TopicLoadingTracePoints.OWNERSHIP_BEFORE_OPEN_ML, checkTopicNsOwnership(topic))
                     .thenRun(() -> {
+                if (topicFuture.isDone()) {
+                    // The load has timed out: opening, and so recovering, the managed ledger now would only be
+                    // followed by closing it again. The timed-out future stays cached until the pending load
+                    // actions finish, so remove it here to let a new load start.
+                    log.debug()
+                            .attr("topic", topic)
+                            .attr("latency", context.getSnapshot().description())
+                            .log("Skip opening the managed ledger since the topic load has already completed");
+                    pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+                    return;
+                }
                 final LatencyTracer.TracePoint openMlTracePoint = context.startTrace(TopicLoadingTracePoints.OPEN_ML);
                 managedLedgerFactory.asyncOpen(topicName.getPersistenceNamingEncoding(), managedLedgerConfig,
                         new OpenLedgerCallback() {
@@ -2681,6 +2741,7 @@ public class BrokerService implements Closeable {
             managedLedgerConfig.setInactiveOffloadedLedgerEvictionTime(
                     serviceConfig.getManagedLedgerInactiveOffloadedLedgerEvictionTimeSeconds(),
                     TimeUnit.SECONDS);
+            managedLedgerConfig.setReadAheadEnabled(serviceConfig.isManagedLedgerReadAheadEnabled());
             if (serviceConfig.isCacheEvictionByExpectedReadCount()) {
                 managedLedgerConfig.setCacheEvictionByMarkDeletedPosition(false);
                 managedLedgerConfig.setCacheEvictionByExpectedReadCount(true);
@@ -3359,8 +3420,35 @@ public class BrokerService implements Closeable {
             handleLocalPoliciesUpdates(ns);
         } else if (pulsar().getPulsarResources().getDynamicConfigResources().isDynamicConfigurationPath(n.getPath())) {
             handleDynamicConfigurationUpdates();
+        } else if (n.getType() == NotificationType.Modified
+                && pulsar.getConfiguration().isActiveConsumerFailoverConsistentHashing()) {
+            PartitionedTopicResources.topicNameFromPath(n.getPath()).ifPresent(this::handlePartitionsUpdate);
         }
         // Ignore unrelated notifications
+    }
+
+    // Consistent hashing assigns the partitions of a topic to the Failover consumers by the partition count, so the
+    // loaded partitions re-pick their active consumers when partitions are added.
+    private void handlePartitionsUpdate(TopicName partitionedTopicName) {
+        fetchPartitionedTopicMetadataAsync(partitionedTopicName, true).thenAcceptAsync(metadata ->
+                topics.forEach((name, topicFuture) -> {
+                    TopicName topicName = TopicName.get(name);
+                    if (topicName.isPartitioned()
+                            && topicName.getPartitionedTopicName().equals(partitionedTopicName.toString())) {
+                        topicFuture.thenAccept(topic -> topic.ifPresent(t -> t.getSubscriptions().values()
+                                .forEach(subscription -> {
+                                    if (subscription.getDispatcher()
+                                            instanceof AbstractDispatcherSingleActiveConsumer dispatcher) {
+                                        dispatcher.onPartitionsUpdate(metadata.partitions);
+                                    }
+                                })));
+                    }
+                }), pulsar.getExecutor())
+                .exceptionally(ex -> {
+                    log.warn().attr("topic", partitionedTopicName).exception(ex)
+                            .log("Failed to re-pick the active consumers after a partition update");
+                    return null;
+                });
     }
 
     private void handleLocalPoliciesUpdates(NamespaceName namespace) {
@@ -4064,10 +4152,28 @@ public class BrokerService implements Closeable {
     }
 
     public boolean validateDynamicConfiguration(String key, String value) {
-        if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {
-            return dynamicConfigurationMap.get(key).validator.test(value);
+        return getDynamicConfigurationValidationError(key, value).isEmpty();
+    }
+
+    /**
+     * @return validation error message if the value is invalid, otherwise empty. Keys that are not dynamic
+     *         configurations are not validated here.
+     */
+    public Optional<String> getDynamicConfigurationValidationError(String key, String value) {
+        ConfigField configField = dynamicConfigurationMap.get(key);
+        if (configField == null) {
+            return Optional.empty();
         }
-        return true;
+        if (configField.field != null) {
+            Optional<String> fieldValidationError = FieldContextValidator.validateString(configField.field, value);
+            if (fieldValidationError.isPresent()) {
+                return fieldValidationError;
+            }
+        }
+        if (configField.validator != null && !configField.validator.test(value)) {
+            return Optional.of("Invalid dynamic-config value for " + key);
+        }
+        return Optional.empty();
     }
 
     private Map<String, ConfigField> prepareDynamicConfigurationMap() {
@@ -4116,14 +4222,16 @@ public class BrokerService implements Closeable {
      * permit if it was successful to acquire it.
      */
     private void createPendingLoadTopic() {
-        Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair = pendingTopicLoadingQueue.poll();
+        if (pendingTopicLoadsRejected) {
+            failPendingTopicLoads();
+            return;
+        }
+        Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair = pollPendingTopicLoad();
         if (contextAndPointPair == null) {
             return;
         }
 
         TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
-        LatencyTracer.TracePoint queuedPoint = contextAndPointPair.getRight();
-        topicLoadingContext.finishTrace(queuedPoint, null);
         final String topic = topicLoadingContext.getTopicName().toString();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
         topicLoadingContext.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic)).thenRun(() -> {
@@ -4149,8 +4257,67 @@ public class BrokerService implements Closeable {
         });
     }
 
+    /**
+     * Polls the next pending topic load whose topic future is not yet completed. A load that timed out while
+     * it was queued is dropped instead of being started: its timed-out future would otherwise stay cached until
+     * the managed ledger had been opened and closed again.
+     */
+    private Pair<TopicLoadingContext, LatencyTracer.TracePoint> pollPendingTopicLoad() {
+        Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair;
+        while ((contextAndPointPair = pendingTopicLoadingQueue.poll()) != null) {
+            TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
+            topicLoadingContext.finishTrace(contextAndPointPair.getRight(), null);
+            CompletableFuture<Optional<Topic>> topicFuture = topicLoadingContext.getTopicFuture();
+            if (!topicFuture.isDone()) {
+                return contextAndPointPair;
+            }
+            String topic = topicLoadingContext.getTopicName().toString();
+            log.debug()
+                    .attr("topic", topic)
+                    .log("Skip loading the pending topic since its topic load has already completed");
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+        }
+        return null;
+    }
+
+    /**
+     * Fails the pending topic loads, and the ones queued later, when the broker is shutting down, so that they
+     * don't wait for the topic load timeout and clients can look the topics up again.
+     */
+    private void rejectPendingTopicLoads() {
+        pendingTopicLoadsRejected = true;
+        failPendingTopicLoads();
+    }
+
+    private void failPendingTopicLoads() {
+        Pair<TopicLoadingContext, LatencyTracer.TracePoint> contextAndPointPair;
+        while ((contextAndPointPair = pendingTopicLoadingQueue.poll()) != null) {
+            TopicLoadingContext topicLoadingContext = contextAndPointPair.getLeft();
+            topicLoadingContext.finishTrace(contextAndPointPair.getRight(), null);
+            String topic = topicLoadingContext.getTopicName().toString();
+            CompletableFuture<Optional<Topic>> topicFuture = topicLoadingContext.getTopicFuture();
+            topicFuture.completeExceptionally(new ServiceUnitNotReadyException("Broker is shutting down"));
+            try {
+                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
+            } catch (RejectedExecutionException e) {
+                // the broker has already been closed
+            }
+        }
+    }
+
     public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
             TopicName topicName) {
+        return fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName, ALLOW_NEW_TOPIC);
+    }
+
+    /**
+     * Like {@link #fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(TopicName)}, but auto-creation is also
+     * subject to {@code newTopicCheck} when the topic would be created from nothing, see
+     * {@link #isAllowAutoTopicCreationAsync(TopicName, Supplier)}. It is only consulted once the topic is known to
+     * exist neither in this cluster nor in a remote one.
+     */
+    public CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(
+            TopicName topicName, Supplier<CompletableFuture<Boolean>> newTopicCheck) {
         if (pulsar.getNamespaceService() == null) {
             return FutureUtil.failedFuture(new NamingException("namespace service is not ready"));
         }
@@ -4171,7 +4338,13 @@ public class BrokerService implements Closeable {
             // Try created if allowed to create a partitioned topic automatically.
             return pulsar.getPulsarResources().getNamespaceResources().getPoliciesAsync(topicName.getNamespaceObject())
                 .thenComposeAsync(policies -> {
-                    return isAllowAutoTopicCreationAsync(topicName, policies).thenComposeAsync(allowed -> {
+                    // Whether the settings would create the topic from nothing, in which case newTopicCheck is
+                    // consulted once we know the topic does not exist in a remote cluster either.
+                    AtomicBoolean isNewTopic = new AtomicBoolean();
+                    return isAllowAutoTopicCreationAsync(topicName, policies, () -> {
+                                isNewTopic.set(true);
+                                return CompletableFuture.completedFuture(true);
+                            }).thenComposeAsync(allowed -> {
                         // Not Allow auto-creation.
                         if (!allowed) {
                             // Do not change the original behavior, or default return a non-partitioned topic.
@@ -4188,17 +4361,24 @@ public class BrokerService implements Closeable {
                                     }
                                     return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
                                 }
+                                return (isNewTopic.get() ? newTopicCheck.get()
+                                        : CompletableFuture.completedFuture(true)).thenCompose(isNewTopicAllowed -> {
+                                    if (!isNewTopicAllowed) {
+                                        // The same answer as when the settings forbid auto-creation.
+                                        return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+                                    }
 
-                                // Allow auto create non-partitioned topic.
-                                boolean autoCreatePartitionedTopic = pulsar.getBrokerService()
-                                        .isDefaultTopicTypePartitioned(topicName, policies);
-                                if (!autoCreatePartitionedTopic || topicName.isPartitioned()) {
-                                    return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
-                                }
+                                    // Allow auto create non-partitioned topic.
+                                    boolean autoCreatePartitionedTopic = pulsar.getBrokerService()
+                                            .isDefaultTopicTypePartitioned(topicName, policies);
+                                    if (!autoCreatePartitionedTopic || topicName.isPartitioned()) {
+                                        return CompletableFuture.completedFuture(new PartitionedTopicMetadata(0));
+                                    }
 
-                                // Create partitioned metadata.
-                                return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName,
-                                        policies);
+                                    // Create partitioned metadata.
+                                    return pulsar.getBrokerService().createDefaultPartitionedTopicAsync(topicName,
+                                            policies);
+                                });
                             }).exceptionallyCompose(ex -> {
                                 // The partitioned topic might be created concurrently.
                                 if (ex.getCause() instanceof MetadataStoreException.AlreadyExistsException) {
@@ -4585,13 +4765,25 @@ public class BrokerService implements Closeable {
     }
 
     public CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final TopicName topicName) {
-        return pulsar.getPulsarResources().getNamespaceResources()
-                        .getPoliciesAsync(topicName.getNamespaceObject())
-                .thenCompose(policies -> isAllowAutoTopicCreationAsync(topicName, policies));
+        return isAllowAutoTopicCreationAsync(topicName, ALLOW_NEW_TOPIC);
     }
 
-    private CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(final TopicName topicName,
-                                                                     final Optional<Policies> policies) {
+    /**
+     * Like {@link #isAllowAutoTopicCreationAsync(TopicName)}, but consults {@code newTopicCheck} too when the topic
+     * would be created from nothing, because the auto topic creation settings allow it. It is not consulted, and
+     * does not change the result, when the topic is one the broker re-materializes from existing metadata (a
+     * partition of an existing partitioned topic, an active segment of a scalable topic) or a system topic.
+     */
+    public CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(
+            final TopicName topicName, final Supplier<CompletableFuture<Boolean>> newTopicCheck) {
+        return pulsar.getPulsarResources().getNamespaceResources()
+                        .getPoliciesAsync(topicName.getNamespaceObject())
+                .thenCompose(policies -> isAllowAutoTopicCreationAsync(topicName, policies, newTopicCheck));
+    }
+
+    private CompletableFuture<Boolean> isAllowAutoTopicCreationAsync(
+            final TopicName topicName, final Optional<Policies> policies,
+            final Supplier<CompletableFuture<Boolean>> newTopicCheck) {
         if (policies.isPresent() && policies.get().deleted) {
             log.info()
                     .attr("namespaceObject", topicName.getNamespaceObject())
@@ -4662,14 +4854,15 @@ public class BrokerService implements Closeable {
                 return scalableResources.getScalableTopicMetadataAsync(topicName.toScalableTopic())
                         .thenCompose(scalableMetadata -> scalableMetadata.isPresent()
                                 ? CompletableFuture.completedFuture(false)
-                                : isAllowAutoTopicCreationResolvedAsync(topicName, policies));
+                                : isAllowAutoTopicCreationResolvedAsync(topicName, policies, newTopicCheck));
             }
         }
-        return isAllowAutoTopicCreationResolvedAsync(topicName, policies);
+        return isAllowAutoTopicCreationResolvedAsync(topicName, policies, newTopicCheck);
     }
 
     private CompletableFuture<Boolean> isAllowAutoTopicCreationResolvedAsync(
-            final TopicName topicName, final Optional<Policies> policies) {
+            final TopicName topicName, final Optional<Policies> policies,
+            final Supplier<CompletableFuture<Boolean>> newTopicCheck) {
         //Other system topics can be created automatically
         if (pulsar.getConfiguration().isSystemTopicEnabled() && isSystemTopic(topicName)) {
             return CompletableFuture.completedFuture(true);
@@ -4688,17 +4881,18 @@ public class BrokerService implements Closeable {
             // cannot re-create topic while it is being deleted
             return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
                 .getPartitionedTopicMetadataAsync(partitionedTopic, true)
-                .thenApply(partitionedTopicMetadata -> {
+                .thenCompose(partitionedTopicMetadata -> {
                     if (partitionedTopicMetadata.isEmpty()) {
-                        return allowed;
+                        return allowed ? newTopicCheck.get() : CompletableFuture.completedFuture(false);
                     }
                     if (partitionedTopicMetadata.get().deleted) {
-                        return false;
+                        return CompletableFuture.completedFuture(false);
                     }
-                    return partitionedTopicMetadata.get().partitions > topicName.getPartitionIndex();
+                    return CompletableFuture.completedFuture(
+                            partitionedTopicMetadata.get().partitions > topicName.getPartitionIndex());
                 });
         } else {
-            return CompletableFuture.completedFuture(allowed);
+            return allowed ? newTopicCheck.get() : CompletableFuture.completedFuture(false);
         }
 
     }

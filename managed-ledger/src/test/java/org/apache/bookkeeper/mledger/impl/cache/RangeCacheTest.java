@@ -479,6 +479,12 @@ public class RangeCacheTest {
                 PositionFactory.create(1, 3L * pageSize), PositionFactory.create(2, 0));
         assertTrue(cache.exists(PositionFactory.create(1, pageSize)));
         assertFalse(cache.exists(PositionFactory.create(1, pageSize + 1)));
+        assertTrue(cache.exists(1, pageSize));
+        assertTrue(cache.exists(2, 1));
+        assertFalse(cache.exists(1, pageSize + 1));
+        // a page that doesn't exist, and a ledger that doesn't
+        assertFalse(cache.exists(1, 2L * pageSize));
+        assertFalse(cache.exists(3, 0));
 
         // the end of a removed range is exclusive also at a page boundary
         assertEquals(cache.removeRange(PositionFactory.create(1, 0), PositionFactory.create(1, pageSize), false),

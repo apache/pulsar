@@ -157,6 +157,18 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @SuppressWarnings("unused")
     private volatile int availablePermits = 0;
 
+    // Never acquire this or incomingQueueLock while holding receiverQueuePermitLock: memory-triggered resizes
+    // can run while incomingQueueLock is held, whereas redelivery acquires this before incomingQueueLock.
+    private final Object receiverQueuePermitLock = new Object();
+    // Guarded by receiverQueuePermitLock.
+    private ReceiverQueuePermitPhase receiverQueuePermitPhase = ReceiverQueuePermitPhase.SUBSCRIBING;
+
+    private enum ReceiverQueuePermitPhase {
+        SUBSCRIBING,
+        AWAITING_INITIAL_PERMITS,
+        INITIALIZED
+    }
+
     protected volatile MessageId lastDequeuedMessageId = MessageId.earliest;
     private volatile MessageId lastMessageIdInBroker = MessageId.earliest;
 
@@ -917,9 +929,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         + client.getConfiguration().getOperationTimeoutMs());
 
         int currentSize;
+        long cnxEpoch;
         synchronized (this) {
             currentSize = incomingMessages.size();
+            synchronized (receiverQueuePermitLock) {
+                receiverQueuePermitPhase = ReceiverQueuePermitPhase.SUBSCRIBING;
+            }
             setClientCnx(cnx);
+            cnxEpoch = connectionHandler.getEpoch();
             clearReceiverQueue(true);
             if (possibleSendToDeadLetterTopicMessages != null) {
                 possibleSendToDeadLetterTopicMessages.clear();
@@ -958,18 +975,40 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
         final CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
+            // Use the current epoch to subscribe.
+            long subscribeEpoch = CONSUMER_EPOCH.get(this);
             ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
                     priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                     conf.getReplicateSubscriptionState(),
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
-                    // Use the current epoch to subscribe.
-                    conf.getSubscriptionProperties(), CONSUMER_EPOCH.get(this), conf.isEntryBucketDispatch());
+                    conf.getSubscriptionProperties(), subscribeEpoch, conf.isEntryBucketDispatch());
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {
+                    if (connectionHandler.isSupersededAttempt(cnx, cnxEpoch)) {
+                        log.debug().attr("connection", cnx.channel())
+                                .log("Ignoring the response to a superseded subscribe attempt");
+                        return;
+                    }
                     if (changeToReadyState()) {
-                        consumerIsReconnectedToBroker(cnx, currentSize);
+                        // Send the acks that waited for the subscription before any other command on the new
+                        // connection, including the permits consumerIsReconnectedToBroker() sends for a zero-queue
+                        // consumer, so the broker has them when it starts dispatching and does not redeliver the
+                        // acknowledged messages.
+                        acknowledgmentsGroupingTracker.flush();
+                        synchronized (receiverQueuePermitLock) {
+                            // A redeliver while the subscribe was in flight bumped the epoch without sending it, and
+                            // the broker created the consumer with the subscribe's epoch: send the current one before
+                            // any permits, or every message dispatched with the older epoch is discarded.
+                            long consumerEpoch = CONSUMER_EPOCH.get(ConsumerImpl.this);
+                            if (consumerEpoch != subscribeEpoch) {
+                                cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
+                                        consumerId, consumerEpoch), cnx.ctx().voidPromise());
+                            }
+                            consumerIsReconnectedToBroker(cnx, currentSize);
+                            receiverQueuePermitPhase = ReceiverQueuePermitPhase.AWAITING_INITIAL_PERMITS;
+                        }
                     } else {
                         // Consumer was closed while reconnecting, close the connection to make sure the broker
                         // drops the consumer on its side
@@ -987,28 +1026,42 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 boolean firstTimeConnect = subscribeFuture.complete(this);
                 // if the consumer is not partitioned or is re-connected and is partitioned, we send the flow
                 // command to receive messages.
-                if (!(firstTimeConnect && hasParentConsumer) && getCurrentReceiverQueueSize() != 0) {
-                    increaseAvailablePermits(cnx, getCurrentReceiverQueueSize());
+                if (!(firstTimeConnect && hasParentConsumer)) {
+                    initializeReceiverQueuePermits(cnx, cnxEpoch);
                 }
                 future.complete(null);
             }).exceptionally((e) -> {
-                deregisterFromClientCnx();
-                if (getState() == State.Closing || getState() == State.Closed) {
-                    // Consumer was closed while reconnecting, close the connection to make sure the broker
-                    // drops the consumer on its side
-                    cnx.channel().close();
-                    future.complete(null);
-                    return null;
-                }
-                log.warn("Failed to subscribe to topic");
+                // A timeout fails the attempt on another thread than the connection's. Holding the lock under which
+                // a newer attempt registers on a connection, end this attempt and clean it up before a newer attempt
+                // can register. Once ended, a disconnection no longer reconnects the consumer: completing this
+                // attempt's future below does.
+                synchronized (ConsumerImpl.this) {
+                    if (!connectionHandler.endAttempt(cnx, cnxEpoch)) {
+                        // The consumer was disconnected from cnx, or subscribed again, while this attempt was
+                        // pending. Its failure must neither unregister the consumer from its current connection nor
+                        // reconnect it, so the attempt's future is left incomplete.
+                        log.debug().attr("connection", cnx.channel()).exceptionMessage(e.getCause())
+                                .log("Ignoring the failure of a superseded subscribe attempt");
+                        return null;
+                    }
+                    deregisterFromClientCnx();
+                    if (getState() == State.Closing || getState() == State.Closed) {
+                        // Consumer was closed while reconnecting, close the connection to make sure the broker
+                        // drops the consumer on its side
+                        cnx.channel().close();
+                        future.complete(null);
+                        return null;
+                    }
+                    log.warn("Failed to subscribe to topic");
 
-                if (e.getCause() instanceof PulsarClientException.TimeoutException) {
-                    // Creating the consumer has timed out. We need to ensure the broker closes the consumer
-                    // in case it was indeed created, otherwise it might prevent new create consumer operation,
-                    // since we are not necessarily closing the connection.
-                    long closeRequestId = client.newRequestId();
-                    ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId, null, null);
-                    cnx.sendRequestWithId(cmd, closeRequestId);
+                    if (e.getCause() instanceof PulsarClientException.TimeoutException) {
+                        // Creating the consumer has timed out. We need to ensure the broker closes the consumer
+                        // in case it was indeed created, otherwise it might prevent new create consumer operation,
+                        // since we are not necessarily closing the connection.
+                        long closeRequestId = client.newRequestId();
+                        ByteBuf cmd = Commands.newCloseConsumer(consumerId, closeRequestId, null, null);
+                        cnx.sendRequestWithId(cmd, closeRequestId);
+                    }
                 }
 
                 final boolean retriable = PulsarClientException.isRetriableError(e.getCause());
@@ -1087,14 +1140,39 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         AVAILABLE_PERMITS_UPDATER.set(this, 0);
     }
 
+    void initializeReceiverQueuePermits() {
+        synchronized (receiverQueuePermitLock) {
+            initializeReceiverQueuePermits(cnx(), connectionHandler.getEpoch());
+        }
+    }
+
+    private void initializeReceiverQueuePermits(ClientCnx cnx, long cnxEpoch) {
+        synchronized (receiverQueuePermitLock) {
+            // A failed unsubscribe restores Ready from Closing without a new subscription or initial grant.
+            if (cnx == null || connectionHandler.isSupersededAttempt(cnx, cnxEpoch)
+                    || receiverQueuePermitPhase != ReceiverQueuePermitPhase.AWAITING_INITIAL_PERMITS) {
+                return;
+            }
+            // A resize before initialization is included in this snapshot; later resizes grant only their delta.
+            // Add the initial grant under the same lock as the subscription's available-permit reset.
+            int permits = getCurrentReceiverQueueSize();
+            receiverQueuePermitPhase = ReceiverQueuePermitPhase.INITIALIZED;
+            increaseAvailablePermits(cnx, permits);
+        }
+    }
+
     /**
      * Clear the internal receiver queue and returns the message id of what was the 1st message in the queue that was
      * not seen by the application.
      */
-    private void clearReceiverQueue(boolean updateStartMessageId) {
+    @VisibleForTesting
+    void clearReceiverQueue(boolean updateStartMessageId) {
         List<Message<?>> currentMessageQueue = new ArrayList<>(incomingMessages.size());
         incomingMessages.drainTo(currentMessageQueue);
-        resetIncomingMessageSize();
+        MessageIdAdv nextMessageInQueue =
+                currentMessageQueue.isEmpty() ? null : (MessageIdAdv) currentMessageQueue.get(0).getMessageId();
+        // release messages if they are pooled messages
+        currentMessageQueue.forEach(this::discardIncomingMessage);
 
         CompletableFuture<Void> seekFuture = this.seekFuture;
         MessageIdAdv seekMessageId = this.seekMessageId;
@@ -1111,8 +1189,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             return;
         }
 
-        if (!currentMessageQueue.isEmpty()) {
-            MessageIdAdv nextMessageInQueue = (MessageIdAdv) currentMessageQueue.get(0).getMessageId();
+        if (nextMessageInQueue != null) {
             MessageIdAdv previousMessage;
             if (MessageIdAdvUtils.isBatch(nextMessageInQueue)) {
                 // Get on the previous message within the current batch
@@ -1123,8 +1200,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 // Get on previous message in previous entry
                 previousMessage = MessageIdAdvUtils.prevMessageId(nextMessageInQueue);
             }
-            // release messages if they are pooled messages
-            currentMessageQueue.forEach(Message::release);
             if (updateStartMessageId) {
                 startMessageId = previousMessage;
             }
@@ -1220,7 +1295,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             closeConsumerTasks();
             deregisterFromClientCnx();
             client.cleanupConsumer(this);
-            failPendingReceive().whenComplete((r, t) -> closeFuture.complete(null));
+            failPendingReceive().whenComplete((r, t) -> {
+                closeInterceptors();
+                closeFuture.complete(null);
+            });
             return compositeCloseFuture;
         }
 
@@ -1260,6 +1338,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         // fail all pending-receive futures to notify application
         failPendingReceive().whenComplete((r, t) -> {
+            closeInterceptors();
             if (exception != null) {
                 closeFuture.completeExceptionally(exception);
             } else {
@@ -1280,7 +1359,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         negativeAcksTracker.close();
         stats.getStatTimeout().ifPresent(Timeout::cancel);
         //terminate incomingMessages queue, stop accept the new messages and waking up blocked thread.
-        incomingMessages.terminate(Message::release);
+        incomingMessages.terminate(this::discardIncomingMessage);
         clearIncomingMessages();
     }
 
@@ -1637,10 +1716,13 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
             if (deadLetterPolicy != null && possibleSendToDeadLetterTopicMessages != null) {
                 if (redeliveryCount >= deadLetterPolicy.getMaxRedeliverCount()) {
+                    // The application may release a pooled message before it is sent to the DLQ
                     possibleSendToDeadLetterTopicMessages.put((MessageIdImpl) message.getMessageId(),
-                            Collections.singletonList(message));
+                            Collections.singletonList(message.unpooledCopy()));
                     if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
                         redeliverUnacknowledgedMessages(Collections.singleton(message.getMessageId()));
+                        // The message is not delivered to the application, which would otherwise release it
+                        message.release();
                         // The message is skipped due to reaching the max redelivery count,
                         // so we need to increase the available permits
                         increaseAvailablePermits(cnx);
@@ -1972,9 +2054,11 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     continue;
                 }
                 if (possibleToDeadLetter != null) {
-                    possibleToDeadLetter.add(message);
+                    // The application may release a pooled message before it is sent to the DLQ
+                    possibleToDeadLetter.add(message.unpooledCopy());
                     // Skip the message which reaches the max redelivery count.
                     if (redeliveryCount > deadLetterPolicy.getMaxRedeliverCount()) {
+                        message.release();
                         skippedMessages++;
                         continue;
                     }
@@ -2125,13 +2209,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     protected void setCurrentReceiverQueueSize(int newSize) {
         checkArgument(newSize > 0, "receiver queue size should larger than 0");
-        int oldSize = CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.getAndSet(this, newSize);
-        int delta = newSize - oldSize;
-        log.debug().attr("oldSize", oldSize)
-                .attr("newSize", newSize)
-                .attr("delta", delta)
-                .log("update currentReceiverQueueSize from to, increaseAvailablePermits by");
-        increaseAvailablePermits(delta);
+        synchronized (receiverQueuePermitLock) {
+            int oldSize = CURRENT_RECEIVER_QUEUE_SIZE_UPDATER.getAndSet(this, newSize);
+            int delta = newSize - oldSize;
+            log.debug().attr("oldSize", oldSize)
+                    .attr("newSize", newSize)
+                    .attr("delta", delta)
+                    .log("update currentReceiverQueueSize from to, increaseAvailablePermits by");
+            ClientCnx currentCnx = cnx();
+            // Keep resize deltas while an unsubscribe is pending, since failure restores this subscription.
+            if (receiverQueuePermitPhase == ReceiverQueuePermitPhase.INITIALIZED
+                    && currentCnx != null) {
+                increaseAvailablePermits(currentCnx, delta);
+            }
+        }
     }
 
     @Override
@@ -2434,14 +2525,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 // clear local message
-                currentSize = incomingMessages.size();
-                clearIncomingMessages();
+                currentSize = clearIncomingMessages();
                 unAckedMessageTracker.clear();
             } finally {
                 incomingQueueLock.unlock();
             }
 
             // is channel is connected, we should send redeliver command to broker
+            // otherwise, the reconnection sends the new epoch once it has subscribed
             if (cnx != null && isConnected(cnx)) {
                 cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(
                         consumerId, CONSUMER_EPOCH.get(this)), cnx.ctx().voidPromise());
@@ -3210,9 +3301,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (message == null) {
                 break;
             }
-            decreaseIncomingMessageSize(message);
+            discardIncomingMessage(message);
             messagesFromQueue++;
-            message.release();
         }
         return messagesFromQueue;
     }
@@ -3272,7 +3362,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     void setClientCnx(ClientCnx clientCnx) {
         if (clientCnx != null) {
-            this.connectionHandler.setClientCnx(clientCnx);
+            // Starts a new connection attempt, see ConnectionHandler#isSupersededAttempt
+            this.connectionHandler.switchClientCnx(clientCnx);
             clientCnx.registerConsumer(consumerId, this);
             if (conf.isAckReceiptEnabled()
                     && !Commands.peerSupportsAckReceipt(clientCnx.getRemoteEndpointProtocolVersion())) {

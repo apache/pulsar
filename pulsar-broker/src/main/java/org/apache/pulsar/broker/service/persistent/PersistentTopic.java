@@ -78,9 +78,11 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedByAnotherWriterException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
@@ -651,7 +653,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
      * @param subscriptionName the name of the subscription
      * @param cursor the cursor to use for the subscription
      * @param replicated the subscription replication flag
-     * @param subscriptionProperties the subscription properties
+     * @param subscriptionProperties the subscription properties. No longer used to build the subscription — the cursor
+     *                               already carries them — but retained so overriding implementations keep working.
      * @return the subscription instance
      */
     protected PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor,
@@ -662,7 +665,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompactedTopicImpl compactedTopic = pulsarTopicCompactionService.getCompactedTopic();
             return new PulsarCompactorSubscription(this, compactedTopic, subscriptionName, cursor);
         } else {
-            return new PersistentSubscription(this, subscriptionName, cursor, replicated, subscriptionProperties);
+            return new PersistentSubscription(this, subscriptionName, cursor, replicated);
         }
     }
 
@@ -731,7 +734,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     private void asyncAddEntry(ByteBuf headersAndPayload, PublishContext publishContext) {
-        ledger.asyncAddEntry(headersAndPayload,
+        // The transaction buffer can be holding back transactional messages published before this one: it adds the
+        // entry after theirs.
+        transactionBuffer.addEntryInPublishOrder(ledger, headersAndPayload,
             (int) publishContext.getNumberOfMessages(), this, publishContext);
     }
 
@@ -1212,8 +1217,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         Map<String, Long> properties = PersistentSubscription.getBaseCursorProperties(replicated);
-        ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties, subscriptionProperties,
-                new OpenCursorCallback() {
+        OpenCursorCallback callback = new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 log.debug().attr("subscription", subscriptionName).log("Opened cursor");
@@ -1256,7 +1260,23 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     close();
                 }
             }
-        }, null);
+        };
+
+        boolean nonDurableSubscriptionExists;
+        synchronized (ledger) {
+            PersistentSubscription subscription = subscriptions.get(subscriptionName);
+            nonDurableSubscriptionExists = subscription != null && subscription.getCursor() != null
+                    && !subscription.getCursor().isDurable();
+            if (!nonDurableSubscriptionExists) {
+                // Serialize durable cursor creation with non-durable subscription admission and retirement.
+                ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties,
+                        subscriptionProperties, callback, null);
+            }
+        }
+        if (nonDurableSubscriptionExists) {
+            subscriptionFuture.completeExceptionally(
+                    new NotAllowedException("NonDurable subscription with the same name already exists."));
+        }
         return subscriptionFuture;
     }
 
@@ -1577,7 +1597,16 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     }
 
     CompletableFuture<Void> removeSubscription(String subscriptionName) {
-        PersistentSubscription sub = subscriptions.remove(subscriptionName);
+        return removeSubscription(subscriptionName, null);
+    }
+
+    CompletableFuture<Void> removeSubscription(String subscriptionName, PersistentSubscription expected) {
+        PersistentSubscription sub;
+        if (expected == null) {
+            sub = subscriptions.remove(subscriptionName);
+        } else {
+            sub = subscriptions.remove(subscriptionName, expected) ? expected : null;
+        }
         if (sub != null) {
             // preserve accumulative stats form removed subscription
             return sub
@@ -1593,6 +1622,42 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                     });
         }
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Deletes the non-durable cursor before removing its subscription entry. An unexpected cursor deletion failure
+     * leaves the expected subscription mapped, preventing another subscription with the same name from being admitted
+     * while the cursor may still exist. A missing ledger or cursor is treated as already deleted.
+     */
+    CompletableFuture<Void> removeNonDurableSubscription(String subscriptionName, PersistentSubscription expected) {
+        return FutureUtil.supplySafely(() -> {
+            CompletableFuture<Void> cursorDeleted = new CompletableFuture<>();
+            // Match non-durable creation's lock; keep the old subscription reserved until deletion completes.
+            synchronized (ledger) {
+                if (subscriptions.get(subscriptionName) != expected) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                ledger.asyncDeleteCursor(expected.getCursor().getName(), new DeleteCursorCallback() {
+                    @Override
+                    public void deleteCursorComplete(Object ctx) {
+                        cursorDeleted.complete(null);
+                    }
+
+                    @Override
+                    public void deleteCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        if (exception instanceof ManagedLedgerNotFoundException
+                                || exception instanceof CursorNotFoundException) {
+                            cursorDeleted.complete(null);
+                        } else {
+                            cursorDeleted.completeExceptionally(exception);
+                        }
+                    }
+                }, null);
+            }
+            // Deletion callbacks can run under the ledger lock; never collect subscription stats there.
+            return cursorDeleted.thenComposeAsync(ignored -> removeSubscription(subscriptionName, expected),
+                    brokerService.pulsar().getExecutor());
+        });
     }
 
     /**
@@ -5269,25 +5334,42 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 messageDeduplication.isDuplicate(publishContext, headersAndPayload);
         switch (status) {
             case NotDup:
+                // Handle success and failure in a single stage so that an exception thrown while handling the
+                // success can't complete the (recycled) publish context a second time as a failure.
                 transactionBuffer.appendBufferToTxn(txnID, publishContext.getSequenceId(), headersAndPayload)
-                        .thenAccept(position -> {
+                        .handle((position, throwable) -> {
+                            if (throwable != null) {
+                                throwable = FutureUtil.unwrapCompletionException(throwable);
+                                if (throwable instanceof NotAllowedException) {
+                                    publishContext.completed((NotAllowedException) throwable, -1, -1);
+                                    decrementPendingWriteOpsAndCheck();
+                                } else {
+                                    addFailed(ManagedLedgerException.getManagedLedgerException(throwable),
+                                            publishContext);
+                                }
+                                return null;
+                            }
                             // Message has been successfully persisted
-                            messageDeduplication.recordMessagePersisted(publishContext,
-                                    position);
-                            publishContext.setProperty("txn_id", txnID.toString());
+                            try {
+                                messageDeduplication.recordMessagePersisted(publishContext,
+                                        position);
+                                publishContext.setProperty("txn_id", txnID.toString());
+                            } catch (Throwable t) {
+                                // The publish context hasn't been completed yet, so it can still be failed once
+                                addFailed(ManagedLedgerException.getManagedLedgerException(t), publishContext);
+                                return null;
+                            }
                             publishContext.completed(null, position.getLedgerId(),
                                     position.getEntryId());
 
                             decrementPendingWriteOpsAndCheck();
+                            return null;
                         })
                         .exceptionally(throwable -> {
-                            throwable = FutureUtil.unwrapCompletionException(throwable);
-                            if (throwable instanceof NotAllowedException) {
-                              publishContext.completed((NotAllowedException) throwable, -1, -1);
-                              decrementPendingWriteOpsAndCheck();
-                            } else {
-                                addFailed(ManagedLedgerException.getManagedLedgerException(throwable), publishContext);
-                            }
+                            // Only reached when the handler above throws; the publish context is not completed again.
+                            log.warn().attr("txnId", txnID)
+                                    .exception(throwable)
+                                    .log("Failed to handle the result of appending a transactional message");
                             return null;
                         });
                 break;

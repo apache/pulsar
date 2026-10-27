@@ -116,6 +116,10 @@ public class PerformanceLauncher implements Callable<Integer> {
             Map.of("PULSAR_MEM", "-Xms96m -Xmx256m -XX:MaxDirectMemorySize=128m",
                     "httpProxyIdleTimeout", "150000");
     private static final String OUTPUT_MOUNT = "/performance-output";
+    // The run's TLS certificates, in the run directory, see TlsSettings
+    static final String TLS_DIRECTORY = "tls";
+    // The run's JWT keys and tokens, in the run directory, see JwtSettings
+    static final String JWT_DIRECTORY = "jwt";
     // Where the one-off container that merges the JFR configurations sees the .jfc files and its output directory
     private static final String JFC_MOUNT = "/jfr";
     private static final String MERGE_OUTPUT_MOUNT = "/jfr-output";
@@ -293,6 +297,14 @@ public class PerformanceLauncher implements Callable<Integer> {
         String runId = UUID.randomUUID().toString();
         String clusterName = "iot-" + ProcessHandle.current().pid();
         workload.put("serviceUrl", clusterSettings.serviceUrl(clusterName));
+        TlsSettings tls = clusterSettings.tls();
+        if (tls.enabled()) {
+            workload.put("tlsTrustCertsFilePath", tls.trustCertsFilePath());
+        }
+        JwtSettings jwt = clusterSettings.jwt();
+        if (jwt.enabled()) {
+            workload.put("authTokenFilePath", jwt.workloadTokenFilePath());
+        }
         checkWorkload(loader.mapper(), workload);
         if (offloadSettings != null) {
             offloadSettings.checkTopics(workload.path("topics").path("prefix").textValue());
@@ -304,7 +316,7 @@ public class PerformanceLauncher implements Callable<Integer> {
         String remoteClusterName = ClusterSettings.remoteClusterName(clusterName);
         ObjectNode remoteWorkload = null;
         if (remote != null) {
-            remoteWorkload = remoteApplicationsWorkload(workload, remote, remote.serviceUrl(clusterName));
+            remoteWorkload = remoteApplicationsWorkload(workload, remote, remote.serviceUrl(clusterName, tls));
             checkWorkload(loader.mapper(), remoteWorkload);
         }
         int remoteApplications = remoteWorkload != null ? remoteWorkload.path("applications").path("count").intValue()
@@ -375,7 +387,22 @@ public class PerformanceLauncher implements Callable<Integer> {
         if (offloadSettings != null) {
             brokerEnv = offloadSettings.withBrokerOffloadSettings(brokerEnv);
         }
-        Map<String, String> brokerMounts = new LinkedHashMap<>();
+        brokerEnv = jwt.withBrokerJwtSettings(tls.withBrokerTlsSettings(brokerEnv));
+        // The brokers and the workloads mount the certificates, which the launcher writes once it knows the brokers'
+        // names, and the JWT keys and tokens
+        Path tlsDirectory = tls.enabled() ? runOutput.resolve(TLS_DIRECTORY) : null;
+        Path jwtDirectory = jwt.enabled() ? runOutput.resolve(JWT_DIRECTORY) : null;
+        Map<String, String> securityMounts = new LinkedHashMap<>();
+        if (tls.enabled()) {
+            securityMounts.put(tlsDirectory.toString(), TlsSettings.MOUNT);
+        }
+        // The token that the launcher's admin requests authenticate with, null without JWT
+        String adminToken = null;
+        if (jwt.enabled()) {
+            adminToken = jwt.writeKeysAndTokens(jwtDirectory);
+            securityMounts.put(jwtDirectory.toString(), JwtSettings.MOUNT);
+        }
+        Map<String, String> brokerMounts = new LinkedHashMap<>(securityMounts);
         if (heapDumpSettings.broker().any()) {
             brokerMounts.put(heapDumpDirectories.get(HeapDumpSettings.BROKER).toString(), HeapDumper.MOUNT);
         }
@@ -461,7 +488,9 @@ public class PerformanceLauncher implements Callable<Integer> {
                 // The launcher sends the remote cluster no topic admin requests
                 .numProxies(0)
                 .clusterImage(clusterImage)
-                .brokerEnvs(metricsSettings.withBrokerStatsSettings(remote.brokers().env()))
+                .brokerEnvs(jwt.withBrokerJwtSettings(tls.withBrokerTlsSettings(
+                        metricsSettings.withBrokerStatsSettings(remote.brokers().env()))))
+                .brokerMountFiles(securityMounts)
                 .bookkeeperEnvs(metricsSettings.withBookieStatsSettings(remote.bookies().containerEnv()))
                 .build();
 
@@ -536,9 +565,19 @@ public class PerformanceLauncher implements Callable<Integer> {
         ZonedDateTime workloadFinished;
         try {
             String journalTmpfs = clusterSettings.bookies().journalTmpfs();
-            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)%s%s",
+            status(String.format(Locale.ROOT, "Starting the Pulsar cluster: %d broker(s), %d bookie(s)%s%s%s%s",
                     spec.numBrokers(), spec.numBookies(), spec.numProxies() > 0 ? ", 1 proxy" : "",
-                    journalTmpfs != null ? ", with each bookie's journal on a tmpfs of " + journalTmpfs : ""));
+                    journalTmpfs != null ? ", with each bookie's journal on a tmpfs of " + journalTmpfs : "",
+                    tls.enabled() ? ", with TLS to the workloads (" + tls.keyAlgorithm() + " keys)" : "",
+                    jwt.enabled() ? ", with JWT authentication (" + jwt.signatureAlgorithm() + ")" : ""));
+            if (tls.enabled()) {
+                // A broker advertises its host name, and the service URL names its container
+                tls.writeCertificates(tlsDirectory, Stream.concat(cluster.getBrokers().stream(),
+                                remoteCluster != null ? remoteCluster.getBrokers().stream() : Stream.empty())
+                        .flatMap(broker -> Stream.concat(Stream.of(broker.getContainerName()),
+                                broker.getNetworkAliases().stream()))
+                        .toList());
+            }
             if (networkSettings.any()) {
                 // Before the cluster, so that a Docker engine that can't apply them fails the run at once
                 network = NetworkImpairments.start(networkSettings, topology, runOutput, PerformanceLauncher::status);
@@ -568,17 +607,17 @@ public class PerformanceLauncher implements Callable<Integer> {
                         (System.nanoTime() - remoteStart) / 1e9));
             }
             if (clusterPulsarImage != null) {
-                String clusterVersion = brokerVersion(cluster);
+                String clusterVersion = brokerVersion(cluster, adminToken);
                 runInfo = runInfo.withCluster(new RunInfo.Cluster(clusterPulsarImage, clusterVersion));
                 runInfo.write(runOutput);
                 status("The cluster runs Pulsar " + (clusterVersion.isEmpty() ? "of unknown version" : clusterVersion)
                         + " from " + clusterPulsarImage);
             }
             if (offloadSettings != null) {
-                setOffloadPolicies(cluster, offloadSettings);
+                setOffloadPolicies(cluster, offloadSettings, adminToken);
             }
             if (iotScenario.topics().partitioned()) {
-                createPartitionedTopics(cluster, iotScenario);
+                createPartitionedTopics(cluster, iotScenario, adminToken);
             }
             if (metrics) {
                 String composeFile = System.getProperty("performance.metrics.composeFile");
@@ -594,8 +633,8 @@ public class PerformanceLauncher implements Callable<Integer> {
             consumer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig, coordinationDirectory,
                     runId, applicationsOutput, agentJar, profilingSettings.applications(), APPLICATIONS_DIRECTORY,
                     applicationsEnv, heapDumpSettings.applications(), heapDumpSettings.gzipLevel(),
-                    heapDumpDirectories.get(HeapDumpSettings.APPLICATIONS), "iot-consume", "--control-port",
-                    Integer.toString(CONTROL_PORT))
+                    heapDumpDirectories.get(HeapDumpSettings.APPLICATIONS), securityMounts, "iot-consume",
+                    "--control-port", Integer.toString(CONTROL_PORT))
                     .withExposedPorts(CONTROL_PORT);
             long applicationsStart = System.nanoTime();
             startWorkload(consumer, ".*READY applications=.*", "The applications",
@@ -615,7 +654,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                         remoteCoordinationDirectory, runId, remoteApplicationsOutput, agentJar,
                         ProfilingSettings.Component.NONE, REMOTE_APPLICATIONS_DIRECTORY,
                         remoteApplicationsEnv(applicationsEnv, remote), HeapDumpSettings.Component.NONE,
-                        heapDumpSettings.gzipLevel(), null, "iot-consume", "--control-port",
+                        heapDumpSettings.gzipLevel(), null, securityMounts, "iot-consume", "--control-port",
                         Integer.toString(CONTROL_PORT))
                         .withExposedPorts(CONTROL_PORT);
                 long remoteApplicationsStart = System.nanoTime();
@@ -624,17 +663,17 @@ public class PerformanceLauncher implements Callable<Integer> {
                 status(String.format(Locale.ROOT, "Started the remote applications in %.0f s",
                         (System.nanoTime() - remoteApplicationsStart) / 1e9));
             }
-            topicStatsSampler = startTopicStatsSampler(cluster, iotScenario, runOutput, remoteCluster != null,
-                    TopicStatsSampler.FILE_NAME);
+            topicStatsSampler = startTopicStatsSampler(cluster, adminToken, iotScenario, runOutput,
+                    remoteCluster != null, TopicStatsSampler.FILE_NAME);
             if (remoteCluster != null) {
                 // The remote subscriptions' backlog tells messages that the remote topics lack from messages that the
                 // remote applications didn't receive
-                remoteTopicStatsSampler = startTopicStatsSampler(remoteCluster, iotScenario, runOutput, false,
-                        REMOTE_TOPIC_STATS);
+                remoteTopicStatsSampler = startTopicStatsSampler(remoteCluster, adminToken, iotScenario, runOutput,
+                        false, REMOTE_TOPIC_STATS);
             }
             if (sendsTopicRequests) {
                 // It records the offload status when the late applications join, and at the run's end
-                joinPreparation = JoinPreparation.start(cluster.getHttpServiceUrl(), iotScenario,
+                joinPreparation = JoinPreparation.start(cluster.getHttpServiceUrl(), adminToken, iotScenario,
                         offloadSettings != null, runOutput, coordinationDirectory, runId, PerformanceLauncher::status);
             }
             TopicStatsSampler backlogSource = topicStatsSampler;
@@ -664,7 +703,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             producer = workloadContainer(cluster, resolvedToolsDirectory, resolvedConfig,
                     coordinationDirectory, runId, producerOutput, agentJar, profilingSettings.gateways(),
                     GATEWAYS_DIRECTORY, gatewaysEnv, heapDumpSettings.gateways(), heapDumpSettings.gzipLevel(),
-                    heapDumpDirectories.get(HeapDumpSettings.GATEWAYS), "iot-produce",
+                    heapDumpDirectories.get(HeapDumpSettings.GATEWAYS), securityMounts, "iot-produce",
                     producerArguments.toArray(String[]::new));
             // The launcher reaches the producer's control endpoints through the port mapped on the host
             producer.withExposedPorts(CONTROL_PORT);
@@ -725,7 +764,7 @@ public class PerformanceLauncher implements Callable<Integer> {
                 JsonNode gatewaysSummary = loader.mapper().readTree(
                         runOutput.resolve(GATEWAYS_DIRECTORY).resolve("gateways-summary.json").toFile());
                 long seeksStarted = System.nanoTime();
-                RandomSeeks.run(cluster.getHttpServiceUrl(), iotScenario.topicNames(),
+                RandomSeeks.run(cluster.getHttpServiceUrl(), adminToken, iotScenario.topicNames(),
                         requiredLong(gatewaysSummary, "measurementStartEpochMs"),
                         requiredLong(gatewaysSummary, "measurementEndEpochMs"), seekSettings, runOutput,
                         runFailure, PerformanceLauncher::status);
@@ -1087,10 +1126,9 @@ public class PerformanceLauncher implements Callable<Integer> {
      * Sets the offload policies of the offloads' namespace, which make the brokers offload a topic's ledgers as they
      * roll over, and delete them from BookKeeper after the deletion lag.
      */
-    private static void setOffloadPolicies(PulsarCluster cluster, OffloadSettings offload)
+    private static void setOffloadPolicies(PulsarCluster cluster, OffloadSettings offload, String adminToken)
             throws PulsarClientException, PulsarAdminException {
-        try (PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(cluster.getHttpServiceUrl())
+        try (PulsarAdmin admin = JwtSettings.adminBuilder(cluster.getHttpServiceUrl(), adminToken)
                 .build()) {
             admin.namespaces().setOffloadThreshold(offload.namespace(), offload.thresholdBytes());
             if (offload.thresholdSeconds() != null) {
@@ -1109,10 +1147,9 @@ public class PerformanceLauncher implements Callable<Integer> {
      * Creates the workload's topics as partitioned topics, before the workloads start, since a producer would create
      * a non-partitioned topic.
      */
-    private static void createPartitionedTopics(PulsarCluster cluster, IotScenario scenario)
+    private static void createPartitionedTopics(PulsarCluster cluster, IotScenario scenario, String adminToken)
             throws PulsarClientException, PulsarAdminException {
-        try (PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(cluster.getHttpServiceUrl())
+        try (PulsarAdmin admin = JwtSettings.adminBuilder(cluster.getHttpServiceUrl(), adminToken)
                 .build()) {
             for (String topic : scenario.topicNames()) {
                 try {
@@ -1133,9 +1170,8 @@ public class PerformanceLauncher implements Callable<Integer> {
 
     // The version that a broker reports, or empty when it doesn't answer; it names a release such as latest, which
     // the whole cluster runs
-    private static String brokerVersion(PulsarCluster cluster) {
-        try (PulsarAdmin admin = PulsarAdmin.builder()
-                .serviceHttpUrl(cluster.getHttpServiceUrl())
+    private static String brokerVersion(PulsarCluster cluster, String adminToken) {
+        try (PulsarAdmin admin = JwtSettings.adminBuilder(cluster.getHttpServiceUrl(), adminToken)
                 .connectionTimeout(5, TimeUnit.SECONDS)
                 .readTimeout(5, TimeUnit.SECONDS)
                 .build()) {
@@ -1239,8 +1275,9 @@ public class PerformanceLauncher implements Callable<Integer> {
      * Starts sampling the workload topics' stats for the run report. Sampling is an observation, so a failure to
      * start it is reported and the run goes on without it.
      */
-    private static TopicStatsSampler startTopicStatsSampler(PulsarCluster cluster, IotScenario scenario,
-                                                            Path runOutput, boolean replicated, String fileName) {
+    private static TopicStatsSampler startTopicStatsSampler(PulsarCluster cluster, String adminToken,
+                                                            IotScenario scenario, Path runOutput, boolean replicated,
+                                                            String fileName) {
         // A partitioned topic's stats are its partitions'
         List<String> topics = scenario.statsTopicNames();
         try {
@@ -1249,7 +1286,7 @@ public class PerformanceLauncher implements Callable<Integer> {
             for (BrokerContainer broker : cluster.getBrokers()) {
                 brokerHttpUrls.put(broker.getContainerName().replaceFirst("^/", ""), broker.getHttpServiceUrl());
             }
-            return TopicStatsSampler.start(brokerHttpUrls, topics, runOutput, replicated, fileName);
+            return TopicStatsSampler.start(brokerHttpUrls, adminToken, topics, runOutput, replicated, fileName);
         } catch (Exception e) {
             System.out.println("Topic stats sampling is off for this run: " + e);
             return null;
@@ -1833,8 +1870,9 @@ public class PerformanceLauncher implements Callable<Integer> {
                                                    Path outputDirectory, Path agentJar,
                                                    ProfilingSettings.Component profiling, String component,
                                                    Map<String, String> envs, HeapDumpSettings.Component heapDumps,
-                                                   int heapDumpGzipLevel, Path heapDumpDirectory, String command,
-                                                   String... extraArguments) throws IOException {
+                                                   int heapDumpGzipLevel, Path heapDumpDirectory,
+                                                   Map<String, String> securityMounts,
+                                                   String command, String... extraArguments) throws IOException {
         List<String> arguments = new ArrayList<>();
         // Starts the tools with the JVM options of Pulsar's client tools, see run-workload
         arguments.add(TOOLS_MOUNT + "/bin/run-workload");
@@ -1873,6 +1911,8 @@ public class PerformanceLauncher implements Callable<Integer> {
         if (heapDumps.any()) {
             container.withFileSystemBind(heapDumpDirectory.toString(), HeapDumper.MOUNT, BindMode.READ_WRITE);
         }
+        securityMounts.forEach((directory, mount) -> container.withFileSystemBind(directory, mount,
+                BindMode.READ_ONLY));
         return container;
     }
 

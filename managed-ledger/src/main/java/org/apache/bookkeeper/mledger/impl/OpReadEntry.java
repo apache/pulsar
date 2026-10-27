@@ -97,6 +97,11 @@ class OpReadEntry implements ReadEntriesCallback {
     Position maxPosition;
 
     Predicate<Position> skipCondition;
+    /**
+     * Whether {@link #skipCondition} is only the cursor's {@code isMessageDeleted} check, which allows the skip
+     * loop to avoid allocating {@link Position} objects.
+     */
+    boolean skipOnlyMessageDeleted = false;
     boolean skipOpenLedgerFullyAcked = false;
     /**
      * Whether the last ledger read of this operation ended at the managed ledger's last confirmed entry. Such a read
@@ -316,6 +321,7 @@ class OpReadEntry implements ReadEntriesCallback {
         nextReadPosition = null;
         maxPosition = null;
         skipCondition = null;
+        skipOnlyMessageDeleted = false;
         skipOpenLedgerFullyAcked = false;
         readUpToLastConfirmedEntry = false;
         recyclerHandle.recycle(this);

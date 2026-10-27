@@ -146,7 +146,7 @@ public class LongBitmapBenchmark {
     @Benchmark
     @Threads(4)
     public void longBitmapContains4Threads(Blackhole bh) {
-        int v = (int) (Thread.currentThread().getId() * 31 + System.nanoTime());
+        int v = (int) (Thread.currentThread().threadId() * 31 + System.nanoTime());
         bh.consume(longBitmap.contains(Math.abs(v) % bitmapSize));
     }
 }

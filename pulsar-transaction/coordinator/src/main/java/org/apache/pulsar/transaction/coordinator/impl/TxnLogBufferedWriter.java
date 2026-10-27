@@ -19,6 +19,7 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerInterceptException;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
@@ -274,9 +275,15 @@ public class TxnLogBufferedWriter<T> {
         trigFlushIfReachMaxRecordsOrMaxSize();
     }
 
-    private void trigFlushByTimingTask(){
+    @VisibleForTesting
+    void trigFlushByTimingTask(){
         CompletableFuture
                 .runAsync(() -> {
+                    // A timing flush that was queued before "close()" may run after the close task has recycled the
+                    // flush context, which may already be reused by another writer that shares this executor.
+                    if (state == State.CLOSING || state == State.CLOSED) {
+                        return;
+                    }
                     if (flushContext.asyncAddArgsList.isEmpty()) {
                         return;
                     }
@@ -390,6 +397,10 @@ public class TxnLogBufferedWriter<T> {
                     new ManagedLedgerException.ManagedLedgerFencedException(
                             new Exception("Transaction log buffered write has closed")
                     ));
+            // The recycled flush context may be reused by another writer, don't keep a reference to it.
+            flushContext = null;
+            dataArray.clear();
+            bytesSize = 0;
             // Cancel the timing task.
             if (!timeout.isCancelled()) {
                 this.timeout.cancel();

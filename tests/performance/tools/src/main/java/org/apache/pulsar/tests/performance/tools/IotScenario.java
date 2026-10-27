@@ -33,10 +33,15 @@ import org.apache.pulsar.client.api.SubscriptionType;
  * @param serviceUrl the broker's service URL, which the launcher sets
  * @param timeoutSeconds the longest the workload may run: the applications stop waiting for messages, and the
  *                       gateways for the warmup and the measurement's start, after it
+ * @param tlsTrustCertsFilePath the CA certificate that the clients trust when the service URL is a TLS one, which the
+ *                              launcher sets with {@code cluster.tls}; null without TLS
+ * @param authTokenFilePath the file of the JSON Web Token that the clients authenticate with, which the launcher sets
+ *                          with {@code cluster.jwt}; null without authentication
  */
 public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurement, int rate, Payload payload,
                           Devices devices, Gateways gateways, Topics topics,
-                          Applications applications, Behaviors behaviors, int timeoutSeconds) {
+                          Applications applications, Behaviors behaviors, int timeoutSeconds,
+                          String tlsTrustCertsFilePath, String authTokenFilePath) {
     /**
      * The traffic before the measurement, which the applications receive and check but which the measurement leaves
      * out: {@code rounds} rounds of {@code seconds} at the rate, or of {@code messages} messages, each received by
@@ -468,6 +473,14 @@ public record IotScenario(String serviceUrl, Warmup warmup, Measurement measurem
         boolean enabled() {
             return intervalSeconds > 0 && fraction > 0 && pauseMillis > 0;
         }
+    }
+
+    /** A scenario without TLS and authentication. */
+    public IotScenario(String serviceUrl, Warmup warmup, Measurement measurement, int rate, Payload payload,
+                       Devices devices, Gateways gateways, Topics topics, Applications applications,
+                       Behaviors behaviors, int timeoutSeconds) {
+        this(serviceUrl, warmup, measurement, rate, payload, devices, gateways, topics, applications, behaviors,
+                timeoutSeconds, null, null);
     }
 
     public IotScenario {

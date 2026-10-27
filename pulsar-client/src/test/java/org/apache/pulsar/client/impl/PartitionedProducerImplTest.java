@@ -21,8 +21,10 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.client.util.MathUtils.signSafeMod;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
@@ -30,7 +32,9 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.lang.reflect.Field;
 import java.nio.ByteBuffer;
@@ -45,6 +49,7 @@ import lombok.Cleanup;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
@@ -52,6 +57,7 @@ import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.assertj.core.util.Sets;
 import org.testng.annotations.BeforeMethod;
@@ -85,6 +91,7 @@ public class PartitionedProducerImplTest {
         producerCreatedFuture = new CompletableFuture<>();
         ClientConfigurationData clientConfigurationData = mock(ClientConfigurationData.class);
         Timer timer = mock(Timer.class);
+        when(timer.newTimeout(any(), anyLong(), any())).thenReturn(mock(Timeout.class));
 
         producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
 
@@ -362,6 +369,68 @@ public class PartitionedProducerImplTest {
         // Because the returned value will be applied to the next stage.
         // We use future instead of null as the return value.
         assertNotNull(future);
+    }
+
+    /**
+     * Captures the partition update timer tasks the producer schedules, and only those: the partition producers
+     * schedule their own tasks on the same timer.
+     */
+    private List<Timeout> capturePartitionUpdateTimeouts() {
+        List<Timeout> scheduled = new ArrayList<>();
+        when(client.timer().newTimeout(any(), anyLong(), any())).thenAnswer(invocation -> {
+            TimerTask task = invocation.getArgument(0);
+            Timeout timeout = mock(Timeout.class);
+            when(timeout.task()).thenReturn(task);
+            if (task.getClass().getEnclosingClass() == PartitionedProducerImpl.class) {
+                scheduled.add(timeout);
+            }
+            return timeout;
+        });
+        return scheduled;
+    }
+
+    private PartitionedProducerImpl<byte[]> newPartitionedProducer() {
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        return new PartitionedProducerImpl<>(client, TOPIC_NAME, conf, 2, new CompletableFuture<>(), Schema.BYTES,
+                null);
+    }
+
+    /**
+     * A first partition whose connection fails at once ends the creation inside the constructor, before the
+     * partition update timer is scheduled. The close found no timer to cancel, so the constructor must cancel the
+     * timer it schedules afterwards.
+     */
+    @Test
+    public void testPartitionUpdateTimerIsCancelledWhenTheCreationEndsInTheConstructor() {
+        when(client.getConnection(anyString(), anyInt()))
+                .thenReturn(FutureUtil.failedFuture(new PulsarClientException.AuthorizationException("not allowed")));
+        List<Timeout> scheduled = capturePartitionUpdateTimeouts();
+
+        PartitionedProducerImpl<byte[]> producer = newPartitionedProducer();
+
+        assertTrue(producer.producerCreatedFuture().isCompletedExceptionally());
+        assertTrue(producer.isTerminalState(), "the producer ended in its constructor, state " + producer.getState());
+        assertEquals(scheduled.size(), 1);
+        verify(scheduled.get(0)).cancel();
+    }
+
+    /**
+     * The partition update task reschedules itself after every run. Once the producer has ended, it must stop,
+     * otherwise a timer scheduled after the producer closed keeps the producer reachable forever.
+     */
+    @Test
+    public void testPartitionUpdateTimerStopsOnceTheProducerEnded() throws Exception {
+        when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
+        List<Timeout> scheduled = capturePartitionUpdateTimeouts();
+        PartitionedProducerImpl<byte[]> producer = newPartitionedProducer();
+        assertEquals(scheduled.size(), 1, "A producer still being created schedules the timer");
+
+        producer.closeAsync();
+        assertTrue(producer.isTerminalState(), "state " + producer.getState());
+        scheduled.get(0).task().run(mock(Timeout.class));
+
+        assertEquals(scheduled.size(), 1, "An ended producer does not reschedule the partition update task");
     }
 
 }
