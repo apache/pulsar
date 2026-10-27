@@ -2160,6 +2160,13 @@ public class ManagedCursorImpl implements ManagedCursor {
             @Override
             public void readEntriesComplete(List<Entry> entries, Object readCtx) {
                 for (Entry entry : entries) {
+                    if (entry == null) {
+                        // a slot the range read didn't fill, as when its entry never arrived from storage: a wanted
+                        // position of it stays in wantedEntries and fails below as its own read would
+                        log.warn().attr("ledgerId", ledgerId).attr("firstEntry", firstEntry)
+                                .attr("lastEntry", lastEntry).log("Replay range read delivered a null slot");
+                        continue;
+                    }
                     if (wantedEntries.remove(entry.getEntryId())) {
                         expectReplayRead(entry);
                         cb.readEntryComplete(entry, ctx);

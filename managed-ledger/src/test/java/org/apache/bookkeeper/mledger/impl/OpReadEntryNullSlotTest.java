@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -64,10 +65,11 @@ import org.testng.annotations.Test;
  *
  * <p>The second half covers the callbacks wrapped around the original one: the in-flight reads
  * limiter's wrapper ({@code RangeEntryCacheImpl.doAsyncReadEntriesWithAcquiredPermits}) iterates
- * the batch before the original callback runs, and the read-timeout wrapper
- * ({@link ManagedLedgerImpl.ReadEntryCallbackWrapper}) releases the batch when it arrives late.
- * A null slot must not break the permit accounting on either path — the batch still reaches the
- * callback and every permit is returned.
+ * the batch before the original callback runs, the read-timeout wrapper
+ * ({@link ManagedLedgerImpl.ReadEntryCallbackWrapper}) releases the batch when it arrives late,
+ * and the replay range read of {@code ManagedCursorImpl.readReplayRange} delivers each wanted
+ * entry on its own. A null slot must not break the permit accounting or the delivery on any of
+ * these paths — the callback still runs and every permit is returned.
  */
 public class OpReadEntryNullSlotTest extends MockedBookKeeperTestCase {
 
@@ -241,6 +243,81 @@ public class OpReadEntryNullSlotTest extends MockedBookKeeperTestCase {
                     assertEquals(limiter.getRemainingBytes(), totalCapacity,
                             "every in-flight read permit must be returned"));
             assertTrue(!result.entries.isDone(), "the late batch must not be delivered after the timeout");
+        } finally {
+            limiterFactory.shutdown();
+        }
+    }
+
+    /**
+     * A null slot in the range read of a replay run ({@code ManagedCursorImpl.readReplayRange}): the
+     * replay's range callback must not dereference the slot. The wanted position it stands for fails
+     * as its own read would, the delivered wanted entry and the in-between entries are released, and
+     * every in-flight read permit is returned — before the null-slot skip, the callback threw a bare
+     * NPE that left the replay's positions without a completion.
+     */
+    @Test(timeOut = 30_000)
+    void nullSlotInReplayRangeFailsTheMissingPositionAndReleasesTheRest() throws Exception {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(100_000);
+        // Keep the primed entries in the cache for the whole test (TTL eviction otherwise clears them).
+        factoryConfig.setCacheEvictionIntervalMs(3600_000);
+        ManagedLedgerFactoryImpl limiterFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            // Batch read disabled: its contiguity validation rejects short results, while the plain
+            // readUnconfirmedAsync leg is where a mixed read can leave a slot unfilled.
+            ManagedLedgerConfig config = defaultConfig();
+            config.setBatchReadEnabled(false);
+            ManagedLedgerImpl ml = (ManagedLedgerImpl) limiterFactory.open("opreadentry_null_slot_replay", config);
+            for (int i = 0; i < 6; i++) {
+                ml.addEntry(("entry-" + i).getBytes(StandardCharsets.UTF_8));
+            }
+            RangeEntryCacheImpl cache = (RangeEntryCacheImpl) ml.entryCache;
+            InflightReadsLimiter limiter = ((RangeEntryCacheManagerImpl) limiterFactory.getEntryCacheManager())
+                    .getInflightReadsLimiter();
+            long totalCapacity = limiter.getRemainingBytes();
+            long ledgerId = ml.currentLedger.getId();
+
+            // The replay positions 0 and 5 are cache misses, grouped into one range read [0..5]; the
+            // entries in between, 1 and 2, are cached, so the range read is a MIXED read.
+            cache.clear();
+            primeCache(cache, ml.currentLedger, 1, 2);
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(limiter.getRemainingBytes(), totalCapacity, "priming read permits must return"));
+            assertTrue(!cache.hasEntry(PositionFactory.create(ledgerId, 0))
+                    && !cache.hasEntry(PositionFactory.create(ledgerId, 5)),
+                    "the replay positions must be cache misses");
+            assertTrue(cache.hasEntry(PositionFactory.create(ledgerId, 2)), "an in-between entry must be cached");
+
+            ManagedCursor cursor = ml.newNonDurableCursor(PositionFactory.EARLIEST);
+
+            // Storage legs of the mixed read: the missing range [0..0] answers with its entry; the
+            // missing range [3..5] answers SHORT — entries 3 and 4 without 5, as a bookie that has
+            // fewer entries than the range asks for — leaving slot 5 null in the assembled batch
+            // [0, 1, 2, 3, 4, null]. The entries list must be mutable: readFromStorage closes the
+            // LedgerEntries, whose recycle clears the list.
+            LedgerHandle spyLedger = Mockito.spy(ml.currentLedger);
+            Mockito.doAnswer(invocation -> CompletableFuture.completedFuture(LedgerEntriesImpl.create(
+                    new ArrayList<>(List.of(ledgerEntry(ledgerId, 0))))))
+                    .when(spyLedger).readUnconfirmedAsync(0L, 0L);
+            Mockito.doAnswer(invocation -> CompletableFuture.completedFuture(LedgerEntriesImpl.create(
+                    new ArrayList<>(List.of(ledgerEntry(ledgerId, 3), ledgerEntry(ledgerId, 4))))))
+                    .when(spyLedger).readUnconfirmedAsync(3L, 5L);
+            ml.currentLedger = spyLedger;
+
+            ReadResult result = new ReadResult();
+            cursor.asyncReplayEntries(
+                    Set.of(PositionFactory.create(ledgerId, 0), PositionFactory.create(ledgerId, 5)),
+                    result.callback, new Object(), false);
+
+            ManagedLedgerException ex = result.failure.get(5, TimeUnit.SECONDS);
+            assertTrue(ex.getMessage().contains("Entry not found in the replay read"),
+                    "unexpected message: " + ex.getMessage());
+            assertTrue(!result.entries.isDone(), "the replay must fail, not deliver");
+            // The null slot's share returns immediately, the delivered wanted entry's and the
+            // in-between entries' shares on their release — all permits back only when every
+            // non-null entry is released.
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(limiter.getRemainingBytes(), totalCapacity, "every permit must be returned"));
         } finally {
             limiterFactory.shutdown();
         }
