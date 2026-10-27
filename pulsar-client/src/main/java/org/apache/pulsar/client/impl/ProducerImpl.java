@@ -171,6 +171,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     // completes only after it, so a producer whose key cannot be loaded fails its creation whether the connection
     // or the key load finishes first.
     private final CompletableFuture<Void> firstKeyLoad;
+    // Guarded by the producer lock: a reconnection must not restart the wait for the first key load.
+    private boolean firstKeyLoadTimeoutScheduled;
 
     private final Map<String, String> metadata;
 
@@ -2482,12 +2484,30 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     /**
      * Completes the creation, after the first key load when the producer encrypts: the key is loaded by a task
      * that runs apart from the connection, and a producer whose key cannot be loaded must not be created even
-     * when the connection is ready first. The key task fails the creation itself in that case.
+     * when the connection is ready first. The key task fails the creation itself in that case, and so does the
+     * timeout if the key does not load before the producer deadline. Called under the producer lock.
      */
     private void completeCreation() {
         if (firstKeyLoad == null) {
             producerCreatedFuture.complete(this);
             return;
+        }
+        if (!firstKeyLoad.isDone() && !firstKeyLoadTimeoutScheduled) {
+            firstKeyLoadTimeoutScheduled = true;
+            // The creation has the same budget as when it retries a connection: the time left until the producer
+            // deadline set on the first connection. Waited for on the timer, not on the event loop running the key
+            // reader.
+            long remainingMs = Math.max(0, producerDeadline - System.currentTimeMillis());
+            Timeout timeout = client.timer().newTimeout(ignored -> {
+                if (!firstKeyLoad.isDone() && producerCreatedFuture.completeExceptionally(
+                        new PulsarClientException.TimeoutException(String.format(
+                                "The producer %s of the topic %s timed out waiting for its encryption key",
+                                producerName, topic)))) {
+                    closeAsync();
+                }
+            }, remainingMs, TimeUnit.MILLISECONDS);
+            firstKeyLoad.thenRun(timeout::cancel);
+            producerCreatedFuture.whenComplete((producer, error) -> timeout.cancel());
         }
         firstKeyLoad.thenRun(() -> {
             if (getState() == State.Ready) {
@@ -3266,8 +3286,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         try {
             msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
             firstKeyLoad.complete(null);
-        } catch (CryptoException | RuntimeException e) {
-            // A key reader that throws cannot provide the key either: the creation must not wait for it.
+        } catch (Throwable e) {
+            // A key reader that throws, an exception or an error, cannot provide the key either: the creation must
+            // not wait for a key load that has ended.
             if (!producerCreatedFuture.isDone()) {
                 log.warn().exception(e).log("Failed to add public key cipher");
                 String message = String.format("The producer %s of the topic %s adds the public key cipher was failed",
@@ -3281,6 +3302,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             } else if (e instanceof RuntimeException) {
                 // A later refresh: leave it to the task wrapper to log, as before.
                 throw (RuntimeException) e;
+            } else if (e instanceof Error) {
+                throw (Error) e;
             }
         }
     }

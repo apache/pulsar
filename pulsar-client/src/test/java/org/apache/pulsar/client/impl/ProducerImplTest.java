@@ -51,6 +51,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -390,6 +391,10 @@ public class ProducerImplTest {
         final PulsarClientImpl client = mockedPulsarClient();
         final AtomicReference<Runnable> keyTask = new AtomicReference<>();
         final ScheduledFuture<?> keyTaskFuture = mock(ScheduledFuture.class);
+        @SuppressWarnings("unchecked")
+        final MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
+        final List<TimerTask> timerTasks = new ArrayList<>();
+        final List<Timeout> timeouts = new ArrayList<>();
         final CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
         final DefaultEventLoop eventLoop = new DefaultEventLoop();
         final ClientCnx cnx = mock(ClientCnx.class, Mockito.RETURNS_DEEP_STUBS);
@@ -403,7 +408,6 @@ public class ProducerImplTest {
                 return keyTaskFuture;
             }).when(eventLoopGroup).scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
             when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
-            MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
             if (keyLoadFailure != null) {
                 doThrow(keyLoadFailure).when(crypto).addPublicKeyCipher(any(), any());
             }
@@ -411,6 +415,13 @@ public class ProducerImplTest {
             conf.setMessageCrypto(crypto);
             producer = new ProducerImpl<>(client, "persistent://public/default/slow-key", conf, created, 0,
                     Schema.BYTES, null, Optional.empty());
+            Timer timer = client.timer();
+            doAnswer(invocation -> {
+                timerTasks.add(invocation.getArgument(0));
+                Timeout timeout = mock(Timeout.class);
+                timeouts.add(timeout);
+                return timeout;
+            }).when(timer).newTimeout(any(), anyLong(), any());
 
             when(cnx.ctx().channel().eventLoop()).thenReturn(eventLoop);
             ProducerResponse response = mock(ProducerResponse.class);
@@ -517,6 +528,26 @@ public class ProducerImplTest {
         }
     }
 
+    /**
+     * A key reader can fail with an error rather than an exception, for instance when a class it depends on is
+     * missing. The creation must fail with it too instead of waiting for a key load that has ended.
+     */
+    @Test
+    public void testCreationFailsWhenTheFirstKeyLoadFailsWithAnError() throws Exception {
+        NoClassDefFoundError keyReaderError = new NoClassDefFoundError("com/example/kms/Client");
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            doThrow(keyReaderError).when(waiting.crypto).addPublicKeyCipher(any(), any());
+            waiting.connect();
+
+            waiting.keyTask.get().run();
+
+            assertTrue(waiting.created.isCompletedExceptionally(), "The creation must not wait for an ended key load");
+            assertThatThrownBy(waiting.created::join).hasRootCause(keyReaderError);
+            assertEquals(waiting.producer.getState(), HandlerState.State.Closed);
+            verify(waiting.client).cleanupProducer(waiting.producer);
+        }
+    }
+
     @DataProvider
     public Object[][] keyLoadAndReconnectOrderings() {
         return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
@@ -549,6 +580,77 @@ public class ProducerImplTest {
             assertThat(waiting.producer.getState()).isEqualTo(HandlerState.State.Closed);
             verify(waiting.keyTaskFuture).cancel(false);
             verify(waiting.client).cleanupProducer(waiting.producer);
+        }
+    }
+
+    /** A key that does not load before the producer deadline fails the creation and closes the producer. */
+    @Test
+    public void testCreationFailsWhenTheFirstKeyLoadTimesOut() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            assertThat(waiting.timerTasks).hasSize(1);
+
+            waiting.timerTasks.get(0).run(waiting.timeouts.get(0));
+
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.TimeoutException.class);
+            assertThat(waiting.producer.getState()).isEqualTo(HandlerState.State.Closed);
+            verify(waiting.keyTaskFuture).cancel(false);
+            verify(waiting.client).cleanupProducer(waiting.producer);
+            // A key reader already running when the task was cancelled can still return: it must not revive it.
+            waiting.keyTask.get().run();
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.TimeoutException.class);
+        }
+    }
+
+    /** Once the key has loaded, a timeout that fires anyway, racing with its cancellation, changes nothing. */
+    @Test(dataProvider = "keyTaskTiming")
+    public void testFirstKeyLoadTimeoutDoesNotFailACreationWhoseKeyLoaded(boolean reconnect) throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            TimerTask timeoutTask = waiting.timerTasks.get(0);
+            Timeout timeout = waiting.timeouts.get(0);
+            if (reconnect) {
+                waiting.producer.connectionClosed(waiting.cnx, Optional.empty(), Optional.empty());
+            }
+            waiting.keyTask.get().run();
+            verify(timeout, Mockito.atLeastOnce()).cancel();
+
+            timeoutTask.run(timeout);
+            if (reconnect) {
+                assertThat(waiting.created).isNotDone();
+                waiting.connect();
+            }
+            assertThat(waiting.created.get(10, TimeUnit.SECONDS)).isSameAs(waiting.producer);
+        }
+    }
+
+    /** A reconnection while the key loads does not restart the wait: the deadline is the one of the creation. */
+    @Test
+    public void testReconnectDoesNotRestartTheFirstKeyLoadTimeout() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            waiting.producer.connectionClosed(waiting.cnx, Optional.empty(), Optional.empty());
+            int scheduledTasks = waiting.timerTasks.size();
+            waiting.connect();
+            assertThat(waiting.timerTasks).hasSize(scheduledTasks);
+            waiting.timerTasks.get(0).run(waiting.timeouts.get(0));
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.TimeoutException.class);
+        }
+    }
+
+    /** Closing the producer while it waits for the key also cancels the wait. */
+    @Test
+    public void testCloseCancelsTheFirstKeyLoadTimeout() throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            waiting.connect();
+            waiting.producer.closeAsync().get(10, TimeUnit.SECONDS);
+            verify(waiting.timeouts.get(0)).cancel();
+            waiting.timerTasks.get(0).run(waiting.timeouts.get(0));
+            assertThatThrownBy(waiting.created::join)
+                    .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
         }
     }
 
