@@ -18,10 +18,14 @@
  */
 package org.apache.pulsar.client.api.v5;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.expectThrows;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.ProducerAccessMode;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -84,18 +88,11 @@ public class V5ProducerAccessModeTest extends V5ClientBaseTest {
 
         // Second EXCLUSIVE on the same topic must fail at create() — the V5 builder
         // eagerly claims every active segment up front for exclusive access modes.
-        try {
-            v5Client.newProducer(Schema.string())
-                    .topic(topic)
-                    .accessMode(ProducerAccessMode.EXCLUSIVE)
-                    .create();
-            fail("a second EXCLUSIVE producer should not be able to attach");
-        } catch (PulsarClientException expected) {
-            String msg = expected.getMessage() == null ? "" : expected.getMessage();
-            assertTrue(msg.contains("Busy") || msg.contains("Fenced")
-                            || msg.contains("ProducerFenced") || msg.contains("ProducerBusy"),
-                    "unexpected error message for second EXCLUSIVE producer: " + msg);
-        }
+        expectThrows(PulsarClientException.ProducerBusyException.class, () ->
+                v5Client.newProducer(Schema.string())
+                        .topic(topic)
+                        .accessMode(ProducerAccessMode.EXCLUSIVE)
+                        .create());
 
         // The first producer is still healthy and can send.
         first.newMessage().value("still-here").send();
@@ -129,5 +126,32 @@ public class V5ProducerAccessModeTest extends V5ClientBaseTest {
         Producer<String> second = secondFuture.get(10, java.util.concurrent.TimeUnit.SECONDS);
         MessageId id = second.newMessage().value("after-takeover").send();
         assertNotNull(id);
+    }
+
+    @Test
+    public void testClosingClientWithWaitingExclusiveProducerCompletes() throws Exception {
+        String topic = newScalableTopic(1);
+
+        @Cleanup
+        Producer<String> incumbent = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .accessMode(ProducerAccessMode.EXCLUSIVE)
+                .create();
+
+        // Another client waits for exclusive access, which it never gets: closing that client must
+        // not wait for it.
+        PulsarClient waitingClient = newV5Client();
+        CompletableFuture<Producer<String>> waiting = waitingClient.newProducer(Schema.string())
+                .topic(topic)
+                .accessMode(ProducerAccessMode.WAIT_FOR_EXCLUSIVE)
+                .createAsync();
+        Thread.sleep(500);
+        assertFalse(waiting.isDone(), "WAIT_FOR_EXCLUSIVE create() must wait while another producer holds the claim");
+
+        waitingClient.closeAsync().get(10, TimeUnit.SECONDS);
+        assertThatThrownBy(() -> waiting.get(10, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class);
+
+        // The incumbent keeps its claim.
+        assertNotNull(incumbent.newMessage().value("still-exclusive").send());
     }
 }

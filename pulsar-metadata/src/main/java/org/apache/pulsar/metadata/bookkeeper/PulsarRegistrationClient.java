@@ -70,6 +70,8 @@ public class PulsarRegistrationClient implements RegistrationClient {
     private final Map<BookieId, Versioned<BookieServiceInfo>> writableBookieInfo;
     private final Map<BookieId, Versioned<BookieServiceInfo>> readOnlyBookieInfo;
     private final FutureUtil.Sequencer<Void> sequencer;
+    private final Runnable cancelListener;
+    private final Runnable cancelSessionListener;
     private SessionEvent lastMetadataSessionEvent;
 
     public PulsarRegistrationClient(MetadataStore store,
@@ -90,12 +92,14 @@ public class PulsarRegistrationClient implements RegistrationClient {
         this.executor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-registration-client"));
 
-        store.registerListener(this::updatedBookies);
-        this.store.registerSessionListener(this::refreshBookies);
+        cancelListener = store.registerCancellableListener(this::updatedBookies);
+        cancelSessionListener = this.store.registerCancellableSessionListener(this::refreshBookies);
     }
 
     @Override
     public void close() {
+        cancelListener.run();
+        cancelSessionListener.run();
         executor.shutdownNow();
     }
 
@@ -319,6 +323,17 @@ public class PulsarRegistrationClient implements RegistrationClient {
         if (info != null) {
             return completedFuture(info);
         } else {
+            // The bookie can be registered and still missing here, if reading its info failed when it
+            // registered. Reload it in background, without waiting, so that a retry can find it.
+            readBookieInfoAsWritableBookie(bookieId)
+                    .thenCompose(writable -> writable.isPresent()
+                            ? completedFuture(writable)
+                            : readBookieInfoAsReadonlyBookie(bookieId))
+                    .exceptionally(ex -> {
+                        log.debug().attr("bookieId", bookieId).exceptionMessage(ex)
+                                .log("Failed to reload the bookie info");
+                        return null;
+                    });
             return FutureUtils.exception(new BKException.BKBookieHandleNotAvailableException());
         }
     }

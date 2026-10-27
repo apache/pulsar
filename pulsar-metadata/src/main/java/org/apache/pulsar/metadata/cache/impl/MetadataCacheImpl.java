@@ -195,6 +195,18 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     }
 
     @Override
+    public boolean supportsQuietSnapshots() {
+        return true;
+    }
+
+    @Override
+    public Optional<T> getIfCachedQuietly(String path) {
+        // The regular getIfPresent path can refresh stale entries and record access statistics.
+        Optional<CacheGetResult<T>> cached = objCache.synchronous().policy().getIfPresentQuietly(path);
+        return cached == null ? Optional.empty() : cached.map(CacheGetResult::getValue);
+    }
+
+    @Override
     public CompletableFuture<T> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction) {
         final var executor = this.executor.chooseThread(path);
         return executeWithRetry(() -> objCache.get(path)

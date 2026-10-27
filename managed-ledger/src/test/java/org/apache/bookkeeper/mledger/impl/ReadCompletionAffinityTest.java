@@ -22,6 +22,8 @@ import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultCo
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -47,6 +49,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -711,6 +714,113 @@ public class ReadCompletionAffinityTest extends MockedBookKeeperTestCase {
             bkc.setReadHandleInterceptor(null);
             ledger.close();
         }
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadUpToLastConfirmedEntryCompletesWithoutReadingEntriesConfirmedLater() throws Exception {
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("completion-read-up-to-lac",
+                defaultConfig().setReadEntriesCallbackInline(true)));
+        HeldCacheRead heldRead = holdCacheReads(ledger);
+        CountDownLatch releaseWorker = new CountDownLatch(1);
+        try {
+            ManagedCursor cursor = ledger.openCursor("cursor");
+            Position first = ledger.addEntry(new byte[] {1});
+            Position second = ledger.addEntry(new byte[] {2});
+            assertThat(ledger.entryCache.getSize()).isPositive();
+            heldRead.holdNext();
+            CompletableFuture<List<Position>> read = readPositions(cursor, 10);
+            Runnable releaseRead = heldRead.read.get(10, TimeUnit.SECONDS);
+
+            // The read range is fixed at the old last confirmed entry. Confirm another entry and block the ledger
+            // executor, so that the read cannot complete if it is continued on the executor.
+            Position third = ledger.addEntry(new byte[] {3});
+            blockWorker(ledger, releaseWorker);
+            releaseRead.run();
+            assertThat(read).isDone();
+            assertThat(read.get()).containsExactly(first, second);
+
+            releaseWorker.countDown();
+            assertThat(readPositions(cursor, 10).get(10, TimeUnit.SECONDS)).containsExactly(third);
+        } finally {
+            releaseWorker.countDown();
+            ledger.close();
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadUpToLastConfirmedEntryWithAllEntriesDeletedContinuesToEntriesConfirmedLater()
+            throws Exception {
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open("completion-read-up-to-lac-deleted",
+                defaultConfig().setReadEntriesCallbackInline(true)));
+        HeldCacheRead heldRead = holdCacheReads(ledger);
+        try {
+            ManagedCursor cursor = ledger.openCursor("cursor");
+            Position first = ledger.addEntry(new byte[] {1});
+            Position second = ledger.addEntry(new byte[] {2});
+            Position third = ledger.addEntry(new byte[] {3});
+            assertThat(ledger.entryCache.getSize()).isPositive();
+            // Leave the first entry unacknowledged, so that deleting the entries after it deletes them individually.
+            assertThat(readPositions(cursor, 1).get(10, TimeUnit.SECONDS)).containsExactly(first);
+            heldRead.holdNext();
+            CompletableFuture<List<Position>> read = readPositions(cursor, 10);
+            Runnable releaseRead = heldRead.read.get(10, TimeUnit.SECONDS);
+
+            // All entries of the fixed read range are deleted before it completes, so the read has returned no
+            // entries and continues to the entry confirmed since then.
+            Position fourth = ledger.addEntry(new byte[] {4});
+            cursor.delete(List.of(second, third));
+            releaseRead.run();
+            assertThat(read.get(10, TimeUnit.SECONDS)).containsExactly(fourth);
+        } finally {
+            ledger.close();
+        }
+    }
+
+    /**
+     * Holds the next entry cache read of a cursor read, after its range has been fixed, once {@link #holdNext()} has
+     * been called. {@link #read} completes with a task that performs the held read on the calling thread.
+     */
+    private static class HeldCacheRead {
+        volatile CompletableFuture<Runnable> read;
+
+        void holdNext() {
+            read = new CompletableFuture<>();
+        }
+    }
+
+    private static HeldCacheRead holdCacheReads(ManagedLedgerImpl ledger) {
+        HeldCacheRead heldRead = new HeldCacheRead();
+        doAnswer(invocation -> {
+            CompletableFuture<Runnable> read = heldRead.read;
+            if (read == null || !read.complete(() -> {
+                try {
+                    invocation.callRealMethod();
+                } catch (Throwable t) {
+                    throw new RuntimeException(t);
+                }
+            })) {
+                invocation.callRealMethod();
+            }
+            return null;
+        }).when(ledger).asyncReadEntry(any(ReadHandle.class), anyLong(), anyLong(), any(OpReadEntry.class), any());
+        return heldRead;
+    }
+
+    private static CompletableFuture<List<Position>> readPositions(ManagedCursor cursor, int count) {
+        CompletableFuture<List<Position>> completed = new CompletableFuture<>();
+        cursor.asyncReadEntries(count, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                completed.complete(entries.stream().map(Entry::getPosition).toList());
+                entries.forEach(Entry::release);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                completed.completeExceptionally(exception);
+            }
+        }, null, PositionFactory.LATEST);
+        return completed;
     }
 
     @Test

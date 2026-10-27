@@ -31,6 +31,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
@@ -145,7 +146,7 @@ public class SimpleLoadManagerImplTest {
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
 
-        url1 = new URL(pulsar1.getWebServiceAddress());
+        url1 = URI.create(pulsar1.getWebServiceAddress()).toURL();
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
         brokerStatsClient1 = admin1.brokerStats();
         primaryHost = pulsar1.getWebServiceAddress();
@@ -170,7 +171,7 @@ public class SimpleLoadManagerImplTest {
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
 
-        url2 = new URL(pulsar2.getWebServiceAddress());
+        url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
         brokerStatsClient2 = admin2.brokerStats();
         secondaryHost = pulsar2.getWebServiceAddress();

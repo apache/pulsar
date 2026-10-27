@@ -46,6 +46,7 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
@@ -667,6 +668,35 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
                 return;
             }
             throw e;
+        }
+    }
+
+    @Test
+    public void testLedgerMetadataOfAClosedReadHandle() throws Exception {
+        @Cleanup
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
+        @Cleanup
+        LedgerOffloader offloader = getOffloader();
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
+        LedgerMetadata metadata = toTest.getLedgerMetadata();
+        toTest.closeAsync().get();
+
+        // The managed ledger may close a read handle while a read that got it from its cache still uses it: the
+        // handle's ledger metadata stays, and the read fails with OffloadReadHandleClosedException, which makes the
+        // managed ledger reopen the handle
+        assertEquals(toTest.getLedgerMetadata(), metadata);
+        assertEquals(toTest.getLength(), toWrite.getLength());
+        assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+        assertTrue(toTest.isClosed());
+        assertEquals(toTest.readLastAddConfirmedAsync().get().longValue(), toWrite.getLastAddConfirmed());
+        try {
+            toTest.readAsync(0, toTest.getLastAddConfirmed()).get();
+            fail("Reading from a closed read handle should fail");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException);
         }
     }
 

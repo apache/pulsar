@@ -26,6 +26,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Sets;
 import com.google.common.collect.TreeMultimap;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -184,6 +185,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     private volatile Future<?> updateRankingHandle;
 
     private Map<String, String> bundleBrokerAffinityMap;
+    private volatile Runnable cancelMetadataStoreListener;
 
     // Perform initializations which may be done without a PulsarService.
     public SimpleLoadManagerImpl() {
@@ -232,13 +234,13 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
         lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
         loadReports = pulsar.getCoordinationService().getLockManager(LoadReport.class);
-        pulsar.getLocalMetadataStore().registerListener(this);
+        cancelMetadataStoreListener = pulsar.getLocalMetadataStore().registerCancellableListener(this);
         this.dynamicConfigurationCache = pulsar.getLocalMetadataStore().getMetadataCache(
                 new TypeReference<Map<String, String>>() {
                 });
 
         int entryExpiryTime = (int) pulsar.getConfiguration().getLoadBalancerSheddingGracePeriodMinutes();
-        unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(entryExpiryTime, TimeUnit.MINUTES)
+        unloadedHotNamespaceCache = CacheBuilder.newBuilder().expireAfterWrite(Duration.ofMinutes(entryExpiryTime))
                 .build(new CacheLoader<String, Long>() {
                     @Override
                     public Long load(String key) throws Exception {
@@ -1455,6 +1457,9 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     @Override
     public void stop() throws PulsarServerException {
         try {
+            if (cancelMetadataStoreListener != null) {
+                cancelMetadataStoreListener.run();
+            }
             if (loadReports != null) {
                 loadReports.close();
             }

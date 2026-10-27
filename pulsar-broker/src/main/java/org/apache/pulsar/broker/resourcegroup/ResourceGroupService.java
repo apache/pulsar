@@ -316,6 +316,7 @@ public class ResourceGroupService implements AutoCloseable{
 
     @Override
     public void close() throws Exception {
+        rgConfigListener.close();
         if (aggregateLocalUsagePeriodicTask != null) {
             aggregateLocalUsagePeriodicTask.cancel(true);
             aggregateLocalUsagePeriodicTask = null;

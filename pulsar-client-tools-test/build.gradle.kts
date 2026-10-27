@@ -23,8 +23,6 @@ plugins {
 
 dependencies {
     implementation(libs.slog)
-    compileOnly(project(":pulsar-client-tools"))
-    compileOnly(project(":pulsar-broker"))
 
     testImplementation(project(":pulsar-client-tools"))
     testImplementation(project(":pulsar-broker"))
@@ -38,6 +36,7 @@ dependencies {
     testImplementation(project(":pulsar-client-api-v5"))
     testImplementation(project(":pulsar-functions:pulsar-functions-api"))
     testImplementation(libs.picocli)
+    testCompileOnly(libs.swagger.annotations)
 }
 
 // Copy the custom commands NAR from the example module into test resources

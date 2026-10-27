@@ -63,6 +63,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     private final Map<Integer, ProducerImpl<T>> producers = new ConcurrentHashMap<>();
     private final MessageRouter routerPolicy;
     private final PartitionedTopicProducerStatsRecorderImpl stats;
+    private final ProducerInterceptors internalProducerInterceptors;
     private TopicMetadata topicMetadata;
     private final int firstPartitionIndex;
     private String overrideProducerName;
@@ -82,6 +83,9 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 .build();
         this.topicMetadata = new TopicMetadataImpl(numPartitions);
         this.routerPolicy = getMessageRouter();
+        this.internalProducerInterceptors = interceptors != null
+                ? createInternalProducerInterceptors(interceptors)
+                : null;
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0
                 ? new PartitionedTopicProducerStatsRecorderImpl()
                 : null;
@@ -124,9 +128,15 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         // start track and auto subscribe partition increasement
         if (conf.isAutoUpdatePartitions()) {
             topicsPartitionChangedListener = new TopicsPartitionChangedListener();
-            partitionsAutoUpdateTimeout = client.timer()
+            Timeout timeout = client.timer()
                 .newTimeout(partitionsAutoUpdateTimerTask,
                         conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
+            partitionsAutoUpdateTimeout = timeout;
+            // The creation can end inside start(), before there is a timer for closeAsync() to cancel.
+            // closeAsync() sets the state before it reads the timer, so one of the two always cancels it.
+            if (isTerminalState()) {
+                timeout.cancel();
+            }
         }
     }
 
@@ -233,7 +243,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         return producers.computeIfAbsent(partitionIndex, (idx) -> {
             String partitionName = TopicName.get(topic).getPartition(idx).toString();
             return client.newProducerImpl(partitionName, idx,
-                    conf, schema, interceptors, new CompletableFuture<>(), overrideProducerName);
+                    conf, schema, internalProducerInterceptors, new CompletableFuture<>(), overrideProducerName);
         });
     }
 
@@ -353,6 +363,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                         closeFail.compareAndSet(null, ex);
                     }
                     if (completed.decrementAndGet() == 0) {
+                        closeInterceptors();
                         if (closeFail.get() == null) {
                             setState(State.Closed);
                             closeFuture.complete(null);
@@ -483,6 +494,31 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         }
     }
 
+    private ProducerInterceptors createInternalProducerInterceptors(ProducerInterceptors interceptors) {
+        return new ProducerInterceptors(Collections.emptyList()) {
+            @Override
+            public Message beforeSend(Producer producer, Message message) {
+                return interceptors.beforeSend(producer, message);
+            }
+
+            @Override
+            public void onSendAcknowledgement(Producer producer, Message message, MessageId msgId,
+                                              Throwable exception) {
+                interceptors.onSendAcknowledgement(producer, message, msgId, exception);
+            }
+
+            @Override
+            public void onPartitionsChange(String topicName, int partitions) {
+                // do nothing
+            }
+
+            @Override
+            public void close() {
+                // do nothing
+            }
+        };
+    }
+
     private TimerTask partitionsAutoUpdateTimerTask = new TimerTask() {
         @Override
         public void run(Timeout timeout) throws Exception {
@@ -503,10 +539,12 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                 + " timer task for partition producer."
                                 + " Another task will be scheduled.");
             } finally {
-                // schedule the next re-check task
-                partitionsAutoUpdateTimeout = client.timer()
-                        .newTimeout(partitionsAutoUpdateTimerTask,
-                                conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
+                // schedule the next re-check task while the producer is alive
+                if (!isTerminalState()) {
+                    partitionsAutoUpdateTimeout = client.timer()
+                            .newTimeout(partitionsAutoUpdateTimerTask,
+                                    conf.getAutoUpdatePartitionsIntervalSeconds(), TimeUnit.SECONDS);
+                }
             }
         }
     };

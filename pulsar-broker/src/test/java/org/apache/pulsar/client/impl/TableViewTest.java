@@ -647,7 +647,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
 
         @Cleanup
-        TableView<String> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tableView = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
                 .createMapped(m -> {
                     if (m.getValue().equals("delete-me")) {
@@ -705,7 +705,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
                 .send();
 
         @Cleanup
-        TableView<Message<String>> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<Message<String>> tableView = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
                 .createMapped(msg -> msg);
 
@@ -750,7 +750,7 @@ public class TableViewTest extends MockedPulsarServiceBaseTest {
         producer.newMessage().key(testKey).value("fail-replay").send();
 
         @Cleanup
-        TableView<String> tableView = pulsarClient.newTableViewBuilder(Schema.STRING)
+        TableView<String> tableView = pulsarClient.newTableView(Schema.STRING)
                 .topic(topic)
                 .createMapped(mapper);
         assertEquals(failedValues, List.of("fail-replay:cannot map fail-replay"));

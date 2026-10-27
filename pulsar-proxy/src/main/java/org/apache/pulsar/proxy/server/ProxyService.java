@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
@@ -76,7 +77,9 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
+import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
 import org.apache.pulsar.common.tls.impl.TlsSynthesisSpec;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
@@ -189,7 +192,7 @@ public class ProxyService implements Closeable {
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
 
     @Getter
-    private final TopicListSizeResultCache topicListSizeResultCache = new TopicListSizeResultCache();
+    private final TopicListSizeResultCache topicListSizeResultCache;
 
     private boolean gracefulShutdown = true;
 
@@ -197,6 +200,15 @@ public class ProxyService implements Closeable {
     public ProxyService(ProxyConfiguration proxyConfig,
                         AuthenticationService authenticationService,
                         Authentication proxyClientAuthentication) throws Exception {
+        this(proxyConfig, authenticationService, proxyClientAuthentication, 60, TimeUnit.SECONDS);
+    }
+
+    @VisibleForTesting
+    ProxyService(ProxyConfiguration proxyConfig,
+                 AuthenticationService authenticationService,
+                 Authentication proxyClientAuthentication,
+                 long statsUpdateInterval,
+                 TimeUnit statsUpdateIntervalUnit) throws Exception {
         requireNonNull(proxyConfig);
         this.proxyConfig = proxyConfig;
         this.clientCnxs = Sets.newConcurrentHashSet();
@@ -217,7 +229,7 @@ public class ProxyService implements Closeable {
         this.authenticationService = authenticationService;
 
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
-                .channelType(EventLoopUtil.getDatagramChannelClass(workerGroup))
+                .datagramChannelType(EventLoopUtil.getDatagramChannelClass(workerGroup))
                 .socketChannelType(EventLoopUtil.getClientSocketChannelClass(workerGroup), true);
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
 
@@ -234,7 +246,7 @@ public class ProxyService implements Closeable {
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
-        statsExecutor.schedule(() -> {
+        statsExecutor.scheduleAtFixedRate(() -> {
             this.clientCnxs.forEach(cnx -> {
                 if (cnx.getDirectProxyHandler() != null
                         && cnx.getDirectProxyHandler().getInboundChannelRequestsRate() != null) {
@@ -244,7 +256,7 @@ public class ProxyService implements Closeable {
             this.topicStats.forEach((topic, stats) -> {
                 stats.calculate();
             });
-        }, 60, TimeUnit.SECONDS);
+        }, statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
         this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
         this.proxyClientAuthentication = proxyClientAuthentication;
         this.connectionController = new ConnectionController.DefaultConnectionController(
@@ -262,6 +274,11 @@ public class ProxyService implements Closeable {
                 proxyConfig.getMaxTopicListInFlightDirectMemSizeMB() * 1024L * 1024L,
                 proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireQueueSize(),
                 proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis());
+        AsyncSemaphore topicListHeapLimiter =
+                maxTopicListInFlightLimiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY);
+        this.topicListSizeResultCache = new TopicListSizeResultCache(
+                proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
+                () -> topicListHeapLimiter.getQueueSize() == 0 && topicListHeapLimiter.getAcquiredPermits() == 0);
     }
 
     public void start() throws Exception {
@@ -284,7 +301,7 @@ public class ProxyService implements Closeable {
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-        bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+        bootstrap.childOption(ChannelOption.RECVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
         Class<? extends ServerSocketChannel> serverSocketChannelClass =
@@ -437,7 +454,7 @@ public class ProxyService implements Closeable {
             bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-            bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+            bootstrap.childOption(ChannelOption.RECVBUF_ALLOCATOR,
                     new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
             EventLoopUtil.enableTriggeredMode(bootstrap);
@@ -521,6 +538,9 @@ public class ProxyService implements Closeable {
         }
         resetMetricsServlet();
 
+        if (pulsarResources != null) {
+            pulsarResources.close();
+        }
         if (localMetadataStore != null) {
             try {
                 localMetadataStore.close();

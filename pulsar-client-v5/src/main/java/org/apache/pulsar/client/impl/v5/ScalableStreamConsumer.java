@@ -95,6 +95,11 @@ final class ScalableStreamConsumer<T>
     // ownership (a consumer joined/left) re-subscribes the segment with the new ranges.
     private final ConcurrentHashMap<Long, List<HashRange>> segmentBucketRanges = new ConcurrentHashMap<>();
 
+    // The receive loops of the segments subscribed before the initial subscribe completed, which start once it
+    // has; both fields are guarded by deferredReceiveLoops
+    private final List<Runnable> deferredReceiveLoops = new ArrayList<>();
+    private boolean deliveryStarted;
+
     /**
      * Tracks the latest message ID delivered from each segment. Updated atomically
      * inside {@link #startReceiveLoop} before the message is enqueued, and snapshot
@@ -177,6 +182,13 @@ final class ScalableStreamConsumer<T>
     private volatile List<ActiveSegment> latestAssignment;
     /** Coalesces concurrent reconcile attempts; only one runs at a time. */
     private final AtomicBoolean reconcileInProgress = new AtomicBoolean(false);
+    /** Whether a reconcile retry is scheduled. Guarded by {@code this}. */
+    private boolean retryScheduled = false;
+    /** Whether the backoff was reset after the pending retry was scheduled. Guarded by {@code this}. */
+    private boolean backoffResetSinceRetry = false;
+    /** Identifies the latest retry: a retry it replaced does nothing. Guarded by {@code this}. */
+    private long retryGeneration = 0;
+    /** Paces the retries. Guarded by {@code this}. */
     private final Backoff reconcileBackoff = Backoff.builder()
             .initialDelay(Duration.ofMillis(100))
             .maxBackoff(Duration.ofSeconds(30))
@@ -250,6 +262,7 @@ final class ScalableStreamConsumer<T>
         consumer.latestAssignment = initialAssignment;
         return consumer.subscribeInitialWithRetry(initialAssignment)
                 .thenApply(__ -> {
+                    consumer.startDelivery();
                     session.setListener(consumer);
                     return consumer;
                 })
@@ -454,7 +467,7 @@ final class ScalableStreamConsumer<T>
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Close interrupted", e);
         } catch (ExecutionException e) {
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -502,7 +515,8 @@ final class ScalableStreamConsumer<T>
                     sharedSegmentUnacked.clear();
                     lastCumulativeAcked.clear();
                     cumulativeAckWatermark.clear();
-                });
+                })
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     // --- Assignment change handling ---
@@ -536,7 +550,9 @@ final class ScalableStreamConsumer<T>
                                          CompletableFuture<Void> result) {
         subscribeAssigned(assigned).whenComplete((__, ex) -> {
             if (ex == null) {
-                reconcileBackoff.reset();
+                synchronized (this) {
+                    reconcileBackoff.reset();
+                }
                 result.complete(null);
                 return;
             }
@@ -550,11 +566,22 @@ final class ScalableStreamConsumer<T>
                 return;
             }
             evictFailedSegmentConsumers();
-            Duration delay = reconcileBackoff.next();
+            Duration delay;
+            synchronized (this) {
+                delay = reconcileBackoff.next();
+            }
             log.info().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
                     .log("Initial subscribe rejected during rebalance, retrying after backoff");
-            scheduler().schedule(() -> attemptInitialSubscribe(assigned, deadlineNanos, result),
-                    delay.toMillis(), TimeUnit.MILLISECONDS);
+            // Retry with the session's current assignment, not the one this attempt started with: the
+            // rebalance that rejected us usually also moved segments away from this consumer, and
+            // retrying the stale assignment would keep asking for a segment another member now owns.
+            // The assignment listener is only registered once the initial subscribe succeeds, so the
+            // session, not latestAssignment, holds the updates that arrived in the meantime.
+            scheduler().schedule(() -> {
+                List<ActiveSegment> current = session.currentAssignment();
+                latestAssignment = current;
+                attemptInitialSubscribe(current, deadlineNanos, result);
+            }, delay.toMillis(), TimeUnit.MILLISECONDS);
         });
     }
 
@@ -564,11 +591,18 @@ final class ScalableStreamConsumer<T>
      * consumer may not have released a segment or bucket range yet, so our subscribe is rejected
      * ({@code ConsumerBusy} on Exclusive, {@code ConsumerAssignError} on overlapping STICKY
      * ranges) — and neither is retried at the v4 layer.
+     *
+     * <p>The next reconcile starts only once this one's releases have drained and its subscribes
+     * have settled. A segment's release state (drain bookkeeping, receive epoch, acked positions)
+     * is keyed by segment id, so applying a newer assignment meanwhile could re-subscribe, or
+     * release again, a segment that is still draining.
      */
     private void reconcile() {
         if (closed || !reconcileInProgress.compareAndSet(false, true)) {
             return;
         }
+        // Evict failed subscribe futures so this attempt re-tries them.
+        evictFailedSegmentConsumers();
         List<ActiveSegment> target = latestAssignment;
         subscribeAssigned(target).whenComplete((__, ex) -> {
             reconcileInProgress.set(false);
@@ -576,20 +610,50 @@ final class ScalableStreamConsumer<T>
                 return;
             }
             if (ex == null) {
-                reconcileBackoff.reset();
-                // If a newer assignment arrived during this reconcile, run again to converge.
-                if (latestAssignment != target) {
-                    reconcile();
+                synchronized (this) {
+                    reconcileBackoff.reset();
+                    backoffResetSinceRetry = retryScheduled;
                 }
+            }
+            // If a newer assignment arrived during this reconcile, run again to converge: that run also
+            // re-tries what failed in this one.
+            if (latestAssignment != target) {
+                reconcile();
+            } else if (ex != null) {
+                scheduleRetry(ex);
+            }
+        });
+    }
+
+    /**
+     * Retry the reconcile after a backoff, with at most one retry scheduled. A retry scheduled before
+     * the backoff was last reset is replaced, so a new failure doesn't wait out the longer delay of
+     * earlier ones.
+     */
+    private void scheduleRetry(Throwable ex) {
+        Duration delay;
+        long generation;
+        synchronized (this) {
+            if (retryScheduled && !backoffResetSinceRetry) {
                 return;
             }
-            // Evict failed subscribe futures so the next attempt can re-try them.
-            evictFailedSegmentConsumers();
-            Duration delay = reconcileBackoff.next();
-            log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
-                    .log("Failed to apply assignment update, retrying after backoff");
-            scheduler().schedule(this::reconcile, delay.toMillis(), TimeUnit.MILLISECONDS);
-        });
+            retryScheduled = true;
+            backoffResetSinceRetry = false;
+            generation = ++retryGeneration;
+            delay = reconcileBackoff.next();
+        }
+        log.warn().attr("delayMs", delay.toMillis()).exceptionMessage(ex)
+                .log("Failed to apply assignment update, retrying after backoff");
+        scheduler().schedule(() -> {
+            synchronized (this) {
+                if (generation != retryGeneration) {
+                    // Replaced by a later retry.
+                    return;
+                }
+                retryScheduled = false;
+            }
+            reconcile();
+        }, delay.toMillis(), TimeUnit.MILLISECONDS);
     }
 
     private void evictFailedSegmentConsumers() {
@@ -821,10 +885,40 @@ final class ScalableStreamConsumer<T>
         }
         return v4Client.subscribeSegmentAsync(segConf, v4Schema)
                 .thenApply(consumer -> {
-                    startReceiveLoop(consumer, segment.segmentId(),
+                    startReceiveLoopWhenDelivering(consumer, segment.segmentId(),
                             segmentReceiveEpoch.getOrDefault(segment.segmentId(), 0L));
                     return consumer;
                 });
+    }
+
+    /**
+     * Starts the segment's receive loop, or defers it until the initial subscribe completes. Until then the
+     * application has no consumer to ack with, so a message handed out early could never be acked: an
+     * initial-subscribe retry that releases the segment would wait forever for its drain.
+     */
+    private void startReceiveLoopWhenDelivering(org.apache.pulsar.client.api.Consumer<T> v4Consumer,
+                                                long segmentId, long armedEpoch) {
+        synchronized (deferredReceiveLoops) {
+            if (!deliveryStarted) {
+                deferredReceiveLoops.add(() -> startReceiveLoop(v4Consumer, segmentId, armedEpoch));
+                return;
+            }
+        }
+        startReceiveLoop(v4Consumer, segmentId, armedEpoch);
+    }
+
+    /**
+     * Starts the receive loops deferred during the initial subscribe. A loop whose segment was released in the
+     * meantime finds its consumer closed or its epoch stale, and stops.
+     */
+    private void startDelivery() {
+        List<Runnable> loops;
+        synchronized (deferredReceiveLoops) {
+            deliveryStarted = true;
+            loops = new ArrayList<>(deferredReceiveLoops);
+            deferredReceiveLoops.clear();
+        }
+        loops.forEach(Runnable::run);
     }
 
     /**
