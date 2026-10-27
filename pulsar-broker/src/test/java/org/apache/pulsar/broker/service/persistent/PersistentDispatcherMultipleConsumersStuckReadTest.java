@@ -28,6 +28,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.ImmediateEventExecutor;
@@ -101,6 +102,7 @@ public class PersistentDispatcherMultipleConsumersStuckReadTest extends MockedBo
         svcConfig.setBrokerShutdownTimeoutMs(0L);
         svcConfig.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         svcConfig.setClusterName("test");
+        svcConfig.setDelayedDeliveryEnabled(false);
         svcConfig.setSystemTopicEnabled(false);
         svcConfig.setTopicLevelPoliciesEnabled(false);
         // Default is 15s; keep the read-failure retry backoff tiny.
@@ -314,6 +316,8 @@ public class PersistentDispatcherMultipleConsumersStuckReadTest extends MockedBo
                 .when(dispatcher).asyncReplayEntries(any());
 
         dispatcher.readMoreEntriesAsync();
+        verify(dispatcher, org.mockito.Mockito.timeout(10_000))
+                .scheduleReadEntriesWithDelay(any(), org.mockito.ArgumentMatchers.eq(ReadType.Replay), anyLong());
 
         Awaitility.await("entry should be redelivered after the replay failure is retried")
                 .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
@@ -342,10 +346,12 @@ public class PersistentDispatcherMultipleConsumersStuckReadTest extends MockedBo
 
         dispatcher.readMoreEntriesAsync();
 
-        // The retry re-registers the wait-read, and a message published afterwards is delivered.
         Awaitility.await("cursor should wait for new entries again")
                 .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
                 .until(() -> cursor.hasPendingReadRequest() && dispatcher.havePendingRead);
+        verify(cursor, org.mockito.Mockito.timeout(10_000)).cancelPendingReadRequest();
+        verify(cursor, org.mockito.Mockito.timeout(10_000).times(2))
+                .asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
         Position p1 = publish();
         Awaitility.await("entry published after the failure should be delivered")
                 .atMost(Duration.ofSeconds(TIMEOUT_SECONDS))
