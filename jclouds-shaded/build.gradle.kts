@@ -29,7 +29,7 @@ plugins {
 // bundles its own copies so they won't conflict at runtime.
 configurations.all {
     resolutionStrategy {
-        force("com.google.guava:guava:32.0.0-jre")
+        force("com.google.guava:guava:33.7.1-jre")
         force("com.google.inject:guice:7.0.0")
         force("com.google.inject.extensions:guice-assistedinject:7.0.0")
         force("jakarta.annotation:jakarta.annotation-api:3.0.0")
