@@ -219,6 +219,10 @@ public class ManagedCursorImpl implements ManagedCursor {
     // because of the rate limiting.
     private volatile boolean isDirty = false;
 
+    // Serializes activity transitions, including changes to the ledger's active-cursor registration.
+    private final Object activityLock = new Object();
+
+    // Guarded by activityLock.
     private boolean alwaysInactive = false;
 
     private static final long NO_MAX_SIZE_LIMIT = ManagedLedgerUtils.NO_MAX_SIZE_LIMIT;
@@ -1582,9 +1586,15 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void setActive() {
-        if (!isActive && !alwaysInactive) {
-            ledger.activateCursor(this);
-            isActive = true;
+        // An overlapping deactivation may follow this already satisfied request.
+        if (isActive) {
+            return;
+        }
+        synchronized (activityLock) {
+            if (!isActive && !alwaysInactive) {
+                ledger.activateCursor(this);
+                isActive = true;
+            }
         }
     }
 
@@ -1595,16 +1605,24 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     @Override
     public void setInactive() {
-        if (isActive) {
-            ledger.deactivateCursor(this);
-            isActive = false;
+        // An overlapping activation may follow this already satisfied request.
+        if (!isActive) {
+            return;
+        }
+        synchronized (activityLock) {
+            if (isActive) {
+                ledger.deactivateCursor(this);
+                isActive = false;
+            }
         }
     }
 
     @Override
     public void setAlwaysInactive() {
-        setInactive();
-        this.alwaysInactive = true;
+        synchronized (activityLock) {
+            setInactive();
+            this.alwaysInactive = true;
+        }
     }
 
     @Override
