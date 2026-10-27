@@ -531,8 +531,10 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         }
         // The initial future can fail before ConsumerImpl sets its terminal state. Defer close outside that
         // completion callback, and do not remove healthy children or children reconnecting after a successful start.
+        // A user listener may synchronously close the parent while this update is pending. Cleanup must not queue
+        // behind that listener, since parent close waits for the update to complete.
         try {
-            client.externalExecutorProvider().getExecutor().execute((CleanupTask) () -> {
+            internalPinnedExecutor.execute((CleanupTask) () -> {
                 List<CompletableFuture<?>> closing = new ArrayList<>();
                 for (ConsumerImpl<T> child : failedChildren) {
                     closing.add(FutureUtil.supplySafely(child::closeAsync).handle((ignored, closeError) -> {

@@ -22,15 +22,16 @@ import static org.apache.pulsar.client.impl.ClientTestFixtures.createDelayedComp
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createPulsarClientMockWithMockedClientCnx;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.mockClientCnx;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
@@ -62,11 +63,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ExecutorProvider.CleanupTask;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
@@ -79,6 +83,7 @@ import org.jspecify.annotations.NonNull;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -87,6 +92,7 @@ import org.testng.annotations.Test;
 public class PatternMultiTopicsConsumerImplTest {
     private PatternMultiTopicsConsumerImpl.TopicsChangedListener mockListener;
     private ExecutorProvider executorProvider;
+    private ExecutorProvider internalExecutorProvider;
     private ExecutorService internalExecutor;
     private PulsarClientImpl clientMock;
     private ClientCnx cnx;
@@ -95,7 +101,8 @@ public class PatternMultiTopicsConsumerImplTest {
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
         executorProvider = new ExecutorProvider(1, "PatternMultiTopicsConsumerImplTest");
-        internalExecutor = Executors.newSingleThreadScheduledExecutor();
+        internalExecutorProvider = new ExecutorProvider(1, "PatternConsumerInternalTest");
+        internalExecutor = internalExecutorProvider.getExecutor();
         cnx = mockClientCnx();
         clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor, cnx);
         timer = new HashedWheelTimer();
@@ -111,8 +118,9 @@ public class PatternMultiTopicsConsumerImplTest {
             executorProvider.shutdownNow();
             executorProvider = null;
         }
-        if (internalExecutor != null) {
-            internalExecutor.shutdownNow();
+        if (internalExecutorProvider != null) {
+            internalExecutorProvider.shutdownNow();
+            internalExecutorProvider = null;
             internalExecutor = null;
         }
         if (timer != null) {
@@ -415,6 +423,103 @@ public class PatternMultiTopicsConsumerImplTest {
         }
     }
 
+    @DataProvider
+    public Object[][] listenerThreadCounts() {
+        return new Object[][] {{1}, {3}};
+    }
+
+    @Test(dataProvider = "listenerThreadCounts")
+    @SuppressWarnings("unchecked")
+    public void testFailedChildCleanupDoesNotDeadlockListenerClose(int listenerThreads) throws Exception {
+        executorProvider.shutdownNow();
+        executorProvider = spy(new ExecutorProvider(listenerThreads, "PatternListenerCloseTest"));
+        // Pin both the listener and the old cleanup path to the selected listener executor, including with >1 threads.
+        ExecutorService listenerExecutor = spy(executorProvider.getExecutor());
+        doReturn(listenerExecutor).when(executorProvider).getExecutor();
+        internalExecutor = spy(internalExecutor);
+        clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor, cnx);
+        when(clientMock.timer()).thenReturn(timer);
+        doReturn(true).when(cnx).isSupportsTopicWatchers();
+        doReturn(true).when(cnx).isSupportsTopicWatcherReconcile();
+        doReturn(CompletableFuture.completedFuture(new CommandWatchTopicListSuccess()
+                .setRequestId(0).setWatcherId(0).setTopicsHash(TopicList.calculateHash(Collections.emptyList()))))
+                .when(cnx).newWatchTopicList(anyLong(), anyLong(), any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(new CommandSuccess()))
+                .when(cnx).newWatchTopicListClose(any(), anyLong());
+        CountDownLatch cleanupSubmitted = new CountDownLatch(1);
+        for (ExecutorService executor : List.of(listenerExecutor, internalExecutor)) {
+            doAnswer(invocation -> {
+                Runnable task = invocation.getArgument(0);
+                invocation.callRealMethod();
+                if (task instanceof CleanupTask) {
+                    cleanupSubmitted.countDown();
+                }
+                return null;
+            }).when(executor).execute(any(Runnable.class));
+        }
+        CountDownLatch listenerEntered = new CountDownLatch(1);
+        CountDownLatch allowListenerClose = new CountDownLatch(1);
+        CompletableFuture<Void> listenerClosed = new CompletableFuture<>();
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAutoUpdatePartitions(false);
+        conf.setMessageListener((consumer, message) -> {
+            listenerEntered.countDown();
+            try {
+                if (!allowListenerClose.await(5, TimeUnit.SECONDS)) {
+                    throw new AssertionError("Failed subscribe did not reach deferred cleanup");
+                }
+                consumer.close();
+                listenerClosed.complete(null);
+            } catch (Throwable error) {
+                listenerClosed.completeExceptionally(error);
+            }
+        });
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/t.*",
+                TopicsPattern.RegexImplementation.JDK);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(conf, pattern);
+        CompletableFuture<ProducerResponse> firstSubscribe = new CompletableFuture<>();
+        AtomicBoolean firstRequest = new AtomicBoolean(true);
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return firstRequest.compareAndSet(true, false)
+                    ? firstSubscribe : CompletableFuture.completedFuture(mock(ProducerResponse.class));
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        clientMock.getConfiguration().setOperationTimeoutMs(0);
+        try {
+            assertThat(consumer.subscribeFuture).succeedsWithin(Duration.ofSeconds(5));
+            assertThat(consumer.getWatcherFuture()).succeedsWithin(Duration.ofSeconds(5));
+            Message<byte[]> message = mock(Message.class);
+            // Use the consumer's actual default listener dispatch with a controlled user callback.
+            consumer.messageListenerExecutor.execute(message, () -> consumer.listener.received(consumer, message));
+            assertThat(listenerEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            String topic = "persistent://tenant/namespace/t190008";
+            consumer.getTopicListWatcher().handleCommandWatchTopicUpdate(new CommandWatchTopicUpdate()
+                    .setWatcherId(0).setTopicsHash(TopicList.calculateHash(Collections.singletonList(topic)))
+                    .addAllNewTopics(Collections.singletonList(topic)));
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(consumer.getConsumers()).hasSize(1);
+                assertThat(consumer.getConsumers().get(0).subscribeFuture()).isNotDone();
+            });
+
+            firstSubscribe.completeExceptionally(
+                    new PulsarClientException.TimeoutException("Initial subscribe failed"));
+            assertThat(cleanupSubmitted.await(5, TimeUnit.SECONDS)).isTrue();
+            // Let the listener close only after cleanup is submitted, so the closed flag cannot skip cleanup.
+            allowListenerClose.countDown();
+
+            assertThat(listenerClosed).succeedsWithin(Duration.ofSeconds(5));
+            assertThat(consumer.getState()).isEqualTo(HandlerState.State.Closed);
+            assertThat(consumer.getConsumers()).isEmpty();
+            assertThat(consumer.allTopicPartitionsNumber.get()).isZero();
+        } finally {
+            allowListenerClose.countDown();
+            firstSubscribe.complete(mock(ProducerResponse.class));
+            // Interrupt a deadlocked old listener and replay queued CleanupTasks after its executor terminates.
+            executorProvider.shutdownNow();
+            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
     @SuppressWarnings("unchecked")
     private ConsumerImpl<byte[]> childForFailedAttemptTest(String topic, boolean initialFailure,
                                                           HandlerState.State state) {
@@ -511,16 +616,18 @@ public class PatternMultiTopicsConsumerImplTest {
 
     @Test
     public void testLateFailedChildCallbackAfterCloseDoesNotScheduleCleanup() throws Exception {
+        internalExecutor = spy(internalExecutor);
+        doReturn(internalExecutor).when(clientMock).getInternalExecutorService();
         TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
                 TopicsPattern.RegexImplementation.JDK);
         PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(pattern);
         consumer.closeAsync().get(5, TimeUnit.SECONDS);
-        clearInvocations(clientMock);
+        clearInvocations(internalExecutor);
         CompletableFuture<Void> result = new CompletableFuture<>();
         consumer.handleSubscribeOneTopicError("persistent://tenant/namespace/t190008",
                 new RuntimeException("Late failed subscribe"), result);
         assertThat(result).isCompletedExceptionally();
-        verify(clientMock, never()).externalExecutorProvider();
+        verify(internalExecutor, never()).execute(any(Runnable.class));
         assertThat(consumer.getConsumers()).isEmpty();
         assertThat(consumer.allTopicPartitionsNumber.get()).isZero();
     }
@@ -619,22 +726,18 @@ public class PatternMultiTopicsConsumerImplTest {
         ConsumerImpl<byte[]> failed = childForFailedAttemptTest(topic, true, HandlerState.State.Connecting);
         consumer.consumers.put(topic, failed);
         consumer.allTopicPartitionsNumber.set(1);
-        ExecutorService rejectingExecutor = mock(ExecutorService.class);
-        ExecutorProvider rejectingProvider = mock(ExecutorProvider.class);
-        doReturn(rejectingExecutor).when(rejectingProvider).getExecutor();
-        doThrow(new RejectedExecutionException("Client is shutting down"))
-                .when(rejectingExecutor).execute(any(Runnable.class));
-        doReturn(rejectingProvider).when(clientMock).externalExecutorProvider();
+        internalExecutor.shutdown();
         try {
             CompletableFuture<Void> result = new CompletableFuture<>();
             RuntimeException subscribeError = new RuntimeException("Initial subscribe failed");
             consumer.handleSubscribeOneTopicError(topic, subscribeError, result);
             assertThat(result).isCompletedExceptionally();
-            verify(rejectingExecutor).execute(any(Runnable.class));
             verify(failed, never()).closeAsync();
         } finally {
-            doReturn(executorProvider).when(clientMock).externalExecutorProvider();
-            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+            // The base close path also needs the deliberately terminated internal executor.
+            assertThatThrownBy(() -> consumer.closeAsync().get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(RejectedExecutionException.class);
+            consumer.getUnAckedMessageTracker().close();
         }
     }
 
@@ -649,7 +752,7 @@ public class PatternMultiTopicsConsumerImplTest {
         consumer.allTopicPartitionsNumber.set(1);
         CountDownLatch blocked = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
-        executorProvider.getExecutor().execute(() -> {
+        internalExecutor.execute(() -> {
             blocked.countDown();
             try {
                 release.await();
@@ -662,14 +765,17 @@ public class PatternMultiTopicsConsumerImplTest {
             CompletableFuture<Void> result = new CompletableFuture<>();
             consumer.handleSubscribeOneTopicError(topic, new RuntimeException("Initial subscribe failed"), result);
             assertThat(result).isNotDone();
-            executorProvider.shutdownNow();
+            internalExecutorProvider.shutdownNow();
             assertThat(result).failsWithin(Duration.ofSeconds(5));
             assertThat(consumer.getConsumers()).isEmpty();
             assertThat(consumer.allTopicPartitionsNumber.get()).isZero();
             verify(failed).closeAsync();
         } finally {
             release.countDown();
-            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+            // The base close path also needs the deliberately terminated internal executor.
+            assertThatThrownBy(() -> consumer.closeAsync().get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(RejectedExecutionException.class);
+            consumer.getUnAckedMessageTracker().close();
         }
     }
 
