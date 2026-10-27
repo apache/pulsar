@@ -74,6 +74,7 @@ final class ConsumeV4 {
                     .subscriptionType(SubscriptionType.valueOf(cmd.subscriptionType.name()))
                     .subscriptionMode(SubscriptionMode.valueOf(cmd.subscriptionMode.name()))
                     .subscriptionInitialPosition(cmd.subscriptionInitialPosition)
+                    .readCompacted(v4.readCompacted)
                     .poolMessages(v4.poolMessages)
                     .replicateSubscriptionState(v4.replicateSubscriptionState);
 
