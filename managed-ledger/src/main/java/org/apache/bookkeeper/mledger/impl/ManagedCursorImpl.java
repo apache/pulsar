@@ -1009,8 +1009,15 @@ public class ManagedCursorImpl implements ManagedCursor {
         // Skip deleted entries.
         boolean skipOnlyMessageDeleted = skipCondition == null;
         skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
-        OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, maxSizeBytes, callback, ctx,
-                maxPosition, skipCondition, true);
+        OpReadEntry op;
+        try {
+            op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, maxSizeBytes, callback, ctx,
+                    maxPosition, skipCondition, true);
+        } catch (Throwable t) {
+            readOperationCompleted();
+            callback.readEntriesFailed(new ManagedLedgerException(t), ctx);
+            return;
+        }
         op.skipOnlyMessageDeleted = skipOnlyMessageDeleted;
         ledger.asyncReadEntries(op);
     }
@@ -2041,41 +2048,59 @@ public class ManagedCursorImpl implements ManagedCursor {
                 cb.readEntryFailed(exception, readCtx);
             }
         };
-        // the positions to read from storage
-        List<Position> positions = new ArrayList<>(replayPositions.size());
-        for (Position position : replayPositions) {
-            if (ledger.entryCache.hasEntry(position)) {
-                ledger.asyncReadEntry(position, REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
-            } else {
-                positions.add(position);
+        // The positions whose read was not issued yet. On a failure to issue the reads, they are failed through
+        // the callback, so that the replay's aggregate callback - which counts every position - can complete and
+        // release the entries it already collected.
+        List<Position> pending = new ArrayList<>(replayPositions);
+        try {
+            // the positions to read from storage
+            List<Position> positions = new ArrayList<>(replayPositions.size());
+            for (int i = 0; i < pending.size(); ) {
+                Position position = pending.get(i);
+                if (ledger.entryCache.hasEntry(position)) {
+                    ledger.asyncReadEntry(position, REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
+                    pending.remove(i);
+                } else {
+                    positions.add(position);
+                    i++;
+                }
             }
-        }
-        if (positions.isEmpty()) {
-            // the cache had every position
-            return;
-        }
-        positions.sort(null);
-        long averageEntrySize = Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
-        // A range read holds its permits on the inflight reads limiter until its wanted entries are released, which
-        // the callback may keep until the replay's other reads complete. So that the replay's reads can take their
-        // permits together whenever the wanted entries' own reads could, the entries in between take at most the
-        // limiter's bytes that the wanted entries leave, by the per-ledger entry size estimates that the limiter
-        // acquires the permits with. Without an estimate for a ledger, the replay takes no entries in between.
-        long maxReadsInFlightSize = ledger.getFactory().getConfig().getManagedLedgerMaxReadsInFlightSize();
-        long maxGapBytes = Long.MAX_VALUE;
-        if (maxReadsInFlightSize > 0) {
-            maxGapBytes = maxReadsInFlightSize;
-            for (Position position : replayPositions) {
-                long estimatedEntrySize = ledger.getEstimatedReadEntrySize(position.getLedgerId());
-                maxGapBytes = estimatedEntrySize < 0 ? 0 : Math.max(0, maxGapBytes - estimatedEntrySize);
+            if (positions.isEmpty()) {
+                // the cache had every position
+                return;
             }
-        }
-        for (List<Position> run : replayRuns(positions, averageEntrySize, ledger::getEstimatedReadEntrySize,
-                maxGapBytes)) {
-            if (run.size() == 1) {
-                ledger.asyncReadEntry(run.get(0), REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
-            } else {
-                readReplayRange(run, cb, ctx);
+            positions.sort(null);
+            long averageEntrySize =
+                    Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
+            // A range read holds its permits on the inflight reads limiter until its wanted entries are released,
+            // which the callback may keep until the replay's other reads complete. So that the replay's reads can
+            // take their permits together whenever the wanted entries' own reads could, the entries in between
+            // take at most the limiter's bytes that the wanted entries leave, by the per-ledger entry size
+            // estimates that the limiter acquires the permits with. Without an estimate for a ledger, the replay
+            // takes no entries in between.
+            long maxReadsInFlightSize = ledger.getFactory().getConfig().getManagedLedgerMaxReadsInFlightSize();
+            long maxGapBytes = Long.MAX_VALUE;
+            if (maxReadsInFlightSize > 0) {
+                maxGapBytes = maxReadsInFlightSize;
+                for (Position position : replayPositions) {
+                    long estimatedEntrySize = ledger.getEstimatedReadEntrySize(position.getLedgerId());
+                    maxGapBytes = estimatedEntrySize < 0 ? 0 : Math.max(0, maxGapBytes - estimatedEntrySize);
+                }
+            }
+            for (List<Position> run : replayRuns(positions, averageEntrySize, ledger::getEstimatedReadEntrySize,
+                    maxGapBytes)) {
+                if (run.size() == 1) {
+                    ledger.asyncReadEntry(run.get(0), REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
+                } else {
+                    readReplayRange(run, cb, ctx);
+                }
+                pending.removeAll(run);
+            }
+        } catch (Throwable t) {
+            log.warn().exception(t).log("Failed to issue the reads of a replay");
+            ManagedLedgerException exception = new ManagedLedgerException(t);
+            for (Position position : pending) {
+                cb.readEntryFailed(exception, ctx);
             }
         }
     }

@@ -2558,7 +2558,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    /**
+     * Reads the entries of the passed operation. Never fails synchronously: the cursor has already counted the
+     * operation as a pending read and relies on a completion callback to undo that, so a failure to submit the
+     * read - including an error such as {@link OutOfMemoryError} thrown while building or dispatching it, before
+     * anything was submitted to the bookkeeper - is reported through {@code readEntriesFailed}.
+     */
     void asyncReadEntries(OpReadEntry opReadEntry) {
+        try {
+            asyncReadEntriesInternal(opReadEntry);
+        } catch (Throwable t) {
+            log.error().attr("readPosition", opReadEntry.readPosition).exception(t).log("Failed to submit read");
+            opReadEntry.readEntriesFailed(new ManagedLedgerException(t), opReadEntry.ctx);
+        }
+    }
+
+    private void asyncReadEntriesInternal(OpReadEntry opReadEntry) {
         final State state = STATE_UPDATER.get(this);
         if (state.isFenced() || state == State.Closed) {
             opReadEntry.readEntriesFailed(new ManagedLedgerFencedException(), opReadEntry.ctx);
@@ -3103,7 +3118,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         return numberOfCursors > 0 ? numberOfCursors : EntryImpl.NO_EXPECTED_READ_COUNT;
                     }
                     : cursor::getNumberOfCursorsAtSamePositionOrBefore;
-            ManagedCursorImpl.ReadAheadToken readAhead = cursor.tryStartReadAhead();
+            ManagedCursorImpl.ReadAheadToken readAhead;
+            try {
+                readAhead = cursor.tryStartReadAhead();
+            } catch (Throwable t) {
+                log.debug().attr("ledgerId", ledger.getId()).exceptionMessage(t).log("Couldn't read ahead");
+                return;
+            }
             if (readAhead == null) {
                 return;
             }
@@ -3163,7 +3184,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     opReadEntry, ctx);
         }
         if (readAhead != null) {
-            readAhead.run();
+            try {
+                readAhead.run();
+            } catch (Throwable t) {
+                log.debug().attr("ledgerId", ledger.getId()).exceptionMessage(t).log("Couldn't read ahead");
+            }
         }
     }
 
