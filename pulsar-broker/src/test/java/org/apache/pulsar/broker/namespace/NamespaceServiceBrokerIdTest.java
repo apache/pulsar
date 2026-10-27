@@ -45,7 +45,8 @@ public class NamespaceServiceBrokerIdTest {
                 {"broker-without-port"},
                 {"broker/id with %=+? [東京]"},
                 {"broker-id=abcd"},
-                {"broker/one:8080"}
+                {"broker/one:8080"},
+                {"foo:bar:123"}
         };
     }
 
@@ -76,7 +77,7 @@ public class NamespaceServiceBrokerIdTest {
     public Object[][] legacyBrokerIds() {
         return new Object[][]{
                 {"127.0.0.1:8080"}, {"localhost:8080"}, {"broker.example.:8080"},
-                {"::1:8080"}, {"broker-id=6162:8080"}
+                {"broker-id=6162:8080"}
         };
     }
 
@@ -85,6 +86,25 @@ public class NamespaceServiceBrokerIdTest {
         assertThat(NamespaceService.getHeartbeatNamespace(brokerId, config).toString()).isEqualTo("pulsar/" + brokerId);
         assertThat(NamespaceService.getSLAMonitorNamespace(brokerId, config).toString())
                 .isEqualTo("sla-monitor/" + brokerId);
+    }
+
+    @DataProvider
+    public Object[][] encodedBrokerIds() {
+        return new Object[][]{
+                {"::1:8080"}, {"fe80::1:8080"}, {"[::1]:8080"},
+                {"fe80::1%eth0:8080"}, {"[fe80::1%eth0]:8080"}, {"foo:bar:123"},
+                {"broker-without-port"}, {"broker/one:8080"}
+        };
+    }
+
+    @Test(dataProvider = "encodedBrokerIds")
+    public void testOtherBrokerIdFormatsAreEncoded(String brokerId) {
+        NamespaceName heartbeat = NamespaceService.getHeartbeatNamespace(brokerId, config);
+        NamespaceName sla = NamespaceService.getSLAMonitorNamespace(brokerId, config);
+        assertThat(heartbeat.getLocalName()).startsWith("broker-id=").doesNotContain(":");
+        assertThat(sla.getLocalName()).startsWith("broker-id=").doesNotContain(":");
+        assertThat(NamespaceService.checkHeartbeatNamespace(heartbeat)).isEqualTo(brokerId);
+        assertThat(NamespaceService.getSLAMonitorBrokerName(sla)).isEqualTo(brokerId);
     }
 
     @DataProvider
@@ -109,7 +129,10 @@ public class NamespaceServiceBrokerIdTest {
         return new Object[][]{
                 {"public/default", false}, {"pulsar/system", true}, {"pulsar/default", false},
                 {"sla-monitor/default", false}, {"pulsar/broker-id=a", false},
-                {"pulsar/broker-id=zz", false}, {"sla-monitor/broker-id=zz", false}
+                {"pulsar/broker-id=zz", false}, {"sla-monitor/broker-id=zz", false},
+                {"pulsar/foo:bar:123", false}, {"sla-monitor/foo:bar:123", false},
+                {"pulsar/::1:8080", false}, {"sla-monitor/::1:8080", false},
+                {"pulsar/fe80::1:8080", false}, {"sla-monitor/fe80::1:8080", false}
         };
     }
 

@@ -146,7 +146,7 @@ public class NamespaceService implements AutoCloseable {
 
     public static final int BUNDLE_SPLIT_RETRY_LIMIT = 7;
     public static final String SLA_NAMESPACE_PROPERTY = "sla-monitor";
-    private static final Pattern LEGACY_BROKER_ID = Pattern.compile(".+:\\d+");
+    private static final Pattern LEGACY_BROKER_ID = Pattern.compile("[^:]+:\\d+");
     private static final String ESCAPED_BROKER_ID_PREFIX = "broker-id=";
     private static final String BROKER_ID_NAMESPACE_PATTERN =
             "(" + LEGACY_BROKER_ID.pattern() + "|" + ESCAPED_BROKER_ID_PREFIX + "((?:[0-9a-f]{2})*))";
@@ -1974,7 +1974,7 @@ public class NamespaceService implements AutoCloseable {
     }
 
     private static String encodeBrokerIdForNamespace(String brokerId) {
-        // Keep existing namespace names when they can represent the broker id without escaping.
+        // Preserve only the namespace form recognized by the original heartbeat/SLA matchers.
         if (NamedEntity.isAllowed(brokerId) && LEGACY_BROKER_ID.matcher(brokerId).matches()) {
             return brokerId;
         }
