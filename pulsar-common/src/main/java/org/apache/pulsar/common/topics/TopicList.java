@@ -78,7 +78,11 @@ public class TopicList {
                 .map(TopicName::get)
                 .filter(topicName -> {
                     String partitionedTopicName = topicName.getPartitionedTopicName();
-                    String removedScheme = SCHEME_SEPARATOR_PATTERN.split(partitionedTopicName)[1];
+                    int start = partitionedTopicName.indexOf(SCHEME_SEPARATOR) + SCHEME_SEPARATOR.length();
+                    int end = partitionedTopicName.indexOf(SCHEME_SEPARATOR, start);
+                    // Preserve split(...)[1]: scalable local names may contain another scheme separator.
+                    String removedScheme = end < 0 ? partitionedTopicName.substring(start)
+                            : partitionedTopicName.substring(start, end);
                     return topicsPattern.matches(removedScheme);
                 })
                 .map(TopicName::toString);
