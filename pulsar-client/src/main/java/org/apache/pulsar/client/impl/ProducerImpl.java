@@ -2414,11 +2414,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 .attr("retry", t.getClass().getName())
                 .exceptionMessage(t)
                 .log("Closed producer because get an error that does not support to retry");
+        // Fail the creation with the error before closing, so that the close does not fail it first with its own.
+        producerCreatedFuture.completeExceptionally(t);
         closeAsync().whenComplete((v, ex) -> {
             if (ex != null) {
                 log.error().exception(ex).log("Failed to close producer on TopicDoesNotExistException.");
             }
-            producerCreatedFuture.completeExceptionally(t);
         });
     }
 

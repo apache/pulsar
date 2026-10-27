@@ -385,15 +385,11 @@ public class ProducerImplTest {
         };
     }
 
-    /**
-     * The key task runs apart from the connection. When the connection is ready before the first key load has
-     * finished, the creation must wait for it: it completes once the key is loaded and fails if the load does,
-     * with a crypto error or with any other exception the key reader throws.
-     */
     /** A producer that encrypts, whose key task is captured instead of run, connected through a mocked cnx. */
     private static final class ProducerWaitingForItsKey implements AutoCloseable {
         final PulsarClientImpl client = mockedPulsarClient();
         final AtomicReference<Runnable> keyTask = new AtomicReference<>();
+        final ScheduledFuture<?> keyTaskFuture = mock(ScheduledFuture.class);
         final CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
         final DefaultEventLoop eventLoop = new DefaultEventLoop();
         final ClientCnx cnx = mock(ClientCnx.class, Mockito.RETURNS_DEEP_STUBS);
@@ -404,7 +400,7 @@ public class ProducerImplTest {
             EventLoopGroup eventLoopGroup = client.eventLoopGroup();
             doAnswer(invocation -> {
                 keyTask.set(invocation.getArgument(0));
-                return mock(ScheduledFuture.class);
+                return keyTaskFuture;
             }).when(eventLoopGroup).scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
             when(client.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
             MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
@@ -419,8 +415,10 @@ public class ProducerImplTest {
             when(cnx.ctx().channel().eventLoop()).thenReturn(eventLoop);
             ProducerResponse response = mock(ProducerResponse.class);
             when(response.getProducerName()).thenReturn("slow-key-producer");
-            when(cnx.sendRequestWithId(any(ByteBuf.class), anyLong()))
-                    .thenReturn(CompletableFuture.completedFuture(response));
+            doAnswer(invocation -> {
+                ReferenceCountUtil.release(invocation.getArgument(0));
+                return CompletableFuture.completedFuture(response);
+            }).when(cnx).sendRequestWithId(any(ByteBuf.class), anyLong());
         }
 
         /** Opens the connection and waits for the producer to be ready on it. */
@@ -431,11 +429,20 @@ public class ProducerImplTest {
         }
 
         @Override
-        public void close() {
-            eventLoop.shutdownGracefully();
+        public void close() throws Exception {
+            try {
+                producer.closeAsync().get(10, TimeUnit.SECONDS);
+            } finally {
+                eventLoop.shutdownGracefully(0, 10, TimeUnit.SECONDS).sync();
+            }
         }
     }
 
+    /**
+     * The key task runs apart from the connection. When the connection is ready before the first key load has
+     * finished, the creation must wait for it: it completes once the key is loaded and fails if the load does,
+     * with a crypto error or with any other exception the key reader throws.
+     */
     @Test(dataProvider = "firstKeyLoad")
     public void testCreationWaitsForTheFirstKeyLoad(Exception keyLoadFailure) throws Exception {
         try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(keyLoadFailure)) {
@@ -507,6 +514,41 @@ public class ProducerImplTest {
             assertTrue(waiting.created.isCompletedExceptionally(), "The creation must not stay pending");
             assertThatThrownBy(waiting.created::join)
                     .hasCauseInstanceOf(PulsarClientException.AlreadyClosedException.class);
+        }
+    }
+
+    @DataProvider
+    public Object[][] keyLoadAndReconnectOrderings() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    /**
+     * An unrecoverable error on the connection fails the creation with that error, whether the key has loaded and
+     * whether the producer was ready once before: the close that follows must not replace it with its own.
+     */
+    @Test(dataProvider = "keyLoadAndReconnectOrderings")
+    public void testCreationFailsWithTheUnrecoverableError(boolean keyLoaded, boolean reconnect) throws Exception {
+        try (ProducerWaitingForItsKey waiting = new ProducerWaitingForItsKey(null)) {
+            if (reconnect) {
+                waiting.connect();
+                waiting.producer.connectionClosed(waiting.cnx, Optional.empty(), Optional.empty());
+            }
+            if (keyLoaded) {
+                waiting.keyTask.get().run();
+            }
+            assertThat(waiting.created).isNotDone();
+            PulsarClientException error = new PulsarClientException.TopicDoesNotExistException("topic deleted");
+            doAnswer(invocation -> {
+                ReferenceCountUtil.release(invocation.getArgument(0));
+                return FutureUtil.failedFuture(error);
+            }).when(waiting.cnx).sendRequestWithId(any(ByteBuf.class), anyLong());
+
+            waiting.producer.connectionOpened(waiting.cnx).get(10, TimeUnit.SECONDS);
+
+            assertThatThrownBy(waiting.created::join).hasCause(error);
+            assertThat(waiting.producer.getState()).isEqualTo(HandlerState.State.Closed);
+            verify(waiting.keyTaskFuture).cancel(false);
+            verify(waiting.client).cleanupProducer(waiting.producer);
         }
     }
 
