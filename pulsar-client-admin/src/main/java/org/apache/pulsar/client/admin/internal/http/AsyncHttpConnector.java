@@ -263,10 +263,12 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                                 DefaultAsyncHttpClientConfig.Builder confBuilder,
                                                 PulsarClientSharedResourcesImpl sharedResources) {
         // The connections per host are limited by the ConcurrencyReducer in executeRequest, which queues requests
-        // without blocking a thread. Don't also set AsyncHttpClient's maxConnectionsPerHost: a connection closed in
-        // the background, e.g. by the idle connection cleaner, keeps its permit until its event loop has processed
-        // the close, while the ConcurrencyReducer starts the next request right away on the completing thread, often
-        // that event loop. The request then fails for lack of a permit, or blocks the thread that would free it.
+        // without blocking a thread. Disable AsyncHttpClient's own limit, whatever its JVM-wide default: a connection
+        // closed in the background, e.g. by the idle connection cleaner, keeps its permit until its event loop has
+        // processed the close, while the ConcurrencyReducer starts the next request right away on the completing
+        // thread, often that event loop. The request then fails for lack of a permit, or blocks the thread that would
+        // free it.
+        confBuilder.setMaxConnectionsPerHost(-1);
         if (conf.getConnectionMaxIdleSeconds() > 0) {
             confBuilder.setPooledConnectionIdleTimeout(Duration.ofSeconds(conf.getConnectionMaxIdleSeconds()));
         }

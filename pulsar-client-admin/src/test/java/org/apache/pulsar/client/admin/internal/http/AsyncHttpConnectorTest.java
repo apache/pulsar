@@ -52,6 +52,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.Response;
+import org.asynchttpclient.config.AsyncHttpClientConfigHelper;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
@@ -494,6 +495,39 @@ public class AsyncHttpConnectorTest {
                 });
 
         assertThat(chained).as("the chained request completes").succeedsWithin(10, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void testConnectionsPerBrokerNotLimitedByAsyncHttpClientDefaults() {
+        server.stubFor(get(urlEqualTo("/overlapping")).willReturn(aResponse().withFixedDelay(200)));
+
+        String property = "org.asynchttpclient.maxConnectionsPerHost";
+        String previous = System.getProperty(property);
+        // a JVM-wide AsyncHttpClient default that is smaller than the connections per broker
+        System.setProperty(property, "1");
+        AsyncHttpClientConfigHelper.reloadProperties();
+        try {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl("http://localhost:" + server.port());
+            conf.setConnectionsPerBroker(2);
+
+            @Cleanup
+            AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000, 5000, 0, conf, false, null);
+
+            CompletableFuture<Response> first = connector.executeRequest(request("/overlapping"));
+            CompletableFuture<Response> second = connector.executeRequest(request("/overlapping"));
+
+            assertThat(CompletableFuture.allOf(first, second))
+                    .as("both requests, which the connections per broker allow, succeed")
+                    .succeedsWithin(10, TimeUnit.SECONDS);
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
+            AsyncHttpClientConfigHelper.reloadProperties();
+        }
     }
 
     private Request request(String path) {
