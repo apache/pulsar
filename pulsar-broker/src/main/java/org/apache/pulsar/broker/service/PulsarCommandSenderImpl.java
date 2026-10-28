@@ -40,6 +40,7 @@ import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
@@ -319,10 +320,16 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                         // increment ref-count of data and release at the end of process:
                         // so, we can get chance to call entry.release
                         metadataAndPayload.retain();
-                        ctx.write(
-                                cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(),
-                                        partitionIdx, redeliveryCount, metadataAndPayload, ackSet, topicName, epoch),
-                                ctx.voidPromise());
+                        ByteBufPair message;
+                        try {
+                            message = cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(),
+                                    partitionIdx, redeliveryCount, metadataAndPayload, ackSet, topicName, epoch);
+                        } catch (Throwable t) {
+                            // No message was handed to the channel to release this retained reference.
+                            metadataAndPayload.release();
+                            throw t;
+                        }
+                        ctx.write(message, ctx.voidPromise());
                     }
                     entriesToRelease.add(entry);
                 }
