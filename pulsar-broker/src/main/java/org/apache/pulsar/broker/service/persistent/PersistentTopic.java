@@ -5359,10 +5359,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 addFailed(ManagedLedgerException.getManagedLedgerException(t), publishContext);
                                 return null;
                             }
-                            publishContext.completed(null, position.getLedgerId(),
-                                    position.getEntryId());
-
-                            decrementPendingWriteOpsAndCheck();
+                            try {
+                                publishContext.completed(null, position.getLedgerId(),
+                                        position.getEntryId());
+                            } finally {
+                                decrementPendingWriteOpsAndCheck();
+                            }
                             return null;
                         })
                         .exceptionally(throwable -> {
