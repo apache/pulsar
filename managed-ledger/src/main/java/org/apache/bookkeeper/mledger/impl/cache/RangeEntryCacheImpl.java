@@ -81,7 +81,6 @@ public class RangeEntryCacheImpl implements EntryCache {
     final ManagedLedgerImpl ml;
     private ManagedLedgerInterceptor interceptor;
     private final RangeCache entries;
-    private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
 
     private static final double MB = 1024 * 1024;
@@ -90,12 +89,12 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final LongAdder totalAddedEntriesCount = new LongAdder();
     private final EntryLengthFunction entryLengthFunction;
 
-    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
+    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
                                RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction) {
-        this(manager, ml, copyEntries, rangeCacheRemovalQueue, entryLengthFunction, null);
+        this(manager, ml, rangeCacheRemovalQueue, entryLengthFunction, null);
     }
 
-    RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
+    RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
                         RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction,
                         PendingReadsManager pendingReadsManager) {
         this.manager = manager;
@@ -104,7 +103,6 @@ public class RangeEntryCacheImpl implements EntryCache {
         this.entryLengthFunction = entryLengthFunction;
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache(rangeCacheRemovalQueue);
-        this.copyEntries = copyEntries;
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Initialized managed-ledger entry cache", ml.getName());
@@ -145,6 +143,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                     entryLength);
         }
 
+        boolean copyEntries = manager.isCopyEntriesInCache();
         ByteBuf cachedData;
         if (copyEntries) {
             cachedData = copyEntry(entry);
