@@ -256,6 +256,35 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         consumer.close();
     }
 
+    @Test(timeOut = 30000)
+    public void testRetryTopicCumulativeKeepsCustomProperties() throws Exception {
+        final String topic = newTopicName();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .enableRetry(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+        producer.send("Hello Pulsar".getBytes());
+
+        Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message);
+        consumer.reconsumeLaterCumulativeAsync(message, Map.of("custom_key", "custom_value"), 1, TimeUnit.SECONDS)
+                .get();
+
+        Message<byte[]> retried = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(retried);
+        assertEquals(retried.getProperty("custom_key"), "custom_value");
+    }
+
     @Data
     public static class Foo {
         @Nullable
