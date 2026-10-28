@@ -508,39 +508,51 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     @Override
     public CompletableFuture<Void> unsubscribeAsync(boolean force) {
-        if (getState() == State.Closing || getState() == State.Closed) {
-            return FutureUtil
-                    .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+        final ClientCnx cnx;
+        final long cnxEpoch;
+        synchronized (this) {
+            if (getState() == State.Closing || getState() == State.Closed) {
+                return FutureUtil
+                        .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+            }
+            cnx = cnx();
+            if (!isConnected(cnx)) {
+                return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException(
+                        String.format("The client is not connected to the broker when unsubscribing the "
+                                + "subscription %s of the topic %s", subscription, topicName.toString())));
+            }
+            setState(State.Closing);
+            cnxEpoch = connectionHandler.getEpoch();
         }
         final CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
-        if (isConnected()) {
-            setState(State.Closing);
-            long requestId = client.newRequestId();
-            ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId, force);
-            ClientCnx cnx = cnx();
-            cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
-                closeConsumerTasks();
-                deregisterFromClientCnx();
-                client.cleanupConsumer(this);
-                log.info("Successfully unsubscribed from topic");
-                setState(State.Closed);
-                unsubscribeFuture.complete(null);
-            }).exceptionally(e -> {
-                log.error().exceptionMessage(e.getCause())
-                        .log("Failed to unsubscribe");
-                setState(State.Ready);
-                unsubscribeFuture.completeExceptionally(
-                        PulsarClientException.wrap(e.getCause(),
-                                String.format("Failed to unsubscribe the subscription %s of topic %s",
-                                        subscription, topicName.toString())));
-                return null;
-            });
-        } else {
+        long requestId = client.newRequestId();
+        ByteBuf unsubscribe = Commands.newUnsubscribe(consumerId, requestId, force);
+        cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
+            closeConsumerTasks();
+            deregisterFromClientCnx();
+            client.cleanupConsumer(this);
+            log.info("Successfully unsubscribed from topic");
+            setState(State.Closed);
+            unsubscribeFuture.complete(null);
+        }).exceptionally(e -> {
+            log.error().exceptionMessage(e.getCause())
+                    .log("Failed to unsubscribe");
+            synchronized (ConsumerImpl.this) {
+                if (getState() == State.Closing) {
+                    setState(State.Ready);
+                    // This subscription remains usable after a broker rejection. Return credits deferred
+                    // by listener completion or resume(), unless a new connection attempt has replaced it.
+                    if (!connectionHandler.isSupersededAttempt(cnx, cnxEpoch)) {
+                        flushAvailablePermitsToBroker(cnx);
+                    }
+                }
+            }
             unsubscribeFuture.completeExceptionally(
-                    new PulsarClientException.NotConnectedException(
-                            String.format("The client is not connected to the broker when unsubscribing the "
-                                    + "subscription %s of the topic %s", subscription, topicName.toString())));
-        }
+                    PulsarClientException.wrap(e.getCause(),
+                            String.format("Failed to unsubscribe the subscription %s of topic %s",
+                                    subscription, topicName.toString())));
+            return null;
+        });
         return unsubscribeFuture;
     }
 
@@ -2188,8 +2200,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         increaseAvailablePermits(currentCnx, 1);
     }
 
+    /**
+     * Accumulate permit credit without sending FLOW; return the updated balance.
+     */
+    int addAvailablePermits(int delta) {
+        return AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
+    }
+
     protected void increaseAvailablePermits(ClientCnx currentCnx, int delta) {
-        int available = AVAILABLE_PERMITS_UPDATER.addAndGet(this, delta);
+        int available = addAvailablePermits(delta);
         while (available >= getCurrentReceiverQueueSize() / 2 && !paused) {
             if (AVAILABLE_PERMITS_UPDATER.compareAndSet(this, available, 0)) {
                 log.debug().attr("available", available)

@@ -213,10 +213,12 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
             }
             synchronized (ZeroQueueConsumerImpl.this) {
                 waitingOnListenerForZeroQueueSize = false;
-                // Reconnection flushes the pending ACKs under the same lock before granting permits.
-                // If SUBSCRIBE is still pending, it will grant this idle listener's permit when it completes.
+                // A reconnect replaces old credits with its initial grant after flushing pending ACKs.
+                // A failed unsubscribe keeps the subscription and must return any deferred credit instead.
                 if (isConnected()) {
                     increaseAvailablePermits(cnx());
+                } else {
+                    addAvailablePermits(1);
                 }
             }
         });

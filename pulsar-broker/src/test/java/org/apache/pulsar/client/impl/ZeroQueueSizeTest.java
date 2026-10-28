@@ -612,6 +612,119 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         return consumers.get(0).getAvailablePermits();
     }
 
+    private int getBrokerAvailablePermits(String topicName, String consumerName) throws Exception {
+        return admin.topics().getStats(topicName).getSubscriptions().get("sub").getConsumers().stream()
+                .filter(consumer -> consumerName.equals(consumer.getConsumerName()))
+                .findFirst().orElseThrow().getAvailablePermits();
+    }
+
+    @DataProvider
+    public Object[][] failedUnsubscribeListenerCompletionOrder() {
+        return new Object[][] {{true, false, false}, {false, false, false},
+                {true, true, false}, {true, true, true}};
+    }
+
+    @Test(timeOut = 60000, dataProvider = "failedUnsubscribeListenerCompletionOrder")
+    public void testFailedUnsubscribePreservesListenerPermit(boolean listenerFinishesBeforeError,
+                                                            boolean paused,
+                                                            boolean resumeDuringUnsubscribe) throws Exception {
+        String topic = newTopicName();
+        CountDownLatch listenerEntered = new CountDownLatch(1);
+        CountDownLatch releaseListener = new CountDownLatch(1);
+        CompletableFuture<Void> listenerFinished = new CompletableFuture<>();
+        CompletableFuture<Void> secondMessage = new CompletableFuture<>();
+        List<String> received = new CopyOnWriteArrayList<>();
+        try (PulsarClient client = newPulsarClient();
+             ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                     .topic(topic).subscriptionName("sub").consumerName("listener")
+                     .subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
+                     .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                     .messageListener((c, msg) -> {
+                         c.acknowledgeAsync(msg);
+                         received.add(msg.getValue());
+                         if ("first".equals(msg.getValue())) {
+                             listenerEntered.countDown();
+                             try {
+                                 assertThat(releaseListener.await(30, TimeUnit.SECONDS)).isTrue();
+                                 listenerFinished.complete(null);
+                             } catch (Throwable t) {
+                                 listenerFinished.completeExceptionally(t);
+                             }
+                         } else {
+                             secondMessage.complete(null);
+                         }
+                     }).subscribe();
+             Consumer<String> otherConsumer = client.newConsumer(Schema.STRING).topic(topic)
+                     .subscriptionName("sub").subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
+                     .subscribe();
+             Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
+                     .enableBatching(false).create()) {
+            // The second consumer has no receive pending and therefore cannot take the listener's message.
+            producer.send("first");
+            assertThat(listenerEntered.await(10, TimeUnit.SECONDS)).isTrue();
+            ClientCnx cnx = consumer.getClientCnx();
+            long epoch = consumer.getConnectionHandler().getEpoch();
+            if (paused) {
+                consumer.pause();
+            }
+            try (ConsumerResponseGate gate = new ConsumerResponseGate(consumer, BaseCommand.Type.UNSUBSCRIBE)) {
+                if (resumeDuringUnsubscribe) {
+                    // Accumulate a permit while Ready and paused, then resume while unsubscribe is pending.
+                    releaseListener.countDown();
+                    listenerFinished.get(10, TimeUnit.SECONDS);
+                    awaitListenerTasks(consumer);
+                    assertThat(consumer.getAvailablePermits()).isEqualTo(1);
+                }
+                // The real broker rejects this request because another consumer shares the subscription.
+                CompletableFuture<Void> unsubscribe = consumer.unsubscribeAsync(false);
+                gate.responseHeld.get(10, TimeUnit.SECONDS);
+                assertThat(consumer.getState()).isEqualTo(HandlerState.State.Closing);
+                if (listenerFinishesBeforeError) {
+                    releaseListener.countDown();
+                    listenerFinished.get(10, TimeUnit.SECONDS);
+                    awaitListenerTasks(consumer);
+                }
+                if (resumeDuringUnsubscribe) {
+                    consumer.resume();
+                }
+                gate.awaitWrites();
+                assertThat(gate.commands).as("permits remain deferred while unsubscribe is pending").isEmpty();
+
+                gate.completeResponse();
+                assertThatThrownBy(() -> unsubscribe.get(10, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(PulsarClientException.BrokerMetadataException.class);
+                assertThat(consumer.isConnected()).isTrue();
+                assertThat(consumer.getClientCnx()).isSameAs(cnx);
+                assertThat(consumer.getConnectionHandler().getEpoch()).as("no reconnect replenishes permits")
+                        .isEqualTo(epoch);
+                if (!listenerFinishesBeforeError) {
+                    releaseListener.countDown();
+                    listenerFinished.get(10, TimeUnit.SECONDS);
+                    awaitListenerTasks(consumer);
+                }
+                if (paused && !resumeDuringUnsubscribe) {
+                    gate.awaitWrites();
+                    assertThat(gate.commands).as("unsubscribe failure preserves pause").isEmpty();
+                    assertThat(consumer.getAvailablePermits()).isEqualTo(1);
+                    consumer.resume();
+                }
+
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                        assertThat(getBrokerAvailablePermits(topic, consumer.getConsumerName())).isEqualTo(1));
+                gate.awaitWrites();
+                assertThat(gate.commands).containsExactly(BaseCommand.Type.FLOW);
+                assertThat(gate.permits.get()).isEqualTo(1);
+                producer.send("second");
+                secondMessage.get(10, TimeUnit.SECONDS);
+                assertThat(received).containsExactly("first", "second");
+            } finally {
+                releaseListener.countDown();
+            }
+        } finally {
+            releaseListener.countDown();
+        }
+    }
+
     @DataProvider
     public Object[][] listenerReconnectCompletionOrder() {
         return new Object[][] {{true, false}, {false, false}, {true, true}};
@@ -649,7 +762,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
                      .enableBatching(false).create()) {
             producer.send("first");
             assertThat(listenerEntered.await(10, TimeUnit.SECONDS)).isTrue();
-            try (SubscribeResponseGate gate = new SubscribeResponseGate(consumer)) {
+            try (ConsumerResponseGate gate = new ConsumerResponseGate(consumer, BaseCommand.Type.SUBSCRIBE)) {
                 if (resumeDuringSubscribe) {
                     // Finish while paused on the old connection, leaving one permit for resume() to flush.
                     consumer.pause();
@@ -674,7 +787,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
                     assertThat(gate.commands).as("commands before the SUBSCRIBE response").isEmpty();
                 }
 
-                gate.completeSubscribe();
+                gate.completeResponse();
                 assertThat(consumer.isConnected()).isTrue();
                 if (!listenerFinishesBeforeSubscribe) {
                     assertThat(gate.commands).as("the running listener still owns the permit")
@@ -706,10 +819,11 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         done.get(10, TimeUnit.SECONDS);
     }
 
-    // Delay only the real SUBSCRIBE response, without blocking the connection's event loop or replacing the broker.
-    private static final class SubscribeResponseGate extends ChannelDuplexHandler implements AutoCloseable {
+    // Delay a real broker response without blocking the connection's event loop or replacing the broker.
+    private static final class ConsumerResponseGate extends ChannelDuplexHandler implements AutoCloseable {
         private final ClientCnx cnx;
         private final long consumerId;
+        private final BaseCommand.Type requestType;
         private final CompletableFuture<Void> responseHeld = new CompletableFuture<>();
         private final List<BaseCommand.Type> commands = new CopyOnWriteArrayList<>();
         private final AtomicInteger permits = new AtomicInteger();
@@ -717,11 +831,12 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         private ByteBuf response;
         private ChannelHandlerContext context;
 
-        private SubscribeResponseGate(ConsumerImpl<?> consumer) throws Exception {
+        private ConsumerResponseGate(ConsumerImpl<?> consumer, BaseCommand.Type requestType) throws Exception {
             cnx = consumer.getClientCnx();
             consumerId = consumer.consumerId;
+            this.requestType = requestType;
             cnx.channel().eventLoop().submit(() -> cnx.channel().pipeline()
-                    .addBefore(cnx.ctx().name(), "subscribe-response-gate", this)).get(10, TimeUnit.SECONDS);
+                    .addBefore(cnx.ctx().name(), "consumer-response-gate", this)).get(10, TimeUnit.SECONDS);
         }
 
         @Override
@@ -730,9 +845,14 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
                 ByteBuf view = frame.duplicate();
                 view.skipBytes(Integer.BYTES); // Outbound frames include the total length.
                 BaseCommand command = readCommand(view);
-                if (command.getType() == BaseCommand.Type.SUBSCRIBE
-                        && command.getSubscribe().getConsumerId() == consumerId) {
-                    requestId = command.getSubscribe().getRequestId();
+                if (command.getType() == requestType) {
+                    if (requestType == BaseCommand.Type.SUBSCRIBE
+                            && command.getSubscribe().getConsumerId() == consumerId) {
+                        requestId = command.getSubscribe().getRequestId();
+                    } else if (requestType == BaseCommand.Type.UNSUBSCRIBE
+                            && command.getUnsubscribe().getConsumerId() == consumerId) {
+                        requestId = command.getUnsubscribe().getRequestId();
+                    }
                 } else if (requestId != -1) {
                     if (command.getType() == BaseCommand.Type.FLOW
                             && command.getFlow().getConsumerId() == consumerId) {
@@ -750,7 +870,12 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         @Override
         public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
             BaseCommand command = readCommand(((ByteBuf) msg).duplicate());
-            if (command.getType() == BaseCommand.Type.SUCCESS && command.getSuccess().getRequestId() == requestId) {
+            long responseRequestId = switch (command.getType()) {
+                case SUCCESS -> command.getSuccess().getRequestId();
+                case ERROR -> command.getError().getRequestId();
+                default -> -1;
+            };
+            if (requestId != -1 && responseRequestId == requestId) {
                 response = (ByteBuf) msg;
                 context = ctx;
                 responseHeld.complete(null);
@@ -770,7 +895,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
             cnx.channel().eventLoop().submit(() -> { }).get(10, TimeUnit.SECONDS);
         }
 
-        private void completeSubscribe() throws Exception {
+        private void completeResponse() throws Exception {
             cnx.channel().eventLoop().submit(() -> {
                 ByteBuf frame = response;
                 response = null;
