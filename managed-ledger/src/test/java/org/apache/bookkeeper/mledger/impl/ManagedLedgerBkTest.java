@@ -44,9 +44,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -59,6 +61,7 @@ import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
@@ -170,15 +173,21 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
     @Test(timeOut = 30000)
     public void testOpenTimesOutDuringCursorPositionUpdate() throws Exception {
-        verifyAbandonedOpenDuringCursorPositionUpdate(false);
+        verifyAbandonedOpenDuringCursorPositionUpdate(false, false);
     }
 
     @Test(timeOut = 30000)
     public void testShutdownDuringCursorPositionUpdateClosesLedger() throws Exception {
-        verifyAbandonedOpenDuringCursorPositionUpdate(true);
+        verifyAbandonedOpenDuringCursorPositionUpdate(true, false);
     }
 
-    private void verifyAbandonedOpenDuringCursorPositionUpdate(boolean shutdown) throws Exception {
+    @Test(timeOut = 30000)
+    public void testShutdownWaitsForAbandonedInitializationClose() throws Exception {
+        verifyAbandonedOpenDuringCursorPositionUpdate(true, true);
+    }
+
+    private void verifyAbandonedOpenDuringCursorPositionUpdate(boolean shutdown, boolean raceAbandonedClose)
+            throws Exception {
         String name = "cursor-update-" + testName;
         @Cleanup
         PulsarBookKeeperTestClient client = new PulsarBookKeeperTestClient(
@@ -187,13 +196,57 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         AtomicBoolean gateNextUpdate = new AtomicBoolean();
         CompletableFuture<Void> updateStarted = new CompletableFuture<>();
         CompletableFuture<Void> updateGate = new CompletableFuture<>();
+        AtomicBoolean delayClose = new AtomicBoolean();
+        AtomicInteger closeCalls = new AtomicInteger();
+        CompletableFuture<Void> closeReady = new CompletableFuture<>();
+        CompletableFuture<Void> closeGate = new CompletableFuture<>();
         List<ManagedLedgerImpl> instances = new CopyOnWriteArrayList<>();
-        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, client) {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setNumManagedLedgerSchedulerThreads(1);
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, client, factoryConfig) {
             @Override
             protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String ledgerName,
                     ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
                 ManagedLedgerImpl ledger = new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor,
                         ledgerName, ownershipChecker) {
+                    @Override
+                    void abandonInitialization() {
+                        super.abandonInitialization();
+                        if (raceAbandonedClose) {
+                            // Shutdown has removed the pending entry, but hasn't failed its open future yet.
+                            // Complete the cursor update now so abandonment starts closing the instance first.
+                            updateGate.complete(null);
+                            try {
+                                closeReady.get(5, TimeUnit.SECONDS);
+                            } catch (Exception e) {
+                                throw new AssertionError("The abandoned initialization did not close", e);
+                            }
+                        }
+                    }
+
+                    @Override
+                    public void asyncClose(CloseCallback callback, Object ctx) {
+                        if (!delayClose.get() || closeCalls.incrementAndGet() != 1) {
+                            super.asyncClose(callback, ctx);
+                            return;
+                        }
+                        // Run the real BookKeeper and cursor closes, then hold their completion delivery.
+                        // A second asyncClose must retain its normal behavior, exposing the premature success.
+                        super.asyncClose(new CloseCallback() {
+                            @Override
+                            public void closeComplete(Object context) {
+                                closeReady.complete(null);
+                                closeGate.thenRun(() -> callback.closeComplete(context));
+                            }
+
+                            @Override
+                            public void closeFailed(ManagedLedgerException exception, Object context) {
+                                closeReady.completeExceptionally(exception);
+                                callback.closeFailed(exception, context);
+                            }
+                        }, ctx);
+                    }
+
                     @Override
                     protected ManagedCursorImpl createCursor(BookKeeper cursorBk, String cursorName) {
                         return new ManagedCursorImpl(cursorBk, this, cursorName) {
@@ -252,9 +305,32 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
             if (shutdown) {
                 factory.setShutdownLedgerCloseTimeoutMillis(5000);
-                factory.shutdownAsync().get(10, TimeUnit.SECONDS);
-                assertThatThrownBy(() -> pendingOpen.get(5, TimeUnit.SECONDS))
-                        .hasCauseInstanceOf(ManagedLedgerException.ManagedLedgerFactoryClosedException.class);
+                delayClose.set(raceAbandonedClose);
+                CompletableFuture<Void> shutdownFuture = factory.shutdownAsync();
+                if (raceAbandonedClose) {
+                    // One scheduler thread makes this marker follow the queued shutdown close callback.
+                    // On the broken implementation, shutdown can stop the scheduler before it accepts the marker.
+                    CompletableFuture<Void> shutdownCallbackProcessed = new CompletableFuture<>();
+                    try {
+                        factory.getScheduledExecutor().execute(() -> shutdownCallbackProcessed.complete(null));
+                    } catch (RejectedExecutionException e) {
+                        shutdownCallbackProcessed.complete(null);
+                    }
+                    CompletableFuture.anyOf(shutdownCallbackProcessed, shutdownFuture).get(5, TimeUnit.SECONDS);
+                    assertThat(closeCalls.get()).as("shutdown must share the original close").isEqualTo(1);
+                    assertThat(shutdownFuture).as("the first close callback is still pending").isNotDone();
+                    assertThat(factory.getScheduledExecutor().isShutdown()).isFalse();
+                    closeGate.complete(null);
+                }
+                shutdownFuture.get(10, TimeUnit.SECONDS);
+                if (raceAbandonedClose) {
+                    assertThatThrownBy(() -> pendingOpen.get(5, TimeUnit.SECONDS))
+                            .hasCauseInstanceOf(ManagedLedgerException.class)
+                            .hasMessageContaining("Managed ledger initialization was abandoned");
+                } else {
+                    assertThatThrownBy(() -> pendingOpen.get(5, TimeUnit.SECONDS))
+                            .hasCauseInstanceOf(ManagedLedgerException.ManagedLedgerFactoryClosedException.class);
+                }
                 assertThat(pendingLedger.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
                 assertThat(((ManagedCursorImpl) pendingLedger.getCursors().iterator().next()).getState())
                         .isEqualTo("Closed");
@@ -283,6 +359,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
                 replacement.openCursor("c1").markDelete(added);
             }
         } finally {
+            closeGate.complete(null);
             updateGate.complete(null);
             // Also close an orphan on the unpatched baseline before the shared BookKeeper client is stopped.
             for (ManagedLedgerImpl ledger : instances) {
