@@ -660,10 +660,49 @@ public class ProducerImplTest {
             fixture.requests.get(0).completeExceptionally(new PulsarClientException("registration failed"));
             producer.failPendingMessages(null, new PulsarClientException.TimeoutException("send timed out"));
             CompletableFuture<?> following = producer.newMessage().value(new byte[] {1}).sendAsync();
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(fixture.writes).hasValue(1);
+            verify(fixture.retryTasks.get(0)).cancel(false);
             fixture.retries.get(0).run();
             assertThat(expired).isCompletedExceptionally();
             assertThat(following).isNotDone();
             assertThat(producer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(fixture.writes).hasValue(1);
+        }
+    }
+
+    @DataProvider
+    public Object[][] schemaTimeoutStates() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "schemaTimeoutStates")
+    public void testSchemaTimeoutCallbackCanStartNewRegistration(boolean waitingForRetry) throws Exception {
+        try (SchemaRetryFixture fixture = new SchemaRetryFixture(false)) {
+            ProducerImpl<byte[]> producer = fixture.producer;
+            CompletableFuture<?> expired = producer.newMessage(Schema.STRING).value("expired").sendAsync();
+            if (waitingForRetry) {
+                fixture.requests.get(0).completeExceptionally(new PulsarClientException("registration failed"));
+            }
+            CompletableFuture<?> following = expired.handle((id, error) ->
+                    producer.newMessage(Schema.BOOL).value(true).sendAsync()).thenCompose(future -> future);
+            producer.failPendingMessages(null, new PulsarClientException.TimeoutException("send timed out"));
+            assertThat(expired).isCompletedExceptionally();
+            assertThat(fixture.requests).hasSize(2);
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.RegisteringSchema);
+            if (waitingForRetry) {
+                verify(fixture.retryTasks.get(0)).cancel(false);
+                // Even a retry already dequeued by the event loop must not disturb the callback's registration.
+                fixture.retries.get(0).run();
+            } else {
+                fixture.requests.get(0).complete(new byte[] {1});
+            }
+            assertThat(fixture.requests).hasSize(2);
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.RegisteringSchema);
+            assertThat(fixture.writes).hasValue(0);
+            fixture.requests.get(1).complete(new byte[] {2});
+            producer.ackReceived(fixture.cnx, 1, 1, 1, 1);
+            assertThat(following).isCompleted();
             assertThat(fixture.writes).hasValue(1);
         }
     }

@@ -2634,6 +2634,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // Track message count to fail so that newly added messages by synchronous retries
             // triggered by op.sendComplete(ex); don't get removed
             int pendingMessagesToFailCount = pendingMessages.size();
+            // Invalidate the failed queue's registration before callbacks can start one for a new message.
+            if (compareAndSetState(State.RegisteringSchema, State.Ready)) {
+                schemaRegistrationGeneration++;
+                cancelSchemaRegistrationRetry();
+                schemaRegistrationBackoff.reset();
+                schemaRegistrationFailed = false;
+            }
 
             for (int i = 0; i < pendingMessagesToFailCount; i++) {
                 OpSendMsg op = pendingMessages.remove();
