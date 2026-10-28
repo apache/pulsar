@@ -113,9 +113,13 @@ public class ReplicatedSubscriptionsControllerTest {
         PersistentTopic topic = mockTopicForUpdates();
         PersistentSubscription createdSubscription = mockSubscription(PositionFactory.create(1, -1),
                 new ManagedLedgerException("Invalid mark deleted position"));
-        when(topic.getSubscription("sub")).thenReturn(null);
+        AtomicReference<PersistentSubscription> currentSubscription = new AtomicReference<>();
+        when(topic.getSubscription("sub")).thenAnswer(ignored -> currentSubscription.get());
         when(topic.createSubscription(eq("sub"), eq(InitialPosition.Earliest), eq(true), any()))
-                .thenReturn(CompletableFuture.completedFuture(createdSubscription));
+                .thenAnswer(ignored -> {
+                    currentSubscription.set(createdSubscription);
+                    return CompletableFuture.completedFuture(createdSubscription);
+                });
 
         @Cleanup
         TestLogAppender logAppender = TestLogAppender.create(ReplicatedSubscriptionsController.class);
