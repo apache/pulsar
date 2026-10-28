@@ -20,10 +20,13 @@ package org.apache.pulsar.broker.delayed;
 
 import java.lang.reflect.Field;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,6 +34,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.delayed.bucket.BucketDelayedDeliveryTracker;
 import org.apache.pulsar.broker.delayed.bucket.BucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.bucket.RecoverDelayedDeliveryTrackerException;
@@ -43,18 +47,25 @@ import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherM
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
@@ -310,6 +321,209 @@ public class DelayedDeliveryTrackerFactoryTest extends ProducerConsumerBase {
             consumer.acknowledge(message);
         } finally {
             pulsar.getBrokerService().getTopics().put(topicName, originalTopicFuture);
+        }
+    }
+
+    @DataProvider
+    public Object[][] clearBacklogSubscriptionTypes() {
+        return new Object[][]{{SubscriptionType.Shared}, {SubscriptionType.Key_Shared}};
+    }
+
+    @Test(dataProvider = "clearBacklogSubscriptionTypes", timeOut = 60_000)
+    public void testClearBacklogDoesNotWaitForBucketRecovery(SubscriptionType subscriptionType) throws Exception {
+        String topicName = "persistent://public/default/" + UUID.randomUUID();
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName).enableBatching(false).create();
+        admin.topics().createSubscription(topicName, "sub", MessageId.earliest);
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).orElseThrow();
+        PersistentSubscription subscription = topic.getSubscription("sub");
+        ManagedCursor cursor = subscription.getCursor();
+        BucketDelayedDeliveryTrackerFactory factory =
+                (BucketDelayedDeliveryTrackerFactory) pulsar.getBrokerService().getDelayedDeliveryTrackerFactory();
+        BucketSnapshotStorage originalStorage = factory.bucketSnapshotStorage;
+        BucketSnapshotStorage storage = Mockito.spy(originalStorage);
+        CompletableFuture<Void> releaseMetadata = new CompletableFuture<>();
+        CompletableFuture<Void> metadataRead = new CompletableFuture<>();
+        CompletableFuture<Void> releaseDelete = new CompletableFuture<>();
+        CompletableFuture<Void> snapshotDeleted = new CompletableFuture<>();
+        String bucketKey = BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + "_1_2";
+        long bucketId = storage.createBucketSnapshot(new SnapshotMetadata(), List.of(), bucketKey, topicName, "sub")
+                .get(10, TimeUnit.SECONDS);
+        cursor.putCursorProperty(bucketKey, Long.toString(bucketId)).get(10, TimeUnit.SECONDS);
+        Mockito.doAnswer(invocation -> {
+            CompletableFuture<SnapshotMetadata> read =
+                    originalStorage.getBucketSnapshotMetadata(invocation.getArgument(0, Long.class));
+            return read.thenCompose(metadata -> {
+                metadataRead.complete(null);
+                return releaseMetadata.thenApply(__ -> metadata);
+            });
+        }).when(storage).getBucketSnapshotMetadata(bucketId);
+        Mockito.doAnswer(invocation -> {
+            CompletableFuture<Void> deletion =
+                    originalStorage.deleteBucketSnapshot(invocation.getArgument(0, Long.class));
+            return deletion.thenCompose(__ -> {
+                snapshotDeleted.complete(null);
+                return releaseDelete;
+            });
+        }).when(storage).deleteBucketSnapshot(bucketId);
+        factory.bucketSnapshotStorage = storage;
+        try {
+            producer.newMessage().value("discarded").deliverAfter(1, TimeUnit.HOURS).send();
+            @Cleanup
+            Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                    .topic(topicName).subscriptionName("sub").subscriptionType(subscriptionType).subscribe();
+            metadataRead.get(10, TimeUnit.SECONDS);
+            Dispatcher dispatcher = subscription.getDispatcher();
+            Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
+
+            CompletableFuture<Void> clearFuture = admin.topics().skipAllMessagesAsync(topicName, "sub");
+            Awaitility.await().untilAsserted(() -> Assert.assertEquals(cursor.getNumberOfEntriesInBacklog(false), 0));
+            snapshotDeleted.get(5, TimeUnit.SECONDS);
+            Assert.assertFalse(clearFuture.isDone(), "Clear must still await snapshot property removal");
+            Assert.assertTrue(cursor.getCursorProperties().containsKey(bucketKey));
+            releaseDelete.complete(null);
+            clearFuture.get(5, TimeUnit.SECONDS);
+            Assert.assertFalse(releaseMetadata.isDone());
+            Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0);
+            Assert.assertFalse(cursor.getCursorProperties().containsKey(bucketKey));
+
+            // A late recovery must not delete a snapshot published after the clear completed.
+            long replacementId = storage.createBucketSnapshot(new SnapshotMetadata(), List.of(), bucketKey,
+                    topicName, "sub").get(10, TimeUnit.SECONDS);
+            cursor.putCursorProperty(bucketKey, Long.toString(replacementId)).get(10, TimeUnit.SECONDS);
+            try {
+                releaseMetadata.complete(null);
+                Assert.assertEquals(cursor.getCursorProperties().get(bucketKey), Long.toString(replacementId));
+                Mockito.verify(storage, Mockito.times(1)).deleteBucketSnapshot(bucketId);
+                Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 0);
+                producer.newMessage().value("new delayed").deliverAfter(1, TimeUnit.HOURS).send();
+                Awaitility.await().untilAsserted(() -> Assert.assertEquals(dispatcher.getNumberOfDelayedMessages(), 1));
+                producer.newMessage().value("immediate").send();
+                var message = consumer.receive(10, TimeUnit.SECONDS);
+                Assert.assertNotNull(message);
+                Assert.assertEquals(message.getValue(), "immediate");
+                consumer.acknowledge(message);
+            } finally {
+                storage.deleteBucketSnapshot(replacementId).get(10, TimeUnit.SECONDS);
+                cursor.removeCursorProperty(bucketKey).get(10, TimeUnit.SECONDS);
+            }
+        } finally {
+            releaseDelete.complete(null);
+            releaseMetadata.complete(null);
+            factory.bucketSnapshotStorage = originalStorage;
+            Mockito.framework().clearInlineMock(storage);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testSkipBucketRecoveryBeforeItStartsCleansAllSnapshotRanges() throws Exception {
+        String topicName = "persistent://public/default/" + UUID.randomUUID();
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName("sub").subscriptionType(SubscriptionType.Shared).subscribe();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).orElseThrow();
+        PersistentSubscription subscription = topic.getSubscription("sub");
+        ManagedCursor cursor = subscription.getCursor();
+        @Cleanup
+        BucketDelayedDeliveryTrackerFactory factory = new BucketDelayedDeliveryTrackerFactory();
+        factory.initialize(pulsar);
+        BucketSnapshotStorage originalStorage = factory.bucketSnapshotStorage;
+        BucketSnapshotStorage storage = Mockito.spy(originalStorage);
+        List<String> keys = List.of("_1_2", "_1_3", "_2_4").stream()
+                .map(range -> BucketDelayedDeliveryTracker.DELAYED_BUCKET_KEY_PREFIX + range).toList();
+        factory.bucketSnapshotStorage = storage;
+        try {
+            for (String key : keys) {
+                long bucketId = storage.createBucketSnapshot(new SnapshotMetadata(), List.of(), key, topicName, "sub")
+                        .get(10, TimeUnit.SECONDS);
+                cursor.putCursorProperty(key, Long.toString(bucketId)).get(10, TimeUnit.SECONDS);
+            }
+            @Cleanup
+            DelayedDeliveryTracker tracker = factory.newTrackerAsync(
+                    (AbstractPersistentDispatcherMultipleConsumers) subscription.getDispatcher(),
+                    CompletableFuture.completedFuture(null)).get(10, TimeUnit.SECONDS);
+            Assert.assertTrue(tracker instanceof BucketDelayedDeliveryTracker);
+            Mockito.verify(storage, Mockito.never()).getBucketSnapshotMetadata(Mockito.anyLong());
+            tracker.clear().get(10, TimeUnit.SECONDS);
+            for (String key : keys) {
+                Assert.assertFalse(cursor.getCursorProperties().containsKey(key));
+            }
+            Mockito.verify(storage, Mockito.times(keys.size())).deleteBucketSnapshot(Mockito.anyLong());
+            Assert.assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        } finally {
+            factory.bucketSnapshotStorage = originalStorage;
+            Mockito.framework().clearInlineMock(storage);
+        }
+    }
+
+    @Test(timeOut = 60_000)
+    public void testClearBacklogReportsCustomTrackerCreationFailure() throws Exception {
+        @Cleanup
+        PulsarTestContext context = PulsarTestContext.builder().withMockZookeeper()
+                .configCustomizer(config -> {
+                    config.setClusterName("tracker-failure");
+                    config.setAdvertisedAddress("localhost");
+                    config.setLoadBalancerEnabled(false);
+                    config.setDelayedDeliveryTrackerFactoryClassName(GatedBucketTrackerFactory.class.getName());
+                }).build();
+        PulsarService service = context.getPulsarService();
+        @Cleanup
+        PulsarAdmin failureAdmin = PulsarAdmin.builder().serviceHttpUrl(service.getWebServiceAddress()).build();
+        failureAdmin.clusters().createCluster("tracker-failure", ClusterData.builder()
+                .serviceUrl(service.getWebServiceAddress()).brokerServiceUrl(service.getBrokerServiceUrl()).build());
+        failureAdmin.tenants().createTenant("public", TenantInfo.builder()
+                .allowedClusters(Set.of("tracker-failure")).build());
+        failureAdmin.namespaces().createNamespace("public/default", Set.of("tracker-failure"));
+        @Cleanup
+        PulsarClient failureClient = PulsarClient.builder().serviceUrl(service.getBrokerServiceUrl()).build();
+        String topicName = "persistent://public/default/" + UUID.randomUUID();
+        @Cleanup
+        Consumer<String> consumer = failureClient.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName("sub").subscriptionType(SubscriptionType.Shared).subscribe();
+        @Cleanup
+        Producer<String> producer = failureClient.newProducer(Schema.STRING)
+                .topic(topicName).enableBatching(false).create();
+        GatedBucketTrackerFactory factory =
+                (GatedBucketTrackerFactory) service.getBrokerService().getDelayedDeliveryTrackerFactory();
+        producer.newMessage().value("discarded").deliverAfter(1, TimeUnit.HOURS).send();
+        factory.creationStarted.get(10, TimeUnit.SECONDS);
+        PersistentTopic topic = (PersistentTopic) service.getBrokerService().getTopicReference(topicName).orElseThrow();
+        PersistentSubscription subscription = topic.getSubscription("sub");
+        CompletableFuture<Void> clearFuture = subscription.clearBacklog();
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getCursor().getNumberOfEntriesInBacklog(false), 0));
+        RuntimeException failure = new RuntimeException("controlled tracker creation failure");
+        factory.firstCreation.completeExceptionally(failure);
+        ExecutionException error = Assert.expectThrows(ExecutionException.class,
+                () -> clearFuture.get(5, TimeUnit.SECONDS));
+        Assert.assertSame(FutureUtil.unwrapCompletionException(error.getCause()), failure);
+
+        // The management failure does not stop the normal dispatcher retry or disable delayed delivery.
+        Awaitility.await().untilAsserted(() -> Assert.assertTrue(factory.attempts.get() >= 2));
+        producer.newMessage().value("new delayed").deliverAfter(1, TimeUnit.HOURS).send();
+        producer.newMessage().value("immediate").send();
+        var message = consumer.receive(10, TimeUnit.SECONDS);
+        Assert.assertNotNull(message);
+        Assert.assertEquals(message.getValue(), "immediate");
+        consumer.acknowledge(message);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(subscription.getDispatcher().getNumberOfDelayedMessages(), 1));
+    }
+
+    public static class GatedBucketTrackerFactory extends BucketDelayedDeliveryTrackerFactory {
+        private final CompletableFuture<Void> creationStarted = new CompletableFuture<>();
+        private final CompletableFuture<DelayedDeliveryTracker> firstCreation = new CompletableFuture<>();
+        private final AtomicInteger attempts = new AtomicInteger();
+
+        @Override
+        public CompletableFuture<DelayedDeliveryTracker> newTrackerAsync(
+                AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+            if (attempts.incrementAndGet() == 1) {
+                creationStarted.complete(null);
+                return firstCreation;
+            }
+            return super.newTrackerAsync(dispatcher);
         }
     }
 

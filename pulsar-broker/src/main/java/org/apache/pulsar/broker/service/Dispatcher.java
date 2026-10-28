@@ -136,6 +136,13 @@ public interface Dispatcher {
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Clear delayed state after the cursor has successfully discarded its backlog.
+     */
+    default CompletableFuture<Void> clearDelayedMessagesAfterBacklogClear() {
+        return clearDelayedMessages();
+    }
+
     default void cursorIsReset() {
         //No-op
     }

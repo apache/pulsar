@@ -102,6 +102,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     // Set from the first delayed message until the asynchronously created tracker is installed. Dispatch is paused
     // meanwhile, and the delayed messages already read wait in messagesPendingDelayedDeliveryTracker.
     private volatile CompletableFuture<Void> delayedDeliveryTrackerCreateFuture = null;
+    // Both futures below are guarded by this and belong to the current creation and its retries.
+    private CompletableFuture<Void> delayedDeliveryTrackerRecoverySkipFuture;
+    private CompletableFuture<Void> delayedDeliveryTrackerCreateFailureFuture;
     // Guarded by this. A concurrent map only so that stats can read its size without taking the dispatcher lock.
     private final Map<Position, Long> messagesPendingDelayedDeliveryTracker = new ConcurrentHashMap<>();
     // Whether the last read pass was skipped because the tracker paused all deliveries, i.e. it detected fixed delays
@@ -746,6 +749,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             this.delayedDeliveryTracker = Optional.empty();
             createFuture = this.delayedDeliveryTrackerCreateFuture;
             this.delayedDeliveryTrackerCreateFuture = null;
+            delayedDeliveryTrackerRecoverySkipFuture = null;
+            delayedDeliveryTrackerCreateFailureFuture = null;
             messagesPendingDelayedDeliveryTracker.clear();
         }
 
@@ -1449,6 +1454,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
 
         CompletableFuture<Void> createFuture;
+        CompletableFuture<Void> skipRecovery;
         synchronized (this) {
             if (delayedDeliveryTracker.isPresent()) {
                 delayedDeliveryTracker.get().resetTickTime(topic.getDelayedDeliveryTickTimeMillis());
@@ -1473,19 +1479,27 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             }
             createFuture = new CompletableFuture<>();
             delayedDeliveryTrackerCreateFuture = createFuture;
+            skipRecovery = new CompletableFuture<>();
+            delayedDeliveryTrackerRecoverySkipFuture = skipRecovery;
+            delayedDeliveryTrackerCreateFailureFuture = new CompletableFuture<>();
         }
-        createDelayedDeliveryTracker(createFuture, false);
+        createDelayedDeliveryTracker(createFuture, skipRecovery, false);
         return true;
     }
 
-    private void createDelayedDeliveryTracker(CompletableFuture<Void> createFuture, boolean retry) {
+    private void createDelayedDeliveryTracker(CompletableFuture<Void> createFuture,
+                                              CompletableFuture<Void> skipRecovery, boolean retry) {
         long startNanos = System.nanoTime();
         log.debug()
                 .attr("pendingDelayedMessages", messagesPendingDelayedDeliveryTracker.size())
                 .log("Creating delayed delivery tracker");
         CompletableFuture<DelayedDeliveryTracker> trackerFuture;
         try {
-            trackerFuture = topic.getBrokerService().getDelayedDeliveryTrackerFactory().newTrackerAsync(this);
+            DelayedDeliveryTrackerFactory factory = topic.getBrokerService().getDelayedDeliveryTrackerFactory();
+            // Preserve async creation overrides in custom factory subclasses.
+            trackerFuture = factory.getClass() == BucketDelayedDeliveryTrackerFactory.class
+                    ? ((BucketDelayedDeliveryTrackerFactory) factory).newTrackerAsync(this, skipRecovery)
+                    : factory.newTrackerAsync(this);
         } catch (Throwable t) {
             trackerFuture = FutureUtil.failedFuture(t);
         }
@@ -1497,7 +1511,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         }
         trackerFuture
                 .handle((tracker, ex) -> {
-                    delayedDeliveryTrackerCreated(createFuture, tracker, ex, startNanos, resumeDispatch);
+                    delayedDeliveryTrackerCreated(createFuture, skipRecovery, tracker, ex, startNanos, resumeDispatch);
                     return null;
                 })
                 .exceptionally(ex -> {
@@ -1508,7 +1522,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 });
     }
 
-    private void delayedDeliveryTrackerCreated(CompletableFuture<Void> createFuture, DelayedDeliveryTracker tracker,
+    private void delayedDeliveryTrackerCreated(CompletableFuture<Void> createFuture,
+                                               CompletableFuture<Void> skipRecovery, DelayedDeliveryTracker tracker,
                                                Throwable ex, long startNanos, boolean resumeDispatch) {
         if (ex == null && tracker == null) {
             ex = new IllegalStateException("The delayed delivery tracker factory returned no tracker");
@@ -1516,6 +1531,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         long durationMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
         boolean installed = false;
         boolean stale = false;
+        CompletableFuture<Void> failedCreation = null;
         long retryDelayMillis = -1;
         int pendingDelayedMessages;
         try {
@@ -1527,8 +1543,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 } else if (ex != null) {
                     // Keep the messages pending and dispatch paused: delivering them now would ignore their delay
                     retryDelayMillis = delayedDeliveryTrackerCreateBackoff.next().toMillis();
+                    failedCreation = delayedDeliveryTrackerCreateFailureFuture;
                 } else {
                     delayedDeliveryTrackerCreateFuture = null;
+                    delayedDeliveryTrackerRecoverySkipFuture = null;
+                    delayedDeliveryTrackerCreateFailureFuture = null;
                     delayedDeliveryTrackerCreateBackoff.reset();
                     delayedDeliveryTracker = Optional.of(tracker);
                     installed = true;
@@ -1544,6 +1563,9 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             }
         }
 
+        if (failedCreation != null) {
+            failedCreation.completeExceptionally(ex);
+        }
         if (installed) {
             log.debug()
                     .attr("durationMillis", durationMillis)
@@ -1565,7 +1587,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             try {
                 topic.getBrokerService().executor().schedule(() -> {
                     if (delayedDeliveryTrackerCreateFuture == createFuture) {
-                        createDelayedDeliveryTracker(createFuture, true);
+                        createDelayedDeliveryTracker(createFuture, skipRecovery, true);
                     }
                 }, retryDelayMillis, TimeUnit.MILLISECONDS);
             } catch (RejectedExecutionException e) {
@@ -1689,6 +1711,32 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     public long getNumberOfDelayedMessages() {
         return delayedDeliveryTracker.map(DelayedDeliveryTracker::getNumberOfDelayedMessages).orElse(0L)
                 + messagesPendingDelayedDeliveryTracker.size();
+    }
+
+    @Override
+    public CompletableFuture<Void> clearDelayedMessagesAfterBacklogClear() {
+        CompletableFuture<Void> clearFuture;
+        CompletableFuture<Void> skipRecovery;
+        synchronized (this) {
+            if (!topic.isDelayedDeliveryEnabled()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Register the clear before releasing recovery, so the ready tracker is cleared before reads resume.
+            clearFuture = delayedDeliveryTrackerCreateFuture == null ? clearDelayedMessages()
+                    : delayedDeliveryTrackerCreateFuture
+                            .applyToEither(delayedDeliveryTrackerCreateFailureFuture, result -> result)
+                            .thenCompose(__ -> clearDelayedMessages());
+            skipRecovery = delayedDeliveryTrackerRecoverySkipFuture;
+            if (skipRecovery != null) {
+                Position markDeletedPosition = cursor.getMarkDeletedPosition();
+                messagesPendingDelayedDeliveryTracker.keySet().removeIf(position ->
+                        position.compareTo(markDeletedPosition) <= 0);
+            }
+        }
+        if (skipRecovery != null) {
+            skipRecovery.complete(null);
+        }
+        return clearFuture;
     }
 
     @Override

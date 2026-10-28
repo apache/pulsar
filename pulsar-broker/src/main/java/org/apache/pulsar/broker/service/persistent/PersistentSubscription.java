@@ -841,7 +841,7 @@ public class PersistentSubscription extends AbstractSubscription {
                         .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                         .log("Backlog size after clearing");
                 if (dispatcher != null) {
-                    dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
+                    dispatcher.clearDelayedMessagesAfterBacklogClear().whenComplete((__, ex) -> {
                         if (ex != null) {
                             future.completeExceptionally(ex);
                         } else {

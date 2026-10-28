@@ -90,10 +90,20 @@ public class BucketDelayedDeliveryTrackerFactory implements DelayedDeliveryTrack
     @Override
     public CompletableFuture<DelayedDeliveryTracker> newTrackerAsync(
             AbstractPersistentDispatcherMultipleConsumers dispatcher) {
+        return newTrackerAsync(dispatcher, null);
+    }
+
+    /**
+     * The signal may skip recovery once the cursor backlog has been cleared. Snapshot cleanup is still required.
+     */
+    public CompletableFuture<DelayedDeliveryTracker> newTrackerAsync(
+            AbstractPersistentDispatcherMultipleConsumers dispatcher, CompletableFuture<Void> skipRecovery) {
         CompletableFuture<BucketDelayedDeliveryTracker> recoverFuture;
         try {
-            recoverFuture = newTracker0(dispatcher)
-                    .recoverBucketSnapshotAsync(dispatcher.getTopic().getBrokerService().executor());
+            BucketDelayedDeliveryTracker tracker = newTracker0(dispatcher);
+            var executor = dispatcher.getTopic().getBrokerService().executor();
+            recoverFuture = skipRecovery == null ? tracker.recoverBucketSnapshotAsync(executor)
+                    : tracker.recoverBucketSnapshotAsync(executor, skipRecovery);
         } catch (Throwable t) {
             recoverFuture = FutureUtil.failedFuture(t);
         }
