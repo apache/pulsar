@@ -24,9 +24,12 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import io.netty.channel.DefaultEventLoop;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.EventExecutor;
 import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.testng.annotations.Test;
 
@@ -121,4 +124,50 @@ public class InProgressRequestFrameMemoryNotifierTest {
         assertThat(notifications).hasValue(1);
         assertThat(controller.getRegisteredLimiterCount()).isZero();
     }
+    @Test(timeOut = 30_000)
+    public void shouldApplyWorkerThreadRecoveryOnTheOwningEventLoop() throws Exception {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                100, () -> 0, 100);
+        DefaultEventLoop eventLoop = new DefaultEventLoop(new DefaultThreadFactory("frame-memory-notifications"));
+        InProgressRequestFrameMemoryLimiter limiter = controller.getCurrentLimiter();
+        InProgressRequestFrameMemoryNotifier notifier = controller.getEventLoopNotifier(eventLoop);
+        AtomicInteger throttled = new AtomicInteger();
+        AtomicInteger resumed = new AtomicInteger();
+        try {
+            eventLoop.submit(() -> {
+                for (int i = 0; i < 1000; i++) {
+                    notifier.add(limiter, i, () -> {
+                        assertThat(eventLoop.inEventLoop()).isTrue();
+                        if (limiter.isThrottled()) {
+                            throttled.incrementAndGet();
+                        } else {
+                            resumed.incrementAndGet();
+                        }
+                    });
+                }
+                controller.acquire(101);
+                controller.onInboundRead();
+            }).get(10, TimeUnit.SECONDS);
+            eventLoop.submit(() -> assertThat(throttled).hasValue(1000)).get(10, TimeUnit.SECONDS);
+
+            // This release is outside the event loop, just like a BookKeeper completion. No further inbound
+            // read or periodic task is available to deliver the recovery notification.
+            assertThat(eventLoop.inEventLoop()).isFalse();
+            controller.release(101);
+            eventLoop.submit(() -> assertThat(resumed).hasValue(1000)).get(10, TimeUnit.SECONDS);
+            assertThat(controller.getRetainedFrameBytes()).isZero();
+        } finally {
+            try {
+                eventLoop.submit(() -> {
+                    for (int i = 0; i < 1000; i++) {
+                        notifier.remove(limiter, i);
+                    }
+                }).get(10, TimeUnit.SECONDS);
+            } finally {
+                eventLoop.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS).get(10, TimeUnit.SECONDS);
+            }
+        }
+        assertThat(controller.getRegisteredLimiterCount()).isZero();
+    }
+
 }
