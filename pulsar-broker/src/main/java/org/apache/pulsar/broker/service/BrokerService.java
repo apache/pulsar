@@ -2928,8 +2928,8 @@ public class BrokerService implements Closeable {
                     }
                 }), pulsar.getExecutor())
                 .exceptionally(ex -> {
-                    log.warn().attr("topic", partitionedTopicName).exception(ex)
-                            .log("Failed to re-pick the active consumers after a partition update");
+                    log.warn("[{}] Failed to re-pick the active consumers after a partition update",
+                            partitionedTopicName, ex);
                     return null;
                 });
     }
