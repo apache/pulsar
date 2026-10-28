@@ -296,6 +296,40 @@ public class ClientDeduplicationTest extends SharedPulsarBaseTest {
         producer.close();
     }
 
+    @Test
+    public void testKeyBasedBatchingOrderWithDistantSequenceIds() throws Exception {
+        final String topic = newTopicName();
+        admin.namespaces().setDeduplicationStatus(getNamespace(), true);
+
+        @Cleanup
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .batcherBuilder(BatcherBuilder.KEY_BASED)
+                .batchingMaxMessages(100)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .create();
+        // The sequence ids are more than Integer.MAX_VALUE apart
+        final long distantSequenceId = 2147483653L;
+        producer.newMessage().key("A").value("msg-A").sequenceId(1L).sendAsync();
+        producer.newMessage().key("B").value("msg-B").sequenceId(distantSequenceId).sendAsync();
+        producer.flush();
+
+        final List<Long> sequenceIdList = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            final Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            sequenceIdList.add(msg.getSequenceId());
+        }
+        assertEquals(sequenceIdList, Arrays.asList(1L, distantSequenceId));
+    }
+
     @Test(timeOut = 30000)
     public void testKeyBasedBatchingOrder() throws Exception {
         final String topic = newTopicName();
