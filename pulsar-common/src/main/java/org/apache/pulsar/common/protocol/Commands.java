@@ -139,6 +139,8 @@ public class Commands {
 
     // Internal subscribe metadata shared by the partition consumers of one logical Failover consumer.
     public static final String CONSUMER_INSTANCE_ID = "__pulsar_consumer_instance_id";
+    // Bound the internal identity separately from application metadata to the length of a UUID.
+    public static final int MAX_CONSUMER_INSTANCE_ID_LENGTH = 36;
 
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;

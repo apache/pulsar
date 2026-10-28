@@ -1234,7 +1234,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private double maxUnackedMessagesPerSubscriptionOnBrokerBlocked = 0.16;
     @FieldContext(
             category = CATEGORY_POLICIES,
-            doc = "Maximum size of Consumer metadata")
+            doc = "Maximum size of application Consumer metadata. The internal Failover consumer instance ID "
+                    + "is validated separately.")
     private int maxConsumerMetadataSize = 1024;
     @FieldContext(
             category = CATEGORY_POLICIES,

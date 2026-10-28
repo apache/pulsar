@@ -2880,6 +2880,50 @@ public class ServerCnxTest {
         verify(ctx).close();
     }
 
+    @DataProvider(name = "consumerMetadataBudgets")
+    public Object[][] consumerMetadataBudgets() {
+        int instanceIdLength = Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH;
+        return new Object[][]{
+                {SubType.Failover, 1024, instanceIdLength, true},
+                {SubType.Failover, 1025, instanceIdLength, false},
+                {SubType.Failover, 0, instanceIdLength + 1, false},
+                {SubType.Failover, 1024, -1, true},
+                {SubType.Exclusive, 1024, instanceIdLength, false},
+                {SubType.Shared, 1024, instanceIdLength, false},
+                {SubType.Key_Shared, 1024, instanceIdLength, false}
+        };
+    }
+
+    @Test(dataProvider = "consumerMetadataBudgets", timeOut = 30000)
+    public void testConsumerMetadataBudget(SubType subType, int applicationSize, int instanceIdLength,
+                                          boolean accepted) throws Exception {
+        resetChannel();
+        setChannelConnected();
+        svcConfig.setAuthenticationEnabled(false);
+        svcConfig.setAuthorizationEnabled(false);
+        svcConfig.setMaxConsumerMetadataSize(1024);
+        Map<String, String> metadata = new HashMap<>();
+        if (applicationSize > 0) {
+            metadata.put("k", "x".repeat(applicationSize - 1));
+        }
+        if (instanceIdLength >= 0) {
+            metadata.put(Commands.CONSUMER_INSTANCE_ID, "i".repeat(instanceIdLength));
+        }
+        try {
+            channel.writeInbound(Commands.newSubscribe(successTopicName, successSubName, 1, 1, subType, 0,
+                    "test", true, null, metadata, false, false, InitialPosition.Latest, 0, null, true));
+            Object response = getResponse();
+            if (accepted) {
+                assertThat(response).isInstanceOf(CommandSuccess.class);
+            } else {
+                assertThat(response).isInstanceOfSatisfying(CommandError.class,
+                        error -> assertThat(error.getError()).isEqualTo(ServerError.MetadataError));
+            }
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
     @Test(timeOut = 30000)
     public void testSubscribeCommand() throws Exception {
         final String failSubName = "failSub";

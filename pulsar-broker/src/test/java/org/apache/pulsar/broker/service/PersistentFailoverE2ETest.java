@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -573,6 +574,43 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         subscribeFuture1.get().close();
         subscribeFuture2.get().unsubscribe();
         admin.topics().delete(topicName);
+    }
+
+    @DataProvider(name = "failoverMetadataBudgets")
+    public Object[][] failoverMetadataBudgets() {
+        return new Object[][]{{0, 0, true}, {32, 32, true}, {1024, 1000, true},
+                {1024, 1024, true}, {1024, 1025, false}};
+    }
+
+    @Test(dataProvider = "failoverMetadataBudgets")
+    public void testFailoverApplicationMetadataBudget(int limit, int applicationSize, boolean accepted)
+            throws Exception {
+        int originalLimit = conf.getMaxConsumerMetadataSize();
+        String topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/failover-metadata-budget");
+        String subName = "sub1";
+        Map<String, String> properties = applicationSize == 0 ? Map.of() : Map.of("k", "x".repeat(applicationSize - 1));
+        admin.topics().createPartitionedTopic(topicName, 2);
+        conf.setMaxConsumerMetadataSize(limit);
+        try {
+            ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscriptionType(SubscriptionType.Failover).consumerName("worker").properties(properties);
+            if (accepted) {
+                try (Consumer<byte[]> consumer = builder.subscribe()) {
+                    assertThat(consumer.isConnected()).isTrue();
+                    for (int i = 0; i < 2; i++) {
+                        var brokerConsumer = failoverDispatcher(topicName, subName, i).getConsumers().get(0);
+                        assertThat(brokerConsumer.consumerInstanceId()).hasSize(36);
+                        assertThat(brokerConsumer.getStats().getMetadata()).isEqualTo(properties);
+                    }
+                }
+            } else {
+                assertThatThrownBy(builder::subscribe).isInstanceOf(PulsarClientException.BrokerMetadataException.class)
+                        .hasMessageContaining("metadata has a max size");
+            }
+        } finally {
+            conf.setMaxConsumerMetadataSize(originalLimit);
+            admin.topics().deletePartitionedTopic(topicName, true);
+        }
     }
 
     @DataProvider(name = "failoverReconnection")
