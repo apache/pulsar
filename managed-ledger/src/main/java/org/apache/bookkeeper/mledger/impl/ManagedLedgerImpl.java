@@ -716,6 +716,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationFailed(MetaStoreException e) {
                 handleBadVersion(e);
+                if (e instanceof BadVersionException) {
+                    // This initialization created the handle but failed to publish it in the ledger list.
+                    // Fenced close deliberately skips write handles, so release this unpublished handle here.
+                    currentLedger.closeAsync().exceptionally(error -> {
+                        log.debug().exception(error).log("Failed to close an unpublished ledger after initialization");
+                        return null;
+                    });
+                }
                 callback.initializeFailed(new ManagedLedgerException(e));
             }
         };

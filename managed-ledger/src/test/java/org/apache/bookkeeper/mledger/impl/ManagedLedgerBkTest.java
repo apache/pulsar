@@ -32,8 +32,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -44,6 +48,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -55,6 +60,8 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -75,6 +82,10 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
+import org.apache.zookeeper.KeeperException.BadVersionException;
 import org.awaitility.Awaitility;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -88,6 +99,224 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         super(2);
         // Use the v2 wire protocol so that reads exercise the BookKeeper batch read API against real bookies
         baseClientConf.setUseV2WireProtocol(true);
+    }
+
+    @Test(timeOut = 30000)
+    public void testInitializationMetadataConflictClosesUnpublishedWriteHandle() throws Exception {
+        String name = "initialization-conflict-" + testName;
+        String path = "/managed-ledgers/" + name;
+        @Cleanup
+        PulsarBookKeeperTestClient client = new PulsarBookKeeperTestClient(
+                new ClientConfiguration(baseClientConf).setAddEntryQuorumTimeout(10)
+                        .setNumIOThreads(1).setNumWorkerThreads(1));
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl initialFactory = new ManagedLedgerFactoryImpl(metadataStore, client);
+        ManagedLedgerConfig config = defaultConfig().setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        initialFactory.open(name, config).close();
+        GetResult original = metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow();
+        AtomicBoolean changeVersion = new AtomicBoolean(true);
+        // Perform a real competing metadata update after the read, so the initialization's CAS loses.
+        FaultInjectionMetadataStore conflictingStore = new FaultInjectionMetadataStore(metadataStore) {
+            @Override
+            public CompletableFuture<Optional<GetResult>> get(String requestedPath, Set<Option> options) {
+                return super.get(requestedPath, options).thenCompose(result -> {
+                    if (requestedPath.equals(path) && changeVersion.compareAndSet(true, false)) {
+                        GetResult read = result.orElseThrow();
+                        return metadataStore.put(path, read.getValue(), Optional.of(read.getStat().getVersion()))
+                                .thenApply(__ -> result);
+                    }
+                    return CompletableFuture.completedFuture(result);
+                });
+            }
+        };
+        AtomicReference<ManagedLedgerImpl> failedInstance = new AtomicReference<>();
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(conflictingStore, client) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String ledgerName,
+                    ManagedLedgerConfig ledgerConfig, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                ManagedLedgerImpl ledger = super.createManagedLedger(bk, store, ledgerName, ledgerConfig,
+                        ownershipChecker);
+                failedInstance.set(ledger);
+                return ledger;
+            }
+        };
+        try {
+            assertThatThrownBy(() -> openLedgerAsync(factory, name, config).get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(BadVersionException.class);
+            ManagedLedgerImpl failedLedger = failedInstance.get();
+            assertThat(failedLedger.getState()).isEqualTo(ManagedLedgerImpl.State.Fenced);
+            assertThat(factory.ledgers).doesNotContainKey(name);
+            LedgerHandle unpublishedHandle = failedLedger.currentLedger;
+            assertThat(unpublishedHandle).isNotNull();
+            GetResult winningMetadata = metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow();
+            assertThat(winningMetadata.getStat().getVersion()).isEqualTo(original.getStat().getVersion() + 1);
+            assertThat(winningMetadata.getValue()).isEqualTo(original.getValue());
+            Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+                assertThat(client.hasScheduledAddTimeout(unpublishedHandle))
+                        .as("the failed initialization must release its periodic add-timeout task").isFalse();
+                assertThat(unpublishedHandle.isClosed()).isTrue();
+            });
+            ManagedLedger retry = factory.open(name, config);
+            retry.addEntry("after-conflict".getBytes(StandardCharsets.UTF_8));
+            retry.close();
+        } finally {
+            ManagedLedgerImpl failedLedger = failedInstance.get();
+            if (failedLedger != null && failedLedger.currentLedger != null) {
+                failedLedger.currentLedger.closeAsync().get(5, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testOpenTimesOutDuringCursorPositionUpdate() throws Exception {
+        verifyAbandonedOpenDuringCursorPositionUpdate(false);
+    }
+
+    @Test(timeOut = 30000)
+    public void testShutdownDuringCursorPositionUpdateClosesLedger() throws Exception {
+        verifyAbandonedOpenDuringCursorPositionUpdate(true);
+    }
+
+    private void verifyAbandonedOpenDuringCursorPositionUpdate(boolean shutdown) throws Exception {
+        String name = "cursor-update-" + testName;
+        @Cleanup
+        PulsarBookKeeperTestClient client = new PulsarBookKeeperTestClient(
+                new ClientConfiguration(baseClientConf).setAddEntryQuorumTimeout(10)
+                        .setNumIOThreads(1).setNumWorkerThreads(1));
+        AtomicBoolean gateNextUpdate = new AtomicBoolean();
+        CompletableFuture<Void> updateStarted = new CompletableFuture<>();
+        CompletableFuture<Void> updateGate = new CompletableFuture<>();
+        List<ManagedLedgerImpl> instances = new CopyOnWriteArrayList<>();
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(metadataStore, client) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String ledgerName,
+                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                ManagedLedgerImpl ledger = new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor,
+                        ledgerName, ownershipChecker) {
+                    @Override
+                    protected ManagedCursorImpl createCursor(BookKeeper cursorBk, String cursorName) {
+                        return new ManagedCursorImpl(cursorBk, this, cursorName) {
+                            @Override
+                            public void asyncMarkDelete(Position position, Map<String, Long> properties,
+                                                        MarkDeleteCallback callback, Object ctx) {
+                                if (!gateNextUpdate.compareAndSet(true, false)) {
+                                    super.asyncMarkDelete(position, properties, callback, ctx);
+                                    return;
+                                }
+                                // Perform the real mark-delete and persistence, then hold delivery of its callback.
+                                // It can be released even after the factory scheduler has stopped.
+                                super.asyncMarkDelete(position, properties, new MarkDeleteCallback() {
+                                    @Override
+                                    public void markDeleteComplete(Object context) {
+                                        updateStarted.complete(null);
+                                        updateGate.thenRun(() -> callback.markDeleteComplete(context));
+                                    }
+
+                                    @Override
+                                    public void markDeleteFailed(ManagedLedgerException exception, Object context) {
+                                        updateStarted.completeExceptionally(exception);
+                                        callback.markDeleteFailed(exception, context);
+                                    }
+                                }, ctx);
+                            }
+                        };
+                    }
+                };
+                instances.add(ledger);
+                return ledger;
+            }
+        };
+        ManagedLedgerConfig config = defaultConfig().setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2)
+                .setLazyCursorRecovery(false).setMetadataOperationsTimeoutSeconds(1)
+                .setRetentionSizeInMB(-1).setRetentionTime(-1, TimeUnit.MILLISECONDS);
+        try {
+            ManagedLedgerImpl initial = (ManagedLedgerImpl) factory.open(name, config);
+            ManagedCursor cursor = initial.openCursor("c1");
+            cursor.markDelete(initial.addEntry("entry".getBytes(StandardCharsets.UTF_8)));
+            initial.close();
+            instances.clear();
+
+            // Reopening creates the next data ledger. The recovered cursor must move from the consumed ledger
+            // to the new ledger's -1 position, persisting that position before the factory completes the open.
+            gateNextUpdate.set(true);
+            CompletableFuture<ManagedLedger> pendingOpen = openLedgerAsync(factory, name, config);
+            updateStarted.get(10, TimeUnit.SECONDS);
+            long updatePendingSince = System.nanoTime();
+            ManagedLedgerImpl pendingLedger = instances.get(0);
+            LedgerHandle writeHandle = pendingLedger.currentLedger;
+            assertThat(pendingLedger.getCursors().iterator().next().getMarkDeletedPosition())
+                    .isEqualTo(PositionFactory.create(writeHandle.getId(), -1));
+            assertThat(pendingOpen).isNotDone();
+            assertThat(client.hasScheduledAddTimeout(writeHandle)).isTrue();
+
+            if (shutdown) {
+                factory.setShutdownLedgerCloseTimeoutMillis(5000);
+                factory.shutdownAsync().get(10, TimeUnit.SECONDS);
+                assertThatThrownBy(() -> pendingOpen.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(ManagedLedgerException.ManagedLedgerFactoryClosedException.class);
+                assertThat(pendingLedger.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+                assertThat(((ManagedCursorImpl) pendingLedger.getCursors().iterator().next()).getState())
+                        .isEqualTo("Closed");
+            } else {
+                Awaitility.await().atMost(Duration.ofSeconds(5)).until(() ->
+                        System.nanoTime() - updatePendingSince > TimeUnit.SECONDS.toNanos(1));
+                ManagedLedgerImpl replacement = (ManagedLedgerImpl) openLedgerAsync(factory, name, config)
+                        .get(5, TimeUnit.SECONDS);
+                assertThatThrownBy(() -> pendingOpen.get(5, TimeUnit.SECONDS))
+                        .hasMessageContaining("initialization timed out");
+                assertThat(replacement).isNotSameAs(pendingLedger);
+                assertThat(factory.ledgers.get(name).join()).isSameAs(replacement);
+            }
+
+            updateGate.complete(null);
+            Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+                assertThat(pendingLedger.getState()).isEqualTo(ManagedLedgerImpl.State.Closed);
+                // A retry may already have deleted the empty ledger. isClosed() reports distributed metadata,
+                // whereas cancellation of this task checks release of the original handle's local resources.
+                assertThat(client.hasScheduledAddTimeout(writeHandle)).isFalse();
+            });
+            if (!shutdown) {
+                ManagedLedgerImpl replacement = factory.ledgers.get(name).join();
+                assertThat(factory.getEntryCacheManager().getEntryCache(replacement)).isSameAs(replacement.entryCache);
+                Position added = replacement.addEntry("after-retry".getBytes(StandardCharsets.UTF_8));
+                replacement.openCursor("c1").markDelete(added);
+            }
+        } finally {
+            updateGate.complete(null);
+            // Also close an orphan on the unpatched baseline before the shared BookKeeper client is stopped.
+            for (ManagedLedgerImpl ledger : instances) {
+                if (shutdown) {
+                    if (ledger.currentLedger != null) {
+                        ledger.currentLedger.closeAsync().get(5, TimeUnit.SECONDS);
+                    }
+                } else if (!ledger.getState().isFenced()) {
+                    ledger.close();
+                }
+            }
+            try {
+                factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+            } catch (ManagedLedgerException.ManagedLedgerFactoryClosedException alreadyClosed) {
+                // The shutdown case already closed the factory.
+            }
+        }
+    }
+
+    private static CompletableFuture<ManagedLedger> openLedgerAsync(ManagedLedgerFactoryImpl factory, String name,
+                                                                   ManagedLedgerConfig config) {
+        CompletableFuture<ManagedLedger> result = new CompletableFuture<>();
+        factory.asyncOpen(name, config, new OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+                result.complete(ledger);
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                result.completeExceptionally(exception);
+            }
+        }, null, null);
+        return result;
     }
 
     @DataProvider
