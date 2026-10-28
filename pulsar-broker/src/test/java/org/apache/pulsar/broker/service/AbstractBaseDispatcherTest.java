@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.service;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -72,6 +74,188 @@ public class AbstractBaseDispatcherTest {
         when(svcConfig.isDispatchThrottlingForFilteredEntriesEnabled()).thenReturn(true);
         this.subscriptionMock = mock(PersistentSubscription.class);
         this.helper = new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig, null);
+    }
+
+    @Test
+    public void testApplyRateLimitsToMessagesAndBytesToReadWithBatchedMessages() {
+        DispatchRateLimiter rateLimiter = mock(DispatchRateLimiter.class);
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(50L);
+        when(rateLimiter.getAvailableDispatchRateLimitOnByte()).thenReturn(-1L);
+
+        PersistentTopic topicMock = mock(PersistentTopic.class);
+        when(topicMock.isSystemTopic()).thenReturn(true);
+        when(this.subscriptionMock.getTopic()).thenReturn(topicMock);
+        when(topicMock.getBrokerDispatchRateLimiter()).thenReturn(Optional.empty());
+        when(topicMock.getDispatchRateLimiter()).thenReturn(Optional.empty());
+
+        AbstractBaseDispatcherTestHelper dispatcher =
+                new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig, rateLimiter);
+
+        // 1. Unknown batch size (no consumers / consumers report avgMessagesPerEntry = 0):
+        // Before any messages have been dispatched, the batch size is unknown, so limit the first read to 1 entry
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsUnknownBatch =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsUnknownBatch.getLeft().intValue(), 1);
+
+        Consumer consumerZero = mock(Consumer.class);
+        when(consumerZero.getAvgMessagesPerEntry()).thenReturn(0);
+        dispatcher.setConsumers(List.of(consumerZero));
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsZeroAvg =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsZeroAvg.getLeft().intValue(), 1);
+
+        // 2. Unbatched messages (consumer reports avgMessagesPerEntry = 1): 50 permits allow 50 entries
+        Consumer consumerUnbatched = mock(Consumer.class);
+        when(consumerUnbatched.getAvgMessagesPerEntry()).thenReturn(1);
+        dispatcher.setConsumers(List.of(consumerUnbatched));
+
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsUnbatched =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsUnbatched.getLeft().intValue(), 50);
+
+        // 3. Batched messages (consumer reports avgMessagesPerEntry = 10):
+        // 50 message permits must scale to 50 / 10 = 5 entries
+        Consumer consumerBatched = mock(Consumer.class);
+        when(consumerBatched.getAvgMessagesPerEntry()).thenReturn(10);
+        dispatcher.setConsumers(List.of(consumerBatched));
+
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsWithBatching =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsWithBatching.getLeft().intValue(), 5);
+
+        // 4. Multiple consumers with different averages (Key_Shared: avg 2 and avg 10 -> representative avg 6):
+        // 50 message permits must scale to 50 / 6 = 8 entries
+        Consumer consumer1 = mock(Consumer.class);
+        when(consumer1.getAvgMessagesPerEntry()).thenReturn(2);
+        Consumer consumer2 = mock(Consumer.class);
+        when(consumer2.getAvgMessagesPerEntry()).thenReturn(10);
+        dispatcher.setConsumers(List.of(consumer1, consumer2));
+
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsMultiConsumer =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsMultiConsumer.getLeft().intValue(), 8);
+
+        // 5. Sub-batch budget (positive permits < avgMessagesPerEntry): allows at least 1 entry for forward progress
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(5L);
+        dispatcher.setConsumers(List.of(consumerBatched));
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsSubBatch =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsSubBatch.getLeft().intValue(), 1);
+
+        // 6. Exhausted permits (0 permits): defers reading (-1)
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(0L);
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsExhausted =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsExhausted.getLeft().intValue(), -1);
+    }
+
+    @Test
+    public void testSingleActiveConsumerRateLimitsWithBatchedMessages() {
+        DispatchRateLimiter rateLimiter = mock(DispatchRateLimiter.class);
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(50L);
+        when(rateLimiter.getAvailableDispatchRateLimitOnByte()).thenReturn(-1L);
+
+        PersistentTopic topicMock = mock(PersistentTopic.class);
+        when(topicMock.isSystemTopic()).thenReturn(true);
+        when(this.subscriptionMock.getTopic()).thenReturn(topicMock);
+        when(topicMock.getBrokerDispatchRateLimiter()).thenReturn(Optional.empty());
+        when(topicMock.getDispatchRateLimiter()).thenReturn(Optional.empty());
+
+        Consumer standbyConsumer = mock(Consumer.class);
+        when(standbyConsumer.getAvgMessagesPerEntry()).thenReturn(1);
+
+        Consumer activeConsumer = mock(Consumer.class);
+        when(activeConsumer.getAvgMessagesPerEntry()).thenReturn(10);
+
+        AbstractDispatcherSingleActiveConsumer singleActiveDispatcher =
+                new AbstractDispatcherSingleActiveConsumer(
+                        CommandSubscribe.SubType.Failover, 0, "test-topic",
+                        this.subscriptionMock, this.svcConfig, null) {
+                    private Consumer mockActiveConsumer;
+
+                    public void setActiveConsumer(Consumer consumer) {
+                        this.mockActiveConsumer = consumer;
+                    }
+
+                    @Override
+                    public String getName() {
+                        return "test-single-active-dispatcher";
+                    }
+
+                    @Override
+                    public Consumer getActiveConsumer() {
+                        return mockActiveConsumer;
+                    }
+
+                    @Override
+                    protected void scheduleReadOnActiveConsumer() {}
+
+                    @Override
+                    protected void cancelPendingRead() {}
+
+                    @Override
+                    public Optional<DispatchRateLimiter> getRateLimiter() {
+                        return Optional.of(rateLimiter);
+                    }
+
+                    @Override
+                    protected boolean isConsumersExceededOnSubscription() {
+                        return false;
+                    }
+
+                    @Override
+                    public boolean trackDelayedDelivery(long ledgerId, long entryId, MessageMetadata msgMetadata) {
+                        return false;
+                    }
+
+                    @Override
+                    protected void reScheduleRead() {}
+
+                    @Override
+                    public CompletableFuture<Void> addConsumer(Consumer consumer) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+
+                    @Override
+                    public void removeConsumer(Consumer consumer) {}
+
+                    @Override
+                    public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {}
+
+                    @Override
+                    public void redeliverUnacknowledgedMessages(Consumer consumer, long consumerEpoch) {}
+
+                    @Override
+                    public void redeliverUnacknowledgedMessages(Consumer consumer, List<Position> positions) {}
+
+                    @Override
+                    public void addUnAckedMessages(int unAckMessages) {}
+
+                    @Override
+                    public RedeliveryTracker getRedeliveryTracker() {
+                        return null;
+                    }
+                };
+
+        // 1. Initial state (no active consumer / avg = 0): limits to 1 entry
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsNoActive =
+                singleActiveDispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsNoActive.getLeft().intValue(), 1);
+
+        // 2. Active consumer has avg = 10: 50 permits scale to 50 / 10 = 5 entries
+        // (standby consumer's avg = 1 is ignored)
+        singleActiveDispatcher.getConsumers().add(standbyConsumer);
+        try {
+            java.lang.reflect.Method setActive =
+                    singleActiveDispatcher.getClass().getMethod("setActiveConsumer", Consumer.class);
+            setActive.invoke(singleActiveDispatcher, activeConsumer);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> limitsWithActive =
+                singleActiveDispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(limitsWithActive.getLeft().intValue(), 5);
     }
 
     @Test
@@ -158,6 +342,88 @@ public class AbstractBaseDispatcherTest {
                 null, cursor, false, null);
         assertEquals(size, 0);
         verify(subscriptionDispatchRateLimiter).consumeDispatchQuota(1, expectedBytePermits);
+    }
+
+    @Test
+    public void testRateLimitProgressionWithFilteredInitialBacklog() {
+        Topic mockTopic = mock(Topic.class);
+        when(this.subscriptionMock.getTopic()).thenReturn(mockTopic);
+
+        final EntryFilterProvider entryFilterProvider = mock(EntryFilterProvider.class);
+        final ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
+        when(serviceConfiguration.isAllowOverrideEntryFilters()).thenReturn(true);
+        final PulsarService pulsar = mock(PulsarService.class);
+        when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
+        BrokerService mockBrokerService = mock(BrokerService.class);
+        when(mockBrokerService.pulsar()).thenReturn(pulsar);
+        when(mockBrokerService.getEntryFilterProvider()).thenReturn(entryFilterProvider);
+        when(mockTopic.getBrokerService()).thenReturn(mockBrokerService);
+        EntryFilter mockFilter = mock(EntryFilter.class);
+        when(mockFilter.filterEntry(any(Entry.class), any(FilterContext.class))).thenReturn(
+                EntryFilter.FilterResult.REJECT);
+        when(mockTopic.getEntryFilters()).thenReturn(List.of(mockFilter));
+
+        DispatchRateLimiter rateLimiter = mock(DispatchRateLimiter.class);
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(50L);
+        when(rateLimiter.getAvailableDispatchRateLimitOnByte()).thenReturn(-1L);
+
+        AbstractBaseDispatcherTestHelper dispatcher =
+                new AbstractBaseDispatcherTestHelper(this.subscriptionMock, this.svcConfig, rateLimiter);
+
+        // Consumer starts with unknown average (avgMessagesPerEntry = 0)
+        java.util.concurrent.atomic.AtomicInteger consumerAvg = new java.util.concurrent.atomic.AtomicInteger(0);
+        Consumer consumer = mock(Consumer.class);
+        when(consumer.getAvgMessagesPerEntry()).thenAnswer(inv -> consumerAvg.get());
+        doAnswer(inv -> {
+            int msgs = inv.getArgument(0);
+            int entriesCount = inv.getArgument(1);
+            consumerAvg.set(Math.round((float) msgs / entriesCount));
+            return null;
+        }).when(consumer).updateAvgMessagesPerEntry(anyInt(), anyInt());
+
+        dispatcher.setConsumers(List.of(consumer));
+
+        // 1. Initial read limit before any entries are processed: unknown average limits read to 1 entry
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> initialLimits =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(initialLimits.getLeft().intValue(), 1);
+
+        // 2. Broker reads 1 entry with 10 batched messages, but EntryFilter REJECTS it
+        List<Entry> entries = new ArrayList<>();
+        ByteBuf batchMessage = createBatchMessage("batch-message", 1, 10);
+        Entry entry = EntryImpl.create(1, 1, batchMessage);
+        batchMessage.release();
+        entries.add(entry);
+
+        SendMessageInfo sendMessageInfo = SendMessageInfo.getThreadLocal();
+        EntryBatchSizes batchSizes = EntryBatchSizes.get(entries.size());
+        ManagedCursor cursor = mock(ManagedCursor.class);
+
+        int acceptedEntries = dispatcher.filterEntriesForConsumer(entries, batchSizes, sendMessageInfo,
+                null, cursor, false, consumer);
+        assertEquals(acceptedEntries, 0);
+        assertEquals(sendMessageInfo.getTotalMessages(), 0);
+
+        // 3. Verify consumer learned batch size (10 msgs / 1 entry = 10) despite all entries being filtered
+        assertEquals(consumer.getAvgMessagesPerEntry(), 10);
+
+        // 4. Subsequent fully filtered read with a different batch size does not drift/overwrite established average
+        List<Entry> subsequentFilteredEntries = new ArrayList<>();
+        ByteBuf largeBatch = createBatchMessage("batch-message", 1, 100);
+        Entry largeEntry = EntryImpl.create(1, 2, largeBatch);
+        largeBatch.release();
+        subsequentFilteredEntries.add(largeEntry);
+        int acceptedAgain = dispatcher.filterEntriesForConsumer(subsequentFilteredEntries,
+                EntryBatchSizes.get(subsequentFilteredEntries.size()), sendMessageInfo,
+                null, cursor, false, consumer);
+        assertEquals(acceptedAgain, 0);
+        assertEquals(consumer.getAvgMessagesPerEntry(), 10);
+
+        // 5. On subsequent read with 50 permits, rate limit progresses to 50 / 10 = 5 entries
+        // instead of staying stuck at 1
+        org.apache.commons.lang3.tuple.Pair<Integer, Long> subsequentLimits =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        assertEquals(subsequentLimits.getLeft().intValue(), 5);
     }
 
     @Test
@@ -367,9 +633,15 @@ public class AbstractBaseDispatcherTest {
             return false;
         }
 
+        private List<Consumer> consumers;
+
+        public void setConsumers(List<Consumer> consumers) {
+            this.consumers = consumers;
+        }
+
         @Override
         public List<Consumer> getConsumers() {
-            return null;
+            return consumers;
         }
 
         @Override

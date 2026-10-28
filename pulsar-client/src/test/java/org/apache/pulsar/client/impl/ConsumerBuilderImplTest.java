@@ -19,6 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -28,6 +31,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.annotation.JsonIgnoreType;
@@ -64,6 +68,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.TopicConsumerConfigurationData;
 import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
@@ -487,6 +492,7 @@ public class ConsumerBuilderImplTest {
         MessagePayloadProcessor payloadProcessor = createMockMessagePayloadProcessor();
         conf.put("payloadProcessor", payloadProcessor);
 
+        ConsumerConfigurationData<byte[]> original = consumerBuilder.getConf().clone();
         consumerBuilder.loadConf(conf);
 
         ConsumerConfigurationData<byte[]> configurationData = consumerBuilder.getConf();
@@ -531,22 +537,74 @@ public class ConsumerBuilderImplTest {
         assertTrue(configurationData.isStartPaused());
         assertTrue(configurationData.isAutoScaledReceiverQueueSizeEnabled());
 
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getConsumerEventListener());
-        assertNull(configurationData.getNegativeAckRedeliveryBackoff());
-        assertNull(configurationData.getAckTimeoutRedeliveryBackoff());
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getMessageCrypto());
-        assertNull(configurationData.getCryptoKeyReader());
-        assertNull(configurationData.getBatchReceivePolicy());
-        assertNull(configurationData.getKeySharedPolicy());
-        assertNull(configurationData.getPayloadProcessor());
+        // Properties that are not serialized can't be set from the map, and keep the values set on the builder
+        assertSame(configurationData.getMessageListener(), original.getMessageListener());
+        assertSame(configurationData.getConsumerEventListener(), original.getConsumerEventListener());
+        assertSame(configurationData.getNegativeAckRedeliveryBackoff(), original.getNegativeAckRedeliveryBackoff());
+        assertSame(configurationData.getAckTimeoutRedeliveryBackoff(), original.getAckTimeoutRedeliveryBackoff());
+        assertSame(configurationData.getMessageCrypto(), original.getMessageCrypto());
+        assertSame(configurationData.getCryptoKeyReader(), original.getCryptoKeyReader());
+        assertSame(configurationData.getBatchReceivePolicy(), original.getBatchReceivePolicy());
+        assertSame(configurationData.getKeySharedPolicy(), original.getKeySharedPolicy());
+        assertSame(configurationData.getPayloadProcessor(), original.getPayloadProcessor());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testLoadConfKeepsDeadLetterPolicyOfClonesIndependent() throws Exception {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        when(client.getCnxPool()).thenReturn(mock(ConnectionPool.class));
+        when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
+        when(client.getPartitionedTopicMetadata(anyString(), anyBoolean(), anyBoolean())).thenReturn(
+                CompletableFuture.failedFuture(new PulsarClientException.NotFoundException("not found")));
+        List<ConsumerConfigurationData<byte[]>> subscribed = new ArrayList<>();
+        when(client.subscribeAsync(any(ConsumerConfigurationData.class), any(), any())).thenAnswer(invocation -> {
+            subscribed.add(invocation.getArgument(0));
+            return CompletableFuture.completedFuture(mock(Consumer.class));
+        });
+
+        ConsumerBuilder<byte[]> template = new ConsumerBuilderImpl<>(client, Schema.BYTES)
+                .enableRetry(true)
+                .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(3).build());
+        template.clone()
+                .loadConf(Map.of("topicNames", List.of("persistent://public/default/topic-a"),
+                        "subscriptionName", "sub-a"))
+                .subscribeAsync().get();
+        template.clone()
+                .loadConf(Map.of("topicNames", List.of("persistent://public/default/topic-b"),
+                        "subscriptionName", "sub-b"))
+                .subscribeAsync().get();
+
+        assertEquals(subscribed.size(), 2);
+        assertEquals(subscribed.get(0).getDeadLetterPolicy().getDeadLetterTopic(),
+                "persistent://public/default/topic-a-sub-a-DLQ");
+        assertEquals(subscribed.get(1).getDeadLetterPolicy().getDeadLetterTopic(),
+                "persistent://public/default/topic-b-sub-b-DLQ");
+        assertEquals(subscribed.get(1).getDeadLetterPolicy().getRetryLetterTopic(),
+                "persistent://public/default/topic-b-sub-b-RETRY");
+        assertNull(((ConsumerBuilderImpl<byte[]>) template).getConf().getDeadLetterPolicy().getDeadLetterTopic());
+    }
+
+    @Test
+    public void testLoadConfKeepsTopicConfigurationsOfClonesIndependent() {
+        ConsumerBuilderImpl<byte[]> template = createConsumerBuilder();
+        ConsumerBuilderImpl<byte[]> first = (ConsumerBuilderImpl<byte[]>) template.clone()
+                .loadConf(Map.of("consumerName", "first"))
+                .topicConfiguration("topic-a").priorityLevel(1).build();
+        ConsumerBuilderImpl<byte[]> second = (ConsumerBuilderImpl<byte[]>) template.clone()
+                .loadConf(Map.of("consumerName", "second"))
+                .topicConfiguration("topic-a").priorityLevel(9).build();
+
+        assertEquals(first.getConf().getMatchingTopicConfiguration("topic-a").getPriorityLevel(), 1);
+        assertEquals(second.getConf().getMatchingTopicConfiguration("topic-a").getPriorityLevel(), 9);
+        assertTrue(template.getConf().getTopicConfigurations().isEmpty());
     }
 
     @Test
     public void testLoadConfNotModified() {
         ConsumerBuilderImpl<byte[]> consumerBuilder = createConsumerBuilder();
 
+        ConsumerConfigurationData<byte[]> original = consumerBuilder.getConf().clone();
         consumerBuilder.loadConf(new HashMap<>());
 
         ConsumerConfigurationData<byte[]> configurationData = consumerBuilder.getConf();
@@ -591,16 +649,16 @@ public class ConsumerBuilderImplTest {
         assertFalse(configurationData.isStartPaused());
         assertFalse(configurationData.isAutoScaledReceiverQueueSizeEnabled());
 
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getConsumerEventListener());
-        assertNull(configurationData.getNegativeAckRedeliveryBackoff());
-        assertNull(configurationData.getAckTimeoutRedeliveryBackoff());
-        assertNull(configurationData.getMessageListener());
-        assertNull(configurationData.getMessageCrypto());
-        assertNull(configurationData.getCryptoKeyReader());
-        assertNull(configurationData.getBatchReceivePolicy());
-        assertNull(configurationData.getKeySharedPolicy());
-        assertNull(configurationData.getPayloadProcessor());
+        // Properties that are not serialized can't be set from the map, and keep the values set on the builder
+        assertSame(configurationData.getMessageListener(), original.getMessageListener());
+        assertSame(configurationData.getConsumerEventListener(), original.getConsumerEventListener());
+        assertSame(configurationData.getNegativeAckRedeliveryBackoff(), original.getNegativeAckRedeliveryBackoff());
+        assertSame(configurationData.getAckTimeoutRedeliveryBackoff(), original.getAckTimeoutRedeliveryBackoff());
+        assertSame(configurationData.getMessageCrypto(), original.getMessageCrypto());
+        assertSame(configurationData.getCryptoKeyReader(), original.getCryptoKeyReader());
+        assertSame(configurationData.getBatchReceivePolicy(), original.getBatchReceivePolicy());
+        assertSame(configurationData.getKeySharedPolicy(), original.getKeySharedPolicy());
+        assertSame(configurationData.getPayloadProcessor(), original.getPayloadProcessor());
     }
 
     @Test

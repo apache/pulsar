@@ -421,7 +421,7 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
                                   boolean allowReadOnlyMode,
                                   String configPath) throws IOException, QuorumPeerConfig.ConfigException {
         super(connectString, sessionTimeoutMs, initialHandleWatcher, allowReadOnlyMode,
-                configPath == null ? null : new ZKClientConfig(configPath));
+                configPath == null ? null : newClientConfig(configPath));
         this.connectString = connectString;
         this.configPath = configPath;
         this.sessionTimeoutMs = sessionTimeoutMs;
@@ -454,6 +454,12 @@ public class PulsarZooKeeperClient extends ZooKeeper implements Watcher, AutoClo
         setACLStats = scopedStatsLogger.getOpStatsLogger("set_acl");
         syncStats = scopedStatsLogger.getOpStatsLogger("sync");
         initialHandleWatcher.setClient(this);
+    }
+
+    // ZKClientConfig(Path) throws the broader common.ConfigException, which would widen the throws clauses here.
+    @SuppressWarnings("deprecation")
+    private static ZKClientConfig newClientConfig(String configPath) throws QuorumPeerConfig.ConfigException {
+        return new ZKClientConfig(configPath);
     }
 
     @Override

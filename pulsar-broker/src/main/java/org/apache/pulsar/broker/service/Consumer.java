@@ -436,13 +436,7 @@ public class Consumer {
         }
 
         // calculate avg message per entry
-        if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
-            // set init value.
-            avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
-        } else {
-            avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
-                    + (1 - avgPercent) * totalMessages / totalEntries);
-        }
+        updateAvgMessagesPerEntry(totalMessages, totalEntries);
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
@@ -1126,6 +1120,19 @@ public class Consumer {
      */
     public int getAvgMessagesPerEntry() {
         return (int) Math.round(avgMessagesPerEntry.get());
+    }
+
+    public void updateAvgMessagesPerEntry(int totalMessages, int totalEntries) {
+        if (totalEntries <= 0 || totalMessages <= 0) {
+            return;
+        }
+        if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
+            // set init value.
+            avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
+        } else {
+            avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
+                    + (1 - avgPercent) * totalMessages / totalEntries);
+        }
     }
 
     public boolean isBlocked() {

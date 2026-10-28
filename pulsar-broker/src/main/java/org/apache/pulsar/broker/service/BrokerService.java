@@ -625,7 +625,7 @@ public class BrokerService implements Closeable {
             bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-            bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+            bootstrap.childOption(ChannelOption.RECVBUF_ALLOCATOR,
                     new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
             EventLoopUtil.enableTriggeredMode(bootstrap);
             DefaultThreadFactory defaultThreadFactory =
@@ -653,7 +653,7 @@ public class BrokerService implements Closeable {
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-        bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+        bootstrap.childOption(ChannelOption.RECVBUF_ALLOCATOR,
             new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
         bootstrap.channel(EventLoopUtil.getServerSocketChannelClass(workerGroup));
         EventLoopUtil.enableTriggeredMode(bootstrap);
@@ -1835,6 +1835,8 @@ public class BrokerService implements Closeable {
                 ClusterData data = clusterDataOp
                         .orElseThrow(() -> new MetadataStoreException.NotFoundException(cluster));
                 warnOnStalePip337ClusterFactory(cluster, data);
+                // statsInterval(0) turns off the legacy stats recorder; there is no non-deprecated equivalent.
+                @SuppressWarnings("deprecation")
                 ClientBuilder clientBuilder = PulsarClient.builder()
                         .enableTcpNoDelay(false)
                         .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
@@ -3418,8 +3420,35 @@ public class BrokerService implements Closeable {
             handleLocalPoliciesUpdates(ns);
         } else if (pulsar().getPulsarResources().getDynamicConfigResources().isDynamicConfigurationPath(n.getPath())) {
             handleDynamicConfigurationUpdates();
+        } else if (n.getType() == NotificationType.Modified
+                && pulsar.getConfiguration().isActiveConsumerFailoverConsistentHashing()) {
+            PartitionedTopicResources.topicNameFromPath(n.getPath()).ifPresent(this::handlePartitionsUpdate);
         }
         // Ignore unrelated notifications
+    }
+
+    // Consistent hashing assigns the partitions of a topic to the Failover consumers by the partition count, so the
+    // loaded partitions re-pick their active consumers when partitions are added.
+    private void handlePartitionsUpdate(TopicName partitionedTopicName) {
+        fetchPartitionedTopicMetadataAsync(partitionedTopicName, true).thenAcceptAsync(metadata ->
+                topics.forEach((name, topicFuture) -> {
+                    TopicName topicName = TopicName.get(name);
+                    if (topicName.isPartitioned()
+                            && topicName.getPartitionedTopicName().equals(partitionedTopicName.toString())) {
+                        topicFuture.thenAccept(topic -> topic.ifPresent(t -> t.getSubscriptions().values()
+                                .forEach(subscription -> {
+                                    if (subscription.getDispatcher()
+                                            instanceof AbstractDispatcherSingleActiveConsumer dispatcher) {
+                                        dispatcher.onPartitionsUpdate(metadata.partitions);
+                                    }
+                                })));
+                    }
+                }), pulsar.getExecutor())
+                .exceptionally(ex -> {
+                    log.warn().attr("topic", partitionedTopicName).exception(ex)
+                            .log("Failed to re-pick the active consumers after a partition update");
+                    return null;
+                });
     }
 
     private void handleLocalPoliciesUpdates(NamespaceName namespace) {
