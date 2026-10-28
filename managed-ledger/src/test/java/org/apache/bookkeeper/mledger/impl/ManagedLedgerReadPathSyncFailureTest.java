@@ -24,6 +24,7 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.validateMockitoUsage;
@@ -31,12 +32,14 @@ import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
@@ -125,6 +128,42 @@ public class ManagedLedgerReadPathSyncFailureTest extends MockedBookKeeperTestCa
             assertThat(failure.get()).isNull();
             assertThat(cursor.getPendingReadOpsCount()).isZero();
         });
+    }
+
+    /**
+     * A failure to register the read timeout runs after the read was already submitted: it must be
+     * reported through the wrapper, whose completion guard also coordinates the storage callbacks,
+     * instead of failing the read operation directly.
+     */
+    @Test
+    public void testTimeoutRegistrationFailureIsReportedThroughTheWrapper() throws Exception {
+        // Hold the storage read, so the failure to register the timeout reaches the wrapper
+        // before the read completes
+        CompletableFuture<Void> releaseReads = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, readEntries) ->
+                releaseReads.thenApply(__ -> readEntries));
+
+        ManagedLedgerFactoryImpl factorySpy = spy(factory);
+        ReadEntryTimeoutTracker tracker = spy(factory.getReadEntryTimeoutTracker());
+        doThrow(new RuntimeException("timeout registration failed")).doCallRealMethod()
+                .when(tracker).add(any(ManagedLedgerImpl.ReadEntryCallbackWrapper.class));
+        doReturn(tracker).when(factorySpy).getReadEntryTimeoutTracker();
+
+        ManagedLedgerConfig config =
+                initManagedLedgerConfig(new ManagedLedgerConfig()).setReadEntryTimeoutSeconds(60);
+        ManagedLedger ledger = factorySpy.open("sync-failure-timeout-registration", config);
+        ManagedCursorImpl cursor =
+                (ManagedCursorImpl) ledger.openCursor("c", InitialPosition.Earliest);
+        cursor.setInactive();
+        ledger.addEntry("entry-0".getBytes(UTF_8));
+
+        cursor.asyncReadEntriesOrWait(1, callback(), null, ledger.getLastConfirmedEntry());
+
+        await().atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(failure.get()).isNotNull();
+            assertThat(cursor.getPendingReadOpsCount()).isZero();
+        });
+        releaseReads.complete(null);
     }
 
     /**
