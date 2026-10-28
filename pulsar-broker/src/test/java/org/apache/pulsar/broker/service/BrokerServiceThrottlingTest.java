@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
+import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongGaugeValue;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.waitAtMost;
 import static org.testng.Assert.assertEquals;
@@ -27,6 +28,7 @@ import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.opentelemetry.api.common.Attributes;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -94,6 +96,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         try {
             limiter.registerThrottleStateListener("test-connection", () -> { });
             assertThat(controller.isEnabled()).isFalse();
+            assertRequestFrameMemoryThrottledMetric(0);
             controller.acquire(1);
             assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes()).isEqualTo(1);
             controller.release(1);
@@ -103,6 +106,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
                     .getInProgressRequestFrameMemoryLimitEnabled() == InProgressRequestFrameMemoryLimitMode.ENABLED
                     && controller.isEnabled());
+            assertRequestFrameMemoryThrottledMetric(0);
             assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter())
                     .isSameAs(limiter);
 
@@ -117,6 +121,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             acquired = true;
             controller.onInboundRead();
             assertThat(limiter.isThrottled()).isTrue();
+            assertRequestFrameMemoryThrottledMetric(1);
             assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryUsedBytes())
                     .isEqualTo(1024L * 1024L + 1);
 
@@ -127,6 +132,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                 waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
                     assertThat(limiter.getLimitBytes()).isEqualTo(limitMB * 1024L * 1024L);
                     assertThat(limiter.isThrottled()).isEqualTo(limitMB == 1);
+                    assertRequestFrameMemoryThrottledMetric(limitMB == 1 ? 1 : 0);
                     assertThat(controller.getRetainedFrameBytes()).isEqualTo(1024L * 1024L + 1);
                 });
             }
@@ -134,6 +140,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             waitAtMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
                 assertThat(limiter.getLimitBytes()).isEqualTo(maxMessagePublishBufferSizeInMB * 1024L * 1024L);
                 assertThat(limiter.isThrottled()).isFalse();
+                assertRequestFrameMemoryThrottledMetric(0);
             });
             admin.brokers().updateDynamicConfiguration("maxMessagePublishBufferSizeInMB", "1");
             waitAtMost(10, TimeUnit.SECONDS).until(limiter::isThrottled);
@@ -143,9 +150,11 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     .getInProgressRequestFrameMemoryLimitEnabled() == InProgressRequestFrameMemoryLimitMode.DISABLED
                     && !controller.isEnabled());
             assertThat(limiter.isThrottled()).isFalse();
+            assertRequestFrameMemoryThrottledMetric(0);
             assertThat(controller.getRetainedFrameBytes()).isEqualTo(1024L * 1024L + 1);
             controller.onInboundRead();
             assertThat(limiter.isThrottled()).isFalse();
+            assertRequestFrameMemoryThrottledMetric(0);
 
             assertThatThrownBy(() -> admin.brokers().updateDynamicConfiguration(
                     "inProgressRequestFrameMemoryLimitEnabled", "invalid"))
@@ -156,12 +165,15 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
             admin.brokers().updateDynamicConfiguration("inProgressRequestFrameMemoryLimitEnabled", "ENABLED");
             waitAtMost(10, TimeUnit.SECONDS).until(controller::isEnabled);
             assertThat(limiter.isThrottled()).isTrue();
+            assertRequestFrameMemoryThrottledMetric(1);
 
             admin.brokers().deleteDynamicConfiguration("inProgressRequestFrameMemoryLimitEnabled");
             waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
                     .getInProgressRequestFrameMemoryLimitEnabled() == initialMode
                     && controller.isEnabled() == (initialMode == InProgressRequestFrameMemoryLimitMode.ENABLED));
             assertThat(limiter.isThrottled()).isEqualTo(initialMode == InProgressRequestFrameMemoryLimitMode.ENABLED);
+            assertRequestFrameMemoryThrottledMetric(
+                    initialMode == InProgressRequestFrameMemoryLimitMode.ENABLED ? 1 : 0);
         } finally {
             if (acquired) {
                 controller.release(1024L * 1024L + 1);
@@ -178,6 +190,49 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     && pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter().getLimitBytes()
                             == maxMessagePublishBufferSizeInMB * 1024L * 1024L);
         }
+    }
+
+    @Test
+    public void testRequestFrameMemoryThrottledMetricFollowsHysteresis() {
+        InProgressRequestFrameMemoryController controller = pulsar.getBrokerService()
+                .getInProgressRequestFrameMemoryLimiter().getController();
+        InProgressRequestFrameMemoryLimitMode initialMode = pulsar.getConfiguration()
+                .getInProgressRequestFrameMemoryLimitEnabled();
+        long initialLimitBytes = controller.getLimiter().getLimitBytes();
+        long retainedBytes = 0;
+        try {
+            controller.updateLimitBytes(100);
+            controller.setMode(InProgressRequestFrameMemoryLimitMode.DISABLED);
+            controller.acquire(101);
+            retainedBytes = 101;
+            controller.onInboundRead();
+            assertRequestFrameMemoryThrottledMetric(0);
+
+            controller.setMode(InProgressRequestFrameMemoryLimitMode.ENABLED);
+            assertRequestFrameMemoryThrottledMetric(1);
+            controller.release(1);
+            retainedBytes -= 1;
+            // Usage is no longer above the limit, but throttling persists until the half-limit resume threshold.
+            assertRequestFrameMemoryThrottledMetric(1);
+            controller.release(49);
+            retainedBytes -= 49;
+            assertRequestFrameMemoryThrottledMetric(1);
+            controller.release(1);
+            retainedBytes -= 1;
+            assertRequestFrameMemoryThrottledMetric(0);
+            assertThat(controller.isEnabled()).isTrue();
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(50);
+        } finally {
+            controller.release(retainedBytes);
+            controller.updateLimitBytes(initialLimitBytes);
+            controller.setMode(initialMode);
+        }
+    }
+
+    private void assertRequestFrameMemoryThrottledMetric(long expectedValue) {
+        assertMetricLongGaugeValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
+                BrokerService.IN_PROGRESS_REQUEST_FRAME_MEMORY_THROTTLED_METRIC_NAME,
+                Attributes.empty(), expectedValue);
     }
 
     @DataProvider

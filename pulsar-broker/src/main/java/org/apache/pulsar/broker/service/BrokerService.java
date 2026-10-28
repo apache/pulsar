@@ -42,6 +42,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.ObservableLongGauge;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
@@ -307,6 +308,9 @@ public class BrokerService implements Closeable {
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsLimitCounter;
     private final ObservableLongUpDownCounter inProgressRequestFrameMemoryUsageCounter;
+    public static final String IN_PROGRESS_REQUEST_FRAME_MEMORY_THROTTLED_METRIC_NAME =
+            "pulsar.broker.publish.in.progress.buffer.memory.throttled";
+    private final ObservableLongGauge inProgressRequestFrameMemoryThrottledGauge;
 
     public static final String CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME = "pulsar.broker.connection.rate_limit.count";
     private final LongCounter rateLimitedConnectionsCounter;
@@ -548,6 +552,16 @@ public class BrokerService implements Closeable {
                 .setUnit("By")
                 .buildWithCallback(measurement -> measurement.record(
                         inProgressRequestFrameMemoryController.getRetainedFrameBytes()));
+
+        this.inProgressRequestFrameMemoryThrottledGauge = pulsar.getOpenTelemetry().getMeter()
+                .gaugeBuilder(IN_PROGRESS_REQUEST_FRAME_MEMORY_THROTTLED_METRIC_NAME)
+                .ofLongs()
+                .setDescription("Whether request-frame memory limiting currently requires socket auto-read to pause: "
+                        + "1 when throttled, 0 otherwise. Reports the limiter's current throttle state "
+                        + "and excludes other throttling reasons.")
+                .setUnit("1")
+                .buildWithCallback(measurement -> measurement.record(
+                        inProgressRequestFrameMemoryController.getLimiter().isThrottled() ? 1 : 0));
 
         this.rateLimitedConnectionsCounter = pulsar.getOpenTelemetry().getMeter()
                 .counterBuilder(BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
@@ -1143,6 +1157,7 @@ public class BrokerService implements Closeable {
                                 pendingTopicLoadOperationsCounter.close();
                                 pendingLookupOperationsCounter.close();
                                 inProgressRequestFrameMemoryUsageCounter.close();
+                                inProgressRequestFrameMemoryThrottledGauge.close();
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                     if (fallbackDelayedDeliveryTrackerFactory != null) {
