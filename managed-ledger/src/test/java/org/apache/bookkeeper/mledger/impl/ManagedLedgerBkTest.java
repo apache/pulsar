@@ -206,6 +206,100 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         }
     }
 
+    @Test(dataProvider = "activationPositionUpdates", timeOut = 30000)
+    public void testActivationIgnoresDelayedReadPositionUpdate(boolean expectedReadCount, boolean moveForward)
+            throws Exception {
+        assertDelayedReadPositionUpdate(expectedReadCount, moveForward, false);
+    }
+
+    @Test(dataProvider = "activationPositionUpdates", timeOut = 30000)
+    public void testDelayedReadPositionUpdateReconcilesConcurrentSeek(boolean expectedReadCount, boolean moveForward)
+            throws Exception {
+        assertDelayedReadPositionUpdate(expectedReadCount, moveForward, true);
+    }
+
+    private void assertDelayedReadPositionUpdate(boolean expectedReadCount, boolean moveForward,
+                                                boolean overlapActiveSeek) throws Exception {
+        @Cleanup("shutdown")
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(metadataStore, bkc) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> ownershipChecker) {
+                return new ManagedLedgerImpl(this, bk, store, config, scheduledExecutor, name, ownershipChecker) {
+                    @Override
+                    protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
+                        return new PausingReadPositionCursor(bookKeeper, this, cursorName);
+                    }
+                };
+            }
+        };
+        ManagedLedgerConfig config = defaultConfig()
+                .setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        config.setCacheEvictionByExpectedReadCount(expectedReadCount);
+        config.setCacheEvictionByMarkDeletedPosition(false);
+        config.setReadAheadEnabled(false);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "delayed-cursor-position-" + UUID.randomUUID(), config);
+        PausingReadPositionCursor cursor = (PausingReadPositionCursor) ledger.openCursor("moving");
+        ManagedCursor reference = ledger.openCursor("reference");
+        List<Position> positions = new ArrayList<>();
+        for (int index = 0; index < 5; index++) {
+            positions.add(ledger.addEntry(new byte[]{(byte) index}));
+        }
+        reference.seek(positions.get(2));
+        cursor.setInactive();
+        cursor.seek(positions.get(2));
+        Position oldPosition = positions.get(moveForward ? 0 : 4);
+        Position target = positions.get(moveForward ? 4 : 0);
+        AtomicReference<Thread> readThread = new AtomicReference<>();
+        ExecutorService caller = Executors.newSingleThreadExecutor(
+                new DefaultThreadFactory("delayed-cursor-position", true));
+        try {
+            Future<?> read;
+            synchronized (ledger.getActiveCursors()) {
+                read = caller.submit(() -> {
+                    readThread.set(Thread.currentThread());
+                    // Use the same position publication/notification method as OpReadEntry's completion.
+                    cursor.setReadPosition(oldPosition);
+                });
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> readThread.get() != null
+                        && readThread.get().getState() == Thread.State.BLOCKED);
+                assertThat(cursor.getReadPosition()).isEqualTo(oldPosition);
+                // Publish and register a newer position before allowing the old notification to resume.
+                cursor.seek(overlapActiveSeek ? positions.get(moveForward ? 1 : 3) : target);
+                cursor.setActive();
+                if (overlapActiveSeek) {
+                    cursor.pauseNextSnapshot.set(true);
+                }
+            }
+            if (overlapActiveSeek) {
+                assertThat(cursor.positionSampled.await(10, TimeUnit.SECONDS)).isTrue();
+                // The active path can overtake reconciliation after it has sampled the current position.
+                cursor.seek(target);
+                cursor.resumeSnapshot.countDown();
+            }
+            read.get(10, TimeUnit.SECONDS);
+
+            assertThat(cursor.getReadPosition()).isEqualTo(target);
+            assertThat(cursor.isActive()).isTrue();
+            assertThat(ledger.isCursorActive(cursor)).isTrue();
+            if (expectedReadCount) {
+                assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(reference))
+                        .as("a delayed notification must not overwrite the latest reader count")
+                        .isEqualTo(moveForward ? 1 : 2);
+                assertThat(ledger.getNumberOfCursorsAtSamePositionOrBefore(cursor))
+                        .isEqualTo(moveForward ? 2 : 1);
+            }
+            assertThat(ledger.getActiveCursors().getSlowestCursorPosition())
+                    .as("a delayed notification must not overwrite the latest position")
+                    .isEqualTo(moveForward ? reference.getReadPosition() : target);
+        } finally {
+            cursor.resumeSnapshot.countDown();
+            caller.shutdownNow();
+            assertThat(caller.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
     private static final class PausingReadPositionCursor extends ManagedCursorImpl {
         private final AtomicBoolean pauseNextSnapshot = new AtomicBoolean();
         private final CountDownLatch positionSampled = new CountDownLatch(1);
