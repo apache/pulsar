@@ -102,6 +102,7 @@ public class Producer {
     private final boolean isShadowTopic;
     private final boolean isEncrypted;
     private final boolean isAutoProduceBytes;
+    private final boolean requiresSchemaVersion;
 
     private final ProducerAccessMode accessMode;
     private Optional<Long> topicEpoch;
@@ -129,6 +130,18 @@ public class Producer {
             Optional<Long> topicEpoch,
             boolean supportsPartialProducer,
             boolean isAutoProduceBytes) {
+        this(topic, cnx, producerId, producerName, appId, isEncrypted, metadata, schemaVersion, epoch,
+                userProvidedProducerName, accessMode, topicEpoch, supportsPartialProducer, isAutoProduceBytes, false);
+    }
+
+    public Producer(Topic topic, TransportCnx cnx, long producerId, String producerName, String appId,
+            boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
+            boolean userProvidedProducerName,
+            ProducerAccessMode accessMode,
+            Optional<Long> topicEpoch,
+            boolean supportsPartialProducer,
+            boolean isAutoProduceBytes,
+            boolean requiresSchemaVersion) {
         final ServiceConfiguration serviceConf =  cnx.getBrokerService().pulsar().getConfiguration();
 
         this.topic = topic;
@@ -177,6 +190,7 @@ public class Producer {
 
         this.isEncrypted = isEncrypted;
         this.isAutoProduceBytes = isAutoProduceBytes;
+        this.requiresSchemaVersion = requiresSchemaVersion;
         this.schemaVersion = schemaVersion;
         this.accessMode = accessMode;
         this.topicEpoch = topicEpoch;
@@ -278,7 +292,8 @@ public class Producer {
             return false;
         }
 
-        if (isAutoProduceBytes && (cnx.getBrokerService().pulsar().getConfig().isSchemaValidationEnforced()
+        if (isAutoProduceBytes && requiresSchemaVersion
+                && (cnx.getBrokerService().pulsar().getConfig().isSchemaValidationEnforced()
                 || topic.getSchemaValidationEnforced())) {
             headersAndPayload.markReaderIndex();
             MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
