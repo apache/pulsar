@@ -1408,6 +1408,48 @@ public class PersistentTopics extends PersistentTopicsBase {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/{topic}/policies")
+    @Operation(summary = "Get all the policies explicitly set on a topic.",
+            description = "Returns the topic-level policies of the requested scope (local or global) in one call."
+                    + " Policies that were never set on the topic are not set in the response; inherited"
+                    + " namespace and broker values are not included.")
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "All the policies explicitly set on the topic.",
+                    content = @Content(schema = @Schema(implementation = TopicPolicies.class))),
+            @ApiResponse(responseCode = "307",
+                    description = "Current broker doesn't serve the namespace of this topic"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Namespace or topic doesn't exist"),
+            @ApiResponse(responseCode = "405",
+                    description = "Topic level policy is disabled, to enable the topic level policy and retry"),
+            @ApiResponse(responseCode = "409", description = "Concurrent modification"),
+            @ApiResponse(responseCode = "412", description = "Topic name is a partition")})
+    public void getTopicPolicies(
+            @Suspended AsyncResponse asyncResponse,
+            @Parameter(description = "Specify the tenant", required = true)
+            @PathParam("tenant") String tenant,
+            @Parameter(description = "Specify the namespace", required = true)
+            @PathParam("namespace") String namespace,
+            @Parameter(description = "Specify topic name", required = true)
+            @PathParam("topic") @Encoded String encodedTopic,
+            @Parameter(description = "Whether to get the global policies instead of the local policies")
+            @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @Parameter(description = "Whether leader broker redirected this call to this broker. For internal use.")
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+        validateTopicName(tenant, namespace, encodedTopic);
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ALL, PolicyOperation.READ)
+                .thenCompose(__ -> preValidation(authoritative))
+                .thenCompose(__ -> internalGetTopicPolicies(isGlobal))
+                .thenAccept(asyncResponse::resume)
+                .exceptionally(ex -> {
+                    handleTopicPolicyException("getTopicPolicies", ex, asyncResponse);
+                    return null;
+                });
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/{topic}/subscriptions")
     @Operation(
             summary = "Get the list of persistent subscriptions for a given topic.")

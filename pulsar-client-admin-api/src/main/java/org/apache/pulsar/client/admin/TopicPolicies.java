@@ -2033,4 +2033,29 @@ public interface TopicPolicies {
      * Delete topic policies, it works even if the topic has been deleted.
      */
     void deleteTopicPolicies(String topic) throws PulsarAdminException;
+
+    /**
+     * Get all the policies explicitly set on the topic, in the scope (local or global) of this object.
+     *
+     * <p>The result has the same JSON structure the broker returns from
+     * {@code GET /admin/v2/persistent/{tenant}/{namespace}/{topic}/policies}. Each key is the name of a policy field
+     * and each value is the corresponding JSON value, decoded as a {@link Map}, {@link java.util.List}, string,
+     * number or boolean. Policies that were never set on the topic have no value. Values inherited from the
+     * namespace or the broker are not included; use the {@code applied} flag of the individual getters for those.
+     * A topic without any policy yields a map in which no policy is set, never {@code null}.
+     *
+     * <p>The map is deliberately untyped so that new topic policies are returned without an API change. Field names
+     * and values follow the persisted topic policies format.
+     *
+     * @param topic the topic name
+     * @return the topic-level policies
+     */
+    Map<String, Object> getTopicPolicies(String topic) throws PulsarAdminException;
+
+    /**
+     * Get all the policies explicitly set on the topic asynchronously.
+     *
+     * @see #getTopicPolicies(String)
+     */
+    CompletableFuture<Map<String, Object>> getTopicPoliciesAsync(String topic);
 }

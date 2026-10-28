@@ -3953,6 +3953,11 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     @SuppressWarnings("deprecation")
+    protected CompletableFuture<TopicPolicies> internalGetTopicPolicies(boolean isGlobal) {
+        return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
+                .thenApply(op -> op.orElseGet(() -> TopicPolicies.builder().isGlobal(isGlobal).build()));
+    }
+
     protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied, boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
             .thenApply(op -> op.map(TopicPolicies::getRetentionPolicies).orElseGet(() -> {

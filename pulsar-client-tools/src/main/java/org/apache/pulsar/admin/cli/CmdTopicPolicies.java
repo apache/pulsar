@@ -60,6 +60,7 @@ public class CmdTopicPolicies extends CmdBase {
 
     public CmdTopicPolicies(Supplier<PulsarAdmin> admin) {
         super("topicPolicies", admin);
+        addCommand("get", new GetPolicies());
         addCommand("delete", new DeletePolicies());
         addCommand("get-message-ttl", new GetMessageTTL());
         addCommand("set-message-ttl", new SetMessageTTL());
@@ -2117,6 +2118,24 @@ public class CmdTopicPolicies extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
             getTopicPolicies(isGlobal).removeReplicationClusters(persistentTopic);
+        }
+    }
+
+    @Command(description = "Get all the policies explicitly set on a topic. Values inherited from the namespace or "
+            + "the broker are not included; use the get-xxx commands with --applied for those")
+    private class GetPolicies extends CliCommand {
+
+        @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
+        private String topicName;
+
+        @Option(names = { "--global", "-g" }, description = "Whether to get the policies globally. "
+                + "If set to true, broker returned global topic policies")
+        private boolean isGlobal = false;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(topicName);
+            print(getTopicPolicies(isGlobal).getTopicPolicies(persistentTopic));
         }
     }
 

@@ -1378,6 +1378,18 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
         return asyncDeleteRequest(path);
     }
 
+    @Override
+    public Map<String, Object> getTopicPolicies(String topic) throws PulsarAdminException {
+        return sync(() -> getTopicPoliciesAsync(topic));
+    }
+
+    @Override
+    public CompletableFuture<Map<String, Object>> getTopicPoliciesAsync(String topic) {
+        TopicName tn = validateTopic(topic);
+        WebTarget path = topicPath(tn, "policies");
+        return asyncGetRequest(path, new FutureCallback<Map<String, Object>>(){});
+    }
+
     /*
      * returns topic name with encoded Local Name
      */

@@ -4779,4 +4779,55 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
             // No-op. Creating the producer initializes the events topic and partitions.
         }
     }
+
+    @Test
+    public void testGetAllTopicPolicies() throws Exception {
+        // A topic without policies yields a map with nothing set, never null.
+        Map<String, Object> none = admin.topicPolicies().getTopicPolicies(testTopic);
+        assertNotNull(none);
+        assertNull(none.get("retentionPolicies"));
+        assertNull(none.get("messageTTLInSeconds"));
+        assertEquals(none.get("isGlobal"), Boolean.FALSE);
+        assertEquals(admin.topicPolicies(true).getTopicPoliciesAsync(testTopic).get().get("isGlobal"), Boolean.TRUE);
+
+        admin.topicPolicies().setRetention(testTopic, new RetentionPolicies(60, 1024));
+        admin.topicPolicies().setMessageTTL(testTopic, 300);
+        admin.topicPolicies(true).setMaxConsumers(testTopic, 7);
+
+        // Local and global scopes are returned separately, each holding only what was set in that scope.
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> local = admin.topicPolicies().getTopicPolicies(testTopic);
+            Map<?, ?> retention = (Map<?, ?>) local.get("retentionPolicies");
+            assertNotNull(retention);
+            assertEquals(((Number) retention.get("retentionTimeInMinutes")).intValue(), 60);
+            assertEquals(((Number) retention.get("retentionSizeInMB")).longValue(), 1024L);
+            assertEquals(((Number) local.get("messageTTLInSeconds")).intValue(), 300);
+            assertNull(local.get("maxConsumerPerTopic"));
+            assertEquals(local.get("isGlobal"), Boolean.FALSE);
+
+            Map<String, Object> global = admin.topicPolicies(true).getTopicPolicies(testTopic);
+            assertEquals(((Number) global.get("maxConsumerPerTopic")).intValue(), 7);
+            assertNull(global.get("retentionPolicies"));
+            assertEquals(global.get("isGlobal"), Boolean.TRUE);
+        });
+
+        // Inherited namespace values are not part of the result.
+        admin.namespaces().setRetention(myNamespace, new RetentionPolicies(10, 10));
+        admin.topicPolicies().removeRetention(testTopic);
+        Awaitility.await().untilAsserted(
+                () -> assertNull(admin.topicPolicies().getTopicPolicies(testTopic).get("retentionPolicies")));
+
+        admin.topicPolicies().deleteTopicPolicies(testTopic);
+        Awaitility.await().untilAsserted(
+                () -> assertNull(admin.topicPolicies().getTopicPolicies(testTopic).get("messageTTLInSeconds")));
+    }
+
+    @Test
+    public void testGetAllTopicPoliciesErrors() {
+        String missing = "persistent://" + myNamespace + "/not-existing-" + UUID.randomUUID();
+        assertThrows(PulsarAdminException.NotFoundException.class,
+                () -> admin.topicPolicies().getTopicPolicies(missing));
+        assertThrows(PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.topicPolicies().getTopicPolicies(testTopic + "-partition-0"));
+    }
 }
