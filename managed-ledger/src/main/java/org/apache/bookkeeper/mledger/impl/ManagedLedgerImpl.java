@@ -1905,7 +1905,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         lh.asyncClose((rc, lh1, ctx1) -> {
             log.debug().attr("ledgerId", lh.getId()).attr("rc", rc).log("Close complete for ledger");
             mbean.endDataLedgerCloseOp();
-            // Release the read handles even if the current ledger failed to close, as they keep metadata listeners
+            // Release the read handles even if the current ledger failed to close, as nothing would release them later
             invalidateAllReadHandles();
             if (rc != BKException.Code.OK) {
                 callback.closeFailed(createManagedLedgerException(rc), ctx);
@@ -2750,9 +2750,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             LedgerInfo info = ledgers.get(ledgerId);
             CompletableFuture<ReadHandle> openFuture;
 
-            // The handle can stay cached for long, so both BookKeeper opens below keep its metadata updated: it then
-            // reads from the bookies the ledger is re-replicated to, e.g. when a bookie is decommissioned, instead of
-            // the ones in its ensemble when it was opened
             if (config.getLedgerOffloader() != null
                     && config.getLedgerOffloader().getOffloadPolicies() != null
                     && config.getLedgerOffloader().getOffloadPolicies()
@@ -2764,7 +2761,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         .withLedgerId(ledgerId)
                         .withDigestType(config.getDigestType())
                         .withPassword(config.getPassword())
-                        .withKeepUpdateMetadata(true)
                         .withLoggerContext(log)
                         .withOrderingKey(name)
                         .execute();
@@ -2786,7 +2782,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         .withLedgerId(ledgerId)
                         .withDigestType(config.getDigestType())
                         .withPassword(config.getPassword())
-                        .withKeepUpdateMetadata(true)
                         .withLoggerContext(log)
                         .withOrderingKey(name)
                         .execute();
@@ -2798,8 +2793,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     promise.completeExceptionally(createManagedLedgerException(ex));
                 } else if (readHandlesReleased && ledgerCache.remove(ledgerId, promise)) {
                     // This managed ledger was closed after this open started and its cached handles were released, so
-                    // nothing would release this one, nor its metadata listener. A handle cached before that is
-                    // released by the close.
+                    // nothing would release this one. A handle cached before that is released by the close.
                     res.closeAsync().exceptionally(closeEx -> {
                         log.warn().attr("ledgerId", ledgerId).exception(closeEx)
                                 .log("Failed to close a Ledger ReadHandle opened while closing");
@@ -2879,13 +2873,35 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         ledgerCache.forEach((ledgerId, readHandle) -> invalidateReadHandle(ledgerId));
     }
 
+    /**
+     * Releases a handle that a read failed on, like {@link #invalidateLedgerHandle(ReadHandle)}, and opens the ledger
+     * again with its current metadata, which the reads that failed on the same handle share.
+     *
+     * @return the handle opened again when its ensembles differ from the failed one's, e.g. after the ledger was
+     *         re-replicated off a decommissioned bookie, so that the read can be retried on the new bookies; null when
+     *         a retry would read from the same bookies, or the ledger can't be opened again
+     */
+    public CompletableFuture<ReadHandle> reopenLedgerHandleIfReplicated(ReadHandle ledgerHandle) {
+        invalidateLedgerHandle(ledgerHandle);
+        if (ledgerHandle == currentLedger) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return getLedgerHandle(ledgerHandle.getId()).handle((reopened, ex) -> {
+            if (ex != null || reopened.getLedgerMetadata().getAllEnsembles()
+                    .equals(ledgerHandle.getLedgerMetadata().getAllEnsembles())) {
+                return null;
+            }
+            return reopened;
+        });
+    }
+
     public void invalidateLedgerHandle(ReadHandle ledgerHandle) {
         long ledgerId = ledgerHandle.getId();
         LedgerHandle currentLedger = this.currentLedger;
 
         if (ledgerHandle != currentLedger) {
             // remove handle from ledger cache since we got a (read) error, unless another read already replaced it:
-            // that handle would never be closed, nor its metadata listener released
+            // that handle would never be closed
             CompletableFuture<ReadHandle> cachedHandle = ledgerCache.get(ledgerId);
             if (cachedHandle != null && cachedHandle.isDone() && !cachedHandle.isCompletedExceptionally()
                     && cachedHandle.join() == ledgerHandle) {

@@ -24,8 +24,8 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
 /**
  * Runs {@link ManagedLedgerReadHandleMetadataTest} with the managed ledger reading through the metadata driver based
- * on the Pulsar metadata store, which notifies the ledger metadata updates differently than the ZooKeeper driver of
- * BookKeeper. The bookies and the re-replication keep the ZooKeeper driver, which uses the same layout.
+ * on the Pulsar metadata store, which caches the ledger metadata, unlike the ZooKeeper driver of BookKeeper. The
+ * bookies and the re-replication keep the ZooKeeper driver, which uses the same layout.
  */
 public class ManagedLedgerReadHandlePulsarMetadataDriverTest extends ManagedLedgerReadHandleMetadataTest {
 

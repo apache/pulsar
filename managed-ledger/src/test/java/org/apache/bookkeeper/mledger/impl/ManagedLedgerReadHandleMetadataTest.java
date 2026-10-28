@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil.defaultConfig;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
@@ -36,6 +37,7 @@ import org.apache.bookkeeper.meta.zk.ZKMetadataClientDriver;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
@@ -44,18 +46,19 @@ import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 /**
- * Checks that the read handles cached by a managed ledger follow the changes of their ledger's metadata, which this
- * test needs its own bookies for, as it stops some of them.
+ * Checks that a read failing on a handle cached by a managed ledger is retried on the bookies its ledger was
+ * re-replicated to since, which this test needs its own bookies for, as it stops some of them.
  */
 public class ManagedLedgerReadHandleMetadataTest extends BookKeeperClusterTestCase {
 
     public ManagedLedgerReadHandleMetadataTest() {
-        super(4);
+        // Each test stops the 2 bookies of its ledger, and the re-replication needs 2 others
+        super(6);
     }
 
     /**
-     * The metadata service URI of the client the managed ledger reads through, whose metadata driver notifies the
-     * read handles of the ledger metadata updates.
+     * The metadata service URI of the client the managed ledger reads through, whose metadata driver must read the
+     * current ledger metadata when the handle is opened again.
      */
     protected String getReaderMetadataServiceUri() throws Exception {
         return baseClientConf.getMetadataServiceUri();
@@ -66,7 +69,16 @@ public class ManagedLedgerReadHandleMetadataTest extends BookKeeperClusterTestCa
     }
 
     @Test(timeOut = 60000)
-    public void testCachedReadHandleReadsFromReReplicatedBookies() throws Exception {
+    public void testReadRetriedOnReReplicatedBookies() throws Exception {
+        testReadAfterOriginalBookiesStopped(true);
+    }
+
+    @Test(timeOut = 60000)
+    public void testReadNotRetriedWithoutReReplication() throws Exception {
+        testReadAfterOriginalBookiesStopped(false);
+    }
+
+    private void testReadAfterOriginalBookiesStopped(boolean reReplicate) throws Exception {
         ClientConfiguration readerConf = new ClientConfiguration(baseClientConf);
         readerConf.setMetadataServiceUri(getReaderMetadataServiceUri());
         @Cleanup
@@ -88,17 +100,25 @@ public class ManagedLedgerReadHandleMetadataTest extends BookKeeperClusterTestCa
         ReadHandle readHandle = ledger.getLedgerHandle(ledgerId).get();
         Set<BookieId> originalBookies = new HashSet<>(readHandle.getLedgerMetadata().getEnsembleAt(0));
 
-        // Move the ledger off its bookies through another client, as the auto-recovery does on a decommission
-        @Cleanup
-        BookKeeperAdmin admin = new BookKeeperAdmin(bkc, baseClientConf);
-        admin.recoverBookieData(ledgerId, originalBookies, false, false);
-        Awaitility.await().untilAsserted(() -> assertThat(readHandle.getLedgerMetadata().getEnsembleAt(0))
-                .doesNotContainAnyElementsOf(originalBookies));
+        if (reReplicate) {
+            // Move the ledger off its bookies through another client, as the auto-recovery does on a decommission
+            @Cleanup
+            BookKeeperAdmin admin = new BookKeeperAdmin(bkc, baseClientConf);
+            admin.recoverBookieData(ledgerId, originalBookies, false, false);
+        }
         for (BookieId bookie : originalBookies) {
             killBookie(bookie);
         }
+        // The cached handle still has the ensemble the ledger had when it was opened
+        assertThat(readHandle.getLedgerMetadata().getEnsembleAt(0))
+                .containsExactlyInAnyOrderElementsOf(originalBookies);
 
         factory.getEntryCacheManager().clear();
+        if (!reReplicate) {
+            // Opening the ledger again gives the same bookies, so the read fails without a retry
+            assertThatThrownBy(() -> cursor.readEntries(5)).isInstanceOf(ManagedLedgerException.class);
+            return;
+        }
         List<Entry> entries = cursor.readEntries(5);
         try {
             assertThat(entries).extracting(entry -> new String(entry.getData(), StandardCharsets.UTF_8))
@@ -106,7 +126,9 @@ public class ManagedLedgerReadHandleMetadataTest extends BookKeeperClusterTestCa
         } finally {
             entries.forEach(Entry::release);
         }
-        // The entries were read through the cached handle, not one opened again after a read error
-        assertThat(ledger.ledgerCache.get(ledgerId).getNow(null)).isSameAs(readHandle);
+        // The read failed on the cached handle, then was retried on a handle opened with the current ensemble
+        ReadHandle reopened = ledger.ledgerCache.get(ledgerId).getNow(null);
+        assertThat(reopened).isNotSameAs(readHandle);
+        assertThat(reopened.getLedgerMetadata().getEnsembleAt(0)).doesNotContainAnyElementsOf(originalBookies);
     }
 }
