@@ -56,6 +56,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -826,6 +827,47 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @Test
     public void txnAckTestNoBatchAndCumulativeSub() throws Exception {
         txnCumulativeAckTest(false, 1, SubscriptionType.Failover);
+    }
+
+    @Test
+    public void txnCumulativeAckOnPartitionedTopicIsUndoneByAbort() throws Exception {
+        String topic = NAMESPACE1 + "/txn-cumulative-ack-partitioned";
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
+        int messageCount = 10;
+        for (int i = 0; i < messageCount; i++) {
+            producer.send(i);
+        }
+        Message<Integer> lastMessage = null;
+        for (int i = 0; i < messageCount; i++) {
+            lastMessage = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+            Assert.assertNotNull(lastMessage);
+        }
+
+        Transaction abortedTxn = getTxn();
+        consumer.acknowledgeCumulativeAsync(lastMessage.getMessageId(), abortedTxn).get();
+        abortedTxn.abort().get();
+
+        // The aborted transaction must not have acknowledged anything
+        consumer.redeliverUnacknowledgedMessages();
+        Set<Integer> redelivered = new TreeSet<>();
+        Message<Integer> message;
+        while ((message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS)) != null) {
+            redelivered.add(message.getValue());
+        }
+        assertEquals(redelivered.size(), messageCount);
     }
 
     private void txnCumulativeAckTest(boolean batchEnable, int maxBatchSize, SubscriptionType subscriptionType)
