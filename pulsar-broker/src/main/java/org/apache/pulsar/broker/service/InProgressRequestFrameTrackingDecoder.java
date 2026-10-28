@@ -27,7 +27,6 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.nio.ByteOrder;
 import java.util.IdentityHashMap;
 import java.util.Map;
-import java.util.concurrent.RejectedExecutionException;
 import org.apache.pulsar.common.protocol.Commands;
 
 /**
@@ -42,6 +41,7 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
     private final InProgressRequestFrameMemoryController controller;
     private final Map<ByteBuf, RootBuffer> roots = new IdentityHashMap<>();
     private ChannelHandlerContext context;
+    private InProgressRequestFrameMemoryNotifier notifier;
 
     InProgressRequestFrameTrackingDecoder(int maxMessageSize, InProgressRequestFrameMemoryLimiter limiter) {
         super(maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4);
@@ -53,8 +53,8 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
         context = ctx;
-        limiter.registerThrottleStateListener(ctx.channel().id(),
-                () -> executeSafely(ctx, () -> setThrottled(limiter.isThrottled())));
+        notifier = controller.getEventLoopNotifier(ctx.executor());
+        notifier.add(limiter, this, () -> setThrottled(limiter.isThrottled()));
         super.handlerAdded(ctx);
     }
 
@@ -67,7 +67,8 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
 
     @Override
     protected void handlerRemoved0(ChannelHandlerContext ctx) throws Exception {
-        limiter.unregisterThrottleStateListener(ctx.channel().id());
+        notifier.remove(limiter, this);
+        notifier = null;
         setThrottled(false);
         context = null;
         super.handlerRemoved0(ctx);
@@ -159,15 +160,6 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
                 root.retainReference(1);
             }
             return root;
-        }
-    }
-
-    private static void executeSafely(ChannelHandlerContext ctx, Runnable task) {
-        try {
-            // Let the current input reach its downstream owners before pausing subsequent reads.
-            ctx.executor().execute(task);
-        } catch (RejectedExecutionException ignored) {
-            // The channel is closing and no longer needs a throttle state update.
         }
     }
 

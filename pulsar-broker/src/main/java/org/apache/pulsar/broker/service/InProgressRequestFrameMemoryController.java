@@ -19,18 +19,21 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.util.concurrent.EventExecutor;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.StampedLock;
 import java.util.function.LongSupplier;
 import lombok.CustomLog;
 
 /**
  * Accounts for all retained inbound roots in a broker and controls its request-frame limiters.
  * Each configuration generation has an immutable limit, but all generations use the same memory counter.
- * Policy and listener registration are serialized on this controller; callbacks always run outside its monitor.
+ * State transitions and registration take the write lock; ordinary accounting and reads use an optimistic check.
+ * Callbacks always run outside the lock and production notifications are coalesced on each connection event loop.
  */
 @CustomLog
 final class InProgressRequestFrameMemoryController {
@@ -38,6 +41,12 @@ final class InProgressRequestFrameMemoryController {
     private static final int DISABLE_DIRECT_MEMORY_USAGE_PERCENT = 65;
 
     private final AtomicLong retainedFrameBytes = new AtomicLong();
+    private final StampedLock stateLock = new StampedLock();
+    private final Map<EventExecutor, InProgressRequestFrameMemoryNotifier> eventLoopNotifiers = new HashMap<>();
+    // Summaries of registered generations, maintained under the write lock. Optimistic readers inspect only
+    // these scalars, never the mutable listener maps, and validate their stamp before skipping a state update.
+    private long minimumUnthrottledLimit = Long.MAX_VALUE;
+    private long maximumResumeThreshold = -1;
     private final Map<InProgressRequestFrameMemoryLimiter, Map<Object, Runnable>> throttleStateListeners =
             new HashMap<>();
     private final LongSupplier directMemoryUsedBytesSupplier;
@@ -65,16 +74,50 @@ final class InProgressRequestFrameMemoryController {
     }
 
     @VisibleForTesting
-    synchronized int getRegisteredLimiterCount() {
-        return throttleStateListeners.size();
+    int getRegisteredLimiterCount() {
+        long stamp = stateLock.readLock();
+        try {
+            return throttleStateListeners.size();
+        } finally {
+            stateLock.unlockRead(stamp);
+        }
     }
 
-    synchronized boolean isEnabled() {
-        return userEnabled || automaticallyEnabled;
+    boolean isEnabled() {
+        long stamp = stateLock.readLock();
+        try {
+            return userEnabled || automaticallyEnabled;
+        } finally {
+            stateLock.unlockRead(stamp);
+        }
     }
 
-    synchronized boolean isAutomaticallyEnabled() {
-        return automaticallyEnabled;
+    boolean isAutomaticallyEnabled() {
+        long stamp = stateLock.readLock();
+        try {
+            return automaticallyEnabled;
+        } finally {
+            stateLock.unlockRead(stamp);
+        }
+    }
+
+    InProgressRequestFrameMemoryNotifier getEventLoopNotifier(EventExecutor executor) {
+        long stamp = stateLock.writeLock();
+        try {
+            return eventLoopNotifiers.computeIfAbsent(executor,
+                    eventLoop -> new InProgressRequestFrameMemoryNotifier(this, eventLoop));
+        } finally {
+            stateLock.unlockWrite(stamp);
+        }
+    }
+
+    void removeEventLoopNotifier(EventExecutor executor, InProgressRequestFrameMemoryNotifier notifier) {
+        long stamp = stateLock.writeLock();
+        try {
+            eventLoopNotifiers.remove(executor, notifier);
+        } finally {
+            stateLock.unlockWrite(stamp);
+        }
     }
 
     void acquire(long bytes) {
@@ -82,31 +125,44 @@ final class InProgressRequestFrameMemoryController {
     }
 
     void release(long bytes) {
+        // Subtract before reading the stamp. A concurrent writer must either see the lower usage, or invalidate
+        // our optimistic read so that we recheck after its transition. Otherwise the last release could miss
+        // a writer about to pause connections, leaving them paused with no future event available to resume them.
         retainedFrameBytes.addAndGet(-bytes);
-        long directMemoryUsedBytes = isAutomaticallyEnabled() ? sampleDirectMemoryUsage() : -1;
-        AutomaticStateChange automaticStateChange;
-        List<Runnable> notifications;
-        synchronized (this) {
-            automaticStateChange = updateAutomaticLimitEnabledState(directMemoryUsedBytes, false);
-            // Release may resume paused connections, but must not start throttling before another inbound read.
-            notifications = updateThrottleStates(false);
-        }
-        logAutomaticStateChange(automaticStateChange);
-        notifyThrottleStateListeners(notifications);
+        updateState(false);
         // No periodic task is needed: new throttling only affects subsequent inbound reads. Root releases must
         // still trigger recovery, since a paused connection cannot supply the next inbound event itself.
     }
 
     void onInboundRead() {
-        long directMemoryUsedBytes = sampleDirectMemoryUsage();
+        updateState(true);
+    }
+
+    private void updateState(boolean inboundRead) {
+        long stamp = stateLock.tryOptimisticRead();
+        boolean enabled = userEnabled || automaticallyEnabled;
+        long usedBytes = retainedFrameBytes.get();
+        boolean checkAutomaticMode = !userEnabled && maxDirectMemoryBytes > 0
+                && (automaticallyEnabled || inboundRead && automaticEnableThresholdBytes > 0
+                        && usedBytes > automaticEnableThresholdBytes);
+        boolean checkThrottle = enabled && (usedBytes <= maximumResumeThreshold
+                || inboundRead && usedBytes > minimumUnthrottledLimit);
+        if (!checkAutomaticMode && !checkThrottle && stateLock.validate(stamp)) {
+            return;
+        }
+
+        long directMemoryUsedBytes = sampleDirectMemoryUsage(inboundRead);
         AutomaticStateChange automaticStateChange;
         List<Runnable> notifications;
-        synchronized (this) {
-            boolean previouslyEnabled = isEnabled();
-            automaticStateChange = updateAutomaticLimitEnabledState(directMemoryUsedBytes, true);
-            // An automatic false -> true transition only enables the policy. The next inbound read enforces it,
-            // including reads which reuse an existing cumulation without allocating another root.
-            notifications = updateThrottleStates(previouslyEnabled);
+        stamp = stateLock.writeLock();
+        try {
+            boolean previouslyEnabled = userEnabled || automaticallyEnabled;
+            automaticStateChange = updateAutomaticLimitEnabledState(directMemoryUsedBytes, inboundRead);
+            // Automatic activation only enables the policy; the next inbound read enforces it. Releases may
+            // resume connections, but never start throttling. Read usage inside the write lock, not before it.
+            notifications = updateThrottleStates(inboundRead && previouslyEnabled);
+        } finally {
+            stateLock.unlockWrite(stamp);
         }
         logAutomaticStateChange(automaticStateChange);
         notifyThrottleStateListeners(notifications);
@@ -114,19 +170,23 @@ final class InProgressRequestFrameMemoryController {
 
     void setUserEnabled(boolean enabled) {
         List<Runnable> notifications;
-        synchronized (this) {
+        long stamp = stateLock.writeLock();
+        try {
             userEnabled = enabled;
             if (enabled) {
                 automaticallyEnabled = false;
             }
             notifications = updateThrottleStates(enabled);
+        } finally {
+            stateLock.unlockWrite(stamp);
         }
         notifyThrottleStateListeners(notifications);
     }
 
     void updateLimitBytes(long limitBytes) {
         List<Runnable> notifications;
-        synchronized (this) {
+        long stamp = stateLock.writeLock();
+        try {
             if (currentLimiter.getLimitBytes() == limitBytes) {
                 return;
             }
@@ -138,32 +198,59 @@ final class InProgressRequestFrameMemoryController {
             // Existing connections keep their limit; the automatic activation threshold is broker-wide.
             currentLimiter = new InProgressRequestFrameMemoryLimiter(limitBytes, this);
             notifications = updateThrottleStates(false);
+        } finally {
+            stateLock.unlockWrite(stamp);
         }
         notifyThrottleStateListeners(notifications);
     }
 
     void registerThrottleStateListener(InProgressRequestFrameMemoryLimiter limiter, Object key, Runnable listener) {
         List<Runnable> notifications;
-        synchronized (this) {
+        long stamp = stateLock.writeLock();
+        try {
             Map<Object, Runnable> listeners = throttleStateListeners.computeIfAbsent(limiter,
                     ignored -> new HashMap<>());
             listeners.put(key, listener);
-            if (limiter.updateThrottledState(isEnabled(), retainedFrameBytes.get(), userEnabled)) {
+            if (limiter.updateThrottledState(userEnabled || automaticallyEnabled,
+                    retainedFrameBytes.get(), userEnabled)) {
                 notifications = new ArrayList<>(listeners.values());
             } else {
                 notifications = limiter.isThrottled() ? List.of(listener) : List.of();
             }
+            updateThresholdSummaries();
+        } finally {
+            stateLock.unlockWrite(stamp);
         }
         notifyThrottleStateListeners(notifications);
     }
 
-    synchronized void unregisterThrottleStateListener(InProgressRequestFrameMemoryLimiter limiter, Object key) {
-        Map<Object, Runnable> listeners = throttleStateListeners.get(limiter);
-        if (listeners != null) {
-            listeners.remove(key);
-            if (listeners.isEmpty()) {
-                // Roots retain this controller, so later release need not keep a closed generation alive.
-                throttleStateListeners.remove(limiter);
+    void unregisterThrottleStateListener(InProgressRequestFrameMemoryLimiter limiter, Object key) {
+        long stamp = stateLock.writeLock();
+        try {
+            Map<Object, Runnable> listeners = throttleStateListeners.get(limiter);
+            if (listeners != null) {
+                listeners.remove(key);
+                if (listeners.isEmpty()) {
+                    // Roots keep the controller alive; closed generations need not remain registered.
+                    throttleStateListeners.remove(limiter);
+                    updateThresholdSummaries();
+                }
+            }
+        } finally {
+            stateLock.unlockWrite(stamp);
+        }
+    }
+
+    private void updateThresholdSummaries() {
+        minimumUnthrottledLimit = Long.MAX_VALUE;
+        maximumResumeThreshold = -1;
+        for (InProgressRequestFrameMemoryLimiter limiter : throttleStateListeners.keySet()) {
+            if (limiter.getLimitBytes() > 0) {
+                if (limiter.isThrottled()) {
+                    maximumResumeThreshold = Math.max(maximumResumeThreshold, limiter.getLimitBytes() / 2);
+                } else {
+                    minimumUnthrottledLimit = Math.min(minimumUnthrottledLimit, limiter.getLimitBytes());
+                }
             }
         }
     }
@@ -171,7 +258,7 @@ final class InProgressRequestFrameMemoryController {
     private List<Runnable> updateThrottleStates(boolean allowNewThrottle) {
         List<Runnable> notifications = null;
         long usedBytes = retainedFrameBytes.get();
-        boolean enabled = isEnabled();
+        boolean enabled = userEnabled || automaticallyEnabled;
         for (var entry : throttleStateListeners.entrySet()) {
             if (entry.getKey().updateThrottledState(enabled, usedBytes, allowNewThrottle)) {
                 if (notifications == null) {
@@ -180,14 +267,20 @@ final class InProgressRequestFrameMemoryController {
                 notifications.addAll(entry.getValue().values());
             }
         }
+        updateThresholdSummaries();
         return notifications == null ? List.of() : notifications;
     }
 
-    private long sampleDirectMemoryUsage() {
-        synchronized (this) {
-            if (userEnabled || maxDirectMemoryBytes <= 0) {
+    private long sampleDirectMemoryUsage(boolean allowEnable) {
+        long stamp = stateLock.readLock();
+        try {
+            if (userEnabled || maxDirectMemoryBytes <= 0 || !automaticallyEnabled
+                    && (!allowEnable || automaticEnableThresholdBytes <= 0
+                            || retainedFrameBytes.get() <= automaticEnableThresholdBytes)) {
                 return -1;
             }
+        } finally {
+            stateLock.unlockRead(stamp);
         }
         return directMemoryUsedBytesSupplier.getAsLong();
     }

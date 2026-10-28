@@ -48,7 +48,7 @@ final class InProgressRequestFrameMemoryLimiter {
         controller.unregisterThrottleStateListener(this, listenerKey);
     }
 
-    // Called only while holding the controller monitor. Release events may recover, but cannot start throttling.
+    // Called only while holding the controller write lock. Release events may recover, but cannot start throttling.
     boolean updateThrottledState(boolean enabled, long usedBytes, boolean allowNewThrottle) {
         boolean previouslyThrottled = throttled;
         if (!enabled || limitBytes <= 0) {

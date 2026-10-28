@@ -19,6 +19,11 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import org.testng.annotations.DataProvider;
@@ -279,7 +284,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     }
 
     @Test
-    public void shouldNotifyOutsideTheControllerMonitorAndIsolateListenerFailures() {
+    public void shouldNotifyOutsideTheStateLockAndIsolateListenerFailures() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
                 100, () -> 0, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getCurrentLimiter();
@@ -288,7 +293,7 @@ public class InProgressRequestFrameMemoryControllerTest {
             throw new IllegalStateException("test listener failure");
         });
         limiter.registerThrottleStateListener("healthy", () -> {
-            assertThat(Thread.holdsLock(controller)).isFalse();
+            assertThat(controller.getRegisteredLimiterCount()).isEqualTo(1);
             successfulNotifications.incrementAndGet();
         });
         controller.acquire(101);
@@ -319,4 +324,58 @@ public class InProgressRequestFrameMemoryControllerTest {
         assertThat(InProgressRequestFrameMemoryController.automaticEnableThresholdBytes(limit))
                 .isEqualTo(limit + limit / 2);
     }
+    @Test
+    public void shouldSkipDirectMemorySamplingUntilAutomaticActivationIsPossible() {
+        AtomicInteger samples = new AtomicInteger();
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(false,
+                100, () -> {
+                    samples.incrementAndGet();
+                    return 85;
+                }, 100);
+        controller.acquire(150);
+        controller.onInboundRead();
+        controller.release(1);
+        controller.onInboundRead();
+        assertThat(samples).hasValue(0);
+        controller.acquire(2);
+        controller.onInboundRead();
+        assertThat(samples).hasValue(1);
+        assertThat(controller.isAutomaticallyEnabled()).isTrue();
+        controller.release(151);
+        assertThat(samples).hasValue(2);
+    }
+
+    @Test(timeOut = 30_000)
+    public void shouldNotLoseLastReleaseRacingWithAnInboundRead() throws Exception {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
+                100, () -> 0, 100);
+        InProgressRequestFrameMemoryLimiter limiter = controller.getCurrentLimiter();
+        limiter.registerThrottleStateListener("connection", () -> { });
+        CyclicBarrier barrier = new CyclicBarrier(2);
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            Future<?> reader = executor.submit(() -> {
+                for (int i = 0; i < 10_000; i++) {
+                    barrier.await(10, TimeUnit.SECONDS);
+                    controller.onInboundRead();
+                    barrier.await(10, TimeUnit.SECONDS);
+                }
+                return null;
+            });
+            for (int i = 0; i < 10_000; i++) {
+                controller.acquire(101);
+                barrier.await(10, TimeUnit.SECONDS);
+                controller.release(101);
+                barrier.await(10, TimeUnit.SECONDS);
+                assertThat(controller.getRetainedFrameBytes()).isZero();
+                assertThat(limiter.isThrottled())
+                        .as("no future event is available to resume iteration %s", i).isFalse();
+            }
+            reader.get(10, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
 }

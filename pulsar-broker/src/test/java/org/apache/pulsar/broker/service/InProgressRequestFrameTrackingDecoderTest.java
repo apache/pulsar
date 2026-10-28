@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.buffer.ByteBuf;
@@ -78,7 +77,8 @@ public class InProgressRequestFrameTrackingDecoderTest {
             channel.runPendingTasks();
             verify(throttleTracker, never()).markThrottled(
                     ServerCnxThrottleTracker.ThrottleType.InProgressRequestFrameMemoryExceeded);
-            verify(throttleTracker, times(2)).unmarkThrottled(
+            // Both transitions coalesce into one task that applies only the latest state.
+            verify(throttleTracker).unmarkThrottled(
                     ServerCnxThrottleTracker.ThrottleType.InProgressRequestFrameMemoryExceeded);
         } finally {
             channel.finishAndReleaseAll();
