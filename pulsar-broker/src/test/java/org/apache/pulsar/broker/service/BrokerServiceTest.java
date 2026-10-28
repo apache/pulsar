@@ -2453,6 +2453,31 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testManagedLedgerCacheCopyEntriesDynamicUpdate() throws Exception {
+        String setting = "managedLedgerCacheCopyEntries";
+        var serviceConfiguration = pulsar.getConfiguration();
+        boolean originalCopyEntries = serviceConfiguration.isManagedLedgerCacheCopyEntries();
+        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
+        assertThat(pulsar.getBrokerService().isDynamicConfiguration(setting)).isTrue();
+        assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(setting);
+        try {
+            for (boolean copyEntries : new boolean[]{!originalCopyEntries, originalCopyEntries, !originalCopyEntries}) {
+                admin.brokers().updateDynamicConfiguration(setting, Boolean.toString(copyEntries));
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    assertThat(serviceConfiguration.isManagedLedgerCacheCopyEntries()).isEqualTo(copyEntries);
+                    assertThat(factory.getConfig().isCopyEntriesInCache()).isEqualTo(copyEntries);
+                });
+            }
+        } finally {
+            admin.brokers().deleteDynamicConfiguration(setting);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(serviceConfiguration.isManagedLedgerCacheCopyEntries()).isEqualTo(originalCopyEntries);
+                assertThat(factory.getConfig().isCopyEntriesInCache()).isEqualTo(originalCopyEntries);
+            });
+        }
+    }
+
+    @Test
     public void testTlsWithAuthParams() throws Exception {
         final String topicName = "persistent://prop/ns-abc/newTopic";
         final String subName = "newSub";

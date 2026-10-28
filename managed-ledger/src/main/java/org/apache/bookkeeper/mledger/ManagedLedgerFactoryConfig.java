@@ -53,8 +53,9 @@ public class ManagedLedgerFactoryConfig {
 
     /**
      * Whether we should make a copy of the entry payloads when inserting in cache.
+     * Updates apply to subsequent cache insertions; existing entries retain their original buffers.
      */
-    private boolean copyEntriesInCache = false;
+    private volatile boolean copyEntriesInCache = false;
 
     /**
      * Maximum number of (estimated) data in-flight reading from storage and the cache.

@@ -2286,8 +2286,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
-    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
-            + "inserting in cache")
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+        doc = "Whether we should make a copy of the entry payloads when "
+            + "inserting in cache. Dynamic updates apply to subsequent cache insertions; existing cached entries "
+            + "keep their original buffers and are not cleared.")
     private boolean managedLedgerCacheCopyEntries = false;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size for bytes read from storage."

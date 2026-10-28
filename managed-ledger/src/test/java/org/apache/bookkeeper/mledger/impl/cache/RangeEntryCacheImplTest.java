@@ -25,15 +25,19 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.opentelemetry.api.OpenTelemetry;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
+import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
@@ -69,7 +73,7 @@ public class RangeEntryCacheImplTest {
             return Optional.of(handle);
         }).when(inflightReadsLimiter).acquire(anyLong(), any());
 
-        RangeEntryCacheImpl cache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger, false);
+        RangeEntryCacheImpl cache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger);
 
         ReadHandle readHandle = mock(ReadHandle.class);
         when(readHandle.getId()).thenReturn(1L);
@@ -96,5 +100,85 @@ public class RangeEntryCacheImplTest {
             assertThat(entries.get(0).getEntryId()).isEqualTo(0L);
         });
         assertThat(readAttempts.get()).isEqualTo(2);
+    }
+
+    private RangeEntryCacheManagerImpl createEntryCacheManager() {
+        ManagedLedgerFactoryImpl mockFactory = mock(ManagedLedgerFactoryImpl.class);
+        when(mockFactory.getMbean()).thenReturn(mock(ManagedLedgerFactoryMBeanImpl.class));
+        when(mockFactory.getConfig()).thenReturn(new ManagedLedgerFactoryConfig());
+        return spy(new RangeEntryCacheManagerImpl(mockFactory, mock(OrderedScheduler.class), OpenTelemetry.noop()));
+    }
+
+    private ManagedLedgerImpl createManagedLedger() {
+        ManagedLedgerImpl mockManagedLedger = mock(ManagedLedgerImpl.class);
+        when(mockManagedLedger.getMbean()).thenReturn(mock(ManagedLedgerMBeanImpl.class));
+        when(mockManagedLedger.getName()).thenReturn("testManagedLedger");
+        return mockManagedLedger;
+    }
+
+    @Test
+    public void shouldCopyEntriesInsertedAfterCopyModeIsEnabled() {
+        RangeEntryCacheManagerImpl mockEntryCacheManager = createEntryCacheManager();
+        when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(false);
+        RangeEntryCacheImpl rangeEntryCache = new RangeEntryCacheImpl(mockEntryCacheManager, createManagedLedger());
+
+        ByteBuf retainedData = Unpooled.buffer().writeByte(1);
+        EntryImpl retainedEntry = EntryImpl.create(1, 0, retainedData);
+        retainedData.release();
+        assertThat(rangeEntryCache.insert(retainedEntry)).isTrue();
+        retainedEntry.release();
+        assertThat(retainedData.refCnt()).isOne();
+
+        when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(true);
+        ByteBuf copiedData = Unpooled.buffer().writeByte(2);
+        EntryImpl copiedEntry = EntryImpl.create(1, 1, copiedData);
+        copiedData.release();
+        assertThat(rangeEntryCache.insert(copiedEntry)).isTrue();
+        copiedEntry.release();
+        assertThat(copiedData.refCnt()).isZero();
+
+        rangeEntryCache.clear();
+        assertThat(retainedData.refCnt()).isZero();
+    }
+
+    @Test
+    public void shouldUseUpdatedCopyModeWhenStorageReadCompletes() {
+        RangeEntryCacheManagerImpl mockEntryCacheManager = createEntryCacheManager();
+        when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(false);
+        InflightReadsLimiter inflightReadsLimiter = mock(InflightReadsLimiter.class);
+        when(mockEntryCacheManager.getInflightReadsLimiter()).thenReturn(inflightReadsLimiter);
+        doAnswer(invocation -> {
+            long permits = invocation.getArgument(0);
+            return Optional.of(new InflightReadsLimiter.Handle(permits, System.currentTimeMillis(), true));
+        }).when(inflightReadsLimiter).acquire(anyLong(), any());
+        ManagedLedgerImpl mockManagedLedger = createManagedLedger();
+        when(mockManagedLedger.getExecutor()).thenReturn(mock(ExecutorService.class));
+        when(mockManagedLedger.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+        RangeEntryCacheImpl rangeEntryCache = new RangeEntryCacheImpl(mockEntryCacheManager, mockManagedLedger);
+
+        ByteBuf source = Unpooled.directBuffer(128).writeInt(42);
+        LedgerEntries ledgerEntries = LedgerEntriesImpl.create(new ArrayList<>(List.of(
+                LedgerEntryImpl.create(1, 0, Integer.BYTES, source))));
+        ReadHandle lh = mock(ReadHandle.class);
+        when(lh.getId()).thenReturn(1L);
+        CompletableFuture<LedgerEntries> storageRead = new CompletableFuture<>();
+        when(lh.readAsync(0, 0)).thenReturn(storageRead);
+        CompletableFuture<List<EntryImpl>> result = rangeEntryCache.readFromStorage(lh, 0, 0, true);
+        try {
+            when(mockEntryCacheManager.isCopyEntriesInCache()).thenReturn(true);
+            storageRead.complete(ledgerEntries);
+            assertThat(result).isCompleted();
+            List<EntryImpl> readEntries = result.getNow(null);
+            try {
+                assertThat(readEntries).hasSize(1);
+            } finally {
+                readEntries.forEach(EntryImpl::release);
+            }
+            assertThat(rangeEntryCache.getSize()).isEqualTo(Integer.BYTES);
+            // Check while the cached entry is still alive; clearing the cache would also free an uncopied source.
+            assertThat(source.refCnt()).isZero();
+        } finally {
+            rangeEntryCache.clear();
+        }
     }
 }
