@@ -75,6 +75,44 @@ public class ManagedLedgerReadPathSyncFailureTest extends MockedBookKeeperTestCa
         failure.set(null);
     }
 
+    /**
+     * On a batch read, the wrapper carries a ReadEntriesCallback: a failure to register its
+     * timeout must reach that callback with the original cause, and a late storage completion
+     * must release its entries without completing the wrapper again.
+     */
+    @Test
+    public void testBatchReadTimeoutRegistrationFailureNotifiesBatchCallback() throws Exception {
+        CompletableFuture<Void> releaseReads = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, readEntries) ->
+                releaseReads.thenApply(__ -> readEntries));
+
+        ManagedLedgerFactoryImpl factorySpy = spy(factory);
+        ReadEntryTimeoutTracker tracker = spy(factory.getReadEntryTimeoutTracker());
+        RuntimeException cause = new RuntimeException("timeout registration failed");
+        doThrow(cause).doCallRealMethod()
+                .when(tracker).add(any(ManagedLedgerImpl.ReadEntryCallbackWrapper.class));
+        doReturn(tracker).when(factorySpy).getReadEntryTimeoutTracker();
+
+        ManagedLedgerConfig config =
+                initManagedLedgerConfig(new ManagedLedgerConfig()).setReadEntryTimeoutSeconds(60);
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factorySpy.open("sync-failure-batch-timeout-registration", config);
+        ManagedCursorImpl cursor =
+                (ManagedCursorImpl) ledger.openCursor("c", InitialPosition.Earliest);
+        cursor.setInactive();
+        ledger.addEntry("entry-0".getBytes(UTF_8));
+
+        cursor.asyncReadEntriesOrWait(1, callback(), null, ledger.getLastConfirmedEntry());
+
+        await().atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(failure.get().getCause()).isSameAs(cause);
+            assertThat(cursor.getPendingReadOpsCount()).isZero();
+        });
+        // The late storage completion releases its entries without completing the callback again
+        releaseReads.complete(null);
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(entries).isEmpty());
+    }
+
     private ReadEntriesCallback callback() {
         return new ReadEntriesCallback() {
             @Override
