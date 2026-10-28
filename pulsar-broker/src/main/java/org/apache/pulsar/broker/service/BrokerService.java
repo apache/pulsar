@@ -2865,8 +2865,8 @@ public class BrokerService implements Closeable {
                     }
                 }), pulsar.getExecutor())
                 .exceptionally(ex -> {
-                    log.warn().attr("topic", partitionedTopicName).exception(ex)
-                            .log("Failed to re-pick the active consumers after a partition update");
+                    log.warn("[{}] Failed to re-pick the active consumers after a partition update",
+                            partitionedTopicName, ex);
                     return null;
                 });
     }
@@ -3801,6 +3801,11 @@ public class BrokerService implements Closeable {
                     // if the partitioned topic is not found in metadata, then the topic is not partitioned
                     return metadata.orElseGet(() -> new PartitionedTopicMetadata());
                 });
+    }
+
+    public PartitionedTopicMetadata fetchPartitionedTopicMetadataIfCachedAndAsyncLoad(TopicName topicName) {
+        return pulsar.getPulsarResources().getNamespaceResources().getPartitionedTopicResources()
+                .getPartitionedTopicMetadataIfCacheAndAsyncLoad(topicName).orElseGet(PartitionedTopicMetadata::new);
     }
 
     public OrderedExecutor getTopicOrderedExecutor() {

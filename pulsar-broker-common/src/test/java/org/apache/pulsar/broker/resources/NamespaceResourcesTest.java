@@ -24,6 +24,11 @@ import static org.testng.Assert.assertTrue;
 import java.util.Optional;
 import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.metadata.api.MetadataStore;
+import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class NamespaceResourcesTest {
@@ -50,5 +55,21 @@ public class NamespaceResourcesTest {
         assertEquals(PartitionedTopicResources.topicNameFromPath("/admin/policies/t/ns"), Optional.empty());
     }
 
+    @Test
+    public void testPartitionedTopicMetadataCacheMissAndLoad() throws Exception {
+        try (MetadataStore store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build())) {
+            PartitionedTopicResources resources = new PartitionedTopicResources(store, 30, Runnable::run);
+            TopicName topicName = TopicName.get("persistent://tenant/namespace/topic%name");
+            resources.createPartitionedTopicAsync(topicName, new PartitionedTopicMetadata(4)).join();
+            resources.getCache().invalidateAll();
 
+            assertEquals(resources.getPartitionedTopicMetadataIfCacheAndAsyncLoad(topicName), Optional.empty());
+            String path = BaseResources.joinPath("/admin/partitioned-topics", topicName.getNamespace(),
+                    topicName.getDomain().value(), topicName.getEncodedLocalName());
+            Awaitility.await().untilAsserted(() -> assertEquals(
+                    resources.getCache().getIfCached(path).map(metadata -> metadata.partitions), Optional.of(4)));
+            assertEquals(resources.getPartitionedTopicMetadataIfCacheAndAsyncLoad(topicName)
+                    .orElseThrow().partitions, 4);
+        }
+    }
 }

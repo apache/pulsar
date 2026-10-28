@@ -303,6 +303,15 @@ public class NamespaceResources extends BaseResources<Policies> {
                     );
         }
 
+        public Optional<PartitionedTopicMetadata> getPartitionedTopicMetadataIfCacheAndAsyncLoad(TopicName tn) {
+            String path = joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),
+                    tn.getEncodedLocalName());
+            Optional<PartitionedTopicMetadata> result = getCache().getIfCached(path);
+            // Start loading on a cache miss without blocking consumer selection.
+            getAsync(path);
+            return result;
+        }
+
         public CompletableFuture<Optional<PartitionedTopicMetadata>> getPartitionedTopicMetadataAsync(TopicName tn) {
             return getPartitionedTopicMetadataAsync(tn, false);
         }
