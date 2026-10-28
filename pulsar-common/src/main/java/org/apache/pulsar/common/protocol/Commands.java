@@ -137,6 +137,9 @@ public class Commands {
     // so client don't need to think about consumerEpoch feature
     public static final long DEFAULT_CONSUMER_EPOCH = -1L;
 
+    // Internal subscribe metadata shared by the partition consumers of one logical Failover consumer.
+    public static final String CONSUMER_INSTANCE_ID = "__pulsar_consumer_instance_id";
+
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
     @SuppressWarnings("checkstyle:ConstantName")

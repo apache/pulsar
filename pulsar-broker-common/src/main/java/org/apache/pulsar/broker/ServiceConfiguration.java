@@ -916,7 +916,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_POLICIES,
             doc = "Enable consistent hashing for selecting the active consumer in partitioned "
-                    + "topics with Failover subscription type."
+                    + "topics with Failover subscription type. "
+                    + "Clients with duplicate consumer names must supply a stable instance id shared "
+                    + "across partitions. "
+                    + "Clients without instance ids should use distinct consumer names for balanced assignment. "
                     + "For non-partitioned topics, consistent hashing is used by default."
     )
     private boolean activeConsumerFailoverConsistentHashing = false;

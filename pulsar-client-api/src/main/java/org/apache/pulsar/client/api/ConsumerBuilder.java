@@ -481,6 +481,12 @@ public interface ConsumerBuilder<T> extends Cloneable {
      * <p>Consumer names are informative, and can be used to identify a particular consumer
      * instance from the topic stats.
      *
+     * <p>For a partitioned topic with a Failover subscription, the broker uses consumer names to order and assign
+     * consumers to partitions. The Java client supplies an internal instance id shared across partitions so that
+     * brokers supporting instance ids can also balance consumers with duplicate names after a partition reconnects.
+     * When using clients or brokers without this support, use a distinct name for each logical consumer in the
+     * subscription and the same name across its partitions to ensure balanced assignment.
+     *
      * @param consumerName
      * @return the consumer builder instance
      */

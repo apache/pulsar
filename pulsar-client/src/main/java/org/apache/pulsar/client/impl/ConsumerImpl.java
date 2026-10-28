@@ -325,7 +325,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                            ConsumerInterceptors<T> interceptors,
                            boolean createTopicIfDoesNotExist) {
         super(client, topic, conf, conf.getReceiverQueueSize(), executorProvider, subscribeFuture, schema,
-                interceptors);
+                interceptors, hasParentConsumer ? conf.getProperties().get(Commands.CONSUMER_INSTANCE_ID) : null);
         this.consumerId = client.newConsumerId();
         this.log = LOG.with()
                 .attr("topic", topic)
@@ -405,10 +405,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             this.msgCrypto = null;
         }
 
-        if (conf.getProperties().isEmpty()) {
+        if (conf.getProperties().isEmpty() && consumerInstanceId == null) {
             metadata = Collections.emptyMap();
         } else {
-            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
+            Map<String, String> consumerMetadata = new HashMap<>(conf.getProperties());
+            if (consumerInstanceId != null) {
+                consumerMetadata.put(Commands.CONSUMER_INSTANCE_ID, consumerInstanceId);
+            }
+            metadata = Collections.unmodifiableMap(consumerMetadata);
         }
 
         this.connectionHandler = new ConnectionHandler(this,

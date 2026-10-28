@@ -32,6 +32,7 @@ import it.unimi.dsi.fastutil.objects.ObjectIntPair;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -67,6 +68,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.Rate;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -154,6 +156,7 @@ public class Consumer {
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
     private final Map<String, String> metadata;
+    private final String consumerInstanceId;
 
     private final KeySharedMeta keySharedMeta;
 
@@ -250,7 +253,15 @@ public class Consumer {
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
 
-        this.metadata = metadata != null ? metadata : Collections.emptyMap();
+        Map<String, String> consumerMetadata = metadata != null ? metadata : Collections.emptyMap();
+        this.consumerInstanceId = subType == SubType.Failover
+                ? consumerMetadata.get(Commands.CONSUMER_INSTANCE_ID) : null;
+        if (consumerInstanceId != null) {
+            consumerMetadata = new HashMap<>(consumerMetadata);
+            consumerMetadata.remove(Commands.CONSUMER_INSTANCE_ID);
+            consumerMetadata = Collections.unmodifiableMap(consumerMetadata);
+        }
+        this.metadata = consumerMetadata;
 
         stats = new ConsumerStatsImpl();
         stats.setAddress(cnx.clientSourceAddressAndPort());
@@ -302,6 +313,7 @@ public class Consumer {
         this.isDurable = false;
         this.isPersistentTopic = false;
         this.metadata = null;
+        this.consumerInstanceId = null;
         this.keySharedMeta = null;
         this.clientAddress = null;
         this.startMessageId = null;
@@ -1612,6 +1624,10 @@ public class Consumer {
 
     public Map<String, String> getMetadata() {
         return metadata;
+    }
+
+    String consumerInstanceId() {
+        return consumerInstanceId;
     }
     public Attributes getOpenTelemetryAttributes() {
         if (openTelemetryAttributes != null) {
