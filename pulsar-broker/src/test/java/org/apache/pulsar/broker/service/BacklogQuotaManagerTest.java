@@ -312,15 +312,18 @@ public class BacklogQuotaManagerTest {
 
             // check reader can still read with out error
 
-            do {
-                Message<byte[]> msg = reader.readNext(5, SECONDS);
-                if (msg == null) {
-                    break;
-                }
-                log.info().attr("msgId", msg.getMessageId())
-                        .attr("data", msg.getData()[0]).log("Message read");
-            } while (reader.hasMessageAvailable());
+            assertReaderCanReadAfterBacklogCheck(producer, reader);
         }
+    }
+
+    private void assertReaderCanReadAfterBacklogCheck(Producer<byte[]> producer, Reader<byte[]> reader)
+            throws PulsarClientException {
+        MessageId markerId = producer.send(new byte[1024]);
+        Message<byte[]> message;
+        do {
+            message = reader.readNext(5, SECONDS);
+            assertNotNull(message, "Reader did not reach the marker after the backlog check");
+        } while (!markerId.equals(message.getMessageId()));
     }
 
     private TopicStats getTopicStats(String topic1) throws PulsarAdminException {
@@ -398,14 +401,7 @@ public class BacklogQuotaManagerTest {
             });
             // check reader can still read without error
 
-            do {
-                Message<byte[]> msg = reader.readNext(5, SECONDS);
-                if (msg == null) {
-                    break;
-                }
-                log.info().attr("msgId", msg.getMessageId())
-                        .attr("data", msg.getData()[0]).log("Message read");
-            } while (reader.hasMessageAvailable());
+            assertReaderCanReadAfterBacklogCheck(producer, reader);
             producer.close();
             reader.close();
         }
@@ -775,7 +771,7 @@ public class BacklogQuotaManagerTest {
 
             // This code will wait about 4~5 Seconds, to make sure the oldest message is 4~5 seconds old
             c1MarkDeletePositionBefore = waitForMarkDeletePositionToChange(topic1, subName1,
-                    c1MarkDeletePositionBefore);
+                    c1MarkDeletePositionBefore, Duration.ofSeconds(1), Duration.ofSeconds(1));
             waitForQuotaCheckToRunTwice();
 
             Metrics metrics = prometheusMetricsClient.getMetrics();
@@ -821,11 +817,9 @@ public class BacklogQuotaManagerTest {
 
             Consumer<byte[]> consumer1 = client.newConsumer().topic(topic1).subscriptionName(subName1)
                     .acknowledgmentGroupTime(0, SECONDS)
-                    .isAckReceiptEnabled(true)
                     .subscribe();
             Consumer<byte[]> consumer2 = client.newConsumer().topic(topic1).subscriptionName(subName2)
                     .acknowledgmentGroupTime(0, SECONDS)
-                    .isAckReceiptEnabled(true)
                     .subscribe();
             Producer<byte[]> producer = createProducer(client, topic1);
 
@@ -848,7 +842,15 @@ public class BacklogQuotaManagerTest {
 
             c1MarkDeletePositionBefore = waitForMarkDeletePositionToChange(topic1, subName1,
                     c1MarkDeletePositionBefore);
-            refreshOldestPositionInfo(topic1);
+            Awaitility.await().pollDelay(Duration.ZERO).pollInterval(250, MILLISECONDS)
+                    .atMost(TIME_TO_CHECK_BACKLOG_QUOTA * 3, SECONDS).untilAsserted(() -> {
+                        TopicStats latestStats = getTopicStats(topic1);
+                        long expectedAgeSeconds =
+                                MILLISECONDS.toSeconds(System.currentTimeMillis() - oldestMessage.getPublishTime());
+                        assertThat(latestStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
+                        assertThat(latestStats.getOldestBacklogMessageAgeSeconds())
+                                .isCloseTo(expectedAgeSeconds, within(1L));
+                    });
 
             Metrics metrics = prometheusMetricsClient.getMetrics();
             TopicStats topicStats = getTopicStats(topic1);
@@ -1025,7 +1027,14 @@ public class BacklogQuotaManagerTest {
             unloadAndLoadTopic(topic1, producer);
             long unloadTime = System.currentTimeMillis();
 
-            refreshOldestPositionInfo(topic1);
+            Awaitility.await().pollDelay(Duration.ZERO).pollInterval(250, MILLISECONDS)
+                    .atMost(TIME_TO_CHECK_BACKLOG_QUOTA * 3, SECONDS).untilAsserted(() -> {
+                        TopicStats latestStats = getTopicStats(topic1);
+                        long expectedAgeSeconds = MILLISECONDS.toSeconds(System.currentTimeMillis() - unloadTime);
+                        assertThat(latestStats.getOldestBacklogMessageSubscriptionName()).isEqualTo(subName2);
+                        assertThat(latestStats.getOldestBacklogMessageAgeSeconds())
+                                .isCloseTo(expectedAgeSeconds, within(1L));
+                    });
             refreshSubscriptionBacklogAge(topic1);
 
             topicStats = getTopicStats(topic1);
@@ -1116,7 +1125,7 @@ public class BacklogQuotaManagerTest {
             }
 
             c1MarkDeletePositionBefore = waitForMarkDeletePositionToChange(topic1, subName1,
-                    c1MarkDeletePositionBefore);
+                    c1MarkDeletePositionBefore, Duration.ofSeconds(1), Duration.ofSeconds(1));
             waitForQuotaCheckToRunTwice();
 
             // backlog and backlogAceSeconds should be 0
@@ -1183,13 +1192,13 @@ public class BacklogQuotaManagerTest {
         topicRef.updateOldPositionInfo().get(5, SECONDS);
     }
 
-    private void waitForBacklogToClear(String topic, String subscription) {
+    private void waitForQuotaToAllowProducer(String topic, String subscription) {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).orElseThrow();
         Awaitility.await().pollInterval(100, MILLISECONDS).atMost(10, SECONDS).untilAsserted(() -> {
             admin.brokers().backlogQuotaCheck();
             assertEquals(getTopicStats(topic).getSubscriptions().get(subscription).getMsgBacklog(), 0);
-            // Deduplication has its own cursor, which must also advance before a producer can reconnect.
-            assertEquals(topicRef.getBacklogSize(), 0);
+            // A lagging deduplication cursor must not keep producer creation blocked by the size quota.
+            assertFalse(topicRef.isSizeBacklogExceeded());
         });
     }
 
@@ -1199,7 +1208,16 @@ public class BacklogQuotaManagerTest {
     private String waitForMarkDeletePositionToChange(String topic,
                                                      String subscriptionName,
                                                      String previousMarkDeletePosition) {
-        return Awaitility.await().pollDelay(Duration.ZERO).pollInterval(100, MILLISECONDS).atMost(5, SECONDS).until(
+        return waitForMarkDeletePositionToChange(topic, subscriptionName, previousMarkDeletePosition,
+                Duration.ZERO, Duration.ofMillis(100));
+    }
+
+    private String waitForMarkDeletePositionToChange(String topic,
+                                                     String subscriptionName,
+                                                     String previousMarkDeletePosition,
+                                                     Duration pollDelay,
+                                                     Duration pollInterval) {
+        return Awaitility.await().pollDelay(pollDelay).pollInterval(pollInterval).atMost(5, SECONDS).until(
             () -> admin.topics().getInternalStats(topic).cursors.get(subscriptionName).markDeletePosition,
             markDeletePosition -> markDeletePosition != null && !markDeletePosition.equals(previousMarkDeletePosition));
     }
@@ -1283,14 +1301,7 @@ public class BacklogQuotaManagerTest {
             }
 
             // check reader can still read without error
-            do {
-                Message<byte[]> msg = reader.readNext(5, SECONDS);
-                if (msg == null) {
-                    break;
-                }
-                log.info().attr("msgId", msg.getMessageId())
-                        .attr("data", msg.getData()[0]).log("Message read");
-            } while (reader.hasMessageAvailable());
+            assertReaderCanReadAfterBacklogCheck(producer, reader);
             producer.close();
             reader.close();
         }
@@ -1623,8 +1634,11 @@ public class BacklogQuotaManagerTest {
         }
 
         admin.brokers().backlogQuotaCheck();
-        Awaitility.await().pollInterval(100, MILLISECONDS).untilAsserted(() ->
-                assertTrue(getTopicStats(topic1).getBacklogSize() <= 10 * 1024));
+        Awaitility.await().pollInterval(100, MILLISECONDS).untilAsserted(() -> {
+            TopicStats latestStats = getTopicStats(topic1);
+            assertEquals(latestStats.getSubscriptions().get(subName1).getMsgBacklog(), 0);
+            assertTrue(latestStats.getBacklogSize() <= 10 * 1024);
+        });
         rolloverStats();
 
         TopicStats stats = getTopicStats(topic1);
@@ -2189,7 +2203,7 @@ public class BacklogQuotaManagerTest {
             Message<?> msg = consumer.receive();
             consumer.acknowledge(msg);
         }
-        waitForBacklogToClear(topic1, subName1);
+        waitForQuotaToAllowProducer(topic1, subName1);
         // publish should work now
         producer.close();
         producer = createProducer(client, topic1);
