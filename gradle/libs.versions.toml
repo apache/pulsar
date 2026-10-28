@@ -155,7 +155,7 @@ ant = "1.10.17"
 # javax.inject to jakarta.inject. jclouds is the only consumer that needs Guice 7 and
 # jclouds-shaded forces it locally.
 guice = "5.1.0"
-snappy = "1.1.10.8"
+snappy = "1.1.10.9"
 ipaddress = "5.6.2"
 zt-zip = "1.18.2"
 # Jakarta
