@@ -70,6 +70,9 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         if (!batchMessageContainer.isEmpty()) {
             numMessagesInBatch++;
             currentBatchSizeBytes += msg.getDataBuffer().readableBytes();
+        } else {
+            // A failed first add clears the child. Keeping it would make later flushes build an empty batch.
+            batches.remove(key);
         }
         tryUpdateTimestamp();
         return isBatchFull();

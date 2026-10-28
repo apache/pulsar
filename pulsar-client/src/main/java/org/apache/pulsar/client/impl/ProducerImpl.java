@@ -1228,6 +1228,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     .log("Closing out batch to accommodate large message");
         try {
             batchMessageAndSend(false);
+            if (!batchMessageContainer.isEmpty()) {
+                // A failed build retains the old batch for retry. The incoming message required a new
+                // batch (transaction, schema, capacity or sequence boundary), so it cannot join that batch.
+                maybeScheduleBatchFlushTask();
+                completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback,
+                        new PulsarClientException("Failed to flush the previous batch before adding a new message",
+                                msg.getSequenceId()));
+                return;
+            }
             boolean isBatchFull = batchMessageContainer.add(msg, callback);
             triggerSendIfFullOrScheduleFlush(isBatchFull);
             lastSendFuture = callback.getFuture();
