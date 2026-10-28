@@ -228,9 +228,8 @@ class OpReadEntry implements ReadEntriesCallback {
                 } else {
                     cursor.skipNonRecoverableEntries(readPosition, nexReadPosition);
                 }
-                // The read continues on the next valid ledger, and the pending-read count stays with it: the
-                // terminal completion of the continued read decrements it once. If the continuation cannot be
-                // scheduled, the catch below decrements it and fails the callback.
+                // The read continues on the next ledger and keeps the pending-read count: its terminal
+                // completion decrements it once, and the catch below does if the continuation fails.
                 checkReadCompletion();
             } catch (Throwable t) {
                 cursor.readOperationCompleted();
@@ -268,9 +267,8 @@ class OpReadEntry implements ReadEntriesCallback {
         if (entries.size() < count && !(readUpToLastConfirmedEntry && !entries.isEmpty())
                 && cursor.hasMoreEntries() && maxPosition.compareTo(readPosition) > 0) {
 
-            // We still have more entries to read from the next ledger, schedule a new async operation.
-            // asyncReadEntries never fails synchronously: a failure to continue the read is reported
-            // through readEntriesFailed and decrements the pending read count at its terminal point.
+            // The read continues on the next ledger: asyncReadEntries never fails synchronously, and
+            // the pending-read count is decremented at the continuation's terminal point.
             cursor.ledger.getExecutor().execute(() -> {
                 readPosition = cursor.ledger.startReadOperationOnLedger(nextReadPosition);
                 cursor.ledger.asyncReadEntries(OpReadEntry.this);

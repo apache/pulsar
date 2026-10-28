@@ -3192,8 +3192,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 factory.getReadEntryTimeoutTracker().add(readCallback);
             }
         } catch (Throwable t) {
-            // The read was already submitted: report the failure through the wrapper, whose
-            // completion guard also coordinates the storage callbacks and the timeout itself
+            // The read was already submitted: report through the wrapper, whose completion guard
+            // also coordinates the storage callbacks and the timeout
             readCallback.readEntryFailed(new ManagedLedgerException(t), readCallback.cntx);
         }
     }

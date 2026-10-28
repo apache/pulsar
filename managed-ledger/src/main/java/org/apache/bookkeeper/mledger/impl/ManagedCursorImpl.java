@@ -1182,8 +1182,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, maxSizeBytes, callback,
                         ctx, maxPosition, skipCondition, true);
             } catch (Throwable t) {
-                // No read is counted as pending and none was issued, so failing through the callback is all the
-                // cleanup needed: a synchronous failure must not escape to the caller.
+                // No read was counted as pending and none was issued: failing through the callback is
+                // the only cleanup needed.
                 callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
                 return;
             }
@@ -1949,8 +1949,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         final int totalValidPositions = positions.size() - alreadyAcknowledgedPositions.size();
         if (totalValidPositions == 0) {
-            // Every requested position was already acknowledged: nothing to read. The aggregate callback below
-            // counts the valid positions, so without this the caller would wait forever for a callback.
+            // Every position was already acknowledged: the aggregate counts the valid positions, so
+            // without completing here the caller would wait forever.
             callback.readEntriesComplete(entries, ctx);
             return alreadyAcknowledgedPositions;
         }
@@ -2017,9 +2017,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                         validPositions.add(p);
                     });
         } catch (Throwable t) {
-            // The aggregate callback counts every valid position and no read was issued yet, so fail each
-            // valid one - not just those already added to validPositions - or the caller would wait
-            // forever for the replay to complete
+            // No read was issued yet: fail every valid position through the aggregate, or it would
+            // never complete
             ManagedLedgerException replayException = ManagedLedgerException.getManagedLedgerException(t);
             positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
                     .forEach(p -> cb.readEntryFailed(replayException, ctx));
@@ -2075,9 +2074,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 cb.readEntryFailed(exception, readCtx);
             }
         };
-        // The positions whose read was not issued yet. On a failure to issue the reads, they are failed through
-        // the callback, so that the replay's aggregate callback - which counts every position - can complete and
-        // release the entries it already collected.
+        // The positions whose read was not issued yet: on a failure to issue the reads, they are
+        // failed through the callback so the aggregate - which counts every position - completes.
         Set<Position> pending = new HashSet<>(replayPositions);
         try {
             // the positions to read from storage
@@ -2131,8 +2129,8 @@ public class ManagedCursorImpl implements ManagedCursor {
                 try {
                     cb.readEntryFailed(exception, ctx);
                 } catch (Throwable notifyFailure) {
-                    // The aggregate callback counts every position, so a position whose failure is not delivered
-                    // would leave it waiting forever: notify the others even if one notification throws.
+                    // Notify the remaining positions even if one notification throws, or the aggregate
+                    // would never complete
                     log.warn().attr("position", position).exception(notifyFailure)
                             .log("Failed to deliver a replay read failure");
                 }
