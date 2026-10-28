@@ -75,6 +75,7 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final RangeCache entries;
     // inserts the managed ledger's added entries, which come in order on the managed ledger's executor
     private final RangeCache.Inserter addedEntriesInserter;
+    private final boolean copyEntries;
     private final PendingReadsManager pendingReadsManager;
 
     private static final double MB = 1024 * 1024;
@@ -83,12 +84,12 @@ public class RangeEntryCacheImpl implements EntryCache {
     private final LongAdder totalAddedEntriesCount = new LongAdder();
     private final EntryLengthFunction entryLengthFunction;
 
-    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
+    public RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
                                RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction) {
-        this(manager, ml, rangeCacheRemovalQueue, entryLengthFunction, null);
+        this(manager, ml, copyEntries, rangeCacheRemovalQueue, entryLengthFunction, null);
     }
 
-    RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml,
+    RangeEntryCacheImpl(RangeEntryCacheManagerImpl manager, ManagedLedgerImpl ml, boolean copyEntries,
                         RangeCacheRemovalQueue rangeCacheRemovalQueue, EntryLengthFunction entryLengthFunction,
                         PendingReadsManager pendingReadsManager) {
         this.manager = manager;
@@ -102,6 +103,7 @@ public class RangeEntryCacheImpl implements EntryCache {
         this.interceptor = ml.getManagedLedgerInterceptor();
         this.entries = new RangeCache(rangeCacheRemovalQueue);
         this.addedEntriesInserter = entries.newInserter();
+        this.copyEntries = copyEntries;
 
         log.debug("Initialized managed-ledger entry cache");
     }
@@ -133,7 +135,7 @@ public class RangeEntryCacheImpl implements EntryCache {
 
     @Override
     public boolean insert(Entry entry) {
-        return insert(entry, manager.isCopyEntriesInCache(), addedEntriesInserter);
+        return insert(entry, copyEntries, addedEntriesInserter);
     }
 
     /**
@@ -148,12 +150,11 @@ public class RangeEntryCacheImpl implements EntryCache {
      * @return the number of entries that were inserted
      */
     public int insert(List<? extends Entry> entriesToInsert, boolean copy) {
-        boolean shouldCopy = copy || manager.isCopyEntriesInCache();
         RangeCache.Inserter inserter = entries.newInserter();
         int inserted = 0;
         for (Entry entry : entriesToInsert) {
             if (!inserter.updateIfCached(entry.getPosition(), cached -> takeExpectedReadCount(cached, entry))
-                    && insert(entry, shouldCopy, inserter)) {
+                    && insert(entry, copy, inserter)) {
                 inserted++;
             }
         }
@@ -712,7 +713,7 @@ public class RangeEntryCacheImpl implements EntryCache {
                                     totalSize += entry.getLength();
                                 }
                                 if (expectedReadCountVal >= 0) {
-                                    insert(entriesToReturn, batchRead);
+                                    insert(entriesToReturn, copyEntries || batchRead);
                                 }
 
                                 ml.getMbean().recordReadEntriesOpsCacheMisses(entriesToReturn.size(), totalSize);

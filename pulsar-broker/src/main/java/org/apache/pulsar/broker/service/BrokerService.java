@@ -98,7 +98,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -3795,11 +3794,6 @@ public class BrokerService implements Closeable {
                 });
         registerConfigurationListener("inProgressRequestFrameMemoryLimitEnabled", enabled -> {
             inProgressRequestFrameMemoryController.setUserEnabled((boolean) enabled);
-        });
-        registerConfigurationListener("managedLedgerCacheCopyEntries", copyEntries -> {
-            if (defaultManagedLedgerFactory.getEntryCacheManager() instanceof RangeEntryCacheManagerImpl manager) {
-                manager.updateCopyEntriesInCache((boolean) copyEntries);
-            }
         });
 
         // add listener to update message-dispatch-rate in msg for topic

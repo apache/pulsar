@@ -40,7 +40,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
@@ -84,10 +83,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         InProgressRequestFrameMemoryLimiter previousLimiter = pulsar.getBrokerService()
                 .getInProgressRequestFrameMemoryLimiter();
         InProgressRequestFrameMemoryController controller = previousLimiter.getController();
-        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
         boolean inProgressRequestFrameMemoryLimit = pulsar.getConfiguration()
                 .isInProgressRequestFrameMemoryLimitEnabled();
-        boolean managedLedgerCacheCopyEntries = pulsar.getConfiguration().isManagedLedgerCacheCopyEntries();
         int maxMessagePublishBufferSizeInMB = pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB();
         InProgressRequestFrameMemoryLimiter limiter = null;
         boolean acquired = false;
@@ -103,18 +100,6 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                     .isInProgressRequestFrameMemoryLimitEnabled() && controller.isEnabled());
             assertThat(pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter())
                     .isSameAs(previousLimiter);
-            assertThat(factory.getConfig().isCopyEntriesInCache()).isEqualTo(managedLedgerCacheCopyEntries);
-
-            admin.brokers().updateDynamicConfiguration("managedLedgerCacheCopyEntries", "true");
-            waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration().isManagedLedgerCacheCopyEntries()
-                    && factory.getConfig().isCopyEntriesInCache());
-            assertThat(pulsar.getConfiguration().isInProgressRequestFrameMemoryLimitEnabled()).isTrue();
-
-            admin.brokers().deleteDynamicConfiguration("managedLedgerCacheCopyEntries");
-            waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration().isManagedLedgerCacheCopyEntries()
-                    == managedLedgerCacheCopyEntries
-                    && factory.getConfig().isCopyEntriesInCache() == managedLedgerCacheCopyEntries);
-            assertThat(pulsar.getConfiguration().isInProgressRequestFrameMemoryLimitEnabled()).isTrue();
 
             admin.brokers().updateDynamicConfiguration("maxMessagePublishBufferSizeInMB", "1");
             waitAtMost(1, TimeUnit.SECONDS).untilAsserted(() -> {
@@ -150,17 +135,14 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
                 limiter.unregisterThrottleStateListener("test-connection");
             }
             admin.brokers().deleteDynamicConfiguration("inProgressRequestFrameMemoryLimitEnabled");
-            admin.brokers().deleteDynamicConfiguration("managedLedgerCacheCopyEntries");
             admin.brokers().deleteDynamicConfiguration("maxMessagePublishBufferSizeInMB");
             waitAtMost(1, TimeUnit.SECONDS).until(() -> pulsar.getConfiguration()
                     .isInProgressRequestFrameMemoryLimitEnabled() == inProgressRequestFrameMemoryLimit
                     && controller.isEnabled() == inProgressRequestFrameMemoryLimit
-                    && pulsar.getConfiguration().isManagedLedgerCacheCopyEntries() == managedLedgerCacheCopyEntries
                     && pulsar.getConfiguration().getMaxMessagePublishBufferSizeInMB()
                             == maxMessagePublishBufferSizeInMB
                     && pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter().getLimitBytes()
-                            == maxMessagePublishBufferSizeInMB * 1024L * 1024L
-                    && factory.getConfig().isCopyEntriesInCache() == managedLedgerCacheCopyEntries);
+                            == maxMessagePublishBufferSizeInMB * 1024L * 1024L);
         }
     }
 

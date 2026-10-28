@@ -2664,8 +2664,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
-    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
-        doc = "Whether we should make a copy of the entry payloads when "
+    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache. Without a copy, a cached entry keeps the buffer that it was received in allocated\n"
             + "while it stays in the cache. That is a buffer of the Netty connection that the entry arrived on, from\n"
             + "a client or from a bookie, such as a receive buffer or one that the TLS handler or the frame decoder\n"

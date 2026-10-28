@@ -26,8 +26,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -48,7 +46,6 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheDisabled;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
-import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
@@ -173,38 +170,6 @@ public class EntryCacheManagerTest extends MockedBookKeeperTestCase {
         assertEquals(factory2.getMbean().getCacheInsertedEntriesCount(), 2);
         assertEquals(factory2.getMbean().getCacheEntriesCount(), 2);
         assertEquals(factory2.getMbean().getCacheEvictedEntriesCount(), 0);
-    }
-
-    @Test
-    public void updateCopyEntriesWithoutClearingExistingCache() throws Exception {
-        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
-        config.setMaxCacheSize(100);
-
-        @Cleanup("shutdown")
-        ManagedLedgerFactoryImpl factory2 = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
-        RangeEntryCacheManagerImpl cacheManager =
-                (RangeEntryCacheManagerImpl) factory2.getEntryCacheManager();
-        EntryCache cache = cacheManager.getEntryCache(ml1);
-
-        ByteBuf retainedData = Unpooled.buffer().writeByte(1);
-        EntryImpl retainedEntry = EntryImpl.create(1, 0, retainedData);
-        retainedData.release();
-        assertTrue(cache.insert(retainedEntry));
-        retainedEntry.release();
-        assertEquals(retainedData.refCnt(), 1);
-
-        cacheManager.updateCopyEntriesInCache(true);
-        assertTrue(factory2.getConfig().isCopyEntriesInCache());
-        assertEquals(retainedData.refCnt(), 1);
-        ByteBuf copiedData = Unpooled.buffer().writeByte(2);
-        EntryImpl copiedEntry = EntryImpl.create(1, 1, copiedData);
-        copiedData.release();
-        assertTrue(cache.insert(copiedEntry));
-        copiedEntry.release();
-        assertEquals(copiedData.refCnt(), 0);
-
-        cache.clear();
-        assertEquals(retainedData.refCnt(), 0);
     }
 
     @Test
