@@ -147,11 +147,23 @@ final class InProgressRequestFrameMemoryController {
                         && usedBytes > automaticEnableThresholdBytes);
         boolean checkThrottle = enabled && (usedBytes <= maximumResumeThreshold
                 || inboundRead && usedBytes > minimumUnthrottledLimit);
-        if (!checkAutomaticMode && !checkThrottle && stateLock.validate(stamp)) {
-            return;
+        long directMemoryUsedBytes = checkAutomaticMode && stamp != 0
+                ? directMemoryUsedBytesSupplier.getAsLong() : -1;
+        boolean automaticModeMayChange = checkAutomaticMode && directMemoryUsedBytes >= 0
+                && (automaticallyEnabled
+                        ? directMemoryUsedBytes < percentageOf(maxDirectMemoryBytes,
+                                DISABLE_DIRECT_MEMORY_USAGE_PERCENT)
+                        : directMemoryUsedBytes >= percentageOf(maxDirectMemoryBytes,
+                                ENABLE_DIRECT_MEMORY_USAGE_PERCENT));
+        if (stateLock.validate(stamp)) {
+            if (!automaticModeMayChange && !checkThrottle) {
+                return;
+            }
+        } else {
+            // Configuration or a throttle transition raced with sampling. Recheck the policy before sampling
+            // again; steady automatic mode still needs a memory sample, but does not need the write lock.
+            directMemoryUsedBytes = sampleDirectMemoryUsage(inboundRead);
         }
-
-        long directMemoryUsedBytes = sampleDirectMemoryUsage(inboundRead);
         AutomaticStateChange automaticStateChange;
         List<Runnable> notifications;
         stamp = stateLock.writeLock();

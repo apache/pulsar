@@ -41,15 +41,23 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(3)
 @State(Scope.Benchmark)
 public class RequestFrameMemoryControllerBenchmark {
-    @Param({"false", "true"})
-    public boolean manual;
+    @Param({"disabled", "manual", "automatic"})
+    public String mode;
     private InProgressRequestFrameMemoryController controller;
 
     @Setup(Level.Trial)
     public void setup() {
-        controller = new InProgressRequestFrameMemoryController(manual, 1024L * 1024 * 1024, () -> 0,
-                4L * 1024 * 1024 * 1024);
+        long limitBytes = 1024L * 1024 * 1024;
+        long maximumDirectMemory = 4 * limitBytes;
+        controller = new InProgressRequestFrameMemoryController("manual".equals(mode), limitBytes,
+                () -> "automatic".equals(mode) ? maximumDirectMemory * 9 / 10 : 0, maximumDirectMemory);
         controller.getCurrentLimiter().registerThrottleStateListener(this, () -> { });
+        if ("automatic".equals(mode)) {
+            long activationBytes = limitBytes * 3 / 2 + 1;
+            controller.acquire(activationBytes);
+            controller.onInboundRead();
+            controller.release(activationBytes);
+        }
     }
 
     @Benchmark
