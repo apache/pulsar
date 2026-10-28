@@ -361,27 +361,32 @@ public class PersistentAcknowledgmentsGroupingTracker implements Acknowledgments
 
     @VisibleForTesting
     CompletableFuture<Void> doIndividualBatchAckAsync(MessageIdAdv msgId) {
-        ConcurrentBitSet bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(
-                MessageIdAdvUtils.discardBatch(msgId), __ -> {
-                    final BitSet ackSet = msgId.getAckSet();
-                    final ConcurrentBitSet value;
-                    if (ackSet != null) {
-                        synchronized (ackSet) {
-                            if (!ackSet.isEmpty()) {
-                                value =  new ConcurrentBitSet();
-                                value.or(ackSet);
-                            } else {
-                                value = new ConcurrentBitSet();
-                                value.set(0, msgId.getBatchSize());
-                            }
+        MessageIdAdv key = MessageIdAdvUtils.discardBatch(msgId);
+        ConcurrentBitSet bitSet;
+        do {
+            bitSet = pendingIndividualBatchIndexAcks.computeIfAbsent(key, __ -> {
+                final BitSet ackSet = msgId.getAckSet();
+                final ConcurrentBitSet value;
+                if (ackSet != null) {
+                    synchronized (ackSet) {
+                        if (!ackSet.isEmpty()) {
+                            value = new ConcurrentBitSet();
+                            value.or(ackSet);
+                        } else {
+                            value = new ConcurrentBitSet();
+                            value.set(0, msgId.getBatchSize());
                         }
-                    } else {
-                        value = new ConcurrentBitSet();
-                        value.set(0, msgId.getBatchSize());
                     }
-                    return value;
-                });
-        bitSet.clear(msgId.getBatchIndex());
+                } else {
+                    value = new ConcurrentBitSet();
+                    value.set(0, msgId.getBatchSize());
+                }
+                return value;
+            });
+            bitSet.clear(msgId.getBatchIndex());
+            // A flush may have detached and serialized this bitmap before the clear. In that case, apply
+            // the ACK to the currently pending bitmap so that it is included in this or a later flush.
+        } while (pendingIndividualBatchIndexAcks.get(key) != bitSet);
         markAcksPending();
         return CompletableFuture.completedFuture(null);
     }
