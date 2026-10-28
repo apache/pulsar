@@ -1020,10 +1020,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
     }
 
     public static boolean isBelowLoadLevel(SystemResourceUsage usage, float thresholdPercentage) {
-        return (usage.bandwidthOut.percentUsage() < thresholdPercentage
-                && usage.bandwidthIn.percentUsage() < thresholdPercentage
-                && usage.cpu.percentUsage() < thresholdPercentage
-                && usage.directMemory.percentUsage() < thresholdPercentage);
+        return SystemResourceUsage.isBelowLoadLevel(usage, thresholdPercentage);
     }
 
     private static long getRealtimeJvmHeapUsageMBytes() {
@@ -1076,7 +1073,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
                 SystemResourceUsage systemResourceUsage = this.getSystemResourceUsage();
                 loadReport.setOverLoaded(isAboveLoadLevel(systemResourceUsage,
                         this.getLoadBalancerBrokerOverloadedThresholdPercentage()));
-                loadReport.setUnderLoaded(isBelowLoadLevel(systemResourceUsage,
+                loadReport.setUnderLoaded(SystemResourceUsage.isBelowLoadLevel(systemResourceUsage,
                         this.getLoadBalancerBrokerUnderloadedThresholdPercentage()));
 
                 loadReport.setSystemResourceUsage(systemResourceUsage);
@@ -1258,7 +1255,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
 
         for (ResourceUnit broker : brokers.values()) {
             LoadReport currentLoadReport = currentLoadReports.get(broker);
-            if (isBelowLoadLevel(currentLoadReport.getSystemResourceUsage(), maxLoadLevel)) {
+            if (SystemResourceUsage.isBelowLoadLevel(currentLoadReport.getSystemResourceUsage(), maxLoadLevel)) {
                 return true;
             }
         }
