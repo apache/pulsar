@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -49,12 +50,41 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.tableview.impl.MetadataStoreTableViewImpl;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class LocalMemoryMetadataStoreTest {
 
     HashSet<CreateOption> emptySet = new HashSet<>();
+
+    @Test
+    public void testTableViewCloseUnregistersMetadataCache() throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build())) {
+            int baseline = store.getMetadataCacheCount();
+            for (int i = 0; i < 3; i++) {
+                var tableView = MetadataStoreTableViewImpl.<Integer>builder()
+                        .name("cache-lifecycle")
+                        .clazz(Integer.class)
+                        .store(store)
+                        .pathPrefix("/table-view")
+                        .listenPathValidator(path -> path.startsWith("/table-view/"))
+                        .conflictResolver((oldValue, newValue) -> true)
+                        .timeoutInMillis(10_000)
+                        .build();
+                try {
+                    tableView.start();
+                    tableView.put("key", i).get(10, TimeUnit.SECONDS);
+                    assertThat(store.getMetadataCacheCount()).isEqualTo(baseline + 1);
+                } finally {
+                    tableView.close();
+                }
+                assertThat(store.getMetadataCacheCount())
+                        .as("closing a table view must release its cache from the shared store")
+                        .isEqualTo(baseline);
+            }
+        }
+    }
 
     @Test
     public void testCancelledSessionListenerIsNotNotified() throws Exception {

@@ -30,6 +30,7 @@ import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Option;
 
 public class DualMetadataCache<T> implements MetadataCache<T> {
@@ -39,6 +40,7 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
     private final String cacheName;
     private final MetadataSerde<T> serde;
     private final MetadataCacheConfig<?> cacheConfig;
+    private boolean closed;
 
     @Getter
     private final AtomicReference<MetadataCache<T>> metadataCache = new AtomicReference<>();
@@ -53,15 +55,17 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
         this.serde = serde;
         this.cacheConfig = cacheConfig;
 
-        var store = dualMetadataStore.targetStore != null
-                ? dualMetadataStore.targetStore : dualMetadataStore.sourceStore;
+        var target = dualMetadataStore.targetStore;
+        metadataCache.set(createCache(target != null ? target : dualMetadataStore.sourceStore));
+    }
 
+    private MetadataCache<T> createCache(MetadataStore store) {
         if (clazz != null) {
-            this.metadataCache.set(store.getMetadataCache(clazz, cacheConfig));
+            return store.getMetadataCache(clazz, cacheConfig);
         } else if (typeRef != null) {
-            this.metadataCache.set(store.getMetadataCache(typeRef, cacheConfig));
+            return store.getMetadataCache(typeRef, cacheConfig);
         } else {
-            this.metadataCache.set(store.getMetadataCache(cacheName, serde, cacheConfig));
+            return store.getMetadataCache(cacheName, serde, cacheConfig);
         }
     }
 
@@ -140,13 +144,28 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
         metadataCache.get().refresh(path);
     }
 
-    void handleSwitchToTargetStore() {
-            if (clazz != null) {
-                metadataCache.set(dualMetadataStore.targetStore.getMetadataCache(clazz, cacheConfig));
-            } else if (typeRef != null) {
-                metadataCache.set(dualMetadataStore.targetStore.getMetadataCache(typeRef, cacheConfig));
-            } else {
-                metadataCache.set(dualMetadataStore.targetStore.getMetadataCache(cacheName, serde, cacheConfig));
+    @Override
+    public void close() {
+        MetadataCache<T> cache;
+        synchronized (this) {
+            if (closed) {
+                return;
             }
+            closed = true;
+            cache = metadataCache.get();
+        }
+        dualMetadataStore.unregisterMetadataCache(this);
+        cache.close();
+    }
+
+    void handleSwitchToTargetStore() {
+        MetadataCache<T> previous;
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            previous = metadataCache.getAndSet(createCache(dualMetadataStore.targetStore));
+        }
+        previous.close();
     }
 }
