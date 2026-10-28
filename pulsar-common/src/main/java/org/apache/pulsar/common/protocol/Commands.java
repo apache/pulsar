@@ -335,6 +335,14 @@ public class Commands {
     public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
                                                   boolean supportsTopicWatchers, boolean supportsScalableTopics,
                                                   boolean supportsTcMetadataDiscovery) {
+        return newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
+                supportsScalableTopics, supportsTcMetadataDiscovery, false);
+    }
+
+    public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
+                                                  boolean supportsTopicWatchers, boolean supportsScalableTopics,
+                                                  boolean supportsTcMetadataDiscovery,
+                                                  boolean supportsConsumerInstanceId) {
         BaseCommand cmd = localCmd(Type.CONNECTED);
         CommandConnected connected = cmd.setConnected()
                 .setServerVersion("Pulsar Server" + PulsarVersion.getVersion());
@@ -356,6 +364,7 @@ public class Commands {
         connected.setFeatureFlags().setSupportsTopicWatcherReconcile(supportsTopicWatchers);
         connected.setFeatureFlags().setSupportsScalableTopics(supportsScalableTopics);
         connected.setFeatureFlags().setSupportsTcMetadataDiscovery(supportsTcMetadataDiscovery);
+        connected.setFeatureFlags().setSupportsConsumerInstanceId(supportsConsumerInstanceId);
         return cmd;
     }
 
@@ -369,6 +378,13 @@ public class Commands {
                                        boolean supportsScalableTopics, boolean supportsTcMetadataDiscovery) {
         return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
                 supportsScalableTopics, supportsTcMetadataDiscovery));
+    }
+
+    public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
+                                       boolean supportsScalableTopics, boolean supportsTcMetadataDiscovery,
+                                       boolean supportsConsumerInstanceId) {
+        return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
+                supportsScalableTopics, supportsTcMetadataDiscovery, supportsConsumerInstanceId));
     }
 
     public static ByteBuf newAuthChallenge(String authMethod, AuthData brokerData, int clientProtocolVersion) {

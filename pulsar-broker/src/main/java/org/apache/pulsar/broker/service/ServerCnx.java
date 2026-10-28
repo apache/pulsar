@@ -1817,7 +1817,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, enableTopicListWatcher,
                 scalableTopicsEnabled,
                 scalableTopicsEnabled
-                        && service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()));
+                        && service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled(), true));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
         log.debug()

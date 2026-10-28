@@ -405,12 +405,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             this.msgCrypto = null;
         }
 
-        if (conf.getProperties().isEmpty() && consumerInstanceId == null) {
+        if (conf.getProperties().isEmpty()) {
             metadata = Collections.emptyMap();
         } else {
             Map<String, String> consumerMetadata = new HashMap<>(conf.getProperties());
             if (consumerInstanceId != null) {
-                consumerMetadata.put(Commands.CONSUMER_INSTANCE_ID, consumerInstanceId);
+                consumerMetadata.remove(Commands.CONSUMER_INSTANCE_ID);
             }
             metadata = Collections.unmodifiableMap(consumerMetadata);
         }
@@ -976,13 +976,19 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 && startMessageId != null
                 && startMessageId.equals(initialStartMessageId)) ? startMessageRollbackDurationInSec : 0;
 
+        Map<String, String> subscribeMetadata = metadata;
+        if (consumerInstanceId != null && cnx.isSupportsConsumerInstanceId()) {
+            subscribeMetadata = new HashMap<>(metadata);
+            subscribeMetadata.put(Commands.CONSUMER_INSTANCE_ID, consumerInstanceId);
+        }
+
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
         final CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
             // Use the current epoch to subscribe.
             long subscribeEpoch = CONSUMER_EPOCH.get(this);
             ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
-                    priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
+                    priorityLevel, consumerName, isDurable, startMessageIdData, subscribeMetadata, readCompacted,
                     conf.getReplicateSubscriptionState(),
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
