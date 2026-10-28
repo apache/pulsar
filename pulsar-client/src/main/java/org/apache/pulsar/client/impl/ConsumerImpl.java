@@ -2252,10 +2252,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void resume() {
+    public synchronized void resume() {
         if (paused) {
             paused = false;
-            flushAvailablePermitsToBroker(cnx());
+            // A new connection can be installed before SUBSCRIBE completes. Its initial permit grant
+            // replaces the old available permits after flushing pending ACKs under this same lock.
+            if (isConnected()) {
+                flushAvailablePermitsToBroker(cnx());
+            }
         }
     }
 

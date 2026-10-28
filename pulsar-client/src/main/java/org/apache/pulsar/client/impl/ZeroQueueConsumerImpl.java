@@ -211,8 +211,14 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                         .exception(t)
                         .log("Message listener error in processing unqueued message");
             }
-            increaseAvailablePermits(cnx());
-            waitingOnListenerForZeroQueueSize = false;
+            synchronized (ZeroQueueConsumerImpl.this) {
+                waitingOnListenerForZeroQueueSize = false;
+                // Reconnection flushes the pending ACKs under the same lock before granting permits.
+                // If SUBSCRIBE is still pending, it will grant this idle listener's permit when it completes.
+                if (isConnected()) {
+                    increaseAvailablePermits(cnx());
+                }
+            }
         });
     }
 
