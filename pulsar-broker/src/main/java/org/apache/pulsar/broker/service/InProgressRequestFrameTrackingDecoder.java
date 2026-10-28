@@ -33,8 +33,9 @@ import org.apache.pulsar.common.protocol.Commands;
  * Tracks the capacity of cumulation buffers while frames derived from them are retained downstream.
  *
  * <p>This implementation depends on Netty's {@link ByteToMessageDecoder} cumulation, frame extraction, and
- * reference-counting behavior. When upgrading Netty, review this class against the new implementation and rerun
- * the root-buffer lifecycle tests to verify that all derived views retain and release their tracked root correctly.
+ * reference-counting and partial-frame continuation behavior. When upgrading Netty, review this class against
+ * the new implementation and rerun the root-buffer lifecycle and flow-control tests to verify that derived views
+ * retain and release their tracked root correctly and incomplete frames can still make progress.
  */
 final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameDecoder {
     private final InProgressRequestFrameMemoryLimiter limiter;
@@ -42,6 +43,9 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
     private final Map<ByteBuf, RootBuffer> roots = new IdentityHashMap<>();
     private ChannelHandlerContext context;
     private InProgressRequestFrameMemoryNotifier notifier;
+    private boolean receivedBufferInReadCycle;
+    private boolean decodedFrameInReadCycle;
+    private boolean continuationReadPending;
 
     InProgressRequestFrameTrackingDecoder(int maxMessageSize, InProgressRequestFrameMemoryLimiter limiter) {
         super(maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING, 0, 4, 0, 4);
@@ -54,7 +58,7 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
         context = ctx;
         notifier = controller.getEventLoopNotifier(ctx.executor());
-        notifier.add(limiter, this, () -> setThrottled(limiter.isThrottled()));
+        notifier.add(this, () -> setThrottled(limiter.isThrottled()));
         super.handlerAdded(ctx);
     }
 
@@ -67,7 +71,7 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
 
     @Override
     protected void handlerRemoved0(ChannelHandlerContext ctx) throws Exception {
-        notifier.remove(limiter, this);
+        notifier.remove(this);
         notifier = null;
         setThrottled(false);
         context = null;
@@ -81,17 +85,54 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
         // there would make the frame's direct-memory allocation invisible until it is released.
         RootBuffer root = rootFor(buffer);
         ByteBuf frame = super.extractFrame(ctx, buffer, index, length);
+        decodedFrameInReadCycle = true;
         return frame instanceof TrackedByteBuf ? frame : new TrackedByteBuf(frame, root);
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof ByteBuf buffer) {
+            receivedBufferInReadCycle = true;
+            continuationReadPending = false;
             RootBuffer root = rootFor(buffer);
             controller.onInboundRead();
             super.channelRead(ctx, new TrackedByteBuf(buffer, root));
         } else {
             super.channelRead(ctx, msg);
+        }
+    }
+
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        boolean decodedFrame = decodedFrameInReadCycle;
+        // ByteToMessageDecoder requests a continuation when input produced no frame and auto-read is off.
+        // Remember that demand so a later throttle transition does not request the same continuation again.
+        if (receivedBufferInReadCycle && !decodedFrame && !ctx.channel().config().isAutoRead()) {
+            continuationReadPending = true;
+        }
+        receivedBufferInReadCycle = false;
+        decodedFrameInReadCycle = false;
+        super.channelReadComplete(ctx);
+        if (decodedFrame) {
+            // Netty does not continue a read that emitted a complete frame followed by a partial one. Under
+            // memory-only throttling, leaving that partial frame pinned would prevent the limit from clearing.
+            readIncompleteFrame();
+        }
+    }
+
+    void readIncompleteFrame() {
+        ChannelHandlerContext ctx = context;
+        if (ctx == null || ctx.isRemoved() || !ctx.channel().isActive() || ctx.channel().config().isAutoRead()
+                || continuationReadPending || actualReadableBytes() == 0) {
+            return;
+        }
+        ServerCnx cnx = (ServerCnx) ctx.pipeline().get(ServerCnx.SERVER_CNX_HANDLER_NAME);
+        if (cnx != null && cnx.getThrottleTracker().isReadPaused()
+                && !cnx.getThrottleTracker().isMessageDeliveryPaused()) {
+            // Bypass the downstream flow-control queue only to complete an already-started frame. Auto-read
+            // stays off, and LengthFieldBasedFrameDecoder still enforces the maximum frame length.
+            continuationReadPending = true;
+            ctx.read();
         }
     }
 

@@ -31,29 +31,33 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.pulsar.broker.InProgressRequestFrameMemoryLimitMode;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class InProgressRequestFrameMemoryNotifierTest {
     @Test
-    public void shouldCoalesceConnectionsAndGenerationsOnOneEventLoop() {
-        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
-                100, () -> 0, 100);
+    public void shouldCoalesceExistingAndNewConnectionsAcrossLimitChangesOnOneEventLoop() {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
+                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         EventExecutor executor = mock(EventExecutor.class);
         Queue<Runnable> tasks = new ArrayDeque<>();
         doAnswer(invocation -> tasks.add(invocation.getArgument(0))).when(executor).execute(any(Runnable.class));
         InProgressRequestFrameMemoryNotifier notifier = controller.getEventLoopNotifier(executor);
-        InProgressRequestFrameMemoryLimiter oldLimiter = controller.getCurrentLimiter();
-        controller.updateLimitBytes(200);
-        InProgressRequestFrameMemoryLimiter newLimiter = controller.getCurrentLimiter();
+        InProgressRequestFrameMemoryLimiter oldLimiter = controller.getLimiter();
         AtomicInteger oldNotifications = new AtomicInteger();
         AtomicInteger newNotifications = new AtomicInteger();
         for (int i = 0; i < 100; i++) {
-            notifier.add(oldLimiter, i, () -> {
+            notifier.add(i, () -> {
                 assertThat(oldLimiter.isThrottled()).isFalse();
                 oldNotifications.incrementAndGet();
             });
-            notifier.add(newLimiter, i, () -> {
+        }
+        controller.updateLimitBytes(200);
+        InProgressRequestFrameMemoryLimiter newLimiter = controller.getLimiter();
+        assertThat(newLimiter).isSameAs(oldLimiter);
+        for (int i = 0; i < 100; i++) {
+            notifier.add(i + 100, () -> {
                 assertThat(newLimiter.isThrottled()).isFalse();
                 newNotifications.incrementAndGet();
             });
@@ -68,24 +72,24 @@ public class InProgressRequestFrameMemoryNotifierTest {
         assertThat(newNotifications).hasValue(100);
         assertThat(tasks).isEmpty();
         for (int i = 0; i < 100; i++) {
-            notifier.remove(oldLimiter, i);
-            notifier.remove(newLimiter, i);
+            notifier.remove(i);
+            notifier.remove(i + 100);
         }
-        assertThat(controller.getRegisteredLimiterCount()).isZero();
+        assertThat(controller.getRegisteredListenerCount()).isZero();
         assertThat(controller.getEventLoopNotifier(executor)).isNotSameAs(notifier);
     }
 
     @Test
     public void shouldDeliverRecoverySignalledWhileApplyingThrottle() {
-        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
-                100, () -> 0, 100);
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
+                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         EventExecutor executor = mock(EventExecutor.class);
         Queue<Runnable> tasks = new ArrayDeque<>();
         doAnswer(invocation -> tasks.add(invocation.getArgument(0))).when(executor).execute(any(Runnable.class));
         InProgressRequestFrameMemoryNotifier notifier = controller.getEventLoopNotifier(executor);
-        InProgressRequestFrameMemoryLimiter limiter = controller.getCurrentLimiter();
+        InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         AtomicInteger notifications = new AtomicInteger();
-        notifier.add(limiter, "connection", () -> {
+        notifier.add("connection", () -> {
             if (notifications.getAndIncrement() == 0) {
                 assertThat(limiter.isThrottled()).isTrue();
                 controller.release(101);
@@ -99,22 +103,22 @@ public class InProgressRequestFrameMemoryNotifierTest {
         assertThat(notifications).hasValue(2);
         verify(executor, times(1)).execute(any(Runnable.class));
         assertThat(controller.getRetainedFrameBytes()).isZero();
-        notifier.remove(limiter, "connection");
+        notifier.remove("connection");
     }
 
     @Test
     public void shouldAllowRemovalDuringNotificationAndIgnoreClosedConnections() {
-        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
-                100, () -> 0, 100);
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
+                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         EventExecutor executor = mock(EventExecutor.class);
         Queue<Runnable> tasks = new ArrayDeque<>();
         doAnswer(invocation -> tasks.add(invocation.getArgument(0))).when(executor).execute(any(Runnable.class));
         InProgressRequestFrameMemoryNotifier notifier = controller.getEventLoopNotifier(executor);
-        InProgressRequestFrameMemoryLimiter limiter = controller.getCurrentLimiter();
+        InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         AtomicInteger notifications = new AtomicInteger();
-        notifier.add(limiter, "connection", () -> {
+        notifier.add("connection", () -> {
             notifications.incrementAndGet();
-            notifier.remove(limiter, "connection");
+            notifier.remove("connection");
         });
         controller.acquire(101);
         controller.onInboundRead();
@@ -122,21 +126,21 @@ public class InProgressRequestFrameMemoryNotifierTest {
         controller.release(101);
         assertThat(tasks).isEmpty();
         assertThat(notifications).hasValue(1);
-        assertThat(controller.getRegisteredLimiterCount()).isZero();
+        assertThat(controller.getRegisteredListenerCount()).isZero();
     }
     @Test(timeOut = 30_000)
     public void shouldApplyWorkerThreadRecoveryOnTheOwningEventLoop() throws Exception {
-        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(true,
-                100, () -> 0, 100);
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
+                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         DefaultEventLoop eventLoop = new DefaultEventLoop(new DefaultThreadFactory("frame-memory-notifications"));
-        InProgressRequestFrameMemoryLimiter limiter = controller.getCurrentLimiter();
+        InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         InProgressRequestFrameMemoryNotifier notifier = controller.getEventLoopNotifier(eventLoop);
         AtomicInteger throttled = new AtomicInteger();
         AtomicInteger resumed = new AtomicInteger();
         try {
             eventLoop.submit(() -> {
                 for (int i = 0; i < 1000; i++) {
-                    notifier.add(limiter, i, () -> {
+                    notifier.add(i, () -> {
                         assertThat(eventLoop.inEventLoop()).isTrue();
                         if (limiter.isThrottled()) {
                             throttled.incrementAndGet();
@@ -160,14 +164,14 @@ public class InProgressRequestFrameMemoryNotifierTest {
             try {
                 eventLoop.submit(() -> {
                     for (int i = 0; i < 1000; i++) {
-                        notifier.remove(limiter, i);
+                        notifier.remove(i);
                     }
                 }).get(10, TimeUnit.SECONDS);
             } finally {
                 eventLoop.shutdownGracefully(0, 0, TimeUnit.MILLISECONDS).get(10, TimeUnit.SECONDS);
             }
         }
-        assertThat(controller.getRegisteredLimiterCount()).isZero();
+        assertThat(controller.getRegisteredListenerCount()).isZero();
     }
 
 }

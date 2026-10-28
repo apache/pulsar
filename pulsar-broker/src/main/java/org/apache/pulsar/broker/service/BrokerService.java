@@ -105,6 +105,7 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
+import org.apache.pulsar.broker.InProgressRequestFrameMemoryLimitMode;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -401,7 +402,7 @@ public class BrokerService implements Closeable {
         ServiceConfiguration configuration = pulsar.getConfiguration();
         long requestFrameMemoryLimitBytes = configuration.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L;
         this.inProgressRequestFrameMemoryController = new InProgressRequestFrameMemoryController(
-                configuration.isInProgressRequestFrameMemoryLimitEnabled(), requestFrameMemoryLimitBytes,
+                configuration.getInProgressRequestFrameMemoryLimitEnabled(), requestFrameMemoryLimitBytes,
                 JvmMetrics::getJvmDirectMemoryUsed,
                 DirectMemoryUtils.jvmMaxDirectMemory());
         this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock(), producer -> {
@@ -3792,8 +3793,18 @@ public class BrokerService implements Closeable {
                     defaultManagedLedgerFactory.updateCacheEvictionExtendTTLOfRecentlyAccessed(
                             (boolean) extendTTLOfRecentlyAccessed);
                 });
-        registerConfigurationListener("inProgressRequestFrameMemoryLimitEnabled", enabled -> {
-            inProgressRequestFrameMemoryController.setUserEnabled((boolean) enabled);
+        addDynamicConfigValidator("inProgressRequestFrameMemoryLimitEnabled", value -> {
+            if (StringUtils.isBlank(value)) {
+                return true;
+            }
+            try {
+                return FieldParser.convert(value.trim(), InProgressRequestFrameMemoryLimitMode.class) != null;
+            } catch (RuntimeException error) {
+                return false;
+            }
+        });
+        registerConfigurationListener("inProgressRequestFrameMemoryLimitEnabled", mode -> {
+            inProgressRequestFrameMemoryController.setMode((InProgressRequestFrameMemoryLimitMode) mode);
         });
 
         // add listener to update message-dispatch-rate in msg for topic
@@ -4135,7 +4146,7 @@ public class BrokerService implements Closeable {
     }
 
     InProgressRequestFrameMemoryLimiter getInProgressRequestFrameMemoryLimiter() {
-        return inProgressRequestFrameMemoryController.getCurrentLimiter();
+        return inProgressRequestFrameMemoryController.getLimiter();
     }
 
     long getInProgressRequestFrameMemoryUsedBytes() {

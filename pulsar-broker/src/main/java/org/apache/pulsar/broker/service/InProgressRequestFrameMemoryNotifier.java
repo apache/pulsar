@@ -26,44 +26,35 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.CustomLog;
 
-/** Coalesces throttle changes into one pending task per event loop, across all configuration generations. */
+/** Coalesces throttle changes into one pending task per event loop, for all connections. */
 @CustomLog
 final class InProgressRequestFrameMemoryNotifier implements Runnable {
     private final InProgressRequestFrameMemoryController controller;
     private final EventExecutor executor;
     private final AtomicInteger pendingSignals = new AtomicInteger();
     // Only the owning event loop accesses connection callbacks. The controller registers one signal callback
-    // per generation on this loop, so it neither copies every connection nor schedules a task for each one.
-    private final Map<InProgressRequestFrameMemoryLimiter, Map<Object, Runnable>> listeners = new HashMap<>();
+    // for this loop, so it neither copies every connection nor schedules a task for each one.
+    private final Map<Object, Runnable> listeners = new HashMap<>();
 
     InProgressRequestFrameMemoryNotifier(InProgressRequestFrameMemoryController controller, EventExecutor executor) {
         this.controller = controller;
         this.executor = executor;
     }
 
-    void add(InProgressRequestFrameMemoryLimiter limiter, Object key, Runnable listener) {
-        Map<Object, Runnable> connections = listeners.get(limiter);
-        if (connections == null) {
-            connections = new HashMap<>();
-            listeners.put(limiter, connections);
-            limiter.registerThrottleStateListener(this, this::signal);
+    void add(Object key, Runnable listener) {
+        if (listeners.isEmpty()) {
+            controller.registerThrottleStateListener(this, this::signal);
         }
-        connections.put(key, listener);
-        if (limiter.isThrottled()) {
+        listeners.put(key, listener);
+        if (controller.getLimiter().isThrottled()) {
             signal();
         }
     }
 
-    void remove(InProgressRequestFrameMemoryLimiter limiter, Object key) {
-        Map<Object, Runnable> connections = listeners.get(limiter);
-        if (connections != null) {
-            connections.remove(key);
-            if (connections.isEmpty()) {
-                listeners.remove(limiter);
-                limiter.unregisterThrottleStateListener(this);
-            }
-        }
+    void remove(Object key) {
+        listeners.remove(key);
         if (listeners.isEmpty()) {
+            controller.unregisterThrottleStateListener(this);
             controller.removeEventLoopNotifier(executor, this);
         }
     }
@@ -87,8 +78,7 @@ final class InProgressRequestFrameMemoryNotifier implements Runnable {
         do {
             // A callback can synchronously remove a channel or register another one. Snapshot on the event loop,
             // outside the controller lock, and let each callback read the limiter's latest state when executed.
-            ArrayList<Runnable> callbacks = new ArrayList<>();
-            listeners.values().forEach(connections -> callbacks.addAll(connections.values()));
+            ArrayList<Runnable> callbacks = new ArrayList<>(listeners.values());
             for (Runnable callback : callbacks) {
                 try {
                     callback.run();

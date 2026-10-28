@@ -19,9 +19,12 @@
 package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
+import io.netty.channel.ChannelHandlerContext;
+import java.util.concurrent.RejectedExecutionException;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.util.netty.PulsarFlowControlHandler;
 
 /**
  * Manages and tracks throttling state for server connections in Apache Pulsar.
@@ -35,7 +38,10 @@ import org.apache.pulsar.broker.ServiceConfiguration;
  * <p>The tracker maintains independent counters for different types of throttling conditions
  * defined in {@link ThrottleType}. A connection is considered throttled if any of these
  * conditions are active (counter > 0). The connection will only resume normal operation
- * when all throttling conditions are cleared.
+ * when all throttling conditions are cleared. Request-frame memory throttling only pauses new socket reads:
+ * already-decoded frames must keep progressing to release their shared root buffers. All other conditions
+ * also pause message delivery, and clearing the last such condition resumes buffered work even while memory
+ * throttling keeps auto-read disabled.
  *
  * <h3>Supported Throttling Types</h3>
  * <ul>
@@ -83,6 +89,7 @@ public final class ServerCnxThrottleTracker {
 
     private final ServerCnx serverCnx;
     private final int[] states = new int[ThrottleType.values().length];
+    private boolean bufferedRequestResumeScheduled;
 
     /**
      * Enumeration of different throttling conditions that can be applied to a server connection.
@@ -263,13 +270,55 @@ public final class ServerCnxThrottleTracker {
      *
      * @return {@code true} if any throttling condition is active, {@code false} otherwise
      */
-    private boolean hasThrottled() {
+    boolean isReadPaused() {
         for (int stat : states) {
             if (stat > 0) {
                 return true;
             }
         }
         return false;
+    }
+
+    /** Whether already-decoded frames must wait for business backpressure to clear. Event-loop access only. */
+    boolean isMessageDeliveryPaused() {
+        for (int i = 0; i < states.length; i++) {
+            if (i != ThrottleType.InProgressRequestFrameMemoryExceeded.ordinal() && states[i] > 0) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void resumeBufferedRequestsIfOnlyMemoryThrottled() {
+        if (bufferedRequestResumeScheduled || !isChannelActive()
+                || states[ThrottleType.InProgressRequestFrameMemoryExceeded.ordinal()] == 0
+                || isMessageDeliveryPaused()) {
+            return;
+        }
+        bufferedRequestResumeScheduled = true;
+        ChannelHandlerContext ctx = serverCnx.ctx();
+        try {
+            // State can change while processing a frame. Defer delivery until that callback has finished,
+            // coalesce repeated signals, and re-check the policy because another limit may have fired meanwhile.
+            ctx.executor().execute(() -> {
+                bufferedRequestResumeScheduled = false;
+                if (!isChannelActive() || ctx.isRemoved() || !isReadPaused() || isMessageDeliveryPaused()) {
+                    return;
+                }
+                PulsarFlowControlHandler flowControl = ctx.pipeline().get(PulsarFlowControlHandler.class);
+                if (flowControl != null) {
+                    flowControl.drainQueuedMessages();
+                }
+                InProgressRequestFrameTrackingDecoder decoder =
+                        ctx.pipeline().get(InProgressRequestFrameTrackingDecoder.class);
+                if (decoder != null) {
+                    decoder.readIncompleteFrame();
+                }
+            });
+        } catch (RejectedExecutionException ignored) {
+            // Event-loop shutdown closes the channel and releases its queued frames.
+            bufferedRequestResumeScheduled = false;
+        }
     }
 
     /**
@@ -318,6 +367,9 @@ public final class ServerCnxThrottleTracker {
             log.debug().attr("cnx", serverCnx).log("Setting auto read to false");
             serverCnx.ctx().channel().config().setAutoRead(false);
         }
+        if (type == ThrottleType.InProgressRequestFrameMemoryExceeded && res == ThrottleRes.ConnectionStateChanged) {
+            resumeBufferedRequestsIfOnlyMemoryThrottled();
+        }
     }
 
     /**
@@ -347,6 +399,8 @@ public final class ServerCnxThrottleTracker {
         if (res == ThrottleRes.ConnectionStateChanged && isChannelActive()) {
             log.debug().attr("cnx", serverCnx).log("Setting auto read to true");
             serverCnx.ctx().channel().config().setAutoRead(true);
+        } else if (res == ThrottleRes.TypeStateChanged) {
+            resumeBufferedRequestsIfOnlyMemoryThrottled();
         }
     }
 
@@ -368,7 +422,7 @@ public final class ServerCnxThrottleTracker {
      */
     private ThrottleRes doMarkThrottled(ThrottleType throttleType) {
         // Two reentrant type: "TopicPublishRate" and "ResourceGroupPublishRate".
-        boolean throttled = hasThrottled();
+        boolean throttled = isReadPaused();
         int value = states[throttleType.ordinal()];
         if (throttleType.isReentrant()) {
             states[throttleType.ordinal()] = value + 1;
@@ -407,7 +461,7 @@ public final class ServerCnxThrottleTracker {
             }
             states[throttleType.ordinal()] = 0;
         }
-        return hasThrottled() ? ThrottleRes.TypeStateChanged : ThrottleRes.ConnectionStateChanged;
+        return isReadPaused() ? ThrottleRes.TypeStateChanged : ThrottleRes.ConnectionStateChanged;
     }
 
     /**

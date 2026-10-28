@@ -1943,8 +1943,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " from the connection. The processing messages means messages are sends to broker"
             + " but broker have not send response to client, usually waiting to write to bookies.\n\n"
             + " It's shared across all the topics running in the same broker.\n\n"
-            + " Dynamic updates apply only to connections created after the update; existing connections keep their "
-            + "current limit.\n\n"
+            + " For request-frame memory limiting, dynamic updates re-evaluate existing and new connections "
+            + "using the same broker-wide limit. The legacy payload-byte limiter captures this value when "
+            + "a connection is created.\n\n"
             + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
         (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 2 / (1024 * 1024)));
@@ -1952,19 +1953,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
-        doc = "Enable the in-progress request-frame memory limiter. This limiter tracks direct-memory root "
-            + "allocations of inbound frames retained by in-progress requests, independently of the existing "
-            + "payload-byte limiter controlled by "
-            + "maxMessagePublishBufferSizeInMB. The tracked memory is always exported through the "
-            + "pulsar.broker.publish.in.progress.buffer.memory.usage metric. When disabled, the broker can still "
-            + "enable this limiter locally when direct memory "
-            + "usage reaches 85% and in-progress request-frame memory exceeds 1.5 times "
-            + "maxMessagePublishBufferSizeInMB; it disables the automatic limit below 65%. Enabling this setting "
-            + "dynamically clears and disables the broker-local automatic mode. Both modes compare broker-wide "
-            + "retained frame memory against the limit captured when each connection was created, and resume at "
-            + "half that limit. The automatic activation threshold follows the current broker configuration; "
-            + "automatic activation starts enforcing the policy on subsequent inbound reads.")
-    private boolean inProgressRequestFrameMemoryLimitEnabled = false;
+        doc = "Request-frame memory limiting mode: DISABLED, AUTO (default), or ENABLED. DISABLED never "
+            + "applies this limiter, including under memory pressure; it only tracks retained direct-memory root "
+            + "capacity. AUTO activates broker-local protection when direct-memory usage reaches 85% and retained "
+            + "frame memory exceeds 1.5 times maxMessagePublishBufferSizeInMB, and deactivates it below 65%. "
+            + "ENABLED applies the limiter regardless of direct-memory pressure. All modes maintain the "
+            + "pulsar.broker.publish.in.progress.buffer.memory.usage metric and are independent of the existing "
+            + "payload-byte limiter. Limiting compares broker-wide retained frame capacity against the latest "
+            + "maxMessagePublishBufferSizeInMB for all connections and resumes at half that limit. A nonpositive "
+            + "limit disables request-frame throttling for all connections. Dynamic mode changes affect existing "
+            + "connections: DISABLED clears request-frame throttling, ENABLED checks already-retained memory, "
+            + "and AUTO starts evaluating pressure on subsequent inbound reads. Automatic activation follows "
+            + "the current numeric configuration and starts enforcing on the next inbound read. For compatibility, "
+            + "false maps to AUTO and true maps to ENABLED.")
+    private InProgressRequestFrameMemoryLimitMode inProgressRequestFrameMemoryLimitEnabled =
+            InProgressRequestFrameMemoryLimitMode.AUTO;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a "
             + "managed ledger backing a persistent topic. It can improve write availability of topics.\n"

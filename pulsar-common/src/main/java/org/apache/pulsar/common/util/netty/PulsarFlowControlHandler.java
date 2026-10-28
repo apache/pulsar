@@ -30,9 +30,10 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.function.BooleanSupplier;
 
 /**
- * The {@link PulsarFlowControlHandler} ensures that only one message per {@code read()} is sent downstream.
+ * Controls delivery of decoded messages independently of socket reads when a delivery policy is supplied.
  *
  * <p>Classes such as {@link ByteToMessageDecoder} are free to emit as many events as they like for any given input.
  * A channel's auto reading configuration doesn't usually apply in these scenarios. This is causing problems in
@@ -50,7 +51,12 @@ import java.util.Queue;
  * pauses a connection by disabling auto-read while processing a message and relies on the delivery of queued
  * messages stopping immediately; with Netty's rewritten handler, the whole queued backlog would be delivered
  * regardless, defeating throttling (and rate limiting) of already-buffered traffic. This copy preserves the
- * pre-4.2.15 per-message auto-read behavior.
+ * pre-4.2.15 per-message auto-read behavior by default.
+ *
+ * <p>The broker supplies a separate delivery policy: request-frame memory throttling stops socket auto-read,
+ * but must allow already-accounted frames to complete and release their buffers. Other throttling reasons pause
+ * delivery as well. The policy is checked before every message, including messages satisfying an earlier read.
+ * {@link #drainQueuedMessages()} resumes only queued work without requesting more data from upstream.
  *
  * @see ChannelConfig#setAutoRead(boolean)
  */
@@ -58,6 +64,8 @@ public class PulsarFlowControlHandler extends ChannelDuplexHandler {
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(PulsarFlowControlHandler.class);
 
     private final boolean releaseMessages;
+    private final BooleanSupplier messageDeliveryPaused;
+    private ChannelHandlerContext context;
 
     private RecyclableArrayDeque queue;
 
@@ -70,7 +78,32 @@ public class PulsarFlowControlHandler extends ChannelDuplexHandler {
     }
 
     public PulsarFlowControlHandler(boolean releaseMessages) {
+        this(releaseMessages, null);
+    }
+
+    /**
+     * Uses an event-loop-confined policy for queued message delivery instead of auto-read. Auto-read still
+     * controls upstream reads; an explicit read cannot bypass this policy or restart a paused socket.
+     */
+    public PulsarFlowControlHandler(BooleanSupplier messageDeliveryPaused) {
+        this(true, messageDeliveryPaused);
+    }
+
+    private PulsarFlowControlHandler(boolean releaseMessages, BooleanSupplier messageDeliveryPaused) {
         this.releaseMessages = releaseMessages;
+        this.messageDeliveryPaused = messageDeliveryPaused;
+    }
+
+    /**
+     * Delivers only existing queued messages. Call from the event loop, outside a downstream channelRead callback,
+     * after the delivery policy changes. This method never enables auto-read or requests upstream data.
+     */
+    public void drainQueuedMessages() {
+        ChannelHandlerContext ctx = context;
+        if (ctx != null && !ctx.isRemoved() && ctx.channel().isActive()) {
+            assert ctx.executor().inEventLoop();
+            dequeue(ctx, 0);
+        }
     }
 
     /**
@@ -105,11 +138,13 @@ public class PulsarFlowControlHandler extends ChannelDuplexHandler {
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        context = ctx;
         config = ctx.channel().config();
     }
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
+        context = null;
         super.handlerRemoved(ctx);
         if (!isQueueEmpty()) {
             dequeue(ctx, queue.size());
@@ -125,6 +160,13 @@ public class PulsarFlowControlHandler extends ChannelDuplexHandler {
 
     @Override
     public void read(ChannelHandlerContext ctx) throws Exception {
+        if (messageDeliveryPaused != null) {
+            dequeue(ctx, 0);
+            if (ctx.channel().isActive() && config.isAutoRead()) {
+                ctx.read();
+            }
+            return;
+        }
         if (dequeue(ctx, 1) == 0) {
             // It seems no messages were consumed. We need to read() some
             // messages from upstream and once one arrives it need to be
@@ -171,7 +213,7 @@ public class PulsarFlowControlHandler extends ChannelDuplexHandler {
      *
      * <p>The {@code minConsume} argument is used to force {@code dequeue()} into
      * consuming that number of messages regardless of the channel's auto
-     * reading configuration.
+     * reading configuration when no separate delivery policy was supplied.
      *
      * @see #read(ChannelHandlerContext)
      * @see #channelRead(ChannelHandlerContext, Object)
@@ -181,7 +223,10 @@ public class PulsarFlowControlHandler extends ChannelDuplexHandler {
 
         // fireChannelRead(...) may call ctx.read() and so this method may reentrance. Because of this we need to
         // check if queue was set to null in the meantime and if so break the loop.
-        while (queue != null && (consumed < minConsume || config.isAutoRead())) {
+        // With a delivery policy, minConsume is zero except on removal, where queued messages must still be
+        // forwarded before this handler leaves the pipeline. An earlier read cannot bypass business throttling.
+        while (queue != null && (consumed < minConsume
+                || (messageDeliveryPaused != null ? !messageDeliveryPaused.getAsBoolean() : config.isAutoRead()))) {
             Object msg = queue.poll();
             if (msg == null) {
                 break;

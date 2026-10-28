@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.broker.InProgressRequestFrameMemoryLimitMode;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -41,7 +42,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(3)
 @State(Scope.Benchmark)
 public class RequestFrameMemoryControllerBenchmark {
-    @Param({"disabled", "manual", "automatic"})
+    @Param({"disabled", "autoInactive", "autoActive", "enabled"})
     public String mode;
     private InProgressRequestFrameMemoryController controller;
 
@@ -49,10 +50,15 @@ public class RequestFrameMemoryControllerBenchmark {
     public void setup() {
         long limitBytes = 1024L * 1024 * 1024;
         long maximumDirectMemory = 4 * limitBytes;
-        controller = new InProgressRequestFrameMemoryController("manual".equals(mode), limitBytes,
-                () -> "automatic".equals(mode) ? maximumDirectMemory * 9 / 10 : 0, maximumDirectMemory);
-        controller.getCurrentLimiter().registerThrottleStateListener(this, () -> { });
-        if ("automatic".equals(mode)) {
+        InProgressRequestFrameMemoryLimitMode limitMode = switch (mode) {
+            case "disabled" -> InProgressRequestFrameMemoryLimitMode.DISABLED;
+            case "enabled" -> InProgressRequestFrameMemoryLimitMode.ENABLED;
+            default -> InProgressRequestFrameMemoryLimitMode.AUTO;
+        };
+        controller = new InProgressRequestFrameMemoryController(limitMode, limitBytes,
+                () -> "autoActive".equals(mode) ? maximumDirectMemory * 9 / 10 : 0, maximumDirectMemory);
+        controller.getLimiter().registerThrottleStateListener(this, () -> { });
+        if ("autoActive".equals(mode)) {
             long activationBytes = limitBytes * 3 / 2 + 1;
             controller.acquire(activationBytes);
             controller.onInboundRead();
@@ -73,6 +79,6 @@ public class RequestFrameMemoryControllerBenchmark {
         if (controller.getRetainedFrameBytes() != 0) {
             throw new IllegalStateException("Unbalanced root accounting");
         }
-        controller.getCurrentLimiter().unregisterThrottleStateListener(this);
+        controller.getLimiter().unregisterThrottleStateListener(this);
     }
 }

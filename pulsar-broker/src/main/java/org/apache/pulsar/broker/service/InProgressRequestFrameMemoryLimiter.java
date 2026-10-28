@@ -19,12 +19,12 @@
 package org.apache.pulsar.broker.service;
 
 /**
- * An immutable limit shared by connections created in the same configuration generation.
- * Manual and automatic modes compare broker-wide retained frame memory against this generation's limit.
+ * A broker-wide limiter shared by all connections. Manual and automatic modes compare retained frame memory
+ * against the latest configured limit. The controller serializes threshold and throttle-state changes.
  */
 final class InProgressRequestFrameMemoryLimiter {
     private final InProgressRequestFrameMemoryController controller;
-    private final long limitBytes;
+    private volatile long limitBytes;
     private volatile boolean throttled;
 
     InProgressRequestFrameMemoryLimiter(long limitBytes, InProgressRequestFrameMemoryController controller) {
@@ -40,12 +40,17 @@ final class InProgressRequestFrameMemoryLimiter {
         return limitBytes;
     }
 
+    // Called only while holding the controller write lock, together with re-evaluating the throttle state.
+    void setLimitBytes(long limitBytes) {
+        this.limitBytes = limitBytes;
+    }
+
     void registerThrottleStateListener(Object listenerKey, Runnable listener) {
-        controller.registerThrottleStateListener(this, listenerKey, listener);
+        controller.registerThrottleStateListener(listenerKey, listener);
     }
 
     void unregisterThrottleStateListener(Object listenerKey) {
-        controller.unregisterThrottleStateListener(this, listenerKey);
+        controller.unregisterThrottleStateListener(listenerKey);
     }
 
     // Called only while holding the controller write lock. Release events may recover, but cannot start throttling.
