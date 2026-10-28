@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
 import java.util.concurrent.TimeUnit;
@@ -26,10 +27,14 @@ import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -55,6 +60,36 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
             producerImpl.newMessage().value("msg".getBytes()).send();
         }
         assertEquals(producerImpl.getProducers().size(), 1);
+    }
+
+    @Test
+    public void testSendAfterCloseDoesNotStartPartitionProducer() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        final PartitionedProducerImpl<byte[]> producerImpl =
+                (PartitionedProducerImpl<byte[]>) pulsarClient.newProducer()
+                .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(new MessageRouter() {
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 0;
+                    }
+                })
+                .create();
+        producerImpl.newMessage().key("0").value("msg".getBytes()).send();
+        assertEquals(producerImpl.getProducers().size(), 1);
+        producerImpl.close();
+
+        assertThrows(PulsarClientException.AlreadyClosedException.class,
+                () -> producerImpl.newMessage().key("1").value("msg".getBytes()).send());
+        // No producer may be started for partition 1 on a closed producer
+        assertEquals(producerImpl.getProducers().size(), 1);
+        assertTrue(admin.topics().getStats(TopicName.get(topic).getPartition(1).toString())
+                .getPublishers().isEmpty());
     }
 
     @Test
