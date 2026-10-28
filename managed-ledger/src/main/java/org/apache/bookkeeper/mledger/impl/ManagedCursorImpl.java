@@ -1008,9 +1008,10 @@ public class ManagedCursorImpl implements ManagedCursor {
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         // Skip deleted entries.
         boolean skipOnlyMessageDeleted = skipCondition == null;
-        skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
         OpReadEntry op;
         try {
+            skipCondition = skipCondition == null ? this::isMessageDeleted
+                    : skipCondition.or(this::isMessageDeleted);
             op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, maxSizeBytes, callback, ctx,
                     maxPosition, skipCondition, true);
         } catch (Throwable t) {
@@ -2051,18 +2052,19 @@ public class ManagedCursorImpl implements ManagedCursor {
         // The positions whose read was not issued yet. On a failure to issue the reads, they are failed through
         // the callback, so that the replay's aggregate callback - which counts every position - can complete and
         // release the entries it already collected.
-        List<Position> pending = new ArrayList<>(replayPositions);
+        Set<Position> pending = new HashSet<>(replayPositions);
         try {
             // the positions to read from storage
             List<Position> positions = new ArrayList<>(replayPositions.size());
-            for (int i = 0; i < pending.size(); ) {
-                Position position = pending.get(i);
+            for (Position position : replayPositions) {
+                if (!pending.contains(position)) {
+                    continue;
+                }
                 if (ledger.entryCache.hasEntry(position)) {
                     ledger.asyncReadEntry(position, REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
-                    pending.remove(i);
+                    pending.remove(position);
                 } else {
                     positions.add(position);
-                    i++;
                 }
             }
             if (positions.isEmpty()) {

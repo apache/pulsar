@@ -2955,9 +2955,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
                     () -> expectedReadCount, readCallback, ctx);
-            if (readCallback.registerTimeout()) {
-                factory.getReadEntryTimeoutTracker().add(readCallback);
-            }
+            registerTimeout(readCallback);
         } else {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
                     () -> expectedReadCount, callback, ctx);
@@ -3157,9 +3155,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, position.getLedgerId(),
                     position.getEntryId(), callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
             entryCache.asyncReadEntry(ledger, position, expectedReadCount, readCallback, ctx);
-            if (readCallback.registerTimeout()) {
-                factory.getReadEntryTimeoutTracker().add(readCallback);
-            }
+            registerTimeout(readCallback);
         } else {
             entryCache.asyncReadEntry(ledger, position, expectedReadCount, callback, ctx);
         }
@@ -3176,9 +3172,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     opReadEntry, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
                     readCallback, ctx);
-            if (readCallback.registerTimeout()) {
-                factory.getReadEntryTimeoutTracker().add(readCallback);
-            }
+            registerTimeout(readCallback);
         } else {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
                     opReadEntry, ctx);
@@ -3189,6 +3183,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             } catch (Throwable t) {
                 log.debug().attr("ledgerId", ledger.getId()).exceptionMessage(t).log("Couldn't read ahead");
             }
+        }
+    }
+
+    private void registerTimeout(ReadEntryCallbackWrapper readCallback) {
+        try {
+            if (readCallback.registerTimeout()) {
+                factory.getReadEntryTimeoutTracker().add(readCallback);
+            }
+        } catch (Throwable t) {
+            // The read was already submitted: report the failure through the wrapper, whose
+            // completion guard also coordinates the storage callbacks and the timeout itself
+            readCallback.readEntryFailed(new ManagedLedgerException(t), readCallback.cntx);
         }
     }
 
