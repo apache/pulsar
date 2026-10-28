@@ -22,15 +22,15 @@ plugins {
     id("pulsar.shadow-conventions")
 }
 
-// jclouds 2.6.0 requires Jakarta EE 10+ APIs (jakarta namespace) and Guice 7.x.
+// Force the versions that jclouds 2.7.0 manages in its parent pom (jakarta namespace, Guice 7.x).
 // The enforced platform pins older javax-era versions for Pulsar, but jclouds-shaded
 // bundles its own copies so they won't conflict at runtime.
 configurations.all {
     resolutionStrategy {
         force("com.google.inject:guice:7.0.0")
         force("com.google.inject.extensions:guice-assistedinject:7.0.0")
-        force("jakarta.annotation:jakarta.annotation-api:3.0.0")
-        force("jakarta.ws.rs:jakarta.ws.rs-api:3.1.0")
+        force("jakarta.annotation:jakarta.annotation-api:2.0.0")
+        force("jakarta.ws.rs:jakarta.ws.rs-api:3.0.0")
         force("jakarta.inject:jakarta.inject-api:2.0.1")
     }
 }
