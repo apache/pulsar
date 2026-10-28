@@ -2569,7 +2569,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             asyncReadEntriesInternal(opReadEntry);
         } catch (Throwable t) {
             log.error().attr("readPosition", opReadEntry.readPosition).exception(t).log("Failed to submit read");
-            opReadEntry.readEntriesFailed(new ManagedLedgerException(t), opReadEntry.ctx);
+            opReadEntry.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), opReadEntry.ctx);
         }
     }
 

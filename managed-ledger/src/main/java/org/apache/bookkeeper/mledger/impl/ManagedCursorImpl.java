@@ -1016,7 +1016,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     maxPosition, skipCondition, true);
         } catch (Throwable t) {
             readOperationCompleted();
-            callback.readEntriesFailed(new ManagedLedgerException(t), ctx);
+            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
             return;
         }
         op.skipOnlyMessageDeleted = skipOnlyMessageDeleted;
@@ -1175,9 +1175,18 @@ public class ManagedCursorImpl implements ManagedCursor {
         } else {
             // Skip deleted entries.
             boolean skipOnlyMessageDeleted = skipCondition == null;
-            skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
-            OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, maxSizeBytes, callback,
-                    ctx, maxPosition, skipCondition, true);
+            OpReadEntry op;
+            try {
+                skipCondition = skipCondition == null ? this::isMessageDeleted
+                        : skipCondition.or(this::isMessageDeleted);
+                op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, maxSizeBytes, callback,
+                        ctx, maxPosition, skipCondition, true);
+            } catch (Throwable t) {
+                // No read is counted as pending and none was issued, so failing through the callback is all the
+                // cleanup needed: a synchronous failure must not escape to the caller.
+                callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
+                return;
+            }
             op.skipOnlyMessageDeleted = skipOnlyMessageDeleted;
             int opReadId = op.id;
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
@@ -1939,6 +1948,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         final int totalValidPositions = positions.size() - alreadyAcknowledgedPositions.size();
+        if (totalValidPositions == 0) {
+            // Every requested position was already acknowledged: nothing to read. The aggregate callback below
+            // counts the valid positions, so without this the caller would wait forever for a callback.
+            callback.readEntriesComplete(entries, ctx);
+            return alreadyAcknowledgedPositions;
+        }
         final AtomicReference<ManagedLedgerException> exception = new AtomicReference<>();
         ReadEntryCallback cb = new ReadEntryCallback() {
             int pendingCallbacks = totalValidPositions;
@@ -1982,23 +1997,34 @@ public class ManagedCursorImpl implements ManagedCursor {
         };
 
         List<Position> validPositions = new ArrayList<>(totalValidPositions);
-        positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
-                .forEach(p ->{
-                    // A normal read can complete concurrently and move the read position past p: only move it from p
-                    // to the next position atomically, so that it never goes backward nor skips an entry
-                    Position currentReadPosition = this.readPosition;
-                    if (p.compareTo(currentReadPosition) == 0) {
-                        Position nextReadPosition = p.getNext();
-                        if (READ_POSITION_UPDATER.compareAndSet(this, currentReadPosition, nextReadPosition)) {
-                            ledger.onCursorReadPositionUpdated(this, nextReadPosition);
-                            log.warn()
-                                    .attr("replayPosition", p)
-                                    .attr("readPosition", nextReadPosition)
-                                    .log("Replay position equals read position, setting next readPosition");
+        try {
+            positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
+                    .forEach(p ->{
+                        // A normal read can complete concurrently and move the read position past p: only
+                        // move it from p to the next position atomically, so that it never goes backward
+                        // nor skips an entry
+                        Position currentReadPosition = this.readPosition;
+                        if (p.compareTo(currentReadPosition) == 0) {
+                            Position nextReadPosition = p.getNext();
+                            if (READ_POSITION_UPDATER.compareAndSet(this, currentReadPosition, nextReadPosition)) {
+                                ledger.onCursorReadPositionUpdated(this, nextReadPosition);
+                                log.warn()
+                                        .attr("replayPosition", p)
+                                        .attr("readPosition", nextReadPosition)
+                                        .log("Replay position equals read position, setting next readPosition");
+                            }
                         }
-                    }
-                    validPositions.add(p);
-                });
+                        validPositions.add(p);
+                    });
+        } catch (Throwable t) {
+            // The aggregate callback counts every valid position and no read was issued yet, so fail each
+            // valid one - not just those already added to validPositions - or the caller would wait
+            // forever for the replay to complete
+            ManagedLedgerException replayException = ManagedLedgerException.getManagedLedgerException(t);
+            positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
+                    .forEach(p -> cb.readEntryFailed(replayException, ctx));
+            return alreadyAcknowledgedPositions;
+        }
         readReplayPositions(validPositions, cb, ctx);
 
         return alreadyAcknowledgedPositions;
@@ -2100,9 +2126,16 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
         } catch (Throwable t) {
             log.warn().exception(t).log("Failed to issue the reads of a replay");
-            ManagedLedgerException exception = new ManagedLedgerException(t);
+            ManagedLedgerException exception = ManagedLedgerException.getManagedLedgerException(t);
             for (Position position : pending) {
-                cb.readEntryFailed(exception, ctx);
+                try {
+                    cb.readEntryFailed(exception, ctx);
+                } catch (Throwable notifyFailure) {
+                    // The aggregate callback counts every position, so a position whose failure is not delivered
+                    // would leave it waiting forever: notify the others even if one notification throws.
+                    log.warn().attr("position", position).exception(notifyFailure)
+                            .log("Failed to deliver a replay read failure");
+                }
             }
         }
     }

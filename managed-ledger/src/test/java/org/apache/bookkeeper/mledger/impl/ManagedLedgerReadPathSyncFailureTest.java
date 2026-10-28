@@ -26,22 +26,30 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.validateMockitoUsage;
+import static org.mockito.Mockito.when;
+import io.github.merlimat.slog.Logger;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.testng.annotations.AfterMethod;
@@ -79,6 +87,11 @@ public class ManagedLedgerReadPathSyncFailureTest extends MockedBookKeeperTestCa
                 failure.set(exception);
             }
         };
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Throwable> RuntimeException sneakyThrow(Throwable t) throws T {
+        throw (T) t;
     }
 
     /**
@@ -195,6 +208,197 @@ public class ManagedLedgerReadPathSyncFailureTest extends MockedBookKeeperTestCa
 
         await().atMost(TIMEOUT).untilAsserted(() -> {
             assertThat(failure.get()).isNotNull();
+            assertThat(entries).isEmpty();
+            assertThat(cursor.getPendingReadOpsCount()).isZero();
+        });
+    }
+
+    /**
+     * A synchronous failure while building the read operation - for example an allocation failure - must be
+     * reported through {@code readEntriesFailed} instead of escaping to the caller, and must not leave the
+     * pending read operations counter above zero.
+     */
+    @Test
+    public void testReadOpCreationFailureIsReportedThroughCallback() throws Exception {
+        ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getLogger()).thenReturn(Logger.get(ManagedLedgerImpl.class));
+        when(ledger.getLastPosition()).thenReturn(PositionFactory.create(1, 0));
+        doThrow(new RuntimeException("read op creation failed"))
+                .when(ledger).startReadOperationOnLedger(any(Position.class));
+        ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c");
+        cursor.readPosition = PositionFactory.create(1, 0);
+
+        cursor.asyncReadEntriesOrWait(1, callback(), null, PositionFactory.LATEST);
+
+        await().atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(failure.get()).isNotNull();
+            assertThat(entries).isEmpty();
+            assertThat(cursor.getPendingReadOpsCount()).isZero();
+        });
+    }
+
+    /**
+     * The wait path - a read deferred until entries are available - also builds a read operation. A synchronous
+     * failure there must be reported through the callback too, and must not leave a waiting read operation behind.
+     */
+    @Test
+    public void testWaitPathSyncFailureIsReportedThroughCallback() throws Exception {
+        ManagedLedgerImpl ledger = mock(ManagedLedgerImpl.class);
+        when(ledger.getConfig()).thenReturn(new ManagedLedgerConfig());
+        when(ledger.getLogger()).thenReturn(Logger.get(ManagedLedgerImpl.class));
+        // No entries: the cursor's read position is past the ledger's last position, so the read takes the wait path.
+        when(ledger.getLastPosition()).thenReturn(PositionFactory.create(1, 0));
+        doThrow(new RuntimeException("read op creation failed"))
+                .when(ledger).startReadOperationOnLedger(any(Position.class));
+        ManagedCursorImpl cursor = new ManagedCursorImpl(mock(BookKeeper.class), ledger, "c");
+        cursor.readPosition = PositionFactory.create(1, 1);
+
+        cursor.asyncReadEntriesOrWait(1, callback(), null, PositionFactory.LATEST);
+
+        await().atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(failure.get()).isNotNull();
+            assertThat(cursor.getPendingReadOpsCount()).isZero();
+            assertThat(cursor.hasPendingReadRequest()).isFalse();
+        });
+    }
+
+    /**
+     * A read-path failure that is already a classified {@link ManagedLedgerException} must reach the callback
+     * unwrapped, so that downstream handling - auto-skip and throttling - can still discriminate on the type.
+     */
+    @Test
+    public void testReadPathFailurePreservesManagedLedgerExceptionType() throws Exception {
+        ManagedLedger ledger = factory.open("sync-failure-exception-type");
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c", InitialPosition.Earliest);
+        ledger.addEntry("entry-0".getBytes(UTF_8));
+
+        ManagedLedgerException.NonRecoverableLedgerException thrown =
+                new ManagedLedgerException.NonRecoverableLedgerException("no ledger exist");
+        Predicate<Position> skipCondition = position -> {
+            throw sneakyThrow(thrown);
+        };
+        cursor.asyncReadEntriesWithSkipOrWait(1, callback(), null,
+                ledger.getLastConfirmedEntry(), skipCondition);
+
+        await().atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(failure.get()).isSameAs(thrown);
+            assertThat(cursor.getPendingReadOpsCount()).isZero();
+        });
+    }
+
+    /**
+     * When auto-skip moves a failed read to the next valid ledger, the pending read operations counter must stay
+     * balanced: the failed read and its continuation are one pending operation, completed once. Before the fix the
+     * continuation's completion decremented the counter a second time, leaving it negative.
+     */
+    @Test(timeOut = 30000)
+    public void testAutoSkipContinuationKeepsPendingReadOpsBalanced() throws Exception {
+        ManagedLedgerConfig config =
+                initManagedLedgerConfig(new ManagedLedgerConfig()).setMaxEntriesPerLedger(1);
+        config.setAutoSkipNonRecoverableData(true);
+        ManagedLedger ledger = factory.open("auto-skip-pending-read-ops", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c", InitialPosition.Earliest);
+        // Disable caching when adding entries, so the reads go to the bookie.
+        cursor.setInactive();
+        Position p0 = ledger.addEntry("entry-0".getBytes(UTF_8));
+        ledger.addEntry("entry-1".getBytes(UTF_8));
+        bkc.deleteLedger(p0.getLedgerId());
+
+        CompletableFuture<List<Entry>> read = new CompletableFuture<>();
+        cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> readEntries, Object ctx) {
+                read.complete(readEntries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                read.completeExceptionally(exception);
+            }
+        }, null, PositionFactory.LATEST);
+
+        List<Entry> readEntries = read.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        readEntries.forEach(Entry::release);
+        await().atMost(TIMEOUT).untilAsserted(() ->
+                assertThat(cursor.getPendingReadOpsCount()).isZero());
+    }
+
+    /**
+     * A replay of positions that were all acknowledged has nothing to read: it must complete through the callback
+     * instead of leaving the caller waiting forever for an aggregate that counts zero positions.
+     */
+    @Test
+    public void testReplayOfAlreadyAcknowledgedPositionsCompletes() throws Exception {
+        ManagedLedger ledger = factory.open("replay-all-acked");
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c", InitialPosition.Earliest);
+        Position position = ledger.addEntry("entry-0".getBytes(UTF_8));
+        cursor.markDelete(position);
+
+        AtomicInteger completions = new AtomicInteger();
+        Set<Position> alreadyAcknowledged = new HashSet<>(cursor.asyncReplayEntries(Set.of(position),
+                new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> readEntries, Object ctx) {
+                completions.incrementAndGet();
+                entries.addAll(readEntries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                completions.incrementAndGet();
+                failure.set(exception);
+            }
+        }, null));
+
+        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(completions).hasValue(1));
+        assertThat(entries).isEmpty();
+        assertThat(failure.get()).isNull();
+        assertThat(alreadyAcknowledged).containsExactly(position);
+    }
+
+    /**
+     * When a replay's reads fail partway, the positions whose read was already issued must not be failed again
+     * through the failure path: the aggregate callback counts every position exactly once. The first position's
+     * read completes, the second one's fails, and the third one's succeeds afterwards: the aggregate still fails
+     * exactly once and releases the entries it had collected.
+     */
+    @Test
+    public void testReplayReadIssueFailureDoesNotDoubleFailIssuedPositions() throws Exception {
+        // One entry per ledger, so each replay position is its own storage read, and the second one can be
+        // failed independently. The cursor is inactive, so the entries are not cached.
+        ManagedLedgerConfig config =
+                initManagedLedgerConfig(new ManagedLedgerConfig()).setMaxEntriesPerLedger(1);
+        ManagedLedger ledger = factory.open("replay-partial-failure", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c", InitialPosition.Earliest);
+        cursor.setInactive();
+        Position p0 = ledger.addEntry("entry-0".getBytes(UTF_8));
+        Position p1 = ledger.addEntry("entry-1".getBytes(UTF_8));
+        Position p2 = ledger.addEntry("entry-2".getBytes(UTF_8));
+        AtomicInteger reads = new AtomicInteger();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, readEntries) ->
+                reads.incrementAndGet() == 2
+                        ? CompletableFuture.failedFuture(new RuntimeException("replay read issue failed"))
+                        : CompletableFuture.completedFuture(readEntries));
+
+        AtomicInteger completions = new AtomicInteger();
+        cursor.asyncReplayEntries(new LinkedHashSet<>(List.of(p0, p1, p2)), new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> readEntries, Object ctx) {
+                completions.incrementAndGet();
+                entries.addAll(readEntries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                completions.incrementAndGet();
+                failure.set(exception);
+            }
+        }, null);
+
+        await().atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(failure.get()).isNotNull();
+            assertThat(completions).hasValue(1);
             assertThat(entries).isEmpty();
             assertThat(cursor.getPendingReadOpsCount()).isZero();
         });
