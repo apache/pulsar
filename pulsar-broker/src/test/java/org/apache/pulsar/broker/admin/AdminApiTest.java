@@ -699,7 +699,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Verifies broker sets watch on dynamic-configuration map even with invalid init json data
+     * Verifies broker sets watch on dynamic-configuration map even with invalid init json data.
      *
      * <pre>
      * 1. Set invalid json at dynamic-config znode
