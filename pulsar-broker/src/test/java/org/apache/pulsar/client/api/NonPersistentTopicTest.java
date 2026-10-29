@@ -712,7 +712,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * verifies load manager assigns topic only if broker started in non-persistent mode
+     * verifies load manager assigns topic only if broker started in non-persistent mode.
      *
      * <pre>
      * 1. Start broker with disable non-persistent topic mode

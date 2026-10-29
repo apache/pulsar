@@ -1351,7 +1351,7 @@ public class ProducerImplTest {
     }
 
     /**
-     * Regression test for the send-timeout vs in-flight-write race (scenario B):
+     * Regression test for the send-timeout vs in-flight-write race (scenario B).
      *
      * <p>A batch frame is handed to a connection's event loop for writing, then the connection drops and the
      * producer enters the reconnect window ({@code cnx() == null}). If the send timeout fires in that window,

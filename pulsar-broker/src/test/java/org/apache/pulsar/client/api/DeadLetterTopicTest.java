@@ -789,7 +789,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
     }
 
     /**
-     * The test is disabled {@link https://github.com/apache/pulsar/issues/2647}.
+     * The test is disabled <a href="https://github.com/apache/pulsar/issues/2647">#2647</a>.
      * @throws Exception
      */
     @Test(enabled = false)
