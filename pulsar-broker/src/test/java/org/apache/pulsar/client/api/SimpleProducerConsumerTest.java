@@ -1090,7 +1090,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * Verifies non-batch message size being validated after performing compression while batch-messaging validates
-     * before compression of message
+     * before compression of message.
      *
      * <pre>
      * send msg with size > MAX_SIZE (5 MB)

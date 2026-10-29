@@ -597,7 +597,7 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
     }
 
     /**
-     * The board now holds exactly two tasks from two different producers:
+     * The board now holds exactly two tasks from two different producers.
      * <ol start="0">
      *   <li>{@code readEntriesComplete} &mdash; posted by the managed-ledger/BookKeeper completion chain
      *       ({@code whenCompleteAsync});</li>

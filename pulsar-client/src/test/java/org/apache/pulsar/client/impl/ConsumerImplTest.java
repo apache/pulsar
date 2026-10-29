@@ -162,7 +162,7 @@ public class ConsumerImplTest {
 
     /**
      * Reproduces the chunked-message bookkeeping data race in {@link ConsumerImpl}, using the real
-     * production cross-thread pair:
+     * production cross-thread pair.
      * <ul>
      *   <li>{@code processMessageChunk(...)} on the Netty IO event-loop thread (here: the "receiver" thread);</li>
      *   <li>{@code removeExpireIncompleteChunkedMessages()} on the internalPinnedExecutor (here: the "expirer"
