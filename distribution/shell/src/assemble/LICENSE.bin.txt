@@ -327,7 +327,7 @@ The Apache Software License, Version 2.0
  * Caffeine -- caffeine-3.3.0.jar
  * Conscrypt -- conscrypt-openjdk-uber-2.7.0.jar
  * Gson
-    - gson-2.14.0.jar
+    - gson-2.15.0.jar
  * Guava
     - guava-33.7.2-jre.jar
     - failureaccess-1.0.3.jar
