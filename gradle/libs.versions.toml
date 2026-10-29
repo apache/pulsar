@@ -125,7 +125,7 @@ auth0-java-jwt = "4.6.2"
 auth0-jwks-rsa = "0.24.1"
 # CLI
 picocli = "4.7.7"
-jline3 = "4.4.6"
+jline3 = "4.4.8"
 javassist = "3.32.0-GA"
 rocksdb = "9.9.3"
 audience-annotations = "0.12.0"
