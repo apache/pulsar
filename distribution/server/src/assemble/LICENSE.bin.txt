@@ -263,7 +263,7 @@ The Apache Software License, Version 2.0
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.3.0.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.7.0.jar
  * Fastutil -- it.unimi.dsi-fastutil-8.5.16.jar
- * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.59.2.jar
+ * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.64.1.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.6.jar
  * Gson
     - com.google.code.gson-gson-2.15.0.jar
