@@ -21,7 +21,7 @@ package org.apache.pulsar.testclient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
-import java.net.URL;
+import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -121,7 +121,7 @@ public class PerformanceTransactionTest extends MockedPulsarServiceBaseTest {
         String testProduceTopic = testTopic + UUID.randomUUID();
         String testSub = "testSub";
         String args = String.format(argString, testConsumeTopic, testProduceTopic,
-                pulsar.getBrokerServiceUrl(), testSub, new URL(pulsar.getWebServiceAddress()));
+                pulsar.getBrokerServiceUrl(), testSub, URI.create(pulsar.getWebServiceAddress()).toURL());
 
         // Scalable topics must be pre-created (they don't auto-create on produce).
         admin.scalableTopics().createScalableTopic(testConsumeTopic, 1);

@@ -100,11 +100,11 @@ reactive-streams = "1.0.4"
 # Google libraries (transitive deps)
 opentelemetry-gcp-resources = "1.60.0-alpha"
 # Data structures / Utils
-guava = "33.7.1-jre"
+guava = "33.7.2-jre"
 caffeine = "3.3.0"
 fastutil = "8.5.19"
 jctools = "4.0.7"
-roaringbitmap = "1.6.20"
+roaringbitmap = "1.6.25"
 # hppc is capped at 0.10.x: 0.11.x is compiled to Java 21 bytecode and Pulsar targets Java 17
 hppc = "0.10.0"
 aircompressor = "2.0.3"
@@ -155,7 +155,7 @@ ant = "1.10.17"
 # javax.inject to jakarta.inject. jclouds is the only consumer that needs Guice 7 and
 # jclouds-shaded forces it locally.
 guice = "5.1.0"
-snappy = "1.1.10.8"
+snappy = "1.1.10.9"
 ipaddress = "5.6.2"
 zt-zip = "1.18.2"
 # Jakarta
@@ -177,7 +177,7 @@ javax-servlet = "4.0.1"
 jakarta-servlet = "6.0.0"
 felix-http-wrappers = "1.1.10"
 # Oxia / etcd
-oxia = "0.9.5"
+oxia = "0.10.3"
 oxia-testcontainers = "0.7.4"
 # Build plugins
 lightproto = "0.9.3"
@@ -274,7 +274,7 @@ protobuf-bom = { module = "com.google.protobuf:protobuf-bom", version.ref = "pro
 protobuf-java = { module = "com.google.protobuf:protobuf-java", version.ref = "protobuf" }
 protobuf-java-util = { module = "com.google.protobuf:protobuf-java-util", version.ref = "protobuf" }
 grpc-bom = { module = "io.grpc:grpc-bom", version.ref = "grpc" }
-grpc-netty-shaded = { module = "io.grpc:grpc-netty-shaded", version.ref = "grpc" }
+grpc-netty = { module = "io.grpc:grpc-netty", version.ref = "grpc" }
 grpc-stub = { module = "io.grpc:grpc-stub", version.ref = "grpc" }
 # Guava
 guava = { module = "com.google.guava:guava", version.ref = "guava" }

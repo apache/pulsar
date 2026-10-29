@@ -270,7 +270,7 @@ The Apache Software License, Version 2.0
     - com.google.code.gson-gson-2.14.0.jar
     - io.gsonfire-gson-fire-1.9.0.jar
  * Guava
-    - com.google.guava-guava-33.7.1-jre.jar
+    - com.google.guava-guava-33.7.2-jre.jar
     - com.google.guava-failureaccess-1.0.3.jar
     - com.google.guava-listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
  * J2ObjC Annotations -- com.google.j2objc-j2objc-annotations-3.1.jar
@@ -458,7 +458,7 @@ The Apache Software License, Version 2.0
     - io.grpc-grpc-protobuf-lite-1.84.0.jar
     - io.grpc-grpc-stub-1.84.0.jar
     - io.grpc-grpc-api-1.84.0.jar
-    - io.grpc-grpc-netty-shaded-1.84.0.jar
+    - io.grpc-grpc-netty-1.84.0.jar
     - io.grpc-grpc-services-1.84.0.jar
     - io.grpc-grpc-util-1.84.0.jar
     - io.grpc-grpc-inprocess-1.84.0.jar
@@ -495,8 +495,8 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.github.oxia-db-oxia-client-api-0.9.5.jar
-    - io.github.oxia-db-oxia-client-0.9.5.jar
+    - io.github.oxia-db-oxia-client-api-0.10.3.jar
+    - io.github.oxia-db-oxia-client-0.10.3.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
@@ -515,7 +515,7 @@ The Apache Software License, Version 2.0
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-jute-3.9.6.jar
   * Snappy Java
-    - org.xerial.snappy-snappy-java-1.1.10.8.jar
+    - org.xerial.snappy-snappy-java-1.1.10.9.jar
   * Google HTTP Client
     - com.google.http-client-google-http-client-gson-2.1.0.jar
     - com.google.http-client-google-http-client-2.1.0.jar
@@ -526,7 +526,7 @@ The Apache Software License, Version 2.0
   * RxJava
     - io.reactivex.rxjava3-rxjava-3.0.1.jar
   * RoaringBitmap
-    - org.roaringbitmap-RoaringBitmap-1.6.20.jar
+    - org.roaringbitmap-RoaringBitmap-1.6.25.jar
   * OpenTelemetry
     - io.opentelemetry-opentelemetry-api-1.66.0.jar
     - io.opentelemetry-opentelemetry-api-incubator-1.66.0-alpha.jar

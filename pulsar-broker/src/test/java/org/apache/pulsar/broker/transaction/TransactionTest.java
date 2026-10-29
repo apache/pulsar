@@ -48,7 +48,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1629,9 +1628,8 @@ public class TransactionTest extends TransactionTestBase {
         // Create subscription.
         String subscriptionName = "sub-a";
         boolean replicated = false;
-        Map<String, String> subscriptionProperties = Collections.emptyMap();
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, subscriptionName,
-                cursorSubscription, replicated, subscriptionProperties);
+                cursorSubscription, replicated);
         org.apache.pulsar.broker.service.Consumer consumer = mock(org.apache.pulsar.broker.service.Consumer.class);
         try {
             CompletableFuture<Void> addConsumerFuture = persistentSubscription.addConsumer(consumer);

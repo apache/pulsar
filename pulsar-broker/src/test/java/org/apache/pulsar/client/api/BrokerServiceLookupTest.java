@@ -625,7 +625,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
 
         // hit broker2 url
-        URLConnection con = new URL(pulsar2.getWebServiceAddressTls() + lookupResourceUrl).openConnection();
+        URLConnection con = URI.create(pulsar2.getWebServiceAddressTls() + lookupResourceUrl).toURL().openConnection();
         log.info().attr("orignalUrl", con.getURL()).log("orignal url");
         con.connect();
         log.info().attr("connectedUrl", con.getURL()).log("connected url");
@@ -1117,7 +1117,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase implements ITe
         final CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
         try {
 
-            String requestUrl = new URL(url, path).toString();
+            String requestUrl = url.toURI().resolve(path).toString();
             BoundRequestBuilder builder = httpClient.prepareGet(requestUrl);
 
             final ListenableFuture<Response> responseFuture = builder.setHeader("Accept", "application/json")

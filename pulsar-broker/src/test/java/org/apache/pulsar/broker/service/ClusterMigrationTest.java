@@ -27,6 +27,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
@@ -127,23 +128,23 @@ public class ClusterMigrationTest {
         broker4 = new TestBroker("r4", loadManagerClassName);
 
         pulsar1 = broker1.getPulsarService();
-        url1 = new URL(pulsar1.getWebServiceAddress());
-        urlTls1 = new URL(pulsar1.getWebServiceAddressTls());
+        url1 = URI.create(pulsar1.getWebServiceAddress()).toURL();
+        urlTls1 = URI.create(pulsar1.getWebServiceAddressTls()).toURL();
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         pulsar2 = broker2.getPulsarService();
-        url2 = new URL(pulsar2.getWebServiceAddress());
-        urlTls2 = new URL(pulsar2.getWebServiceAddressTls());
+        url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
+        urlTls2 = URI.create(pulsar2.getWebServiceAddressTls()).toURL();
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         pulsar3 = broker3.getPulsarService();
-        url3 = new URL(pulsar3.getWebServiceAddress());
-        urlTls3 = new URL(pulsar3.getWebServiceAddressTls());
+        url3 = URI.create(pulsar3.getWebServiceAddress()).toURL();
+        urlTls3 = URI.create(pulsar3.getWebServiceAddressTls()).toURL();
         admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
         pulsar4 = broker4.getPulsarService();
-        url4 = new URL(pulsar4.getWebServiceAddress());
-        urlTls4 = new URL(pulsar4.getWebServiceAddressTls());
+        url4 = URI.create(pulsar4.getWebServiceAddress()).toURL();
+        urlTls4 = URI.create(pulsar4.getWebServiceAddressTls()).toURL();
         admin4 = PulsarAdmin.builder().serviceHttpUrl(url4.toString()).build();
 
 
@@ -444,6 +445,7 @@ public class ClusterMigrationTest {
      * connection closes and fails those requests, the consumer and the producer, already connected to the new
      * cluster, must stay connected: a consumer that subscribes again drops the messages in its receiver queue.
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testRedirectedConsumerAndProducerIgnoreTheirFirstAttempt() throws Exception {
         final String topicName = BrokerTestUtil

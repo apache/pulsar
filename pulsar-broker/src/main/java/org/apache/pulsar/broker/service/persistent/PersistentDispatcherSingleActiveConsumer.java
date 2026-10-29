@@ -165,6 +165,12 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
     }
 
+    synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch,
+                                          long readOpEpoch, Position originalLedgerReadPosition) {
+        readEntriesComplete(entries, readConsumer, epoch, readOpEpoch, getActiveConsumerGeneration(),
+                originalLedgerReadPosition);
+    }
+
     private synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch,
                                                   long readOpEpoch, long readConsumerGeneration,
                                                   Position originalLedgerReadPosition) {
@@ -207,6 +213,10 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         readFailureBackoff.reduceToHalf();
 
         Consumer currentConsumer = getActiveConsumer();
+
+        if (currentConsumer != null && currentConsumer.getAvgMessagesPerEntry() <= 0) {
+            initConsumerAvgMessagesPerEntry(entries, currentConsumer);
+        }
 
         if (isKeyHashRangeFiltered) {
             Iterator<Entry> iterator = entries.iterator();

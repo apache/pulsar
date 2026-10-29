@@ -5912,6 +5912,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         doAnswer(inv -> {
             if (mlPath.equals(inv.getArgument(0)) && interceptNextPut.compareAndSet(true, false)) {
                 putIntercepted.countDown();
+                @SuppressWarnings("unchecked")
                 CompletableFuture<Stat> real = (CompletableFuture<Stat>) inv.callRealMethod();
                 CompletableFuture<Stat> gated = new CompletableFuture<>();
                 // Forward the real result to `gated` only once `releaseGate` is completed.
@@ -6019,6 +6020,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         doAnswer(inv -> {
             if (mlPath.equals(inv.getArgument(0)) && interceptNextPut.compareAndSet(true, false)) {
                 putIntercepted.countDown();
+                @SuppressWarnings("unchecked")
                 CompletableFuture<Stat> real = (CompletableFuture<Stat>) inv.callRealMethod();
                 CompletableFuture<Stat> gated = new CompletableFuture<>();
                 real.whenComplete((stat, ex) -> releaseGate.whenComplete((ignored, ignoredEx) -> {
