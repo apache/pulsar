@@ -61,7 +61,7 @@
     <ant.version>1.10.12</ant.version>
     <snakeyaml.version>2.0</snakeyaml.version>
     <mockito.version>5.19.0</mockito.version>
-    <byte-buddy.version>1.17.7</byte-buddy.version>
+    <byte-buddy.version>1.18.16</byte-buddy.version>
     <!-- required for running tests on JDK11+ -->
     <test.additional.args>
       --add-opens java.base/jdk.internal.loader=ALL-UNNAMED
