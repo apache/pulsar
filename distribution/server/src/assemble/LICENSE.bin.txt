@@ -515,7 +515,7 @@ The Apache Software License, Version 2.0
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-jute-3.9.6.jar
   * Snappy Java
-    - org.xerial.snappy-snappy-java-1.1.10.9.jar
+    - org.xerial.snappy-snappy-java-1.1.10.12.jar
   * Google HTTP Client
     - com.google.http-client-google-http-client-gson-2.1.0.jar
     - com.google.http-client-google-http-client-2.1.0.jar
