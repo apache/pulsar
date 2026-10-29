@@ -19,13 +19,17 @@
 package org.apache.pulsar.broker.service;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
 import org.apache.pulsar.broker.namespace.LookupOptions;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.naming.TopicName;
@@ -52,6 +56,46 @@ public class BrokerServicePartitionMetadataRefreshTest extends SharedPulsarBaseT
                 {"persistent", 1}, {"non-persistent", 1},
                 {"persistent", 0}, {"non-persistent", 0}
         };
+    }
+
+    @DataProvider
+    public Object[][] shadowPartitionCounts() {
+        return new Object[][]{{0}, {1}, {2}};
+    }
+
+    @Test(dataProvider = "shadowPartitionCounts", timeOut = 30_000)
+    public void testShadowPartitionUsesRefreshedProperties(int cachedPartitions) throws Exception {
+        TopicName source = newTopicName("persistent");
+        TopicName shadow = newTopicName("persistent");
+        boolean shadowTopicsEnabled = getConfig().isEnableShadowTopics();
+        getConfig().setEnableShadowTopics(true);
+        try (DelayedNotificationsStore writer = metadataWriter(shadow)) {
+            admin.topics().createPartitionedTopic(source.toString(), 2);
+            TopicName sourcePartition = source.getPartition(1);
+            try (Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                    .topic(sourcePartition.toString()).create()) {
+                producer.send("shadow source");
+            }
+            prepareMetadata(shadow, writer, cachedPartitions, 2,
+                    Map.of(PROPERTY_SOURCE_TOPIC_KEY, source.toString()));
+            for (int i = 0; i < 2; i++) {
+                // The admin API provisions empty per-partition records without copying the shadow property.
+                getPulsar().getPulsarResources().getTopicResources()
+                        .createPersistentTopicAsync(shadow.getPartition(i)).get(5, SECONDS);
+            }
+            assertCachedPartitions(shadow, cachedPartitions);
+            TopicName shadowPartition = shadow.getPartition(1);
+            assertThat(getTopicReference(shadowPartition.toString())).isEmpty();
+
+            PersistentTopic loaded = (PersistentTopic) getTopic(shadowPartition.toString(), true)
+                    .get(10, SECONDS).orElseThrow();
+
+            assertThat(loaded.getManagedLedger()).isInstanceOf(ShadowManagedLedgerImpl.class);
+            assertThat(loaded.getShadowSourceTopic()).contains(sourcePartition);
+            assertCachedPartitions(shadow, 2);
+        } finally {
+            getConfig().setEnableShadowTopics(shadowTopicsEnabled);
+        }
     }
 
     @Test(dataProvider = "stalePartitionCounts", timeOut = 30_000)
@@ -141,14 +185,20 @@ public class BrokerServicePartitionMetadataRefreshTest extends SharedPulsarBaseT
 
     private void prepareMetadata(TopicName topic, DelayedNotificationsStore writer,
                                  int cachedPartitions, int storedPartitions) throws Exception {
+        prepareMetadata(topic, writer, cachedPartitions, storedPartitions, null);
+    }
+
+    private void prepareMetadata(TopicName topic, DelayedNotificationsStore writer,
+                                 int cachedPartitions, int storedPartitions, Map<String, String> properties)
+            throws Exception {
         assertThat(getPulsar().getNamespaceService().getBrokerServiceUrlAsync(topic.getPartition(0),
                 LookupOptions.builder().authoritative(true).build()).get(10, SECONDS)).isPresent();
         if (cachedPartitions > 0) {
-            writer.writePartitions(cachedPartitions);
+            writer.writePartitions(cachedPartitions, properties);
         }
         assertCachedPartitions(topic, cachedPartitions);
         if (storedPartitions > 0) {
-            writer.writePartitions(storedPartitions);
+            writer.writePartitions(storedPartitions, properties);
         }
         assertCachedPartitions(topic, cachedPartitions);
     }
@@ -168,9 +218,10 @@ public class BrokerServicePartitionMetadataRefreshTest extends SharedPulsarBaseT
             this.delayedPath = delayedPath;
         }
 
-        private void writePartitions(int partitions) throws Exception {
+        private void writePartitions(int partitions, Map<String, String> properties) throws Exception {
             put(delayedPath, ObjectMapperFactory.getMapper().writer()
-                    .writeValueAsBytes(new PartitionedTopicMetadata(partitions)), Optional.empty()).get(5, SECONDS);
+                    .writeValueAsBytes(new PartitionedTopicMetadata(partitions, properties)), Optional.empty())
+                    .get(5, SECONDS);
         }
 
         @Override
