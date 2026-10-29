@@ -284,7 +284,7 @@ The Apache Software License, Version 2.0
  * Apache Commons
     - commons-beanutils-commons-beanutils-1.11.0.jar
     - commons-cli-commons-cli-1.11.0.jar
-    - commons-codec-commons-codec-1.22.1.jar
+    - commons-codec-commons-codec-1.23.0.jar
     - commons-io-commons-io-2.22.0.jar
     - commons-logging-commons-logging-1.4.0.jar
     - org.apache.commons-commons-collections4-4.6.0.jar
