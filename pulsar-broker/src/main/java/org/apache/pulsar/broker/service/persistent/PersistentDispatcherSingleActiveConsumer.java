@@ -109,7 +109,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         this.initializeDispatchRateLimiterIfNeeded();
     }
 
-    protected void scheduleReadOnActiveConsumer() {
+    protected synchronized void scheduleReadOnActiveConsumer() {
         cancelPendingRead();
 
         if (havePendingRead) {
@@ -137,6 +137,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
 
         readOnActiveConsumerTask = topic.getBrokerService().executor().schedule(() -> {
+            synchronized (this) {
+                readOnActiveConsumerTask = null;
+            }
             log.debug()
                     .attr("activeConsumerFailoverDelayTimeMillis",
                             serviceConfig.getActiveConsumerFailoverDelayTimeMillis())
@@ -146,9 +149,6 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
             notifyActiveConsumerChanged(activeConsumer);
             readMoreEntries(activeConsumer);
-            synchronized (this) {
-                readOnActiveConsumerTask = null;
-            }
         }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
 
     }

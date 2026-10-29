@@ -26,7 +26,9 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.ImmediateEventExecutor;
+import io.netty.util.concurrent.ScheduledFuture;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -36,6 +38,7 @@ import java.util.Optional;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
@@ -176,6 +179,8 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
 
     // The dispatcher's ordered executor: a manual task board we drain in a chosen order.
     private ManualExecutor dispatcherExecutor;
+    private final List<Runnable> failoverHandoffTasks = Collections.synchronizedList(new ArrayList<>());
+    private volatile boolean captureFailoverHandoffTasks;
 
     // Everything the dispatcher handed to a Consumer#sendMessages tail, in delivery order.
     private final List<Delivery> deliveries = Collections.synchronizedList(new ArrayList<>());
@@ -226,6 +231,20 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
                 .managedLedgerClients(bkc, factory)
                 .build();
         brokerService = pulsarTestContext.getBrokerService();
+        failoverHandoffTasks.clear();
+        if (failoverDelayMillis > 0) {
+            EventLoopGroup realBrokerExecutor = brokerService.executor();
+            EventLoopGroup brokerExecutor = spy(realBrokerExecutor);
+            doAnswer(invocation -> {
+                long delay = invocation.getArgument(1);
+                if (captureFailoverHandoffTasks && delay == failoverDelayMillis) {
+                    failoverHandoffTasks.add(invocation.getArgument(0));
+                    return mock(ScheduledFuture.class);
+                }
+                return invocation.callRealMethod();
+            }).when(brokerExecutor).schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
+            doReturn(brokerExecutor).when(brokerService).executor();
+        }
 
         ledger = (ManagedLedgerImpl) factory.open(ledgerName, initManagedLedgerConfig(new ManagedLedgerConfig()));
         topic = new PersistentTopic(TOPIC, ledger, brokerService);
@@ -262,6 +281,13 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
 
         deliveries.clear();
         consumer = newMockConsumer("c1");
+    }
+
+    private void awaitFailoverHandoffTaskCount(int count) {
+        Awaitility.await("failover handoff task should be captured")
+                .atMost(Duration.ofSeconds(BOARD_WAIT_SECONDS))
+                .pollInterval(Duration.ofMillis(2))
+                .until(() -> failoverHandoffTasks.size() >= count);
     }
 
     /**
@@ -334,6 +360,7 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
     @AfterMethod(alwaysRun = true)
     public void afterMethod() {
         tearDownFixture();
+        captureFailoverHandoffTasks = false;
     }
 
     // -----------------------------------------------------------------------------------------------
@@ -696,6 +723,72 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
             Assert.assertTrue(deliveries.contains(Delivery.of("c2", unacked)),
                     "New active received the next message but skipped the old active's unacked message; "
                             + "failRead=" + failRead + ", deliveries=" + deliveries);
+        } finally {
+            bkc.setReadHandleInterceptor(null);
+            if (!readResult.isDone()) {
+                LedgerEntries entries = intercepted.getNow(null);
+                if (entries != null) {
+                    entries.close();
+                }
+                readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
+            }
+        }
+    }
+
+    /**
+     * A delayed handoff must not remain registered while its timer task is running. Otherwise a failure of the old
+     * active's read can observe the timer, suppress recovery, and then lose the only wake-up for the new active.
+     */
+    @Test(groups = "broker")
+    public void testDelayedFailoverReadFailureReschedulesAfterHandoffTaskStarts() throws Exception {
+        buildFixture("sac-failover-delayed-read-failure-race", 10, POSITIVE_FAILOVER_DELAY_MILLIS);
+        captureFailoverHandoffTasks = true;
+        connect(consumer);
+        awaitFailoverHandoffTaskCount(1);
+        dispatcher.readMoreEntries(consumer);
+
+        Position unacked = publish();
+        awaitBoardHasAtLeast(1);
+        Assert.assertTrue(dispatcherExecutor.runOne());
+        Assert.assertTrue(deliveries.contains(Delivery.of("c1", unacked)));
+
+        publish();
+        factory.getEntryCacheManager().getEntryCache(ledger).clear();
+        CompletableFuture<LedgerEntries> intercepted = new CompletableFuture<>();
+        CompletableFuture<LedgerEntries> readResult = new CompletableFuture<>();
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) -> {
+            intercepted.complete(entries);
+            return readResult;
+        });
+        try {
+            Assert.assertTrue(dispatcherExecutor.runOne());
+            LedgerEntries entries = intercepted.get(BOARD_WAIT_SECONDS, TimeUnit.SECONDS);
+
+            Consumer replacement = newMockConsumer("c2");
+            doReturn(-1).when(replacement).getPriorityLevel();
+            connect(replacement);
+            disconnect(consumer);
+
+            AtomicBoolean failOldReadBeforeHandoffTaskReturns = new AtomicBoolean(true);
+            doAnswer(invocation -> {
+                Object result = invocation.callRealMethod();
+                if (failOldReadBeforeHandoffTaskReturns.compareAndSet(true, false)) {
+                    entries.close();
+                    readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
+                    awaitBoardHasAtLeast(1);
+                    Assert.assertTrue(dispatcherExecutor.runOne(),
+                            "old read failure should run before the handoff task returns");
+                }
+                return result;
+            }).when(dispatcher).readMoreEntries(replacement);
+
+            failoverHandoffTasks.remove(0).run();
+
+            // Before the fix, the timer remains registered until the handoff task returns, so the failure callback
+            // cannot schedule a replacement. Clearing it before the read attempt preserves this wake-up.
+            Assert.assertTrue(failoverHandoffTasks.size() >= 1,
+                    "read failure during delayed handoff must schedule a replacement handoff");
+            failoverHandoffTasks.remove(0).run();
         } finally {
             bkc.setReadHandleInterceptor(null);
             if (!readResult.isDone()) {
