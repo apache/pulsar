@@ -51,6 +51,7 @@ import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.PulsarBookKeeperTestClient;
 import org.apache.bookkeeper.client.api.DigestType;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -66,6 +67,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.ReadOnlyCursor;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
+import org.apache.bookkeeper.mledger.impl.cache.EntryCache;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
@@ -296,6 +300,180 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         assertThatThrownBy(cursor::getEstimatedSizeSinceMarkDeletePosition)
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("is ahead of the last position");
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadOnlyDirectReadLastPublishedEntryBeyondCursorFrontier() throws Exception {
+        assertThat(baseClientConf.getExplictLacInterval()).isZero();
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory writerFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory readerFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        ManagedLedgerConfig config = defaultConfig().setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2);
+        String name = "read-only-published-entry-" + UUID.randomUUID();
+        ManagedLedger writer = writerFactory.open(name, config);
+        writer.addEntry("first".getBytes(StandardCharsets.UTF_8));
+        Position penultimate = writer.addEntry("penultimate".getBytes(StandardCharsets.UTF_8));
+        Position published = writer.addEntry("published".getBytes(StandardCharsets.UTF_8));
+
+        CompletableFuture<ReadOnlyManagedLedger> opened = new CompletableFuture<>();
+        readerFactory.asyncOpenReadOnlyManagedLedger(name, new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
+            @Override
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger ledger, Object ctx) {
+                opened.complete(ledger);
+            }
+
+            @Override
+            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException error, Object ctx) {
+                opened.completeExceptionally(error);
+            }
+        }, config, null);
+        ReadOnlyManagedLedger reader = opened.get(10, TimeUnit.SECONDS);
+        @Cleanup
+        ReadOnlyCursor cursor = reader.createReadOnlyCursor(PositionFactory.EARLIEST);
+        long confirmedEntries = reader.getNumberOfEntries();
+        assertThat(confirmedEntries).isEqualTo(2);
+        // Cursor creation initializes only the confirmed frontier; it does not read or populate the entry cache.
+        // No later write publishes a piggyback LAC for the final successful receipt.
+        for (Position position : List.of(penultimate, published)) {
+            CompletableFuture<Entry> read = new CompletableFuture<>();
+            reader.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    read.complete(entry);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException error, Object ctx) {
+                    read.completeExceptionally(error);
+                }
+            }, null);
+            Entry entry = read.get(10, TimeUnit.SECONDS);
+            try {
+                assertThat(entry.getPosition()).isEqualTo(position);
+                String expected = position.equals(published) ? "published" : "penultimate";
+                assertThat(entry.getData()).isEqualTo(expected.getBytes(StandardCharsets.UTF_8));
+            } finally {
+                entry.release();
+            }
+        }
+        assertThat(reader.getNumberOfEntries()).isEqualTo(confirmedEntries);
+        assertThat(cursor.getNumberOfEntries()).isEqualTo(confirmedEntries);
+        List<Entry> confirmed = cursor.readEntries(10);
+        try {
+            assertThat(confirmed).hasSize(2);
+            assertThat(confirmed.get(0).getPosition().getEntryId()).isEqualTo(0);
+            assertThat(confirmed.get(1).getPosition()).isEqualTo(penultimate);
+        } finally {
+            confirmed.forEach(Entry::release);
+        }
+        assertThat(cursor.hasMoreEntries()).isFalse();
+        assertThat(cursor.getNumberOfEntries()).isZero();
+        assertThat(reader.getNumberOfEntries()).isEqualTo(confirmedEntries);
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadOnlyDirectReadWithSharedCacheAfterRollover() throws Exception {
+        assertThat(baseClientConf.getExplictLacInterval()).isZero();
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(16 * 1024 * 1024);
+        @Cleanup("shutdown")
+        ManagedLedgerFactory writerFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        @Cleanup("shutdown")
+        ManagedLedgerFactoryImpl readerFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        ManagedLedgerConfig config = defaultConfig().setEnsembleSize(2).setWriteQuorumSize(2).setAckQuorumSize(2)
+                .setRetentionTime(1, TimeUnit.HOURS).setRetentionSizeInMB(-1).setMaxEntriesPerLedger(3);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        String name = "read-only-shared-cache-rollover-" + UUID.randomUUID();
+        ManagedLedger writer = writerFactory.open(name, config);
+        Position first = writer.addEntry("old-first".getBytes(StandardCharsets.UTF_8));
+        writer.addEntry("old-second".getBytes(StandardCharsets.UTF_8));
+
+        ReadOnlyManagedLedger firstReader = openReadOnlyForSharedCacheTest(readerFactory, name, config);
+        @Cleanup
+        ReadOnlyCursor firstCursor = firstReader.createReadOnlyCursor(PositionFactory.EARLIEST);
+        // Public cursor/ledger hooks inspect metadata without reflecting into the wrapper or reading any entry.
+        ManagedLedger firstView = ((ManagedCursor) firstCursor).getManagedLedger();
+        Position firstFrontier = firstView.getLastConfirmedEntry();
+        long firstCount = firstReader.getNumberOfEntries();
+        Position firstReadPosition = firstCursor.getReadPosition();
+        assertThat(firstFrontier).isEqualTo(first);
+        assertThat(firstCount).isEqualTo(1);
+        EntryCache sharedCache = readerFactory.getEntryCacheManager().getEntryCache(firstView);
+
+        writer.addEntry("rollover-edge".getBytes(StandardCharsets.UTF_8));
+        Position newFirst = writer.addEntry("new-first".getBytes(StandardCharsets.UTF_8));
+        Position published = writer.addEntry("new-last-published".getBytes(StandardCharsets.UTF_8));
+        assertThat(published.getLedgerId()).isNotEqualTo(first.getLedgerId());
+        assertThat(published.getLedgerId()).isEqualTo(newFirst.getLedgerId());
+        assertThat(firstView.getOptionalLedgerInfo(published.getLedgerId())).isEmpty();
+        try (ReadHandle handle = bkc.newOpenLedgerOp().withRecovery(false).withLedgerId(published.getLedgerId())
+                .withDigestType(config.getDigestType()).withPassword(config.getPassword())
+                .execute().get(10, TimeUnit.SECONDS)) {
+            assertThat(handle.isClosed()).isFalse();
+            assertThat(handle.getLastAddConfirmed()).isEqualTo(newFirst.getEntryId());
+            assertThat(handle.getLastAddConfirmed()).isLessThan(published.getEntryId());
+        }
+
+        ReadOnlyManagedLedger secondReader = openReadOnlyForSharedCacheTest(readerFactory, name, config);
+        @Cleanup
+        ReadOnlyCursor secondCursor = secondReader.createReadOnlyCursor(PositionFactory.EARLIEST);
+        ManagedLedger secondView = ((ManagedCursor) secondCursor).getManagedLedger();
+        assertThat(secondView).isNotSameAs(firstView);
+        assertThat(secondView.getOptionalLedgerInfo(published.getLedgerId())).isPresent();
+        assertThat(readerFactory.getEntryCacheManager().getEntryCache(secondView)).isSameAs(sharedCache);
+        Position secondFrontier = secondView.getLastConfirmedEntry();
+        long secondCount = secondReader.getNumberOfEntries();
+        Position secondReadPosition = secondCursor.getReadPosition();
+        assertThat(secondFrontier).isEqualTo(newFirst);
+        assertThat(secondCount).isEqualTo(4);
+
+        // No later write publishes a newer piggyback LAC, and no cursor read can populate the cache first.
+        CompletableFuture<Entry> read = new CompletableFuture<>();
+        secondReader.asyncReadEntry(published, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                read.complete(entry);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException error, Object ctx) {
+                read.completeExceptionally(error);
+            }
+        }, null);
+        Entry entry = read.get(10, TimeUnit.SECONDS);
+        try {
+            assertThat(entry.getPosition()).isEqualTo(published);
+            assertThat(entry.getData()).isEqualTo("new-last-published".getBytes(StandardCharsets.UTF_8));
+        } finally {
+            entry.release();
+        }
+        assertThat(firstView.getOptionalLedgerInfo(published.getLedgerId())).isEmpty();
+        assertThat(firstView.getLastConfirmedEntry()).isEqualTo(firstFrontier);
+        assertThat(firstReader.getNumberOfEntries()).isEqualTo(firstCount);
+        assertThat(firstCursor.getReadPosition()).isEqualTo(firstReadPosition);
+        assertThat(secondView.getLastConfirmedEntry()).isEqualTo(secondFrontier);
+        assertThat(secondReader.getNumberOfEntries()).isEqualTo(secondCount);
+        assertThat(secondCursor.getReadPosition()).isEqualTo(secondReadPosition);
+    }
+
+    private ReadOnlyManagedLedger openReadOnlyForSharedCacheTest(ManagedLedgerFactory factory, String name,
+                                                                 ManagedLedgerConfig config) throws Exception {
+        CompletableFuture<ReadOnlyManagedLedger> opened = new CompletableFuture<>();
+        factory.asyncOpenReadOnlyManagedLedger(name, new AsyncCallbacks.OpenReadOnlyManagedLedgerCallback() {
+            @Override
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger ledger, Object ctx) {
+                opened.complete(ledger);
+            }
+
+            @Override
+            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException error, Object ctx) {
+                opened.completeExceptionally(error);
+            }
+        }, config, null);
+        return opened.get(10, TimeUnit.SECONDS);
     }
 
     @Test
