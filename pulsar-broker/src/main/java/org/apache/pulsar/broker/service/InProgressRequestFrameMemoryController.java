@@ -348,7 +348,7 @@ final class InProgressRequestFrameMemoryController implements AutoCloseable {
 
     private void logAutomaticStateChange(AutomaticStateChange change) {
         if (change != null) {
-            log.info().attr("enabled", change.enabled()).attr("directMemoryUsedBytes", change.directMemoryUsedBytes())
+            log.warn().attr("enabled", change.enabled()).attr("directMemoryUsedBytes", change.directMemoryUsedBytes())
                     .attr("maxDirectMemoryBytes", maxDirectMemoryBytes)
                     .attr("retainedFrameBytes", change.retainedFrameBytes())
                     .attr("automaticEnableThresholdBytes", change.enableThresholdBytes())
