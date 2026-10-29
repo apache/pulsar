@@ -139,6 +139,7 @@
     <dependency>
       <groupId>org.jline</groupId>
       <artifactId>jline</artifactId>
+      <classifier>jdk11</classifier>
     </dependency>
     <dependency>
       <groupId>net.java.dev.jna</groupId>
