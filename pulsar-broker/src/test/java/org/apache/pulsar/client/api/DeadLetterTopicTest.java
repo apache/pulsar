@@ -1819,7 +1819,10 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
             messages.add(consumer.receive(5, TimeUnit.SECONDS));
         }
         ConsumerImpl<byte[]> consumerImpl = (ConsumerImpl<byte[]>) consumer;
-        assertThat(consumerImpl.getPossibleSendToDeadLetterTopicMessages()).hasSize(1);
+        // The batch messages are handed to the application before the entry is registered as a DLQ candidate,
+        // so receive() may return before the registration is visible
+        Awaitility.await().untilAsserted(() -> assertThat(consumerImpl.getPossibleSendToDeadLetterTopicMessages())
+                .hasSize(1));
 
         // Redeliver a single message id that still carries its batch index
         MessageId batchMessageId = messages.get(0).getMessageId();
