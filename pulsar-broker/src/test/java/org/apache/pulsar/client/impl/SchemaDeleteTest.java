@@ -122,9 +122,13 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
 
         try (Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topic).create()) {
             Awaitility.await().atMost(Duration.ofSeconds(5)).until(producer::isConnected);
+            ProducerImpl<byte[]> producerImpl = (ProducerImpl<byte[]>) producer;
+            long connectionEpoch = producerImpl.getConnectionHandler().getEpoch();
             admin.schemas().deleteSchema(topic);
             admin.topics().unload(topic);
 
+            Awaitility.await().atMost(Duration.ofSeconds(10)).until(() ->
+                    producerImpl.getConnectionHandler().getEpoch() > connectionEpoch && producer.isConnected());
             Assert.assertTrue(admin.schemas().getAllSchemas(topic).isEmpty());
         }
     }
