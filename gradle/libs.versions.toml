@@ -34,7 +34,7 @@ jersey = "3.1.12"
 jackson = "2.21.8"
 jackson-annotations = "2.21"
 protobuf = "4.36.2"
-grpc = "1.84.0"
+grpc = "1.85.1"
 slf4j = "2.0.18"
 slog = "0.10.1"
 log4j2 = "2.26.1"
@@ -84,7 +84,7 @@ avro = "1.12.2"
 gson = "2.14.0"
 snakeyaml = "2.7"
 # Vert.x
-vertx = "4.5.32"
+vertx = "4.5.35"
 # Networking / HTTP
 asynchttpclient = "3.0.14"
 conscrypt = "2.7.0"
@@ -155,7 +155,7 @@ ant = "1.10.17"
 # javax.inject to jakarta.inject. jclouds is the only consumer that needs Guice 7 and
 # jclouds-shaded forces it locally.
 guice = "5.1.0"
-snappy = "1.1.10.9"
+snappy = "1.1.10.12"
 ipaddress = "5.6.2"
 zt-zip = "1.18.2"
 # Jakarta
