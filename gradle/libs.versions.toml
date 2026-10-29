@@ -48,7 +48,7 @@ opentelemetry-semconv = "1.44.0"
 # Apache Commons
 commons-lang3 = "3.20.0"
 commons-io = "2.22.0"
-commons-codec = "1.22.1"
+commons-codec = "1.23.0"
 commons-compress = "1.28.0"
 commons-collections4 = "4.6.0"
 commons-cli = "1.11.0"
