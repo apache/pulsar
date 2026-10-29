@@ -325,7 +325,7 @@ The Apache Software License, Version 2.0
      - jackson-datatype-jsr310-2.21.7.jar
      - jackson-module-parameter-names-2.21.7.jar
  * Caffeine -- caffeine-3.3.0.jar
- * Conscrypt -- conscrypt-openjdk-uber-2.6.3.jar
+ * Conscrypt -- conscrypt-openjdk-uber-2.7.0.jar
  * Gson
     - gson-2.14.0.jar
  * Guava
@@ -407,18 +407,18 @@ The Apache Software License, Version 2.0
  * AsyncHttpClient
     - async-http-client-3.0.14.jar
  * Jetty
-    - jetty-alpn-client-12.1.13.jar
-    - jetty-client-12.1.13.jar
-    - jetty-compression-common-12.1.13.jar
-    - jetty-compression-gzip-12.1.13.jar
-    - jetty-http-12.1.13.jar
-    - jetty-io-12.1.13.jar
-    - jetty-util-12.1.13.jar
-    - jetty-websocket-core-client-12.1.13.jar
-    - jetty-websocket-core-common-12.1.13.jar
-    - jetty-websocket-jetty-api-12.1.13.jar
-    - jetty-websocket-jetty-client-12.1.13.jar
-    - jetty-websocket-jetty-common-12.1.13.jar
+    - jetty-alpn-client-12.1.14.jar
+    - jetty-client-12.1.14.jar
+    - jetty-compression-common-12.1.14.jar
+    - jetty-compression-gzip-12.1.14.jar
+    - jetty-http-12.1.14.jar
+    - jetty-io-12.1.14.jar
+    - jetty-util-12.1.14.jar
+    - jetty-websocket-core-client-12.1.14.jar
+    - jetty-websocket-core-common-12.1.14.jar
+    - jetty-websocket-jetty-api-12.1.14.jar
+    - jetty-websocket-jetty-client-12.1.14.jar
+    - jetty-websocket-jetty-common-12.1.14.jar
  * SnakeYaml -- snakeyaml-2.7.jar
  * Google Error Prone Annotations - error_prone_annotations-2.50.0.jar
  * Javassist -- javassist-3.32.0-GA.jar
