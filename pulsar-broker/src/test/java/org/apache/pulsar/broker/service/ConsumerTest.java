@@ -81,28 +81,6 @@ public class ConsumerTest {
     }
 
     @Test
-    public void testConsumerInstanceMetadataIsInternalOnlyForFailover() {
-        for (SubType type : SubType.values()) {
-            for (boolean includeInstanceId : new boolean[]{false, true}) {
-                Map<String, String> metadata = includeInstanceId
-                        ? Map.of("application", "value", Commands.CONSUMER_INSTANCE_ID, "instance")
-                        : Map.of("application", "value");
-                Consumer receiver = new Consumer(subscription, type, "topic", 2, 0, "worker", true, cnx,
-                        "role", metadata, false, null, latest, DEFAULT_CONSUMER_EPOCH);
-                if (type == SubType.Failover && includeInstanceId) {
-                    assertThat(receiver.consumerInstanceId()).isEqualTo("instance");
-                    assertThat(receiver.getMetadata()).isEqualTo(Map.of("application", "value"));
-                } else {
-                    assertThat(receiver.consumerInstanceId()).isNull();
-                    assertThat(receiver.getMetadata()).isEqualTo(metadata);
-                }
-                assertThat(receiver.getStats().getMetadata()).isEqualTo(receiver.getMetadata());
-                assertThat(metadata).hasSize(includeInstanceId ? 2 : 1);
-            }
-        }
-    }
-
-    @Test
     public void testGetMsgOutCounter() {
         stats.msgOutCounter = 1L;
         consumer.updateStats(stats);
@@ -245,6 +223,28 @@ public class ConsumerTest {
         } finally {
             receiver.getPendingAcks().forEachAndClose((ledgerId, entryId, remaining, stickyKeyHash) -> { });
             other.getPendingAcks().forEachAndClose((ledgerId, entryId, remaining, stickyKeyHash) -> { });
+        }
+    }
+
+    @Test
+    public void testConsumerInstanceMetadataIsInternalOnlyForFailover() {
+        for (SubType type : SubType.values()) {
+            for (boolean includeInstanceId : new boolean[]{false, true}) {
+                Map<String, String> metadata = includeInstanceId
+                        ? Map.of("application", "value", Commands.CONSUMER_INSTANCE_ID, "instance")
+                        : Map.of("application", "value");
+                Consumer receiver = new Consumer(subscription, type, "topic", 2, 0, "worker", true, cnx,
+                        "role", metadata, false, null, latest, DEFAULT_CONSUMER_EPOCH);
+                if (type == SubType.Failover && includeInstanceId) {
+                    assertThat(receiver.consumerInstanceId()).isEqualTo("instance");
+                    assertThat(receiver.getMetadata()).isEqualTo(Map.of("application", "value"));
+                } else {
+                    assertThat(receiver.consumerInstanceId()).isNull();
+                    assertThat(receiver.getMetadata()).isEqualTo(metadata);
+                }
+                assertThat(receiver.getStats().getMetadata()).isEqualTo(receiver.getMetadata());
+                assertThat(metadata).hasSize(includeInstanceId ? 2 : 1);
+            }
         }
     }
 
