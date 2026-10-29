@@ -913,7 +913,7 @@ public class Consumer {
      *
      * @param ledgerId The ID of the ledger.
      * @param entryId The ID of the entry.
-     * @return Pair<Consumer, BatchSize>, this consumer and 1 when no other consumer has the pending ack
+     * @return {@code Pair<Consumer, BatchSize>}, this consumer and 1 when no other consumer has the pending ack
      */
     private ObjectIntPair<Consumer> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
         if (Subscription.isIndividualAckMode(subType)) {

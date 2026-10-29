@@ -148,7 +148,7 @@ public interface ReaderBuilder<T> extends Cloneable {
     ReaderBuilder<T> startMessageFromRollbackDuration(long rollbackDuration, TimeUnit timeunit);
 
     /**
-     * Set the reader to include the given position of {@link ReaderBuilder#startMessageId(MessageId)}
+     * Set the reader to include the given position of {@link ReaderBuilder#startMessageId(MessageId)}.
      *
      * <p>This configuration option also applies for cursor reset operation {@link Reader#seek(MessageId)}.
      *
