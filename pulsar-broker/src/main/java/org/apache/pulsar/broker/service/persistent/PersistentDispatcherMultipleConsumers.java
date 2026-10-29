@@ -447,13 +447,6 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 // clear already acked positions from replay bucket
                 deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
                         position.getEntryId()));
-                // if all the entries are acked-entries and cleared up from redeliveryMessages, try to read
-                // next entries as readCompletedEntries-callback was never called
-                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
-                    havePendingReplayRead = false;
-                    onReadEnded(ReadType.Replay);
-                    readMoreEntriesAsync();
-                }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.debug()
                         .attr("totalUnackedMessages", totalUnackedMessages)
