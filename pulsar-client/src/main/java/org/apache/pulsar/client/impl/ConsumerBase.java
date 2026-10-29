@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -84,6 +85,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Getter
     protected final ConsumerConfigurationData<T> conf;
     protected final String consumerName;
+    protected final String consumerInstanceId;
     protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener<T> listener;
     protected final DecryptFailListener<T> decryptFailListener;
@@ -140,6 +142,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                            int receiverQueueSize, ExecutorProvider executorProvider,
                            CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
                            ConsumerInterceptors<T> interceptors) {
+        this(client, topic, conf, receiverQueueSize, executorProvider, subscribeFuture, schema, interceptors, null);
+    }
+
+    protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+                           int receiverQueueSize, ExecutorProvider executorProvider,
+                           CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
+                           ConsumerInterceptors<T> interceptors, String parentConsumerInstanceId) {
         super(client, topic);
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = conf.getSubscriptionName();
@@ -147,6 +156,12 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
         this.consumerName =
                 conf.getConsumerName() == null ? RandomStringUtils.insecure().nextAlphanumeric(5)
                         : conf.getConsumerName();
+        if (conf.getSubscriptionType() == SubscriptionType.Failover) {
+            this.consumerInstanceId = parentConsumerInstanceId == null
+                    ? UUID.randomUUID().toString() : parentConsumerInstanceId;
+        } else {
+            this.consumerInstanceId = null;
+        }
         this.log = LOG.with()
                 .attr("topic", topic)
                 .attr("subscription", subscription)

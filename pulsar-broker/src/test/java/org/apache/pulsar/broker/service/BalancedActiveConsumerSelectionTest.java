@@ -48,7 +48,8 @@ public class BalancedActiveConsumerSelectionTest {
     }
 
     @Test
-    public void testConsumersSharingANameGetTheirQuotas() {
+    public void testConsumerIndexesSharingANameGetTheirQuotas() {
+        // Index quotas imply instance balance only if each index identifies the same consumer on every partition.
         assertEquals(loads(balancedAssignment(TOPIC, 6, List.of("app", "app", "app")), 3), new int[]{2, 2, 2});
     }
 

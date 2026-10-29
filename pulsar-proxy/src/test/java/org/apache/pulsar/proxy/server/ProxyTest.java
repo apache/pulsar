@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.requireNonNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -30,11 +31,14 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Data;
@@ -54,6 +58,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRoutingMode;
+import org.apache.pulsar.client.api.MockBrokerService;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -71,11 +76,14 @@ import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TopicType;
+import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -423,6 +431,61 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                 .getSchema(TopicName.get("persistent://public/default/get-schema"), schemaVersion)
                 .get().orElse(null);
         assertEquals(new String(schemaInfo.getSchema()), new String(schema.getSchemaInfo().getSchema()));
+    }
+
+    @DataProvider(name = "consumerInstanceIdSupport")
+    public Object[][] consumerInstanceIdSupport() {
+        return new Object[][]{{0}, {1}, {2}};
+    }
+
+    @Test(dataProvider = "consumerInstanceIdSupport")
+    public void testFailoverInstanceMetadataThroughProxy(int mode) throws Exception {
+        MockBrokerService broker = new MockBrokerService();
+        String originalBrokerUrl = proxyConfig.getBrokerServiceURL();
+        Map<String, String> properties = Map.of("k", "x".repeat(1023));
+        AtomicReference<Map<String, String>> receivedMetadata = new AtomicReference<>();
+        broker.setHandleConnect((ctx, connect) -> {
+            BaseCommand response = new BaseCommand().setType(BaseCommand.Type.CONNECTED);
+            response.setConnected().setServerVersion("test").setProtocolVersion(connect.getProtocolVersion());
+            if (mode > 0) {
+                response.getConnected().setFeatureFlags().setSupportsConsumerInstanceId(mode == 2);
+            }
+            ctx.writeAndFlush(Commands.serializeWithSize(response));
+        });
+        broker.setHandleSubscribe((ctx, subscribe) -> {
+            Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
+            receivedMetadata.set(metadata);
+            Map<String, String> applicationMetadata = new HashMap<>(metadata);
+            if (mode == 2) {
+                applicationMetadata.remove(Commands.CONSUMER_INSTANCE_ID);
+            }
+            try {
+                Metadata.validateMetadata(applicationMetadata, 1024);
+                ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
+            } catch (IllegalArgumentException e) {
+                ctx.writeAndFlush(Commands.newError(subscribe.getRequestId(), ServerError.MetadataError,
+                        e.getMessage()));
+            }
+        });
+        broker.start();
+        proxyConfig.setBrokerServiceURL(broker.getBrokerAddress());
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(proxyService.getServiceUrl())
+                .operationTimeout(5, TimeUnit.SECONDS).build()) {
+            try (Consumer<byte[]> consumer = client.newConsumer().topic("persistent://public/default/failover-metadata")
+                    .subscriptionName("sub1").subscriptionType(SubscriptionType.Failover)
+                    .properties(properties).subscribe()) {
+                assertThat(consumer.isConnected()).isTrue();
+                Map<String, String> metadata = new HashMap<>(receivedMetadata.get());
+                if (mode == 2) {
+                    assertThat(metadata.remove(Commands.CONSUMER_INSTANCE_ID))
+                            .hasSize(Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH);
+                }
+                assertThat(metadata).isEqualTo(properties);
+            }
+        } finally {
+            proxyConfig.setBrokerServiceURL(originalBrokerUrl);
+            broker.stop();
+        }
     }
 
     @Test

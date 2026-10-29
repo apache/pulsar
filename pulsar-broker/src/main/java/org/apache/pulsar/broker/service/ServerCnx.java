@@ -1817,7 +1817,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, enableTopicListWatcher,
                 scalableTopicsEnabled,
                 scalableTopicsEnabled
-                        && service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()));
+                        && service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled(), true));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
         log.debug()
@@ -2290,7 +2290,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .attr("principal", getPrincipal())
                         .log("Subscribing on topic");
                 try {
-                    Metadata.validateMetadata(metadata,
+                    Map<String, String> applicationMetadata = metadata;
+                    if (subType == SubType.Failover && metadata.containsKey(Commands.CONSUMER_INSTANCE_ID)) {
+                        String instanceId = metadata.get(Commands.CONSUMER_INSTANCE_ID);
+                        checkArgument(instanceId.length() <= Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH,
+                                "Consumer instance ID has a max size of %s characters",
+                                Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH);
+                        applicationMetadata = new HashMap<>(metadata);
+                        applicationMetadata.remove(Commands.CONSUMER_INSTANCE_ID);
+                    }
+                    Metadata.validateMetadata(applicationMetadata,
                             service.getPulsar().getConfiguration().getMaxConsumerMetadataSize());
                 } catch (IllegalArgumentException iae) {
                     final String msg = iae.getMessage();

@@ -353,6 +353,25 @@ public class ClientCnxTest {
     }
 
     @Test
+    public void testConsumerInstanceIdSupportRequiresExplicitFeatureFlag() {
+        for (int mode = 0; mode < 4; mode++) {
+            CommandConnected connected = new CommandConnected()
+                    .setServerVersion("test")
+                    .setProtocolVersion(21);
+            if (mode == 1) {
+                connected.setFeatureFlags().setSupportsTopicWatchers(true);
+            } else if (mode >= 2) {
+                connected.setFeatureFlags().setSupportsConsumerInstanceId(mode == 3);
+            }
+            boolean expectedSupport = mode == 3;
+            withConnection("testConsumerInstanceIdSupportRequiresExplicitFeatureFlag", cnx -> {
+                cnx.handleConnected(connected);
+                assertThat(cnx.isSupportsConsumerInstanceId()).isEqualTo(expectedSupport);
+            });
+        }
+    }
+
+    @Test
     public void testNoWatchersWhenNoServerSupport() {
         withConnection("testNoWatchersWhenNoServerSupport", cnx -> {
             cnx.handleConnected(new CommandConnected()

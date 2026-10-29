@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -27,6 +29,7 @@ import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -46,6 +49,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -53,6 +57,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -569,6 +574,155 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         subscribeFuture1.get().close();
         subscribeFuture2.get().unsubscribe();
         admin.topics().delete(topicName);
+    }
+
+    @DataProvider(name = "failoverMetadataBudgets")
+    public Object[][] failoverMetadataBudgets() {
+        return new Object[][]{{0, 0, true}, {32, 32, true}, {1024, 1000, true},
+                {1024, 1024, true}, {1024, 1025, false}};
+    }
+
+    @Test(dataProvider = "failoverMetadataBudgets")
+    public void testFailoverApplicationMetadataBudget(int limit, int applicationSize, boolean accepted)
+            throws Exception {
+        int originalLimit = conf.getMaxConsumerMetadataSize();
+        String topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/failover-metadata-budget");
+        String subName = "sub1";
+        Map<String, String> properties = applicationSize == 0 ? Map.of() : Map.of("k", "x".repeat(applicationSize - 1));
+        admin.topics().createPartitionedTopic(topicName, 2);
+        conf.setMaxConsumerMetadataSize(limit);
+        try {
+            ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscriptionType(SubscriptionType.Failover).consumerName("worker").properties(properties);
+            if (accepted) {
+                try (Consumer<byte[]> consumer = builder.subscribe()) {
+                    assertThat(consumer.isConnected()).isTrue();
+                    for (int i = 0; i < 2; i++) {
+                        var brokerConsumer = failoverDispatcher(topicName, subName, i).getConsumers().get(0);
+                        assertThat(brokerConsumer.consumerInstanceId()).hasSize(36);
+                        assertThat(brokerConsumer.getStats().getMetadata()).isEqualTo(properties);
+                    }
+                }
+            } else {
+                assertThatThrownBy(builder::subscribe).isInstanceOf(PulsarClientException.BrokerMetadataException.class)
+                        .hasMessageContaining("metadata has a max size");
+            }
+        } finally {
+            conf.setMaxConsumerMetadataSize(originalLimit);
+            admin.topics().deletePartitionedTopic(topicName, true);
+        }
+    }
+
+    @DataProvider(name = "failoverReconnection")
+    public Object[][] failoverReconnection() {
+        return new Object[][]{{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "failoverReconnection")
+    public void testFailoverAssignmentStaysBalancedAfterPartitionReconnect(boolean duplicateNames,
+                                                                          boolean consistentHashing) throws Exception {
+        conf.setActiveConsumerFailoverConsistentHashing(consistentHashing);
+        String topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/failover-reconnect");
+        String subName = "sub1";
+        admin.topics().createPartitionedTopic(topicName, 2);
+        try (Consumer<byte[]> first = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                     .subscriptionType(SubscriptionType.Failover)
+                     .consumerName(duplicateNames ? "worker" : "worker-first")
+                     .property("instance", "first").subscribe();
+             Consumer<byte[]> second = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                     .subscriptionType(SubscriptionType.Failover)
+                     .consumerName(duplicateNames ? "worker" : "worker-second")
+                     .property("instance", "second").subscribe()) {
+            List<AbstractDispatcherSingleActiveConsumer> dispatchers = new ArrayList<>();
+            for (int i = 0; i < 2; i++) {
+                dispatchers.add(failoverDispatcher(topicName, subName, i));
+            }
+            List<String> instanceIds = dispatchers.get(0).getConsumers().stream()
+                    .map(c -> c.consumerInstanceId()).toList();
+            assertThat(instanceIds).hasSize(2).doesNotContainNull().doesNotHaveDuplicates();
+            for (var dispatcher : dispatchers) {
+                assertThat(dispatcher.getConsumers().stream().map(c -> c.consumerInstanceId()).toList())
+                        .containsExactlyElementsOf(instanceIds);
+                for (var consumer : dispatcher.getConsumers()) {
+                    assertThat(consumer.getMetadata()).hasSize(1).containsKey("instance");
+                    assertThat(consumer.getStats().getMetadata()).isEqualTo(consumer.getMetadata());
+                }
+            }
+            assertThat(dispatchers.stream().map(d -> d.getActiveConsumer().getMetadata().get("instance")).toList())
+                    .containsExactlyInAnyOrder("first", "second");
+            var original = dispatchers.get(0).getConsumers().stream()
+                    .filter(c -> "first".equals(c.getMetadata().get("instance"))).findFirst().orElseThrow();
+            String originalInstanceId = original.consumerInstanceId();
+            // The broker closes only this partition's consumer; the real client subscribes it again.
+            original.disconnect();
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+                // Selection completes under this monitor after the new consumer is added to the list.
+                synchronized (dispatchers.get(0)) {
+                    assertThat(dispatchers.get(0).getConsumers()).hasSize(2);
+                    assertThat(dispatchers.get(0).getConsumers().stream().noneMatch(c -> c == original)).isTrue();
+                }
+            });
+            assertThat(dispatchers.get(0).getConsumers().stream()
+                    .filter(c -> "first".equals(c.getMetadata().get("instance")))
+                    .findFirst().orElseThrow().consumerInstanceId()).isEqualTo(originalInstanceId);
+            assertThat(dispatchers.stream().map(d -> d.getActiveConsumer().getMetadata().get("instance")).toList())
+                    .containsExactlyInAnyOrder("first", "second");
+        } finally {
+            conf.setActiveConsumerFailoverConsistentHashing(false);
+            admin.topics().deletePartitionedTopic(topicName, true);
+        }
+    }
+
+    @Test
+    public void testSameNameInstanceIdsSurviveBuilderReuseAndPartitionExpansion() throws Exception {
+        conf.setActiveConsumerFailoverConsistentHashing(true);
+        String topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/failover-instance-expansion");
+        String subName = "sub1";
+        admin.topics().createPartitionedTopic(topicName, 2);
+        ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover).consumerName("worker")
+                .property("application", "same-name").autoUpdatePartitionsInterval(1, TimeUnit.SECONDS);
+        try (Consumer<byte[]> first = builder.subscribe(); Consumer<byte[]> second = builder.subscribe()) {
+            assertThat(first.getConsumerName()).isEqualTo("worker");
+            assertThat(second.getConsumerName()).isEqualTo("worker");
+            assertThat(((ConsumerBase<?>) first).getConf().getProperties())
+                    .isEqualTo(Map.of("application", "same-name"));
+            assertThat(((ConsumerBase<?>) second).getConf().getProperties())
+                    .isEqualTo(Map.of("application", "same-name"));
+            List<String> instanceIds = failoverDispatcher(topicName, subName, 0).getConsumers().stream()
+                    .map(c -> c.consumerInstanceId()).toList();
+            assertThat(instanceIds).hasSize(2).doesNotContainNull().doesNotHaveDuplicates();
+            admin.topics().updatePartitionedTopic(topicName, 4);
+            Awaitility.await().atMost(30, TimeUnit.SECONDS).ignoreExceptions().untilAsserted(() -> {
+                List<String> owners = new ArrayList<>();
+                for (int i = 0; i < 4; i++) {
+                    var dispatcher = failoverDispatcher(topicName, subName, i);
+                    synchronized (dispatcher) {
+                        assertThat(dispatcher.getConsumers().stream().map(c -> c.consumerInstanceId()).toList())
+                                .containsExactlyElementsOf(instanceIds);
+                        for (var consumer : dispatcher.getConsumers()) {
+                            assertThat(consumer.consumerName()).isEqualTo("worker");
+                            assertThat(consumer.getMetadata()).isEqualTo(Map.of("application", "same-name"));
+                            assertThat(consumer.getStats().getMetadata()).isEqualTo(consumer.getMetadata());
+                        }
+                        owners.add(dispatcher.getActiveConsumer().consumerInstanceId());
+                    }
+                }
+                for (String instanceId : instanceIds) {
+                    assertThat(owners.stream().filter(instanceId::equals).count()).isEqualTo(2);
+                }
+            });
+        } finally {
+            conf.setActiveConsumerFailoverConsistentHashing(false);
+            admin.topics().deletePartitionedTopic(topicName, true);
+        }
+    }
+
+    private AbstractDispatcherSingleActiveConsumer failoverDispatcher(String topicName, String subName,
+                                                                     int partition) throws Exception {
+        String partitionName = TopicName.get(topicName).getPartition(partition).toString();
+        return (AbstractDispatcherSingleActiveConsumer) pulsar.getBrokerService()
+                .getTopic(partitionName, false).get().orElseThrow().getSubscription(subName).getDispatcher();
     }
 
     @Test

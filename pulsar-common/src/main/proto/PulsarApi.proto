@@ -325,6 +325,8 @@ message FeatureFlags {
   optional bool supports_topic_watcher_reconcile = 7 [default = false];
   optional bool supports_scalable_topics = 8 [default = false];
   optional bool supports_tc_metadata_discovery = 9 [default = false];
+  // Broker accepts the internal Failover consumer identity outside the application metadata budget.
+  optional bool supports_consumer_instance_id = 10 [default = false];
 }
 
 message CommandConnected {

@@ -137,6 +137,11 @@ public class Commands {
     // so client don't need to think about consumerEpoch feature
     public static final long DEFAULT_CONSUMER_EPOCH = -1L;
 
+    // Internal subscribe metadata shared by the partition consumers of one logical Failover consumer.
+    public static final String CONSUMER_INSTANCE_ID = "__pulsar_consumer_instance_id";
+    // Bound the internal identity separately from application metadata to the length of a UUID.
+    public static final int MAX_CONSUMER_INSTANCE_ID_LENGTH = 36;
+
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
     @SuppressWarnings("checkstyle:ConstantName")
@@ -330,6 +335,14 @@ public class Commands {
     public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
                                                   boolean supportsTopicWatchers, boolean supportsScalableTopics,
                                                   boolean supportsTcMetadataDiscovery) {
+        return newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
+                supportsScalableTopics, supportsTcMetadataDiscovery, false);
+    }
+
+    public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
+                                                  boolean supportsTopicWatchers, boolean supportsScalableTopics,
+                                                  boolean supportsTcMetadataDiscovery,
+                                                  boolean supportsConsumerInstanceId) {
         BaseCommand cmd = localCmd(Type.CONNECTED);
         CommandConnected connected = cmd.setConnected()
                 .setServerVersion("Pulsar Server" + PulsarVersion.getVersion());
@@ -351,6 +364,7 @@ public class Commands {
         connected.setFeatureFlags().setSupportsTopicWatcherReconcile(supportsTopicWatchers);
         connected.setFeatureFlags().setSupportsScalableTopics(supportsScalableTopics);
         connected.setFeatureFlags().setSupportsTcMetadataDiscovery(supportsTcMetadataDiscovery);
+        connected.setFeatureFlags().setSupportsConsumerInstanceId(supportsConsumerInstanceId);
         return cmd;
     }
 
@@ -364,6 +378,13 @@ public class Commands {
                                        boolean supportsScalableTopics, boolean supportsTcMetadataDiscovery) {
         return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
                 supportsScalableTopics, supportsTcMetadataDiscovery));
+    }
+
+    public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
+                                       boolean supportsScalableTopics, boolean supportsTcMetadataDiscovery,
+                                       boolean supportsConsumerInstanceId) {
+        return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
+                supportsScalableTopics, supportsTcMetadataDiscovery, supportsConsumerInstanceId));
     }
 
     public static ByteBuf newAuthChallenge(String authMethod, AuthData brokerData, int clientProtocolVersion) {

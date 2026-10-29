@@ -131,7 +131,13 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
                 hasPriorityConsumer.set(true);
                 return priority;
             }
-            return c1.consumerName().compareTo(c2.consumerName());
+            int name = c1.consumerName().compareTo(c2.consumerName());
+            if (name != 0 || partitionIndex < 0) {
+                return name;
+            }
+            // A partition-local consumer id or arrival order cannot identify a logical consumer across partitions.
+            return Objects.toString(c1.consumerInstanceId(), "")
+                    .compareTo(Objects.toString(c2.consumerInstanceId(), ""));
         });
 
         int consumersSize = consumers.size();
@@ -233,6 +239,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
      * assigned when its partition is still unassigned and its consumer is under quota: every consumer gets
      * {@code numPartitions / n}, and only {@code numPartitions % n} consumers can get one more. Every partition
      * computes the same assignment on its own, so the partitions need no coordination.
+     *
+     * <p>The quotas apply to indexes in {@code consumerNames}. Balance across consumer instances requires
+     * each index to identify the same logical consumer on every partition. Consumer names and instance ids establish
+     * this correspondence after sorting. Legacy clients without instance ids must use distinct consumer names.
      *
      * @param consumerNames the candidate consumer names, in the same order for every partition
      * @return for each partition, the index in {@code consumerNames} of its consumer

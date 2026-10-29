@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.ChannelHandlerContext;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -34,13 +37,17 @@ import org.apache.bookkeeper.common.util.JsonUtil;
 import org.apache.pulsar.client.impl.ConsumerBase;
 import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.ProducerBase;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.ServerError;
+import org.apache.pulsar.common.naming.Metadata;
+import org.apache.pulsar.common.protocol.CommandUtils;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-api")
@@ -84,6 +91,120 @@ public class ClientErrorsTest {
             consumer.close();
         } catch (Exception e) {
             fail("None of the mocked operations should throw a client side exception");
+        }
+    }
+
+    @DataProvider(name = "legacyFailoverMetadata")
+    public Object[][] legacyFailoverMetadata() {
+        return new Object[][]{{false, 0, 1000}, {true, 0, 1024}, {false, 2, 1000}, {true, 2, 1024}};
+    }
+
+    @Test(dataProvider = "legacyFailoverMetadata")
+    public void testFailoverMetadataWithLegacyBroker(boolean hasFeatureFlags, int partitions, int applicationSize)
+            throws Exception {
+        Map<String, String> properties = Map.of("k", "x".repeat(applicationSize - 1));
+        Map<String, Map<String, String>> receivedMetadata = new ConcurrentHashMap<>();
+        mockBrokerService.setHandleConnect((ctx, connect) -> {
+            BaseCommand response = new BaseCommand().setType(BaseCommand.Type.CONNECTED);
+            response.setConnected().setServerVersion("legacy").setProtocolVersion(connect.getProtocolVersion());
+            if (hasFeatureFlags) {
+                response.getConnected().setFeatureFlags().setSupportsTopicWatchers(true);
+            }
+            ctx.writeAndFlush(Commands.serializeWithSize(response));
+        });
+        mockBrokerService.setHandlePartitionLookup((ctx, request) ->
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, request.getRequestId())));
+        mockBrokerService.setHandleSubscribe((ctx, subscribe) -> {
+            Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
+            receivedMetadata.put(subscribe.getTopic(), metadata);
+            try {
+                // Legacy brokers charge the entire wire metadata map against the application limit.
+                Metadata.validateMetadata(metadata, 1024);
+                ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
+            } catch (IllegalArgumentException e) {
+                ctx.writeAndFlush(Commands.newError(subscribe.getRequestId(), ServerError.MetadataError,
+                        e.getMessage()));
+            }
+        });
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress())
+                .operationTimeout(5, TimeUnit.SECONDS).build()) {
+            try (Consumer<byte[]> consumer = client.newConsumer().topic("persistent://prop/ns/failover-legacy")
+                    .subscriptionName("sub1").subscriptionType(SubscriptionType.Failover)
+                    .properties(properties).subscribe()) {
+                assertThat(consumer.isConnected()).isTrue();
+                assertThat(receivedMetadata).hasSize(partitions == 0 ? 1 : partitions)
+                        .allSatisfy((topic, metadata) -> assertThat(metadata).isEqualTo(properties));
+            }
+        } finally {
+            mockBrokerService.resetHandleConnect();
+            mockBrokerService.resetHandlePartitionLookup();
+            mockBrokerService.resetHandleSubscribe();
+        }
+    }
+
+    @Test
+    public void testFailoverInstanceMetadataTracksBrokerSupportOnReconnect() throws Exception {
+        Map<String, String> properties = Map.of("k", "x".repeat(1023));
+        Map<String, Map<String, String>> receivedMetadata = new ConcurrentHashMap<>();
+        AtomicBoolean supportsInstanceId = new AtomicBoolean(true);
+        AtomicReference<ChannelHandlerContext> channel = new AtomicReference<>();
+        AtomicInteger subscriptions = new AtomicInteger();
+        mockBrokerService.setHandleConnect((ctx, connect) -> {
+            channel.set(ctx);
+            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), Commands.DEFAULT_MAX_MESSAGE_SIZE,
+                    false, false, false, supportsInstanceId.get()));
+        });
+        mockBrokerService.setHandlePartitionLookup((ctx, request) ->
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(2, request.getRequestId())));
+        mockBrokerService.setHandleSubscribe((ctx, subscribe) -> {
+            Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
+            receivedMetadata.put(subscribe.getTopic(), metadata);
+            Map<String, String> applicationMetadata = new HashMap<>(metadata);
+            if (supportsInstanceId.get()) {
+                applicationMetadata.remove(Commands.CONSUMER_INSTANCE_ID);
+            }
+            try {
+                Metadata.validateMetadata(applicationMetadata, 1024);
+                ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
+                subscriptions.incrementAndGet();
+            } catch (IllegalArgumentException e) {
+                ctx.writeAndFlush(Commands.newError(subscribe.getRequestId(), ServerError.MetadataError,
+                        e.getMessage()));
+            }
+        });
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(mockBrokerService.getBrokerAddress())
+                .operationTimeout(5, TimeUnit.SECONDS).build()) {
+            try (Consumer<byte[]> consumer = client.newConsumer().topic("persistent://prop/ns/failover-reconnect")
+                    .subscriptionName("sub1").subscriptionType(SubscriptionType.Failover)
+                    .properties(properties).subscribe()) {
+                assertThat(receivedMetadata).hasSize(2);
+                String instanceId = receivedMetadata.values().iterator().next().get(Commands.CONSUMER_INSTANCE_ID);
+                assertThat(instanceId).hasSize(Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH);
+                assertThat(receivedMetadata.values()).allSatisfy(metadata ->
+                        assertThat(metadata).containsEntry(Commands.CONSUMER_INSTANCE_ID, instanceId));
+
+                supportsInstanceId.set(false);
+                channel.get().close().sync();
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    assertThat(subscriptions.get()).isGreaterThanOrEqualTo(4);
+                    assertThat(consumer.isConnected()).isTrue();
+                    assertThat(receivedMetadata.values()).allSatisfy(metadata ->
+                            assertThat(metadata).isEqualTo(properties));
+                });
+
+                supportsInstanceId.set(true);
+                channel.get().close().sync();
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    assertThat(subscriptions.get()).isGreaterThanOrEqualTo(6);
+                    assertThat(consumer.isConnected()).isTrue();
+                    assertThat(receivedMetadata.values()).allSatisfy(metadata ->
+                            assertThat(metadata).containsEntry(Commands.CONSUMER_INSTANCE_ID, instanceId));
+                });
+            }
+        } finally {
+            mockBrokerService.resetHandleConnect();
+            mockBrokerService.resetHandlePartitionLookup();
+            mockBrokerService.resetHandleSubscribe();
         }
     }
 

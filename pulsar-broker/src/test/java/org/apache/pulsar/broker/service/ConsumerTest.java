@@ -33,14 +33,17 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import java.net.SocketAddress;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
+import org.apache.pulsar.common.protocol.Commands;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -230,6 +233,28 @@ public class ConsumerTest {
         } finally {
             receiver.getPendingAcks().forEachAndClose((ledgerId, entryId, remaining, stickyKeyHash) -> { });
             other.getPendingAcks().forEachAndClose((ledgerId, entryId, remaining, stickyKeyHash) -> { });
+        }
+    }
+
+    @Test
+    public void testConsumerInstanceMetadataIsInternalOnlyForFailover() {
+        for (SubType type : SubType.values()) {
+            for (boolean includeInstanceId : new boolean[]{false, true}) {
+                Map<String, String> metadata = includeInstanceId
+                        ? Map.of("application", "value", Commands.CONSUMER_INSTANCE_ID, "instance")
+                        : Map.of("application", "value");
+                Consumer receiver = new Consumer(subscription, type, "topic", 2, 0, "worker", true, cnx,
+                        "role", metadata, false, null, latest, DEFAULT_CONSUMER_EPOCH);
+                if (type == SubType.Failover && includeInstanceId) {
+                    assertThat(receiver.consumerInstanceId()).isEqualTo("instance");
+                    assertThat(receiver.getMetadata()).isEqualTo(Map.of("application", "value"));
+                } else {
+                    assertThat(receiver.consumerInstanceId()).isNull();
+                    assertThat(receiver.getMetadata()).isEqualTo(metadata);
+                }
+                assertThat(receiver.getStats().getMetadata()).isEqualTo(receiver.getMetadata());
+                assertThat(metadata).hasSize(includeInstanceId ? 2 : 1);
+            }
         }
     }
 
