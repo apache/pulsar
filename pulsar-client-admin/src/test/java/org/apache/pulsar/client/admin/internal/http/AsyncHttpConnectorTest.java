@@ -24,6 +24,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -32,25 +34,25 @@ import com.github.tomakehurst.wiremock.common.FileSource;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import com.github.tomakehurst.wiremock.extension.Parameters;
 import com.github.tomakehurst.wiremock.extension.ResponseTransformer;
-import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.Response;
+import org.asynchttpclient.config.AsyncHttpClientConfigHelper;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
@@ -152,40 +154,21 @@ public class AsyncHttpConnectorTest {
 
     @Test
     public void testShouldStopRetriesWhenTimeoutOccurs() throws IOException, ExecutionException, InterruptedException {
-        server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
-                .inScenario("once")
-                .whenScenarioStateIs(Scenario.STARTED)
-                .willSetStateTo("next")
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "application/json")
-                        .withBody("[\"test-cluster\"]")));
-
-        server.stubFor(get(urlEqualTo("/admin/v2/clusters"))
-                        .inScenario("once")
-                        .whenScenarioStateIs("next")
-                        .willSetStateTo("retried")
-                .willReturn(aResponse().withStatus(500)));
-
         ClientConfigurationData conf = new ClientConfigurationData();
         conf.setServiceUrl("http://localhost:" + server.port());
 
         int requestTimeout = 500;
 
-        @Cleanup("shutdownNow")
-        ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        Executor delayedExecutor = runnable -> {
-            scheduledExecutor.schedule(runnable, requestTimeout, TimeUnit.MILLISECONDS);
-        };
+        List<CompletableFuture<Response>> attempts = new CopyOnWriteArrayList<>();
         @Cleanup
         AsyncHttpConnector connector = new AsyncHttpConnector(5000, requestTimeout,
                 requestTimeout, 0, conf, false, null) {
             @Override
             protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
-                // delay the response to simulate a timeout
-                return super.oneShot(host, request)
-                        .thenApplyAsync(response -> {
-                            return response;
-                        }, delayedExecutor);
+                // keep the attempt in flight until the test completes it, so that the request times out first
+                CompletableFuture<Response> attempt = new CompletableFuture<>();
+                attempts.add(attempt);
+                return attempt;
             }
         };
 
@@ -207,12 +190,77 @@ public class AsyncHttpConnectorTest {
                 future.completeExceptionally(failure);
             }
         });
-        Thread.sleep(2 * requestTimeout);
-        String scenarioState =
-                server.getAllScenarios().getScenarios().stream().filter(scenario -> "once".equals(scenario.getName()))
-                        .findFirst().get().getState();
-        assertEquals(scenarioState, "next");
-        assertTrue(future.isCompletedExceptionally());
+        assertThatThrownBy(() -> future.get(10, TimeUnit.SECONDS))
+                .as("the request fails with the request timeout")
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(TimeoutException.class);
+
+        // whether or not the connector has already cancelled it, a failure of the in-flight attempt must not
+        // trigger a retry
+        attempts.get(0).completeExceptionally(new IOException("Connection reset"));
+        assertThat(attempts.size()).as("attempts sent for the request").isEqualTo(1);
+    }
+
+    @Test
+    public void testShouldNotRetryAfterRequestTimeoutHasElapsed() {
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://localhost:" + server.port());
+
+        // the connector's own timer doesn't fire during the test: the deadline is driven by the clock below
+        int requestTimeout = 60_000;
+
+        AtomicLong clock = new AtomicLong();
+        List<CompletableFuture<Response>> attempts = new CopyOnWriteArrayList<>();
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, requestTimeout,
+                requestTimeout, 0, conf, false, null) {
+            @Override
+            protected CompletableFuture<Response> oneShot(InetSocketAddress host, ClientRequest request) {
+                CompletableFuture<Response> attempt = new CompletableFuture<>();
+                attempts.add(attempt);
+                return attempt;
+            }
+
+            @Override
+            long nanoTime() {
+                return clock.get();
+            }
+        };
+
+        JerseyClient jerseyClient = JerseyClientBuilder.createClient();
+        URI requestUri = URI.create("http://localhost:" + server.port() + "/admin/v2/clusters");
+        ClientRequest request = new TestClientRequest(requestUri, jerseyClient.getConfiguration(),
+                new MapPropertiesDelegate());
+        request.setMethod("GET");
+        CompletableFuture<ClientResponse> future = new CompletableFuture<>();
+        connector.apply(request, new AsyncConnectorCallback() {
+            @Override
+            public void response(ClientResponse response) {
+                future.complete(response);
+            }
+
+            @Override
+            public void failure(Throwable failure) {
+                future.completeExceptionally(failure);
+            }
+        });
+
+        // an attempt that fails before the request timeout has elapsed is retried
+        attempts.get(0).completeExceptionally(new IOException("Connection reset"));
+        assertThat(attempts.size()).as("attempts sent for the request").isEqualTo(2);
+
+        // AsyncHttpClient times out every attempt after the same duration as the request, and can do so before the
+        // connector's own timer fires: once the request timeout has elapsed, a failed attempt is not retried
+        clock.addAndGet(TimeUnit.MILLISECONDS.toNanos(requestTimeout));
+        attempts.get(1).completeExceptionally(
+                new TimeoutException("Request timeout to localhost after " + requestTimeout + " ms"));
+        assertThat(attempts.size()).as("attempts sent for the request").isEqualTo(2);
+        assertThatThrownBy(() -> future.get(10, TimeUnit.SECONDS))
+                .as("the request fails with the request timeout")
+                .isInstanceOf(ExecutionException.class)
+                .cause()
+                .isInstanceOf(TimeoutException.class)
+                .hasMessage("Request timeout");
     }
 
     @Test
@@ -392,5 +440,72 @@ public class AsyncHttpConnectorTest {
         int maxConcurrency = concurrencyTestTransformer.getMaxConcurrency();
         assertTrue(maxConcurrency > maxConnections / 2 && maxConcurrency <= maxConnections,
                 "concurrency didn't get limited as expected (max: " + maxConcurrency + ")");
+    }
+
+    @Test(timeOut = 60_000)
+    void testNoDeadlockWhenIdleConnectionIsClosedWhileEventLoopIsBusy() {
+        server.stubFor(get(urlEqualTo("/idle-close")).willReturn(aResponse().withStatus(200)));
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://localhost:" + server.port());
+        conf.setConnectionsPerBroker(1);
+        conf.setNumIoThreads(1);
+        conf.setConnectionMaxIdleSeconds(1);
+
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000, 5000, 0, conf, false, null);
+
+        // The first request returns its connection to the pool. Its completion callback runs on the event loop and
+        // keeps it busy until the pool has closed the idle connection, then chains another request, like a caller
+        // that does some work before its next call. The close of the idle connection is waiting for the busy event
+        // loop, so the chained request needs a new connection while the only connection is still open.
+        CompletableFuture<Response> chained = connector.executeRequest(request("/idle-close"))
+                .thenCompose(response -> {
+                    try {
+                        Thread.sleep(2_500);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return connector.executeRequest(request("/idle-close"));
+                });
+
+        assertThat(chained).as("the chained request completes").succeedsWithin(10, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void testConnectionsPerBrokerNotLimitedByAsyncHttpClientDefaults() {
+        server.stubFor(get(urlEqualTo("/overlapping")).willReturn(aResponse().withFixedDelay(200)));
+
+        String property = "org.asynchttpclient.maxConnectionsPerHost";
+        String previous = System.getProperty(property);
+        // a JVM-wide AsyncHttpClient default that is smaller than the connections per broker
+        System.setProperty(property, "1");
+        AsyncHttpClientConfigHelper.reloadProperties();
+        try {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl("http://localhost:" + server.port());
+            conf.setConnectionsPerBroker(2);
+
+            @Cleanup
+            AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000, 5000, 0, conf, false, null);
+
+            CompletableFuture<Response> first = connector.executeRequest(request("/overlapping"));
+            CompletableFuture<Response> second = connector.executeRequest(request("/overlapping"));
+
+            assertThat(CompletableFuture.allOf(first, second))
+                    .as("both requests, which the connections per broker allow, succeed")
+                    .succeedsWithin(10, TimeUnit.SECONDS);
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
+            AsyncHttpClientConfigHelper.reloadProperties();
+        }
+    }
+
+    private Request request(String path) {
+        return new RequestBuilder("GET").setUrl("http://localhost:" + server.port() + path).build();
     }
 }

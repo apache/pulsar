@@ -33,8 +33,8 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.commons.lang3.tuple.Pair;
@@ -61,7 +61,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPulsarServiceBaseTest {
     private final boolean withInternalListener;
-    private ExecutorService executorService;
+    private ScheduledExecutorService executorService;
     private InetSocketAddress brokerAddress;
     private InetSocketAddress brokerSslAddress;
     private EventLoopGroup eventExecutors;
@@ -79,7 +79,7 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        this.executorService = Executors.newFixedThreadPool(1);
+        this.executorService = Executors.newSingleThreadScheduledExecutor();
         this.eventExecutors = new NioEventLoopGroup();
         this.isTcpLookup = true;
         String host = InetAddress.getLocalHost().getHostAddress();

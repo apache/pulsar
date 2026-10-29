@@ -263,6 +263,30 @@ public class NamespaceResources extends BaseResources<Policies> {
             this.executor = executor;
         }
 
+        /**
+         * Returns the partitioned topic whose metadata is stored at the path, if it is such a path.
+         */
+        public static Optional<TopicName> topicNameFromPath(String path) {
+            if (!path.startsWith(PARTITIONED_TOPIC_PATH + "/")) {
+                return Optional.empty();
+            }
+            // PARTITIONED_TOPIC_PATH/{namespace}/{domain}/{encodedLocalName}
+            String rest = path.substring(PARTITIONED_TOPIC_PATH.length() + 1);
+            int localNameIndex = rest.lastIndexOf('/');
+            int domainIndex = rest.lastIndexOf('/', localNameIndex - 1);
+            if (domainIndex <= 0) {
+                return Optional.empty();
+            }
+            try {
+                return Optional.of(TopicName.get(rest.substring(domainIndex + 1, localNameIndex),
+                        NamespaceName.get(rest.substring(0, domainIndex)),
+                        Codec.decode(rest.substring(localNameIndex + 1))));
+            } catch (IllegalArgumentException e) {
+                // A namespace or domain node above the topics
+                return Optional.empty();
+            }
+        }
+
         public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,
                 PartitionedTopicMetadata> f) {
             return setAsync(joinPath(PARTITIONED_TOPIC_PATH, tn.getNamespace(), tn.getDomain().value(),

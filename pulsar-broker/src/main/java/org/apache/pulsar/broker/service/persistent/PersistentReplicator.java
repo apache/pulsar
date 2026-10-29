@@ -26,6 +26,7 @@ import static org.apache.pulsar.broker.service.AbstractReplicator.State.Terminat
 import static org.apache.pulsar.broker.service.AbstractReplicator.State.Terminating;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.ExecutionError;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -264,8 +265,9 @@ public abstract class PersistentReplicator extends AbstractReplicator
             readLimitOnByte = readMaxSizeBytes;
         }
 
-        // limit messages to current read batch size
-        readLimitOnMsg = Math.min(readLimitOnMsg, readBatchSize);
+        // Limit messages by the adaptive batch size and the current dynamic maximum.
+        int maxReadBatchSize = Math.min(readBatchSize, getMaxReadBatchSize());
+        readLimitOnMsg = Math.min(readLimitOnMsg, maxReadBatchSize);
 
         return new ReadLimits((int) readLimitOnMsg, readLimitOnByte);
     }
@@ -458,12 +460,16 @@ public abstract class PersistentReplicator extends AbstractReplicator
 
     protected abstract boolean replicateEntries(List<Entry> entries, InFlightTask inFlightTask);
 
-    protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) throws ExecutionException {
-        if (msg.getSchemaVersion() == null || msg.getSchemaVersion().length == 0) {
-            return CompletableFuture.completedFuture(null);
+    protected CompletableFuture<SchemaInfo> getSchemaInfo(MessageImpl msg) {
+        try {
+            if (msg.getSchemaVersion() == null || msg.getSchemaVersion().length == 0) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return client.getSchemaProviderLoadingCache().get(localSchemaTopicName)
+                    .getSchemaByVersion(msg.getSchemaVersion());
+        } catch (ExecutionException | RuntimeException | ExecutionError e) {
+            return CompletableFuture.failedFuture(e);
         }
-        return client.getSchemaProviderLoadingCache().get(localSchemaTopicName)
-                .getSchemaByVersion(msg.getSchemaVersion());
     }
 
     public void updateCursorState() {
@@ -996,6 +1002,26 @@ public abstract class PersistentReplicator extends AbstractReplicator
             waitForCursorRewindingRefCnf += 1;
             cancelPendingReadTasks(hasCanceledPendingRead);
         }
+    }
+
+    /**
+     * Rewinds the cursor like {@link #doRewindCursor(boolean)}, but keeps reads paused until the read failure
+     * backoff elapses, so a persistent failure, such as a failing schema lookup, does not turn into a busy retry
+     * loop. The rewinding reference taken by {@link #beforeTerminateOrCursorRewinding} is released by the retry.
+     */
+    protected void doRewindCursorAndDelayReadRetry() {
+        long waitTimeMillis;
+        synchronized (inFlightTasks) {
+            cursor.rewind();
+            waitTimeMillis = readFailureBackoff.next().toMillis();
+        }
+        brokerService.executor().schedule(() -> {
+            synchronized (inFlightTasks) {
+                waitForCursorRewindingRefCnf -= 1;
+                reasonOfWaitForCursorRewinding = null;
+            }
+            readMoreEntries();
+        }, waitTimeMillis, TimeUnit.MILLISECONDS);
     }
 
     protected void doRewindCursor(boolean triggerReadMoreEntries) {

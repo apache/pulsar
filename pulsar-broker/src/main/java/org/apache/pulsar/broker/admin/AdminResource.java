@@ -46,6 +46,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.impl.TopicListResponseMemoryLimiter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
@@ -940,6 +941,20 @@ public abstract class AdminResource extends PulsarWebResource {
         return realCause instanceof WebApplicationException
                 && ((WebApplicationException) realCause).getResponse().getStatus()
                 == Status.NOT_FOUND.getStatusCode();
+    }
+
+    /**
+     * Checks whether a topic listing failed because the topic list memory limit rejected it (429) or because the
+     * request was cancelled (503). These are expected responses that don't need to be logged as errors.
+     */
+    protected static boolean isTopicListLimitRejection(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        if (!(realCause instanceof WebApplicationException webApplicationException)) {
+            return false;
+        }
+        // other 503 responses, such as a bundle owner that isn't ready, are logged as errors
+        return webApplicationException.getResponse().getStatus() == Status.TOO_MANY_REQUESTS.getStatusCode()
+                || TopicListResponseMemoryLimiter.isRequestCancelled(realCause);
     }
 
     protected static boolean is4xxRestException(Throwable ex) {

@@ -46,6 +46,7 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -936,9 +937,11 @@ public class NamespaceService implements AutoCloseable {
         }
         // found corresponding policy, set the status to controlled
         nsOwnedStatus.is_controlled = true;
-        if (nsIsolationPolicy.isPrimaryBroker(pulsar.getAdvertisedAddress())) {
+        if (nsIsolationPolicy.isPrimaryBroker(pulsar.getAdvertisedAddress())
+                || nsIsolationPolicy.isPrimaryBrokerId(pulsar.getBrokerId())) {
             nsOwnedStatus.broker_assignment = BrokerAssignment.primary;
-        } else if (nsIsolationPolicy.isSecondaryBroker(pulsar.getAdvertisedAddress())) {
+        } else if (nsIsolationPolicy.isSecondaryBroker(pulsar.getAdvertisedAddress())
+                || nsIsolationPolicy.isSecondaryBrokerId(pulsar.getBrokerId())) {
             nsOwnedStatus.broker_assignment = BrokerAssignment.secondary;
         }
 
@@ -1047,8 +1050,7 @@ public class NamespaceService implements AutoCloseable {
                                                         + "NamespaceBundle: %s due to %s",
                                                 nsname.toString(), bundle.getBundleRange(), ex1.getMessage());
                                         LOG.warn(msg);
-                                        updateFuture.completeExceptionally(
-                                                new ServiceUnitNotReadyException(msg, ex1.getCause()));
+                                        updateFuture.completeExceptionally(ex1);
                                         return null;
                                     });
                                 } catch (Exception e) {
@@ -1056,7 +1058,7 @@ public class NamespaceService implements AutoCloseable {
                                             "failed to acquire ownership of split bundle for namespace [%s], %s",
                                             nsname.toString(), e.getMessage());
                                     LOG.warn(msg, e);
-                                    updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg, e));
+                                    updateFuture.completeExceptionally(e);
                                 }
                             }).exceptionally(splitException -> {
                                 updateFuture.completeExceptionally(splitException);
@@ -1071,25 +1073,34 @@ public class NamespaceService implements AutoCloseable {
 
             // If success updateNamespaceBundles, then do invalidateBundleCache and unload.
             // Else retry splitAndOwnBundleOnceAndRetry.
-            updateFuture.whenCompleteAsync((r, t)-> {
+            // Consume the update failure when a retry is scheduled. A whenComplete stage would retain
+            // that failure and incorrectly fail completionFuture in the dispatch-failure handler below.
+            updateFuture.handleAsync((r, t) -> {
                 if (t != null) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(t);
                     // retry several times on BadVersion
-                    if ((t.getCause() instanceof MetadataStoreException.BadVersionException)
+                    if ((cause instanceof MetadataStoreException.BadVersionException)
                             && (counter.decrementAndGet() >= 0)) {
-                        pulsar.getExecutor().schedule(() -> pulsar.getOrderedExecutor()
-                                .execute(() -> splitAndOwnBundleOnceAndRetry(
-                                        bundle, unload, counter, completionFuture, splitAlgorithm, boundaries)),
-                                100, MILLISECONDS);
-                    } else if (t instanceof IllegalArgumentException) {
-                        completionFuture.completeExceptionally(t);
+                        pulsar.getExecutor().schedule(() -> {
+                            try {
+                                pulsar.getOrderedExecutor().execute(() -> splitAndOwnBundleOnceAndRetry(
+                                        bundle, unload, counter, completionFuture, splitAlgorithm, boundaries));
+                            } catch (RejectedExecutionException retryException) {
+                                completionFuture.completeExceptionally(new ServiceUnitNotReadyException(
+                                        "Failed to dispatch namespace bundle split retry for " + bundle,
+                                        retryException));
+                            }
+                        }, 100, MILLISECONDS);
+                    } else if (cause instanceof IllegalArgumentException) {
+                        completionFuture.completeExceptionally(cause);
                     } else {
                         // Retry enough, or meet other exception
                         String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",
-                            bundle.toString(), counter.get(), t.getMessage());
+                            bundle.toString(), counter.get(), cause.getMessage());
                         LOG.warn(msg2);
-                        completionFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2));
+                        completionFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2, cause));
                     }
-                    return;
+                    return null;
                 }
 
                 // success updateNamespaceBundles
@@ -1147,7 +1158,13 @@ public class NamespaceService implements AutoCloseable {
                             completionFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
                             return null;
                         });
-            }, pulsar.getOrderedExecutor());
+                return null;
+            }, pulsar.getOrderedExecutor()).exceptionally(processException -> {
+                completionFuture.completeExceptionally(new ServiceUnitNotReadyException(
+                        "Failed to process namespace bundle split completion for " + bundle,
+                        FutureUtil.unwrapCompletionException(processException)));
+                return null;
+            });
         });
     }
 

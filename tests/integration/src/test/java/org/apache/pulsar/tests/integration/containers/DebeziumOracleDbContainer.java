@@ -20,7 +20,7 @@ package org.apache.pulsar.tests.integration.containers;
 
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
-import org.testcontainers.containers.wait.strategy.HostPortWaitStrategy;
+import org.testcontainers.containers.wait.strategy.Wait;
 
 public class DebeziumOracleDbContainer extends ChaosContainer<DebeziumOracleDbContainer> {
 
@@ -50,12 +50,14 @@ public class DebeziumOracleDbContainer extends ChaosContainer<DebeziumOracleDbCo
             .withExposedPorts(PORTS)
             .withEnv("DBCA_TOTAL_MEMORY", "2048")
             .withEnv("WEB_CONSOLE", "false")
-            .withStartupTimeout(Duration.of(300, ChronoUnit.SECONDS))
             .withCreateContainerCmdModifier(createContainerCmd -> {
                 createContainerCmd.withHostName(NAME);
                 createContainerCmd.withName(getContainerName());
             })
-            .waitingFor(new HostPortWaitStrategy());
+            // dbca keeps restarting the instance until database creation completes, so the database must not be
+            // reconfigured (shutdown/startup mount) before the entrypoint reports that it is ready
+            .waitingFor(Wait.forLogMessage(".*Database ready to use.*", 1)
+                    .withStartupTimeout(Duration.of(600, ChronoUnit.SECONDS)));
     }
 
 }

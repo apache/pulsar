@@ -29,14 +29,20 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.AsyncSemaphorePermit;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireAlreadyClosedException;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireCancelledException;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireQueueFullException;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore.PermitAcquireTimeoutException;
+import org.awaitility.Awaitility;
+import org.testng.SkipException;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -666,4 +672,126 @@ public class AsyncSemaphoreImplTest {
 
         assertThat(semaphore.getAcquiredPermits()).isEqualTo(10);
    }
+
+    @Test
+    public void testAcquireWithAvailablePermitsDoesNotUseExecutor() throws Exception {
+        ScheduledThreadPoolExecutor executor = AsyncSemaphoreImpl.createExecutor("test-async-semaphore");
+        CountDownLatch unblockExecutor = new CountDownLatch(1);
+        try {
+            semaphore = new AsyncSemaphoreImpl(10, 10, 5000, executor, null);
+            int initialTaskCount = executor.getQueue().size();
+            blockExecutor(executor, unblockExecutor);
+            for (int i = 0; i < 1000; i++) {
+                CompletableFuture<AsyncSemaphorePermit> future = semaphore.acquire(5, () -> false);
+                // the permits are granted on the calling thread although the executor is blocked
+                assertThat(future).isCompleted();
+                semaphore.release(future.join());
+            }
+            assertThat(executor.getQueue()).hasSize(initialTaskCount);
+        } finally {
+            unblockExecutor.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testQueuedRequestsDoNotAccumulateExecutorTasks() throws Exception {
+        ScheduledThreadPoolExecutor executor = AsyncSemaphoreImpl.createExecutor("test-async-semaphore");
+        CountDownLatch unblockExecutor = new CountDownLatch(1);
+        try {
+            semaphore = new AsyncSemaphoreImpl(1, 100, 60_000, executor, null);
+            AsyncSemaphorePermit permit = semaphore.acquire(1, () -> false).get(1, TimeUnit.SECONDS);
+            int initialTaskCount = executor.getQueue().size();
+            blockExecutor(executor, unblockExecutor);
+            List<CompletableFuture<AsyncSemaphorePermit>> futures = new ArrayList<>();
+            for (int i = 0; i < 100; i++) {
+                futures.add(semaphore.acquire(1, () -> false));
+            }
+            // a timeout task for each queued request and a single pending task for processing the queue
+            assertThat(executor.getQueue()).hasSize(initialTaskCount + futures.size() + 1);
+
+            unblockExecutor.countDown();
+            semaphore.release(permit);
+            for (CompletableFuture<AsyncSemaphorePermit> future : futures) {
+                semaphore.release(future.get(1, TimeUnit.SECONDS));
+            }
+            // the timeout tasks of the granted requests are removed when they get cancelled
+            Awaitility.await().untilAsserted(() -> assertThat(executor.getQueue()).hasSize(initialTaskCount));
+        } finally {
+            unblockExecutor.countDown();
+            executor.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testAcquireDoesNotBypassWaitingRequests() throws Exception {
+        semaphore = new AsyncSemaphoreImpl(10, 10, 5000);
+        AsyncSemaphorePermit permit = semaphore.acquire(6, () -> false).get(1, TimeUnit.SECONDS);
+        CompletableFuture<AsyncSemaphorePermit> large = semaphore.acquire(5, () -> false);
+        // 4 permits are free, but this request must wait behind the queued one
+        CompletableFuture<AsyncSemaphorePermit> small = semaphore.acquire(2, () -> false);
+        assertThat(small).isNotDone();
+
+        semaphore.release(permit);
+
+        assertThat(large).succeedsWithin(Duration.ofSeconds(1));
+        assertThat(small).succeedsWithin(Duration.ofSeconds(1));
+    }
+
+    @Test
+    public void testCancelledUpdateBetweenGrantAndCompletionReturnsAllPermits() throws Exception {
+        AtomicReference<CompletableFuture<AsyncSemaphorePermit>> toCancel = new AtomicReference<>();
+        // the queue latency is recorded after the request is granted and before its future is completed
+        semaphore = new AsyncSemaphoreImpl(10, 10, 5000, AsyncSemaphoreImpl.createExecutor("test-async-semaphore"),
+                true, latency -> {
+                    CompletableFuture<AsyncSemaphorePermit> future = toCancel.get();
+                    if (future != null) {
+                        future.cancel(false);
+                    }
+                });
+        AsyncSemaphorePermit permit = semaphore.acquire(4, () -> false).get(1, TimeUnit.SECONDS);
+        AsyncSemaphorePermit otherPermit = semaphore.acquire(6, () -> false).get(1, TimeUnit.SECONDS);
+        CompletableFuture<AsyncSemaphorePermit> update = semaphore.update(permit, 8, () -> false);
+        assertThat(update).isNotDone();
+        toCancel.set(update);
+
+        // grants the update, which takes over the 4 permits of the previous permit, and then it gets cancelled
+        semaphore.release(otherPermit);
+
+        Awaitility.await().untilAsserted(() -> assertThat(update).isCancelled());
+        Awaitility.await().untilAsserted(() -> assertThat(semaphore.getAvailablePermits()).isEqualTo(10));
+    }
+
+    @Test
+    public void testQueuedRequestIsNotCompletedOnSemaphoreExecutorThread() throws Exception {
+        if (!AsyncSemaphoreImpl.USE_COMMON_POOL) {
+            throw new SkipException("Queued requests are completed on the executor when the common pool is unusable");
+        }
+        semaphore = new AsyncSemaphoreImpl(1, 10, 5000);
+        AsyncSemaphorePermit permit = semaphore.acquire(1, () -> false).get(1, TimeUnit.SECONDS);
+        CompletableFuture<String> completingThreadName = semaphore.acquire(1, () -> false).thenApply(p -> {
+            semaphore.release(p);
+            return Thread.currentThread().getName();
+        });
+        assertThat(completingThreadName).isNotDone();
+
+        semaphore.release(permit);
+
+        // the caller's continuation must not run on the thread that manages the permits
+        assertThat(completingThreadName).succeedsWithin(Duration.ofSeconds(1))
+                .asString().doesNotStartWith("async-semaphore-executor");
+    }
+
+    private static void blockExecutor(ExecutorService executor, CountDownLatch unblock) throws Exception {
+        CountDownLatch blocked = new CountDownLatch(1);
+        executor.execute(() -> {
+            blocked.countDown();
+            try {
+                unblock.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        assertThat(blocked.await(5, TimeUnit.SECONDS)).isTrue();
+    }
 }

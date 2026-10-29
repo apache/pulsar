@@ -139,8 +139,23 @@ public class PulsarLedgerManager implements LedgerManager {
         store.put(getLedgerPath(ledgerId), data, Optional.of(-1L))
                 .whenComplete((stat, ex) -> {
                     if (ex != null) {
-                        log.error("Failed to create ledger {}: {}", ledgerId, ex.getMessage());
-                        promise.completeExceptionally(mapToBkException(ex));
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof MetadataStoreException.BadVersionException
+                                || cause instanceof MetadataStoreException.AlreadyExistsException) {
+                            if (log.isDebugEnabled()) {
+                                log.debug("Ledger metadata already exists for ledger {}: {}", ledgerId,
+                                        cause.getMessage());
+                            }
+                            // The path may belong to another creator, or to our own create if its response
+                            // was lost before a retry. Until creator-token recovery is implemented
+                            // (https://github.com/apache/pulsar/issues/26793), report both as an existing ledger.
+                            BKException bke = BKException.create(BKException.Code.LedgerExistException);
+                            bke.initCause(cause);
+                            promise.completeExceptionally(bke);
+                        } else {
+                            log.error("Failed to create ledger {}: {}", ledgerId, cause.getMessage());
+                            promise.completeExceptionally(mapToBkException(cause));
+                        }
                         return;
                     }
 
@@ -244,11 +259,15 @@ public class PulsarLedgerManager implements LedgerManager {
                 .thenAccept(stat -> {
                     promise.complete(new Versioned<>(metadata, new LongVersion(stat.getVersion())));
                 }).exceptionally(ex -> {
-                    if (ex.getCause() instanceof MetadataStoreException.BadVersionException) {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    if (cause instanceof MetadataStoreException.BadVersionException) {
+                        // Invalidate before completing the promise: its callbacks can immediately retry the read.
+                        cache.invalidate(getLedgerPath(ledgerId));
                         promise.completeExceptionally(new BKException.BKMetadataVersionException());
                     } else {
-                        log.warn("Conditional update ledger metadata failed: {}", ex.getMessage());
-                        promise.completeExceptionally(new BKException.ZKException(ex.getCause()));
+                        log.warn("Conditional update ledger metadata failed for ledger {}: {}", ledgerId,
+                                cause.getMessage());
+                        promise.completeExceptionally(new BKException.ZKException(cause));
                     }
                     return null;
                 });

@@ -120,7 +120,7 @@ function test_group_protobufv4() {
     -Dprotobuf3.version=4.31.1 \
     -Dprotoc3.version=4.31.1 \
     -pl pulsar-client,pulsar-functions/instance \
-    -Dtest=org.apache.pulsar.client.api.ProtobufSchemaApiSignatureTest,org.apache.pulsar.client.impl.schema.ProtobufSchemaTest,org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaTest,org.apache.pulsar.functions.source.TopicSchemaTest,org.apache.pulsar.functions.instance.JavaInstanceRunnableTest
+    -Dtest=org.apache.pulsar.client.api.ProtobufSchemaApiSignatureTest,org.apache.pulsar.client.impl.schema.ProtobufSchemaTest,org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaTest,org.apache.pulsar.client.impl.schema.ProtobufNativeSchemaUtilsTest,org.apache.pulsar.functions.source.TopicSchemaTest,org.apache.pulsar.functions.instance.JavaInstanceRunnableTest
 }
 
 # prints summaries of failed tests to console

@@ -47,6 +47,13 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
         super(subscription, serviceConfig);
     }
 
+    /**
+     * Removes only the exact consumer instance from {@link #consumerList}, which would otherwise match a replacement
+     * consumer that reuses the same protocol identity via {@link Consumer#equals(Object)}.
+     */
+    protected final synchronized void removeConsumerInstanceFromList(Consumer consumer) {
+        consumerList.removeIf(c -> c == consumer);
+    }
     public boolean isConsumerConnected() {
         return !consumerList.isEmpty();
     }
@@ -69,6 +76,17 @@ public abstract class AbstractDispatcherMultipleConsumers extends AbstractBaseDi
     protected final boolean containsConsumerInstance(Consumer consumer) {
         int index = consumerSetImpl.indexOf(consumer);
         return consumerSetImpl.indexExists(index) && consumerSetImpl.indexGet(index) == consumer;
+    }
+
+    /**
+     * Removes only the exact registered instance. The caller must hold the dispatcher monitor.
+     */
+    protected final boolean removeConsumerInstance(Consumer consumer) {
+        if (!containsConsumerInstance(consumer)) {
+            return false;
+        }
+        consumerSet.removeAll(consumer);
+        return true;
     }
 
     public boolean isClosed() {

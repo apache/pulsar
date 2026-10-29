@@ -88,6 +88,7 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1101,6 +1102,130 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             }
         }
         return null;
+    }
+
+    @DataProvider(name = "writableSubscriptionTypes")
+    public Object[][] writableSubscriptionTypes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    private PersistentDispatcherMultipleConsumers createWritableTestDispatcher(boolean keyShared) {
+        if (keyShared) {
+            return new PersistentStickyKeyDispatcherMultipleConsumers(
+                    topicMock, cursorMock, subscriptionMock, configMock,
+                    new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
+        }
+        return new PersistentDispatcherMultipleConsumers(topicMock, cursorMock, subscriptionMock);
+    }
+
+    /**
+     * A replay read is in flight when the subscription's last consumer disconnects and a new one connects. The
+     * cursor is rewound for the new consumer, so the replay read's entry must not be dispatched as well.
+     */
+    @Test(dataProvider = "writableSubscriptionTypes", timeOut = 30000)
+    public void testReplayReadPendingWhenAllConsumersDisconnectIsNotDispatchedAgain(boolean keyShared)
+            throws Exception {
+        persistentDispatcher.close();
+        PersistentDispatcherMultipleConsumers dispatcher = createWritableTestDispatcher(keyShared);
+        doReturn(PositionFactory.create(1, 0)).when(cursorMock).getMarkDeletedPosition();
+        Entry redelivered = createEntry(1, 1, "message1", 1);
+        Entry published = createEntry(1, 2, "message2", 2);
+
+        // The cursor's entries and read position: a normal read gets the entries past the read position, or waits
+        // for the next one, and a rewind moves the read position back to the first entry.
+        List<Entry> ledgerEntries = new ArrayList<>(List.of(redelivered));
+        AtomicInteger readIndex = new AtomicInteger();
+        List<Runnable> waitingReads = new ArrayList<>();
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(2);
+            Object ctx = invocation.getArgument(3);
+            List<Entry> entries;
+            synchronized (ledgerEntries) {
+                if (readIndex.get() == ledgerEntries.size()) {
+                    waitingReads.add(() -> {
+                        List<Entry> newEntries;
+                        synchronized (ledgerEntries) {
+                            newEntries = copyEntries(ledgerEntries.subList(readIndex.get(), ledgerEntries.size()));
+                            readIndex.set(ledgerEntries.size());
+                        }
+                        callback.readEntriesComplete(newEntries, ctx);
+                    });
+                    return null;
+                }
+                entries = copyEntries(ledgerEntries.subList(readIndex.get(), ledgerEntries.size()));
+                readIndex.set(ledgerEntries.size());
+            }
+            callback.readEntriesComplete(entries, ctx);
+            return null;
+        }).when(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+        doAnswer(invocation -> {
+            synchronized (ledgerEntries) {
+                readIndex.set(0);
+            }
+            return null;
+        }).when(cursorMock).rewind();
+        doAnswer(invocation -> {
+            synchronized (ledgerEntries) {
+                boolean cancelled = !waitingReads.isEmpty();
+                waitingReads.clear();
+                return cancelled;
+            }
+        }).when(cursorMock).cancelPendingReadRequest();
+
+        // the replay read stays in flight until the test completes it
+        CompletableFuture<Runnable> replayRead = new CompletableFuture<>();
+        Answer<Set<Position>> replay = invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            Object ctx = invocation.getArgument(2);
+            replayRead.complete(() -> callback.readEntriesComplete(copyEntries(List.of(redelivered)), ctx));
+            return Collections.emptySet();
+        };
+        doAnswer(replay).when(cursorMock).asyncReplayEntries(anySet(), any(), any());
+        doAnswer(replay).when(cursorMock).asyncReplayEntries(anySet(), any(), any(), anyBoolean());
+
+        Consumer consumerA = createMockConsumer();
+        doReturn("a").when(consumerA).consumerName();
+        doReturn(true).when(consumerA).isWritable();
+        doReturn(1000).when(consumerA).getAvailablePermits();
+        mockSendMessages(consumerA, null);
+        Consumer consumerB = createMockConsumer();
+        doReturn("b").when(consumerB).consumerName();
+        doReturn(true).when(consumerB).isWritable();
+        doReturn(1000).when(consumerB).getAvailablePermits();
+        List<Position> receivedByB = new CopyOnWriteArrayList<>();
+        mockSendMessages(consumerB, entries -> entries.forEach(entry -> receivedByB.add(entry.getPosition())));
+
+        try {
+            dispatcher.addConsumer(consumerA).join();
+            // a has already received the entry when it asks for its redelivery
+            synchronized (ledgerEntries) {
+                readIndex.set(1);
+            }
+            dispatcher.redeliverUnacknowledgedMessages(consumerA, List.of(redelivered.getPosition()));
+            Runnable completeReplayRead = replayRead.get(5, TimeUnit.SECONDS);
+
+            // a disconnects and b connects while the replay read is in flight
+            dispatcher.removeConsumer(consumerA);
+            dispatcher.addConsumer(consumerB).join();
+            completeReplayRead.run();
+
+            // a new entry completes the normal read that waits for one
+            List<Runnable> readsToComplete;
+            synchronized (ledgerEntries) {
+                ledgerEntries.add(published);
+                readsToComplete = new ArrayList<>(waitingReads);
+                waitingReads.clear();
+            }
+            readsToComplete.forEach(Runnable::run);
+
+            Awaitility.await().untilAsserted(() -> assertThat(receivedByB).contains(published.getPosition()));
+            assertThat(receivedByB).as("each entry once, from the rewound cursor")
+                    .containsExactly(redelivered.getPosition(), published.getPosition());
+        } finally {
+            dispatcher.close();
+            redelivered.release();
+            published.release();
+        }
     }
 
     @DataProvider(name = "testBackoffDelayWhenNoMessagesDispatched")
