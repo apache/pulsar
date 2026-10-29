@@ -261,7 +261,7 @@ The Apache Software License, Version 2.0
      - com.fasterxml.jackson.datatype-jackson-datatype-jsr310-2.21.8.jar
      - com.fasterxml.jackson.module-jackson-module-parameter-names-2.21.8.jar
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.3.0.jar
- * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.6.3.jar
+ * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.7.0.jar
  * Fastutil -- it.unimi.dsi:fastutil (only the classes used by Pulsar, bundled within pulsar-broker-fastutil-minimized)
  * LMAX Disruptor -- com.lmax-disruptor-4.0.0.jar
  * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.64.1.jar
@@ -400,43 +400,43 @@ The Apache Software License, Version 2.0
  * AsyncHttpClient
     - org.asynchttpclient-async-http-client-3.0.14.jar
  * Jetty
-    - org.eclipse.jetty-jetty-alpn-client-12.1.13.jar
-    - org.eclipse.jetty-jetty-alpn-conscrypt-server-12.1.13.jar
-    - org.eclipse.jetty-jetty-alpn-server-12.1.13.jar
-    - org.eclipse.jetty-jetty-annotations-12.1.13.jar
-    - org.eclipse.jetty-jetty-client-12.1.13.jar
-    - org.eclipse.jetty-jetty-http-12.1.13.jar
-    - org.eclipse.jetty-jetty-io-12.1.13.jar
-    - org.eclipse.jetty-jetty-jndi-12.1.13.jar
-    - org.eclipse.jetty-jetty-plus-12.1.13.jar
-    - org.eclipse.jetty-jetty-security-12.1.13.jar
-    - org.eclipse.jetty-jetty-server-12.1.13.jar
-    - org.eclipse.jetty-jetty-session-12.1.13.jar
-    - org.eclipse.jetty-jetty-util-12.1.13.jar
-    - org.eclipse.jetty-jetty-xml-12.1.13.jar
-    - org.eclipse.jetty.compression-jetty-compression-common-12.1.13.jar
-    - org.eclipse.jetty.compression-jetty-compression-gzip-12.1.13.jar
-    - org.eclipse.jetty.compression-jetty-compression-server-12.1.13.jar
-    - org.eclipse.jetty.ee-jetty-ee-webapp-12.1.13.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-nested-12.1.13.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-security-12.1.13.jar
-    - org.eclipse.jetty.ee8-jetty-ee8-servlet-12.1.13.jar
-    - org.eclipse.jetty.ee10-jetty-ee10-annotations-12.1.13.jar
-    - org.eclipse.jetty.ee10-jetty-ee10-plus-12.1.13.jar
-    - org.eclipse.jetty.ee10-jetty-ee10-proxy-12.1.13.jar
-    - org.eclipse.jetty.ee10-jetty-ee10-servlet-12.1.13.jar
-    - org.eclipse.jetty.ee10-jetty-ee10-servlets-12.1.13.jar
-    - org.eclipse.jetty.ee10-jetty-ee10-webapp-12.1.13.jar
-    - org.eclipse.jetty.ee10.websocket-jetty-ee10-websocket-jetty-server-12.1.13.jar
-    - org.eclipse.jetty.ee10.websocket-jetty-ee10-websocket-servlet-12.1.13.jar
+    - org.eclipse.jetty-jetty-alpn-client-12.1.14.jar
+    - org.eclipse.jetty-jetty-alpn-conscrypt-server-12.1.14.jar
+    - org.eclipse.jetty-jetty-alpn-server-12.1.14.jar
+    - org.eclipse.jetty-jetty-annotations-12.1.14.jar
+    - org.eclipse.jetty-jetty-client-12.1.14.jar
+    - org.eclipse.jetty-jetty-http-12.1.14.jar
+    - org.eclipse.jetty-jetty-io-12.1.14.jar
+    - org.eclipse.jetty-jetty-jndi-12.1.14.jar
+    - org.eclipse.jetty-jetty-plus-12.1.14.jar
+    - org.eclipse.jetty-jetty-security-12.1.14.jar
+    - org.eclipse.jetty-jetty-server-12.1.14.jar
+    - org.eclipse.jetty-jetty-session-12.1.14.jar
+    - org.eclipse.jetty-jetty-util-12.1.14.jar
+    - org.eclipse.jetty-jetty-xml-12.1.14.jar
+    - org.eclipse.jetty.compression-jetty-compression-common-12.1.14.jar
+    - org.eclipse.jetty.compression-jetty-compression-gzip-12.1.14.jar
+    - org.eclipse.jetty.compression-jetty-compression-server-12.1.14.jar
+    - org.eclipse.jetty.ee-jetty-ee-webapp-12.1.14.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-nested-12.1.14.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-security-12.1.14.jar
+    - org.eclipse.jetty.ee8-jetty-ee8-servlet-12.1.14.jar
+    - org.eclipse.jetty.ee10-jetty-ee10-annotations-12.1.14.jar
+    - org.eclipse.jetty.ee10-jetty-ee10-plus-12.1.14.jar
+    - org.eclipse.jetty.ee10-jetty-ee10-proxy-12.1.14.jar
+    - org.eclipse.jetty.ee10-jetty-ee10-servlet-12.1.14.jar
+    - org.eclipse.jetty.ee10-jetty-ee10-servlets-12.1.14.jar
+    - org.eclipse.jetty.ee10-jetty-ee10-webapp-12.1.14.jar
+    - org.eclipse.jetty.ee10.websocket-jetty-ee10-websocket-jetty-server-12.1.14.jar
+    - org.eclipse.jetty.ee10.websocket-jetty-ee10-websocket-servlet-12.1.14.jar
     - org.eclipse.jetty.toolchain-jetty-servlet-api-4.0.9.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-core-client-12.1.13.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-core-common-12.1.13.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-core-server-12.1.13.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-jetty-api-12.1.13.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-jetty-client-12.1.13.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-jetty-common-12.1.13.jar
-    - org.eclipse.jetty.websocket-jetty-websocket-jetty-server-12.1.13.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-core-client-12.1.14.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-core-common-12.1.14.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-core-server-12.1.14.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-jetty-api-12.1.14.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-jetty-client-12.1.14.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-jetty-common-12.1.14.jar
+    - org.eclipse.jetty.websocket-jetty-websocket-jetty-server-12.1.14.jar
  * SnakeYaml -- org.yaml-snakeyaml-2.7.jar
  * RocksDB - org.rocksdb-rocksdbjni-9.9.3.jar
  * Google Error Prone Annotations - com.google.errorprone-error_prone_annotations-2.50.0.jar
@@ -452,16 +452,16 @@ The Apache Software License, Version 2.0
  * JetBrains Annotations
      - org.jetbrains-annotations-26.1.0.jar
  * gRPC
-    - io.grpc-grpc-context-1.84.0.jar
-    - io.grpc-grpc-core-1.84.0.jar
-    - io.grpc-grpc-protobuf-1.84.0.jar
-    - io.grpc-grpc-protobuf-lite-1.84.0.jar
-    - io.grpc-grpc-stub-1.84.0.jar
-    - io.grpc-grpc-api-1.84.0.jar
-    - io.grpc-grpc-netty-1.84.0.jar
-    - io.grpc-grpc-services-1.84.0.jar
-    - io.grpc-grpc-util-1.84.0.jar
-    - io.grpc-grpc-inprocess-1.84.0.jar
+    - io.grpc-grpc-context-1.85.1.jar
+    - io.grpc-grpc-core-1.85.1.jar
+    - io.grpc-grpc-protobuf-1.85.1.jar
+    - io.grpc-grpc-protobuf-lite-1.85.1.jar
+    - io.grpc-grpc-stub-1.85.1.jar
+    - io.grpc-grpc-api-1.85.1.jar
+    - io.grpc-grpc-netty-1.85.1.jar
+    - io.grpc-grpc-services-1.85.1.jar
+    - io.grpc-grpc-util-1.85.1.jar
+    - io.grpc-grpc-inprocess-1.85.1.jar
   * Perfmark
     - io.perfmark-perfmark-api-0.27.0.jar
   * OpenCensus
@@ -507,15 +507,15 @@ The Apache Software License, Version 2.0
     - org.jctools-jctools-core-4.0.7.jar
     - org.jctools-jctools-core-jdk11-4.0.7.jar
   * Vertx
-    - io.vertx-vertx-auth-common-4.5.32.jar
-    - io.vertx-vertx-bridge-common-4.5.32.jar
-    - io.vertx-vertx-core-4.5.32.jar
-    - io.vertx-vertx-web-4.5.32.jar
-    - io.vertx-vertx-web-common-4.5.32.jar
+    - io.vertx-vertx-auth-common-4.5.35.jar
+    - io.vertx-vertx-bridge-common-4.5.35.jar
+    - io.vertx-vertx-core-4.5.35.jar
+    - io.vertx-vertx-web-4.5.35.jar
+    - io.vertx-vertx-web-common-4.5.35.jar
   * Apache ZooKeeper
     - org.apache.zookeeper-zookeeper-jute-3.9.6.jar
   * Snappy Java
-    - org.xerial.snappy-snappy-java-1.1.10.9.jar
+    - org.xerial.snappy-snappy-java-1.1.10.12.jar
   * Google HTTP Client
     - com.google.http-client-google-http-client-gson-2.1.0.jar
     - com.google.http-client-google-http-client-2.1.0.jar
