@@ -46,6 +46,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
@@ -78,9 +79,11 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
@@ -88,6 +91,138 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ProducerImplTest {
+    @DataProvider
+    public Object[][] supersededResendAttempts() {
+        return new Object[][] {{false, false}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "supersededResendAttempts", timeOut = 30000)
+    public void testSupersededResendDoesNotCompleteProducerCreation(boolean startNewAttempt, boolean reuseConnection)
+            throws Exception {
+        try (ResendAttemptClient client = new ResendAttemptClient()) {
+            ClientCnx firstCnx = client.newConnection();
+            EmbeddedChannel firstChannel = (EmbeddedChannel) firstCnx.channel();
+            client.nextConnection = firstCnx;
+            CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+            ProducerConfigurationData conf = new ProducerConfigurationData();
+            conf.setBatchingEnabled(false);
+            ProducerImpl<byte[]> producer = new ProducerImpl<>(client, "persistent://public/default/stale-resend",
+                    conf, created, 0, Schema.BYTES, null, Optional.empty());
+            try {
+                BaseCommand firstCommand = readCommand(firstChannel, BaseCommand.Type.PRODUCER);
+                long firstRequest = firstCommand.getProducer().getRequestId();
+                receiveCommand(firstChannel, Commands.newProducerSuccess(firstRequest, "test-producer",
+                        SchemaVersion.Empty));
+                assertThat(created).as("resend is queued on the connection event loop").isNotDone();
+
+                // The broker closes the producer before the queued resend runs. Go through the real close handler,
+                // and drive the reconnect explicitly instead of waiting for the backoff timer.
+                receiveCommand(firstChannel, Commands.newCloseProducer(firstCommand.getProducer().getProducerId(), -1));
+                ClientCnx nextCnx = reuseConnection ? firstCnx : client.newConnection();
+                client.nextConnection = nextCnx;
+                long nextRequest = -1;
+                if (startNewAttempt) {
+                    producer.getConnectionHandler().grabCnx();
+                    nextRequest = readCommand((EmbeddedChannel) nextCnx.channel(), BaseCommand.Type.PRODUCER)
+                            .getProducer().getRequestId();
+                }
+
+                firstChannel.runPendingTasks();
+                assertThat(producer.getState()).as("an old resend must not make an unregistered producer ready")
+                        .isEqualTo(HandlerState.State.Connecting);
+                assertThat(created).as("creation must wait for the current attempt's ProducerSuccess").isNotDone();
+
+                if (!startNewAttempt) {
+                    producer.getConnectionHandler().grabCnx();
+                    nextRequest = readCommand((EmbeddedChannel) nextCnx.channel(), BaseCommand.Type.PRODUCER)
+                            .getProducer().getRequestId();
+                }
+                receiveCommand((EmbeddedChannel) nextCnx.channel(), Commands.newProducerSuccess(nextRequest,
+                        "test-producer", SchemaVersion.Empty));
+                ((EmbeddedChannel) nextCnx.channel()).runPendingTasks();
+                assertThat(created.get(5, TimeUnit.SECONDS)).isSameAs(producer);
+                assertThat(producer.isConnected()).isTrue();
+            } finally {
+                // Closing the embedded transport also fails any pending close request, allowing normal cleanup.
+                CompletableFuture<Void> closed = producer.closeAsync();
+                client.closeChannels();
+                closed.get(5, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    private static void receiveCommand(EmbeddedChannel channel, ByteBuf frame) {
+        // Match the frame decoder's output without writeInbound(), which would also drain the queued resend.
+        channel.pipeline().fireChannelRead(frame.skipBytes(Integer.BYTES));
+        channel.checkException();
+    }
+
+    private static BaseCommand readCommand(EmbeddedChannel channel, BaseCommand.Type expectedType) {
+        ByteBuf frame = channel.readOutbound();
+        assertThat(frame).isNotNull();
+        try {
+            frame.skipBytes(Integer.BYTES);
+            int commandSize = (int) frame.readUnsignedInt();
+            BaseCommand command = new BaseCommand();
+            command.parseFrom(frame, commandSize);
+            assertThat(command.getType()).isEqualTo(expectedType);
+            return command;
+        } finally {
+            frame.release();
+        }
+    }
+
+    /** Real client and protocol handlers with embedded transports so only the event-loop ordering is controlled. */
+    private static class ResendAttemptClient extends PulsarClientImpl {
+        private final List<EmbeddedChannel> channels = new ArrayList<>();
+        private ClientCnx nextConnection;
+
+        ResendAttemptClient() throws PulsarClientException {
+            super(resendAttemptConfiguration());
+        }
+
+        private static ClientConfigurationData resendAttemptConfiguration() {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl("pulsar://localhost:6650");
+            conf.setNumIoThreads(1);
+            conf.setNumListenerThreads(1);
+            conf.setStatsIntervalSeconds(0);
+            conf.setKeepAliveIntervalSeconds(0);
+            conf.setInitialBackoffIntervalNanos(TimeUnit.HOURS.toNanos(1));
+            conf.setMaxBackoffIntervalNanos(TimeUnit.HOURS.toNanos(1));
+            return conf;
+        }
+
+        ClientCnx newConnection() {
+            ClientCnx cnx = new ClientCnx(instrumentProvider(), getConfiguration(), eventLoopGroup());
+            EmbeddedChannel channel = new EmbeddedChannel(cnx);
+            channels.add(channel);
+            readCommand(channel, BaseCommand.Type.CONNECT);
+            receiveCommand(channel, Commands.newConnected(Commands.getCurrentProtocolVersion(), false, false));
+            return cnx;
+        }
+
+        @Override
+        public CompletableFuture<Pair<ClientCnx, Boolean>> getConnection(String topic,
+                int randomKeyForSelectConnection) {
+            return CompletableFuture.completedFuture(Pair.of(nextConnection, false));
+        }
+
+        void closeChannels() {
+            channels.forEach(EmbeddedChannel::finishAndReleaseAll);
+            channels.clear();
+        }
+
+        @Override
+        public void close() throws PulsarClientException {
+            try {
+                closeChannels();
+            } finally {
+                super.close();
+            }
+        }
+    }
+
     @DataProvider
     public Object[][] completionErrors() {
         return new Object[][] {{null}, {new PulsarClientException.TimeoutException("send timed out", 41)}};
