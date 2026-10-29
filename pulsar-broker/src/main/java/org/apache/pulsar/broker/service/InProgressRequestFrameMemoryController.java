@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.LongSupplier;
 import lombok.CustomLog;
@@ -34,7 +35,8 @@ import org.apache.pulsar.broker.InProgressRequestFrameMemoryLimitMode;
 /**
  * Accounts for all retained inbound roots in a broker and controls its shared request-frame limiter.
  * All connections use the latest dynamically configured limit and the same memory counter.
- * State transitions and registration take the write lock; ordinary accounting and reads use an optimistic check.
+ * TRACKING uses a striped metrics counter; modes that can throttle use an atomic counter for policy decisions.
+ * State transitions and registration take the write lock; ordinary policy checks use an optimistic read.
  * Callbacks always run outside the lock and production notifications are coalesced on each connection event loop.
  */
 @CustomLog
@@ -42,20 +44,25 @@ final class InProgressRequestFrameMemoryController {
     private static final int ENABLE_DIRECT_MEMORY_USAGE_PERCENT = 85;
     private static final int DISABLE_DIRECT_MEMORY_USAGE_PERCENT = 65;
 
-    private final AtomicLong retainedFrameBytes = new AtomicLong();
+    // The mode is fixed at startup, so only one counter is allocated and no live migration is needed.
+    // LongAdder.sum() is not an atomic snapshot: use it only for TRACKING metrics, never to decide throttling.
+    private final LongAdder trackingRetainedFrameBytes;
+    private final AtomicLong retainedFrameBytes;
     private final StampedLock stateLock = new StampedLock();
     private final Map<EventExecutor, InProgressRequestFrameMemoryNotifier> eventLoopNotifiers = new HashMap<>();
     private final Map<Object, Runnable> throttleStateListeners = new HashMap<>();
     private final LongSupplier directMemoryUsedBytesSupplier;
     private final long maxDirectMemoryBytes;
     private final InProgressRequestFrameMemoryLimiter limiter;
-    private volatile InProgressRequestFrameMemoryLimitMode mode;
+    private final InProgressRequestFrameMemoryLimitMode mode;
     private boolean automaticallyEnabled;
     private long automaticEnableThresholdBytes;
 
     InProgressRequestFrameMemoryController(InProgressRequestFrameMemoryLimitMode mode, long limitBytes,
                                           LongSupplier directMemoryUsedBytesSupplier, long maxDirectMemoryBytes) {
         this.mode = requireNonNull(mode);
+        trackingRetainedFrameBytes = isTrackingOnly() ? new LongAdder() : null;
+        retainedFrameBytes = isTrackingOnly() ? null : new AtomicLong();
         this.directMemoryUsedBytesSupplier = directMemoryUsedBytesSupplier;
         this.maxDirectMemoryBytes = maxDirectMemoryBytes;
         automaticEnableThresholdBytes = automaticEnableThresholdBytes(limitBytes);
@@ -67,7 +74,11 @@ final class InProgressRequestFrameMemoryController {
     }
 
     long getRetainedFrameBytes() {
-        return retainedFrameBytes.get();
+        return trackingRetainedFrameBytes != null ? trackingRetainedFrameBytes.sum() : retainedFrameBytes.get();
+    }
+
+    boolean isTrackingOnly() {
+        return mode == InProgressRequestFrameMemoryLimitMode.TRACKING;
     }
 
     @VisibleForTesting
@@ -118,10 +129,18 @@ final class InProgressRequestFrameMemoryController {
     }
 
     void acquire(long bytes) {
-        retainedFrameBytes.addAndGet(bytes);
+        if (trackingRetainedFrameBytes != null) {
+            trackingRetainedFrameBytes.add(bytes);
+        } else {
+            retainedFrameBytes.addAndGet(bytes);
+        }
     }
 
     void release(long bytes) {
+        if (trackingRetainedFrameBytes != null) {
+            trackingRetainedFrameBytes.add(-bytes);
+            return;
+        }
         // Subtract before reading the stamp. A concurrent writer must either see the lower usage, or invalidate
         // our optimistic read so that we recheck after its transition. Otherwise the last release could miss
         // a writer about to pause connections, leaving them paused with no future event available to resume them.
@@ -136,18 +155,15 @@ final class InProgressRequestFrameMemoryController {
     }
 
     private void updateState(boolean inboundRead) {
-        // Accounting is unconditional, but metrics-only mode does not inspect the state lock, thresholds or
-        // direct-memory usage. setMode publishes the new mode before checking usage, so a last release either
-        // precedes that check or observes the enabled mode and participates in recovery.
-        if (mode == InProgressRequestFrameMemoryLimitMode.DISABLED) {
+        // The startup-only mode is immutable: metrics-only accounting never needs policy synchronization,
+        // even when the numeric limit changes. AUTO still checks pressure and releases must still resume reads.
+        if (isTrackingOnly()) {
             return;
         }
         long stamp = stateLock.tryOptimisticRead();
-        // Read the mode again inside the optimistic read; the fast-path read above is not part of this snapshot.
-        InProgressRequestFrameMemoryLimitMode currentMode = mode;
-        boolean enabled = currentMode == InProgressRequestFrameMemoryLimitMode.ENABLED || automaticallyEnabled;
+        boolean enabled = mode == InProgressRequestFrameMemoryLimitMode.ENABLED || automaticallyEnabled;
         long usedBytes = retainedFrameBytes.get();
-        boolean checkAutomaticMode = currentMode == InProgressRequestFrameMemoryLimitMode.AUTO
+        boolean checkAutomaticMode = mode == InProgressRequestFrameMemoryLimitMode.AUTO
                 && maxDirectMemoryBytes > 0
                 && (automaticallyEnabled || inboundRead && automaticEnableThresholdBytes > 0
                         && usedBytes > automaticEnableThresholdBytes);
@@ -187,24 +203,6 @@ final class InProgressRequestFrameMemoryController {
         notifyThrottleStateListeners(notifications);
     }
 
-    void setMode(InProgressRequestFrameMemoryLimitMode mode) {
-        requireNonNull(mode);
-        List<Runnable> notifications;
-        long stamp = stateLock.writeLock();
-        try {
-            if (this.mode == mode) {
-                return;
-            }
-            // Publish before reading retainedFrameBytes: releases may bypass the lock while DISABLED.
-            this.mode = mode;
-            automaticallyEnabled = false;
-            notifications = updateThrottleState(mode == InProgressRequestFrameMemoryLimitMode.ENABLED);
-        } finally {
-            stateLock.unlockWrite(stamp);
-        }
-        notifyThrottleStateListeners(notifications);
-    }
-
     void updateLimitBytes(long limitBytes) {
         List<Runnable> notifications;
         long stamp = stateLock.writeLock();
@@ -232,8 +230,8 @@ final class InProgressRequestFrameMemoryController {
         try {
             throttleStateListeners.put(key, listener);
             boolean manuallyEnabled = mode == InProgressRequestFrameMemoryLimitMode.ENABLED;
-            if (limiter.updateThrottledState(manuallyEnabled || automaticallyEnabled,
-                    retainedFrameBytes.get(), manuallyEnabled)) {
+            boolean enabled = manuallyEnabled || automaticallyEnabled;
+            if (limiter.updateThrottledState(enabled, enabled ? retainedFrameBytes.get() : 0, manuallyEnabled)) {
                 notifications = new ArrayList<>(throttleStateListeners.values());
             } else {
                 notifications = limiter.isThrottled() ? List.of(listener) : List.of();
@@ -254,8 +252,9 @@ final class InProgressRequestFrameMemoryController {
     }
 
     private List<Runnable> updateThrottleState(boolean allowNewThrottle) {
-        long usedBytes = retainedFrameBytes.get();
         boolean enabled = mode == InProgressRequestFrameMemoryLimitMode.ENABLED || automaticallyEnabled;
+        // TRACKING never consults its approximate sum for a policy decision, including numeric limit updates.
+        long usedBytes = enabled ? retainedFrameBytes.get() : 0;
         return limiter.updateThrottledState(enabled, usedBytes, allowNewThrottle)
                 ? new ArrayList<>(throttleStateListeners.values()) : List.of();
     }

@@ -132,14 +132,23 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
         }
         ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.getEncoder(this.enableTls));
 
-        if (pulsar.getConfiguration().isHaProxyProtocolEnabled()) {
-            ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, new OptionalProxyProtocolDecoder());
-        }
         InProgressRequestFrameMemoryLimiter inProgressRequestFrameMemoryLimiter =
                 pulsar.getBrokerService().getInProgressRequestFrameMemoryLimiter();
-        ch.pipeline().addLast(FrameDecoderUtil.FRAME_DECODER_HANDLER,
-                new InProgressRequestFrameTrackingDecoder(brokerConf.getMaxMessageSize(),
-                        inProgressRequestFrameMemoryLimiter));
+        InProgressRequestFrameTrackingDecoder frameDecoder = inProgressRequestFrameMemoryLimiter == null ? null
+                : new InProgressRequestFrameTrackingDecoder(brokerConf.getMaxMessageSize(),
+                        inProgressRequestFrameMemoryLimiter);
+        if (pulsar.getConfiguration().isHaProxyProtocolEnabled()) {
+            ch.pipeline().addLast(OptionalProxyProtocolDecoder.NAME, frameDecoder == null
+                    ? new OptionalProxyProtocolDecoder()
+                    : new OptionalProxyProtocolDecoder(frameDecoder::validateUpstreamHandlers));
+        }
+        // DISABLED keeps the original decoder. Other modes validate the completed upstream pipeline when the
+        // channel becomes active; PROXY protocol validates its later transition through the callback above.
+        if (frameDecoder == null) {
+            FrameDecoderUtil.addFrameDecoder(ch.pipeline(), brokerConf.getMaxMessageSize());
+        } else {
+            ch.pipeline().addLast(FrameDecoderUtil.FRAME_DECODER_HANDLER, frameDecoder);
+        }
         // Keep per-message business backpressure after decoding. Frame-memory pressure pauses new socket reads,
         // but queued frames must still complete so they can release the root buffers that caused that pressure.
         ServerCnx cnx = newServerCnx(pulsar, listenerName);

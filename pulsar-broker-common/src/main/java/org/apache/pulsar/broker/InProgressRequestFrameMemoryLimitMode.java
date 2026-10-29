@@ -20,14 +20,16 @@ package org.apache.pulsar.broker;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
 
-/** Controls request-frame backpressure independently of the always-maintained retained-memory metric. */
+/** Startup-only request-frame memory tracking and backpressure mode. */
 public enum InProgressRequestFrameMemoryLimitMode {
-    /** Track retained memory without applying request-frame backpressure, even under memory pressure. */
+    /** Use the standard frame decoder without request-frame memory tracking, metrics or backpressure. */
     DISABLED,
+    /** Track retained memory and expose metrics without request-frame backpressure, even under memory pressure. */
+    TRACKING,
     /** Activate broker-local request-frame backpressure under direct-memory pressure. */
     @JsonAlias("false")
     AUTO,
-    /** Apply request-frame backpressure whenever a connection generation's retained-memory limit is exceeded. */
+    /** Apply request-frame backpressure whenever the broker-wide retained-memory limit is exceeded. */
     @JsonAlias("true")
     ENABLED
 }

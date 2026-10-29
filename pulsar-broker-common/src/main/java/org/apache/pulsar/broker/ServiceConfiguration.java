@@ -1952,21 +1952,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        dynamic = true,
-        doc = "Request-frame memory limiting mode: DISABLED, AUTO (default), or ENABLED. DISABLED never "
-            + "applies this limiter, including under memory pressure; it only tracks retained direct-memory root "
-            + "capacity. AUTO activates broker-local protection when direct-memory usage reaches 85% and retained "
+        doc = "Request-frame memory mode: DISABLED, TRACKING, AUTO (default), or ENABLED. DISABLED uses the "
+            + "standard frame decoder without request-frame memory tracking, limiting or metrics. TRACKING only "
+            + "tracks retained direct-memory root capacity and exposes metrics; it never applies this limiter, "
+            + "including under memory pressure. AUTO activates broker-local protection when direct-memory usage "
+            + "reaches 85% and retained "
             + "frame memory exceeds 1.5 times maxMessagePublishBufferSizeInMB, and deactivates it below 65%. "
-            + "ENABLED applies the limiter regardless of direct-memory pressure. All modes maintain the "
+            + "ENABLED applies the limiter regardless of direct-memory pressure. All modes except DISABLED expose the "
             + "pulsar.broker.publish.in.progress.buffer.memory.usage metric. The "
             + "pulsar.broker.publish.in.progress.buffer.memory.throttled gauge is 1 while request-frame memory "
             + "throttling is active and 0 otherwise, independent of other throttling reasons. This limiter is "
             + "independent of the existing payload-byte limiter. Limiting compares broker-wide retained frame "
             + "capacity against the latest "
             + "maxMessagePublishBufferSizeInMB for all connections and resumes at half that limit. A nonpositive "
-            + "limit disables request-frame throttling for all connections. Dynamic mode changes affect existing "
-            + "connections: DISABLED clears request-frame throttling, ENABLED checks already-retained memory, "
-            + "and AUTO starts evaluating pressure on subsequent inbound reads. Automatic activation follows "
+            + "limit disables request-frame throttling for all connections. The mode is set at broker startup; "
+            + "changing it requires a broker restart. Automatic activation follows "
             + "the current numeric configuration and starts enforcing on the next inbound read. For compatibility, "
             + "false maps to AUTO and true maps to ENABLED.")
     private InProgressRequestFrameMemoryLimitMode inProgressRequestFrameMemoryLimitEnabled =

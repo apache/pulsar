@@ -31,6 +31,7 @@ public class InProgressRequestFrameMemoryLimitModeTest {
     public Object[][] modes() {
         return new Object[][] {
             { "DISABLED", InProgressRequestFrameMemoryLimitMode.DISABLED },
+            { "TRACKING", InProgressRequestFrameMemoryLimitMode.TRACKING },
             { "AUTO", InProgressRequestFrameMemoryLimitMode.AUTO },
             { "ENABLED", InProgressRequestFrameMemoryLimitMode.ENABLED },
             { "false", InProgressRequestFrameMemoryLimitMode.AUTO },
@@ -39,7 +40,7 @@ public class InProgressRequestFrameMemoryLimitModeTest {
     }
 
     @Test(dataProvider = "modes")
-    public void shouldParseStartupAndDynamicValues(String value, InProgressRequestFrameMemoryLimitMode mode)
+    public void shouldParseStartupValues(String value, InProgressRequestFrameMemoryLimitMode mode)
             throws Exception {
         Properties properties = new Properties();
         properties.setProperty("inProgressRequestFrameMemoryLimitEnabled", value);

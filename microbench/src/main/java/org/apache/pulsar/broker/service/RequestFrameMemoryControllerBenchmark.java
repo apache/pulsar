@@ -42,7 +42,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @Fork(3)
 @State(Scope.Benchmark)
 public class RequestFrameMemoryControllerBenchmark {
-    @Param({"disabled", "autoInactive", "autoActive", "enabled"})
+    @Param({"tracking", "autoInactive", "autoActive", "enabled"})
     public String mode;
     private InProgressRequestFrameMemoryController controller;
 
@@ -51,7 +51,7 @@ public class RequestFrameMemoryControllerBenchmark {
         long limitBytes = 1024L * 1024 * 1024;
         long maximumDirectMemory = 4 * limitBytes;
         InProgressRequestFrameMemoryLimitMode limitMode = switch (mode) {
-            case "disabled" -> InProgressRequestFrameMemoryLimitMode.DISABLED;
+            case "tracking" -> InProgressRequestFrameMemoryLimitMode.TRACKING;
             case "enabled" -> InProgressRequestFrameMemoryLimitMode.ENABLED;
             default -> InProgressRequestFrameMemoryLimitMode.AUTO;
         };
@@ -72,6 +72,14 @@ public class RequestFrameMemoryControllerBenchmark {
         controller.onInboundRead();
         controller.release(64 * 1024);
         return controller.getRetainedFrameBytes();
+    }
+
+    @Benchmark
+    public void accountInboundRootWithoutMetricRead() {
+        // Production TRACKING updates the counter on the request path; metrics are collected separately.
+        controller.acquire(64 * 1024);
+        controller.onInboundRead();
+        controller.release(64 * 1024);
     }
 
     @TearDown(Level.Trial)

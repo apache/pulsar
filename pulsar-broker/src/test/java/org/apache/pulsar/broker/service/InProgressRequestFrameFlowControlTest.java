@@ -101,7 +101,7 @@ public class InProgressRequestFrameFlowControlTest {
             assertThat(pipeline.reads).isEqualTo(readsBefore);
 
             if (memoryClearsFirst) {
-                pipeline.controller.setMode(InProgressRequestFrameMemoryLimitMode.DISABLED);
+                pipeline.controller.updateLimitBytes(0);
                 pipeline.channel.runPendingTasks();
                 assertThat(pipeline.frames).hasSize(1);
                 assertThat(pipeline.channel.config().isAutoRead()).isFalse();

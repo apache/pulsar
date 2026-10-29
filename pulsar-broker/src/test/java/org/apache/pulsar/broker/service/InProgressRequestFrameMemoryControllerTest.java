@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
@@ -38,6 +40,59 @@ public class InProgressRequestFrameMemoryControllerTest {
     public Object[][] enabledModes() {
         return new Object[][] { { InProgressRequestFrameMemoryLimitMode.AUTO },
             { InProgressRequestFrameMemoryLimitMode.ENABLED } };
+    }
+
+    @DataProvider
+    public Object[][] accountingModes() {
+        return new Object[][] {{InProgressRequestFrameMemoryLimitMode.TRACKING},
+            {InProgressRequestFrameMemoryLimitMode.AUTO}, {InProgressRequestFrameMemoryLimitMode.ENABLED}};
+    }
+
+    @Test(dataProvider = "accountingModes", timeOut = 30_000)
+    public void shouldAccountForConcurrentUpdatesAtQuiescentPoints(InProgressRequestFrameMemoryLimitMode mode)
+            throws Exception {
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
+                mode, Long.MAX_VALUE, () -> 0, Long.MAX_VALUE);
+        int threads = 4;
+        int iterations = 5000;
+        long bytes = 128 * 1024;
+        CyclicBarrier barrier = new CyclicBarrier(threads + 1);
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        List<Future<?>> updates = new ArrayList<>();
+        try {
+            for (int i = 0; i < threads; i++) {
+                updates.add(executor.submit(() -> {
+                    barrier.await(10, TimeUnit.SECONDS);
+                    for (int j = 0; j < iterations; j++) {
+                        controller.acquire(bytes);
+                    }
+                    barrier.await(10, TimeUnit.SECONDS);
+                    barrier.await(10, TimeUnit.SECONDS);
+                    for (int j = 0; j < iterations; j++) {
+                        controller.release(bytes);
+                    }
+                    barrier.await(10, TimeUnit.SECONDS);
+                    return null;
+                }));
+            }
+            barrier.await(10, TimeUnit.SECONDS);
+            barrier.await(10, TimeUnit.SECONDS);
+            // LongAdder must be exact once concurrent updates finish. Check a positive total as well as zero
+            // so a counter that drops both acquisitions and releases cannot make this test pass.
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(threads * iterations * bytes);
+            controller.updateLimitBytes(Long.MAX_VALUE - 1);
+            assertThat(controller.getRetainedFrameBytes()).isEqualTo(threads * iterations * bytes);
+            barrier.await(10, TimeUnit.SECONDS);
+            barrier.await(10, TimeUnit.SECONDS);
+            for (Future<?> update : updates) {
+                update.get(10, TimeUnit.SECONDS);
+            }
+            assertThat(controller.getRetainedFrameBytes()).isZero();
+            assertThat(controller.getLimiter().isThrottled()).isFalse();
+        } finally {
+            executor.shutdownNow();
+            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
     }
 
     @Test
@@ -134,37 +189,23 @@ public class InProgressRequestFrameMemoryControllerTest {
     }
 
     @Test
-    public void shouldClearAutomaticStateAndSkipMemorySamplingWhenManuallyEnabled() {
-        AtomicInteger samples = new AtomicInteger();
+    public void shouldSkipMemorySamplingWhenManuallyEnabled() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> {
-                    samples.incrementAndGet();
-                    return 85;
+                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> {
+                    throw new AssertionError("Manual mode must not sample direct-memory pressure");
                 }, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         limiter.registerThrottleStateListener("connection", () -> { });
         controller.acquire(151);
         controller.onInboundRead();
-        controller.onInboundRead();
-        assertThat(controller.isAutomaticallyEnabled()).isTrue();
-        assertThat(limiter.isThrottled()).isTrue();
-
-        controller.release(76);
-        assertThat(limiter.isThrottled()).isTrue();
-        int samplesBeforeManualEnable = samples.get();
-        controller.setMode(InProgressRequestFrameMemoryLimitMode.ENABLED);
         assertThat(controller.isAutomaticallyEnabled()).isFalse();
+        assertThat(limiter.isThrottled()).isTrue();
+        controller.release(76);
         assertThat(limiter.isThrottled()).isTrue();
         controller.onInboundRead();
         controller.release(25);
         assertThat(limiter.isThrottled()).isFalse();
-        assertThat(samples).hasValue(samplesBeforeManualEnable);
-
-        controller.setMode(InProgressRequestFrameMemoryLimitMode.AUTO);
-        controller.acquire(101);
-        controller.onInboundRead();
-        assertThat(controller.isAutomaticallyEnabled()).isTrue();
-        controller.release(151);
+        controller.release(50);
     }
 
     @Test
@@ -244,12 +285,10 @@ public class InProgressRequestFrameMemoryControllerTest {
     }
 
     @Test
-    public void shouldReuseLimiterAcrossModeAndNumericLimitChanges() {
+    public void shouldReuseLimiterAcrossNumericLimitChanges() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
                 InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> 0, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
-        controller.setMode(InProgressRequestFrameMemoryLimitMode.ENABLED);
-        controller.setMode(InProgressRequestFrameMemoryLimitMode.AUTO);
         controller.updateLimitBytes(100);
         controller.updateLimitBytes(200);
         assertThat(controller.getLimiter()).isSameAs(limiter);
@@ -406,9 +445,9 @@ public class InProgressRequestFrameMemoryControllerTest {
 
 
     @Test
-    public void shouldNeverLimitOrSampleDirectMemoryWhenForcedDisabled() {
+    public void shouldNeverLimitOrSampleDirectMemoryWhenTrackingOnly() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.DISABLED, 100, () -> {
+                InProgressRequestFrameMemoryLimitMode.TRACKING, 100, () -> {
                     throw new AssertionError("Metrics-only mode must not sample direct-memory pressure");
                 }, 100);
         InProgressRequestFrameMemoryLimiter oldLimiter = controller.getLimiter();
@@ -429,131 +468,6 @@ public class InProgressRequestFrameMemoryControllerTest {
         assertThat(notifications).hasValue(0);
         controller.release(300);
         assertThat(controller.getRetainedFrameBytes()).isZero();
-    }
-
-    @DataProvider
-    public Object[][] modeTransitions() {
-        return new Object[][] {
-            { InProgressRequestFrameMemoryLimitMode.DISABLED, InProgressRequestFrameMemoryLimitMode.DISABLED },
-            { InProgressRequestFrameMemoryLimitMode.DISABLED, InProgressRequestFrameMemoryLimitMode.AUTO },
-            { InProgressRequestFrameMemoryLimitMode.DISABLED, InProgressRequestFrameMemoryLimitMode.ENABLED },
-            { InProgressRequestFrameMemoryLimitMode.AUTO, InProgressRequestFrameMemoryLimitMode.DISABLED },
-            { InProgressRequestFrameMemoryLimitMode.AUTO, InProgressRequestFrameMemoryLimitMode.AUTO },
-            { InProgressRequestFrameMemoryLimitMode.AUTO, InProgressRequestFrameMemoryLimitMode.ENABLED },
-            { InProgressRequestFrameMemoryLimitMode.ENABLED, InProgressRequestFrameMemoryLimitMode.DISABLED },
-            { InProgressRequestFrameMemoryLimitMode.ENABLED, InProgressRequestFrameMemoryLimitMode.AUTO },
-            { InProgressRequestFrameMemoryLimitMode.ENABLED, InProgressRequestFrameMemoryLimitMode.ENABLED }
-        };
-    }
-
-    @Test(dataProvider = "modeTransitions")
-    public void shouldApplyModeChangesToAllConnectionsWithoutResettingUsage(
-            InProgressRequestFrameMemoryLimitMode initialMode, InProgressRequestFrameMemoryLimitMode nextMode) {
-        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                initialMode, 100, () -> 85, 100);
-        InProgressRequestFrameMemoryLimiter oldLimiter = controller.getLimiter();
-        oldLimiter.registerThrottleStateListener("old", () -> { });
-        controller.updateLimitBytes(200);
-        InProgressRequestFrameMemoryLimiter newLimiter = controller.getLimiter();
-        newLimiter.registerThrottleStateListener("new", () -> { });
-        controller.acquire(301);
-        controller.onInboundRead();
-        controller.onInboundRead();
-        assertThat(oldLimiter.isThrottled()).isEqualTo(initialMode != InProgressRequestFrameMemoryLimitMode.DISABLED);
-        assertThat(newLimiter.isThrottled()).isEqualTo(initialMode != InProgressRequestFrameMemoryLimitMode.DISABLED);
-
-        controller.setMode(nextMode);
-        boolean enabled = nextMode == InProgressRequestFrameMemoryLimitMode.ENABLED
-                || nextMode == InProgressRequestFrameMemoryLimitMode.AUTO && initialMode == nextMode;
-        assertThat(oldLimiter.isThrottled()).isEqualTo(enabled);
-        assertThat(newLimiter.isThrottled()).isEqualTo(enabled);
-        assertThat(controller.isAutomaticallyEnabled())
-                .isEqualTo(nextMode == InProgressRequestFrameMemoryLimitMode.AUTO && initialMode == nextMode);
-        assertThat(controller.getRetainedFrameBytes()).isEqualTo(301);
-        assertThat(controller.getLimiter()).isSameAs(newLimiter);
-        assertThat(oldLimiter.getLimitBytes()).isEqualTo(200);
-
-        controller.onInboundRead();
-        // Entering AUTO enables protection on this read, but defers new throttling to the following read.
-        assertThat(oldLimiter.isThrottled()).isEqualTo(enabled);
-        controller.onInboundRead();
-        assertThat(oldLimiter.isThrottled()).isEqualTo(nextMode != InProgressRequestFrameMemoryLimitMode.DISABLED);
-        assertThat(newLimiter.isThrottled()).isEqualTo(nextMode != InProgressRequestFrameMemoryLimitMode.DISABLED);
-        controller.release(251);
-        assertThat(oldLimiter.isThrottled()).isFalse();
-        assertThat(newLimiter.isThrottled()).isFalse();
-        controller.release(50);
-        assertThat(controller.getRetainedFrameBytes()).isZero();
-    }
-
-    @DataProvider
-    public Object[][] forcedModes() {
-        return new Object[][] { { InProgressRequestFrameMemoryLimitMode.DISABLED },
-            { InProgressRequestFrameMemoryLimitMode.ENABLED } };
-    }
-
-    @Test(dataProvider = "forcedModes", timeOut = 30_000)
-    public void shouldIgnoreAnAutomaticSampleThatCompletesAfterAModeChange(
-            InProgressRequestFrameMemoryLimitMode forcedMode) throws Exception {
-        CompletableFuture<Void> sampling = new CompletableFuture<>();
-        CompletableFuture<Long> sample = new CompletableFuture<>();
-        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> {
-                    sampling.complete(null);
-                    return sample.join();
-                }, 100);
-        InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
-        limiter.registerThrottleStateListener("connection", () -> { });
-        controller.acquire(151);
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        try {
-            Future<?> read = executor.submit(controller::onInboundRead);
-            sampling.get(10, TimeUnit.SECONDS);
-            controller.setMode(forcedMode);
-            sample.complete(85L);
-            read.get(10, TimeUnit.SECONDS);
-            assertThat(controller.isAutomaticallyEnabled()).isFalse();
-            assertThat(limiter.isThrottled()).isEqualTo(forcedMode == InProgressRequestFrameMemoryLimitMode.ENABLED);
-        } finally {
-            sample.complete(85L);
-            executor.shutdownNow();
-            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
-            controller.release(151);
-        }
-        assertThat(limiter.isThrottled()).isFalse();
-    }
-
-    @Test(timeOut = 30_000)
-    public void shouldNotLoseLastReleaseRacingWithEnablingFromMetricsOnlyMode() throws Exception {
-        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.DISABLED, 100, () -> 0, 100);
-        InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
-        limiter.registerThrottleStateListener("connection", () -> { });
-        CyclicBarrier barrier = new CyclicBarrier(2);
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        try {
-            Future<?> enabling = executor.submit(() -> {
-                for (int i = 0; i < 10_000; i++) {
-                    barrier.await(10, TimeUnit.SECONDS);
-                    controller.setMode(InProgressRequestFrameMemoryLimitMode.ENABLED);
-                    barrier.await(10, TimeUnit.SECONDS);
-                }
-                return null;
-            });
-            for (int i = 0; i < 10_000; i++) {
-                controller.setMode(InProgressRequestFrameMemoryLimitMode.DISABLED);
-                controller.acquire(101);
-                barrier.await(10, TimeUnit.SECONDS);
-                controller.release(101);
-                barrier.await(10, TimeUnit.SECONDS);
-                assertThat(controller.getRetainedFrameBytes()).isZero();
-                assertThat(limiter.isThrottled()).as("last release in iteration %s", i).isFalse();
-            }
-            enabling.get(10, TimeUnit.SECONDS);
-        } finally {
-            executor.shutdownNow();
-            assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
-        }
     }
 
     @DataProvider

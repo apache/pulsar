@@ -21,28 +21,41 @@ package org.apache.pulsar.broker.service;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.WrappedByteBuf;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
+import io.netty.handler.flush.FlushConsolidationHandler;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.util.ReferenceCountUtil;
 import java.nio.ByteOrder;
-import java.util.IdentityHashMap;
-import java.util.Map;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
 
 /**
  * Tracks the capacity of cumulation buffers while frames derived from them are retained downstream.
  *
+ * <p>Each untracked input must transfer a distinct allocation's ownership exactly once. The built-in transport,
+ * TLS and PROXY protocol handlers satisfy this contract; downstream views carry their root directly. Validate
+ * upstream handlers before reading and after controlled pipeline changes. Arbitrary upstream insertion after
+ * activation is unsupported: Netty provides no general pipeline-change notification, so every such mutation
+ * must invoke {@link #validateUpstreamHandlers()} before forwarding input. Do not add per-request pipeline scans.
+ *
  * <p>This implementation depends on Netty's {@link ByteToMessageDecoder} cumulation, frame extraction, and
  * reference-counting and partial-frame continuation behavior. When upgrading Netty, review this class against
- * the new implementation and rerun the root-buffer lifecycle and flow-control tests to verify that derived views
- * retain and release their tracked root correctly and incomplete frames can still make progress.
+ * the new implementation (including the allowed upstream handlers) and rerun the root-buffer lifecycle and
+ * flow-control tests to verify that derived views retain and release their tracked root correctly and incomplete
+ * frames can still make progress.
  */
 final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameDecoder {
     private final InProgressRequestFrameMemoryLimiter limiter;
     private final InProgressRequestFrameMemoryController controller;
-    private final Map<ByteBuf, RootBuffer> roots = new IdentityHashMap<>();
     private ChannelHandlerContext context;
     private InProgressRequestFrameMemoryNotifier notifier;
+    private boolean upstreamValidated;
     private boolean receivedBufferInReadCycle;
     private boolean decodedFrameInReadCycle;
     private boolean continuationReadPending;
@@ -57,46 +70,68 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
         context = ctx;
-        notifier = controller.getEventLoopNotifier(ctx.executor());
-        notifier.add(this, () -> setThrottled(limiter.isThrottled()));
+        // TRACKING lasts for the broker's lifetime. Keep root accounting for metrics, but avoid allocating
+        // callbacks and registering with the shared notifier when this decoder can never throttle a connection.
+        if (!controller.isTrackingOnly()) {
+            notifier = controller.getEventLoopNotifier(ctx.executor());
+            notifier.add(this, () -> setThrottled(limiter.isThrottled()));
+        }
         super.handlerAdded(ctx);
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        validateUpstreamHandlers();
         super.channelActive(ctx);
         // Registration may precede activation and ServerCnx's initial auto-read setup.
-        setThrottled(limiter.isThrottled());
+        if (notifier != null) {
+            setThrottled(limiter.isThrottled());
+        }
     }
 
     @Override
     protected void handlerRemoved0(ChannelHandlerContext ctx) throws Exception {
-        notifier.remove(this);
-        notifier = null;
-        setThrottled(false);
+        if (notifier != null) {
+            notifier.remove(this);
+            notifier = null;
+            setThrottled(false);
+        }
         context = null;
         super.handlerRemoved0(ctx);
     }
 
     @Override
     protected ByteBuf extractFrame(ChannelHandlerContext ctx, ByteBuf buffer, int index, int length) {
-        // Normal decoder input is a TrackedByteBuf, whose retainedSlice implementation propagates the root. Keep
-        // this defensive wrapper in case a future cumulation path supplies an unwrapped buffer; losing the root
-        // there would make the frame's direct-memory allocation invisible until it is released.
-        RootBuffer root = rootFor(buffer);
+        // Netty must extract frames through the tracked cumulation's retainedSlice so every view carries its
+        // root. Creating a new root here would count the same cumulation once for each extracted frame.
+        if (!(buffer instanceof TrackedByteBuf)) {
+            throw new IllegalStateException("Cannot extract a frame from an untracked cumulation");
+        }
         ByteBuf frame = super.extractFrame(ctx, buffer, index, length);
         decodedFrameInReadCycle = true;
-        return frame instanceof TrackedByteBuf ? frame : new TrackedByteBuf(frame, root);
+        return frame;
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        // Also covers adding this decoder to an already-active channel. Once validated, normal reads do not
+        // inspect the pipeline; OptionalProxyProtocolDecoder explicitly validates its one-time transition.
+        if (!upstreamValidated) {
+            try {
+                validateUpstreamHandlers();
+            } catch (RuntimeException | Error error) {
+                ReferenceCountUtil.release(msg);
+                throw error;
+            }
+        }
         if (msg instanceof ByteBuf buffer) {
             receivedBufferInReadCycle = true;
             continuationReadPending = false;
-            RootBuffer root = rootFor(buffer);
-            controller.onInboundRead();
-            super.channelRead(ctx, new TrackedByteBuf(buffer, root));
+            ByteBuf tracked = track(buffer);
+            if (!controller.isTrackingOnly()) {
+                controller.onInboundRead();
+            }
+            super.channelRead(ctx, tracked);
         } else {
             super.channelRead(ctx, msg);
         }
@@ -178,30 +213,62 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
                     .writerIndex(totalBytes);
             in.readerIndex(in.writerIndex());
             toRelease = oldCumulation;
-            return new TrackedByteBuf(expanded, rootFor(expanded));
+            return track(expanded);
         } finally {
             toRelease.release();
         }
     }
 
-    private RootBuffer rootFor(ByteBuf buffer) {
-        if (buffer instanceof TrackedByteBuf trackedByteBuf) {
-            return trackedByteBuf.root;
+    // Called on the channel event loop at activation and by the PROXY protocol pipeline-change validator.
+    void validateUpstreamHandlers() {
+        ChannelHandlerContext ctx = context;
+        if (ctx == null) {
+            throw new IllegalStateException("Request-frame tracking decoder is not installed");
+        }
+        upstreamValidated = false;
+        int previousStage = -1;
+        for (var entry : ctx.pipeline()) {
+            ChannelHandler handler = entry.getValue();
+            if (handler == this) {
+                upstreamValidated = true;
+                return;
+            }
+            if (!(handler instanceof ChannelInboundHandler)) {
+                continue;
+            }
+            // Exact classes deliberately exclude subclasses that could split/replay a shared allocation.
+            // OptionalProxyProtocolDecoder is replaced by HAProxyMessageDecoder before validation is invoked.
+            Class<?> type = handler.getClass();
+            int stage;
+            if (type == FlushConsolidationHandler.class) {
+                stage = 0;
+            } else if (type == SslHandler.class) {
+                stage = 1;
+            } else if (type == OptionalProxyProtocolDecoder.class || type == HAProxyMessageDecoder.class) {
+                stage = 2;
+            } else {
+                stage = -1;
+            }
+            if (stage < 0 || stage <= previousStage) {
+                ctx.close();
+                throw new IllegalStateException("Unsupported upstream handler or order for request-frame tracking: "
+                        + entry.getKey() + " (" + type.getName() + ")");
+            }
+            previousStage = stage;
+        }
+        ctx.close();
+        throw new IllegalStateException("Request-frame tracking decoder is missing from the pipeline");
+    }
+
+    private ByteBuf track(ByteBuf buffer) {
+        if (buffer instanceof TrackedByteBuf) {
+            return buffer;
         }
         ByteBuf allocation = buffer;
         while (allocation.unwrap() != null) {
             allocation = allocation.unwrap();
         }
-        synchronized (roots) {
-            RootBuffer root = roots.get(allocation);
-            if (root == null) {
-                root = new RootBuffer(allocation, roots, controller);
-                roots.put(allocation, root);
-            } else {
-                root.retainReference(1);
-            }
-            return root;
-        }
+        return new TrackedByteBuf(buffer, new RootBuffer(allocation, controller));
     }
 
     private void setThrottled(boolean throttled) {
@@ -222,36 +289,32 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
     }
 
     private static final class RootBuffer {
+        private static final AtomicIntegerFieldUpdater<RootBuffer> REFERENCES_UPDATER =
+                AtomicIntegerFieldUpdater.newUpdater(RootBuffer.class, "references");
         private final ByteBuf buffer;
-        private final Map<ByteBuf, RootBuffer> roots;
         private final InProgressRequestFrameMemoryController controller;
         // Pooled retained views have independent Netty refCnts. Count the explicit owners of this root across
         // those views, while leaving their actual reference counting and deallocation entirely to Netty.
-        private int references = 1;
+        private volatile int references = 1;
+        // Only the decoder's event loop changes capacity, while it still owns a reference. Publishing that
+        // reference's decrement orders prior capacity/accounting updates before the last downstream release.
         private long capacity;
 
-        RootBuffer(ByteBuf buffer, Map<ByteBuf, RootBuffer> roots,
-                   InProgressRequestFrameMemoryController controller) {
+        RootBuffer(ByteBuf buffer, InProgressRequestFrameMemoryController controller) {
             this.buffer = buffer;
-            this.roots = roots;
             this.controller = controller;
             this.capacity = buffer.isDirect() ? buffer.capacity() : 0;
             controller.acquire(this.capacity);
         }
 
         void retainReference(int increment) {
-            synchronized (roots) {
-                references += increment;
-            }
+            REFERENCES_UPDATER.addAndGet(this, increment);
         }
 
         void updateCapacity() {
-            long delta;
-            synchronized (roots) {
-                long newCapacity = buffer.isDirect() ? buffer.capacity() : 0;
-                delta = newCapacity - capacity;
-                capacity = newCapacity;
-            }
+            long newCapacity = buffer.isDirect() ? buffer.capacity() : 0;
+            long delta = newCapacity - capacity;
+            capacity = newCapacity;
             if (delta > 0) {
                 controller.acquire(delta);
             } else if (delta < 0) {
@@ -260,18 +323,10 @@ final class InProgressRequestFrameTrackingDecoder extends LengthFieldBasedFrameD
         }
 
         boolean release(ByteBuf view, int decrement) {
-            boolean deallocated;
-            boolean lastReference;
-            synchronized (roots) {
-                deallocated = view.release(decrement);
-                references -= decrement;
-                lastReference = references == 0;
-                if (lastReference) {
-                    // Remove the identity before another input can register the pooled allocation after recycling.
-                    roots.remove(buffer, this);
-                }
-            }
-            if (lastReference) {
+            // Let Netty release/recycle the actual buffer first. Independent pooled views have their own
+            // Netty refCnts, so the aggregate owner count decides which release returns the tracked capacity.
+            boolean deallocated = view.release(decrement);
+            if (REFERENCES_UPDATER.addAndGet(this, -decrement) == 0) {
                 controller.release(capacity);
             }
             return deallocated;
