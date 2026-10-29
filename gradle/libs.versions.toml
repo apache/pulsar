@@ -125,7 +125,7 @@ jsonwebtoken = "0.13.0"
 athenz = "1.12.45"
 jose4j = "0.9.6"
 nimbus-jose-jwt = "9.37.4"
-auth0-java-jwt = "4.6.0"
+auth0-java-jwt = "4.6.2"
 auth0-jwks-rsa = "0.24.1"
 # CLI
 picocli = "4.7.7"
