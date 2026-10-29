@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -32,6 +33,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.TooLongFrameException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.IntConsumer;
 import org.apache.pulsar.broker.InProgressRequestFrameMemoryLimitMode;
 import org.apache.pulsar.broker.service.ServerCnxThrottleTracker.ThrottleType;
@@ -43,6 +45,10 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class InProgressRequestFrameFlowControlTest {
+    // These tests drive inbound/release events explicitly; recovery-task behavior has dedicated tests.
+    private static final ScheduledExecutorService RECOVERY_EXECUTOR =
+            mock(ScheduledExecutorService.class, RETURNS_MOCKS);
+
     @Test
     public void shouldDeliverPooledSiblingAfterTopicLimitClearsWhileMemoryIsThrottled() throws Exception {
         try (Pipeline pipeline = new Pipeline()) {
@@ -345,7 +351,7 @@ public class InProgressRequestFrameFlowControlTest {
     @Test
     public void shouldApplyLatestThresholdToExistingAndNewChannels() throws Exception {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 512, () -> 0, Long.MAX_VALUE);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 512, () -> 0, Long.MAX_VALUE);
         try (Pipeline first = new Pipeline(controller); Pipeline second = new Pipeline(controller)) {
             first.channel.writeInbound(frames(1));
             second.channel.writeInbound(frames(1));
@@ -403,7 +409,7 @@ public class InProgressRequestFrameFlowControlTest {
 
         Pipeline() throws Exception {
             this(new InProgressRequestFrameMemoryController(
-                    InProgressRequestFrameMemoryLimitMode.ENABLED, 64, () -> 0, Long.MAX_VALUE));
+                    RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 64, () -> 0, Long.MAX_VALUE));
         }
 
         Pipeline(InProgressRequestFrameMemoryController controller) throws Exception {

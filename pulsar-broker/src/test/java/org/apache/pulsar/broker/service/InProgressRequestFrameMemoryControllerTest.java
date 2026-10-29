@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.RETURNS_MOCKS;
+import static org.mockito.Mockito.mock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -26,6 +28,7 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -35,6 +38,9 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class InProgressRequestFrameMemoryControllerTest {
+    // These tests drive inbound/release events explicitly; recovery-task behavior has dedicated tests.
+    private static final ScheduledExecutorService RECOVERY_EXECUTOR =
+            mock(ScheduledExecutorService.class, RETURNS_MOCKS);
 
     @DataProvider
     public Object[][] enabledModes() {
@@ -52,8 +58,8 @@ public class InProgressRequestFrameMemoryControllerTest {
     public void shouldAccountForConcurrentUpdatesAtQuiescentPoints(InProgressRequestFrameMemoryLimitMode mode)
             throws Exception {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                mode, Long.MAX_VALUE, () -> 0, Long.MAX_VALUE);
-        int threads = 4;
+                RECOVERY_EXECUTOR, mode, Long.MAX_VALUE, () -> 0, Long.MAX_VALUE);
+        int threads = 12;
         int iterations = 5000;
         long bytes = 128 * 1024;
         CyclicBarrier barrier = new CyclicBarrier(threads + 1);
@@ -98,7 +104,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test
     public void shouldTrackUsageBeforeAutomaticActivation() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> 0, 100);
         controller.acquire(64);
         assertThat(controller.getRetainedFrameBytes()).isEqualTo(64);
         controller.release(64);
@@ -109,7 +115,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     public void shouldEnableAutomaticallyOnlyAboveThresholdAndThrottleOnNextRead() {
         AtomicLong directMemoryUsedBytes = new AtomicLong(84);
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.AUTO, 100, directMemoryUsedBytes::get, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.AUTO, 100, directMemoryUsedBytes::get, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         limiter.registerThrottleStateListener("connection", () -> { });
 
@@ -147,7 +153,8 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test(dataProvider = "enabledModes")
     public void shouldApplyLatestLimitToAllConnectionsWithoutResettingUsage(
             InProgressRequestFrameMemoryLimitMode mode) {
-        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(mode,
+        InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
+                RECOVERY_EXECUTOR, mode,
                 200, () -> 85, 100);
         InProgressRequestFrameMemoryLimiter existingConnectionLimiter = controller.getLimiter();
         AtomicInteger existingNotifications = new AtomicInteger();
@@ -191,7 +198,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test
     public void shouldSkipMemorySamplingWhenManuallyEnabled() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> {
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> {
                     throw new AssertionError("Manual mode must not sample direct-memory pressure");
                 }, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
@@ -211,7 +218,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test
     public void shouldUseLatestLimitForAutomaticActivationAndExistingConnections() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> 85, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> 85, 100);
         InProgressRequestFrameMemoryLimiter oldLimiter = controller.getLimiter();
         oldLimiter.registerThrottleStateListener("old-connection", () -> { });
         controller.updateLimitBytes(200);
@@ -231,7 +238,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test
     public void shouldDisableAutomaticModeWhenTheCurrentLimitIsDisabled() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> 85, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> 85, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         limiter.registerThrottleStateListener("connection", () -> { });
         controller.acquire(151);
@@ -256,7 +263,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test(dataProvider = "disabledLimits")
     public void shouldDisableAndReenableTheLimitForAllConnections(long disabledLimit) {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 85, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 85, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         AtomicInteger notifications = new AtomicInteger();
         limiter.registerThrottleStateListener("existing", notifications::incrementAndGet);
@@ -287,7 +294,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test
     public void shouldReuseLimiterAcrossNumericLimitChanges() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> 0, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         controller.updateLimitBytes(100);
         controller.updateLimitBytes(200);
@@ -298,7 +305,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test
     public void shouldOnlyNotifyWhenStateChangesAndNotifyNewListenerOnce() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         AtomicInteger notifications = new AtomicInteger();
         limiter.registerThrottleStateListener("first", notifications::incrementAndGet);
@@ -325,7 +332,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test
     public void shouldKeepAccountingAfterTheLastConnectionUnregisters() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         InProgressRequestFrameMemoryLimiter oldLimiter = controller.getLimiter();
         AtomicInteger oldNotifications = new AtomicInteger();
         oldLimiter.registerThrottleStateListener("old-connection", oldNotifications::incrementAndGet);
@@ -351,7 +358,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test
     public void shouldNotifyOutsideTheStateLockAndIsolateListenerFailures() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         AtomicInteger successfulNotifications = new AtomicInteger();
         limiter.registerThrottleStateListener("failing", () -> {
@@ -371,7 +378,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test
     public void shouldIgnoreUnavailableDirectMemoryMeasurements() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> -1, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> -1, 100);
         controller.acquire(151);
         controller.onInboundRead();
         assertThat(controller.isAutomaticallyEnabled()).isFalse();
@@ -393,7 +400,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     public void shouldSkipDirectMemorySamplingUntilAutomaticActivationIsPossible() {
         AtomicInteger samples = new AtomicInteger();
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> {
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> {
                     samples.incrementAndGet();
                     return 85;
                 }, 100);
@@ -413,7 +420,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test(timeOut = 30_000)
     public void shouldNotLoseLastReleaseRacingWithAnInboundRead() throws Exception {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         limiter.registerThrottleStateListener("connection", () -> { });
         CyclicBarrier barrier = new CyclicBarrier(2);
@@ -447,7 +454,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test
     public void shouldNeverLimitOrSampleDirectMemoryWhenTrackingOnly() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.TRACKING, 100, () -> {
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.TRACKING, 100, () -> {
                     throw new AssertionError("Metrics-only mode must not sample direct-memory pressure");
                 }, 100);
         InProgressRequestFrameMemoryLimiter oldLimiter = controller.getLimiter();
@@ -480,7 +487,7 @@ public class InProgressRequestFrameMemoryControllerTest {
         CompletableFuture<Void> sampling = new CompletableFuture<>();
         CompletableFuture<Long> sample = new CompletableFuture<>();
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> {
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.AUTO, 100, () -> {
                     sampling.complete(null);
                     return sample.join();
                 }, 100);
@@ -506,7 +513,7 @@ public class InProgressRequestFrameMemoryControllerTest {
     @Test(timeOut = 30_000)
     public void shouldNotLoseLastReleaseRacingWithLoweringTheLimit() throws Exception {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 1000, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 1000, () -> 0, 100);
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         limiter.registerThrottleStateListener("connection", () -> { });
         CyclicBarrier barrier = new CyclicBarrier(2);

@@ -409,7 +409,7 @@ public class BrokerService implements Closeable {
                 configuration.getInProgressRequestFrameMemoryLimitEnabled();
         this.inProgressRequestFrameMemoryController =
                 requestFrameMemoryMode == InProgressRequestFrameMemoryLimitMode.DISABLED ? null
-                        : new InProgressRequestFrameMemoryController(requestFrameMemoryMode,
+                        : new InProgressRequestFrameMemoryController(pulsar.getExecutor(), requestFrameMemoryMode,
                                 requestFrameMemoryLimitBytes, JvmMetrics::getJvmDirectMemoryUsed,
                                 DirectMemoryUtils.jvmMaxDirectMemory());
         this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock(), producer -> {
@@ -1068,6 +1068,9 @@ public class BrokerService implements Closeable {
     public CompletableFuture<Void> closeAsync() {
         try {
             log.info("Shutting down Pulsar Broker service");
+            if (inProgressRequestFrameMemoryController != null) {
+                inProgressRequestFrameMemoryController.close();
+            }
 
             // shutdown executor for ledger deletion
             if (ledgerDeletionExecutorProvider != null) {

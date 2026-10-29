@@ -25,7 +25,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.StampedLock;
 import java.util.function.LongSupplier;
@@ -35,19 +38,25 @@ import org.apache.pulsar.broker.InProgressRequestFrameMemoryLimitMode;
 /**
  * Accounts for all retained inbound roots in a broker and controls its shared request-frame limiter.
  * All connections use the latest dynamically configured limit and the same memory counter.
- * TRACKING uses a striped metrics counter; modes that can throttle use an atomic counter for policy decisions.
+ * A striped counter reduces contention across I/O and release threads. Threshold decisions accept approximate
+ * snapshots; while throttled, periodic recovery checks prevent a missed release from leaving connections paused.
  * State transitions and registration take the write lock; ordinary policy checks use an optimistic read.
  * Callbacks always run outside the lock and production notifications are coalesced on each connection event loop.
  */
 @CustomLog
-final class InProgressRequestFrameMemoryController {
+final class InProgressRequestFrameMemoryController implements AutoCloseable {
     private static final int ENABLE_DIRECT_MEMORY_USAGE_PERCENT = 85;
     private static final int DISABLE_DIRECT_MEMORY_USAGE_PERCENT = 65;
 
-    // The mode is fixed at startup, so only one counter is allocated and no live migration is needed.
-    // LongAdder.sum() is not an atomic snapshot: use it only for TRACKING metrics, never to decide throttling.
-    private final LongAdder trackingRetainedFrameBytes;
-    private final AtomicLong retainedFrameBytes;
+    private static final long RECOVERY_CHECK_INTERVAL_MILLIS = 300;
+
+    // sum() can overestimate or underestimate concurrent usage. This is a soft limit, not a reservation;
+    // root ownership still uses an exact reference count so every capacity is returned exactly once.
+    private final LongAdder retainedFrameBytes = new LongAdder();
+    private final ScheduledExecutorService recoveryExecutor;
+    // Owned by stateLock together with throttle transitions; the executor belongs to PulsarService.
+    private ScheduledFuture<?> recoveryTask;
+    private volatile boolean closed;
     private final StampedLock stateLock = new StampedLock();
     private final Map<EventExecutor, InProgressRequestFrameMemoryNotifier> eventLoopNotifiers = new HashMap<>();
     private final Map<Object, Runnable> throttleStateListeners = new HashMap<>();
@@ -58,11 +67,11 @@ final class InProgressRequestFrameMemoryController {
     private boolean automaticallyEnabled;
     private long automaticEnableThresholdBytes;
 
-    InProgressRequestFrameMemoryController(InProgressRequestFrameMemoryLimitMode mode, long limitBytes,
+    InProgressRequestFrameMemoryController(ScheduledExecutorService recoveryExecutor,
+                                          InProgressRequestFrameMemoryLimitMode mode, long limitBytes,
                                           LongSupplier directMemoryUsedBytesSupplier, long maxDirectMemoryBytes) {
         this.mode = requireNonNull(mode);
-        trackingRetainedFrameBytes = isTrackingOnly() ? new LongAdder() : null;
-        retainedFrameBytes = isTrackingOnly() ? null : new AtomicLong();
+        this.recoveryExecutor = requireNonNull(recoveryExecutor);
         this.directMemoryUsedBytesSupplier = directMemoryUsedBytesSupplier;
         this.maxDirectMemoryBytes = maxDirectMemoryBytes;
         automaticEnableThresholdBytes = automaticEnableThresholdBytes(limitBytes);
@@ -74,7 +83,7 @@ final class InProgressRequestFrameMemoryController {
     }
 
     long getRetainedFrameBytes() {
-        return trackingRetainedFrameBytes != null ? trackingRetainedFrameBytes.sum() : retainedFrameBytes.get();
+        return retainedFrameBytes.sum();
     }
 
     boolean isTrackingOnly() {
@@ -94,7 +103,7 @@ final class InProgressRequestFrameMemoryController {
     boolean isEnabled() {
         long stamp = stateLock.readLock();
         try {
-            return mode == InProgressRequestFrameMemoryLimitMode.ENABLED || automaticallyEnabled;
+            return !closed && (mode == InProgressRequestFrameMemoryLimitMode.ENABLED || automaticallyEnabled);
         } finally {
             stateLock.unlockRead(stamp);
         }
@@ -129,25 +138,14 @@ final class InProgressRequestFrameMemoryController {
     }
 
     void acquire(long bytes) {
-        if (trackingRetainedFrameBytes != null) {
-            trackingRetainedFrameBytes.add(bytes);
-        } else {
-            retainedFrameBytes.addAndGet(bytes);
-        }
+        retainedFrameBytes.add(bytes);
     }
 
     void release(long bytes) {
-        if (trackingRetainedFrameBytes != null) {
-            trackingRetainedFrameBytes.add(-bytes);
-            return;
-        }
-        // Subtract before reading the stamp. A concurrent writer must either see the lower usage, or invalidate
-        // our optimistic read so that we recheck after its transition. Otherwise the last release could miss
-        // a writer about to pause connections, leaving them paused with no future event available to resume them.
-        retainedFrameBytes.addAndGet(-bytes);
+        retainedFrameBytes.add(-bytes);
+        // Usually resume immediately. A concurrent sum can miss the final release; the throttled-only task
+        // retries even when paused connections cannot supply another inbound read. TRACKING skips all checks.
         updateState(false);
-        // No periodic task is needed: new throttling only affects subsequent inbound reads. Root releases must
-        // still trigger recovery, since a paused connection cannot supply the next inbound event itself.
     }
 
     void onInboundRead() {
@@ -157,12 +155,12 @@ final class InProgressRequestFrameMemoryController {
     private void updateState(boolean inboundRead) {
         // The startup-only mode is immutable: metrics-only accounting never needs policy synchronization,
         // even when the numeric limit changes. AUTO still checks pressure and releases must still resume reads.
-        if (isTrackingOnly()) {
+        if (isTrackingOnly() || closed) {
             return;
         }
         long stamp = stateLock.tryOptimisticRead();
         boolean enabled = mode == InProgressRequestFrameMemoryLimitMode.ENABLED || automaticallyEnabled;
-        long usedBytes = retainedFrameBytes.get();
+        long usedBytes = getRetainedFrameBytes();
         boolean checkAutomaticMode = mode == InProgressRequestFrameMemoryLimitMode.AUTO
                 && maxDirectMemoryBytes > 0
                 && (automaticallyEnabled || inboundRead && automaticEnableThresholdBytes > 0
@@ -191,11 +189,15 @@ final class InProgressRequestFrameMemoryController {
         List<Runnable> notifications;
         stamp = stateLock.writeLock();
         try {
+            if (closed) {
+                return;
+            }
             boolean previouslyEnabled = mode == InProgressRequestFrameMemoryLimitMode.ENABLED || automaticallyEnabled;
             automaticStateChange = updateAutomaticLimitEnabledState(directMemoryUsedBytes, inboundRead);
             // Automatic activation only enables the policy; the next inbound read enforces it. Releases may
             // resume connections, but never start throttling. Read usage inside the write lock, not before it.
-            notifications = updateThrottleState(inboundRead && previouslyEnabled);
+            notifications = updateThrottleState(inboundRead && previouslyEnabled)
+                    ? new ArrayList<>(throttleStateListeners.values()) : List.of();
         } finally {
             stateLock.unlockWrite(stamp);
         }
@@ -207,7 +209,7 @@ final class InProgressRequestFrameMemoryController {
         List<Runnable> notifications;
         long stamp = stateLock.writeLock();
         try {
-            if (limiter.getLimitBytes() == limitBytes) {
+            if (closed || limiter.getLimitBytes() == limitBytes) {
                 return;
             }
             automaticEnableThresholdBytes = automaticEnableThresholdBytes(limitBytes);
@@ -217,7 +219,7 @@ final class InProgressRequestFrameMemoryController {
             // Keep the same limiter for existing and future connections. Re-evaluate retained memory now:
             // a paused connection cannot provide a new read to observe a raised or disabled limit.
             limiter.setLimitBytes(limitBytes);
-            notifications = updateThrottleState(true);
+            notifications = updateThrottleState(true) ? new ArrayList<>(throttleStateListeners.values()) : List.of();
         } finally {
             stateLock.unlockWrite(stamp);
         }
@@ -228,10 +230,12 @@ final class InProgressRequestFrameMemoryController {
         List<Runnable> notifications;
         long stamp = stateLock.writeLock();
         try {
+            if (closed) {
+                return;
+            }
             throttleStateListeners.put(key, listener);
             boolean manuallyEnabled = mode == InProgressRequestFrameMemoryLimitMode.ENABLED;
-            boolean enabled = manuallyEnabled || automaticallyEnabled;
-            if (limiter.updateThrottledState(enabled, enabled ? retainedFrameBytes.get() : 0, manuallyEnabled)) {
+            if (updateThrottleState(manuallyEnabled)) {
                 notifications = new ArrayList<>(throttleStateListeners.values());
             } else {
                 notifications = limiter.isThrottled() ? List.of(listener) : List.of();
@@ -251,20 +255,69 @@ final class InProgressRequestFrameMemoryController {
         }
     }
 
-    private List<Runnable> updateThrottleState(boolean allowNewThrottle) {
-        boolean enabled = mode == InProgressRequestFrameMemoryLimitMode.ENABLED || automaticallyEnabled;
-        // TRACKING never consults its approximate sum for a policy decision, including numeric limit updates.
-        long usedBytes = enabled ? retainedFrameBytes.get() : 0;
-        return limiter.updateThrottledState(enabled, usedBytes, allowNewThrottle)
-                ? new ArrayList<>(throttleStateListeners.values()) : List.of();
+    // Called under the write lock for every transition, including configuration changes and new listeners.
+    private boolean updateThrottleState(boolean allowNewThrottle) {
+        boolean previouslyThrottled = limiter.isThrottled();
+        boolean enabled = !closed
+                && (mode == InProgressRequestFrameMemoryLimitMode.ENABLED || automaticallyEnabled);
+        limiter.updateThrottledState(enabled, enabled ? getRetainedFrameBytes() : 0, allowNewThrottle);
+        if (limiter.isThrottled()) {
+            if (recoveryTask == null) {
+                try {
+                    recoveryTask = recoveryExecutor.scheduleWithFixedDelay(this::checkRecovery,
+                            RECOVERY_CHECK_INTERVAL_MILLIS, RECOVERY_CHECK_INTERVAL_MILLIS, TimeUnit.MILLISECONDS);
+                } catch (RejectedExecutionException error) {
+                    // Never pause connections without the recovery fallback, including during executor shutdown.
+                    limiter.updateThrottledState(false, 0, false);
+                    log.warn().exception(error).log("Unable to schedule request-frame memory recovery checks");
+                    // A decoder may have observed the briefly published throttle flag. Notify it to resume.
+                    return true;
+                }
+            }
+        } else if (recoveryTask != null) {
+            recoveryTask.cancel(false);
+            recoveryTask = null;
+        }
+        return previouslyThrottled != limiter.isThrottled();
+    }
+
+    private void checkRecovery() {
+        try {
+            if (!closed && limiter.isThrottled()) {
+                // Recovery only: this task must not activate AUTO or start another throttle period. It runs
+                // only while reads are paused; ordinary inbound/release events still handle policy changes.
+                updateState(false);
+            }
+        } catch (RuntimeException error) {
+            // Scheduled executors suppress subsequent executions after an exception. Keep the fallback alive.
+            log.warn().exception(error).log("Failed to check request-frame memory recovery");
+        }
+    }
+
+    @Override
+    public void close() {
+        List<Runnable> notifications;
+        long stamp = stateLock.writeLock();
+        try {
+            closed = true;
+            automaticallyEnabled = false;
+            notifications = updateThrottleState(false) ? new ArrayList<>(throttleStateListeners.values()) : List.of();
+            throttleStateListeners.clear();
+            eventLoopNotifiers.clear();
+        } finally {
+            stateLock.unlockWrite(stamp);
+        }
+        // Outstanding roots can still release their capacity after shutdown; no task can be restarted.
+        notifyThrottleStateListeners(notifications);
     }
 
     private long sampleDirectMemoryUsage(boolean allowEnable) {
         long stamp = stateLock.readLock();
         try {
-            if (mode != InProgressRequestFrameMemoryLimitMode.AUTO || maxDirectMemoryBytes <= 0 || !automaticallyEnabled
+            if (closed || mode != InProgressRequestFrameMemoryLimitMode.AUTO
+                    || maxDirectMemoryBytes <= 0 || !automaticallyEnabled
                     && (!allowEnable || automaticEnableThresholdBytes <= 0
-                            || retainedFrameBytes.get() <= automaticEnableThresholdBytes)) {
+                            || getRetainedFrameBytes() <= automaticEnableThresholdBytes)) {
                 return -1;
             }
         } finally {
@@ -279,7 +332,7 @@ final class InProgressRequestFrameMemoryController {
             return null;
         }
         boolean previouslyEnabled = automaticallyEnabled;
-        long usedBytes = retainedFrameBytes.get();
+        long usedBytes = getRetainedFrameBytes();
         if (automaticallyEnabled) {
             if (directMemoryUsedBytes < percentageOf(maxDirectMemoryBytes, DISABLE_DIRECT_MEMORY_USAGE_PERCENT)) {
                 automaticallyEnabled = false;

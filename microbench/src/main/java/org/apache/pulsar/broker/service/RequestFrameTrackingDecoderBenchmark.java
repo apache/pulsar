@@ -51,13 +51,15 @@ public class RequestFrameTrackingDecoderBenchmark {
 
         @Setup
         public void setup() {
-            controller = controller();
-            channel = new EmbeddedChannel(new InProgressRequestFrameTrackingDecoder(1024, controller.getLimiter()));
+            channel = new EmbeddedChannel();
+            controller = controller(channel);
+            channel.pipeline().addLast(new InProgressRequestFrameTrackingDecoder(1024, controller.getLimiter()));
         }
 
         @TearDown
         public void cleanup() {
             channel.finishAndReleaseAll();
+            controller.close();
             if (controller.getRetainedFrameBytes() != 0) {
                 throw new IllegalStateException("Unbalanced decoded root accounting");
             }
@@ -76,8 +78,9 @@ public class RequestFrameTrackingDecoderBenchmark {
 
         @Setup
         public void setup() {
-            controller = controller();
-            channel = new EmbeddedChannel(new InProgressRequestFrameTrackingDecoder(1024, controller.getLimiter()));
+            channel = new EmbeddedChannel();
+            controller = controller(channel);
+            channel.pipeline().addLast(new InProgressRequestFrameTrackingDecoder(1024, controller.getLimiter()));
             int roots = "independentRoots".equals(ownership) ? 16 : 1;
             int framesPerRoot = "siblingFrames".equals(ownership) ? 16 : 1;
             int capacity = framesPerRoot == 1 ? 128 : 256;
@@ -104,6 +107,7 @@ public class RequestFrameTrackingDecoderBenchmark {
                 frame.release();
             }
             channel.finishAndReleaseAll();
+            controller.close();
             if (controller.getRetainedFrameBytes() != 0) {
                 throw new IllegalStateException("Unbalanced shared root accounting");
             }
@@ -126,8 +130,9 @@ public class RequestFrameTrackingDecoderBenchmark {
         return frame.retainedDuplicate().release();
     }
 
-    private static InProgressRequestFrameMemoryController controller() {
-        return new InProgressRequestFrameMemoryController(InProgressRequestFrameMemoryLimitMode.TRACKING,
+    private static InProgressRequestFrameMemoryController controller(EmbeddedChannel channel) {
+        return new InProgressRequestFrameMemoryController(channel.eventLoop(),
+                InProgressRequestFrameMemoryLimitMode.TRACKING,
                 Long.MAX_VALUE, () -> 0, Long.MAX_VALUE);
     }
 }

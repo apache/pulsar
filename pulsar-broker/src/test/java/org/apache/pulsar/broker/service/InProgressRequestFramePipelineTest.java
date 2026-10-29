@@ -20,6 +20,8 @@ package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.RETURNS_MOCKS;
+import static org.mockito.Mockito.mock;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
@@ -36,6 +38,7 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.ReferenceCountUtil;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.ScheduledExecutorService;
 import org.apache.pulsar.broker.InProgressRequestFrameMemoryLimitMode;
 import org.apache.pulsar.common.protocol.OptionalProxyProtocolDecoder;
 import org.testng.annotations.DataProvider;
@@ -43,6 +46,10 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class InProgressRequestFramePipelineTest {
+    // These tests drive inbound/release events explicitly; recovery-task behavior has dedicated tests.
+    private static final ScheduledExecutorService RECOVERY_EXECUTOR =
+            mock(ScheduledExecutorService.class, RETURNS_MOCKS);
+
     @DataProvider
     public Object[][] proxyInputs() {
         return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
@@ -226,7 +233,8 @@ public class InProgressRequestFramePipelineTest {
     }
 
     private static InProgressRequestFrameMemoryController controller() {
-        return new InProgressRequestFrameMemoryController(InProgressRequestFrameMemoryLimitMode.TRACKING,
+        return new InProgressRequestFrameMemoryController(RECOVERY_EXECUTOR,
+                InProgressRequestFrameMemoryLimitMode.TRACKING,
                 64, () -> 0, Long.MAX_VALUE);
     }
 }

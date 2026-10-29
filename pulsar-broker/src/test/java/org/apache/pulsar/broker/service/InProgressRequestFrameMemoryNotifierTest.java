@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -29,6 +30,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.EventExecutor;
 import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.InProgressRequestFrameMemoryLimitMode;
@@ -36,10 +38,14 @@ import org.testng.annotations.Test;
 
 @Test(groups = "broker")
 public class InProgressRequestFrameMemoryNotifierTest {
+    // These tests drive inbound/release events explicitly; recovery-task behavior has dedicated tests.
+    private static final ScheduledExecutorService RECOVERY_EXECUTOR =
+            mock(ScheduledExecutorService.class, RETURNS_MOCKS);
+
     @Test
     public void shouldCoalesceExistingAndNewConnectionsAcrossLimitChangesOnOneEventLoop() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         EventExecutor executor = mock(EventExecutor.class);
         Queue<Runnable> tasks = new ArrayDeque<>();
         doAnswer(invocation -> tasks.add(invocation.getArgument(0))).when(executor).execute(any(Runnable.class));
@@ -82,7 +88,7 @@ public class InProgressRequestFrameMemoryNotifierTest {
     @Test
     public void shouldDeliverRecoverySignalledWhileApplyingThrottle() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         EventExecutor executor = mock(EventExecutor.class);
         Queue<Runnable> tasks = new ArrayDeque<>();
         doAnswer(invocation -> tasks.add(invocation.getArgument(0))).when(executor).execute(any(Runnable.class));
@@ -109,7 +115,7 @@ public class InProgressRequestFrameMemoryNotifierTest {
     @Test
     public void shouldAllowRemovalDuringNotificationAndIgnoreClosedConnections() {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         EventExecutor executor = mock(EventExecutor.class);
         Queue<Runnable> tasks = new ArrayDeque<>();
         doAnswer(invocation -> tasks.add(invocation.getArgument(0))).when(executor).execute(any(Runnable.class));
@@ -131,7 +137,7 @@ public class InProgressRequestFrameMemoryNotifierTest {
     @Test(timeOut = 30_000)
     public void shouldApplyWorkerThreadRecoveryOnTheOwningEventLoop() throws Exception {
         InProgressRequestFrameMemoryController controller = new InProgressRequestFrameMemoryController(
-                InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
+                RECOVERY_EXECUTOR, InProgressRequestFrameMemoryLimitMode.ENABLED, 100, () -> 0, 100);
         DefaultEventLoop eventLoop = new DefaultEventLoop(new DefaultThreadFactory("frame-memory-notifications"));
         InProgressRequestFrameMemoryLimiter limiter = controller.getLimiter();
         InProgressRequestFrameMemoryNotifier notifier = controller.getEventLoopNotifier(eventLoop);

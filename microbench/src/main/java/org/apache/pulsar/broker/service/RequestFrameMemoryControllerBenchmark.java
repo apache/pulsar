@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.broker.InProgressRequestFrameMemoryLimitMode;
 import org.openjdk.jmh.annotations.Benchmark;
@@ -45,6 +47,7 @@ public class RequestFrameMemoryControllerBenchmark {
     @Param({"tracking", "autoInactive", "autoActive", "enabled"})
     public String mode;
     private InProgressRequestFrameMemoryController controller;
+    private ScheduledThreadPoolExecutor recoveryExecutor;
 
     @Setup(Level.Trial)
     public void setup() {
@@ -55,7 +58,9 @@ public class RequestFrameMemoryControllerBenchmark {
             case "enabled" -> InProgressRequestFrameMemoryLimitMode.ENABLED;
             default -> InProgressRequestFrameMemoryLimitMode.AUTO;
         };
-        controller = new InProgressRequestFrameMemoryController(limitMode, limitBytes,
+        recoveryExecutor = new ScheduledThreadPoolExecutor(1, new DefaultThreadFactory("frame-memory-benchmark"));
+        recoveryExecutor.setRemoveOnCancelPolicy(true);
+        controller = new InProgressRequestFrameMemoryController(recoveryExecutor, limitMode, limitBytes,
                 () -> "autoActive".equals(mode) ? maximumDirectMemory * 9 / 10 : 0, maximumDirectMemory);
         controller.getLimiter().registerThrottleStateListener(this, () -> { });
         if ("autoActive".equals(mode)) {
@@ -84,9 +89,14 @@ public class RequestFrameMemoryControllerBenchmark {
 
     @TearDown(Level.Trial)
     public void cleanup() {
-        if (controller.getRetainedFrameBytes() != 0) {
-            throw new IllegalStateException("Unbalanced root accounting");
+        try {
+            if (controller.getRetainedFrameBytes() != 0) {
+                throw new IllegalStateException("Unbalanced root accounting");
+            }
+            controller.getLimiter().unregisterThrottleStateListener(this);
+        } finally {
+            controller.close();
+            recoveryExecutor.shutdownNow();
         }
-        controller.getLimiter().unregisterThrottleStateListener(this);
     }
 }
