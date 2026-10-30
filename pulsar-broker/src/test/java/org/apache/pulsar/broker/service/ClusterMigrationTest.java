@@ -28,6 +28,7 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -40,19 +41,23 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Factory;
@@ -60,7 +65,7 @@ import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "cluster-migration")
-public class ClusterMigrationTest {
+public class ClusterMigrationTest extends TestRetrySupport {
 
     protected String methodName;
 
@@ -91,6 +96,10 @@ public class ClusterMigrationTest {
 
     String loadManagerClassName;
 
+    // The clients share their thread pools, so closing one doesn't wait out the 2 s quiet period of shutting down its
+    // own event loop
+    PulsarClientSharedResources clientResources;
+
     @DataProvider(name = "NamespaceMigrationTopicSubscriptionTypes")
     public Object[][] namespaceMigrationSubscriptionTypes() {
         return new Object[][] {
@@ -113,15 +122,18 @@ public class ClusterMigrationTest {
         this.loadManagerClassName = loadManagerClassName;
     }
 
-    @BeforeMethod(alwaysRun = true, timeOut = 300000)
+    @Override
+    @BeforeClass(alwaysRun = true, timeOut = 300000)
     public void setup() throws Exception {
+        incrementSetupNumber();
 
         log.info("--- Starting ReplicatorTestBase::setup ---");
 
-        broker1 = new TestBroker("r1", loadManagerClassName);
-        broker2 = new TestBroker("r2", loadManagerClassName);
-        broker3 = new TestBroker("r3", loadManagerClassName);
-        broker4 = new TestBroker("r4", loadManagerClassName);
+        clientResources = PulsarClientSharedResources.builder().build();
+        broker1 = new TestBroker("r1", loadManagerClassName, clientResources);
+        broker2 = new TestBroker("r2", loadManagerClassName, clientResources);
+        broker3 = new TestBroker("r3", loadManagerClassName, clientResources);
+        broker4 = new TestBroker("r4", loadManagerClassName, clientResources);
 
         pulsar1 = broker1.getPulsarService();
         url1 = new URL(pulsar1.getWebServiceAddress());
@@ -226,17 +238,43 @@ public class ClusterMigrationTest {
         }
     }
 
-    @AfterMethod(alwaysRun = true, timeOut = 300000)
+    /**
+     * The brokers are shared by the test methods. Undo the migration settings a previous method enabled and pick up
+     * the brokers it restarted. After a failed method, {@link TestRetrySupport} replaces the brokers instead.
+     */
+    @BeforeMethod(alwaysRun = true)
+    public void resetMigration() throws Exception {
+        pulsar1 = broker1.getPulsarService();
+        pulsar2 = broker2.getPulsarService();
+        pulsar3 = broker3.getPulsarService();
+        pulsar4 = broker4.getPulsarService();
+        admin1.clusters().updateClusterMigration("r1", false, new ClusterUrl());
+        admin1.namespaces().updateMigrationState(namespace, false);
+        pulsar1.getConfig().setClusterMigrationAutoResourceCreation(false);
+    }
+
+    @Override
+    @AfterClass(alwaysRun = true, timeOut = 300000)
     protected void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
-        admin1.close();
-        admin2.close();
-        admin3.close();
-        admin4.close();
-        broker1.cleanup();
-        broker2.cleanup();
-        broker3.cleanup();
-        broker4.cleanup();
+        // setup() may have failed part way, and TestRetrySupport may call this method again
+        for (PulsarAdmin admin : Arrays.asList(admin1, admin2, admin3, admin4)) {
+            if (admin != null) {
+                admin.close();
+            }
+        }
+        for (TestBroker broker : Arrays.asList(broker1, broker2, broker3, broker4)) {
+            if (broker != null) {
+                broker.cleanup();
+            }
+        }
+        if (clientResources != null) {
+            clientResources.close();
+        }
+        admin1 = admin2 = admin3 = admin4 = null;
+        broker1 = broker2 = broker3 = broker4 = null;
+        clientResources = null;
     }
 
     @BeforeMethod(alwaysRun = true)
@@ -270,6 +308,7 @@ public class ClusterMigrationTest {
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // cluster-1 producer/consumer
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false)
@@ -291,6 +330,7 @@ public class ClusterMigrationTest {
 
         @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // cluster-2 producer/consumer
         Producer<byte[]> producer2 = client2.newProducer().topic(topicName).enableBatching(false)
@@ -442,11 +482,16 @@ public class ClusterMigrationTest {
         final String topicName = BrokerTestUtil
                 .newUniqueName("persistent://" + namespace + "/migrationTopic");
 
+        // The producers retry while the replication backlog holds back their migration: cap the backoff so that they
+        // reach the green cluster soon after the backlog drains
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .maxBackoffInterval(1, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         @Cleanup
         PulsarClient client3 = PulsarClient.builder().serviceUrl(url3.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // cluster-1 producer/consumer
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false)
@@ -484,6 +529,7 @@ public class ClusterMigrationTest {
 
         @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // cluster-2 producer/consumer
         Producer<byte[]> producer2 = client2.newProducer().topic(topicName).enableBatching(false)
@@ -524,7 +570,7 @@ public class ClusterMigrationTest {
         // verify that the replication backlog drains once service in cluster "r3" is restarted.
         // The replicator from r1 needs to reconnect to the restarted broker3, which may take time
         // as the new broker's load manager channel needs to be fully initialized.
-        Awaitility.await().atMost(60, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+        Awaitility.await().atMost(60, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertFalse(topic1.isReplicationBacklogExist()));
 
         // verify that the producer1 is now connected to migrated cluster "r2" since backlog is cleared.
@@ -533,7 +579,7 @@ public class ClusterMigrationTest {
         // verify that the producer1 is now connected to migrated cluster "r2" since backlog is cleared.
         // The producer reconnection uses exponential backoff after TopicMigratedException, so
         // it may take a while for the producer to reconnect to the migrated cluster.
-        Awaitility.await().atMost(90, TimeUnit.SECONDS).pollInterval(1, TimeUnit.SECONDS)
+        Awaitility.await().atMost(90, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertEquals(topic2.getProducers().size(), 2));
 
         client1.close();
@@ -577,6 +623,7 @@ public class ClusterMigrationTest {
         broker1.getPulsarService().getConfig().setClusterMigrationAutoResourceCreation(true);
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // cluster-1 producer/consumer
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).enableBatching(false)
@@ -671,6 +718,7 @@ public class ClusterMigrationTest {
 
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // blue cluster - namespace1 - producer/consumer
         Producer<byte[]> blueProducerNs11 = client1.newProducer().topic(topicName).enableBatching(false)
@@ -707,6 +755,7 @@ public class ClusterMigrationTest {
 
         @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // green cluster - namespace1 - producer/consumer
         Producer<byte[]> greenProducerNs11 = client2.newProducer().topic(topicName).enableBatching(false)
@@ -858,7 +907,7 @@ public class ClusterMigrationTest {
         String newTopicName = topicName + "-new";
         consumerM = client1.newConsumer().topic(newTopicName).subscriptionType(subType)
                 .subscriptionName("sM").subscribe();
-        retryStrategically((t) -> pulsar1.getBrokerService().getTopicReference(newTopicName).isPresent(), 5, 100);
+        retryStrategically((t) -> pulsar2.getBrokerService().getTopicReference(newTopicName).isPresent(), 5, 100);
         pulsar2.getBrokerService().getTopicReference(newTopicName).get().checkClusterMigration().get();
         retryStrategically((t) ->
                 pulsar2.getBrokerService().getTopicReference(newTopicName).isPresent()
@@ -936,6 +985,11 @@ public class ClusterMigrationTest {
 
     @SuppressWarnings("deprecation")
     public void testMigrationWithReader() throws Exception {
+        // The reader must receive the green cluster's messages although their ids are lower than the last id it read
+        // on the blue cluster (https://github.com/apache/pulsar/pull/23693). Only new clusters give the topic the
+        // same ledger id on both, which makes them lower: the shared ones have created different numbers of ledgers.
+        cleanup();
+        setup();
         final String topicName = BrokerTestUtil
                 .newUniqueName("persistent://" + namespace + "/migrationTopic");
 
@@ -943,6 +997,7 @@ public class ClusterMigrationTest {
         PulsarClient client1 = PulsarClient.builder()
                 .serviceUrl(url1.toString())
                 .statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // cluster-1 producer/reader
         Producer<byte[]> producer1 = client1.newProducer()
@@ -974,6 +1029,7 @@ public class ClusterMigrationTest {
         PulsarClient client2 = PulsarClient.builder()
                 .serviceUrl(url2.toString())
                 .statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // cluster-2 producer
         Producer<byte[]> producer2 = client2.newProducer()
@@ -1057,11 +1113,16 @@ public class ClusterMigrationTest {
         final String topicName2 = BrokerTestUtil
                 .newUniqueName("persistent://" + namespaceNotToMigrate + "/migrationTopic");
 
+        // The producers retry while the replication backlog holds back their migration: cap the backoff so that they
+        // reach the green cluster soon after the backlog drains
         @Cleanup
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .maxBackoffInterval(1, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         @Cleanup
         PulsarClient client3 = PulsarClient.builder().serviceUrl(url3.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // blue cluster - namespace1 - producer/consumer
         Producer<byte[]> blueProducerNs11 = client1.newProducer().topic(topicName).enableBatching(false)
@@ -1124,6 +1185,7 @@ public class ClusterMigrationTest {
 
         @Cleanup
         PulsarClient client2 = PulsarClient.builder().serviceUrl(url2.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .sharedResources(clientResources)
                 .build();
         // green cluster - namespace1 -  producer/consumer
         Producer<byte[]> greenProducerNs11 = client2.newProducer().topic(topicName).enableBatching(false)
@@ -1169,11 +1231,11 @@ public class ClusterMigrationTest {
         blueProducerNs21.sendAsync("test1".getBytes());
 
         // producer is disconnected from blue
-        retryStrategically((test) -> blueTopicNs1.getProducers().isEmpty(), 10, 500);
-        assertTrue(blueTopicNs1.getProducers().isEmpty());
+        Awaitility.await().atMost(30, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertTrue(blueTopicNs1.getProducers().isEmpty()));
         if (isClusterMigrate) {
-            retryStrategically((test) -> blueTopicNs2.getProducers().isEmpty(), 10, 500);
-            assertTrue(blueTopicNs2.getProducers().isEmpty());
+            Awaitility.await().atMost(30, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertTrue(blueTopicNs2.getProducers().isEmpty()));
         } else {
             retryStrategically((test) -> !blueTopicNs2.getProducers().isEmpty(), 10, 500);
             assertFalse(blueTopicNs2.getProducers().isEmpty());
@@ -1190,23 +1252,23 @@ public class ClusterMigrationTest {
         pulsar3 = broker3.getPulsarService();
 
         // verify that the replication backlog drains once service in cluster "r3" is restarted.
-        retryStrategically((test) -> !blueTopicNs1.isReplicationBacklogExist(), 10, 1000);
-        assertFalse(blueTopicNs1.isReplicationBacklogExist());
-        retryStrategically((test) -> !blueTopicNs2.isReplicationBacklogExist(), 10, 1000);
-        assertFalse(blueTopicNs2.isReplicationBacklogExist());
+        Awaitility.await().atMost(60, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertFalse(blueTopicNs1.isReplicationBacklogExist()));
+        Awaitility.await().atMost(60, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertFalse(blueTopicNs2.isReplicationBacklogExist()));
 
         blueTopicNs1.checkClusterMigration().get();
         blueTopicNs2.checkClusterMigration().get();
 
         // verify that the producer1 is now is now connected to migrated cluster green since backlog is cleared.
-        retryStrategically((test) -> greenTopicNs1.getProducers().size() == 2, 10, 500);
-        assertEquals(greenTopicNs1.getProducers().size(), 2);
+        Awaitility.await().atMost(30, TimeUnit.SECONDS)
+                .untilAsserted(() -> assertEquals(greenTopicNs1.getProducers().size(), 2));
         if (isClusterMigrate) {
-            retryStrategically((test) -> greenTopicNs2.getProducers().size() == 2, 10, 500);
-            assertEquals(greenTopicNs2.getProducers().size(), 2);
+            Awaitility.await().atMost(30, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(greenTopicNs2.getProducers().size(), 2));
         } else {
-            retryStrategically((test) -> greenTopicNs2.getProducers().size() == 1, 10, 500);
-            assertEquals(greenTopicNs2.getProducers().size(), 1);
+            Awaitility.await().atMost(30, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertEquals(greenTopicNs2.getProducers().size(), 1));
         }
 
         // clean up
@@ -1225,11 +1287,19 @@ public class ClusterMigrationTest {
 
         private String clusterName;
         private String loadManagerClassName;
+        private PulsarClientSharedResources clientResources;
 
-        public TestBroker(String clusterName, String loadManagerClassName) throws Exception {
+        public TestBroker(String clusterName, String loadManagerClassName,
+                          PulsarClientSharedResources clientResources) throws Exception {
             this.clusterName = clusterName;
             this.loadManagerClassName = loadManagerClassName;
+            this.clientResources = clientResources;
             setup();
+        }
+
+        @Override
+        protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+            clientBuilder.sharedResources(clientResources);
         }
 
         @Override
