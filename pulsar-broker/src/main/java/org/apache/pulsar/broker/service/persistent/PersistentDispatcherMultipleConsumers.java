@@ -118,6 +118,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
     private boolean sendInProgress = false;
+    // Normal and replay reads can both complete while the subscription thread is busy. Guarded by this.
+    private int pendingDispatches;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -208,8 +210,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return CompletableFuture.completedFuture(null);
         }
         if (consumerList.isEmpty()) {
-            if (havePendingRead || havePendingReplayRead) {
-                // There is a pending read from previous run. We must wait for it to complete and then rewind
+            if (havePendingRead || havePendingReplayRead || isSendInProgress()) {
+                // Wait for reads and queued dispatches from the previous run to be discarded before rewinding.
                 shouldRewindBeforeReadingOrReplaying = true;
             } else {
                 cursor.rewind();
@@ -439,11 +441,20 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .attr("consumerCount", consumerList.size())
                         .log("Schedule replay of messages for consumers");
                 havePendingReplayRead = true;
-                updateMinReplayedPosition();
-                onReadStarted(ReadType.Replay);
-                Set<? extends Position> deletedMessages = topic.isDelayedDeliveryEnabled()
-                        ? asyncReplayEntriesInOrder(messagesToReplayNow)
-                        : asyncReplayEntries(messagesToReplayNow);
+                Set<? extends Position> deletedMessages;
+                boolean readStarted = false;
+                try {
+                    updateMinReplayedPosition();
+                    onReadStarted(ReadType.Replay);
+                    readStarted = true;
+                    deletedMessages = topic.isDelayedDeliveryEnabled()
+                            ? asyncReplayEntriesInOrder(messagesToReplayNow)
+                            : asyncReplayEntries(messagesToReplayNow);
+                } catch (Throwable failure) {
+                    // Nothing else would ever clear the flag after this failure (issue #26454).
+                    handleReadSchedulingFailure(failure, ReadType.Replay, readStarted);
+                    return;
+                }
                 // clear already acked positions from replay bucket
                 deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
                         position.getEntryId()));
@@ -473,18 +484,57 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                         .attr("consumersCount", consumerList.size())
                         .log("Schedule read of messages");
                 havePendingRead = true;
-                updateMinReplayedPosition();
-                onReadStarted(ReadType.Normal);
+                boolean readStarted = false;
+                try {
+                    updateMinReplayedPosition();
+                    onReadStarted(ReadType.Normal);
+                    readStarted = true;
 
-                messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
-                cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
-                        topic.getMaxReadPosition(), createReadEntriesSkipConditionForNormalRead());
+                    messagesToRead = Math.min(messagesToRead, getMaxEntriesReadLimit());
+                    cursor.asyncReadEntriesWithSkipOrWait(messagesToRead, bytesToRead, this, ReadType.Normal,
+                            topic.getMaxReadPosition(), createReadEntriesSkipConditionForNormalRead());
+                } catch (Throwable failure) {
+                    // Nothing else would ever clear the flag after this failure (issue #26454).
+                    handleReadSchedulingFailure(failure, ReadType.Normal, readStarted);
+                }
             } else {
                 log.debug("Cannot schedule next read until previous one is done");
             }
         } else {
             log.debug("Consumer buffer is full, pause reading");
         }
+    }
+
+    /**
+     * Handles a failure that happens between setting the pending read flag and the submission of the
+     * read returning, including errors such as {@link OutOfMemoryError} which are not handled
+     * anywhere else on this path. Without this recovery no completion would ever clear the flag and
+     * the dispatcher would stop reading until the topic is unloaded (issue #26454).
+     *
+     * <p>The recovery is best-effort: the failure may also come from inside the managed cursor after
+     * it already took over the read, in which case cursor-side state, such as the pending read
+     * operations counter, can still be left behind. {@code onReadEnded} is only notified when
+     * {@code onReadStarted} was reached, to keep the read-started/read-ended notifications paired.
+     */
+    private void handleReadSchedulingFailure(Throwable failure, ReadType readType, boolean readStarted) {
+        if (readType == ReadType.Normal) {
+            havePendingRead = false;
+            // The failure may have happened after the read was already registered inside the
+            // managed cursor to wait for new entries: cancel it so the cleared flag cannot leave
+            // the cursor waiting.
+            cursor.cancelPendingReadRequest();
+        } else {
+            havePendingReplayRead = false;
+        }
+        if (readStarted) {
+            onReadEnded(readType);
+        }
+        log.error()
+                .attr("readType", readType)
+                .exception(failure)
+                .log("Failed to schedule read of messages");
+        scheduleReadEntriesWithDelay(new ManagedLedgerException(failure), readType,
+                readFailureBackoff.next().toMillis());
     }
 
     protected synchronized Predicate<Position> createReadEntriesSkipConditionForNormalRead() {
@@ -557,6 +607,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
      * with {@code dispatcherDispatchMessagesInSubscriptionThread}.
      */
     protected void onDispatchQueued(ReadType readType) {
+    }
+
+    /** Called under the dispatcher monitor when a queued dispatch is discarded before it starts. */
+    protected void onDispatchDiscarded(ReadType readType) {
+        onReadEnded(readType);
     }
 
     /**
@@ -670,7 +725,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     public void markDeletePositionMoveForward() {
         Position markDeletePosition = cursor.getMarkDeletedPosition();
         if (markDeletePosition != null) {
-            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            synchronized (this) {
+                // Replay positions and sticky-key hash counts must be updated under the dispatcher lock.
+                redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
+            }
             for (Consumer consumer : consumerList) {
                 consumer.removePendingAcksUpToPositionAndDecrementUnacked(
                         markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
@@ -803,6 +861,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
             onDispatchQueued(readType);
+            pendingDispatches++;
             dispatchMessagesThread.execute(() -> {
                 handleSendingMessagesAndReadingMore(readType, entries, false, totalBytesSize);
             });
@@ -814,9 +873,25 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     private synchronized void handleSendingMessagesAndReadingMore(ReadType readType, List<Entry> entries,
                                                                   boolean needAcquireSendInProgress,
                                                                   long totalBytesSize) {
-        boolean triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
+        boolean triggerReadingMore;
+        try {
+            if (shouldRewindBeforeReadingOrReplaying) {
+                // All consumers disconnected after this read queued its dispatch. The rewind will read its entries
+                // again, so don't send them to the replacement consumer as well.
+                entries.forEach(Entry::release);
+                onDispatchDiscarded(readType);
+                releaseSendInProgress();
+                readMoreEntriesAsync();
+                return;
+            }
+            triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
+        } finally {
+            if (!needAcquireSendInProgress) {
+                pendingDispatches--;
+            }
+            updatePendingBytesToDispatch(-totalBytesSize);
+        }
         int entriesProcessed = lastNumberOfEntriesProcessed;
-        updatePendingBytesToDispatch(-totalBytesSize);
         boolean canReadMoreImmediately = false;
         if (entriesProcessed > 0 || skipNextBackoff) {
             // Reset the backoff when messages were processed
@@ -850,7 +925,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized boolean isSendInProgress() {
-        return sendInProgress;
+        return sendInProgress || pendingDispatches > 0;
     }
 
     protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,
@@ -1091,8 +1166,17 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
 
     @Override
     public synchronized void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-
         ReadType readType = (ReadType) ctx;
+        // Clear the pending read flag before anything that might throw, as readEntriesComplete does:
+        // if this callback dies midway, nothing would ever clear the flag again and the dispatcher
+        // would stall until the topic is unloaded (issue #26454).
+        if (readType == ReadType.Normal) {
+            havePendingRead = false;
+        } else {
+            havePendingReplayRead = false;
+        }
+        onReadEnded(readType);
+
         long waitTimeMillis = readFailureBackoff.next().toMillis();
 
         // Do not keep reading more entries if the cursor is already closed.
@@ -1130,15 +1214,10 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                     .log("Error reading entries - Retrying to read");
         }
 
-        onReadEnded(readType);
-        if (readType == ReadType.Normal) {
-            havePendingRead = false;
-        } else {
-            havePendingReplayRead = false;
-            if (exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
-                Position markDeletePosition = cursor.getMarkDeletedPosition();
-                redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
-            }
+        if (readType == ReadType.Replay
+                && exception instanceof ManagedLedgerException.InvalidReplayPositionException) {
+            Position markDeletePosition = cursor.getMarkDeletedPosition();
+            redeliveryMessages.removeAllUpTo(markDeletePosition.getLedgerId(), markDeletePosition.getEntryId());
         }
 
         readBatchSize = serviceConfig.getDispatcherMinReadBatchSize();

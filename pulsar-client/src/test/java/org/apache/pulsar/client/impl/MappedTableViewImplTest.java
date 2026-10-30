@@ -124,7 +124,8 @@ public class MappedTableViewImplTest {
         CompletableFuture<Message<String>> first = new CompletableFuture<>();
         CompletableFuture<Message<String>> second = new CompletableFuture<>();
         CompletableFuture<Message<String>> third = new CompletableFuture<>();
-        when(reader.readNextAsync()).thenReturn(first, second, third, new CompletableFuture<>());
+        when(reader.readNextAsync()).thenReturn(first).thenReturn(second).thenReturn(third)
+                .thenReturn(new CompletableFuture<>());
         List<String> listened = new ArrayList<>();
 
         TableView<String> tableView = new MappedTableViewImpl<>(client, Schema.STRING, conf, mapper)
@@ -156,7 +157,7 @@ public class MappedTableViewImplTest {
     public void testMappingErrorWithDefaultCallbackSkipsMessage() throws Exception {
         CompletableFuture<Message<String>> first = new CompletableFuture<>();
         CompletableFuture<Message<String>> second = new CompletableFuture<>();
-        when(reader.readNextAsync()).thenReturn(first, second, new CompletableFuture<>());
+        when(reader.readNextAsync()).thenReturn(first).thenReturn(second).thenReturn(new CompletableFuture<>());
 
         TableView<String> tableView = new MappedTableViewImpl<String, String>(client, Schema.STRING, conf,
                 MappedTableViewImplTest::mapOrFail).start().get(5, TimeUnit.SECONDS);
@@ -184,7 +185,7 @@ public class MappedTableViewImplTest {
         };
         CompletableFuture<Message<String>> first = new CompletableFuture<>();
         CompletableFuture<Message<String>> second = new CompletableFuture<>();
-        when(reader.readNextAsync()).thenReturn(first, second, new CompletableFuture<>());
+        when(reader.readNextAsync()).thenReturn(first).thenReturn(second).thenReturn(new CompletableFuture<>());
 
         TableView<String> tableView = new MappedTableViewImpl<>(client, Schema.STRING, conf, mapper)
                 .start().get(5, TimeUnit.SECONDS);
@@ -215,8 +216,8 @@ public class MappedTableViewImplTest {
         Message<String> poison = message("key", "boom", messageId(0));
         lastMessageIds.set(List.of(messageId(0)));
         when(reader.hasMessageAvailableAsync()).thenReturn(CompletableFuture.completedFuture(true));
-        when(reader.readNextAsync()).thenReturn(CompletableFuture.completedFuture(poison),
-                new CompletableFuture<>());
+        when(reader.readNextAsync()).thenReturn(CompletableFuture.completedFuture(poison))
+                .thenReturn(new CompletableFuture<>());
 
         TableView<String> tableView = new MappedTableViewImpl<>(client, Schema.STRING, conf, mapper)
                 .start().get(5, TimeUnit.SECONDS);
@@ -264,6 +265,6 @@ public class MappedTableViewImplTest {
                 Message::getValue))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("topicCompactionStrategyClassName");
-        verify(client, never()).newReader(any(Schema.class));
+        verify(client, never()).newReader(any());
     }
 }

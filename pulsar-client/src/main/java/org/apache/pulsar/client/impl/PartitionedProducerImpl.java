@@ -262,6 +262,26 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
                 "Illegal partition index chosen by the message routing policy: " + partition);
 
+        // Check the state first: a closed producer must not start a partition producer
+        switch (getState()) {
+            case Ready:
+            case Connecting:
+                break; // Ok
+            case Closing:
+            case Closed:
+                return FutureUtil.failedFuture(
+                        new PulsarClientException.AlreadyClosedException("Producer already closed"));
+            case ProducerFenced:
+                return FutureUtil.failedFuture(
+                        new PulsarClientException.ProducerFencedException("Producer was fenced"));
+            case Terminated:
+                return FutureUtil.failedFuture(
+                        new PulsarClientException.TopicTerminatedException("Topic was terminated"));
+            case Failed:
+            case Uninitialized:
+                return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+        }
+
         if (conf.isLazyStartPartitionedProducers() && !producers.containsKey(partition)) {
             final ProducerImpl<T> newProducer = createProducer(partition, Optional.ofNullable(overrideProducerName));
             final State createState = newProducer.producerCreatedFuture().handle((prod, createException) -> {
@@ -289,25 +309,19 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             if (createState == State.Failed) {
                 return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
             }
-        }
-
-        switch (getState()) {
-            case Ready:
-            case Connecting:
-                break; // Ok
-            case Closing:
-            case Closed:
+            // close() may have iterated the producers before this one was added, and would leave it open
+            if (getState() == State.Closing || getState() == State.Closed) {
+                producers.remove(partition, newProducer);
+                newProducer.closeAsync().exceptionally(e -> {
+                    log.error()
+                            .attr("partitionIndex", partition)
+                            .exception(e)
+                            .log("Could not close internal producer");
+                    return null;
+                });
                 return FutureUtil.failedFuture(
                         new PulsarClientException.AlreadyClosedException("Producer already closed"));
-            case ProducerFenced:
-                return FutureUtil.failedFuture(
-                        new PulsarClientException.ProducerFencedException("Producer was fenced"));
-            case Terminated:
-                return FutureUtil.failedFuture(
-                        new PulsarClientException.TopicTerminatedException("Topic was terminated"));
-            case Failed:
-            case Uninitialized:
-                return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+            }
         }
 
         return producers.get(partition).internalSendWithTxnAsync(message, txn);
@@ -447,7 +461,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                     int partitionIndex = TopicName.getPartitionIndex(partitionName);
                                     return producers.computeIfAbsent(partitionIndex, (idx) -> new ProducerImpl<>(
                                             client, partitionName, conf, new CompletableFuture<>(),
-                                            idx, schema, interceptors,
+                                            idx, schema, internalProducerInterceptors,
                                             Optional.ofNullable(overrideProducerName))).producerCreatedFuture();
                                 }).collect(Collectors.toList());
 

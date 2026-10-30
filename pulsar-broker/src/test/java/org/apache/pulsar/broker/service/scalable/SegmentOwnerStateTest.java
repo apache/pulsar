@@ -346,6 +346,8 @@ public class SegmentOwnerStateTest {
         assertNoForcedRefresh();
     }
 
+    // Mockito.clearInvocations(T...) is not @SafeVarargs.
+    @SuppressWarnings("unchecked")
     @Test
     public void failedInitialReadsAreRetriedOnlyFromTheRepairQueue() throws Exception {
         resources.createScalableTopicAsync(PARENT, metadata(active(0))).get();

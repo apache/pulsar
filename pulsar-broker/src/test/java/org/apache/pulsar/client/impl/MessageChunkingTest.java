@@ -199,8 +199,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableChunking(true)
                 .enableBatching(false).create();
 
-        byte[] data = RandomUtils.nextBytes(200);
-        byte[] ok = RandomUtils.nextBytes(50);
+        byte[] data = RandomUtils.insecure().randomBytes(200);
+        byte[] ok = RandomUtils.insecure().randomBytes(50);
         producer.newMessage().value(data).orderingKey(ok).send();
 
         Message<byte[]> msg = consumer.receive();
@@ -773,7 +773,8 @@ public class MessageChunkingTest extends ProducerConsumerBase {
 
         // Well above maxMessageSize plus the broker's frame padding: the payload cannot be sent as a single
         // frame, so a local rejection is the only correct outcome.
-        byte[] payload = RandomUtils.nextBytes(maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING + 1024);
+        byte[] payload =
+                RandomUtils.insecure().randomBytes(maxMessageSize + Commands.MESSAGE_SIZE_FRAME_PADDING + 1024);
         try {
             producer.send(payload);
             fail("an oversized message on a non-persistent topic must be rejected by the client");
@@ -808,7 +809,7 @@ public class MessageChunkingTest extends ProducerConsumerBase {
         producer.getConnectionHandler().setMaxMessageSize(maxMessageSize);
 
         // exactly at the limit, so the early check on the body passes and only the final check can reject it
-        byte[] payload = RandomUtils.nextBytes(maxMessageSize);
+        byte[] payload = RandomUtils.insecure().randomBytes(maxMessageSize);
         try {
             producer.newMessage().value(payload).property("large-metadata", "y".repeat(400)).send();
             fail("a message pushed over the limit by its metadata must be rejected by the client");

@@ -19,6 +19,9 @@
     under the License.
 
 -->
+<!-- The test logging config of every module. Log4j picks log4j2-test.* over the log4j2.xml that some
+     dependencies bundle (bookkeeper-server), whatever the classpath order. A module that needs its own
+     config adds a src/test/resources/log4j2-test.xml, which comes first on its test classpath. -->
 <Configuration xmlns="http://logging.apache.org/log4j/2.0/config"
                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                xsi:schemaLocation="http://logging.apache.org/log4j/2.0/config https://logging.apache.org/log4j/2.0/log4j-core.xsd"
