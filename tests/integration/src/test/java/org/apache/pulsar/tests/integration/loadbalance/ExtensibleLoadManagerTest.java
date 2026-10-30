@@ -73,7 +73,10 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
     private static final String DEFAULT_NAMESPACE = DEFAULT_TENANT + "/my-namespace";
     private static final String nsSuffix = "-anti-affinity-enabled";
 
-    private final String clusterName = "MultiLoadManagerTest-" + UUID.randomUUID();
+    // Container names are "<cluster>-<hostname>", and Docker's DNS gives no reverse lookup answer for a name longer
+    // than a DNS label (63 characters). The ZooKeeper client in every container looks up the server's name from its
+    // address before it connects, and would wait 5 s per connection for that lookup to time out.
+    private final String clusterName = "MultiLoadManagerTest-" + UUID.randomUUID().toString().substring(0, 8);
     private final PulsarClusterSpec spec = PulsarClusterSpec.builder()
             .clusterName(clusterName)
             .numBrokers(NUM_BROKERS).build();
