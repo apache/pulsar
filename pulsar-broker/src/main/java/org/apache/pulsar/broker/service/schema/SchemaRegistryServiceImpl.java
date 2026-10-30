@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.avro.Schema;
@@ -107,7 +108,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         } else {
             long longVersion = ((LongSchemaVersion) version).getVersion();
             //If the schema has been deleted, it cannot be obtained
-            completableFuture = trimDeletedSchemaAndGetList(schemaId)
+            CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> schemaFutureList =
+                    getAllSchemas(schemaId, this::getAllForVersionedRead);
+            completableFuture = trimDeletedSchemaAndGetList(schemaId, schemaFutureList)
                 .thenApply(metadataList -> metadataList.stream().filter(schemaAndMetadata ->
                         ((LongSchemaVersion) schemaAndMetadata.version).getVersion() == longVersion)
                         .collect(Collectors.toList())
@@ -148,9 +151,22 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId) {
+        return getAllSchemas(schemaId, schemaStorage::getAll);
+    }
+
+    private CompletableFuture<List<CompletableFuture<StoredSchema>>> getAllForVersionedRead(String schemaId) {
+        if (schemaStorage instanceof BookkeeperSchemaStorage bookkeeperSchemaStorage) {
+            return bookkeeperSchemaStorage.getAllForVersionedRead(schemaId);
+        }
+        return schemaStorage.getAll(schemaId);
+    }
+
+    private CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(
+            String schemaId,
+            Function<String, CompletableFuture<List<CompletableFuture<StoredSchema>>>> schemaReader) {
         long start = this.clock.millis();
 
-        return schemaStorage.getAll(schemaId)
+        return schemaReader.apply(schemaId)
                 .thenCompose(schemas -> convertToSchemaAndMetadata(schemaId, schemas))
                 .whenComplete((v, t) -> {
                     var latencyMs = this.clock.millis() - start;
@@ -222,13 +238,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 }))).whenComplete((v, ex) -> {
                     var latencyMs = this.clock.millis() - start.longValue();
                     if (ex != null) {
-                        if (ex instanceof IncompatibleSchemaException) {
+                        Throwable actEx = FutureUtil.unwrapCompletionException(ex);
+                        if (actEx instanceof IncompatibleSchemaException) {
                             log.warn()
                                     .attr("schemaId", schemaId)
-                                    .exception(ex)
+                                    .exceptionMessage(actEx)
                                     .log("Put schema failed due to incompatible schema");
                         } else {
-                            log.error().attr("schemaId", schemaId).exception(ex).log("Put schema failed");
+                            log.error().attr("schemaId", schemaId).exception(actEx).log("Put schema failed");
                         }
                         if (start.longValue() != 0) {
                             this.stats.recordPutFailed(schemaId, latencyMs);
@@ -352,8 +369,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         SchemaHash existingHash = SchemaHash.of(existingSchemaData);
         SchemaHash newHash = SchemaHash.of(newSchema);
         if (!newHash.equals(existingHash)) {
-            compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
-                    .checkCompatible(existingSchemaData, newSchema, strategy);
+            try {
+                compatibilityChecks.getOrDefault(newSchema.getType(), SchemaCompatibilityCheck.DEFAULT)
+                        .checkCompatible(existingSchemaData, newSchema, strategy);
+            } catch (SchemaComparisonException e) {
+                throw e.withVersion(existingSchema.version);
+            }
         }
     }
 
@@ -403,14 +424,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         final CompletableFuture<SchemaVersion> completableFuture = new CompletableFuture<>();
         SchemaVersion schemaVersion;
         if (isUsingAvroSchemaParser(schemaData.getType())) {
-            Schema.Parser parser = new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
-            Schema newSchema = parser.parse(new String(schemaData.getData(), UTF_8));
+            Schema newSchema = StructSchemaDataValidator.parseAvroSchema(
+                    new String(schemaData.getData(), UTF_8), true);
 
             for (SchemaAndMetadata schemaAndMetadata : schemaAndMetadataList) {
                 if (isUsingAvroSchemaParser(schemaAndMetadata.schema.getType())) {
-                    Schema.Parser existParser =
-                            new Schema.Parser(StructSchemaDataValidator.COMPATIBLE_NAME_VALIDATOR);
-                    Schema existSchema = existParser.parse(new String(schemaAndMetadata.schema.getData(), UTF_8));
+                    Schema existSchema = StructSchemaDataValidator.parseAvroSchema(
+                            new String(schemaAndMetadata.schema.getData(), UTF_8), true);
                     if (newSchema.equals(existSchema) && schemaAndMetadata.schema.getType() == schemaData.getType()) {
                         schemaVersion = schemaAndMetadata.version;
                         completableFuture.complete(schemaVersion);
@@ -518,6 +538,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                                     .collect(Collectors.toList()), schema, strategy);
                     result.complete(null);
                 } catch (Exception e) {
+                    if (e instanceof SchemaComparisonException comparison) {
+                        for (SchemaAndMetadata existing : schemaAndMetadataList) {
+                            if (existing.schema == comparison.existingSchema()) {
+                                e = comparison.withVersion(existing.version);
+                                break;
+                            }
+                        }
+                    }
                     if (e instanceof IncompatibleSchemaException) {
                         result.completeExceptionally(e);
                     } else {

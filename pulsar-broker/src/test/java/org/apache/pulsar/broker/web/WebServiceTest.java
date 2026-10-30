@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -73,7 +74,7 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
-import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.common.util.tls.PemReader;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
@@ -406,7 +407,7 @@ public class WebServiceTest {
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
 
-        URL url = new URL(metricsUrl);
+        URL url = URI.create(metricsUrl).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept-Encoding", "gzip");
@@ -438,7 +439,7 @@ public class WebServiceTest {
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
 
-        URL url = new URL(metricsUrl);
+        URL url = URI.create(metricsUrl).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
 
@@ -471,8 +472,8 @@ public class WebServiceTest {
             if (useTls) {
                 KeyManager[] keyManagers = null;
                 if (useAuth) {
-                    Certificate[] tlsCert = SecurityUtility.loadCertificatesFromPemFile(CLIENT_CERT_FILE_PATH);
-                    PrivateKey tlsKey = SecurityUtility.loadPrivateKeyFromPemFile(CLIENT_KEY_FILE_PATH);
+                    Certificate[] tlsCert = PemReader.loadCertificatesFromPemFile(CLIENT_CERT_FILE_PATH);
+                    PrivateKey tlsKey = PemReader.loadPrivateKeyFromPemFile(CLIENT_KEY_FILE_PATH);
 
                     KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
                     ks.load(null, null);
@@ -486,9 +487,9 @@ public class WebServiceTest {
                 SSLContext sslCtx = SSLContext.getInstance("TLS");
                 sslCtx.init(keyManagers, trustManagers, new SecureRandom());
                 HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
-                response = new URL(brokerLookUpUrlTls).openStream();
+                response = URI.create(brokerLookUpUrlTls).toURL().openStream();
             } else {
-                response = new URL(brokerLookUpUrl).openStream();
+                response = URI.create(brokerLookUpUrl).toURL().openStream();
             }
             String resp = CharStreams.toString(new InputStreamReader(response));
             log.info().attr("response", resp).log("Response");

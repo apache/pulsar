@@ -54,14 +54,20 @@ import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.admin.impl.TopicListResponseMemoryLimiter;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.topiclistlimit.TopicListing;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.EntryFilters;
 import org.apache.pulsar.common.policies.data.NamespaceOperation;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.PolicyName;
+import org.apache.pulsar.common.policies.data.PolicyOperation;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.policies.data.stats.NonPersistentPartitionedTopicStatsImpl;
@@ -212,14 +218,15 @@ public class NonPersistentTopics extends PersistentTopics {
     }
 
     // Also handles the inherited 'application/vnd.partitioned-topic-metadata+json' createPartitionedTopic
-    // overload: non-persistent topics validate the topic name only.
+    // overload: non-persistent topics validate the partitioned topic name only.
     @Override
     protected void validateAndCreatePartitionedTopic(AsyncResponse asyncResponse, String tenant, String namespace,
             String encodedTopic, int numPartitions, boolean createLocalTopicOnly, Map<String, String> properties) {
         try {
             validateNamespaceName(tenant, namespace);
             validateGlobalNamespaceOwnership();
-            validateTopicName(tenant, namespace, encodedTopic);
+            validatePartitionedTopicName(tenant, namespace, encodedTopic);
+            validateCreateTopic(topicName);
             internalCreatePartitionedTopic(asyncResponse, numPartitions, createLocalTopicOnly, properties);
         } catch (Exception e) {
             log.error()
@@ -448,8 +455,21 @@ public class NonPersistentTopics extends PersistentTopics {
             return;
         }
 
-        final List<CompletableFuture<List<String>>> futures = new ArrayList<>();
         final List<String> boundaries = policies.bundles.getBoundaries();
+        // the topics are collected from the bundle topic listings (getListFromBundle) of the bundle owners
+        TopicListResponseMemoryLimiter.listTopicsFromOtherListings(pulsar().getBrokerService(), asyncResponse,
+                () -> getNonPersistentTopicsFromBundles(boundaries, nsBundle))
+                .thenAccept(nonPersistentTopics ->
+                        asyncResponse.resume(filterSystemTopic(nonPersistentTopics, includeSystemTopic)))
+                .exceptionally(ex -> {
+                    resumeAsyncResponseExceptionally(asyncResponse, ex);
+                    return null;
+                });
+    }
+
+    private CompletableFuture<List<String>> getNonPersistentTopicsFromBundles(List<String> boundaries,
+                                                                              String nsBundle) {
+        final List<CompletableFuture<List<String>>> futures = new ArrayList<>();
         for (int i = 0; i < boundaries.size() - 1; i++) {
             final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
             if (StringUtils.isNotBlank(nsBundle) && !nsBundle.equals(bundle)) {
@@ -463,28 +483,20 @@ public class NonPersistentTopics extends PersistentTopics {
                         .attr("bundle", bundle)
                         .exception(e)
                         .log("Failed to get list of topics under namespace");
-                asyncResponse.resume(new RestException(e));
-                return;
+                return CompletableFuture.failedFuture(new RestException(e));
             }
         }
-
-        FutureUtil.waitForAll(futures).whenComplete((result, ex) -> {
-            if (ex != null) {
-                resumeAsyncResponseExceptionally(asyncResponse, ex);
-            } else {
-                final List<String> topics = new ArrayList<>();
-                for (int i = 0; i < futures.size(); i++) {
-                    List<String> topicList = futures.get(i).join();
-                    if (topicList != null) {
-                        topics.addAll(topicList);
-                    }
+        return FutureUtil.waitForAll(futures).thenApply(__ -> {
+            final List<String> topics = new ArrayList<>();
+            for (int i = 0; i < futures.size(); i++) {
+                List<String> topicList = futures.get(i).join();
+                if (topicList != null) {
+                    topics.addAll(topicList);
                 }
-                final List<String> nonPersistentTopics =
-                        topics.stream()
-                                .filter(name -> !TopicName.get(name).isPersistent())
-                                .collect(Collectors.toList());
-                asyncResponse.resume(filterSystemTopic(nonPersistentTopics, includeSystemTopic));
             }
+            return topics.stream()
+                    .filter(name -> !TopicName.get(name).isPersistent())
+                    .collect(Collectors.toList());
         });
     }
 
@@ -531,24 +543,15 @@ public class NonPersistentTopics extends PersistentTopics {
                 asyncResponse.resume(Response.noContent().build());
             } else {
                 validateNamespaceBundleOwnershipAsync(namespaceName, bundleRange, true, true)
-                        .thenAccept(nsBundle -> {
-                            final var bundleTopics = pulsar().getBrokerService().getMultiLayerTopicsMap()
-                                    .get(namespaceName.toString());
-                            if (bundleTopics == null || bundleTopics.isEmpty()) {
-                                asyncResponse.resume(Collections.emptyList());
-                                return;
-                            }
-                            final List<String> topicList = new ArrayList<>();
-                            String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
-                            final var topicMap = bundleTopics.get(bundleKey);
-                            if (topicMap != null) {
-                                topicList.addAll(topicMap.keySet().stream()
-                                        .filter(name -> !TopicName.get(name).isPersistent())
-                                        .collect(Collectors.toList()));
-                            }
-                            asyncResponse.resume(topicList);
-                        }).exceptionally(ex -> {
-                            if (isNot307And404Exception(ex)) {
+                        .thenCompose(nsBundle -> TopicListResponseMemoryLimiter.listTopics(
+                                pulsar().getBrokerService(), asyncResponse,
+                                TopicListing.ownedBundleTopics(namespaceName.toString(),
+                                        CommandGetTopicsOfNamespace.Mode.NON_PERSISTENT, nsBundle.getBundleRange()),
+                                null,
+                                () -> CompletableFuture.completedFuture(getNonPersistentTopicsOfBundle(nsBundle))))
+                        .thenAccept(asyncResponse::resume)
+                        .exceptionally(ex -> {
+                            if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                                 log.error()
                                         .attr("namespace", namespaceName)
                                         .attr("bundleRange", bundleRange)
@@ -620,7 +623,8 @@ public class NonPersistentTopics extends PersistentTopics {
                                         + "broker. For internal use.")
                                 @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.READ)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalGetEntryFilters(applied, isGlobal))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
@@ -650,7 +654,8 @@ public class NonPersistentTopics extends PersistentTopics {
                                 @RequestBody(description = "Entry filters for the specified topic")
                                         EntryFilters entryFilters) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalSetEntryFilters(entryFilters, isGlobal))
                 .thenAccept(__ -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
@@ -678,7 +683,8 @@ public class NonPersistentTopics extends PersistentTopics {
                                            + "call to this broker. For internal use.")
                                    @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
-        preValidation(authoritative)
+        validateTopicPolicyOperationAsync(topicName, PolicyName.ENTRY_FILTERS, PolicyOperation.WRITE)
+                .thenCompose(__ -> preValidation(authoritative))
                 .thenCompose(__ -> internalRemoveEntryFilters(isGlobal))
                 .thenRun(() -> {
                     log.info()
@@ -693,6 +699,22 @@ public class NonPersistentTopics extends PersistentTopics {
                     handleTopicPolicyException("removeEntryFilters", ex, asyncResponse);
                     return null;
                 });
+    }
+
+    private List<String> getNonPersistentTopicsOfBundle(NamespaceBundle nsBundle) {
+        final var bundleTopics = pulsar().getBrokerService().getMultiLayerTopicsMap()
+                .get(namespaceName.toString());
+        if (bundleTopics == null || bundleTopics.isEmpty()) {
+            return Collections.emptyList();
+        }
+        String bundleKey = namespaceName.toString() + "/" + nsBundle.getBundleRange();
+        final var topicMap = bundleTopics.get(bundleKey);
+        if (topicMap == null) {
+            return Collections.emptyList();
+        }
+        return topicMap.keySet().stream()
+                .filter(name -> !TopicName.get(name).isPersistent())
+                .collect(Collectors.toList());
     }
 
     private Topic getTopicReference(TopicName topicName) {

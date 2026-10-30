@@ -23,6 +23,8 @@ plugins {
 
 dependencies {
     api(project(":pulsar-client-api-v5"))
+    implementation(project(":pulsar-tls-factory-api"))
+    implementation(project(":pulsar-http-client-api"))
     implementation(project(":pulsar-client-original"))
     implementation(project(":pulsar-common"))
     implementation(libs.slf4j.api)
@@ -35,6 +37,10 @@ dependencies {
     compileOnly(libs.protobuf.java)
     implementation(libs.netty.handler)
     implementation(libs.jackson.annotations)
+    // pulsar-client's configuration-data classes carry runtime-retained @Schema annotations, so javac needs
+    // the OpenAPI annotation types on the compile classpath to read their class files without warning.
+    compileOnly(libs.swagger.annotations)
+    testCompileOnly(libs.swagger.annotations)
     compileOnly(libs.lombok)
     annotationProcessor(libs.lombok)
     testImplementation(libs.testng)

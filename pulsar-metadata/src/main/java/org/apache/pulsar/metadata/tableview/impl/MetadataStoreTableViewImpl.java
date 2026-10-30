@@ -75,6 +75,8 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
     private final long timeoutInMillis;
     private final String pathPrefix;
     private final Consumer<Throwable> tableViewShutDownListener;
+    private final Runnable cancelListener;
+    private final Runnable cancelSessionListener;
 
     @Deprecated
     @Builder
@@ -160,13 +162,20 @@ public class MetadataStoreTableViewImpl<T> implements MetadataStoreTableView<T> 
                         .retryBackoff(MetadataCacheConfig.NO_RETRY_BACKOFF_BUILDER)
                         .asyncReloadConsumer(this::consumeAsyncReload)
                         .build());
-        store.registerListener(this::handleNotification);
+        cancelListener = store.registerCancellableListener(this::handleNotification);
         if (store instanceof MetadataStoreExtended metadataStoreExtended) {
-            metadataStoreExtended.registerSessionListener(this::handleSessionEvent);
+            cancelSessionListener = metadataStoreExtended.registerCancellableSessionListener(this::handleSessionEvent);
         } else {
             // Since ServiceUnitStateMetadataStoreTableViewImpl has checked the configuration that named
             // "zookeeperSessionExpiredPolicy", skip to print the duplicated log here.
+            cancelSessionListener = () -> { };
         }
+    }
+
+    @Override
+    public void close() {
+        cancelListener.run();
+        cancelSessionListener.run();
     }
 
     public void start() throws MetadataStoreException {

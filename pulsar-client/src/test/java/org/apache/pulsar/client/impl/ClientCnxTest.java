@@ -48,6 +48,7 @@ import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.CommandConnected;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
+import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.api.proto.ServerError;
@@ -295,6 +296,32 @@ public class ClientCnxTest {
     }
 
     @Test
+    public void testSendReceiptForRemovedProducerIsIgnored() {
+        ThreadFactory threadFactory = new DefaultThreadFactory("testSendReceiptForRemovedProducerIsIgnored");
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false, threadFactory);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
+        cnx.state = ClientCnx.State.Ready;
+
+        // A receipt for a producer the broker has already told the client to close, as happens when
+        // its topic is terminated with sends in flight, is dropped rather than failing the connection.
+        long producerId = 1;
+        CommandSendReceipt receipt = new CommandSendReceipt()
+                .setProducerId(producerId)
+                .setSequenceId(5)
+                .setHighestSequenceId(5);
+        receipt.setMessageId().setLedgerId(3).setEntryId(7);
+        cnx.handleSendReceipt(receipt);
+
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
+        cnx.registerProducer(producerId, producer);
+        cnx.handleSendReceipt(receipt);
+        verify(producer).ackReceived(cnx, 5, 5, 3, 7);
+
+        eventLoop.shutdownGracefully();
+    }
+
+    @Test
     public void testIdleCheckWithTopicListWatcher() {
         ClientCnx cnx =
                 new ClientCnx(InstrumentProvider.NOOP, new ClientConfigurationData(), mock(EventLoopGroup.class));
@@ -303,6 +330,26 @@ public class ClientCnxTest {
         cnx.registerTopicListWatcher(0, mock(TopicListWatcher.class));
         // idle check should now return false since there's a registered watcher
         assertFalse(cnx.idleCheck());
+    }
+
+    @Test
+    public void testScalableTopicSupportRequiresExplicitFeatureFlag() {
+        // Older brokers either omit feature flags entirely or advertise only older flags.
+        for (int mode = 0; mode < 4; mode++) {
+            CommandConnected connected = new CommandConnected()
+                    .setServerVersion("test")
+                    .setProtocolVersion(21);
+            if (mode == 1) {
+                connected.setFeatureFlags().setSupportsTopicWatchers(true);
+            } else if (mode >= 2) {
+                connected.setFeatureFlags().setSupportsScalableTopics(mode == 3);
+            }
+            boolean expectedSupport = mode == 3;
+            withConnection("testScalableTopicSupportRequiresExplicitFeatureFlag", cnx -> {
+                cnx.handleConnected(connected);
+                assertThat(cnx.isSupportsScalableTopics()).isEqualTo(expectedSupport);
+            });
+        }
     }
 
     @Test
@@ -666,6 +713,39 @@ public class ClientCnxTest {
             Awaitility.await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
                 assertEquals(cnx.getPendingLookupRequestSemaphore().availablePermits(), 1);
             });
+        } finally {
+            eventLoop.shutdownGracefully().sync();
+        }
+    }
+
+    /**
+     * Test that when the channel goes inactive before the handshake completes, the connection future
+     * fails with ConnectException rather than a plain PulsarClientException, so that callers which
+     * classify on ConnectException (e.g. retryable end-txn checks) see the specific type.
+     */
+    @Test
+    public void testChannelInactiveFailsConnectionFutureWithConnectException() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testChannelInactiveFailsConnectionFutureWithConnectException"));
+        try {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setOperationTimeoutMs(10_000);
+            conf.setKeepAliveIntervalSeconds(0);
+            ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
+            ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+            cnx.channelActive(ctx);
+
+            // The CONNECT frame has been sent but no CONNECTED response received, so the future is pending
+            assertFalse(cnx.connectionFuture().isDone());
+
+            cnx.channelInactive(ctx);
+
+            try {
+                cnx.connectionFuture().get(2, TimeUnit.SECONDS);
+                fail("Connection future should have failed");
+            } catch (ExecutionException e) {
+                assertTrue(e.getCause() instanceof PulsarClientException.ConnectException);
+            }
         } finally {
             eventLoop.shutdownGracefully().sync();
         }

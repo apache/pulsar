@@ -135,10 +135,10 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Parameter(description = "properties for customized topic listing plugin, format: k1=v1,k2=v2")
             @QueryParam("properties") String propertiesStr) {
         validateNamespaceName(tenant, namespace);
-        internalGetListAsync(Optional.ofNullable(bundle), parseProperties(propertiesStr))
+        internalGetListAsync(asyncResponse, Optional.ofNullable(bundle), parseProperties(propertiesStr))
             .thenAccept(topicList -> asyncResponse.resume(filterSystemTopic(topicList, includeSystemTopic)))
             .exceptionally(ex -> {
-                if (isNot307And404Exception(ex)) {
+                if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                     log.error()
                             .attr("namespace", namespaceName)
                             .exception(ex)
@@ -172,11 +172,11 @@ public class PersistentTopics extends PersistentTopicsBase {
             @Parameter(description = "Include system topic")
             @QueryParam("includeSystemTopic") boolean includeSystemTopic) {
         validateNamespaceName(tenant, namespace);
-        internalGetPartitionedTopicListAsync()
+        internalGetPartitionedTopicListAsync(asyncResponse)
                 .thenAccept(partitionedTopicList -> asyncResponse.resume(
                         filterSystemTopic(partitionedTopicList, includeSystemTopic)))
                 .exceptionally(ex -> {
-                    if (isNot307And404Exception(ex)) {
+                    if (isNot307And404Exception(ex) && !isTopicListLimitRejection(ex)) {
                         log.error()
                                 .attr("namespace", namespaceName)
                                 .exception(ex)
@@ -1151,6 +1151,8 @@ public class PersistentTopics extends PersistentTopicsBase {
         @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
         @ApiResponse(responseCode = "404", description = "Namespace or topic or subscription does not exist"),
         @ApiResponse(responseCode = "405", description = "Method Not Allowed"),
+        @ApiResponse(responseCode = "412",
+                description = "Invalid shadow source or attempt to change the source after topic creation"),
         @ApiResponse(responseCode = "500", description = "Internal server error"),
         @ApiResponse(responseCode = "503", description = "Failed to validate global cluster configuration")
     })
@@ -2256,7 +2258,9 @@ public class PersistentTopics extends PersistentTopicsBase {
                     + " exist"),
             @ApiResponse(responseCode = "405",
                     description = "Skipping messages on a non-persistent topic is not allowed"),
-            @ApiResponse(responseCode = "412", description = "Topic name is not valid"),
+            @ApiResponse(responseCode = "412",
+                    description = "Topic name is not valid, or the subscription does not exist and automatic "
+                            + "subscription creation is disabled"),
             @ApiResponse(responseCode = "500", description = "Internal server error"),
             @ApiResponse(responseCode = "503", description = "Failed to validate global cluster configuration")})
     public void peekNthMessage(

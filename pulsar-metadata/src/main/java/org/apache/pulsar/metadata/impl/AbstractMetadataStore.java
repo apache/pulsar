@@ -59,6 +59,7 @@ import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.stats.CacheMetricsCollector;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.PulsarExecutors;
 import org.apache.pulsar.metadata.api.DummyMetadataNodeSizeStats;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -86,6 +87,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     private final CopyOnWriteArrayList<Consumer<Notification>> listeners = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<Consumer<SessionEvent>> sessionListeners = new CopyOnWriteArrayList<>();
+    // Unregisters this store from its own notifications, which it uses to invalidate its caches
+    private final Runnable cancelCacheInvalidationListener;
     protected final String metadataStoreName;
     private final OrderedExecutor serDesExecutor;
     @Getter
@@ -130,15 +133,15 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 : nodeSizeStats;
         final var namePrefix = StringUtils.isNotBlank(metadataStoreName) ? metadataStoreName
                 : getClass().getSimpleName();
-        this.eventExecutor = Executors.newSingleThreadExecutor(
-                new DefaultThreadFactory(namePrefix + "-event"));
+        this.eventExecutor = PulsarExecutors.newSingleThreadExecutor(
+                new DefaultThreadFactory(namePrefix + "-event"), false);
         this.schedulerExecutor = Executors.newSingleThreadScheduledExecutor(
                 new DefaultThreadFactory(namePrefix + "-scheduler"));
         this.serDesExecutor = OrderedExecutor.newBuilder()
                 .numThreads(numSerDesThreads)
                 .name(namePrefix + "-worker")
                 .build();
-        registerListener(this);
+        cancelCacheInvalidationListener = registerCancellableListener(this);
 
         long childrenCacheMaxSizeBytes = getChildrenCacheMaxSizeBytes();
 
@@ -235,14 +238,14 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     @Override
     public CompletableFuture<Void> handleMetadataEvent(MetadataEvent event) {
         CompletableFuture<Void> result = new CompletableFuture<>();
-        get(event.getPath()).thenApply(res -> {
+        get(event.getPath()).thenAccept(res -> {
             Set<CreateOption> options = event.getOptions() != null ? event.getOptions()
                     : Collections.emptySet();
             if (res.isPresent()) {
                 GetResult existingValue = res.get();
                 if (shouldIgnoreEvent(event, existingValue)) {
                     result.complete(null);
-                    return result;
+                    return;
                 }
             }
             // else update the event
@@ -262,7 +265,11 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
                 }
                 return false;
             });
-            return result;
+        }).exceptionally(ex -> {
+            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+            log.warn().attr("path", event.getPath()).exception(cause).log("Failed to handle metadata event");
+            result.completeExceptionally(cause);
+            return null;
         });
         return result;
     }
@@ -294,7 +301,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         }
         // ignore event if metadata is ephemeral or
         // sequential
-        if (options.contains(CreateOption.Ephemeral) || event.getOptions().contains(CreateOption.Sequential)) {
+        if (options.contains(CreateOption.Ephemeral) || options.contains(CreateOption.Sequential)) {
             return true;
         }
         // ignore the event if event occurred before the
@@ -370,9 +377,9 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
         return storeGet(path, opts)
                 .whenComplete((v, t) -> {
                     if (t != null) {
-                        v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
                         metadataStoreStats.recordGetOpsFailed(System.currentTimeMillis() - start);
                     } else {
+                        v.ifPresent(getResult -> nodeSizeStats.recordGetRes(path, getResult));
                         metadataStoreStats.recordGetOpsSucceeded(System.currentTimeMillis() - start);
                     }
                 });
@@ -411,11 +418,26 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public void registerListener(Consumer<Notification> listener) {
+    public Runnable registerCancellableListener(Consumer<Notification> listener) {
         // If the metadata store is closed, do nothing here.
-        if (!isClosed()) {
-            listeners.add(listener);
+        if (isClosed()) {
+            return () -> { };
         }
+        return addCancellable(listeners, listener);
+    }
+
+    /**
+     * Add a listener and return a callback that removes one registration of it. The callback removes it once even if
+     * it's run more than once, so that it doesn't also remove another registration of the same listener instance.
+     */
+    private static <T> Runnable addCancellable(CopyOnWriteArrayList<T> listenerList, T listener) {
+        listenerList.add(listener);
+        AtomicBoolean cancelled = new AtomicBoolean();
+        return () -> {
+            if (cancelled.compareAndSet(false, true)) {
+                listenerList.remove(listener);
+            }
+        };
     }
 
     protected CompletableFuture<Void> receivedNotification(Notification notification) {
@@ -468,7 +490,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public final CompletableFuture<Void> delete(String path, Optional<Long> expectedVersion, Set<Option> opts) {
-        log.info().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleting path");
+        log.debug().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleting path");
         if (isClosed()) {
             return alreadyClosedFailedFuture();
         }
@@ -513,7 +535,7 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
             }
 
             metadataCaches.forEach(c -> c.invalidate(path));
-            log.info().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleted path");
+            log.debug().attr("path", path).attr("expectedVersion", expectedVersion).log("Deleted path");
         });
     }
 
@@ -933,8 +955,8 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
     }
 
     @Override
-    public void registerSessionListener(Consumer<SessionEvent> listener) {
-        sessionListeners.add(listener);
+    public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        return addCancellable(sessionListeners, listener);
     }
 
     protected void receivedSessionEvent(SessionEvent event) {
@@ -975,10 +997,21 @@ public abstract class AbstractMetadataStore implements MetadataStoreExtended, Co
 
     @Override
     public void close() throws Exception {
+        cancelCacheInvalidationListener.run();
         MoreExecutors.shutdownAndAwaitTermination(serDesExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(schedulerExecutor, 10, TimeUnit.SECONDS);
         MoreExecutors.shutdownAndAwaitTermination(eventExecutor, 10, TimeUnit.SECONDS);
         this.metadataStoreStats.close();
+    }
+
+    @VisibleForTesting
+    public int getListenerCount() {
+        return listeners.size();
+    }
+
+    @VisibleForTesting
+    public int getSessionListenerCount() {
+        return sessionListeners.size();
     }
 
     @VisibleForTesting

@@ -24,9 +24,12 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
@@ -281,5 +284,136 @@ public class V5CumulativeAckTest extends V5ClientBaseTest {
         assertNull(stale,
                 "after cumulative-acking parent and all children, no message"
                         + " should remain on the subscription");
+    }
+
+    /**
+     * A transactional cumulative ack that is aborted must not count as done: an ordinary ack of
+     * the very same position afterwards still has to advance the cursor.
+     */
+    @Test
+    public void testOrdinaryAckAfterAbortedTransactionalAckAdvancesTheCursor() throws Exception {
+        PulsarClient txnClient = track(PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .transactionPolicy(TransactionPolicy.builder().timeout(Duration.ofMinutes(1)).build())
+                .build());
+        String topic = newScalableTopic(1);
+        String subscription = "abort-then-ack-sub";
+        @Cleanup
+        Producer<String> producer = txnClient.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+        @Cleanup
+        StreamConsumer<String> consumer = txnClient.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                .subscribe();
+        int n = 10;
+        for (int i = 0; i < n; i++) {
+            producer.newMessage().value("v-" + i).send();
+        }
+        MessageId last = receiveAll(consumer, n);
+        assertTrue(subscriptionBacklog(topic, subscription) > 0, "nothing is acked yet");
+
+        Transaction txn = txnClient.newTransaction();
+        consumer.acknowledgeCumulative(last, txn);
+        txn.abort();
+        assertTrue(subscriptionBacklog(topic, subscription) > 0,
+                "an aborted transactional ack must not move the cursor");
+
+        // Same position, same id, no transaction: must reach the broker.
+        consumer.acknowledgeCumulative(last);
+        Awaitility.await().untilAsserted(() -> assertEquals(subscriptionBacklog(topic, subscription), 0L,
+                "the ordinary ack after the abort must advance the cursor"));
+    }
+
+    /**
+     * An ack issued while the consumer is off the broker, then retried with the same position once
+     * it is back, must advance the cursor whether the client held the first attempt until the
+     * re-subscribe or the broker dropped it.
+     */
+    @Test
+    public void testRetryingAnAckIssuedWhileDisconnectedAdvancesTheCursor() throws Exception {
+        String topic = newScalableTopic(1);
+        String subscription = "retry-failed-ack-sub";
+        @Cleanup
+        Producer<String> producer = v5Client.newProducer(Schema.string())
+                .topic(topic)
+                .create();
+        @Cleanup
+        StreamConsumer<String> consumer = v5Client.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName(subscription)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
+                // No grouping: every ack is sent right away while the consumer is subscribed.
+                .acknowledgmentGroupTime(Duration.ZERO)
+                .subscribe();
+        int n = 10;
+        for (int i = 0; i < n; i++) {
+            producer.newMessage().value("v-" + i).send();
+        }
+        MessageId last = receiveAll(consumer, n);
+
+        // Throw the consumer off the broker and ack while it is gone.
+        var segments = admin.scalableTopics().getStats(topic).getLayout().getSegments().values();
+        assertEquals(segments.size(), 1, "single-segment topic");
+        var brokerSub = (PersistentSubscription) getTopicReference(segments.iterator().next().getName())
+                .orElseThrow().getSubscription(subscription);
+        Awaitility.await().until(() -> !brokerSub.getConsumers().isEmpty());
+        // Fence the subscription while disconnecting: the client re-subscribes on its own after a short
+        // backoff, and the fence keeps it off the broker until the ack has been issued.
+        brokerSub.close(true, Optional.empty()).get();
+        try {
+            consumer.acknowledgeCumulative(last);
+        } finally {
+            brokerSub.resumeAfterFence();
+        }
+
+        // The ack either went out before the client saw the disconnect, and the broker, having dropped
+        // the consumer, discarded it, or the client held it until the consumer re-subscribed and sent it
+        // then. Only in the first case is anything redelivered, and the stream consumer lets the retry
+        // below through only once it has seen that redelivery: drain up to a marker published now.
+        producer.newMessage().value("marker").send();
+        Message<String> msg;
+        do {
+            msg = consumer.receive(Duration.ofSeconds(5));
+            assertNotNull(msg, "the marker must be delivered");
+        } while (!msg.value().equals("marker"));
+
+        // Retry with the id retained from the first delivery: either way, all but the marker ends up acked.
+        consumer.acknowledgeCumulative(last);
+        Awaitility.await().untilAsserted(() -> assertEquals(subscriptionBacklog(topic, subscription), 1L,
+                "retrying the ack must leave only the marker unacked"));
+    }
+
+    /** Receive {@code n} messages and return the id of the last one. */
+    private static MessageId receiveAll(StreamConsumer<String> consumer, int n) throws Exception {
+        MessageId last = null;
+        for (int i = 0; i < n; i++) {
+            Message<String> msg = consumer.receive(Duration.ofSeconds(5));
+            assertNotNull(msg, "missed message #" + i);
+            last = msg.id();
+        }
+        return last;
+    }
+
+    /**
+     * Delivered-but-unacked backlog of {@code subscription} across every segment of the scalable
+     * topic, read from the broker's Topic references (the topics REST admin does not serve the
+     * {@code segment://} domain).
+     */
+    private long subscriptionBacklog(String topic, String subscription) throws Exception {
+        long total = 0;
+        for (var seg : admin.scalableTopics().getStats(topic).getLayout().getSegments().values()) {
+            var ref = getTopicReference(seg.getName());
+            if (ref.isEmpty()) {
+                continue;
+            }
+            var sub = ref.get().getSubscription(subscription);
+            if (sub != null) {
+                total += sub.getNumberOfEntriesInBacklog(true);
+            }
+        }
+        return total;
     }
 }

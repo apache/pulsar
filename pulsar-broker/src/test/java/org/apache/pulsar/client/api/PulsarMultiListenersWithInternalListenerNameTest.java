@@ -21,7 +21,8 @@ package org.apache.pulsar.client.api;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.resolver.DefaultNameResolver;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.io.IOException;
@@ -36,8 +37,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -63,7 +64,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPulsarServiceBaseTest {
     private final boolean withLegacyListeners;
-    private ExecutorService executorService;
+    private ScheduledExecutorService executorService;
     private InetSocketAddress brokerAddress;
     private InetSocketAddress brokerSslAddress;
     private InetSocketAddress webServiceAddress;
@@ -94,8 +95,8 @@ public class PulsarMultiListenersWithInternalListenerNameTest extends MockedPuls
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
-        this.executorService = Executors.newFixedThreadPool(1);
-        this.eventExecutors = new NioEventLoopGroup();
+        this.executorService = Executors.newSingleThreadScheduledExecutor();
+        this.eventExecutors = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
         InetAddress host = InetAddress.getLocalHost();
         String hostAddress = host.getHostAddress();
         List<Integer> freePorts = getFreePorts(host, 3);

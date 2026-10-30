@@ -464,14 +464,17 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
     public static Object[][] variationsBackoff() {
         return new Object[][]{
                 // ackTimeOutMillis / minDelayMs / maxDelayMs / multiplier
-                {2000, 1000, 2000, 2},
-                {3000, 1000, 3000, 3}
+                {2000, 1000, 2000, 2, SubscriptionType.Shared},
+                {3000, 1000, 3000, 3, SubscriptionType.Shared},
+                {2000, 1000, 2000, 2, SubscriptionType.Exclusive},
+                {3000, 1000, 3000, 3, SubscriptionType.Exclusive}
         };
     }
 
     @Test(dataProvider = "variationsBackoff")
     public void testCheckUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis, long minDelayMs,
-                                                              long maxDelayMs, int multiplier)
+                                                              long maxDelayMs, int multiplier,
+                                                              SubscriptionType subscriptionType)
             throws PulsarClientException, InterruptedException {
         final String topicName = newTopicName();
         final String subscriptionName = "my-ex-subscription";
@@ -486,7 +489,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
 
         // 2. Create consumer
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
-                .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
+                .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(subscriptionType)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                         .minDelayMs(minDelayMs)
@@ -515,7 +518,13 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
             long startTime = System.currentTimeMillis();
             Message<byte[]> msg = consumer.receive();
             assertTrue(System.currentTimeMillis() - startTime >= ackTimeOutMillis + redeliveryTime);
-            assertEquals(msg.getRedeliveryCount(), redeliveryCount);
+            if (subscriptionType.equals(SubscriptionType.Shared)) {
+                assertEquals(msg.getRedeliveryCount(), redeliveryCount);
+            } else {
+                int count = ((UnAckedMessageRedeliveryTracker) consumer.getUnAckedMessageTracker())
+                        .getLocalRedeliveryCount(msg.getMessageId());
+                assertEquals(count, redeliveryCount);
+            }
             assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
         }
     }

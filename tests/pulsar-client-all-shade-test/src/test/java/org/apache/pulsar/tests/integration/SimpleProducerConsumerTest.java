@@ -49,18 +49,18 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.impl.TopicMessageImpl;
-import org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
 import org.apache.pulsar.common.api.EncryptionContext;
-import org.apache.pulsar.common.api.proto.MessageMetadata;
-import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
-import org.apache.pulsar.common.compression.CompressionCodec;
-import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.policies.data.TenantInfo;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.shade.io.netty.buffer.ByteBuf;
 import org.apache.pulsar.shade.io.netty.buffer.Unpooled;
+import org.apache.pulsar.shade.org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.shade.org.apache.pulsar.client.impl.TopicMessageImpl;
+import org.apache.pulsar.shade.org.apache.pulsar.client.impl.crypto.MessageCryptoBc;
+import org.apache.pulsar.shade.org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.shade.org.apache.pulsar.common.api.proto.SingleMessageMetadata;
+import org.apache.pulsar.shade.org.apache.pulsar.common.compression.CompressionCodec;
+import org.apache.pulsar.shade.org.apache.pulsar.common.compression.CompressionCodecProvider;
+import org.apache.pulsar.shade.org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -114,6 +114,7 @@ public class SimpleProducerConsumerTest extends TestRetrySupport {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private PulsarClient newPulsarClient(String url, int intervalInSecs) throws PulsarClientException {
         return PulsarClient.builder().serviceUrl(url).statsInterval(intervalInSecs, TimeUnit.SECONDS).build();
     }

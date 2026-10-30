@@ -23,6 +23,8 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -35,8 +37,10 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -62,6 +66,11 @@ public class ProducerBuilderImplTest {
         when(client.getConfiguration()).thenReturn(new ClientConfigurationData());
         producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
         when(client.newProducer()).thenReturn(producerBuilderImpl);
+
+        // The builder asks the client to fill in the pending-message defaults before creating the
+        // producer; on a mock that would otherwise hand back a null configuration.
+        when(client.applyNoMemoryLimitProducerDefaults(any(ProducerConfigurationData.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         doReturn(CompletableFuture.completedFuture(producer))
                 .when(client).createProducerAsync(
@@ -117,6 +126,44 @@ public class ProducerBuilderImplTest {
                 .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
                 .create();
         assertNotNull(producer);
+    }
+
+    /**
+     * {@code setMaxPendingMessagesAcrossPartitions} used to reject a value below {@code maxPendingMessages}.
+     * Pins that loading a positive limit does not trip that check on the across-partitions property, and
+     * that only the loaded limit is recorded as configured.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testLoadConfWithAPositiveMaxPendingMessages() {
+        producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
+        producerBuilderImpl.loadConf(Map.of("maxPendingMessages", 5000));
+
+        assertEquals(producerBuilderImpl.getConf().getMaxPendingMessages(), 5000);
+        assertTrue(producerBuilderImpl.getConf().isMaxPendingMessagesConfigured());
+        assertFalse(producerBuilderImpl.getConf().isMaxPendingMessagesAcrossPartitionsConfigured());
+    }
+
+    /**
+     * A null limit in the map resets it to 0 and still counts as configured, so with memory limiting
+     * disabled the producer keeps no limit instead of getting the defaults for unset limits.
+     */
+    @Test
+    public void testLoadConfWithNullMaxPendingMessagesKeepsNoLimit() throws Exception {
+        try (PulsarClientImpl realClient = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build()) {
+            Map<String, Object> config = new HashMap<>();
+            config.put("maxPendingMessages", null);
+            config.put("maxPendingMessagesAcrossPartitions", null);
+            ProducerBuilderImpl<byte[]> builder = new ProducerBuilderImpl<>(realClient, Schema.BYTES);
+            builder.loadConf(config);
+
+            ProducerConfigurationData resolved = realClient.applyNoMemoryLimitProducerDefaults(builder.getConf());
+            assertEquals(resolved.getMaxPendingMessages(), 0);
+            assertEquals(resolved.getMaxPendingMessagesAcrossPartitions(), 0);
+        }
     }
 
     @Test
@@ -378,9 +425,23 @@ public class ProducerBuilderImplTest {
 
     @SuppressWarnings("deprecation")
     @Test(expectedExceptions = IllegalArgumentException.class, expectedExceptionsMessageRegExp =
-            "maxPendingMessagesAcrossPartitions needs to be >= maxPendingMessages")
+            "maxPendingMessagesAcrossPartitions needs to be >= 0")
     public void testProducerBuilderImplWhenMaxPendingMessagesAcrossPartitionsPropertyIsInvalidErrorMessages() {
         producerBuilderImpl.maxPendingMessagesAcrossPartitions(-1);
+    }
+
+    /**
+     * The across-partitions budget is allowed to be below {@code maxPendingMessages}: it is a budget
+     * shared by every partition, and the per-partition limit is lowered to its share where it is used.
+     * Rejecting it here made the two setters order-dependent.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testAcrossPartitionsLimitBelowMaxPendingMessagesIsAccepted() {
+        producerBuilderImpl = new ProducerBuilderImpl<>(client, Schema.BYTES);
+        producerBuilderImpl.maxPendingMessages(1000).maxPendingMessagesAcrossPartitions(500);
+
+        assertEquals(producerBuilderImpl.getConf().getMaxPendingMessagesAcrossPartitions(), 500);
     }
 
     @SuppressWarnings("deprecation")

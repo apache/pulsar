@@ -3,7 +3,7 @@
 * **Status**: 'Under Discussion'
 * **Author**: Bowen Li (https://github.com/LeBW)
 * **Pull Request**: https://github.com/apache/pulsar/pull/11553
-* **Mailing List discussion**: https://lists.apache.org/thread.html/rb83be5600ba552ae965619d692574c8cc816b63ba616f8f228af7f5d%40%3Cdev.pulsar.apache.org%3E
+* **Mailing List discussion**: https://lists.apache.org/thread/vmtdpbbllfr29fcl5d30t4p17y2dp31r
 * **Release**: 2.9.0
 
 ## Background

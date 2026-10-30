@@ -39,7 +39,7 @@ import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 /**
  * JMH benchmark for {@link LongBitmap} ({@link ConcurrentRoaringBitmap}), compared against
- * the pre-PR bitmap implementations it replaces:
+ * the pre-PR bitmap implementations it replaces.
  * <ul>
  *   <li>{@link Roaring64Bitmap} — previously used in {@code InMemoryDelayedDeliveryTracker}.</li>
  *   <li>{@link RoaringBitmap} — previously used in {@code ConsumerNameIndexTracker},
@@ -91,6 +91,17 @@ public class LongBitmapBenchmark {
 
     @Benchmark
     @Threads(1)
+    public void longBitmapAddSingleValueRangeSingleThread() {
+        // The shape PositionRangeSet.addOpenClosed issues for an individually acked message:
+        // a one-wide range, not a point add. Every other benchmark here uses checkedAdd, which
+        // was already on the amortized growth path, so none of them could observe the
+        // container-growth regression this benchmark exists to guard.
+        long v = nextValue.getAndIncrement();
+        longBitmap.add(v, v + 1);
+    }
+
+    @Benchmark
+    @Threads(1)
     public boolean roaringBitmapAddSingleThread() {
         long v = nextValue.getAndIncrement();
         return roaringBitmap.checkedAdd((int) v);
@@ -135,7 +146,7 @@ public class LongBitmapBenchmark {
     @Benchmark
     @Threads(4)
     public void longBitmapContains4Threads(Blackhole bh) {
-        int v = (int) (Thread.currentThread().getId() * 31 + System.nanoTime());
+        int v = (int) (Thread.currentThread().threadId() * 31 + System.nanoTime());
         bh.consume(longBitmap.contains(Math.abs(v) % bitmapSize));
     }
 }
