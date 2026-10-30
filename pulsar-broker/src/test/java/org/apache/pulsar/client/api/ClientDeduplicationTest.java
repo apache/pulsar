@@ -296,7 +296,7 @@ public class ClientDeduplicationTest extends SharedPulsarBaseTest {
         producer.close();
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testKeyBasedBatchingOrderWithDistantSequenceIds() throws Exception {
         final String topic = newTopicName();
         admin.namespaces().setDeduplicationStatus(getNamespace(), true);

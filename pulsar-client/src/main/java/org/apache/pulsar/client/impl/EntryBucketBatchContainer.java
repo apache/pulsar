@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -145,7 +146,7 @@ class EntryBucketBatchContainer extends AbstractBatchMessageContainer {
         // broker's weak-order check to pass.
         batches.values().forEach(c -> c.setLowestSequenceId(c.getHighestSequenceId()));
         List<BatchMessageContainerImpl> sorted = batches.values().stream()
-                .sorted((o1, o2) -> (int) (o1.getLowestSequenceId() - o2.getLowestSequenceId()))
+                .sorted(Comparator.comparingLong(BatchMessageContainerImpl::getLowestSequenceId))
                 .collect(Collectors.toList());
         // Build the buckets in order: when a later bucket fails to build, the operations already built
         // never reach the send queue and must be released here, or their commands leak.
