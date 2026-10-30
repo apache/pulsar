@@ -173,7 +173,7 @@ public class ConsumerImplTest {
      * the receiver delivers chunk 0, marks the ctx as already expired (receivedTime = 0), then delivers a late chunk 1
      * that writes into the same {@code chunkedMsgBuffer} — exactly when the expiry task may release/recycle that ctx.
      * Without serialization this races (use-after-free / double-recycle). With the fix, both paths take
-     * chunkedMessageLock, so it passes and pendingChunkedMessageCount stays equal to chunkedMessagesMap.size().
+     * chunkedMessageLock, so it passes.
      */
     @Test(timeOut = 60000)
     public void testChunkedMessageCountRaceBetweenReceiveAndExpiry() throws Exception {
@@ -243,10 +243,6 @@ public class ConsumerImplTest {
                 throw new AssertionError(
                         "chunked-message bookkeeping race: concurrent ctx/buffer access corrupted state", error.get());
             }
-            int count = target.pendingChunkedMessageCount;
-            int mapSize = target.chunkedMessagesMap.size();
-            Assert.assertEquals(count, mapSize, "pendingChunkedMessageCount (" + count
-                    + ") drifted from chunkedMessagesMap.size() (" + mapSize + ")");
         } finally {
             // Partial buffers can be released only once no worker can touch them any more; if one is still running
             // after the bounded wait, leaking them is preferable to a use-after-free.
@@ -316,37 +312,24 @@ public class ConsumerImplTest {
 
     /**
      * When a duplicated first chunk (chunkId == 0, redelivered) arrives for a uuid that already has an
-     * in-progress ctx, the old ctx is replaced: removing/recycling it must be paired with decrementing
-     * pendingChunkedMessageCount before the unconditional increment for the new ctx, so the counter stays
-     * equal to the real number of in-progress chunked messages (chunkedMessagesMap.size()).
+     * in-progress ctx, the old ctx is replaced, so the uuid is still tracked exactly once.
      */
     @Test
-    public void testDuplicateFirstChunkOvercountsPendingChunkedMessageCount() throws Exception {
+    public void testDuplicateFirstChunkReplacesInProgressCtx() throws Exception {
         // Disable the lazy expiry self-scheduling so this test doesn't need a scheduled-executor mock.
         consumer.expireTimeOfIncompleteChunkedMessageMillis = 0L;
 
         final String uuid = "uuid-dup";
         try {
             // Deliver the first chunk (chunkId == 0) twice for the SAME uuid and SAME (ledgerId, entryId): a
-            // redelivered first chunk of a 2-chunk message. The message never completes, so only the ++/--
+            // redelivered first chunk of a 2-chunk message. The message never completes, so only the replacement
             // bookkeeping is exercised.
             for (int call = 0; call < 2; call++) {
                 sendChunk(uuid, 0, 2);
             }
 
-            int count = consumer.pendingChunkedMessageCount;
-            int mapSize = consumer.chunkedMessagesMap.size();
-            Assert.assertEquals(count, mapSize,
-                    "a redelivered first chunk over-counted pendingChunkedMessageCount (" + count
-                            + ") vs chunkedMessagesMap.size() (" + mapSize + ")");
-
-            // Only this single uuid is ever enqueued, so the queue size equals its occurrence count. After a
-            // redelivered first chunk it must be exactly 1 (stale entry removed, re-added once) — not 2 as the old
-            // double-enqueue did. (GrowableArrayBlockingQueue intentionally doesn't support iteration, so assert on
-            // size().)
-            Assert.assertEquals(consumer.pendingChunkedMessageUuidQueue.size(), 1,
-                    "uuid should appear exactly once in pendingChunkedMessageUuidQueue but queue size was "
-                            + consumer.pendingChunkedMessageUuidQueue.size());
+            Assert.assertEquals(consumer.chunkedMessagesMap.size(), 1,
+                    "a redelivered first chunk must replace, not add, the in-progress ctx");
         } finally {
             // The message is never completed, so its partial buffer is still live: release it even if an assertion
             // above failed.
@@ -371,83 +354,23 @@ public class ConsumerImplTest {
     }
 
     /**
-     * A uuid whose ctx is no longer in {@code chunkedMessagesMap} but still sits at the head of
-     * {@code pendingChunkedMessageUuidQueue} is a "ghost" head. Every removal path now drops the queue entry along
-     * with the map entry, so this is a defensive invariant of {@code removeExpireIncompleteChunkedMessages}: it must
-     * drop such null-ctx heads and keep scanning (as {@code removeOldestPendingChunkedMessage} does), because a ghost
-     * that stopped the scan would leave every genuinely-expired incomplete chunk behind it uncleaned (its
-     * {@code chunkedMsgBuffer} leaked and its chunks never acked), which is what happened before this invariant was
-     * enforced.
+     * The "lost first chunk" / forward-gap discard path in {@code processMessageChunk} must remove the in-progress ctx
+     * from {@code chunkedMessagesMap}.
      */
     @Test
-    public void testExpiryDrainsPastGhostQueueEntries() throws Exception {
-        // No max-pending eviction, so only the expiry path consumes the queue.
-        consumerConf.setMaxPendingChunkedMessage(0);
-        createConsumer(consumerConf);
-        // Enable expiry but skip the lazy self-scheduling so the test doesn't need a scheduled-executor mock.
-        consumer.expireTimeOfIncompleteChunkedMessageMillis = 1L;
-        consumer.expireChunkMessageTaskScheduled.set(true);
-
-        // uuid-A: first chunk of a 3-chunk message -> in-progress. Enqueued first (queue head).
-        sendChunk("uuid-A", 0, 3);
-        // uuid-B: first chunk of a 2-chunk message -> in-progress, enqueued after A. Never completed.
-        sendChunk("uuid-B", 0, 2);
-
-        // Plant a ghost head by hand: take uuid-A's ctx out of the map and recycle it while leaving its uuid in
-        // pendingChunkedMessageUuidQueue. (Releasing the buffer mirrors the assembled-payload release that a real
-        // completion performs.)
-        ConsumerImpl.ChunkedMessageCtx ctxA = consumer.chunkedMessagesMap.remove("uuid-A");
-        assertThat(ctxA).isNotNull();
-        if (ctxA.chunkedMsgBuffer != null) {
-            ctxA.chunkedMsgBuffer.release();
-        }
-        ctxA.recycle();
-
-        // Make uuid-B eligible for expiry right away.
-        ConsumerImpl.ChunkedMessageCtx ctxB = consumer.chunkedMessagesMap.get("uuid-B");
-        assertThat(ctxB).isNotNull();
-        ctxB.receivedTime = 0;
-        ByteBuf bufB = ctxB.chunkedMsgBuffer;
-
-        consumer.removeExpireIncompleteChunkedMessages();
-
-        // With the bug, the ghost head (uuid-A) makes expiry return before reaching the expired uuid-B.
-        assertThat(consumer.chunkedMessagesMap.containsKey("uuid-B"))
-                .as("expired incomplete chunked message behind a ghost queue head must be cleaned")
-                .isFalse();
-        assertThat(bufB.refCnt()).as("expired chunk buffer must be released").isZero();
-        assertThat(consumer.pendingChunkedMessageUuidQueue)
-                .as("ghost and expired entries must both be drained from the queue").isEmpty();
-    }
-
-    /**
-     * The "lost first chunk" / forward-gap discard path in {@code processMessageChunk} removes an in-progress ctx from
-     * {@code chunkedMessagesMap}, but must also keep the other bookkeeping in sync: decrement
-     * {@code pendingChunkedMessageCount} (the ctx was counted when its first chunk created it) and drop the uuid from
-     * {@code pendingChunkedMessageUuidQueue} (otherwise a ghost lingers). Without the decrement the count drifts upward
-     * and prematurely triggers {@code removeOldestPendingChunkedMessage}.
-     */
-    @Test
-    public void testForwardGapDiscardKeepsCountAndQueueConsistent() throws Exception {
+    public void testForwardGapDiscardRemovesInProgressCtx() throws Exception {
         // Disable the lazy expiry self-scheduling so this test doesn't need a scheduled-executor mock.
         consumer.expireTimeOfIncompleteChunkedMessageMillis = 0L;
 
         final String uuid = "uuid-gap";
-        // First chunk (chunkId 0) of a 3-chunk message -> in-progress: count=1, map={uuid}, queue=[uuid].
+        // First chunk (chunkId 0) of a 3-chunk message -> in-progress: map={uuid}.
         sendChunk(uuid, 0, 3);
         // A chunk that skips chunkId 1 (forward gap): chunkId 2 != lastChunkedMessageId(0)+1 and > lastChunkedMessageId
         // -> hits the "lost first chunk" discard path that removes the ctx from chunkedMessagesMap.
         sendChunk(uuid, 2, 3);
 
-        int count = consumer.pendingChunkedMessageCount;
-        int mapSize = consumer.chunkedMessagesMap.size();
-        Assert.assertEquals(count, mapSize,
-                "forward-gap discard over-counted pendingChunkedMessageCount (" + count
-                        + ") vs chunkedMessagesMap.size() (" + mapSize + ")");
-
-        Assert.assertEquals(consumer.pendingChunkedMessageUuidQueue.size(), mapSize,
-                "discarded uuid must be removed from pendingChunkedMessageUuidQueue (no ghost), queue size was "
-                        + consumer.pendingChunkedMessageUuidQueue.size());
+        Assert.assertEquals(consumer.chunkedMessagesMap.size(), 0,
+                "forward-gap discard must remove the in-progress ctx");
     }
 
     @Test(invocationTimeOut = 1000)
@@ -1299,8 +1222,6 @@ public class ConsumerImplTest {
 
     private static void assertNoPendingChunkedMessages(ConsumerImpl<?> consumer) {
         assertThat(consumer.chunkedMessagesMap).as("chunkedMessagesMap").isEmpty();
-        assertThat(consumer.pendingChunkedMessageUuidQueue).as("pendingChunkedMessageUuidQueue").isEmpty();
-        assertThat(consumer.pendingChunkedMessageCount).as("pendingChunkedMessageCount").isZero();
     }
 
     /**
@@ -1454,7 +1375,7 @@ public class ConsumerImplTest {
     /**
      * A first chunk arriving under a new message id for a uuid that still has an in-progress context means the earlier
      * chunks belong to a corrupted chunked message that will never be delivered. Replacing the context must ack those
-     * earlier chunk ids, through the deferred-ack path, and leave the count and queue consistent with the map.
+     * earlier chunk ids, through the deferred-ack path, and leave a single in-progress context in the map.
      */
     @Test(timeOut = 30000)
     public void testReplacedCorruptedChunkedMessageAcksItsEarlierChunks() throws Exception {
@@ -1474,8 +1395,6 @@ public class ConsumerImplTest {
                     .containsExactly(new MessageIdImpl(1L, 10L, -1), new MessageIdImpl(1L, 11L, -1));
             assertThat(corruptedBuffer.refCnt()).as("replaced buffer released").isZero();
             assertThat(consumer.chunkedMessagesMap).containsOnlyKeys("uuid-corrupt");
-            assertThat(consumer.pendingChunkedMessageCount).isEqualTo(1);
-            assertThat(consumer.pendingChunkedMessageUuidQueue.size()).isEqualTo(1);
         } finally {
             releasePendingChunkedMessages();
         }
@@ -1484,7 +1403,7 @@ public class ConsumerImplTest {
     /**
      * Exceeding {@code maxPendingChunkedMessage} evicts the oldest in-progress chunked message on the receive path.
      * With {@code autoAckOldestChunkedMessageOnQueueFull} its chunk ids are acked, through the deferred-ack path, and
-     * the eviction keeps the count and queue consistent with the map.
+     * only the newer message stays in the map.
      */
     @Test(timeOut = 30000)
     public void testEvictingOldestPendingChunkedMessageAcksItsChunks() throws Exception {
@@ -1504,8 +1423,6 @@ public class ConsumerImplTest {
                     .containsExactly(new MessageIdImpl(1L, 10L, -1));
             assertThat(oldBuffer.refCnt()).as("evicted buffer released").isZero();
             assertThat(consumer.chunkedMessagesMap).containsOnlyKeys("uuid-new");
-            assertThat(consumer.pendingChunkedMessageCount).isEqualTo(1);
-            assertThat(consumer.pendingChunkedMessageUuidQueue.size()).isEqualTo(1);
         } finally {
             releasePendingChunkedMessages();
         }
