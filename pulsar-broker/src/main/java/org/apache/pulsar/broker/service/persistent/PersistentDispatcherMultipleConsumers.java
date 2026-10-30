@@ -447,6 +447,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 // clear already acked positions from replay bucket
                 deletedMessages.forEach(position -> redeliveryMessages.remove(position.getLedgerId(),
                         position.getEntryId()));
+                if ((messagesToReplayNow.size() - deletedMessages.size()) == 0) {
+                    // The completion of an empty replay goes through the backoff path, because no entry
+                    // was processed; the next read is scheduled here instead, without a delay
+                    readMoreEntriesAsync();
+                }
             } else if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.get(this) == TRUE) {
                 log.debug()
                         .attr("totalUnackedMessages", totalUnackedMessages)
@@ -811,7 +816,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
         int entriesProcessed = lastNumberOfEntriesProcessed;
         updatePendingBytesToDispatch(-totalBytesSize);
         boolean canReadMoreImmediately = false;
-        if (entriesProcessed > 0 || entries.isEmpty() || skipNextBackoff) {
+        if (entriesProcessed > 0 || skipNextBackoff) {
             // Reset the backoff when messages were processed or nothing was read: an empty read is
             // not a failure to retry with a delay - for example the replay of positions that were
             // all acknowledged meanwhile completes with no entries
