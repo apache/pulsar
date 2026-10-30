@@ -49,6 +49,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -4829,5 +4830,14 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
                 () -> admin.topicPolicies().getTopicPolicies(missing));
         assertThrows(PulsarAdminException.PreconditionFailedException.class,
                 () -> admin.topicPolicies().getTopicPolicies(testTopic + "-partition-0"));
+    }
+
+    @Test
+    public void testGetAllTopicPoliciesAsyncInvalidTopic() {
+        // An invalid topic name must fail the returned future rather than throw synchronously.
+        CompletableFuture<Map<String, Object>> future =
+                admin.topicPolicies().getTopicPoliciesAsync("persistent://public/default/");
+        assertTrue(future.isCompletedExceptionally());
+        assertThrows(ExecutionException.class, future::get);
     }
 }

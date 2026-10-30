@@ -1385,7 +1385,12 @@ public class TopicPoliciesImpl extends BaseResource implements TopicPolicies {
 
     @Override
     public CompletableFuture<Map<String, Object>> getTopicPoliciesAsync(String topic) {
-        TopicName tn = validateTopic(topic);
+        TopicName tn;
+        try {
+            tn = validateTopic(topic);
+        } catch (IllegalArgumentException e) {
+            return CompletableFuture.failedFuture(getApiException(e));
+        }
         WebTarget path = topicPath(tn, "policies");
         return asyncGetRequest(path, new FutureCallback<Map<String, Object>>(){});
     }
