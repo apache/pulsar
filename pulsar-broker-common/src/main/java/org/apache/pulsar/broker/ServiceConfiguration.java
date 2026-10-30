@@ -484,11 +484,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
             (disable with value -1)""")
     private int delayedDeliveryMaxNumBuckets = -1;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Allow the in-memory delayed delivery tracker "
+            + "to pause cursor reads "
+            + "after detecting ordered delivery times in a lookahead window. Default is false. "
+            + "Enable only when applications guarantee non-decreasing delivery times for all messages on the broker, "
+            + "including future publications. An immediate message must not follow a message scheduled in the future. "
+            + "The broker cannot verify the delivery times of unread messages. "
+            + "When disabled, the broker scans and tracks the delayed backlog, which can increase memory and read I/O. "
+            + "Enabling this option restores the legacy fixed-delay read-pause behavior. Requires a broker restart.")
+    private boolean delayedDeliveryAssumeOrderedDeliveryTimes = false;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
             + "when detecting if all the messages in the topic have a fixed delay for "
             + "InMemoryDelayedDeliveryTracker (the default DelayedDeliverTracker). "
             + "Default is 50,000. Setting the lookahead window to 0 will disable the "
-            + "logic to handle fixed delays in messages in a different way.")
+            + "logic to handle fixed delays in messages in a different way. "
+            + "A positive value only enables read pauses when delayedDeliveryAssumeOrderedDeliveryTimes is true.")
     private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
