@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -62,7 +63,8 @@ public class ReaderMessagingTest extends MessagingBase {
         }
 
         for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
+            Message<String> msg = reader.readNext(10, TimeUnit.SECONDS);
+            assertNotNull(msg, "message-" + i + " not received");
             assertEquals(msg.getValue(), "message-" + i);
         }
 
@@ -72,6 +74,9 @@ public class ReaderMessagingTest extends MessagingBase {
                 .build();
 
         admin.topics().unload(topicName);
+        // The non-persistent topic drops what is published before the reader has subscribed again
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(topicName).getSubscriptions().get("test-sub").getConsumers().size(), 1));
 
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value("message-" + i).send();
@@ -79,7 +84,8 @@ public class ReaderMessagingTest extends MessagingBase {
         }
 
         for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
+            Message<String> msg = reader.readNext(10, TimeUnit.SECONDS);
+            assertNotNull(msg, "message-" + i + " not received");
             assertEquals(msg.getValue(), "message-" + i);
         }
 
@@ -116,7 +122,8 @@ public class ReaderMessagingTest extends MessagingBase {
         }
 
         for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
+            Message<String> msg = reader.readNext(10, TimeUnit.SECONDS);
+            assertNotNull(msg, "message-" + i + " not received");
             assertEquals(msg.getValue(), "message-" + i);
         }
 
@@ -126,6 +133,9 @@ public class ReaderMessagingTest extends MessagingBase {
                 .build();
 
         admin.topics().unload(topicName);
+        // The non-persistent topic drops what is published before the reader has subscribed again
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(topicName).getSubscriptions().get("test-sub").getConsumers().size(), 1));
 
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value("message-" + i).send();
@@ -133,7 +143,8 @@ public class ReaderMessagingTest extends MessagingBase {
         }
 
         for (int i = 0; i < messagesToSend; i++) {
-            Message<String> msg = reader.readNext();
+            Message<String> msg = reader.readNext(10, TimeUnit.SECONDS);
+            assertNotNull(msg, "message-" + i + " not received");
             assertEquals(msg.getValue(), "message-" + i);
         }
 
