@@ -1386,6 +1386,13 @@ public class BrokerService implements Closeable {
                 topicName.isPartitioned() ? TopicName.get(topicName.getPartitionedTopicName()) : topicName;
         return fetchPartitionedTopicMetadataAsync(baseTopicName)
                 .thenCompose(metadata -> {
+                    if (topicName.isPartitioned() && topicName.getPartitionIndex() >= metadata.partitions) {
+                        // Cached metadata may lag behind a new partition. Refresh once before rejecting it.
+                        return fetchPartitionedTopicMetadataAsync(baseTopicName, true);
+                    }
+                    return CompletableFuture.completedFuture(metadata);
+                })
+                .thenCompose(metadata -> {
                     if (topicName.isPartitioned()) {
                         if (metadata.partitions == 0) {
                             // Edge case: When a complete partitioned topic name is provided but metadata shows 0
@@ -2303,27 +2310,12 @@ public class BrokerService implements Closeable {
         final var topic = topicName.toString();
         final var topicFuture = context.getTopicFuture();
         // ServiceUnitNotReadyException is classified as bundle_unloading when the topic future completes.
-        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic)).thenRun(() -> {
-            CompletableFuture<Map<String, String>> propertiesFuture;
-            if (context.getProperties() == null) {
-                //Read properties from storage when loading topic.
-                propertiesFuture = fetchTopicPropertiesAsync(topicName);
-            } else {
-                propertiesFuture = CompletableFuture.completedFuture(context.getProperties());
-            }
-            context.trace(TopicLoadingTracePoints.PROPERTIES, propertiesFuture)
-                    .thenAccept(finalProperties -> {
-                context.setProperties(finalProperties);
-                //TODO add topicName in properties?
-                createPersistentTopic0(context);
-            }).exceptionally(throwable -> {
-                failTopicFuture(topic, topicFuture, throwable);
-                return null;
-            });
-        }).exceptionally(e -> {
-            failTopicFuture(topic, topicFuture, e);
-            return null;
-        });
+        context.trace(TopicLoadingTracePoints.OWNERSHIP, checkTopicNsOwnership(topic))
+                .thenRun(() -> createPersistentTopic0(context))
+                .exceptionally(e -> {
+                    failTopicFuture(topic, topicFuture, e);
+                    return null;
+                });
     }
 
     @VisibleForTesting
@@ -2348,6 +2340,14 @@ public class BrokerService implements Closeable {
         maxTopicsCheck.thenCompose(__ -> context.trace(TopicLoadingTracePoints.VALIDATE_TOPIC_CONSISTENCY,
                         validateTopicConsistency(topicName)))
                 .thenCompose(__ -> isTopicAlreadyMigrated)
+                .thenCompose(__ -> {
+                    // Validation may refresh partition metadata. Resolve dependent properties afterwards.
+                    CompletableFuture<Map<String, String>> propertiesFuture = context.getProperties() == null
+                            ? fetchTopicPropertiesAsync(topicName)
+                            : CompletableFuture.completedFuture(context.getProperties());
+                    return context.trace(TopicLoadingTracePoints.PROPERTIES, propertiesFuture)
+                            .thenAccept(context::setProperties);
+                })
                 .thenCompose(__ -> context.trace(TopicLoadingTracePoints.ML_CONFIG,
                         getManagedLedgerConfig(topicName, context)))
                 .thenCombine(context.trace(TopicLoadingTracePoints.TOPIC_EXISTS,
