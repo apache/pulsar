@@ -136,6 +136,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
@@ -3594,6 +3595,89 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(cursor.getMarkDeletedPosition(), p1);
     }
 
+    @DataProvider(name = "cursorCreationCloseOrdering")
+    public Object[][] cursorCreationCloseOrdering() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "cursorCreationCloseOrdering", timeOut = 30000)
+    @SuppressWarnings("unchecked")
+    public void testCloseWaitsForPendingCursorCreation(boolean closeBeforeCreation) throws Exception {
+        String ledgerName = "pending-cursor-creation-close";
+        String cursorPath = "/managed-ledgers/" + ledgerName + "/cursor";
+        CompletableFuture<Void> releaseWrite = new CompletableFuture<>();
+        CompletableFuture<Void> writeStarted = new CompletableFuture<>();
+        AtomicInteger cursorWrites = new AtomicInteger();
+        FaultInjectionMetadataStore spyStore = spy(metadataStore);
+        doAnswer(invocation -> {
+            CompletableFuture<Stat> write = (CompletableFuture<Stat>) invocation.callRealMethod();
+            if (cursorWrites.incrementAndGet() == 1) {
+                return write.thenCompose(stat -> {
+                    writeStarted.complete(null);
+                    return releaseWrite.thenApply(ignore -> stat);
+                });
+            }
+            return write;
+        }).when(spyStore).put(eq(cursorPath), any(byte[].class), any());
+
+        ManagedLedgerFactoryImpl localFactory = new ManagedLedgerFactoryImpl(spyStore, bkc);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) localFactory.open(ledgerName,
+                initManagedLedgerConfig(defaultConfig()));
+        CompletableFuture<ManagedCursor> opening = new CompletableFuture<>();
+        AtomicInteger openCallbacks = new AtomicInteger();
+        ManagedCursor created = null;
+        try {
+            ledger.asyncOpenCursor("cursor", new OpenCursorCallback() {
+                @Override
+                public void openCursorComplete(ManagedCursor cursor, Object ctx) {
+                    openCallbacks.incrementAndGet();
+                    opening.complete(cursor);
+                }
+
+                @Override
+                public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                    openCallbacks.incrementAndGet();
+                    opening.completeExceptionally(exception);
+                }
+            }, null);
+            writeStarted.get(5, TimeUnit.SECONDS);
+            assertThat(opening).isNotDone();
+            Futures.CloseFuture closing = new Futures.CloseFuture();
+            Futures.CloseFuture repeatedClose = new Futures.CloseFuture();
+            if (closeBeforeCreation) {
+                ledger.asyncClose(closing, null);
+                ledger.asyncClose(repeatedClose, null);
+                assertThat(closing).isNotDone();
+                assertThat(repeatedClose).isNotDone();
+            }
+            releaseWrite.complete(null);
+            if (closeBeforeCreation) {
+                assertThatThrownBy(() -> opening.get(5, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
+            } else {
+                created = opening.get(5, TimeUnit.SECONDS);
+                ledger.asyncClose(closing, null);
+            }
+            closing.get(5, TimeUnit.SECONDS);
+            if (closeBeforeCreation) {
+                repeatedClose.get(5, TimeUnit.SECONDS);
+                assertThat(ledger.getCursors()).isEmpty();
+            } else {
+                assertThat(created.isClosed()).isTrue();
+            }
+            assertThat(ledger.getActiveCursors()).isEmpty();
+            assertThat(cursorWrites).hasValue(2);
+            assertThat(openCallbacks).hasValue(1);
+        } finally {
+            releaseWrite.complete(null);
+            try {
+                ledger.close();
+            } finally {
+                localFactory.shutdown();
+            }
+        }
+    }
+
     /**
      * Returns a factory whose managed ledgers recover each cursor once the future of its name in
      * {@code recoveryGates} completes, and fail its recovery if that future fails.
@@ -3715,9 +3799,32 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         }
         assertEquals(new ArrayList<>(reopened.getLedgersInfo().keySet()), ledgerIds);
 
-        // Opening the cursor recovers it again instead of creating it at the end of the managed ledger
-        recoveryGates.put("cursor", CompletableFuture.completedFuture(null));
-        ManagedCursor recovered = reopened.openCursor("cursor");
+        // Concurrent opens retry the failed recovery once and share the recovered cursor.
+        CompletableFuture<Void> retryGate = new CompletableFuture<>();
+        recoveryGates.put("cursor", retryGate);
+        List<CompletableFuture<ManagedCursor>> openings = new ArrayList<>();
+        try {
+            for (int i = 0; i < 2; i++) {
+                CompletableFuture<ManagedCursor> opening = new CompletableFuture<>();
+                openings.add(opening);
+                reopened.asyncOpenCursor("cursor", new OpenCursorCallback() {
+                    @Override
+                    public void openCursorComplete(ManagedCursor recovered, Object ctx) {
+                        opening.complete(recovered);
+                    }
+
+                    @Override
+                    public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                        opening.completeExceptionally(exception);
+                    }
+                }, null);
+            }
+            assertThat(openings).allSatisfy(opening -> assertThat(opening).isNotDone());
+        } finally {
+            retryGate.complete(null);
+        }
+        ManagedCursor recovered = openings.get(0).get(5, TimeUnit.SECONDS);
+        assertThat(openings.get(1).get(5, TimeUnit.SECONDS)).isSameAs(recovered);
         assertEquals(recovered.getMarkDeletedPosition(), markDeletePosition);
         assertEquals(recovered.getNumberOfEntriesInBacklog(false), 6);
 
