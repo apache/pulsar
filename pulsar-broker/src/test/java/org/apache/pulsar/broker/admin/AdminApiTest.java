@@ -89,7 +89,6 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
-import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -100,7 +99,6 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -162,10 +160,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private NamespaceBundleFactory bundleFactory;
 
-    // A client that owns its event loop waits out the loop's 2 s shutdown quiet period on close, at every broker
-    // restart and in every test that closes its own client. Clients sharing a loop skip that wait.
-    private PulsarClientSharedResources clientSharedResources;
-
     @BeforeClass
     @Override
     public void setup() throws Exception {
@@ -200,9 +194,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             configurationConsumer.accept(conf);
         }
 
-        clientSharedResources = PulsarClientSharedResources.builder()
-                .resourceTypes(PulsarClientSharedResources.SharedResource.EventLoopGroup)
-                .build();
         super.internalSetup();
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
@@ -211,15 +202,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .serviceHttpUrl(brokerUrlTls.toString()).build());
 
         setupClusters();
-    }
-
-    @Override
-    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
-        clientBuilder.sharedResources(clientSharedResources);
-    }
-
-    private ClientBuilder newClientBuilder() {
-        return PulsarClient.builder().sharedResources(clientSharedResources);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -290,10 +272,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0);
         adminTls.close();
         super.internalCleanup();
-        if (clientSharedResources != null) {
-            clientSharedResources.close();
-            clientSharedResources = null;
-        }
     }
 
     @DataProvider(name = "numBundles")
@@ -964,7 +942,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = newClientBuilder()
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -1060,7 +1038,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = newClientBuilder()
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -1104,7 +1082,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // create consumer and subscription
         URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
         @Cleanup
-        PulsarClient client = newClientBuilder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(partitionedTopicName)
                 .subscriptionName("my-sub").subscribe();
@@ -1150,7 +1128,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // create consumer and subscription
         URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
         @Cleanup
-        PulsarClient client = newClientBuilder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
@@ -1228,7 +1206,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = newClientBuilder()
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -2232,7 +2210,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = newClientBuilder()
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -3166,7 +3144,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = newClientBuilder()
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -3251,7 +3229,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = newClientBuilder()
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -3337,7 +3315,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = newClientBuilder()
+        PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -3371,7 +3349,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // create consumer and subscription
         URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
         @Cleanup
-        PulsarClient client = newClientBuilder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic("persistent://prop-xyz/ns1/ds1")
                 .subscriptionName("my-sub").subscribe();
