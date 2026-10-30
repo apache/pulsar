@@ -24,6 +24,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -37,6 +38,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -103,8 +105,30 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    // The checks read the function state through this admin client: every pulsar-admin command starts a JVM in a
+    // container, which takes seconds. testFunctionNegAck runs the read commands through the CLI to cover them.
+    private PulsarAdmin workerAdmin;
+
     public PulsarFunctionsTest(FunctionRuntimeType functionRuntimeType) {
         super(functionRuntimeType);
+    }
+
+    @Override
+    protected void teardownFunctionWorkers() {
+        if (workerAdmin != null) {
+            workerAdmin.close();
+            workerAdmin = null;
+        }
+        super.teardownFunctionWorkers();
+    }
+
+    private PulsarAdmin workerAdmin() throws PulsarClientException {
+        if (workerAdmin == null) {
+            workerAdmin = PulsarAdmin.builder()
+                    .serviceHttpUrl(pulsarCluster.getAnyWorker().getHttpServiceUrl())
+                    .build();
+        }
+        return workerAdmin;
     }
 
     protected Map<String, String> produceMessagesToInputTopic(String inputTopicName,
@@ -290,25 +314,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // get function info
         getFunctionInfoSuccess(functionName);
 
-        containerExecResult = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "status",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
-        );
-
-        FunctionStatus functionStatus = FunctionStatusUtil.decode(containerExecResult.getStdout());
-        assertEquals(functionStatus.getNumInstances(), 1);
-        assertEquals(functionStatus.getNumRunning(), 1);
-        assertEquals(functionStatus.getInstances().size(), 1);
-        assertEquals(functionStatus.getInstances().get(0).getInstanceId(), 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumReceived(), 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getNumSuccessfullyProcessed(), 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestUserExceptions().size(), 0);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
+        // one running instance, which has received nothing
+        getFunctionStatus(functionName, 0, true);
 
         @Cleanup
         PulsarClient client = PulsarClient.builder()
@@ -336,8 +343,12 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             producer.send(String.format("%d", i).getBytes());
         }
 
+        // test that all messages are acked. The function acks the messages of a window after publishing its result,
+        // so the output topic now holds every result.
+        awaitAndVerifySubscriptionStats(inputTopicName, functionName, 0, 0);
+
         int i = 0;
-        while (true) {
+        while (reader.hasMessageAvailable()) {
             if (i > expectedResults.length) {
                 Assertions.fail("More results than expected");
             }
@@ -357,9 +368,6 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // in case last commit is not updated
         assertThat(i).isGreaterThanOrEqualTo(expectedResults.length - 1);
-
-        // test that all messages are acked
-        awaitAndVerifySubscriptionStats(inputTopicName, functionName, 0, 0);
 
         deleteFunction(functionName);
 
@@ -406,21 +414,26 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
 
+        // The function fails every 10th message, which it negatively acknowledges. The timeout sets the delay
+        // before such a message is redelivered (1 minute by default); in Java and Python it also sets the ack timeout,
+        // which the Python client requires to be at least 10 s.
+        java.util.function.Consumer<CommandGenerator> setTimeout = generator -> generator.setTimeoutMs(10000L);
         if (runtime == Runtime.PYTHON) {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE,
-                    EXCEPTION_PYTHON_CLASS, schema, null);
+                    EXCEPTION_PYTHON_CLASS, schema, setTimeout);
         } else if (runtime == Runtime.GO) {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_GO_FILE,
-                    null, schema, null);
+                    null, schema, setTimeout);
         } else {
             submitFunction(
-                    runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS, schema, null);
+                    runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS, schema,
+                    setTimeout);
         }
 
         // get function info
-        getFunctionInfoSuccess(functionName);
+        getFunctionInfoSuccessWithCli(functionName);
 
         // get function stats
         getFunctionStatsEmpty(functionName);
@@ -552,10 +565,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         deleteFunction(functionName);
 
         // get function info
-        getFunctionInfoNotFound(functionName);
+        getFunctionInfoNotFoundWithCli(functionName);
 
         // make sure subscriptions are cleanup
-        checkSubscriptionsCleanup(inputTopicName);
+        checkSubscriptionsCleanupWithCli(inputTopicName);
     }
 
     public void testGoPublishFunction() throws Exception {
@@ -765,8 +778,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                 commandGeneratorConsumer);
 
         // get function info
-        final String info = getFunctionInfoSuccess(functionName);
-        FunctionConfig config = ObjectMapperFactory.getMapper().getObjectMapper().readValue(info, FunctionConfig.class);
+        FunctionConfig config = getFunctionInfoSuccess(functionName);
 
         // get function stats
         getFunctionStatsEmpty(functionName);
@@ -834,7 +846,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     }
 
-    private void checkSubscriptionType(String topic, FunctionConfig config) {
+    private void checkSubscriptionType(String topic, FunctionConfig config) throws Exception {
         List<String> topics = new ArrayList<>();
         if (topic.endsWith(".*")) {
             topics.add(topic.substring(0, topic.length() - 2) + "1");
@@ -844,29 +856,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         } else {
             topics.add(topic);
         }
-        topics.stream().forEach(t -> {
-            try {
-                ContainerExecResult result = pulsarCluster.getAnyBroker().execCmd(
-                        PulsarCluster.ADMIN_SCRIPT,
-                        "topics",
-                        "stats",
-                        t);
-                TopicStats topicStats = ObjectMapperFactory.getMapper().reader()
-                        .readValue(result.getStdout(), TopicStats.class);
-                assertEquals(topicStats.getSubscriptions().size(), 1);
-                final SubscriptionStats sub = topicStats.getSubscriptions().values().iterator()
-                        .next();
-                if (config.getRetainOrdering()) {
-                    assertEquals(sub.getType(), "Failover");
-                } else if (config.getRetainKeyOrdering()) {
-                    assertEquals(sub.getType(), "Key_Shared");
-                } else {
-                    assertEquals(sub.getType(), "Shared");
-                }
-            } catch (Exception e) {
-                fail("Command should have exited with non-zero");
+        for (String t : topics) {
+            TopicStats topicStats = pulsarAdmin.topics().getStats(t);
+            assertEquals(topicStats.getSubscriptions().size(), 1);
+            final SubscriptionStats sub = topicStats.getSubscriptions().values().iterator()
+                    .next();
+            if (config.getRetainOrdering()) {
+                assertEquals(sub.getType(), "Failover");
+            } else if (config.getRetainKeyOrdering()) {
+                assertEquals(sub.getType(), "Key_Shared");
+            } else {
+                assertEquals(sub.getType(), "Shared");
             }
-        });
+        }
     }
 
     // checking batching config/consumer config, we can only check this by checking the logs for now
@@ -1209,7 +1211,19 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    protected String getFunctionInfoSuccess(String functionName) throws Exception {
+    protected FunctionConfig getFunctionInfoSuccess(String functionName) throws Exception {
+        // a worker serves the function once it has read it from the function metadata topic
+        FunctionConfig config = Awaitility.await()
+                .ignoreExceptions()
+                .until(() -> workerAdmin().functions().getFunction("public", "default", functionName),
+                        Objects::nonNull);
+
+        log.info().attr("config", config).log("FUNCTION CONFIG");
+        assertEquals(config.getName(), functionName);
+        return config;
+    }
+
+    private void getFunctionInfoSuccessWithCli(String functionName) throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "functions",
@@ -1221,23 +1235,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         log.info().attr("state", result.getStdout()).log("FUNCTION STATE");
         assertTrue(result.getStdout().contains("\"name\": \"" + functionName + "\""));
-        return result.getStdout();
     }
 
 
     protected void getFunctionStatsEmpty(String functionName) throws Exception {
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "stats",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
-        );
+        // the stats list the instance once it is assigned to a worker
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> checkFunctionStatsEmpty((FunctionStatsImpl) workerAdmin().functions()
+                        .getFunctionStats("public", "default", functionName)));
+    }
 
-        log.info().attr("stats", result.getStdout()).log("FUNCTION STATS");
-        FunctionStatsImpl functionStats = FunctionStatsImpl.decode(result.getStdout());
-
+    private void checkFunctionStatsEmpty(FunctionStatsImpl functionStats) {
         assertEquals(functionStats.getReceivedTotal(), 0);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), 0);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
@@ -1267,25 +1276,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     private void getFunctionStats(String functionName, int numMessages) throws Exception {
         Awaitility.await()
-                .pollInterval(Duration.ofSeconds(1))
                 .atMost(Duration.ofSeconds(15))
                 .ignoreExceptions()
                 .untilAsserted(() -> doGetFunctionStats(functionName, numMessages));
     }
 
     private void doGetFunctionStats(String functionName, int numMessages) throws Exception {
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "stats",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
-        );
-
-        log.info().attr("stats", result.getStdout()).log("FUNCTION STATS");
-
-        FunctionStatsImpl functionStats = FunctionStatsImpl.decode(result.getStdout());
+        FunctionStatsImpl functionStats = (FunctionStatsImpl) workerAdmin().functions()
+                .getFunctionStats("public", "default", functionName);
         assertEquals(functionStats.getReceivedTotal(), numMessages);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
@@ -1314,7 +1312,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertTrue(functionStats.instances.get(0).getMetrics().getOneMin().getAvgProcessLatency() > 0);
     }
 
-    private void getFunctionInfoNotFound(String functionName) throws Exception {
+    private void getFunctionInfoNotFound(String functionName) {
+        // a worker drops the function once it has read the delete from the function metadata topic
+        Awaitility.await().untilAsserted(() -> {
+            PulsarAdminException.NotFoundException e = expectThrows(PulsarAdminException.NotFoundException.class,
+                    () -> workerAdmin().functions().getFunction("public", "default", functionName));
+            assertTrue(e.getMessage().contains("Function " + functionName + " doesn't exist"), e.getMessage());
+        });
+    }
+
+    private void getFunctionInfoNotFoundWithCli(String functionName) throws Exception {
         retryStrategically(aVoid -> {
             try {
                 pulsarCluster.getAnyWorker().execCmd(
@@ -1336,7 +1343,25 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }, 5, 100, true);
     }
 
-    private void checkSubscriptionsCleanup(String topic) throws Exception {
+    private void checkSubscriptionsCleanup(String topic) {
+        List<String> topics = new ArrayList<>();
+        if (topic.endsWith(".*")) {
+            topics.add(topic.substring(0, topic.length() - 2) + "1");
+            topics.add(topic.substring(0, topic.length() - 2) + "2");
+        } else if (topic.contains(",")) {
+            topics.addAll(Arrays.asList(topic.split(",")));
+        } else {
+            topics.add(topic);
+        }
+        // the worker that ran the function deletes its subscriptions after the function is deleted
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            for (String t : topics) {
+                assertEquals(pulsarAdmin.topics().getStats(t).getSubscriptions().size(), 0);
+            }
+        });
+    }
+
+    private void checkSubscriptionsCleanupWithCli(String topic) throws Exception {
         List<String> topics = new ArrayList<>();
         if (topic.endsWith(".*")) {
             topics.add(topic.substring(0, topic.length() - 2) + "1");
@@ -1362,20 +1387,10 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         });
     }
 
-    private void checkPublisherCleanup(String topic) throws Exception {
-        try {
-            ContainerExecResult result = pulsarCluster.getAnyBroker().execCmd(
-                    PulsarCluster.ADMIN_SCRIPT,
-                    "topics",
-                    "stats",
-                    topic);
-            TopicStats topicStats = ObjectMapperFactory.getMapper().reader()
-                    .readValue(result.getStdout(), TopicStats.class);
-            assertEquals(topicStats.getPublishers().size(), 0);
-
-        } catch (ContainerExecException e) {
-            fail("Command should have exited with non-zero");
-        }
+    private void checkPublisherCleanup(String topic) {
+        // the function's producers close when its instance stops, after the function is deleted
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertEquals(pulsarAdmin.topics().getStats(topic).getPublishers().size(), 0));
     }
 
     private void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts) throws Exception {
@@ -1384,9 +1399,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     private void getFunctionStatus(String functionName, int numMessages, boolean checkRestarts, int parallelism)
             throws Exception {
-        // Each status check starts the admin CLI; allow for startup and command completion on busy CI runners.
+        // Allow for the instances to start and process the messages on busy CI runners.
         Awaitility.await()
-                .pollInterval(Duration.ofSeconds(1))
                 .atMost(Duration.ofSeconds(30))
                 .ignoreExceptions()
                 .untilAsserted(() ->
@@ -1395,16 +1409,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
     private void doGetFunctionStatus(String functionName, int numMessages, boolean checkRestarts, int parallelism)
             throws Exception {
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "status",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
-        );
-
-        FunctionStatus functionStatus = FunctionStatusUtil.decode(result.getStdout());
+        FunctionStatus functionStatus = workerAdmin().functions().getFunctionStatus("public", "default", functionName);
 
         assertEquals(functionStatus.getNumInstances(), parallelism);
         assertEquals(functionStatus.getNumRunning(), parallelism);
@@ -2033,7 +2038,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
             int i = 0;
             Message<GenericRecord> message;
             do {
-                message = consumer.receive(30, TimeUnit.SECONDS);
+                // wait for each expected result, and briefly for an unexpected extra one
+                message = consumer.receive(i < numMessages ? 30 : 1, TimeUnit.SECONDS);
                 if (message != null) {
                     GenericRecord genericRecord = message.getValue();
                     if (keyValue) {
@@ -2087,6 +2093,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     i++;
                 }
             } while (message != null);
+            assertEquals(i, numMessages, "number of results");
         } finally {
             pulsarCluster.dumpFunctionLogs(functionName);
         }
@@ -2201,14 +2208,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         getFunctionInfoSuccess(functionName);
 
-        getFunctionStatus(functionName, topicMsgCntMap.keySet().size() * messagePerTopic, true);
+        final int numMessages = topicMsgCntMap.keySet().size() * messagePerTopic;
+        getFunctionStatus(functionName, numMessages, true);
 
         try {
 
+            int received = 0;
             Message<GenericRecord> message;
             do {
-                message = consumer.receive(30, TimeUnit.SECONDS);
+                // wait for each expected result, and briefly for an unexpected extra one
+                message = consumer.receive(received < numMessages ? 30 : 1, TimeUnit.SECONDS);
                 if (message != null) {
+                    received++;
                     String baseTopic = message.getProperty("baseTopic");
                     GenericRecord genericRecord = message.getValue();
                     log.info()
