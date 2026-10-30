@@ -326,7 +326,7 @@ public class ScalableTopics extends AdminResource {
     }
 
     /**
-     * Orchestrate a regular-to-scalable migration:
+     * Orchestrate a regular-to-scalable migration.
      * <ol>
      *   <li>take the creation lock of the scalable topic, so no creation of the same topic, on any
      *       broker, can interleave with the steps up to the commit (see
@@ -1428,6 +1428,8 @@ public class ScalableTopics extends AdminResource {
                                                     + " has no web service URL configured"));
                                 }
                                 try {
+                                    // Lookup URLs may not be strict URIs; keep URL(String)'s lenient parsing.
+                                    @SuppressWarnings("deprecation")
                                     URL url = new URL(redirectUrl);
                                     URI redirect = UriBuilder.fromUri(uri.getRequestUri())
                                             .host(url.getHost())

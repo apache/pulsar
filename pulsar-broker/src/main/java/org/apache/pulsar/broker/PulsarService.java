@@ -575,6 +575,14 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 this.resourceGroupServiceManager = null;
             }
 
+            // Close the broker's own admin client before stopping the web service: the graceful stop waits for every
+            // open connection to close, so the admin client's idle connections to this broker would hold it up until
+            // Jetty's shutdown idle timeout (1 s) expires.
+            if (adminClient != null) {
+                adminClient.close();
+                adminClient = null;
+            }
+
             if (this.webService != null) {
                 try {
                     this.webService.close(waitForWebServiceToStop);
@@ -651,11 +659,6 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             closeLeaderElectionService();
-
-            if (adminClient != null) {
-                adminClient.close();
-                adminClient = null;
-            }
 
             if (transactionBufferSnapshotServiceFactory != null) {
                 transactionBufferSnapshotServiceFactory.close();

@@ -108,6 +108,8 @@ public abstract class AbstractPulsarE2ETest {
     /**
      * Creates a V5 client with the same service URL, authentication and TLS settings as the function worker.
      */
+    // Mirrors how PulsarService builds the worker client, which still honours the deprecated useTls flag.
+    @SuppressWarnings("deprecation")
     protected org.apache.pulsar.client.api.v5.PulsarClient newV5Client() throws Exception {
         AuthenticationConfig authConfig = AuthenticationConfig.builder()
                 .clientAuthenticationPlugin(workerConfig.getBrokerClientAuthenticationPlugin())

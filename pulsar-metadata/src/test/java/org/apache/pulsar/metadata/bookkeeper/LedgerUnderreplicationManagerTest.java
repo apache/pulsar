@@ -1331,6 +1331,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
     }
 
+    // BookKeeper's ZkLedgerUnderreplicationManager resolves its root from the deprecated zkLedgersRootPath here.
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testLockDataCompatibilityWithBookKeeper() throws Exception {
         methodSetup(zks::getConnectionString);
