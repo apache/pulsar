@@ -414,17 +414,21 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // submit the exclamation function
 
+        // The function fails every 10th message, which it negatively acknowledges. The timeout sets the delay
+        // before such a message is redelivered (1 minute by default); in Java and Python it also sets the ack timeout.
+        java.util.function.Consumer<CommandGenerator> setTimeout = generator -> generator.setTimeoutMs(5000L);
         if (runtime == Runtime.PYTHON) {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE,
-                    EXCEPTION_PYTHON_CLASS, schema, null);
+                    EXCEPTION_PYTHON_CLASS, schema, setTimeout);
         } else if (runtime == Runtime.GO) {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_GO_FILE,
-                    null, schema, null);
+                    null, schema, setTimeout);
         } else {
             submitFunction(
-                    runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS, schema, null);
+                    runtime, inputTopicName, outputTopicName, functionName, null, EXCEPTION_JAVA_CLASS, schema,
+                    setTimeout);
         }
 
         // get function info
