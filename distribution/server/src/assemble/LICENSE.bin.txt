@@ -263,7 +263,7 @@ The Apache Software License, Version 2.0
  * Caffeine -- com.github.ben-manes.caffeine-caffeine-3.3.0.jar
  * Conscrypt -- org.conscrypt-conscrypt-openjdk-uber-2.7.0.jar
  * Fastutil -- it.unimi.dsi-fastutil-8.5.16.jar
- * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.64.1.jar
+ * Proto Google Common Protos -- com.google.api.grpc-proto-google-common-protos-2.59.2.jar
  * Bitbucket -- org.bitbucket.b_c-jose4j-0.9.6.jar
  * Gson
     - com.google.code.gson-gson-2.15.0.jar
@@ -499,8 +499,8 @@ The Apache Software License, Version 2.0
   * Prometheus
     - io.prometheus-simpleclient_httpserver-0.16.0.jar
   * Oxia
-    - io.github.oxia-db-oxia-client-api-0.10.3.jar
-    - io.github.oxia-db-oxia-client-0.10.3.jar
+    - io.github.oxia-db-oxia-client-api-0.10.4.jar
+    - io.github.oxia-db-oxia-client-0.10.4.jar
   * OpenHFT
     - net.openhft-zero-allocation-hashing-0.16.jar
   * Java JSON WebTokens
