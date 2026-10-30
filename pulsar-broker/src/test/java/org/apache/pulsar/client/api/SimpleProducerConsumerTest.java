@@ -1766,7 +1766,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     public void testMaxUnAckMessagesLowerThanPermits(boolean ackReceiptEnabled, SubscriptionType subType)
             throws Exception {
         final int maxUnacks = 10;
+        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
         pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnacks);
+        @Cleanup
+        Closeable restoreMaxUnackedMessages =
+                () -> pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         final String topic = "persistent://my-property/my-ns/testMaxUnAckMessagesLowerThanPermits";
 
         @Cleanup
