@@ -66,6 +66,7 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
 import lombok.Value;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -75,6 +76,7 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.TopicInternalInfo;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testcontext.SpyConfig;
@@ -3789,21 +3791,28 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setSubscriptionExpirationTime(namespace1, 0);
         admin.namespaces().setSubscriptionExpirationTime(namespace2, 1);
         admin.namespaces().setSubscriptionExpirationTime(namespace3, 1);
+        // The broker applies namespace policies to its topics asynchronously. Let topic3 get this expiration time
+        // before it's removed: the wait below can't tell the default it falls back to, 0, from the one it had before
+        waitForSubscriptionExpirationTimeApplied(topic3, 1);
         admin.namespaces().removeSubscriptionExpirationTime(namespace3);
 
         Assert.assertEquals((int) admin.namespaces().getSubscriptionExpirationTime(namespace1), 0);
         Assert.assertEquals((int) admin.namespaces().getSubscriptionExpirationTime(namespace2), 1);
         Assert.assertNull(admin.namespaces().getSubscriptionExpirationTime(namespace3));
+        waitForSubscriptionExpirationTimeApplied(topic1, 0);
+        waitForSubscriptionExpirationTimeApplied(topic2, 1);
+        waitForSubscriptionExpirationTimeApplied(topic3, 0);
 
-        // The subscriptions are inactive since they were created. Once they have been for longer than namespace2's
-        // 1 minute expiration time, run the broker's check for expired subscriptions instead of waiting up to one
-        // more minute for its next periodic run
-        Awaitility.await().pollDelay(1, TimeUnit.MINUTES).pollInterval(1, TimeUnit.SECONDS)
-                .timeout(120, TimeUnit.SECONDS)
-                .until(() -> {
-                    pulsar.getBrokerService().checkInactiveSubscriptions();
-                    return admin.topics().getSubscriptions(topic2).size() == 0;
-                });
+        // Make the subscriptions look inactive for longer than namespace2's 1 minute expiration time instead of waiting
+        // for that, and run the broker's check for expired subscriptions instead of waiting for its periodic run
+        long lastActive = System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(2);
+        for (String topic : List.of(topic1, topic2, topic3)) {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).orElseThrow();
+            ManagedCursorTestUtil.setLastActive(persistentTopic.getSubscription(sub).getCursor(), lastActive);
+        }
+        pulsar.getBrokerService().checkInactiveSubscriptions();
+        Awaitility.await().until(() -> admin.topics().getSubscriptions(topic2).size() == 0);
         Assert.assertEquals(admin.topics().getSubscriptions(topic1).size(), 1);
         Assert.assertEquals(admin.topics().getSubscriptions(topic2).size(), 0);
         Assert.assertEquals(admin.topics().getSubscriptions(topic3).size(), 1);
@@ -3814,6 +3823,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         deleteNamespaceWithRetry(namespace1, false);
         deleteNamespaceWithRetry(namespace2, false);
         deleteNamespaceWithRetry(namespace3, false);
+    }
+
+    private void waitForSubscriptionExpirationTimeApplied(String topic, int expirationTimeInMinutes) {
+        Awaitility.await().untilAsserted(() -> assertEquals(pulsar.getBrokerService().getTopicReference(topic)
+                .orElseThrow().getHierarchyTopicPolicies().getSubscriptionExpirationTimeInMinutes().get(),
+                Integer.valueOf(expirationTimeInMinutes)));
     }
 
     @Test

@@ -3149,6 +3149,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         return Math.abs(lastActive);
     }
 
+    @VisibleForTesting
+    void setLastActive(long lastActive) {
+        this.lastActive = lastActive;
+    }
+
     @Override
     public void updateLastActive() {
         long previous = LAST_ACTIVE_UPDATER.getAndSet(this, System.currentTimeMillis());
