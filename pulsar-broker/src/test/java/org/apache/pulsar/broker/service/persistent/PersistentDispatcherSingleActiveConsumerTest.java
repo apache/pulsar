@@ -18,15 +18,20 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import io.netty.util.concurrent.Promise;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -41,6 +46,8 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -55,7 +62,11 @@ import org.apache.pulsar.broker.service.SharedPulsarCluster;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.KeySharedMeta;
+import org.apache.pulsar.common.api.proto.KeySharedMode;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.protocol.Commands;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -127,6 +138,83 @@ public class PersistentDispatcherSingleActiveConsumerTest extends SharedPulsarBa
 
         // The dispatch quota must be charged with the counts of the messages that were written.
         verify(rateLimiter).consumeDispatchQuota(3, 300);
+    }
+
+    @Test
+    public void testRateLimitProgressionWithOutOfRangeInitialBacklog() throws Exception {
+        String topicName = newTopicName();
+        String subscription = "s-range";
+        admin.topics().createNonPartitionedTopic(topicName);
+        admin.topics().createSubscription(topicName, subscription, MessageId.earliest);
+        PersistentTopic topic = (PersistentTopic) getTopic(topicName, false).join().orElseThrow();
+        PersistentSubscription sub = topic.getSubscription(subscription);
+
+        DispatchRateLimiter rateLimiter = mock(DispatchRateLimiter.class);
+        when(rateLimiter.getAvailableDispatchRateLimitOnMsg()).thenReturn(50L);
+        when(rateLimiter.getAvailableDispatchRateLimitOnByte()).thenReturn(-1L);
+
+        PersistentDispatcherSingleActiveConsumer dispatcher =
+                new PersistentDispatcherSingleActiveConsumer(sub.getCursor(),
+                        CommandSubscribe.SubType.Exclusive, 0, topic, sub) {
+                    @Override
+                    public Optional<DispatchRateLimiter> getRateLimiter() {
+                        return Optional.of(rateLimiter);
+                    }
+                };
+
+        // Consumer configured with a specific key hash range [0, 10]
+        KeySharedMeta keySharedMeta = new KeySharedMeta()
+                .setKeySharedMode(KeySharedMode.STICKY);
+        keySharedMeta.addHashRange().setStart(0).setEnd(10);
+
+        Consumer consumer = mock(Consumer.class);
+        when(consumer.getKeySharedMeta()).thenReturn(keySharedMeta);
+        AtomicInteger consumerAvg = new AtomicInteger(0);
+        when(consumer.getAvgMessagesPerEntry()).thenAnswer(inv -> consumerAvg.get());
+        doAnswer(inv -> {
+            int msgs = inv.getArgument(0);
+            int entriesCount = inv.getArgument(1);
+            consumerAvg.set(Math.round((float) msgs / entriesCount));
+            return null;
+        }).when(consumer).updateAvgMessagesPerEntry(anyInt(), anyInt());
+
+        Promise<Void> writePromise = ImmediateEventExecutor.INSTANCE.newPromise();
+        writePromise.setSuccess(null);
+        when(consumer.sendMessages(any(), any(), any(), anyInt(), anyLong(), anyLong(), any(), anyLong()))
+                .thenReturn(writePromise);
+
+        dispatcher.addConsumer(consumer);
+
+        // 1. Initial read limit before any read: cold start with unknown average limits read to 1 entry
+        Pair<Integer, Long> limitsBeforeRead =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        Assert.assertEquals(limitsBeforeRead.getLeft().intValue(), 1);
+
+        // 2. Read an entry with 10 batched messages whose sticky key hashes outside [0, 10] (out-of-range)
+        MessageMetadata metadata = new MessageMetadata()
+                .setProducerName("producer")
+                .setSequenceId(1)
+                .setPublishTime(System.currentTimeMillis())
+                .setPartitionKey("out-of-range-key-12345")
+                .setPartitionKeyB64Encoded(false)
+                .setNumMessagesInBatch(10);
+        ByteBuf buf = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata,
+                Unpooled.copiedBuffer("payload".getBytes(UTF_8)));
+        Entry entry = EntryImpl.create(1, 1, buf);
+        buf.release();
+        List<Entry> entries = new ArrayList<>(List.of(entry));
+
+        dispatcher.readEntriesComplete(entries, consumer, DEFAULT_CONSUMER_EPOCH, 0, null);
+
+        // 3. Out-of-range entry was filtered, but consumer average was bootstrapped to 10
+        Assert.assertEquals(consumerAvg.get(), 10);
+
+        // 4. Subsequent read with 50 permits progresses to 50 / 10 = 5 entries instead of staying stuck at 1
+        Pair<Integer, Long> limitsAfterRead =
+                dispatcher.applyRateLimitsToMessagesAndBytesToRead(100, 1000L);
+        Assert.assertEquals(limitsAfterRead.getLeft().intValue(), 5);
+
+        admin.topics().delete(topicName, false);
     }
 
     @DataProvider

@@ -23,7 +23,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
  * Protcol type to determine type of proxy routing when client connects to proxy using
- * {@link ClientBuilder::proxyServiceUrl}.
+ * {@link ClientBuilder#proxyServiceUrl}.
  */
 @InterfaceAudience.Public
 @InterfaceStability.Stable

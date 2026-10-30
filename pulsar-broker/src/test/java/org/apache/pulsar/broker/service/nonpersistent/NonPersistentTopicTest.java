@@ -262,6 +262,7 @@ public class NonPersistentTopicTest extends BrokerTestBase {
         CompletableFuture<Void> resumeSubscribe = new CompletableFuture<>();
         CountDownLatch subscribeStarted = new CountDownLatch(1);
         Mockito.doAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
             CompletableFuture<Void> ownership = (CompletableFuture<Void>) invocation.callRealMethod();
             return ownership.thenCompose(__ -> {
                 subscribeStarted.countDown();
