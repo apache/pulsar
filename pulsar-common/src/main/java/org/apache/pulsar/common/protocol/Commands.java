@@ -168,6 +168,13 @@ public class Commands {
                 .setType(type);
     }
 
+    /**
+     * Returns whether the command is the reusable command of the current thread.
+     */
+    public static boolean isThreadLocalCommand(BaseCommand command) {
+        return command != null && command == LOCAL_BASE_COMMAND.getIfExists();
+    }
+
     private static final FastThreadLocal<SingleMessageMetadata> LOCAL_SINGLE_MESSAGE_METADATA = //
             new FastThreadLocal<SingleMessageMetadata>() {
                 @Override
