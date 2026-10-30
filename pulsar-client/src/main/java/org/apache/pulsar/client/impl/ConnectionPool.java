@@ -24,10 +24,14 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.resolver.AddressResolver;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GlobalEventExecutor;
 import io.netty.util.concurrent.ScheduledFuture;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
@@ -70,6 +74,11 @@ public class ConnectionPool implements AutoCloseable {
     public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 15;
 
     protected final ConcurrentMap<Key, CompletableFuture<ClientCnx>> pool;
+
+    // Every channel the pool has opened, including connections still being established or in the Pulsar handshake,
+    // which the pool only holds as pending futures. Closed channels leave the group, and a channel added after close()
+    // is closed right away.
+    private final ChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE, true);
 
     private final Bootstrap bootstrap;
     private final PulsarChannelInitializer channelInitializerHandler;
@@ -444,7 +453,7 @@ public class ConnectionPool implements AutoCloseable {
                                                         InetSocketAddress unresolvedPhysicalAddress,
                                                         InetSocketAddress sniHost) {
         if (clientConfig.isUseTls()) {
-            return toCompletableFuture(bootstrap.register())
+            return registerChannel()
                     .thenCompose(channel -> channelInitializerHandler
                             .initTls(channel, sniHost != null ? sniHost : physicalAddress))
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
@@ -453,13 +462,19 @@ public class ConnectionPool implements AutoCloseable {
                                     unresolvedPhysicalAddress))
                     .thenCompose(channel -> connectToPhysicalAddress(channel, physicalAddress));
         } else {
-            return toCompletableFuture(bootstrap.register())
+            return registerChannel()
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
                     .thenCompose(ch ->
                             channelInitializerHandler.initializeClientCnx(ch, logicalAddress,
                                     unresolvedPhysicalAddress))
                     .thenCompose(channel -> connectToPhysicalAddress(channel, physicalAddress));
         }
+    }
+
+    private CompletableFuture<Channel> registerChannel() {
+        ChannelFuture registerFuture = bootstrap.register();
+        channels.add(registerFuture.channel());
+        return toCompletableFuture(registerFuture);
     }
 
     protected CompletableFuture<Channel> connectToPhysicalAddress(Channel channel, InetSocketAddress physicalAddress) {
@@ -479,6 +494,8 @@ public class ConnectionPool implements AutoCloseable {
     @Override
     public void close() throws Exception {
         closeAllConnections();
+        // Also closes the connections that closeAllConnections() can only close once they are established
+        channels.close();
         if (shouldCloseDnsResolver) {
             addressResolver.close();
         }

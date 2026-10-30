@@ -121,7 +121,7 @@ public class PulsarClientImplTest {
     }
 
     @Test(timeOut = 30_000)
-    public void testCloseDoesNotWaitForDefaultEventLoopQuietPeriod() throws Exception {
+    public void testCloseDoesNotWaitForEventLoopQuietPeriod() throws Exception {
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl("pulsar://localhost:6650")
                 .build();
