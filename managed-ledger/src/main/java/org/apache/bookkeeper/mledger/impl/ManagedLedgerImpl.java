@@ -2558,7 +2558,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    /**
+     * Reads the entries of the passed operation. Never fails synchronously: the cursor has already counted the
+     * operation as a pending read and relies on a completion callback to undo that, so a failure to submit the
+     * read - including an error such as {@link OutOfMemoryError} thrown while building or dispatching it, before
+     * anything was submitted to the bookkeeper - is reported through {@code readEntriesFailed}.
+     */
     void asyncReadEntries(OpReadEntry opReadEntry) {
+        try {
+            asyncReadEntriesInternal(opReadEntry);
+        } catch (Throwable t) {
+            log.error().attr("readPosition", opReadEntry.readPosition).exception(t).log("Failed to submit read");
+            opReadEntry.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), opReadEntry.ctx);
+        }
+    }
+
+    private void asyncReadEntriesInternal(OpReadEntry opReadEntry) {
         final State state = STATE_UPDATER.get(this);
         if (state.isFenced() || state == State.Closed) {
             opReadEntry.readEntriesFailed(new ManagedLedgerFencedException(), opReadEntry.ctx);
@@ -2940,9 +2955,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
                     () -> expectedReadCount, readCallback, ctx);
-            if (readCallback.registerTimeout()) {
-                factory.getReadEntryTimeoutTracker().add(readCallback);
-            }
+            registerTimeout(readCallback);
         } else {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, ManagedLedgerUtils.NO_MAX_SIZE_LIMIT,
                     () -> expectedReadCount, callback, ctx);
@@ -3103,7 +3116,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         return numberOfCursors > 0 ? numberOfCursors : EntryImpl.NO_EXPECTED_READ_COUNT;
                     }
                     : cursor::getNumberOfCursorsAtSamePositionOrBefore;
-            ManagedCursorImpl.ReadAheadToken readAhead = cursor.tryStartReadAhead();
+            ManagedCursorImpl.ReadAheadToken readAhead;
+            try {
+                readAhead = cursor.tryStartReadAhead();
+            } catch (Throwable t) {
+                log.debug().attr("ledgerId", ledger.getId()).exceptionMessage(t).log("Couldn't read ahead");
+                return;
+            }
             if (readAhead == null) {
                 return;
             }
@@ -3136,9 +3155,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             ReadEntryCallbackWrapper readCallback = ReadEntryCallbackWrapper.create(this, position.getLedgerId(),
                     position.getEntryId(), callback, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
             entryCache.asyncReadEntry(ledger, position, expectedReadCount, readCallback, ctx);
-            if (readCallback.registerTimeout()) {
-                factory.getReadEntryTimeoutTracker().add(readCallback);
-            }
+            registerTimeout(readCallback);
         } else {
             entryCache.asyncReadEntry(ledger, position, expectedReadCount, callback, ctx);
         }
@@ -3155,15 +3172,29 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     opReadEntry, ctx, timeoutAtNanos(config.getReadEntryTimeoutSeconds()));
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
                     readCallback, ctx);
-            if (readCallback.registerTimeout()) {
-                factory.getReadEntryTimeoutTracker().add(readCallback);
-            }
+            registerTimeout(readCallback);
         } else {
             entryCache.asyncReadEntry(ledger, firstEntry, lastEntry, opReadEntry.maxSizeBytes, expectedReadCount,
                     opReadEntry, ctx);
         }
         if (readAhead != null) {
-            readAhead.run();
+            try {
+                readAhead.run();
+            } catch (Throwable t) {
+                log.debug().attr("ledgerId", ledger.getId()).exceptionMessage(t).log("Couldn't read ahead");
+            }
+        }
+    }
+
+    private void registerTimeout(ReadEntryCallbackWrapper readCallback) {
+        try {
+            if (readCallback.registerTimeout()) {
+                factory.getReadEntryTimeoutTracker().add(readCallback);
+            }
+        } catch (Throwable t) {
+            // The read was already submitted: report through the wrapper, whose completion guard
+            // also coordinates the storage callbacks and the timeout
+            readCallback.notifyRegistrationFailed(ManagedLedgerException.getManagedLedgerException(t));
         }
     }
 
@@ -3270,7 +3301,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (!STATE_UPDATER.compareAndSet(this, TRACKED, COMPLETED)) {
                 return false;
             }
-            managedLedger.getExecutor().execute(() -> notifyReadFailed(exception));
+            try {
+                managedLedger.getExecutor().execute(() -> notifyReadFailed(exception));
+            } catch (RejectedExecutionException e) {
+                // The executor is shutting down: notify inline. The wrapper is already COMPLETED, so
+                // a late completion cannot deliver a second notification.
+                notifyReadFailed(exception);
+            }
             return true;
         }
 
@@ -3279,6 +3316,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 readEntryCallback.readEntryFailed(exception, cntx);
             } else if (readEntriesCallback != null) {
                 readEntriesCallback.readEntriesFailed(exception, cntx);
+            }
+        }
+
+        /**
+         * Reports a failure of the read's bookkeeping through the wrapper's own completion guard, so a
+         * late storage completion or timeout cannot deliver a second notification on a callback that
+         * has already been recycled. Unlike {@link #notifyReadFailed}, this transitions to COMPLETED.
+         */
+        void notifyRegistrationFailed(ManagedLedgerException exception) {
+            if (readEntryCallback != null) {
+                readEntryFailed(exception, cntx);
+            } else {
+                readEntriesFailed(exception, cntx);
             }
         }
 
