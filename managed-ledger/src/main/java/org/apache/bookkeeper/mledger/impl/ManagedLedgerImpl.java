@@ -3250,12 +3250,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }
 
-        // nobody reads an entry of a read that timed out, so its expected reads remain for the reads that do
+        // nobody reads an entry of a read that timed out, so its expected reads remain for the reads that do;
+        // the late batch may carry null slots (a mixed range-cache read leaves a slot null when its entry never
+        // arrived), which {@link EntryImpl#releaseDiscarded} tolerates, unlike a plain release
         private static void releaseUnread(Entry entry) {
-            if (entry instanceof EntryImpl entryImpl) {
-                entryImpl.setDecreaseReadCountOnRelease(false);
-            }
-            entry.release();
+            EntryImpl.releaseDiscarded(entry);
         }
 
         boolean isCompleted() {
