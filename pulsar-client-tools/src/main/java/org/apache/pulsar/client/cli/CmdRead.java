@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.cli.ClientApi;
 import org.apache.pulsar.cli.ClientApiOptionGroups;
 import org.apache.pulsar.client.api.Authentication;
@@ -108,6 +109,10 @@ public class CmdRead extends AbstractCmdConsume {
 
     /** Options that only the v4 client supports. */
     public static class V4Options implements ClientApiOptionGroups.V4ClientOptions {
+        @Option(names = "--read-compacted", description = "Read from the compacted topic. Requires a persistent topic "
+                + "over the binary protocol.")
+        protected boolean readCompacted = false;
+
         @Option(names = { "-i", "--start-message-id-inclusive" },
                 description = "Whether to include the position specified by -m option.")
         protected boolean startMessageIdInclusive = false;
@@ -163,6 +168,11 @@ public class CmdRead extends AbstractCmdConsume {
             throw (new IllegalArgumentException("Number of messages should be zero or positive."));
         }
         ClientApi resolvedClientApi = resolveClientApi(commandSpec, clientApi, topic, serviceURL);
+        if (v4.readCompacted
+                && (isWebSocketUrl(serviceURL) || !TopicName.get(StringUtils.trim(topic)).isPersistent())) {
+            throw new CommandLine.ParameterException(commandSpec.commandLine(),
+                    "--read-compacted requires a persistent topic over the binary protocol.");
+        }
         validateStartMessageId(resolvedClientApi);
         if (resolvedClientApi == ClientApi.V5) {
             validateV5EncryptionKeyUri(commandSpec, encKeyValue);

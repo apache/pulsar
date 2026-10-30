@@ -2645,14 +2645,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
-    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+        doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache. Without a copy, a cached entry keeps the buffer that it was received in allocated\n"
             + "while it stays in the cache. That is a buffer of the Netty connection that the entry arrived on, from\n"
             + "a client or from a bookie, such as a receive buffer or one that the TLS handler or the frame decoder\n"
             + "allocated, and it can be much larger than the entry. The cache size limit counts only\n"
             + "the entry's own size, so size-based eviction doesn't bound that memory, and\n"
             + "managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes extends how long it\n"
-            + "stays allocated.")
+            + "stays allocated. Dynamic updates apply to subsequent cache insertions; existing cached entries keep "
+            + "their original buffers and are not cleared.")
     private boolean managedLedgerCacheCopyEntries = false;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size in MB for bytes read from storage"

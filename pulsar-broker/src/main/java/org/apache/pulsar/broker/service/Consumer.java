@@ -436,13 +436,7 @@ public class Consumer {
         }
 
         // calculate avg message per entry
-        if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
-            // set init value.
-            avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
-        } else {
-            avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
-                    + (1 - avgPercent) * totalMessages / totalEntries);
-        }
+        updateAvgMessagesPerEntry(totalMessages, totalEntries);
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
@@ -919,7 +913,7 @@ public class Consumer {
      *
      * @param ledgerId The ID of the ledger.
      * @param entryId The ID of the entry.
-     * @return Pair<Consumer, BatchSize>, this consumer and 1 when no other consumer has the pending ack
+     * @return {@code Pair<Consumer, BatchSize>}, this consumer and 1 when no other consumer has the pending ack
      */
     private ObjectIntPair<Consumer> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
         if (Subscription.isIndividualAckMode(subType)) {
@@ -1126,6 +1120,19 @@ public class Consumer {
      */
     public int getAvgMessagesPerEntry() {
         return (int) Math.round(avgMessagesPerEntry.get());
+    }
+
+    public void updateAvgMessagesPerEntry(int totalMessages, int totalEntries) {
+        if (totalEntries <= 0 || totalMessages <= 0) {
+            return;
+        }
+        if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
+            // set init value.
+            avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
+        } else {
+            avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
+                    + (1 - avgPercent) * totalMessages / totalEntries);
+        }
     }
 
     public boolean isBlocked() {

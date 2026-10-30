@@ -119,8 +119,6 @@ public class AuthenticatedTransactionProducerConsumerTest extends TransactionTes
         conf.setProperties(properties);
         conf.setBrokerClientAuthenticationPlugin(AuthenticationToken.class.getName());
         conf.setBrokerClientAuthenticationParameters("token:" + adminToken);
-        setBrokerCount(1);
-        internalSetup();
         setUpBase(1, 1, TOPIC, 1);
 
         grantTxnLookupToRole("client");

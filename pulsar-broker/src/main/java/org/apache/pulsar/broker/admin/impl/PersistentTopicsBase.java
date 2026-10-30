@@ -171,7 +171,7 @@ public class PersistentTopicsBase extends AdminResource {
 
     private static final int OFFLINE_TOPIC_STAT_TTL_MINS = 10;
     private static final String DEPRECATED_CLIENT_VERSION_PREFIX = "Pulsar-CPP-v";
-    private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.forIntegers(1, 21);
+    private static final Version LEAST_SUPPORTED_CLIENT_VERSION_PREFIX = Version.of(1, 21);
 
     protected CompletableFuture<List<String>> internalGetListAsync(Optional<String> bundle,
                                                                    @Nullable Map<String, String> properties) {
@@ -5048,8 +5048,8 @@ public class PersistentTopicsBase extends AdminResource {
                 String[] tokens = userAgent.split(DEPRECATED_CLIENT_VERSION_PREFIX);
                 String[] splits = tokens.length > 1 ? tokens[1].split("-")[0].trim().split("\\.") : null;
                 if (splits != null && splits.length > 1) {
-                    if (LEAST_SUPPORTED_CLIENT_VERSION_PREFIX.getMajorVersion() > Integer.parseInt(splits[0])
-                            || LEAST_SUPPORTED_CLIENT_VERSION_PREFIX.getMinorVersion() > Integer.parseInt(splits[1])) {
+                    if (LEAST_SUPPORTED_CLIENT_VERSION_PREFIX.majorVersion() > Integer.parseInt(splits[0])
+                            || LEAST_SUPPORTED_CLIENT_VERSION_PREFIX.minorVersion() > Integer.parseInt(splits[1])) {
                         return FutureUtil.failedFuture(new RestException(Status.METHOD_NOT_ALLOWED,
                                 "Client lib is not compatible to access partitioned metadata: version " + userAgent
                                         + " is not supported"));
