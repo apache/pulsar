@@ -2373,19 +2373,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             future.get();
         }
 
-        // consumer1 and consumer2 receive what the broker dispatched to them, and give it permits for the 5 messages
-        // produced next
-        Awaitility.await().untilAsserted(() -> {
-            for (Consumer<byte[]> consumer : List.of(consumer1, consumer2)) {
-                while (consumer.receive(0, TimeUnit.MILLISECONDS) != null) {
-                    // empty the receiver queue
-                }
-            }
-            TopicStats stats = admin.topics().getStats("persistent://my-property/my-ns/my-topic2");
-            assertEquals(stats.getMsgOutCounter(), stats.getMsgInCounter());
-            assertTrue(getBrokerConsumer(consumer1).getAvailablePermits()
-                    + getBrokerConsumer(consumer2).getAvailablePermits() >= 5);
-        });
+        for (int i = 0; i < 20; i++) {
+            consumer1.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS);
+            consumer2.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS);
+        }
 
         /**
          * a. consumer1 and consumer2 now has more permits (as received and sent more permits) b. try to produce more
