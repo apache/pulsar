@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -595,31 +596,31 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
     @Override
     public Runnable registerCancellableListener(Consumer<Notification> listener) {
-        return switch (migrationState.getPhase()) {
-            case NOT_STARTED, PREPARATION, COPYING, FAILED -> {
-                ListenerRegistration<Notification> registration = new ListenerRegistration<>(listener, listeners);
-                listeners.add(registration);
-                registration.registerWithSource(sourceStore::registerCancellableListener);
-                yield registration::cancel;
-            }
-
-            case COMPLETED -> targetStore.registerCancellableListener(listener);
-        };
+        return registerCancellableListener(listener, listeners, sourceStore::registerCancellableListener,
+                targetListener -> targetStore.registerCancellableListener(targetListener));
     }
 
     @Override
     public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
-        return switch (migrationState.getPhase()) {
-            case NOT_STARTED, PREPARATION, COPYING, FAILED -> {
-                ListenerRegistration<SessionEvent> registration =
-                        new ListenerRegistration<>(listener, sessionListeners);
-                sessionListeners.add(registration);
-                registration.registerWithSource(sourceStore::registerCancellableSessionListener);
-                yield registration::cancel;
-            }
+        return registerCancellableListener(listener, sessionListeners, sourceStore::registerCancellableSessionListener,
+                targetListener -> targetStore.registerCancellableSessionListener(targetListener));
+    }
 
-            case COMPLETED -> targetStore.registerCancellableSessionListener(listener);
-        };
+    private <T> Runnable registerCancellableListener(Consumer<T> listener, Set<ListenerRegistration<T>> registrations,
+                                                   Function<Consumer<T>, Runnable> registerWithSource,
+                                                   Function<Consumer<T>, Runnable> registerWithTarget) {
+        MigrationPhase phase = getMigrationPhase();
+        ListenerRegistration<T> registration = new ListenerRegistration<>(listener, registrations);
+        registrations.add(registration);
+        if (phase != MigrationPhase.COMPLETED) {
+            registration.registerWithSource(registerWithSource);
+        }
+        // Completion may have traversed the registry before this registration was added. Recheck after publishing
+        // it. If the target is not initialized yet, the completion handler will find it after initialization.
+        if (getMigrationPhase() == MigrationPhase.COMPLETED && targetStore != null) {
+            registration.registerWithTarget(registerWithTarget);
+        }
+        return registration::cancel;
     }
 
     @Override
@@ -642,6 +643,15 @@ public class DualMetadataStore implements MetadataStoreExtended {
         var cache =  new DualMetadataCache<>(this, null, null, cacheName, serde, cacheConfig);
         caches.add(cache);
         return cache;
+    }
+
+    void unregisterMetadataCache(DualMetadataCache<?> cache) {
+        caches.remove(cache);
+    }
+
+    @VisibleForTesting
+    int getMetadataCacheCount() {
+        return caches.size();
     }
 
     @Override

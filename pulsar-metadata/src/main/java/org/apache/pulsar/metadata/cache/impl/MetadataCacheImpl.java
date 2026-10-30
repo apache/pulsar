@@ -38,6 +38,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -70,6 +71,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     private final OrderedExecutor executor;
     private final ScheduledExecutorService schedulerExecutor;
     private final MetadataCacheConfig<T> cacheConfig;
+    private final String cacheName;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     private final AsyncLoadingCache<String, Optional<CacheGetResult<T>>> objCache;
 
@@ -88,6 +91,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                              MetadataCacheConfig<T> cacheConfig, OrderedExecutor executor,
                              ScheduledExecutorService schedulerExecutor) {
         this.store = store;
+        this.cacheName = cacheName;
         if (store instanceof MetadataStoreExtended) {
             this.storeExtended = (MetadataStoreExtended) store;
         } else {
@@ -368,6 +372,9 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
 
     @Override
     public void refresh(String path) {
+        if (closed.get()) {
+            return;
+        }
         // Refresh object of path if only it is cached before.
         objCache.asMap().computeIfPresent(path, (oldKey, oldValue) -> readValueFromStore(path));
     }
@@ -375,6 +382,17 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     @VisibleForTesting
     public void invalidateAll() {
         objCache.synchronous().invalidateAll();
+    }
+
+    @Override
+    public void close() {
+        if (closed.compareAndSet(false, true)) {
+            if (store instanceof AbstractMetadataStore metadataStore) {
+                metadataStore.unregisterMetadataCache(this);
+            }
+            invalidateAll();
+            CacheMetricsCollector.removeCache(cacheName, objCache);
+        }
     }
 
     @Override

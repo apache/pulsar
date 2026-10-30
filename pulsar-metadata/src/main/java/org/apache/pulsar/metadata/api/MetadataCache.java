@@ -33,7 +33,19 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 /**
  * Represent the caching layer access for a specific type of objects.
  */
-public interface MetadataCache<T> {
+public interface MetadataCache<T> extends AutoCloseable {
+
+    /**
+     * Release this cache's registration with its metadata store and its cached values.
+     * The store itself remains open. Calling this more than once has no further effect.
+     * Operations already in flight may still complete; callers must not use the cache after closing it.
+     *
+     * <p>The default is a no-op for compatibility with third-party cache implementations.
+     */
+    @Override
+    default void close() {
+        // Implementations that own resources override this method.
+    }
 
     /**
      * Tries to fetch one item from the cache or fallback to the store if not present.
