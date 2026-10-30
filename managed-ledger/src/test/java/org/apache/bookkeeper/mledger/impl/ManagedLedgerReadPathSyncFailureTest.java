@@ -39,6 +39,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
@@ -83,8 +84,12 @@ public class ManagedLedgerReadPathSyncFailureTest extends MockedBookKeeperTestCa
     @Test
     public void testBatchReadTimeoutRegistrationFailureNotifiesBatchCallback() throws Exception {
         CompletableFuture<Void> releaseReads = new CompletableFuture<>();
+        AtomicBoolean readDelivered = new AtomicBoolean();
         bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, readEntries) ->
-                releaseReads.thenApply(__ -> readEntries));
+                releaseReads.thenApply(__ -> {
+                    readDelivered.set(true);
+                    return readEntries;
+                }));
 
         ManagedLedgerFactoryImpl factorySpy = spy(factory);
         ReadEntryTimeoutTracker tracker = spy(factory.getReadEntryTimeoutTracker());
@@ -102,15 +107,35 @@ public class ManagedLedgerReadPathSyncFailureTest extends MockedBookKeeperTestCa
         cursor.setInactive();
         ledger.addEntry("entry-0".getBytes(UTF_8));
 
-        cursor.asyncReadEntriesOrWait(1, callback(), null, ledger.getLastConfirmedEntry());
+        AtomicInteger failures = new AtomicInteger();
+        AtomicInteger completions = new AtomicInteger();
+        cursor.asyncReadEntriesOrWait(1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> readEntries, Object ctx) {
+                completions.incrementAndGet();
+                entries.addAll(readEntries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                failures.incrementAndGet();
+                failure.set(exception);
+            }
+        }, null, ledger.getLastConfirmedEntry());
 
         await().atMost(TIMEOUT).untilAsserted(() -> {
             assertThat(failure.get().getCause()).isSameAs(cause);
             assertThat(cursor.getPendingReadOpsCount()).isZero();
         });
-        // The late storage completion releases its entries without completing the callback again
+        // The late storage completion releases its entries without a second notification: the
+        // completion guard was consumed by the registration failure
         releaseReads.complete(null);
-        await().atMost(TIMEOUT).untilAsserted(() -> assertThat(entries).isEmpty());
+        await().atMost(TIMEOUT).untilTrue(readDelivered);
+        await().during(Duration.ofMillis(500)).atMost(TIMEOUT).untilAsserted(() -> {
+            assertThat(failures).hasValue(1);
+            assertThat(completions).hasValue(0);
+            assertThat(entries).isEmpty();
+        });
     }
 
     private ReadEntriesCallback callback() {

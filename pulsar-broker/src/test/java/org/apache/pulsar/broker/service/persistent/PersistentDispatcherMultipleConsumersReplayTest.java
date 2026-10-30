@@ -27,6 +27,7 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.concurrent.ImmediateEventExecutor;
@@ -207,12 +208,16 @@ public class PersistentDispatcherMultipleConsumersReplayTest extends MockedBookK
 
         dispatcher.readMoreEntriesAsync();
 
-        Awaitility.await("the replay flag should be cleared by the completion")
+        // The replay must actually run before the assertions: the flag and the counter both start
+        // in the asserted state
+        verify(dispatcher, org.mockito.Mockito.timeout(10_000)).asyncReplayEntries(any());
+        // The completion schedules the next read, which parks the cursor: proof the synchronous
+        // completion path ran to the end
+        Awaitility.await("the completion should schedule the next read")
                 .atMost(Duration.ofSeconds(10))
-                .until(() -> !dispatcher.havePendingReplayRead);
-        Awaitility.await("the dispatcher must not end the replay a second time")
-                .atMost(Duration.ofSeconds(10))
-                .until(() -> replayEnds.get() == 0);
+                .until(() -> cursor.hasPendingReadRequest() && dispatcher.havePendingRead);
+        Assert.assertFalse(dispatcher.havePendingReplayRead);
+        Assert.assertEquals(replayEnds.get(), 0);
         Assert.assertEquals(cursor.getPendingReadOpsCount(), 0);
     }
 

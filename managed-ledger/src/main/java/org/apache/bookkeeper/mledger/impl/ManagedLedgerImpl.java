@@ -3194,7 +3194,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } catch (Throwable t) {
             // The read was already submitted: report through the wrapper, whose completion guard
             // also coordinates the storage callbacks and the timeout
-            readCallback.notifyReadFailed(ManagedLedgerException.getManagedLedgerException(t));
+            readCallback.notifyRegistrationFailed(ManagedLedgerException.getManagedLedgerException(t));
         }
     }
 
@@ -3310,6 +3310,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 readEntryCallback.readEntryFailed(exception, cntx);
             } else if (readEntriesCallback != null) {
                 readEntriesCallback.readEntriesFailed(exception, cntx);
+            }
+        }
+
+        /**
+         * Reports a failure of the read's bookkeeping through the wrapper's own completion guard, so a
+         * late storage completion or timeout cannot deliver a second notification on a callback that
+         * has already been recycled. Unlike {@link #notifyReadFailed}, this transitions to COMPLETED.
+         */
+        void notifyRegistrationFailed(ManagedLedgerException exception) {
+            if (readEntryCallback != null) {
+                readEntryFailed(exception, cntx);
+            } else {
+                readEntriesFailed(exception, cntx);
             }
         }
 
