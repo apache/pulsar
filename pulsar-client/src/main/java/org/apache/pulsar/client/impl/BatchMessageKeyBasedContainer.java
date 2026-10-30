@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -122,9 +123,9 @@ class BatchMessageKeyBasedContainer extends AbstractBatchMessageContainer {
         batches.values().forEach(batchMessageContainer -> {
             batchMessageContainer.setLowestSequenceId(batchMessageContainer.getHighestSequenceId());
         });
-        List<BatchMessageContainerImpl> sorted = batches.values().stream().sorted((o1, o2) ->
-                (int) (o1.getLowestSequenceId() - o2.getLowestSequenceId())
-        ).collect(Collectors.toList());
+        List<BatchMessageContainerImpl> sorted = batches.values().stream()
+                .sorted(Comparator.comparingLong(BatchMessageContainerImpl::getLowestSequenceId))
+                .collect(Collectors.toList());
         // Build the sub-batches in order: when a later sub-batch fails to build, the operations already built
         // never reach the send queue and must be released here, or their commands leak.
         List<ProducerImpl.OpSendMsg> ops = new ArrayList<>(sorted.size());
