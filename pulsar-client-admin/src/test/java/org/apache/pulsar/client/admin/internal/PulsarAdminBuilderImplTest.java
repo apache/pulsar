@@ -180,6 +180,32 @@ public class PulsarAdminBuilderImplTest {
         assertThatAuthIsNotSet(auth);
     }
 
+    @Test
+    public void testLoadConfKeepsAuthenticationAcrossUnrelatedProps() throws Exception {
+        PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParams("pass1"))
+                .loadConf(Collections.singletonMap("requestTimeoutMs", 5000))
+                .loadConf(Collections.singletonMap("connectionTimeoutMs", 5000));
+        assertAuthWithSecret(buildAdminAndGetAuth(builder), "pass1");
+    }
+
+    @Test
+    public void testLoadConfClearsAuthenticationWhenPropsCleared() throws Exception {
+        Map<String, Object> confProps = new HashMap<>();
+        confProps.put(AUTH_PLUGIN_CLASS_PROP, "");
+        confProps.put(AUTH_PARAMS_PROP, "");
+        PulsarAdminBuilder builder = PulsarAdmin.builder().serviceHttpUrl("http://localhost:8080")
+                .authentication(MOCK_AUTH_SECRET_PLUGIN_CLASS, secretAuthParams("pass1"))
+                .loadConf(confProps);
+        assertThatAuthIsNotSet(buildAdminAndGetAuth(builder));
+    }
+
+    private Authentication buildAdminAndGetAuth(PulsarAdminBuilder builder) throws Exception {
+        try (PulsarAdmin admin = builder.build()) {
+            return ((PulsarAdminImpl) admin).auth;
+        }
+    }
+
     private void assertThatAuthIsNotSet(Authentication authentication) {
         // getAuthentication() returns disabled when null
         assertThat(authentication).isInstanceOf(AuthenticationDisabled.class);

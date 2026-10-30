@@ -28,11 +28,11 @@ val useWolfi = providers.gradleProperty("docker.wolfi").isPresent
 // Resolvable configurations for cross-project artifact dependencies.
 // Using configurations instead of direct task references (project().tasks.named())
 // ensures compatibility with Gradle's configure-on-demand feature.
-val serverDist by configurations.creating {
+val serverDist = configurations.create("serverDist") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }
-val offloaderDist by configurations.creating {
+val offloaderDist = configurations.create("offloaderDist") {
     isCanBeResolved = true
     isCanBeConsumed = false
 }
@@ -43,31 +43,32 @@ dependencies {
 }
 
 // Copy the server tarball into target/ (Docker build context)
-val copyTarball by tasks.registering(Copy::class) {
+val copyTarball = tasks.register<Copy>("copyTarball") {
     from(serverDist)
     into(layout.buildDirectory.dir("target"))
 }
 
 // Copy offloader tarball into build context
-val copyOffloaderTarball by tasks.registering(Copy::class) {
+val copyOffloaderTarball = tasks.register<Copy>("copyOffloaderTarball") {
     from(offloaderDist)
     into(layout.buildDirectory.dir("target"))
 }
 
-val dockerBuild by tasks.registering(Exec::class) {
+fun registerDockerBuild(taskName: String, dockerfile: String, imageTag: String) = tasks.register<Exec>(taskName) {
     group = "docker"
-    description = "Build the Pulsar Docker image. Use -Pdocker.push to push the image to registry."
 
     dependsOn(copyTarball, copyOffloaderTarball)
 
-    val dockerfile = if (useWolfi) "Dockerfile.wolfi" else "Dockerfile"
-    val imageName = "${dockerOrganization}/${dockerImage}:${dockerTag}"
+    val imageName = "${dockerOrganization}/${dockerImage}:${imageTag}"
+    val imageIdFile = layout.buildDirectory.file("docker/${taskName}.iid").get().asFile
     val tarballName = "apache-pulsar-${pulsarVersion}-bin.tar.gz"
     val offloaderTarballName = "apache-pulsar-offloaders-${pulsarVersion}-bin.tar.gz"
     // Resolve version catalog values at configuration time (not in doFirst)
     val pythonClientVersion = libs.versions.pulsar.client.python.get()
     val snappyVersion = libs.versions.snappy.get()
     val jdkMajorVersion = libs.versions.docker.jdk.get()
+    val mimallocVersion = libs.versions.mimalloc.get()
+    val minJavaVersion = providers.gradleProperty("pulsarJavaVersion").getOrElse("21")
 
     // Docker build context is the project directory
     workingDir = projectDir
@@ -76,10 +77,13 @@ val dockerBuild by tasks.registering(Exec::class) {
         "docker", "build",
         "-f", dockerfile,
         "-t", imageName,
+        "--iidfile", imageIdFile.absolutePath,
         "--build-arg", "PULSAR_TARBALL=build/target/${tarballName}",
         "--build-arg", "PULSAR_CLIENT_PYTHON_VERSION=${pythonClientVersion}",
         "--build-arg", "SNAPPY_VERSION=${snappyVersion}",
         "--build-arg", "IMAGE_JDK_MAJOR_VERSION=${jdkMajorVersion}",
+        "--build-arg", "MIMALLOC_VERSION=${mimallocVersion}",
+        "--build-arg", "PULSAR_MIN_JAVA_VERSION=${minJavaVersion}",
         "--build-arg", "PULSAR_OFFLOADER_TARBALL=build/target/${offloaderTarballName}",
     )
 
@@ -94,4 +98,25 @@ val dockerBuild by tasks.registering(Exec::class) {
     args.add(".")
 
     commandLine(args)
+
+    // Rebuild the image only when what goes into it changes, see dockerImageOutput
+    inputs.file(dockerfile)
+    inputs.dir("build-scripts")
+    inputs.dir("scripts")
+    inputs.files(copyTarball, copyOffloaderTarball)
+    inputs.property("dockerBuildArgs", args)
+    dockerImageOutput(imageName, imageIdFile)
+}
+
+val dockerBuild = registerDockerBuild("dockerBuild", if (useWolfi) "Dockerfile.wolfi" else "Dockerfile", dockerTag)
+dockerBuild.configure {
+    description = "Build the Pulsar Docker image. Use -Pdocker.push to push the image to registry and " +
+        "-Pdocker.wolfi to build it from Wolfi instead of Alpine."
+}
+
+// A glibc-based image under its own tag, for tooling whose native libraries do not load on musl (the
+// jonoffcpu profiler agent), without replacing the Alpine image everything else uses.
+val dockerBuildWolfi = registerDockerBuild("dockerBuildWolfi", "Dockerfile.wolfi", "${dockerTag}-wolfi")
+dockerBuildWolfi.configure {
+    description = "Build the Pulsar Docker image from Wolfi under the <tag>-wolfi tag"
 }

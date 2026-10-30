@@ -97,8 +97,12 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
             String topic) {
         @SuppressWarnings("unchecked")
         MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
+        // copyFrom copies present fields and appends repeated fields without clearing the destination.
         msg.msgMetadata.clear();
-        msg.msgMetadata.copyFrom(msgMetadata);
+        // A plain typed builder has no metadata until a metadata field is set or accessed.
+        if (msgMetadata != null) {
+            msg.msgMetadata.copyFrom(msgMetadata);
+        }
         msg.messageId = null;
         msg.topic = topic;
         msg.cnx = null;
@@ -277,6 +281,30 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         this.msgMetadata = new MessageMetadata().copyFrom(msgMetadata);
     }
 
+    private MessageImpl(MessageImpl<T> other) {
+        this.msgMetadata = new MessageMetadata().copyFrom(other.msgMetadata);
+        this.messageId = other.messageId;
+        this.topic = other.topic;
+        this.cnx = other.cnx;
+        this.payload = Unpooled.copiedBuffer(other.payload);
+        this.properties = other.properties;
+        this.schema = other.schema;
+        this.encryptionCtx = other.encryptionCtx;
+        this.redeliveryCount = other.redeliveryCount;
+        this.consumerEpoch = other.consumerEpoch;
+        if (other.brokerEntryMetadata != null) {
+            this.brokerEntryMetadata = new BrokerEntryMetadata().copyFrom(other.brokerEntryMetadata);
+        }
+    }
+
+    /**
+     * Returns a copy of this incoming message that stays readable after {@link #release()}: a pooled message
+     * is recycled and its payload released when the application releases it.
+     */
+    MessageImpl<T> unpooledCopy() {
+        return poolMessage ? new MessageImpl<>(this) : this;
+    }
+
     public static MessageImpl<byte[]> deserialize(ByteBuf headersAndPayload) throws IOException {
         @SuppressWarnings("unchecked")
         MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
@@ -383,7 +411,7 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         } else {
             // Need to copy into a smaller byte array
             byte[] data = new byte[payload.readableBytes()];
-            payload.readBytes(data);
+            payload.getBytes(payload.readerIndex(), data);
             return data;
         }
     }
@@ -725,9 +753,9 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         if (msgMetadata != null) {
             msgMetadata.clear();
         }
-        if (brokerEntryMetadata != null) {
-            brokerEntryMetadata.clear();
-        }
+        // The broker entry metadata can be shared with the other messages of the same batch, so only drop the
+        // reference instead of clearing the shared instance.
+        brokerEntryMetadata = null;
         cnx = null;
         messageId = null;
         topic = null;
@@ -790,7 +818,6 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
         this.recyclerHandle = recyclerHandle;
         this.redeliveryCount = 0;
         this.msgMetadata = new MessageMetadata();
-        this.brokerEntryMetadata = new BrokerEntryMetadata();
         this.consumerEpoch = DEFAULT_CONSUMER_EPOCH;
     }
 

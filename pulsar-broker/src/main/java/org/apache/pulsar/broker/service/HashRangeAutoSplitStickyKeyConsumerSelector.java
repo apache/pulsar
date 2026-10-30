@@ -19,11 +19,13 @@
 package org.apache.pulsar.broker.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
+import java.util.SortedMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerAssignException;
@@ -50,7 +52,8 @@ import org.apache.pulsar.client.api.Range;
  *
  * 0 -&lt; 65536(consumer-1)
  *
- * In this approach use skip list map to maintain the hash range and consumers.
+ * In this approach use skip list map to maintain the hash range and consumers. An immutable array snapshot is
+ * published after membership changes for lookups.
  *
  * Select consumer will return the ceiling key of message key hashcode % range size.
  *
@@ -62,6 +65,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
     private final Map<Consumer, Integer> consumerRange;
     private final boolean addOrRemoveReturnsImpactedConsumersResult;
     private ConsumerHashAssignmentsSnapshot consumerHashAssignmentsSnapshot;
+    private volatile LookupSnapshot lookupSnapshot = LookupSnapshot.EMPTY;
 
     public HashRangeAutoSplitStickyKeyConsumerSelector() {
         this(false);
@@ -100,6 +104,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
                 return CompletableFuture.failedFuture(e);
             }
         }
+        lookupSnapshot = new LookupSnapshot(rangeMap);
         if (!addOrRemoveReturnsImpactedConsumersResult) {
             return CompletableFuture.completedFuture(Optional.empty());
         }
@@ -122,6 +127,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             } else {
                 rangeMap.remove(removeRange);
             }
+            lookupSnapshot = new LookupSnapshot(rangeMap);
         }
         if (!addOrRemoveReturnsImpactedConsumersResult) {
             return Optional.empty();
@@ -135,11 +141,7 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
 
     @Override
     public Consumer select(int hash) {
-        if (!rangeMap.isEmpty()) {
-            return rangeMap.ceilingEntry(hash).getValue();
-        } else {
-            return null;
-        }
+        return lookupSnapshot.select(hash);
     }
 
     @Override
@@ -198,5 +200,40 @@ public class HashRangeAutoSplitStickyKeyConsumerSelector implements StickyKeyCon
             return false;
         }
         return (num & num - 1) == 0;
+    }
+
+    private static final class LookupSnapshot {
+        private static final LookupSnapshot EMPTY = new LookupSnapshot(Collections.emptySortedMap());
+
+        private final int[] rangeEnds;
+        private final Consumer[] consumers;
+
+        private LookupSnapshot(SortedMap<Integer, Consumer> rangeMap) {
+            rangeEnds = new int[rangeMap.size()];
+            consumers = new Consumer[rangeEnds.length];
+            int index = 0;
+            for (Entry<Integer, Consumer> entry : rangeMap.entrySet()) {
+                rangeEnds[index] = entry.getKey();
+                consumers[index] = entry.getValue();
+                index++;
+            }
+        }
+
+        private Consumer select(int hash) {
+            if (rangeEnds.length == 0) {
+                return null;
+            }
+            int low = 0;
+            int high = rangeEnds.length - 1;
+            while (low < high) {
+                int mid = (low + high) >>> 1;
+                if (hash <= rangeEnds[mid]) {
+                    high = mid;
+                } else {
+                    low = mid + 1;
+                }
+            }
+            return consumers[low];
+        }
     }
 }

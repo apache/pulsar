@@ -19,8 +19,11 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
@@ -30,6 +33,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.resources.NamespaceResources;
@@ -81,6 +85,7 @@ public class ScalableTopicControllerAutoScaleTest {
     private Policies namespacePolicies;
     private ScalableTopicController controller;
     private TopicName topicName;
+    private ScalableTopicControllerMetrics metrics;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -92,6 +97,7 @@ public class ScalableTopicControllerAutoScaleTest {
 
         // Auto-scale tuned for deterministic single-shot evaluation: no cooldowns/windows so a
         // single evaluateAutoScaleForTest() call acts immediately, low-ish thresholds.
+        metrics = mock(ScalableTopicControllerMetrics.class);
         config = new ServiceConfiguration();
         config.setScalableTopicAutoScaleEnabled(true);
         config.setScalableTopicMaxSegments(64);
@@ -156,11 +162,23 @@ public class ScalableTopicControllerAutoScaleTest {
                 ScalableTopicController.createInitialMetadata(initialSegments, 4, Map.of())).get();
         controller = new ScalableTopicController(topicName, resources, brokerService,
                 coordinationService);
+        controller.setMetrics(metrics);
         controller.initialize().get();
     }
 
     private int activeSegmentCount() throws Exception {
         return controller.getLayout().get().getActiveSegments().size();
+    }
+
+    @Test
+    public void testBlockedAutoScaleMetric() throws Exception {
+        config.setScalableTopicMaxSegments(2);
+        startController(2);
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        verify(metrics).recordBlocked("max_segments");
+        assertEquals(activeSegmentCount(), 2);
     }
 
     @Test
@@ -174,6 +192,7 @@ public class ScalableTopicControllerAutoScaleTest {
 
         controller.evaluateAutoScaleForTest().get();
         assertEquals(activeSegmentCount(), 3, "hot segment should have been split");
+        verify(metrics).recordOperation(eq("split"), eq("auto"), eq("success"), anyDouble());
     }
 
     @Test
@@ -212,6 +231,8 @@ public class ScalableTopicControllerAutoScaleTest {
 
     @Test
     public void testConsumerDrivenSplit() throws Exception {
+        // Zero the split-vs-rebucket floor so the cold test topic exercises the split lane.
+        config.setScalableTopicSplitVsRebucketMinMsgRateInThreshold(0);
         startController(1);
         assertEquals(activeSegmentCount(), 1);
 
@@ -327,13 +348,38 @@ public class ScalableTopicControllerAutoScaleTest {
         controller.evaluateAutoScaleForTest().get();
         assertEquals(activeSegmentCount(), 2,
                 "invalid override combination must disable auto split/merge, not split");
+        verify(metrics).recordBlocked("invalid_policy");
+    }
+
+    /**
+     * PIP-486 review: an invalid BROKER-level policy value (no override involved) must also
+     * degrade to "auto scaling disabled" — the fallback is built from the unvalidated broker
+     * defaults, so re-validating the same bad config cannot rethrow on every evaluation.
+     */
+    @Test
+    public void testInvalidBrokerLevelPolicyDisablesAutoScale() throws Exception {
+        config.setScalableTopicEntryBucketMaxPerSegment(0); // violates [1, ring] — broker-level
+        startController(1);
+        // Segment 0 is hot, so a valid policy splits it on this evaluation (the split pass never
+        // reads the bucket ceiling); only the disabled fallback can stop it. Load, not a consumer
+        // surplus: registering a consumer fires its own evaluation, which the call below would
+        // coalesce into, so that split would land only after the assertion.
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        // Must complete normally (no IllegalArgumentException) and take no action.
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 1,
+                "invalid broker-level policy must disable auto scaling, not fail or act");
     }
 
     @Test
     public void testConsumerBurstConvergesWithoutTicks() throws Exception {
         // A group of consumers joining in quick succession must converge to one segment
         // each purely from the event-driven evaluations + post-split follow-up chain — no
-        // periodic tick and no manual evaluation calls.
+        // periodic tick and no manual evaluation calls. Zero the split-vs-rebucket floor so
+        // the cold test topic stays in the split lane (this test is about the convergence
+        // chain; the bucket lane has its own coverage).
+        config.setScalableTopicSplitVsRebucketMinMsgRateInThreshold(0);
         startController(1);
         for (int i = 1; i <= 4; i++) {
             controller.registerConsumer("sub", "c" + i, i, ScalableConsumerType.STREAM,
@@ -361,6 +407,190 @@ public class ScalableTopicControllerAutoScaleTest {
         assertEquals(activeSegmentCount(), 3, "second split blocked by cooldown");
     }
 
+    private int soleActiveBucketCount() throws Exception {
+        var active = controller.getLayout().get().getActiveSegments().values();
+        assertEquals(active.size(), 1, "expected a single active segment");
+        return active.iterator().next().bucketCount();
+    }
+
+    /**
+     * PIP-486 review: the post-rollover follow-up must be scheduled off the REBUCKET
+     * cooldown. With the split cooldown huge and the rebucket cooldown short, consumers
+     * joining inside the rebucket cooldown are absorbed by the follow-up evaluation — under
+     * the old post-split scheduling nothing would re-evaluate for an hour.
+     */
+    @Test
+    public void testPostRebucketFollowUpUsesRebucketCooldown() throws Exception {
+        config.setScalableTopicSplitCooldownSeconds(3600);
+        config.setScalableTopicRebucketCooldownSeconds(3);
+        config.setScalableTopicAutoScaleIntervalSeconds(3600);
+        startController(1); // one segment, N=4
+
+        for (int i = 1; i <= 5; i++) {
+            controller.registerConsumer("sub", "c" + i, i, ScalableConsumerType.STREAM,
+                    mock(TransportCnx.class)).get();
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(
+                () -> assertEquals(soleActiveBucketCount(), 8,
+                        "five consumers on a cold topic roll the segment to 8"));
+
+        // More joins land inside the rebucket cooldown: their event-driven evaluations are
+        // blocked, so only the post-rollover follow-up can serve them.
+        for (int i = 6; i <= 9; i++) {
+            controller.registerConsumer("sub", "c" + i, i, ScalableConsumerType.STREAM,
+                    mock(TransportCnx.class)).get();
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(
+                () -> assertEquals(soleActiveBucketCount(), 16,
+                        "the follow-up after the rebucket cooldown must absorb the late joins"));
+    }
+
+    /**
+     * PIP-486 review: a mid-batch rollover failure must still schedule the follow-up
+     * evaluation, which retries the remainder once the rebucket cooldown expires.
+     */
+    @Test
+    public void testMidBatchRebucketFailureStillSchedulesFollowUp() throws Exception {
+        config.setScalableTopicSplitCooldownSeconds(3600);
+        config.setScalableTopicRebucketCooldownSeconds(2);
+        config.setScalableTopicAutoScaleIntervalSeconds(3600);
+        resources.createScalableTopicAsync(topicName,
+                ScalableTopicController.createInitialMetadata(2, 4, Map.of())).get(); // 2 × N=2
+        AtomicBoolean injectedOnce = new AtomicBoolean();
+        controller = new ScalableTopicController(topicName, resources, brokerService,
+                coordinationService) {
+            @Override
+            public CompletableFuture<SegmentLayout> rebucketSegment(long segmentId,
+                                                                    int newBucketCount) {
+                if (segmentId == 1 && injectedOnce.compareAndSet(false, true)) {
+                    return CompletableFuture.failedFuture(new RuntimeException("injected failure"));
+                }
+                return super.rebucketSegment(segmentId, newBucketCount);
+            }
+        };
+        controller.initialize().get();
+
+        // Seven consumers, cold topic: batch Rebucket([0,1] → 4). Segment 0 rolls, segment 1
+        // fails once; capacity is then 6 < 7, so the follow-up must retry it.
+        for (int i = 1; i <= 7; i++) {
+            controller.registerConsumer("sub", "c" + i, i, ScalableConsumerType.STREAM,
+                    mock(TransportCnx.class)).get();
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
+            var active = controller.getLayout().get().getActiveSegments().values();
+            assertEquals(active.size(), 2);
+            for (var segment : active) {
+                assertEquals(segment.bucketCount(), 4,
+                        "the follow-up must retry the failed remainder of the batch");
+            }
+        });
+    }
+
+    /**
+     * PIP-486 review: after a leader failover the rollover cooldown must be re-seeded from
+     * the layout (a same-range single-parent child is a rebucket successor), and the rollover
+     * must NOT be charged to the split cooldown.
+     */
+    @Test
+    public void testRebucketCooldownSurvivesLeaderFailover() throws Exception {
+        config.setScalableTopicSplitCooldownSeconds(3600);
+        config.setScalableTopicRebucketCooldownSeconds(3600);
+        config.setScalableTopicAutoScaleIntervalSeconds(3600);
+        startController(1); // one segment, N=4
+        for (int i = 1; i <= 5; i++) {
+            controller.registerConsumer("sub", "c" + i, i, ScalableConsumerType.STREAM,
+                    mock(TransportCnx.class)).get();
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(
+                () -> assertEquals(soleActiveBucketCount(), 8));
+
+        // Leadership moves. The new leader must know a rollover just ran…
+        controller.close().join();
+        controller = new ScalableTopicController(topicName, resources, brokerService,
+                coordinationService);
+        controller.setMetrics(metrics);
+        controller.initialize().get();
+
+        // …so another consumer-driven rollover is blocked by the seeded rebucket cooldown…
+        controller.registerConsumer("sub", "c9", 9L, ScalableConsumerType.STREAM,
+                mock(TransportCnx.class)).get();
+        // registerConsumer fires an asynchronous consumer-change evaluation; a manual one
+        // issued while it runs would be coalesced into it and return without evaluating.
+        Awaitility.await().atMost(Duration.ofSeconds(10))
+                .until(() -> !controller.isAutoScaleEvaluationInFlight());
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(soleActiveBucketCount(), 8,
+                "the seeded rebucket cooldown must block an immediate second rollover");
+
+        // …while a genuine load-driven split is NOT suppressed: the rollover must not have
+        // been charged to the split cooldown.
+        long successorId = controller.getLayout().get().getActiveSegments().keySet()
+                .iterator().next();
+        resources.reportSegmentLoadAsync(topicName, successorId,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(activeSegmentCount(), 2,
+                "a hot-segment split must fire — the rollover is not a split");
+    }
+
+    /**
+     * A checkpoint group never shares a segment by entry-bucket (each member reads whole
+     * segments through its own Readers), so on a cold topic its surplus members must not trigger
+     * a rebucket rollover: more buckets add no parallelism for the group, they only shrink
+     * producer batches. A stream subscription on the same topic still gets a rollover, sized to
+     * its own consumers rather than to the larger group.
+     */
+    @Test
+    public void testCheckpointGroupSurplusDoesNotRebucket() throws Exception {
+        startController(1); // one segment, N=4
+
+        // Nine members against 4 buckets; every registration runs the event-driven evaluation.
+        for (int i = 1; i <= 9; i++) {
+            controller.registerConsumer("group", "m" + i, i, ScalableConsumerType.CHECKPOINT,
+                    mock(TransportCnx.class)).get();
+        }
+        Awaitility.await().during(Duration.ofSeconds(2)).atMost(Duration.ofSeconds(5))
+                .untilAsserted(() -> assertEquals(soleActiveBucketCount(), 4,
+                        "a checkpoint group's surplus must not roll the segment over"));
+
+        for (int i = 1; i <= 5; i++) {
+            controller.registerConsumer("sub", "c" + i, 100 + i, ScalableConsumerType.STREAM,
+                    mock(TransportCnx.class)).get();
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(
+                () -> assertEquals(soleActiveBucketCount(), 8,
+                        "five stream consumers roll the segment to 8, ignoring the 9-member group"));
+    }
+
+    /**
+     * The consumer type is not persisted, so after a leader failover a restored subscription's
+     * type is unknown until one of its members registers again. It may be a checkpoint group, so
+     * it must not trigger a rebucket rollover until a stream member registers.
+     */
+    @Test
+    public void testRestoredSubscriptionRebucketsOnlyOnceKnownToBeStream() throws Exception {
+        resources.createScalableTopicAsync(topicName,
+                ScalableTopicController.createInitialMetadata(1, 4, Map.of())).get(); // N=4
+        // Registrations persisted under a previous leader.
+        for (int i = 1; i <= 5; i++) {
+            resources.registerConsumerAsync(topicName, "sub", "c" + i).get();
+        }
+        controller = new ScalableTopicController(topicName, resources, brokerService,
+                coordinationService);
+        controller.setMetrics(metrics);
+        controller.initialize().get();
+
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(soleActiveBucketCount(), 4,
+                "a restored subscription of unknown type must not roll the segment over");
+
+        controller.registerConsumer("sub", "c1", 1L, ScalableConsumerType.STREAM,
+                mock(TransportCnx.class)).get();
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(
+                () -> assertEquals(soleActiveBucketCount(), 8,
+                        "once a stream member registers, its surplus is served by a rollover"));
+    }
+
     @Test
     public void testSplitCooldownSurvivesLeaderFailover() throws Exception {
         config.setScalableTopicSplitCooldownSeconds(3600);
@@ -376,6 +606,7 @@ public class ScalableTopicControllerAutoScaleTest {
         controller.close().join();
         controller = new ScalableTopicController(topicName, resources, brokerService,
                 coordinationService);
+        controller.setMetrics(metrics);
         controller.initialize().get();
 
         resources.reportSegmentLoadAsync(topicName, 1,

@@ -83,15 +83,14 @@ public class BrokerTestInterceptor {
                                                                       Boolean replicated,
                                                                       Map<String, String> subscriptionProperties) {
             return INSTANCE.getPersistentSubscriptionDecorator()
-                    .apply(new TestSubscription(this, subscriptionName, cursor, replicated, subscriptionProperties));
+                    .apply(new TestSubscription(this, subscriptionName, cursor, replicated));
         }
     }
 
     static class TestSubscription extends PersistentSubscription {
         public TestSubscription(PersistentTopic topic, String subscriptionName, ManagedCursor cursor,
-                                Boolean replicated,
-                                Map<String, String> subscriptionProperties) {
-            super(topic, subscriptionName, cursor, replicated, subscriptionProperties);
+                                Boolean replicated) {
+            super(topic, subscriptionName, cursor, replicated);
         }
 
         @Override

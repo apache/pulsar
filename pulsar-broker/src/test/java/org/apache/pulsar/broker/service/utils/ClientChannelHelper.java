@@ -25,6 +25,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import java.util.Queue;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAck;
+import org.apache.pulsar.common.api.proto.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
@@ -37,6 +38,8 @@ import org.apache.pulsar.common.api.proto.CommandEndTxnOnSubscriptionResponse;
 import org.apache.pulsar.common.api.proto.CommandEndTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandFlow;
+import org.apache.pulsar.common.api.proto.CommandGetOrCreateSchemaResponse;
+import org.apache.pulsar.common.api.proto.CommandGetSchemaResponse;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.CommandMessage;
@@ -129,6 +132,11 @@ public class ClientChannelHelper {
         }
 
         @Override
+        protected void handleAckResponse(CommandAckResponse ackResponse) {
+            queue.offer(new CommandAckResponse().copyFrom(ackResponse));
+        }
+
+        @Override
         protected void handleFlow(CommandFlow flow) {
             queue.offer(new CommandFlow().copyFrom(flow));
         }
@@ -176,6 +184,16 @@ public class ClientChannelHelper {
         @Override
         protected void handleCommandWatchTopicListSuccess(CommandWatchTopicListSuccess commandWatchTopicListSuccess) {
             queue.offer(new CommandWatchTopicListSuccess().copyFrom(commandWatchTopicListSuccess));
+        }
+
+        @Override
+        protected void handleGetSchemaResponse(CommandGetSchemaResponse response) {
+            queue.offer(new CommandGetSchemaResponse().copyFrom(response));
+        }
+
+        @Override
+        protected void handleGetOrCreateSchemaResponse(CommandGetOrCreateSchemaResponse response) {
+            queue.offer(new CommandGetOrCreateSchemaResponse().copyFrom(response));
         }
 
         @Override

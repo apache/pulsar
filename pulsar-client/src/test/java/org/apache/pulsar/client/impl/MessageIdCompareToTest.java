@@ -180,7 +180,7 @@ public class MessageIdCompareToTest  {
         assertTrue(topicMessageId1.compareTo(messageIdImpl1) < 0, "Expected to be less than");
         assertTrue(topicMessageId2.compareTo(messageIdImpl1) < 0, "Expected to be less than");
         assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
-        assertTrue(topicMessageId2.compareTo(messageIdImpl2) < 0, "Expected to be less than");
+        assertEquals(topicMessageId2.compareTo(messageIdImpl3), 0, "Expected to be equal");
     }
 
     @SuppressWarnings("deprecation")

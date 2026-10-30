@@ -23,6 +23,7 @@ import static org.apache.pulsar.client.impl.ClientTestFixtures.createExceptionFu
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createPulsarClientMockWithMockedClientCnx;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -229,6 +230,22 @@ public class MultiTopicsConsumerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testCloseDiscardsQueuedMessages() throws Exception {
+        MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
+        TopicMessageImpl<byte[]> message = mock(TopicMessageImpl.class);
+        when(message.size()).thenReturn(100);
+        consumer.enqueueMessageAndCheckBatchReceive(message);
+        assertEquals(consumer.getIncomingMessageSize(), 100);
+
+        consumer.closeAsync().get(10, TimeUnit.SECONDS);
+
+        verify(message).release();
+        assertEquals(consumer.getTotalIncomingMessages(), 0);
+        assertEquals(consumer.getIncomingMessageSize(), 0);
+    }
+
+    @Test
     public void testUnsubscribeAsyncInvalidTopicNameReturnsFailedFuture() {
         MultiTopicsConsumerImpl<byte[]> consumer = createMultiTopicsConsumer();
         CompletableFuture<Void> future = consumer.unsubscribeAsync("persistent://public/invalid-topic");
@@ -318,6 +335,40 @@ public class MultiTopicsConsumerImplTest {
         assertTrue(impl.getUnAckedMessageTracker().remove(otherTopicMessageId));
         verify(partitionConsumer0).closeAsync();
         verify(partitionConsumer1).closeAsync();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testBatchAcknowledgeRemovesOnlyAckedMessageIdsFromTracker() {
+        String topic0 = "persistent://public/default/topic-a-partition-0";
+        String topic1 = "persistent://public/default/topic-b-partition-0";
+
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setAckTimeoutMillis(1000);
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        impl.setState(HandlerState.State.Ready);
+
+        ConsumerImpl<byte[]> consumer0 = mock(ConsumerImpl.class);
+        ConsumerImpl<byte[]> consumer1 = mock(ConsumerImpl.class);
+        CompletableFuture<Void> pendingAck = new CompletableFuture<>();
+        when(consumer0.getTopic()).thenReturn(topic0);
+        when(consumer1.getTopic()).thenReturn(topic1);
+        when(consumer0.doAcknowledgeWithTxn(anyList(), any(), any(), any())).thenReturn(pendingAck);
+        when(consumer1.doAcknowledgeWithTxn(anyList(), any(), any(), any())).thenReturn(new CompletableFuture<>());
+
+        impl.consumers.put(topic0, consumer0);
+        impl.consumers.put(topic1, consumer1);
+
+        TopicMessageIdImpl messageId0 = new TopicMessageIdImpl(topic0, new MessageIdImpl(1, 1, 0));
+        TopicMessageIdImpl messageId1 = new TopicMessageIdImpl(topic1, new MessageIdImpl(2, 2, 0));
+        impl.getUnAckedMessageTracker().add(messageId0);
+        impl.getUnAckedMessageTracker().add(messageId1);
+
+        impl.acknowledgeAsync(Arrays.asList(messageId0, messageId1));
+        pendingAck.complete(null);
+
+        assertEquals(impl.getUnAckedMessageTracker().size(), 1);
     }
 
 }

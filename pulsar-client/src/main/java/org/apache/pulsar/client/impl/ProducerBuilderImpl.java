@@ -120,15 +120,24 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
                     client.instrumentProvider()));
         }
 
+        ProducerConfigurationData producerConf = client.applyNoMemoryLimitProducerDefaults(conf);
+
         return effectiveInterceptors == null || effectiveInterceptors.size() == 0
-                ? client.createProducerAsync(conf, schema, null)
-                : client.createProducerAsync(conf, schema, new ProducerInterceptors(effectiveInterceptors));
+                ? client.createProducerAsync(producerConf, schema, null)
+                : client.createProducerAsync(producerConf, schema, new ProducerInterceptors(effectiveInterceptors));
     }
 
     @Override
     public ProducerBuilder<T> loadConf(Map<String, Object> config) {
-        conf = ConfigurationDataUtils.loadData(
-            config, conf, ProducerConfigurationData.class);
+        conf = ConfigurationDataUtils.updateData(config, conf.clone());
+        // A limit present in the map was configured by the application, even when its value is null, which
+        // resets it to the unset value without going through the setter that records the marker.
+        if (config.containsKey("maxPendingMessages")) {
+            conf.setMaxPendingMessagesConfigured(true);
+        }
+        if (config.containsKey("maxPendingMessagesAcrossPartitions")) {
+            conf.setMaxPendingMessagesAcrossPartitionsConfigured(true);
+        }
         return this;
     }
 

@@ -72,6 +72,9 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     // Count of delayed messages in the tracker.
     private final AtomicLong delayedMessagesCount = new AtomicLong(0);
 
+    // Cached memory usage of the delayed message bitmaps, maintained via delta on each mutation.
+    private final AtomicLong memoryUsage = new AtomicLong(0);
+
     InMemoryDelayedDeliveryTracker(AbstractPersistentDispatcherMultipleConsumers dispatcher, Timer timer,
                                    long tickTimeMillis,
                                    boolean isDelayedDeliveryDeliverAtTimeStrict,
@@ -144,7 +147,11 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
 
         LongBitmap bitmap = delayedMessageMap.computeIfAbsent(timestamp, k -> new Long2ObjectRBTreeMap<>())
             .computeIfAbsent(ledgerId, k -> LongBitmaps.create());
+
+        long oldSize = bitmap.serializedSize();
         if (bitmap.checkedAdd(entryId)) {
+            long newSize = bitmap.serializedSize();
+            memoryUsage.addAndGet(newSize - oldSize);
             delayedMessagesCount.incrementAndGet();
         }
 
@@ -166,6 +173,8 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      * in a loop until the deliverAt time is reached (see issue #25996).
      *
      * In non-strict mode the timestamp is rounded down, since delivering up to tickTimeMillis early is allowed.
+     * Availability checks account for the full bucket width so that the original deliverAt is still within that
+     * allowed window.
      */
     private long roundTimestamp(long deliverAt) {
         if (isDeliverAtTimeStrict()) {
@@ -174,6 +183,10 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
             return trimLowerBit(roundedUp < deliverAt ? Long.MAX_VALUE : roundedUp, timestampPrecisionBitCnt);
         }
         return trimLowerBit(deliverAt, timestampPrecisionBitCnt);
+    }
+
+    private long getBucketCutoffTime() {
+        return isDeliverAtTimeStrict() ? getCutoffTime() : getCutoffTime() - precisionMillis + 1;
     }
 
     /**
@@ -194,7 +207,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     @Override
     public boolean hasMessageAvailable() {
         boolean hasMessageAvailable = !delayedMessageMap.isEmpty()
-                && delayedMessageMap.firstLongKey() <= getCutoffTime();
+                && delayedMessageMap.firstLongKey() <= getBucketCutoffTime();
         if (!hasMessageAvailable) {
             updateTimer();
         }
@@ -208,7 +221,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     public NavigableSet<Position> getScheduledMessages(int maxMessages) {
         int n = maxMessages;
         NavigableSet<Position> positions = new TreeSet<>();
-        long cutoffTime = getCutoffTime();
+        long cutoffTime = getBucketCutoffTime();
 
         while (n > 0 && !delayedMessageMap.isEmpty()) {
             long timestamp = delayedMessageMap.firstLongKey();
@@ -222,9 +235,12 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 long ledgerId = ledgerEntry.getLongKey();
                 LongBitmap entryIds = ledgerEntry.getValue();
                 long cardinality = entryIds.cardinality();
+                long oldSize = entryIds.serializedSize();
                 long drained = entryIds.drainTo(n, entryId -> {
                     positions.add(PositionFactory.create(ledgerId, entryId));
                 });
+                long newSize = entryIds.serializedSize();
+                memoryUsage.addAndGet(newSize - oldSize);
                 delayedMessagesCount.addAndGet(-drained);
                 n -= drained;
                 if (drained == cardinality) {
@@ -246,9 +262,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 .attr("messagesCount", positions.size())
                 .log("Get scheduled messages");
         if (delayedMessageMap.isEmpty()) {
-            // Reset to initial state
-            highestDeliveryTimeTracked = 0;
-            messagesHaveFixedDelay = true;
+            resetFixedDelayDetection();
             if (delayedMessagesCount.get() != 0) {
                 log.warn()
                         .attr("delayedMessagesCount", delayedMessagesCount.get())
@@ -264,7 +278,18 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
     public CompletableFuture<Void> clear() {
         this.delayedMessageMap.clear();
         this.delayedMessagesCount.set(0);
+        this.memoryUsage.set(0);
+        resetFixedDelayDetection();
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Go back to the initial state of the fixed delay detection. It must be done whenever the tracker is emptied,
+     * since the messages added afterwards are not related to the ones that were tracked before.
+     */
+    private void resetFixedDelayDetection() {
+        highestDeliveryTimeTracked = 0;
+        messagesHaveFixedDelay = true;
     }
 
     @Override
@@ -279,8 +304,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
      */
     @Override
     public long getBufferMemoryUsage() {
-        return delayedMessageMap.values().stream().mapToLong(
-                ledgerMap -> ledgerMap.values().stream().mapToLong(LongBitmap::serializedSize).sum()).sum();
+        return memoryUsage.get();
     }
 
     @Override

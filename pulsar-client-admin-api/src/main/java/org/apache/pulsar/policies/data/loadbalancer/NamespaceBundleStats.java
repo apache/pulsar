@@ -27,7 +27,7 @@ import lombok.ToString;
 @EqualsAndHashCode
 @ToString
 public class NamespaceBundleStats implements Comparable<NamespaceBundleStats>, Serializable {
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 7307982611138203289L;
 
     public double msgRateIn;
     public double msgThroughputIn;
