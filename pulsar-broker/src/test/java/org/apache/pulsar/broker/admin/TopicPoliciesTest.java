@@ -4833,6 +4833,103 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetAppliedTopicPolicies() throws Exception {
+        admin.topicPolicies().setRetention(testTopic, new RetentionPolicies(60, 1024));
+        admin.namespaces().setNamespaceMessageTTL(myNamespace, 120);
+        admin.namespaces().setMaxProducersPerTopic(myNamespace, 5);
+        admin.topicPolicies().setMaxProducers(testTopic, 3);
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> applied = admin.topicPolicies().getTopicPolicies(testTopic, true);
+            // set on the topic
+            assertApplied(applied, "retentionPolicies", "TOPIC");
+            assertApplied(applied, "maxProducerPerTopic", "TOPIC");
+            assertEquals(((Number) appliedValue(applied, "maxProducerPerTopic")).intValue(), 3);
+            // inherited from the namespace
+            assertApplied(applied, "messageTTLInSeconds", "NAMESPACE");
+            assertEquals(((Number) appliedValue(applied, "messageTTLInSeconds")).intValue(), 120);
+            // inherited from the broker
+            assertApplied(applied, "maxConsumerPerTopic", "BROKER");
+            assertEquals(((Number) appliedValue(applied, "maxConsumerPerTopic")).intValue(),
+                    conf.getMaxConsumersPerTopic());
+            assertApplied(applied, "persistence", "BROKER");
+            // policies that have no applied getter are reported too
+            assertApplied(applied, "maxMessageSize", "BROKER");
+            assertApplied(applied, "deduplicationSnapshotIntervalSeconds", "BROKER");
+        });
+
+        // The same call without applied still returns only what is set on the topic.
+        Map<String, Object> explicit = admin.topicPolicies().getTopicPolicies(testTopic, false);
+        assertNull(explicit.get("messageTTLInSeconds"));
+        assertEquals(((Number) ((Map<?, ?>) explicit.get("retentionPolicies")).get("retentionTimeInMinutes"))
+                .intValue(), 60);
+    }
+
+    @Test
+    public void testAppliedTopicPoliciesMatchPerPolicyGetters() throws Exception {
+        admin.topicPolicies().setRetention(testTopic, new RetentionPolicies(60, 1024));
+        admin.topicPolicies().setMessageTTL(testTopic, 300);
+        admin.namespaces().setMaxProducersPerTopic(myNamespace, 5);
+        admin.namespaces().setMaxConsumersPerTopic(myNamespace, 9);
+        admin.namespaces().setDeduplicationStatus(myNamespace, true);
+        admin.namespaces().setCompactionThreshold(myNamespace, 4096);
+        admin.namespaces().setSubscriptionExpirationTime(myNamespace, 77);
+
+        Awaitility.await().untilAsserted(() -> {
+            Map<String, Object> applied = admin.topicPolicies().getTopicPolicies(testTopic, true);
+            org.apache.pulsar.client.admin.TopicPolicies policies = admin.topicPolicies();
+            assertAppliedMatches(applied, "retentionPolicies", policies.getRetention(testTopic, true));
+            assertAppliedMatches(applied, "messageTTLInSeconds", policies.getMessageTTL(testTopic, true));
+            assertAppliedMatches(applied, "maxProducerPerTopic", policies.getMaxProducers(testTopic, true));
+            assertAppliedMatches(applied, "maxConsumerPerTopic", policies.getMaxConsumers(testTopic, true));
+            assertAppliedMatches(applied, "deduplicationEnabled", policies.getDeduplicationStatus(testTopic, true));
+            assertAppliedMatches(applied, "compactionThreshold", policies.getCompactionThreshold(testTopic, true));
+            assertAppliedMatches(applied, "subscriptionExpirationTimeInMinutes",
+                    policies.getSubscriptionExpirationTime(testTopic, true));
+            assertAppliedMatches(applied, "persistence", policies.getPersistence(testTopic, true));
+            assertAppliedMatches(applied, "dispatchRate", policies.getDispatchRate(testTopic, true));
+            assertAppliedMatches(applied, "subscriptionDispatchRate",
+                    policies.getSubscriptionDispatchRate(testTopic, true));
+            assertAppliedMatches(applied, "replicatorDispatchRate",
+                    policies.getReplicatorDispatchRate(testTopic, true));
+            assertAppliedMatches(applied, "subscribeRate", policies.getSubscribeRate(testTopic, true));
+            assertAppliedMatches(applied, "inactiveTopicPolicies",
+                    policies.getInactiveTopicPolicies(testTopic, true));
+            assertAppliedMatches(applied, "maxUnackedMessagesOnConsumer",
+                    policies.getMaxUnackedMessagesOnConsumer(testTopic, true));
+            assertAppliedMatches(applied, "maxUnackedMessagesOnSubscription",
+                    policies.getMaxUnackedMessagesOnSubscription(testTopic, true));
+        });
+    }
+
+    @Test
+    public void testGetAppliedTopicPoliciesWithoutPolicies() throws Exception {
+        Map<String, Object> applied = admin.topicPolicies(true).getTopicPolicies(testTopic, true);
+        assertNotNull(applied);
+        assertApplied(applied, "retentionPolicies", "BROKER");
+        assertNull(applied.get("isGlobal"));
+    }
+
+    private static Object appliedValue(Map<String, Object> applied, String policy) {
+        return ((Map<?, ?>) applied.get(policy)).get("value");
+    }
+
+    private static void assertApplied(Map<String, Object> applied, String policy, String source) {
+        Map<?, ?> value = (Map<?, ?>) applied.get(policy);
+        assertNotNull(value, policy);
+        assertEquals(value.get("source"), source, policy);
+    }
+
+    private static void assertAppliedMatches(Map<String, Object> applied, String policy, Object expected)
+            throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper mapper =
+                org.apache.pulsar.common.util.ObjectMapperFactory.getMapper().getObjectMapper();
+        // Compare the serialized forms, so that an int and a long holding the same number are equal.
+        assertEquals(mapper.readTree(mapper.writeValueAsString(appliedValue(applied, policy))),
+                mapper.readTree(mapper.writeValueAsString(expected)), policy);
+    }
+
+    @Test
     public void testGetAllTopicPoliciesAsyncInvalidTopic() {
         // An invalid topic name must fail the returned future rather than throw synchronously.
         CompletableFuture<Map<String, Object>> future =

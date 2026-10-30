@@ -2122,7 +2122,7 @@ public class CmdTopicPolicies extends CmdBase {
     }
 
     @Command(description = "Get all the policies explicitly set on a topic. Values inherited from the namespace or "
-            + "the broker are not included; use the get-xxx commands with --applied for those")
+            + "the broker are not included unless --applied is given")
     private class GetPolicies extends CliCommand {
 
         @Parameters(description = "persistent://tenant/namespace/topic", arity = "1")
@@ -2132,10 +2132,14 @@ public class CmdTopicPolicies extends CmdBase {
                 + "If set to true, broker returned global topic policies")
         private boolean isGlobal = false;
 
+        @Option(names = { "-ap", "--applied" }, description = "Get the policies in effect, resolved through the "
+                + "topic, namespace and broker levels, with the level each value came from")
+        private boolean applied = false;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(topicName);
-            print(getTopicPolicies(isGlobal).getTopicPolicies(persistentTopic));
+            print(getTopicPolicies(isGlobal).getTopicPolicies(persistentTopic, applied));
         }
     }
 

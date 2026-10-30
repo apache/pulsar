@@ -154,9 +154,12 @@ public class CmdTopicPoliciesTest {
         CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
 
         cmd.run("get public/default/topic".split("\\s+"));
-        verify(localPolicies, times(1)).getTopicPolicies("persistent://public/default/topic");
+        verify(localPolicies, times(1)).getTopicPolicies("persistent://public/default/topic", false);
 
         cmd.run("get persistent://public/default/topic --global".split("\\s+"));
-        verify(globalPolicies, times(1)).getTopicPolicies("persistent://public/default/topic");
+        verify(globalPolicies, times(1)).getTopicPolicies("persistent://public/default/topic", false);
+
+        cmd.run("get persistent://public/default/topic --applied".split("\\s+"));
+        verify(localPolicies, times(1)).getTopicPolicies("persistent://public/default/topic", true);
     }
 }

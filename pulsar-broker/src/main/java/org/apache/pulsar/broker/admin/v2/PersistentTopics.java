@@ -1412,11 +1412,12 @@ public class PersistentTopics extends PersistentTopicsBase {
     @Operation(summary = "Get all the policies explicitly set on a topic.",
             description = "Returns the topic-level policies of the requested scope (local or global) in one call."
                     + " Policies that were never set on the topic are not set in the response; inherited"
-                    + " namespace and broker values are not included.")
+                    + " namespace and broker values are not included, unless applied=true, which returns the"
+                    + " value in effect for every policy and the level it came from.")
     @ApiResponses(value = {
             @ApiResponse(
                     responseCode = "200",
-                    description = "All the policies explicitly set on the topic.",
+                    description = "All the policies explicitly set on the topic, or the applied policies.",
                     content = @Content(schema = @Schema(implementation = TopicPolicies.class))),
             @ApiResponse(responseCode = "307",
                     description = "Current broker doesn't serve the namespace of this topic"),
@@ -1436,12 +1437,17 @@ public class PersistentTopics extends PersistentTopicsBase {
             @PathParam("topic") @Encoded String encodedTopic,
             @Parameter(description = "Whether to get the global policies instead of the local policies")
             @QueryParam("isGlobal") @DefaultValue("false") boolean isGlobal,
+            @Parameter(description = "Whether to return the policies in effect, resolved through the topic, namespace"
+                    + " and broker levels, together with the level of each value")
+            @QueryParam("applied") @DefaultValue("false") boolean applied,
             @Parameter(description = "Whether leader broker redirected this call to this broker. For internal use.")
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateTopicName(tenant, namespace, encodedTopic);
         validateTopicPolicyOperationAsync(topicName, PolicyName.ALL, PolicyOperation.READ)
                 .thenCompose(__ -> preValidation(authoritative))
-                .thenCompose(__ -> internalGetTopicPolicies(isGlobal))
+                .thenCompose(__ -> applied
+                        ? internalGetAppliedTopicPolicies(isGlobal).<Object>thenApply(policies -> policies)
+                        : internalGetTopicPolicies(isGlobal).<Object>thenApply(policies -> policies))
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
                     handleTopicPolicyException("getTopicPolicies", ex, asyncResponse);

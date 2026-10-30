@@ -125,6 +125,7 @@ import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.AppliedTopicPolicies;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -3956,6 +3957,14 @@ public class PersistentTopicsBase extends AdminResource {
     protected CompletableFuture<TopicPolicies> internalGetTopicPolicies(boolean isGlobal) {
         return getTopicPoliciesAsyncWithRetry(topicName, isGlobal)
                 .thenApply(op -> op.orElseGet(() -> TopicPolicies.builder().isGlobal(isGlobal).build()));
+    }
+
+    protected CompletableFuture<AppliedTopicPolicies> internalGetAppliedTopicPolicies(boolean isGlobal) {
+        return internalGetTopicPolicies(isGlobal)
+                .thenCombine(getNamespacePoliciesAsync(namespaceName), (topicPolicies, namespacePolicies) ->
+                        new TopicPolicyResolver(config(),
+                                pulsar().getBrokerService().getBacklogQuotaManager().getDefaultQuota())
+                                .resolve(topicPolicies, namespacePolicies));
     }
 
     protected CompletableFuture<RetentionPolicies> internalGetRetention(boolean applied, boolean isGlobal) {

@@ -2058,4 +2058,24 @@ public interface TopicPolicies {
      * @see #getTopicPolicies(String)
      */
     CompletableFuture<Map<String, Object>> getTopicPoliciesAsync(String topic);
+
+    /**
+     * Get all the policies of the topic, optionally resolved through the topic, namespace and broker levels.
+     *
+     * <p>Without {@code applied} this is {@link #getTopicPolicies(String)}. With {@code applied} every policy is
+     * returned as an object with the {@code value} in effect and the {@code source} ({@code TOPIC},
+     * {@code NAMESPACE} or {@code BROKER}) it came from.
+     *
+     * @param topic the topic name
+     * @param applied whether to return the policies in effect instead of the ones set on the topic
+     * @return the topic-level policies
+     */
+    Map<String, Object> getTopicPolicies(String topic, boolean applied) throws PulsarAdminException;
+
+    /**
+     * Get all the policies of the topic, optionally resolved through the cascade, asynchronously.
+     *
+     * @see #getTopicPolicies(String, boolean)
+     */
+    CompletableFuture<Map<String, Object>> getTopicPoliciesAsync(String topic, boolean applied);
 }
