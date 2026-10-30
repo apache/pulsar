@@ -60,6 +60,7 @@ import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runt
 import org.apache.pulsar.tests.integration.suites.PulsarStandaloneTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
 import org.awaitility.Awaitility;
+import org.awaitility.core.ThrowingRunnable;
 import org.testng.annotations.Test;
 
 /**
@@ -170,6 +171,12 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
 
         // get function info
         getFunctionInfoNotFound(admin, functionName);
+
+        // The worker terminates the instance after the delete returns, and deletes its subscription last. A function
+        // created again with the same name before that is taken for an update of this one and stopped.
+        String subscription = String.format("public/default/%s", functionName);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() ->
+                assertFalse(admin.topics().getSubscriptions(inputTopicName).contains(subscription)));
     }
 
     @Test(groups = {"python_state", "state", "function", "python_function"})
@@ -404,7 +411,8 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
                 .className(className)
                 .parallelism(1)
                 .build();
-        admin.sources().createSource(sourceConfig, copyFromContainer(archive));
+        String archiveFile = copyFromContainer(archive);
+        createWhenLeaderReady(() -> admin.sources().createSource(sourceConfig, archiveFile));
     }
 
     private void submitSinkConnector(PulsarAdmin admin,
@@ -421,7 +429,8 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
                 .className(className)
                 .parallelism(1)
                 .build();
-        admin.sinks().createSink(sinkConfig, copyFromContainer(archive));
+        String archiveFile = copyFromContainer(archive);
+        createWhenLeaderReady(() -> admin.sinks().createSink(sinkConfig, archiveFile));
     }
 
     private void submitWordCountFunction(PulsarAdmin admin,
@@ -473,9 +482,19 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
         } else {
             throw new IllegalArgumentException("Unsupported runtime : " + runtime);
         }
-        admin.functions().createFunction(functionConfig.build(), copyFromContainer(packagePath));
+        FunctionConfig config = functionConfig.build();
+        String packageFile = copyFromContainer(packagePath);
+        createWhenLeaderReady(() -> admin.functions().createFunction(config, packageFile));
 
         ensureSubscriptionCreated(inputTopicName, String.format("public/default/%s", functionName), inputTopicSchema);
+    }
+
+    // Until the functions worker is the leader, a moment after the cluster starts, it rejects creates with 503
+    private static void createWhenLeaderReady(ThrowingRunnable create) {
+        Awaitility.await().atMost(Duration.ofSeconds(30))
+                .ignoreExceptionsMatching(e -> e instanceof PulsarAdminException
+                        && ((PulsarAdminException) e).getStatusCode() == 503)
+                .untilAsserted(create);
     }
 
     private String copyFromContainer(String path) throws IOException {
