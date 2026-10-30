@@ -647,23 +647,28 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig<?> cacheConfig) {
-        var cache =  new DualMetadataCache<>(this, clazz, null, null, null, cacheConfig);
-        caches.add(cache);
-        return cache;
+        return registerCache(new DualMetadataCache<>(this, clazz, null, null, null, cacheConfig));
     }
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig<?> cacheConfig) {
-        var cache =  new DualMetadataCache<>(this, null, typeRef, null, null, cacheConfig);
-        caches.add(cache);
-        return cache;
+        return registerCache(new DualMetadataCache<>(this, null, typeRef, null, null, cacheConfig));
     }
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
                                                  MetadataCacheConfig<?> cacheConfig) {
-        var cache =  new DualMetadataCache<>(this, null, null, cacheName, serde, cacheConfig);
+        return registerCache(new DualMetadataCache<>(this, null, null, cacheName, serde, cacheConfig));
+    }
+
+    private <T> MetadataCache<T> registerCache(DualMetadataCache<T> cache) {
         caches.add(cache);
+        // The cache picked its store before it was added, and completion may have traversed the caches in between.
+        // Recheck after adding it. If the target is not initialized yet, the completion handler will find it after
+        // initialization.
+        if (getMigrationPhase() == MigrationPhase.COMPLETED && targetStore != null) {
+            cache.handleSwitchToTargetStore();
+        }
         return cache;
     }
 
