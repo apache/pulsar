@@ -36,6 +36,7 @@ import java.security.PrivateKey;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.X509Certificate;
 import org.apache.commons.io.FileUtils;
+import org.apache.pulsar.common.tls.TlsClientAuthMode;
 import org.apache.pulsar.common.util.tls.PemReader;
 import org.apache.pulsar.tls.TlsPolicy;
 import org.testng.annotations.AfterMethod;
@@ -226,7 +227,8 @@ public class TlsMaterialSourceTest {
         TlsMaterial material = new TlsMaterialSource(policy).refresh().material();
 
         assertThat(TlsContexts.buildJdkContext(material, policy)).isNotNull();
-        SslContext server = TlsContexts.buildNettyServerContext(material, policy, SslProvider.JDK, true);
+        SslContext server = TlsContexts.buildNettyServerContext(material, policy, SslProvider.JDK,
+                TlsClientAuthMode.REQUIRE);
         SslContext client = TlsContexts.buildNettyClientContext(material, policy, SslProvider.JDK);
         assertThat(server).isNotNull();
         assertThat(client).isNotNull();
