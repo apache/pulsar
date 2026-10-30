@@ -147,7 +147,7 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             return;
         }
         List<BrokerContainer> brokers = new ArrayList<>(pulsarCluster.getBrokers());
-        // Restart the brokers that the previous test method stopped, together
+        // Restart the brokers that the previous test method stopped, in parallel
         brokers.parallelStream()
                 .filter(brokerContainer -> !brokerContainer.isRunning())
                 .forEach(BrokerContainer::start);
