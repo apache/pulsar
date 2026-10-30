@@ -96,6 +96,7 @@ import org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalM
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.ShortPolicyRetryTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor.TestManagedLedgerStorage;
@@ -180,6 +181,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
         config.setManagedLedgerStorageClassName(TestManagedLedgerStorage.class.getName());
+        config.setTopicFactoryClassName(ShortPolicyRetryTopic.Factory.class.getName());
     }
 
     @Test(timeOut = 45 * 1000)
@@ -2118,11 +2120,13 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         ConcurrentHashMap<String, TopicName> topicNameCache =
                 (ConcurrentHashMap<String, TopicName>) fieldTopicNameCache.get(null);
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
-        // 1.Create topic, does not enable replication now.
+        // 1.Create topic, does not enable replication now. The topic retries a failed policy update after 1s
+        //   instead of "PersistentTopic.POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS" (60s).
+        ShortPolicyRetryTopic.Factory.register(topicName);
         admin1.topics().createNonPartitionedTopic(topicName);
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        ShortPolicyRetryTopic persistentTopic =
+                (ShortPolicyRetryTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
 
         // We inject an error to make "start replicator" to fail.
         DualMetadataStore dms = (DualMetadataStore) pulsar1.getConfigurationMetadataStore();
@@ -2131,24 +2135,27 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         String path = "/admin/partitioned-topics/" + TopicName.get(topicName).getPersistenceNamingEncoding();
         existsCache.put(path, CompletableFuture.completedFuture(true));
 
-        // 2.Enable replication and unload topic after failed to start replicator.
+        // 2.Enable replication and unload topic after failed to start replicator. The error is still injected, so
+        //   the topic keeps retrying until it is closed, and a retry is pending when it is.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
-        Thread.sleep(3000);
+        Awaitility.await().until(() -> persistentTopic.getFailedReplicationChecks() > 0);
         producer1.close();
-        existsCache.synchronous().invalidate(path);
         admin1.topics().unload(topicName);
         // Verify: the "start replicator retry task" will be skipped after the topic is closed.
-        // - Retry delay is "PersistentTopic.POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS": 60s, so wait for 70s.
+        // - Wait for the pending retry to run on the closed topic: it must not start a replication check.
         // - Since the topic should not be touched anymore, we use "TopicName" to confirm whether it be used by
         //   Replication again.
-        Thread.sleep(10 * 1000);
         topicNameCache.remove(topicName);
-        Thread.sleep(60 * 1000);
+        Awaitility.await().until(() -> persistentTopic.getRetriesAfterClose() > 0);
+        assertThat(persistentTopic.getReplicationChecksAfterClose())
+                .as("replication checks started after the topic was closed").isZero();
         assertTrue(!topicNameCache.containsKey(topicName));
 
         // cleanup.
+        existsCache.synchronous().invalidate(path);
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
         admin1.topics().delete(topicName, false);
+        ShortPolicyRetryTopic.Factory.unregister(topicName);
     }
 
     @DataProvider

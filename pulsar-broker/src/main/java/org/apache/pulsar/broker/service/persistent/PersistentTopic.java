@@ -2092,7 +2092,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return closeFuture;
     }
 
-    private boolean isClosed() {
+    @VisibleForTesting
+    boolean isClosed() {
         if (closeFutures == null) {
             return false;
         }
@@ -2145,17 +2146,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }).exceptionally(th -> {
             log.error()
                     .exceptionMessage(th)
-                    .attr("POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS", POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS)
+                    .attr("POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS", getPolicyUpdateFailureRetryDelaySeconds())
                     .log("Policies update failed, scheduled retry in seconds");
             if (!(th.getCause() instanceof TopicFencedException)) {
                 // retriable exception
                 brokerService.executor().schedule(this::checkReplicationAndRetryOnFailure,
-                        POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, SECONDS);
+                        getPolicyUpdateFailureRetryDelaySeconds(), SECONDS);
             }
             result.completeExceptionally(th);
             return null;
         });
         return result;
+    }
+
+    @VisibleForTesting
+    long getPolicyUpdateFailureRetryDelaySeconds() {
+        return POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS;
     }
 
     public CompletableFuture<Void> checkDeduplicationStatus() {
