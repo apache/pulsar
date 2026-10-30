@@ -90,8 +90,6 @@ fi
 
 BOOKIE_EXTRA_OPTS="${BOOKIE_EXTRA_OPTS} ${PULSAR_EXTRA_OPTS}"
 
-export MALLOC_ARENA_MAX=4
-
 # Use Netty's adaptive allocator for Pulsar's default allocator, and pin Netty's own default allocator to it (Netty
 # 4.2's default). The options are prepended to OPTS so that the configured options override them; since the named
 # setting takes precedence over -Dpulsar.allocator.type, select another allocator for general operations with
