@@ -69,6 +69,7 @@ dependencies {
     api(libs.bookkeeper.common)
 
     compileOnly(libs.swagger.annotations)
+    testCompileOnly(libs.swagger.annotations)
 
     testImplementation(project(":pulsar-broker"))
     testImplementation(project(path = ":pulsar-broker", configuration = "testJar"))

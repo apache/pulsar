@@ -35,6 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
@@ -78,6 +79,8 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -310,6 +313,50 @@ public class ProducerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testAutoProduceBytesWithoutSchemaUsesFeatureFlag() throws IllegalAccessException {
+        PulsarClientImpl client = mockedPulsarClient();
+        FieldUtils.writeField(client, "conf", client.getConfiguration(), true);
+        AutoProduceBytesSchema autoSchema = (AutoProduceBytesSchema) Schema.AUTO_PRODUCE_BYTES();
+        autoSchema.setSchema(Schema.STRING);
+        ProducerImpl<byte[]> producer = constructProducer(client, new ProducerConfigurationData(), autoSchema, null);
+        ClientCnx cnx = mock(ClientCnx.class);
+        when(cnx.isSupportsAutoProduceBytesWithoutSchema()).thenReturn(true);
+        AtomicReference<BaseCommand> command = new AtomicReference<>();
+        doAnswer(invocation -> {
+            command.set(parseCommand(invocation.getArgument(0)));
+            return new CompletableFuture<ProducerResponse>();
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+
+        producer.connectionOpened(cnx);
+
+        assertTrue(command.get().getProducer().isAutoProduceBytes());
+        assertFalse(command.get().getProducer().hasSchema());
+        verify(client, never()).reloadSchemaForAutoProduceProducer(anyString(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testAutoProduceBytesWithOldBrokerRegistersSchema() throws IllegalAccessException {
+        PulsarClientImpl client = mockedPulsarClient();
+        FieldUtils.writeField(client, "conf", client.getConfiguration(), true);
+        AutoProduceBytesSchema autoSchema = (AutoProduceBytesSchema) Schema.AUTO_PRODUCE_BYTES();
+        autoSchema.setSchema(Schema.STRING);
+        ProducerImpl<byte[]> producer = constructProducer(client, new ProducerConfigurationData(), autoSchema, null);
+        ClientCnx cnx = mock(ClientCnx.class);
+        AtomicReference<BaseCommand> command = new AtomicReference<>();
+        doAnswer(invocation -> {
+            command.set(parseCommand(invocation.getArgument(0)));
+            return new CompletableFuture<ProducerResponse>();
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        producer.connectionOpened(cnx);
+
+        assertTrue(command.get().getProducer().isAutoProduceBytes());
+        assertTrue(command.get().getProducer().hasSchema());
+        verify(client, never()).reloadSchemaForAutoProduceProducer(anyString(), any());
+    }
+
+    @Test
     public void testCloseNotConnectedProducerClosesInterceptorsOnce() throws Exception {
         PulsarClientImpl client = mockedPulsarClient();
         when(client.getConnection(Mockito.anyString(), Mockito.anyInt())).thenReturn(new CompletableFuture<>());
@@ -415,8 +462,8 @@ public class ProducerImplTest {
         when(client.getConfiguration()).thenReturn(clientConfigurationData);
         when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
-        when(eventLoopGroup.scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any()))
-                .thenReturn(mock(ScheduledFuture.class));
+        doReturn(mock(ScheduledFuture.class)).when(eventLoopGroup)
+                .scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
         when(client.eventLoopGroup()).thenReturn(eventLoopGroup);
         return client;
     }
@@ -428,16 +475,35 @@ public class ProducerImplTest {
      */
     private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
             ProducerConfigurationData conf) {
-        return constructProducer(client, conf, null);
+        return constructProducer(client, conf, Schema.BYTES, null);
     }
 
     @SuppressWarnings("unchecked")
     private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
             ProducerConfigurationData conf, ProducerInterceptors interceptors) {
+        return constructProducer(client, conf, Schema.BYTES, interceptors);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
+            ProducerConfigurationData conf, Schema<byte[]> schema, ProducerInterceptors interceptors) {
         return mock(ProducerImpl.class, withSettings()
                 .useConstructor(client, "persistent://public/default/producer-impl-test", conf,
-                        new CompletableFuture<>(), 0, Schema.BYTES, interceptors, Optional.empty())
+                        new CompletableFuture<>(), 0, schema, interceptors, Optional.empty())
                 .defaultAnswer(CALLS_REAL_METHODS));
+    }
+
+    private static BaseCommand parseCommand(ByteBuf frame) {
+        try {
+            frame.skipBytes(4);
+            int commandSize = frame.readInt();
+            BaseCommand command = new BaseCommand();
+            command.parseFrom(frame, commandSize);
+            command.materialize();
+            return command;
+        } finally {
+            frame.release();
+        }
     }
 
     @Test
@@ -830,7 +896,7 @@ public class ProducerImplTest {
     /** A failed command serialization must release the payload instead of orphaning it. */
     @Test
     public void testSendMessageFailureReleasesPayload() throws Exception {
-        ProducerImpl<byte[]> producer = mock(ProducerImpl.class, CALLS_REAL_METHODS);
+        ProducerImpl<byte[]> producer = mock(CALLS_REAL_METHODS);
         doThrow(new RuntimeException("mocked serialization failure"))
                 .when(producer)
                 .sendMessage(anyLong(), anyLong(), anyInt(), any(), any(), any());
@@ -846,7 +912,7 @@ public class ProducerImplTest {
     /** A failing compression stage must release the source payload the codec left with the caller. */
     @Test
     public void testApplyCompressionFailureReleasesSource() throws Exception {
-        ProducerImpl<byte[]> producer = mock(ProducerImpl.class, CALLS_REAL_METHODS);
+        ProducerImpl<byte[]> producer = mock(CALLS_REAL_METHODS);
         doThrow(new RuntimeException("mocked compression failure"))
                 .when(producer)
                 .applyCompression(any());
@@ -861,7 +927,7 @@ public class ProducerImplTest {
     /** A failing encryption stage must release the source payload encryptMessage() left with the caller. */
     @Test
     public void testEncryptMessageFailureReleasesSource() throws Exception {
-        ProducerImpl<byte[]> producer = mock(ProducerImpl.class, CALLS_REAL_METHODS);
+        ProducerImpl<byte[]> producer = mock(CALLS_REAL_METHODS);
         doThrow(new PulsarClientException("mocked encryption failure"))
                 .when(producer)
                 .encryptMessage(any(), any());
@@ -900,7 +966,7 @@ public class ProducerImplTest {
      */
     @Test
     public void testDeferredCommandConstructionFailureThenRecovery() throws Exception {
-        ProducerImpl<byte[]> producer = mock(ProducerImpl.class, CALLS_REAL_METHODS);
+        ProducerImpl<byte[]> producer = mock(CALLS_REAL_METHODS);
         AtomicInteger sendCalls = new AtomicInteger();
         ByteBufPair builtCmd = mock(ByteBufPair.class);
         doAnswer(invocation -> {
@@ -1351,7 +1417,7 @@ public class ProducerImplTest {
     }
 
     /**
-     * Regression test for the send-timeout vs in-flight-write race (scenario B):
+     * Regression test for the send-timeout vs in-flight-write race (scenario B).
      *
      * <p>A batch frame is handed to a connection's event loop for writing, then the connection drops and the
      * producer enters the reconnect window ({@code cnx() == null}). If the send timeout fires in that window,

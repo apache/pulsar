@@ -42,7 +42,7 @@ import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import io.grpc.netty.shaded.io.netty.util.concurrent.FastThreadLocal;
+import io.netty.util.concurrent.FastThreadLocal;
 import jakarta.ws.rs.NotAcceptableException;
 import jakarta.ws.rs.core.Response.Status;
 import java.net.URI;
@@ -378,7 +378,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final int newPartitions = 8;
         final String partitionedTopicName = "persistent://" + defaultNamespace + "/" + topicName;
 
-        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
+        URL pulsarUrl = URI.create(pulsar.getWebServiceAddress()).toURL();
 
         admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         // validate partition topic is created
@@ -3768,7 +3768,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         final int newPartitions = 8;
         final String partitionedTopicName = "persistent://" + defaultNamespace + "/" + topicName;
 
-        URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
+        URL pulsarUrl = URI.create(pulsar.getWebServiceAddress()).toURL();
 
         admin.topics().createPartitionedTopic(partitionedTopicName, startPartitions);
         @Cleanup

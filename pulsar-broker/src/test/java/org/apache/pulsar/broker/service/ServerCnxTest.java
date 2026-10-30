@@ -79,6 +79,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -118,6 +119,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authentication.AuthenticationState;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl;
+import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -141,6 +144,7 @@ import org.apache.pulsar.common.api.proto.AuthMethod;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.CommandAckResponse;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAuthChallenge;
@@ -3021,6 +3025,147 @@ public class ServerCnxTest {
         // verify nothing is sent out on the wire after ack
         assertNull(channel.outboundMessages().peek());
         channel.finish();
+    }
+
+    @DataProvider
+    public Object[][] unavailableAckConsumers() {
+        return new Object[][] {
+                {"missing", true}, {"missing", false},
+                {"pending", true}, {"pending", false},
+                {"failed", true}, {"failed", false},
+                {"cancelled", true}, {"cancelled", false}
+        };
+    }
+
+    @Test(dataProvider = "unavailableAckConsumers")
+    public void testAckReceiptForUnavailableConsumer(String consumerState, boolean receiptEnabled) throws Exception {
+        connectChannelForAck();
+        long consumerId = 7;
+        CompletableFuture<Consumer> consumerFuture = switch (consumerState) {
+            case "missing" -> null;
+            case "pending" -> new CompletableFuture<>();
+            case "failed" -> CompletableFuture.failedFuture(new IllegalStateException("Subscription failed"));
+            case "cancelled" -> {
+                CompletableFuture<Consumer> cancelled = new CompletableFuture<>();
+                cancelled.cancel(false);
+                yield cancelled;
+            }
+            default -> throw new IllegalArgumentException(consumerState);
+        };
+        if (consumerFuture != null) {
+            serverCnx.getConsumers().put(consumerId, consumerFuture);
+        }
+        try {
+            sendAckAndAssertResponse(consumerId, receiptEnabled, ServerError.ConsumerNotFound);
+            if ("pending".equals(consumerState)) {
+                Consumer consumer = mock(Consumer.class);
+                consumerFuture.complete(consumer);
+                channel.runPendingTasks();
+                verify(consumer, never()).messageAcked(any(), anyBoolean());
+                assertThat(channel.outboundMessages()).isEmpty();
+            }
+        } finally {
+            serverCnx.getConsumers().remove(consumerId);
+        }
+    }
+
+    @DataProvider
+    public Object[][] ackReceiptModes() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "ackReceiptModes")
+    public void testAckReceiptDuringTopicTransfer(boolean receiptEnabled) throws Exception {
+        connectChannelForAck();
+        Consumer consumer = mockConsumerForAck(true);
+        ExtensibleLoadManagerImpl loadManager = mock(ExtensibleLoadManagerImpl.class);
+        AtomicLong ignoredAcks = new AtomicLong();
+        when(loadManager.getIgnoredAckCount()).thenReturn(ignoredAcks);
+        var previousLoadManager = pulsar.getLoadManager().getAndSet(new ExtensibleLoadManagerWrapper(loadManager));
+        long consumerId = 7;
+        serverCnx.getConsumers().put(consumerId, CompletableFuture.completedFuture(consumer));
+        try {
+            sendAckAndAssertResponse(consumerId, receiptEnabled, ServerError.ServiceNotReady);
+            verify(consumer, never()).messageAcked(any(), anyBoolean());
+            assertThat(ignoredAcks).hasValue(1);
+        } finally {
+            serverCnx.getConsumers().remove(consumerId);
+            pulsar.getLoadManager().set(previousLoadManager);
+        }
+    }
+
+    @DataProvider
+    public Object[][] ackReceiptCompletionOutcomes() {
+        return new Object[][] {{true, true}, {true, false}, {false, true}, {false, false}};
+    }
+
+    @Test(dataProvider = "ackReceiptCompletionOutcomes")
+    public void testAckReceiptWaitsForPersistence(boolean receiptEnabled, boolean success) throws Exception {
+        connectChannelForAck();
+        Consumer consumer = mockConsumerForAck(false);
+        CompletableFuture<Void> persistence = new CompletableFuture<>();
+        when(consumer.messageAcked(any(), eq(receiptEnabled))).thenReturn(persistence);
+        long consumerId = 7;
+        serverCnx.getConsumers().put(consumerId, CompletableFuture.completedFuture(consumer));
+        try {
+            channel.writeInbound(Commands.newAck(consumerId, 1, 2, null, AckType.Individual, null,
+                    Collections.emptyMap(), -1, -1, receiptEnabled ? 42 : -1));
+            channel.runPendingTasks();
+            assertThat(channel.outboundMessages()).isEmpty();
+            verify(consumer).messageAcked(any(), eq(receiptEnabled));
+            if (success) {
+                persistence.complete(null);
+            } else {
+                persistence.completeExceptionally(new ServiceUnitNotReadyException("Persistence unavailable"));
+            }
+            assertAckResponse(consumerId, receiptEnabled, success ? null : ServerError.ServiceNotReady);
+        } finally {
+            serverCnx.getConsumers().remove(consumerId);
+        }
+    }
+
+    private void connectChannelForAck() throws Exception {
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        channel.runPendingTasks();
+        assertThat(clientChannelHelper.getCommand(channel.readOutbound())).isInstanceOf(CommandConnected.class);
+    }
+
+    private Consumer mockConsumerForAck(boolean transferring) {
+        Consumer consumer = mock(Consumer.class);
+        // Subscription is also the name of the imported protocol message.
+        var subscription = mock(org.apache.pulsar.broker.service.Subscription.class);
+        Topic topic = mock(Topic.class);
+        when(consumer.getSubscription()).thenReturn(subscription);
+        when(subscription.getTopic()).thenReturn(topic);
+        when(topic.isTransferring()).thenReturn(transferring);
+        return consumer;
+    }
+
+    private void sendAckAndAssertResponse(long consumerId, boolean receiptEnabled, ServerError error) {
+        channel.writeInbound(Commands.newAck(consumerId, 1, 2, null, AckType.Individual, null,
+                Collections.emptyMap(), -1, -1, receiptEnabled ? 42 : -1));
+        assertAckResponse(consumerId, receiptEnabled, error);
+    }
+
+    private void assertAckResponse(long consumerId, boolean receiptEnabled, ServerError error) {
+        channel.runPendingTasks();
+        if (receiptEnabled) {
+            Object response = channel.readOutbound();
+            assertThat(response).as("ACK receipt must be sent without waiting for a client timeout").isNotNull();
+            assertThat(clientChannelHelper.getCommand(response))
+                    .isInstanceOfSatisfying(CommandAckResponse.class, ack -> {
+                        assertThat(ack.getRequestId()).isEqualTo(42);
+                        assertThat(ack.getConsumerId()).isEqualTo(consumerId);
+                        assertThat(ack.hasError()).isEqualTo(error != null);
+                        if (error != null) {
+                            assertThat(ack.getError()).isEqualTo(error);
+                            assertThat(ack.getMessage()).isNotBlank();
+                        }
+                    });
+        }
+        assertThat(channel.outboundMessages()).isEmpty();
+        assertThat(channel.isActive()).isTrue();
     }
 
     @Test(timeOut = 30000)
