@@ -50,6 +50,8 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,6 +59,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -81,6 +84,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
@@ -117,7 +121,7 @@ public class PulsarClientImplTest {
     }
 
     @Test(timeOut = 30_000)
-    public void testCloseDoesNotWaitForEventLoopQuietPeriod() throws Exception {
+    public void testCloseDoesNotWaitForDefaultEventLoopQuietPeriod() throws Exception {
         PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
                 .serviceUrl("pulsar://localhost:6650")
                 .build();
@@ -130,6 +134,43 @@ public class PulsarClientImplTest {
         assertThat(clientEventLoopGroup.isTerminated()).as("event loop terminated").isTrue();
         // Netty's default quiet period would hold close() for at least 2 s
         assertThat(closeMillis).as("close() time in ms").isLessThan(1000);
+    }
+
+    @Test(timeOut = 60_000)
+    public void testCloseClosesConnectionWhenShutdownStartsDuringEventLoopTask() throws Exception {
+        // A peer that accepts the connection but never answers the Pulsar handshake
+        @Cleanup
+        ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+        server.setSoTimeout(10_000);
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://" + InetAddress.getLoopbackAddress().getHostAddress() + ":"
+                        + server.getLocalPort())
+                .ioThreads(1)
+                .build();
+        client.getPartitionsForTopic("persistent://public/default/test", false);
+        @Cleanup
+        Socket connection = server.accept();
+
+        // Keep the client's only event loop running a task until the client has started shutting the loop down
+        CountDownLatch taskStarted = new CountDownLatch(1);
+        CountDownLatch releaseTask = new CountDownLatch(1);
+        client.eventLoopGroup().execute(() -> {
+            taskStarted.countDown();
+            try {
+                releaseTask.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        taskStarted.await();
+        CompletableFuture<Void> closeFuture = client.closeAsync();
+        Awaitility.await().until(() -> client.eventLoopGroup().isShuttingDown());
+        releaseTask.countDown();
+        closeFuture.get(30, TimeUnit.SECONDS);
+
+        // Reaches the end of the stream only if the client closed its end of the connection
+        connection.setSoTimeout(10_000);
+        connection.getInputStream().readAllBytes();
     }
 
     @DataProvider
