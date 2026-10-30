@@ -225,6 +225,8 @@ import org.apache.pulsar.utils.TimedSingleThreadRateLimiter;
  */
 public class ServerCnx extends PulsarHandler implements TransportCnx {
 
+    static final String SERVER_CNX_HANDLER_NAME = "handler";
+
     private static final Logger LOG = Logger.get(ServerCnx.class);
     private Logger log = LOG;
 
