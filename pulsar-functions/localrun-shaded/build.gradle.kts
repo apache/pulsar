@@ -27,12 +27,13 @@ dependencies {
 }
 
 val shadePrefix = "org.apache.pulsar.functions.runtime.shaded"
+val pulsarGroupPattern = Regex.escape(project.group.toString())
 
 tasks.shadowJar {
     isZip64 = true
 
     dependencies {
-        include(dependency("org.apache.pulsar:.*"))
+        include(dependency("$pulsarGroupPattern:.*"))
         include(project(":pulsar-functions:pulsar-functions-local-runner-original"))
         include(project(":pulsar-client-original"))
         include(project(":pulsar-common"))

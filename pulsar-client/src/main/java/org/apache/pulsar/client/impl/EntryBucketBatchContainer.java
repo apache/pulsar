@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,13 +55,21 @@ class EntryBucketBatchContainer extends AbstractBatchMessageContainer {
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
-        int bucket = bucketOf(splits, entryBucketHash(msg));
-        final BatchMessageContainerImpl batchMessageContainer = batches.computeIfAbsent(bucket, __ -> {
-            BatchMessageContainerImpl c = new BatchMessageContainerImpl(producer);
-            c.setEntryBucketHashFn(this::entryBucketHash);
-            return c;
-        });
-        batchMessageContainer.add(msg, callback);
+        if (numMessagesInBatch == 0) {
+            // The whole container takes the transaction identity of its first message, which the inherited
+            // hasSameTxn checks later messages against: a bucket's entry gives the transaction id of its own
+            // first message to every message in it. Both fields are assigned unconditionally, as in
+            // BatchMessageKeyBasedContainer, so a plain first message drops the identity of a failed first add.
+            boolean msgHasTxn = msg.getMessageBuilder().hasTxnidMostBits()
+                    && msg.getMessageBuilder().hasTxnidLeastBits();
+            currentTxnidMostBits = msgHasTxn ? msg.getMessageBuilder().getTxnidMostBits() : -1L;
+            currentTxnidLeastBits = msgHasTxn ? msg.getMessageBuilder().getTxnidLeastBits() : -1L;
+        }
+        int hashCode = entryBucketHash(msg);
+        int bucket = bucketOf(splits, hashCode);
+        final BatchMessageContainerImpl batchMessageContainer =
+            batches.computeIfAbsent(bucket, __ -> new BatchMessageContainerImpl(producer));
+        batchMessageContainer.add(msg, callback, hashCode);
         // `add` fails iff the container was empty and `msg` (the first message) failed; then the
         // container is cleared and there is nothing to count.
         if (!batchMessageContainer.isEmpty()) {
@@ -131,26 +140,30 @@ class EntryBucketBatchContainer extends AbstractBatchMessageContainer {
 
     @Override
     public List<ProducerImpl.OpSendMsg> createOpSendMsgs() throws IOException {
+        // As in key-based batching: within a bucket the sequence ids need not be contiguous, so
+        // collapse to the highest sequence id and drop the highest_sequence_id field to allow the
+        // broker's weak-order check to pass.
+        batches.values().forEach(c -> c.setLowestSequenceId(c.getHighestSequenceId()));
+        List<BatchMessageContainerImpl> sorted = batches.values().stream()
+                .sorted((o1, o2) -> (int) (o1.getLowestSequenceId() - o2.getLowestSequenceId()))
+                .collect(Collectors.toList());
+        // Build the buckets in order: when a later bucket fails to build, the operations already built
+        // never reach the send queue and must be released here, or their commands leak.
+        List<ProducerImpl.OpSendMsg> ops = new ArrayList<>(sorted.size());
         try {
-            // As in key-based batching: within a bucket the sequence ids need not be contiguous, so
-            // collapse to the highest sequence id and drop the highest_sequence_id field to allow the
-            // broker's weak-order check to pass.
-            batches.values().forEach(c -> c.setLowestSequenceId(c.getHighestSequenceId()));
-            return batches.values().stream()
-                    .sorted((o1, o2) -> (int) (o1.getLowestSequenceId() - o2.getLowestSequenceId()))
-                    .map(c -> {
-                        try {
-                            return c.createOpSendMsg();
-                        } catch (IOException e) {
-                            throw new IllegalStateException(e);
-                        }
-                    }).collect(Collectors.toList());
-        } catch (IllegalStateException e) {
-            if (e.getCause() instanceof IOException) {
-                throw (IOException) e.getCause();
+            for (BatchMessageContainerImpl batchMessageContainer : sorted) {
+                ops.add(batchMessageContainer.createOpSendMsg());
             }
-            throw e;
+        } catch (Throwable t) {
+            for (int i = 0; i < ops.size(); i++) {
+                ProducerImpl.OpSendMsg op = ops.get(i);
+                if (op != null) {
+                    sorted.get(i).releaseOrphanedOpCmd(op);
+                }
+            }
+            throw t;
         }
+        return ops;
     }
 
     @Override

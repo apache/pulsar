@@ -29,8 +29,10 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -52,8 +54,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.IntStream;
@@ -63,6 +68,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.PulsarResources;
+import org.apache.pulsar.broker.resources.TopicListener;
 import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
@@ -75,6 +81,7 @@ import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -104,6 +111,8 @@ public class TopicListServiceTest {
     private ScheduledExecutorService scheduledExecutorService;
     private PulsarService pulsar;
     private NamespaceService namespaceService;
+    private TopicListSizeResultCache.ResultHolder resultHolder;
+    private AtomicBoolean connectionActive;
 
     @BeforeMethod(alwaysRun = true)
     public void setup() throws Exception {
@@ -115,8 +124,8 @@ public class TopicListServiceTest {
         MetadataStoreExtended metadataStore = mock(MetadataStoreExtended.class);
         doAnswer(invocationOnMock -> {
             listenerRef.set(invocationOnMock.getArgument(0));
-            return null;
-        }).when(metadataStore).registerListener(any());
+            return (Runnable) () -> { };
+        }).when(metadataStore).registerCancellableListener(any());
         topicResources = spy(new TopicResources(metadataStore));
         notificationConsumer = listenerRef.get();
 
@@ -132,7 +141,7 @@ public class TopicListServiceTest {
         when(pulsar.getBrokerService()).thenReturn(brokerService);
         TopicListSizeResultCache topicListSizeResultCache = mock(TopicListSizeResultCache.class);
         when(brokerService.getTopicListSizeResultCache()).thenReturn(topicListSizeResultCache);
-        TopicListSizeResultCache.ResultHolder resultHolder = mock(TopicListSizeResultCache.ResultHolder.class);
+        resultHolder = mock(TopicListSizeResultCache.ResultHolder.class);
         doReturn(resultHolder).when(topicListSizeResultCache).getTopicListSize(anyString(), any());
         doReturn(CompletableFuture.completedFuture(1L)).when(resultHolder).getSizeAsync();
 
@@ -143,10 +152,11 @@ public class TopicListServiceTest {
         when(connection.getRemoteAddress()).thenReturn(new InetSocketAddress(10000));
         pulsarCommandSender = mock(PulsarCommandSender.class);
         when(connection.getCommandSender()).thenReturn(pulsarCommandSender);
-        when(connection.isActive()).thenReturn(true);
-        when(pulsarCommandSender.sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any()))
+        connectionActive = new AtomicBoolean(true);
+        when(connection.isActive()).thenAnswer(__ -> connectionActive.get());
+        when(pulsarCommandSender.sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        when(pulsarCommandSender.sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any()))
+        when(pulsarCommandSender.sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
 
         scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
@@ -210,7 +220,7 @@ public class TopicListServiceTest {
         verify(topicResources).registerPersistentTopicListener(any(TopicListService.TopicListWatcher.class));
         Collection<String> expectedTopics = new ArrayList<>(topics);
         verify(connection.getCommandSender()).sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics),
-                any());
+                any(), any());
     }
 
     @Test
@@ -238,7 +248,31 @@ public class TopicListServiceTest {
         verify(topicResources).registerPersistentTopicListener(any(TopicListService.TopicListWatcher.class));
         Collection<String> expectedTopics = new ArrayList<>(topics);
         verify(connection.getCommandSender()).sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics),
-                any());
+                any(), any());
+    }
+
+    @Test
+    public void testCancelledWatchResetsTopicListSizeEstimate() throws Exception {
+        // acquire all permits so that the watcher's permit request waits in the queue
+        AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit permit =
+                memoryLimiter.acquire(1_000_000, AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY,
+                                Boolean.FALSE::booleanValue)
+                        .get();
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(
+                memoryLimiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getQueueSize(), 1));
+        // the connection closes while the request waits for permits
+        connectionActive.set(false);
+        memoryLimiter.release(permit);
+        // concurrent requests waiting for the size estimate of the cancelled request must be able to proceed
+        Awaitility.await().untilAsserted(() -> verify(resultHolder).resetIfInitializing());
+        verify(namespaceService, never()).getListOfUserTopics(any(), any());
     }
 
     @Test
@@ -299,12 +333,12 @@ public class TopicListServiceTest {
             } else {
                 return CompletableFuture.completedFuture(null);
             }
-        }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any());
+        }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(), any());
         topicListFuture.complete(topics);
         assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
         Collection<String> expectedTopics = new ArrayList<>(topics);
         verify(connection.getCommandSender(), timeout(2000L).times(3))
-                .sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics), any());
+                .sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics), any(), any());
     }
 
     @Test
@@ -325,13 +359,13 @@ public class TopicListServiceTest {
         notificationConsumer.accept(
                 new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
         verify(connection.getCommandSender(), timeout(2000L))
-                .sendWatchTopicListUpdate(eq(13L), eq(newTopics), any(), eq(hash), any());
+                .sendWatchTopicListUpdate(eq(13L), eq(newTopics), any(), eq(hash), any(), any());
 
         hash = TopicList.calculateHash(newTopics);
         notificationConsumer.accept(
                 new Notification(NotificationType.Deleted, "/managed-ledgers/tenant/ns/persistent/topic1"));
         verify(connection.getCommandSender(), timeout(2000L))
-                .sendWatchTopicListUpdate(eq(13L), eq(List.of()), eq(topics), eq(hash), any());
+                .sendWatchTopicListUpdate(eq(13L), eq(List.of()), eq(topics), eq(hash), any(), any());
     }
 
     @Test
@@ -348,7 +382,7 @@ public class TopicListServiceTest {
             } else {
                 return CompletableFuture.completedFuture(null);
             }
-        }).when(pulsarCommandSender).sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any());
+        }).when(pulsarCommandSender).sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
 
         topicListService.handleWatchTopicList(
                 NamespaceName.get("tenant/ns"),
@@ -369,9 +403,9 @@ public class TopicListServiceTest {
                 new Notification(NotificationType.Deleted, "/managed-ledgers/tenant/ns/persistent/topic2"));
         InOrder inOrder = inOrder(connection.getCommandSender());
         inOrder.verify(connection.getCommandSender(), timeout(2000L).times(3))
-                .sendWatchTopicListUpdate(eq(13L), eq(newTopics), eq(List.of()), eq(hash), any());
+                .sendWatchTopicListUpdate(eq(13L), eq(newTopics), eq(List.of()), eq(hash), any(), any());
         inOrder.verify(connection.getCommandSender(), timeout(2000L).times(1))
-                .sendWatchTopicListUpdate(eq(13L), eq(List.of()), eq(newTopics), any(), any());
+                .sendWatchTopicListUpdate(eq(13L), eq(List.of()), eq(newTopics), any(), any(), any());
     }
 
     @Test
@@ -420,12 +454,12 @@ public class TopicListServiceTest {
                 topicsPatternImplementation, hash,
                 lookupSemaphore);
         doReturn(CompletableFuture.completedFuture(null)).when(pulsarCommandSender)
-                .sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any());
+                .sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(), any());
         topicListFuture.complete(topics);
         assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
         Collection<String> expectedTopics = List.of();
         verify(connection.getCommandSender(), timeout(2000L).times(1))
-                .sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics), any());
+                .sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics), any(), any());
     }
 
     @Test
@@ -440,12 +474,12 @@ public class TopicListServiceTest {
                 topicsPatternImplementation, "INVALID_HASH",
                 lookupSemaphore);
         doReturn(CompletableFuture.completedFuture(null)).when(pulsarCommandSender)
-                .sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any());
+                .sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(), any());
         topicListFuture.complete(topics);
         assertThat(topicListService.getWatcherFuture(13)).succeedsWithin(Duration.ofSeconds(2));
         Collection<String> expectedTopics = topics;
         verify(connection.getCommandSender(), timeout(2000L).times(1))
-                .sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics), any());
+                .sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash), eq(expectedTopics), any(), any());
     }
 
     @Test
@@ -503,7 +537,7 @@ public class TopicListServiceTest {
                 .sendWatchTopicListUpdate(eq(13L),
                         argThat(newTopics -> new HashSet<>(newTopics).equals(new HashSet<>(expectedNew))),
                         argThat(deletedTopics -> new HashSet<>(deletedTopics).equals(new HashSet<>(expectedDeleted))),
-                        eq(expectedHash), any());
+                        eq(expectedHash), any(), any());
 
         // Verify the watcher's matching topics are updated
         assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(topicsAfterReconnect);
@@ -560,7 +594,7 @@ public class TopicListServiceTest {
                 .sendWatchTopicListUpdate(eq(13L),
                         argThat(newTopics -> new HashSet<>(newTopics).equals(new HashSet<>(expectedNew))),
                         argThat(deletedTopics -> new HashSet<>(deletedTopics).equals(new HashSet<>(expectedDeleted))),
-                        eq(expectedHash), any());
+                        eq(expectedHash), any(), any());
 
         assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(topicsAfterReconnect);
     }
@@ -604,7 +638,7 @@ public class TopicListServiceTest {
 
         // Verify that sendWatchTopicListUpdate was NOT called (no changes to report)
         verify(connection.getCommandSender(), timeout(500L).times(0))
-                .sendWatchTopicListUpdate(eq(13L), any(), any(), any(), any());
+                .sendWatchTopicListUpdate(eq(13L), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -733,5 +767,400 @@ public class TopicListServiceTest {
 
         Awaitility.await().untilAsserted(() ->
                 assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(initialTopics));
+    }
+
+    private TopicListService.TopicListWatcher createWatcher(List<String> topics) throws Exception {
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        topicListFuture.complete(topics);
+        TopicListService.TopicListWatcher watcher =
+                topicListService.getWatcherFuture(13).get(2, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(1));
+        return watcher;
+    }
+
+    @Test
+    public void testDuplicateWatchRequestCompletesWhenWatcherIsClosedDuringUpdate() throws Exception {
+        TopicListService.TopicListWatcher watcher =
+                createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // start an update that doesn't complete
+        topicListFuture = new CompletableFuture<>();
+        assertThat(watcher.prepareUpdateTopics(null)).isTrue();
+        topicListService.updateTopicListWatcher(watcher);
+
+        // a duplicate watch request waits for the ongoing update
+        lookupSemaphore.acquire();
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                8,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        assertThat(lookupSemaphore.availablePermits()).isZero();
+
+        // closing the watcher completes the waiting request with an error and releases its lookup permit
+        topicListService.deleteTopicListWatcher(13L);
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(1));
+        verify(pulsarCommandSender).sendErrorResponse(eq(8L), any(ServerError.class), anyString());
+        verify(pulsarCommandSender, never())
+                .sendWatchTopicListSuccess(eq(8L), anyLong(), anyString(), any(), any(), any());
+    }
+
+    @Test
+    public void testDuplicateWatchRequestGetsNonRetriableErrorWhenTopicListIsLargerThanMemoryLimit()
+            throws Exception {
+        TopicListService.TopicListWatcher watcher =
+                createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // start an update that doesn't complete yet
+        topicListFuture = new CompletableFuture<>();
+        assertThat(watcher.prepareUpdateTopics(null)).isTrue();
+        topicListService.updateTopicListWatcher(watcher);
+
+        // a duplicate watch request waits for the ongoing update
+        lookupSemaphore.acquire();
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                8,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+
+        // the estimated size of the topic list is larger than the 1_000_000 bytes heap memory limit
+        topicListFuture.complete(List.of("persistent://tenant/ns/topic1" + "x".repeat(1_000_000)));
+
+        // the waiting request gets the non-retriable error of the update, not the error of closing the watcher
+        verify(pulsarCommandSender, timeout(2000L))
+                .sendErrorResponse(eq(8L), eq(ServerError.NotAllowedError), anyString());
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(1));
+        assertThat(topicListService.getWatcherFuture(13)).isNull();
+    }
+
+    @Test
+    public void testFailedWatcherUpdateIsRetried() throws Exception {
+        TopicListService.TopicListWatcher watcher =
+                createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        List<String> refreshedTopics = List.of("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2");
+        AtomicInteger listingCalls = new AtomicInteger();
+        doAnswer(invocationOnMock -> listingCalls.incrementAndGet() == 1
+                ? CompletableFuture.failedFuture(new PulsarServerException("Metadata error"))
+                : CompletableFuture.completedFuture(refreshedTopics))
+                .when(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+
+        assertThat(watcher.prepareUpdateTopics(null)).isTrue();
+        assertThat(topicListService.updateTopicListWatcher(watcher)).succeedsWithin(Duration.ofSeconds(10));
+
+        assertThat(listingCalls).hasValue(2);
+        assertThat(watcher.isUpdatingTopics()).isFalse();
+        assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(refreshedTopics);
+    }
+
+    @Test
+    public void testWatcherIsClosedWhenTopicListIsLargerThanMemoryLimit() throws Exception {
+        TopicListService.TopicListWatcher watcher =
+                createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // the estimated size of the topic list is larger than the 1_000_000 bytes heap memory limit
+        List<String> hugeTopicList = List.of("persistent://tenant/ns/topic1" + "x".repeat(1_000_000));
+        doReturn(CompletableFuture.completedFuture(hugeTopicList))
+                .when(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+
+        assertThat(watcher.prepareUpdateTopics(null)).isTrue();
+        Throwable failure = topicListService.updateTopicListWatcher(watcher)
+                .handle((__, t) -> t).get(10, TimeUnit.SECONDS);
+        assertThat(FutureUtil.unwrapCompletionException(failure))
+                .isInstanceOf(AsyncSemaphore.PermitAcquireLimitExceededException.class);
+
+        assertThat(topicListService.getWatcherFuture(13)).isNull();
+        verify(topicResources).deregisterPersistentTopicListener(watcher);
+        assertThat(memoryLimiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getAcquiredPermits())
+                .isZero();
+    }
+
+    @Test
+    public void testWatchSendsAreCancelledWhenWatcherIsClosed() throws Exception {
+        AtomicReference<BooleanSupplier> successCancelledRef = new AtomicReference<>();
+        doAnswer(invocationOnMock -> {
+            successCancelledRef.set(invocationOnMock.getArgument(5));
+            return CompletableFuture.completedFuture(null);
+        }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(),
+                any());
+        AtomicReference<BooleanSupplier> updateCancelledRef = new AtomicReference<>();
+        doAnswer(invocationOnMock -> {
+            updateCancelledRef.set(invocationOnMock.getArgument(5));
+            return CompletableFuture.completedFuture(null);
+        }).when(pulsarCommandSender).sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
+        createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        notificationConsumer.accept(
+                new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
+        Awaitility.await().untilAsserted(() -> assertThat(updateCancelledRef.get()).isNotNull());
+        assertThat(successCancelledRef.get().getAsBoolean()).isFalse();
+        assertThat(updateCancelledRef.get().getAsBoolean()).isFalse();
+
+        topicListService.deleteTopicListWatcher(13L);
+
+        // sends that are still waiting for direct memory permits are cancelled
+        assertThat(successCancelledRef.get().getAsBoolean()).isTrue();
+        assertThat(updateCancelledRef.get().getAsBoolean()).isTrue();
+    }
+
+    @Test
+    public void testWatcherIsDeletedWhenSendingSuccessResponseFails() throws Exception {
+        doReturn(CompletableFuture.failedFuture(new RuntimeException("Sending failed")))
+                .when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(),
+                        any());
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        topicListFuture.complete(Collections.singletonList("persistent://tenant/ns/topic1"));
+
+        Awaitility.await().untilAsserted(() -> assertThat(topicListService.getWatcherFuture(13)).isNull());
+        verify(topicResources).deregisterPersistentTopicListener(any(TopicListService.TopicListWatcher.class));
+        // the request gets an error response instead of waiting for a response that never comes
+        verify(pulsarCommandSender).sendErrorResponse(eq(7L), any(ServerError.class), eq("Sending failed"));
+        assertThat(lookupSemaphore.availablePermits()).isEqualTo(1);
+    }
+
+    @Test
+    public void testWatchRequestGetsErrorWhenSuccessResponseIsLargerThanDirectMemoryLimit() throws Exception {
+        doAnswer(invocationOnMock -> {
+            Function<Throwable, CompletableFuture<Void>> permitAcquireErrorHandler = invocationOnMock.getArgument(4);
+            return permitAcquireErrorHandler.apply(new AsyncSemaphore.PermitAcquireLimitExceededException(
+                    "Requested permits are larger than the limit", new IllegalArgumentException()));
+        }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(),
+                any());
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        topicListFuture.complete(Collections.singletonList("persistent://tenant/ns/topic1"));
+
+        Awaitility.await().untilAsserted(() -> assertThat(topicListService.getWatcherFuture(13)).isNull());
+        verify(pulsarCommandSender, timeout(2000L))
+                .sendErrorResponse(eq(7L), eq(ServerError.NotAllowedError), anyString());
+        // the success response isn't retried
+        verify(pulsarCommandSender, times(1))
+                .sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(), any());
+        assertThat(lookupSemaphore.availablePermits()).isEqualTo(1);
+    }
+
+    @Test
+    public void testWatchRequestGetsErrorWhenWatcherIsClosedBeforeSuccessResponseIsSent() throws Exception {
+        doAnswer(invocationOnMock -> {
+            // the watcher is closed while the success response waits for direct memory permits, the permit
+            // request is then cancelled
+            topicListService.deleteTopicListWatcher(13L);
+            BooleanSupplier isCancelled = invocationOnMock.getArgument(5);
+            assertThat(isCancelled.getAsBoolean()).isTrue();
+            Function<Throwable, CompletableFuture<Void>> permitAcquireErrorHandler = invocationOnMock.getArgument(4);
+            return permitAcquireErrorHandler.apply(
+                    new AsyncSemaphore.PermitAcquireCancelledException("Permit acquisition was cancelled"));
+        }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(),
+                any());
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        topicListFuture.complete(Collections.singletonList("persistent://tenant/ns/topic1"));
+
+        // the connection is still active, so the request gets an error response instead of no response
+        verify(pulsarCommandSender, timeout(2000L)).sendErrorResponse(eq(7L), any(ServerError.class), anyString());
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(1));
+    }
+
+    @Test
+    public void testDuplicateWatchRequestGetsErrorWhenUpdateFails() throws Exception {
+        TopicListService.TopicListWatcher watcher =
+                createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // the update keeps failing until the listing is allowed to succeed
+        AtomicBoolean listingFails = new AtomicBoolean(true);
+        List<String> refreshedTopics = List.of("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2");
+        doAnswer(invocationOnMock -> listingFails.get()
+                ? CompletableFuture.failedFuture(new PulsarServerException("Metadata error"))
+                : CompletableFuture.completedFuture(refreshedTopics))
+                .when(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+
+        // a duplicate watch request triggers an update and waits for it
+        lookupSemaphore.acquire();
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                8,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+
+        // the request gets an error response after the first failure instead of waiting for the retries
+        verify(pulsarCommandSender, timeout(5000L)).sendErrorResponse(eq(8L), any(ServerError.class), anyString());
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(1));
+        assertThat(watcher.isUpdatingTopics()).isTrue();
+
+        // the update keeps being retried and completes once the listing succeeds
+        listingFails.set(false);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+            assertThat(watcher.isUpdatingTopics()).isFalse();
+            assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(refreshedTopics);
+        });
+    }
+
+    @Test
+    public void testWatchRequestGetsErrorWhenWatcherIsRemovedBeforeFirstSendAttempt() throws Exception {
+        createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // the update triggered by the duplicate watch requests waits for the listing
+        topicListFuture = new CompletableFuture<>();
+        doAnswer(invocationOnMock -> {
+            long requestId = invocationOnMock.getArgument(0);
+            if (requestId == 8L) {
+                // the watcher is closed while the next waiting request is about to send its success response
+                topicListService.deleteTopicListWatcher(13L);
+            }
+            return CompletableFuture.completedFuture(null);
+        }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(),
+                any());
+        lookupSemaphore.release(2);
+        for (long requestId = 8; requestId <= 9; requestId++) {
+            lookupSemaphore.acquire();
+            topicListService.handleWatchTopicList(
+                    NamespaceName.get("tenant/ns"),
+                    13,
+                    requestId,
+                    "persistent://tenant/ns/topic\\d",
+                    topicsPatternImplementation, null,
+                    lookupSemaphore);
+        }
+
+        topicListFuture.complete(Collections.singletonList("persistent://tenant/ns/topic1"));
+
+        // request 9 finds the watcher removed before its first send attempt and gets an error response
+        verify(pulsarCommandSender, timeout(2000L)).sendErrorResponse(eq(9L), any(ServerError.class), anyString());
+        verify(pulsarCommandSender, never())
+                .sendWatchTopicListSuccess(eq(9L), anyLong(), anyString(), any(), any(), any());
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(3));
+    }
+
+    @Test
+    public void testWaitingWatchRequestRespondsWithSnapshotOfItsUpdate() throws Exception {
+        List<String> topics = Collections.singletonList("persistent://tenant/ns/topic1");
+        TopicListService.TopicListWatcher watcher = createWatcher(topics);
+        // the update triggered by the duplicate watch requests waits for the listing
+        topicListFuture = new CompletableFuture<>();
+        doAnswer(invocationOnMock -> {
+            long requestId = invocationOnMock.getArgument(0);
+            if (requestId == 8L) {
+                // the metadata store connection is lost after the update has completed, which clears the matching
+                // topics until the next update, while the next waiting request is about to respond
+                watcher.onSessionEvent(SessionEvent.ConnectionLost);
+            }
+            return CompletableFuture.completedFuture(null);
+        }).when(pulsarCommandSender).sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(),
+                any());
+        lookupSemaphore.release(2);
+        for (long requestId = 8; requestId <= 9; requestId++) {
+            lookupSemaphore.acquire();
+            topicListService.handleWatchTopicList(
+                    NamespaceName.get("tenant/ns"),
+                    13,
+                    requestId,
+                    "persistent://tenant/ns/topic\\d",
+                    topicsPatternImplementation, null,
+                    lookupSemaphore);
+        }
+
+        topicListFuture.complete(topics);
+
+        // request 9 responds with the matching topics of the completed update, not with the cleared list
+        verify(pulsarCommandSender, timeout(2000L)).sendWatchTopicListSuccess(eq(9L), eq(13L),
+                eq(TopicList.calculateHash(topics)), eq(new ArrayList<>(topics)), any(), any());
+    }
+
+    @Test
+    public void testFailedWatchRequestClosesTheWatcherItCreated() throws Exception {
+        AtomicReference<TopicListService.TopicListWatcher> createdWatcher = new AtomicReference<>();
+        doAnswer(invocationOnMock -> {
+            invocationOnMock.callRealMethod();
+            TopicListService.TopicListWatcher watcher = invocationOnMock.getArgument(0);
+            createdWatcher.set(watcher);
+            // the metadata store connection is lost while the watcher is being created, which starts an update
+            watcher.onSessionEvent(SessionEvent.ConnectionLost);
+            return null;
+        }).when(topicResources).registerPersistentTopicListener(any(TopicListener.class));
+        topicListService.handleWatchTopicList(
+                NamespaceName.get("tenant/ns"),
+                13,
+                7,
+                "persistent://tenant/ns/topic\\d",
+                topicsPatternImplementation, null,
+                lookupSemaphore);
+        topicListFuture.complete(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // the permits are granted and the watcher is created asynchronously
+        Awaitility.await().untilAsserted(() -> assertThat(createdWatcher.get()).isNotNull());
+        // the watch request waits for the update since the matching topics are incomplete
+        Awaitility.await().untilAsserted(() -> assertThat(topicListService.getWatcherFuture(13)).isCompleted());
+        assertThat(lookupSemaphore.availablePermits()).isZero();
+
+        // the update fails, which fails the waiting watch request
+        doReturn(CompletableFuture.failedFuture(new PulsarServerException("Metadata error")))
+                .when(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+        topicListService.updateTopicListWatcher(createdWatcher.get());
+
+        // the request gets an error response, and the watcher that it created is removed, deregistered and closed
+        verify(pulsarCommandSender, timeout(2000L)).sendErrorResponse(eq(7L), any(ServerError.class), anyString());
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(1));
+        assertThat(topicListService.getWatcherFuture(13)).isNull();
+        verify(topicResources, timeout(2000L)).deregisterPersistentTopicListener(createdWatcher.get());
+    }
+
+    @Test
+    public void testTopicChangesAreSentAfterPendingSuccessResponse() throws Exception {
+        TopicListService.TopicListWatcher watcher =
+                createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // the success response of a watch request that waited for an update is being sent
+        watcher.successResponseSendingStarted();
+        assertThat(watcher.prepareUpdateTopics(null)).isTrue();
+        // completing the update doesn't send the queued topic changes before the success response
+        watcher.updateTopics(Collections.singletonList("persistent://tenant/ns/topic1"));
+
+        notificationConsumer.accept(
+                new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
+        Thread.sleep(500);
+        verify(pulsarCommandSender, never())
+                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
+
+        // the topic change is sent after the success response has been sent
+        watcher.successResponseSendingCompleted();
+        verify(pulsarCommandSender, timeout(2000L))
+                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
+    }
+
+    @Test
+    public void testTopicChangesAreQueuedWhileUpdateIsInProgress() throws Exception {
+        TopicListService.TopicListWatcher watcher =
+                createWatcher(Collections.singletonList("persistent://tenant/ns/topic1"));
+        // an update starts, for example after a metadata store session event
+        assertThat(watcher.prepareUpdateTopics(null)).isTrue();
+        // a send that was in progress before the update completes
+        watcher.sendingCompleted();
+
+        // a topic change during the update isn't sent, since the matching topics are being rebuilt
+        notificationConsumer.accept(
+                new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic2"));
+        Thread.sleep(500);
+        verify(pulsarCommandSender, never())
+                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
     }
 }

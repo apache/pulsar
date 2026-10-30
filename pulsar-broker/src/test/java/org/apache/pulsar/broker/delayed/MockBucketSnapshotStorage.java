@@ -136,7 +136,9 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
             for (int i = (int) firstSegmentEntryId; i <= lastEntryId; i++) {
                 ByteBuf byteBuf = this.bucketSnapshots.get(bucketId).get(i);
                 SnapshotSegment snapshotSegment = new SnapshotSegment();
-                snapshotSegment.parseFrom(byteBuf, byteBuf.readableBytes());
+                // Parse from a slice so the stored buffer stays re-readable, like a real storage.
+                ByteBuf slice = byteBuf.slice();
+                snapshotSegment.parseFrom(slice, slice.readableBytes());
                 snapshotSegments.add(snapshotSegment);
             }
             return snapshotSegments;
@@ -189,6 +191,15 @@ public class MockBucketSnapshotStorage implements BucketSnapshotStorage {
             }
         }
         bucketSnapshots.clear();
-        executorService.shutdownNow();
+        // Gracefully shutdown: allow pending tasks to complete
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(10, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            executorService.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 }

@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.client.impl.auth.oauth2;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URISyntaxException;
@@ -66,9 +66,9 @@ class ClientCredentialsFlow extends FlowBase {
     public ClientCredentialsFlow(URL issuerUrl, String audience, String privateKey, String scope,
                                  Duration connectTimeout, Duration readTimeout, String trustCertsFilePath,
                                  String certFile, String keyFile, Duration autoCertRefreshDuration,
-                                 String wellKnownMetadataPath) {
+                                 String wellKnownMetadataPath, String jsseProvider, String jcaProvider) {
         super(issuerUrl, connectTimeout, readTimeout, trustCertsFilePath, certFile, keyFile, autoCertRefreshDuration,
-                wellKnownMetadataPath);
+                wellKnownMetadataPath, jsseProvider, jcaProvider);
         this.audience = audience;
         this.privateKey = privateKey;
         this.scope = scope;
@@ -94,6 +94,10 @@ class ClientCredentialsFlow extends FlowBase {
         String keyFile = params.get(CONFIG_PARAM_TLS_KEY_FILE);
         Duration autoCertRefreshDuration = parseParameterDuration(params, CONFIG_PARAM_AUTO_CERT_REFRESH_DURATION);
         String wellKnownMetadataPath = params.get(CONFIG_PARAM_WELL_KNOWN_METADATA_PATH);
+        // PIP-478: the IdP leg's own provider pins. Explicit parameters win over anything inherited from the
+        // owning client, and are the only source on the standalone path, which has no client to inherit from.
+        String jsseProvider = params.get(CONFIG_PARAM_JSSE_PROVIDER);
+        String jcaProvider = params.get(CONFIG_PARAM_JCA_PROVIDER);
 
         return ClientCredentialsFlow.builder()
                 .issuerUrl(issuerUrl)
@@ -107,6 +111,8 @@ class ClientCredentialsFlow extends FlowBase {
                 .keyFile(keyFile)
                 .autoCertRefreshDuration(autoCertRefreshDuration)
                 .wellKnownMetadataPath(wellKnownMetadataPath)
+                .jsseProvider(jsseProvider)
+                .jcaProvider(jcaProvider)
                 .build();
     }
 
@@ -117,27 +123,31 @@ class ClientCredentialsFlow extends FlowBase {
      * @return
      * @throws IOException
      */
-    private static KeyFile loadPrivateKey(String privateKeyURL) throws IOException {
+    @VisibleForTesting
+    static KeyFile loadPrivateKey(String privateKeyURL) throws IOException {
         try {
             URLConnection urlConnection = new org.apache.pulsar.client.api.url.URL(privateKeyURL).openConnection();
             try {
-                String protocol = urlConnection.getURL().getProtocol();
-                String contentType = urlConnection.getContentType();
-                if ("data".equals(protocol) && !"application/json".equals(contentType)) {
-                    throw new IllegalArgumentException(
-                            "Unsupported media type or encoding format: " + urlConnection.getContentType());
-                }
-                KeyFile privateKey;
-                try (Reader r = new InputStreamReader((InputStream) urlConnection.getContent(),
-                        StandardCharsets.UTF_8)) {
-                    privateKey = KeyFile.fromJson(r);
-                }
-                return privateKey;
+                return loadPrivateKey(urlConnection);
             } finally {
                 IOUtils.close(urlConnection);
             }
         } catch (URISyntaxException | InstantiationException | IllegalAccessException e) {
             throw new IOException("Invalid privateKey format", e);
+        }
+    }
+
+    @VisibleForTesting
+    static KeyFile loadPrivateKey(URLConnection urlConnection) throws IOException {
+        String protocol = urlConnection.getURL().getProtocol();
+        if ("data".equals(protocol) && !"application/json".equals(urlConnection.getContentType())) {
+            throw new IllegalArgumentException(
+                    "Unsupported media type or encoding format: " + urlConnection.getContentType());
+        }
+        // Read the stream directly: getContent() needs a content type to pick a handler, which not every
+        // URL handler reports
+        try (Reader r = new InputStreamReader(urlConnection.getInputStream(), StandardCharsets.UTF_8)) {
+            return KeyFile.fromJson(r);
         }
     }
 

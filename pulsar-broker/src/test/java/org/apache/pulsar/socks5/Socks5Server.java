@@ -23,7 +23,8 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.socksx.v5.Socks5CommandRequestDecoder;
@@ -43,8 +44,8 @@ import org.apache.pulsar.socks5.handler.PasswordAuthRequestHandler;
 public class Socks5Server {
 
     @Getter
-    private EventLoopGroup boss = new NioEventLoopGroup();
-    private EventLoopGroup worker = new NioEventLoopGroup();
+    private EventLoopGroup boss = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
+    private EventLoopGroup worker = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
 
     private final Socks5Config socks5Config;
 

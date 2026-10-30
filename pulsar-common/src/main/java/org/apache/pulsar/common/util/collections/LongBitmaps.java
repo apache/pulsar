@@ -58,4 +58,18 @@ public final class LongBitmaps {
     public static LongBitmap deserialize(ByteBuf buf) {
         return ConcurrentRoaringBitmap.deserialize(buf);
     }
+
+    /**
+     * Deserializes a LongBitmap from long[] format compatible with {@link java.util.BitSet}.
+     *
+     * <p>Creates a new LongBitmap populated with values from the long array format
+     * produced by {@link LongBitmap#serializeToLongArray()}. This format is compatible
+     * with {@link java.util.BitSet#valueOf(long[])}.
+     *
+     * @param data long array in BitSet format
+     * @return a new LongBitmap containing the deserialized values
+     */
+    public static LongBitmap deserializeFromLongArray(long[] data) {
+        return ConcurrentRoaringBitmap.fromLongArray(data);
+    }
 }

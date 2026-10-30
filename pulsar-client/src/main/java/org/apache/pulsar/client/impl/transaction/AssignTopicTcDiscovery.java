@@ -95,11 +95,13 @@ class AssignTopicTcDiscovery implements TcDiscovery {
 
     @Override
     public TransactionMetaStoreHandler nextHandler() {
-        if (handlers == null || handlers.length == 0) {
+        // Read the array once: close() clears it concurrently.
+        TransactionMetaStoreHandler[] snapshot = handlers;
+        if (snapshot == null || snapshot.length == 0) {
             return null;
         }
-        int index = MathUtils.signSafeMod(epoch.incrementAndGet(), handlers.length);
-        return handlers[index];
+        int index = MathUtils.signSafeMod(epoch.incrementAndGet(), snapshot.length);
+        return snapshot[index];
     }
 
     @Override

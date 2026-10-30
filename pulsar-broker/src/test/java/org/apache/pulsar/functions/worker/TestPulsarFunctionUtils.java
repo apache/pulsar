@@ -23,6 +23,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -41,7 +42,7 @@ import org.testng.annotations.Test;
 public class TestPulsarFunctionUtils {
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
         StringBuilder result = new StringBuilder();
-        URL url = new URL(String.format("http://%s:%s/metrics", "localhost", metricsPort));
+        URL url = URI.create(String.format("http://%s:%s/metrics", "localhost", metricsPort)).toURL();
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");
         BufferedReader rd = new BufferedReader(new InputStreamReader(conn.getInputStream()));

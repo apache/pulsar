@@ -406,6 +406,14 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     @JsonIgnore
     private KeySharedPolicy keySharedPolicy;
 
+    /**
+     * PIP-486 (internal): the Key_Shared subscription dispatches whole entries by their
+     * producer-stamped entry-bucket hash range instead of hashing each message's key. Set only by
+     * the scalable-topic consumer when it shares a segment by entry-bucket.
+     */
+    @JsonIgnore
+    private boolean entryBucketDispatch = false;
+
     private boolean batchIndexAckEnabled = true;
 
     private boolean ackReceiptEnabled = false;
@@ -445,11 +453,43 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     }
 
     public ConsumerConfigurationData<T> clone() {
+        ConsumerConfigurationData<T> c = shallowClone();
+        c.topicNames = Sets.newTreeSet(this.topicNames);
+        return c;
+    }
+
+    /**
+     * Clones the configuration for one topic: the clone's topic names are only {@code topicName}. A multi-topic
+     * consumer creates a consumer of each of its topics with such a clone, without copying the names of all the
+     * other topics into each of them.
+     */
+    public ConsumerConfigurationData<T> cloneForTopic(String topicName) {
+        ConsumerConfigurationData<T> c = shallowClone();
+        c.topicNames = new TreeSet<>();
+        c.topicNames.add(topicName);
+        return c;
+    }
+
+    private ConsumerConfigurationData<T> shallowClone() {
         try {
             @SuppressWarnings("unchecked")
             ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
-            c.topicNames = Sets.newTreeSet(this.topicNames);
             c.properties = new TreeMap<>(this.properties);
+            // topicConfiguration(...) adds to the list in place
+            c.topicConfigurations = new ArrayList<>(this.topicConfigurations);
+            // subscribeAsync fills the default retry and dead letter topics into the policy, so a clone needs its
+            // own copy, or a consumer would get the topics of another one subscribed from the same template
+            DeadLetterPolicy policy = this.deadLetterPolicy;
+            if (policy != null) {
+                c.deadLetterPolicy = DeadLetterPolicy.builder()
+                        .maxRedeliverCount(policy.getMaxRedeliverCount())
+                        .retryLetterTopic(policy.getRetryLetterTopic())
+                        .deadLetterTopic(policy.getDeadLetterTopic())
+                        .initialSubscriptionName(policy.getInitialSubscriptionName())
+                        .retryLetterProducerBuilderCustomizer(policy.getRetryLetterProducerBuilderCustomizer())
+                        .deadLetterProducerBuilderCustomizer(policy.getDeadLetterProducerBuilderCustomizer())
+                        .build();
+            }
             return c;
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ConsumerConfigurationData");

@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.pulsar.client.admin.internal.TopicsImpl.TXN_CONSUMABLE;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -42,6 +43,7 @@ import jakarta.ws.rs.container.AsyncResponse;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,6 +61,7 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
+import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.admin.v2.NonPersistentTopics;
 import org.apache.pulsar.broker.admin.v2.PersistentTopics;
@@ -99,6 +102,7 @@ import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -106,6 +110,7 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.zookeeper.KeeperException;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
@@ -656,6 +661,36 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
                 Response.Status.PRECONDITION_FAILED.getStatusCode());
     }
 
+    @Test
+    public void testCreateTopicWithSurroundingWhitespaceIsRejected() {
+        // Clients trim topic names, so a topic created with surrounding whitespace could never be reached.
+        final String topicName = "topic-with-trailing-whitespace ";
+
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> errCaptor = ArgumentCaptor.forClass(RestException.class);
+        persistentTopics.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(),
+                Response.Status.PRECONDITION_FAILED.getStatusCode());
+        Assert.assertTrue(errCaptor.getValue().getMessage().contains("must not have leading or trailing whitespace"));
+
+        response = mock(AsyncResponse.class);
+        errCaptor = ArgumentCaptor.forClass(RestException.class);
+        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, topicName, 2, true);
+        verify(response, timeout(5000).times(1)).resume(errCaptor.capture());
+        Assert.assertEquals(errCaptor.getValue().getResponse().getStatus(),
+                Response.Status.PRECONDITION_FAILED.getStatusCode());
+
+        response = mock(AsyncResponse.class);
+        errCaptor = ArgumentCaptor.forClass(RestException.class);
+        try {
+            persistentTopics.createNonPartitionedTopic(response, testTenant, testNamespace, topicName, true, null);
+            Assert.fail("Should have thrown a RestException");
+        } catch (RestException e) {
+            Assert.assertEquals(e.getResponse().getStatus(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+        }
+    }
+
     @SuppressWarnings("deprecation")
     @Test
     public void testCreatePartitionedTopicHavingNonPartitionTopicWithPartitionSuffix()
@@ -1145,9 +1180,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             producer.send("test" + i);
         }
 
+        admin.namespaces().setAutoSubscriptionCreation("tenant-xyz/ns-abc",
+                AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(false).build());
+        PulsarAdminException.PreconditionFailedException exception = Assert.expectThrows(
+                PulsarAdminException.PreconditionFailedException.class,
+                () -> admin.topics().peekMessages(partitionedTopic, subscriptionName, 3));
+        Assert.assertEquals(exception.getStatusCode(), Response.Status.PRECONDITION_FAILED.getStatusCode());
+        Assert.assertTrue(admin.topics().getSubscriptions(partitionedTopic).isEmpty());
+
+        admin.namespaces().setAutoSubscriptionCreation("tenant-xyz/ns-abc",
+                AutoSubscriptionCreationOverride.builder().allowAutoSubscriptionCreation(true).build());
         List<Message<byte[]>> messages = admin.topics().peekMessages(partitionedTopic, subscriptionName, 3);
 
         Assert.assertEquals(messages.size(), 3);
+        Assert.assertEquals(admin.topics().getSubscriptions(partitionedTopic), List.of(subscriptionName));
 
         producer.close();
     }
@@ -1900,6 +1946,57 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testGetReplicatedSubscriptionStatusDoesNotLogRedirectAsError() throws Exception {
+        // A 307 means this broker does not own the partition and the caller is being sent to the one that
+        // does. That is normal routing rather than a failure, so it must not be reported at ERROR level: a
+        // broker that fans out per-partition admin calls would otherwise log a stack trace per redirect.
+        // The logger is the one inherited from PulsarWebResource, not PersistentTopicsBase: the inherited
+        // field is derived via LOG.with().build(), and slog keeps the parent's name when deriving.
+        @Cleanup
+        TestLogAppender logAppender = TestLogAppender.create(PulsarWebResource.class);
+
+        String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal
+                + "/testGetReplicatedSubscriptionStatusDoesNotLogRedirectAsError";
+        String subName = "sub_testGetReplicatedSubscriptionStatusDoesNotLogRedirectAsError";
+        TopicName partition = TopicName.get(topicName).getPartition(0);
+        admin.topics().createPartitionedTopic(topicName, 1);
+        admin.topics().createSubscription(topicName, subName, MessageId.latest);
+
+        // validateTopicOwnershipAsync() builds the redirect location from the request URI.
+        uriField.set(persistentTopics, uriInfo);
+        doReturn(URI.create(pulsar.getWebServiceAddress() + "/admin/v2/persistent/" + testTenant + "/"
+                + testNamespaceLocal + "/" + partition.getLocalName() + "/subscription/" + subName
+                + "/replicatedSubscriptionStatus")).when(uriInfo).getRequestUri();
+
+        // Pretend the partition moved to another broker between the lookup and this call.
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(false))
+                .when(namespaceService).isServiceUnitOwnedAsync(partition);
+        doReturn(namespaceService).when(pulsar).getNamespaceService();
+
+        logAppender.clearEvents();
+
+        // Passing the partition name directly routes straight into
+        // internalGetReplicatedSubscriptionStatusForNonPartitionedTopic, whose handler is the one under
+        // test. The outer handler in internalGetReplicatedSubscriptionStatus is not chained to this call,
+        // so an ERROR captured here can only have come from the inner one.
+        AsyncResponse response = mock(AsyncResponse.class);
+        persistentTopics.getReplicatedSubscriptionStatus(response, testTenant, testNamespaceLocal,
+                partition.getLocalName(), subName, false);
+
+        ArgumentCaptor<WebApplicationException> captor = ArgumentCaptor.forClass(WebApplicationException.class);
+        verify(response, timeout(5000).times(1)).resume(captor.capture());
+        assertEquals(captor.getValue().getResponse().getStatus(),
+                Response.Status.TEMPORARY_REDIRECT.getStatusCode());
+
+        assertTrue(logAppender.getEvents().stream()
+                        .noneMatch(event -> event.getLevel() == Level.ERROR
+                                && event.getMessage().toString()
+                                .contains("Failed to get replicated subscription status")),
+                "A 307 redirect must not be logged at ERROR level");
+    }
+
+    @Test
     public void testNamespaceResources() throws Exception {
         String ns1V1 = testNamespace + "v1";
         String ns1V2 = testNamespace + "v2";
@@ -1980,6 +2077,20 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testNonPersistentNonPartitionedTopicWithTransactionSuffixIsNotRejected() {
+        // NonPersistentTopics inherits createNonPartitionedTopic from PersistentTopics, so this guards the
+        // non-partitioned non-persistent path against the transaction-internal-name check. If validateCreateTopic
+        // wrongly rejected the transaction-internal suffix here, the async response would resume with an error
+        // status rather than NO_CONTENT.
+        AsyncResponse response = mock(AsyncResponse.class);
+        nonPersistentTopic.createNonPartitionedTopic(response, testTenant, testNamespace,
+                "foo__transaction_pending_ack", true, null);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+    }
+
+    @Test
     public void testPeekMessageWithProperties() throws Exception {
         String topicName = "persistent://" + testTenant + "/" + testNamespaceLocal + "/testPeekMessageWithProperties";
         admin.topics().createNonPartitionedTopic(topicName);
@@ -2003,10 +2114,11 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
 
         Message<byte[]> peekedMessage = admin.topics().peekMessages(topicName, "sub-peek", 1).get(0);
         assertEquals(new String(peekedMessage.getData()), "non-batch-message");
-        assertEquals(peekedMessage.getProperties().size(), 3);
+        assertEquals(peekedMessage.getProperties().size(), 4);
         assertEquals(peekedMessage.getProperties().get("key1"), "value1");
         assertEquals(peekedMessage.getProperties().get("KEY2"), "VALUE2");
         assertEquals(peekedMessage.getProperties().get("KeY3"), "VaLuE3");
+        assertEquals(peekedMessage.getProperties().get(TXN_CONSUMABLE), "true");
 
         admin.topics().truncate(topicName);
 
@@ -2041,13 +2153,31 @@ public class PersistentTopicsTest extends MockedPulsarServiceBaseTest {
             Message<byte[]> batchMessage = peekedMessages.get(i);
             assertEquals(new String(batchMessage.getData()), "batch-message-" + (i + 1));
             assertEquals(batchMessage.getProperties().size(),
-                    3 + 2 // 3 properties from the message + 2 properties from the batch
+                    3 + 2 + 1 // 3 properties from the message + 2 properties from the batch + 1 property from TNX
             );
             assertEquals(batchMessage.getProperties().get("X-Pulsar-num-batch-message"), "2");
             assertNotNull(batchMessage.getProperties().get("X-Pulsar-batch-size"));
+            assertEquals(peekedMessage.getProperties().get(TXN_CONSUMABLE), "true");
             assertEquals(batchMessage.getProperties().get("batch-key1"), "batch-value1");
             assertEquals(batchMessage.getProperties().get("BATCH-KEY2"), "BATCH-VALUE2");
             assertEquals(batchMessage.getProperties().get("BaTcH-kEy3"), "BaTcH-vAlUe3");
         }
+    }
+
+    @Test
+    public void testCreateNonPersistentPartitionedTopic() {
+        AsyncResponse response = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, "test-topic", 3, true);
+        verify(response, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.NO_CONTENT.getStatusCode());
+
+        response = mock(AsyncResponse.class);
+        ArgumentCaptor<RestException> errorCaptor = ArgumentCaptor.forClass(RestException.class);
+        nonPersistentTopic.createPartitionedTopic(response, testTenant, testNamespace, "test-topic-partition-0", 3,
+                true);
+        verify(response, timeout(5000).times(1)).resume(errorCaptor.capture());
+        Assert.assertEquals(errorCaptor.getValue().getResponse().getStatus(),
+                Response.Status.PRECONDITION_FAILED.getStatusCode());
     }
 }

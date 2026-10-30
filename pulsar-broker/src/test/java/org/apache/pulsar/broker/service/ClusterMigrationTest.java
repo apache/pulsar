@@ -27,6 +27,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +49,9 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.ClusterPolicies.ClusterUrl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
@@ -124,23 +128,23 @@ public class ClusterMigrationTest {
         broker4 = new TestBroker("r4", loadManagerClassName);
 
         pulsar1 = broker1.getPulsarService();
-        url1 = new URL(pulsar1.getWebServiceAddress());
-        urlTls1 = new URL(pulsar1.getWebServiceAddressTls());
+        url1 = URI.create(pulsar1.getWebServiceAddress()).toURL();
+        urlTls1 = URI.create(pulsar1.getWebServiceAddressTls()).toURL();
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         pulsar2 = broker2.getPulsarService();
-        url2 = new URL(pulsar2.getWebServiceAddress());
-        urlTls2 = new URL(pulsar2.getWebServiceAddressTls());
+        url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
+        urlTls2 = URI.create(pulsar2.getWebServiceAddressTls()).toURL();
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         pulsar3 = broker3.getPulsarService();
-        url3 = new URL(pulsar3.getWebServiceAddress());
-        urlTls3 = new URL(pulsar3.getWebServiceAddressTls());
+        url3 = URI.create(pulsar3.getWebServiceAddress()).toURL();
+        urlTls3 = URI.create(pulsar3.getWebServiceAddressTls()).toURL();
         admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
         pulsar4 = broker4.getPulsarService();
-        url4 = new URL(pulsar4.getWebServiceAddress());
-        urlTls4 = new URL(pulsar4.getWebServiceAddressTls());
+        url4 = URI.create(pulsar4.getWebServiceAddress()).toURL();
+        urlTls4 = URI.create(pulsar4.getWebServiceAddressTls()).toURL();
         admin4 = PulsarAdmin.builder().serviceHttpUrl(url4.toString()).build();
 
 
@@ -387,10 +391,15 @@ public class ClusterMigrationTest {
             producer3.send("test2".getBytes());
         }
         log.info("Successfully published messages by migrated producers");
+        // Ack the messages: restarting broker-1 below fails the subscribe request that consumer2 sent there before
+        // it was redirected, and the client then subscribes consumer2 again, which redelivers its unacked messages.
         for (int i = 0; i < n * 3; i++) {
-            assertEquals(consumer1.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-            assertEquals(consumer2.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-
+            Message<byte[]> msg1 = consumer1.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg1.getData(), "test2".getBytes());
+            consumer1.acknowledge(msg1);
+            Message<byte[]> msg2 = consumer2.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg2.getData(), "test2".getBytes());
+            consumer2.acknowledge(msg2);
         }
 
         // create non-migrated topic which should connect to cluster-1
@@ -428,6 +437,56 @@ public class ClusterMigrationTest {
         client1.close();
         client2.close();
         log.info("Successfully consumed messages by migrated consumers");
+    }
+
+    /**
+     * A consumer and a producer created on a migrated cluster are redirected to the new cluster without an answer to
+     * their subscribe and producer requests, which stay pending on the connection to the old cluster. When that
+     * connection closes and fails those requests, the consumer and the producer, already connected to the new
+     * cluster, must stay connected: a consumer that subscribes again drops the messages in its receiver queue.
+     */
+    @SuppressWarnings("deprecation")
+    @Test
+    public void testRedirectedConsumerAndProducerIgnoreTheirFirstAttempt() throws Exception {
+        final String topicName = BrokerTestUtil
+                .newUniqueName("persistent://" + namespace + "/migrationTopic");
+
+        @Cleanup
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
+        // Load the topic on broker-1, through the connection that all of client1's handlers share
+        ProducerImpl<byte[]> producer1 = (ProducerImpl<byte[]>) client1.newProducer().topic(topicName).create();
+        ClientCnx cnx1 = producer1.getClientCnx();
+        AbstractTopic topic1 = (AbstractTopic) pulsar1.getBrokerService().getTopic(topicName, false).getNow(null).get();
+
+        ClusterUrl migratedUrl = new ClusterUrl(pulsar2.getWebServiceAddress(), pulsar2.getWebServiceAddressTls(),
+                pulsar2.getBrokerServiceUrl(), null);
+        admin1.clusters().updateClusterMigration("r1", true, migratedUrl);
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> {
+            topic1.checkClusterMigration().get();
+            assertTrue(topic1.isMigrated());
+        });
+
+        Consumer<byte[]> consumer = client1.newConsumer().topic(topicName).subscriptionName("s1").subscribe();
+        Producer<byte[]> producer = client1.newProducer().topic(topicName).create();
+        int n = 5;
+        for (int i = 0; i < n; i++) {
+            producer.send(("msg-" + i).getBytes());
+        }
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(((ConsumerImpl<byte[]>) consumer).numMessagesInQueue(), n));
+
+        // Close cnx1 from its event loop, so that the task submitted next runs after the disconnection is handled
+        cnx1.ctx().executor().submit(() -> cnx1.ctx().channel().close()).get();
+        cnx1.ctx().executor().submit(() -> { }).get();
+
+        assertTrue(consumer.isConnected(), "The consumer reconnected for its first subscribe attempt");
+        assertTrue(producer.isConnected(), "The producer reconnected for its first attempt");
+        for (int i = 0; i < n; i++) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            assertNotNull(msg, "Message " + i + " was dropped from the receiver queue");
+            assertEquals(msg.getData(), ("msg-" + i).getBytes());
+        }
     }
 
     @SuppressWarnings("deprecation")
@@ -871,10 +930,15 @@ public class ClusterMigrationTest {
             greenProducerNs11.send("test2".getBytes());
         }
         log.info("Successfully published messages by migrated producers");
+        // Ack the messages: restarting broker-1 below fails the subscribe request that blueConsumerNs12 sent there
+        // before it was redirected, and the client then subscribes it again, which redelivers its unacked messages.
         for (int i = 0; i < n * 3; i++) {
-            assertEquals(blueConsumerNs11.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-            assertEquals(blueConsumerNs12.receive(2, TimeUnit.SECONDS).getData(), "test2".getBytes());
-
+            Message<byte[]> msg1 = blueConsumerNs11.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg1.getData(), "test2".getBytes());
+            blueConsumerNs11.acknowledge(msg1);
+            Message<byte[]> msg2 = blueConsumerNs12.receive(2, TimeUnit.SECONDS);
+            assertEquals(msg2.getData(), "test2".getBytes());
+            blueConsumerNs12.acknowledge(msg2);
         }
 
         // create non-migrated topic which should connect to blue

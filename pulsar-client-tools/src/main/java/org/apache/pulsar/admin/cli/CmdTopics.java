@@ -1164,6 +1164,7 @@ public class CmdTopics extends CmdBase {
 
             System.out.println("Publish time: " + message.getPublishTime());
             System.out.println("Event time: " + message.getEventTime());
+            printCompressionType(message);
 
             if (message.getDeliverAtTime() != 0) {
                 System.out.println("Deliver at time: " + message.getDeliverAtTime());
@@ -1223,6 +1224,7 @@ public class CmdTopics extends CmdBase {
 
                 System.out.println("Publish time: " + message.getPublishTime());
                 System.out.println("Event time: " + message.getEventTime());
+                printCompressionType(message);
                 System.out.println("Redelivery count: " + message.getRedeliveryCount());
 
                 if (message.getDeliverAtTime() != 0) {
@@ -1346,6 +1348,17 @@ public class CmdTopics extends CmdBase {
         return null;
     }
 
+    /**
+     * Prints the compression type when the message was compressed. The admin client puts it into the message metadata
+     * from the broker's {@code X-Pulsar-compression} header, which is only sent for compressed messages.
+     */
+    private static void printCompressionType(MessageImpl<?> message) {
+        MessageMetadata metadata = message.getMessageBuilder();
+        if (metadata != null && metadata.hasCompression()) {
+            System.out.println("Compression type: " + metadata.getCompression());
+        }
+    }
+
     public static void printMessages(List<Message<byte[]>> messages, boolean showServerMarker, CliCommand cli) {
         if (messages == null) {
             return;
@@ -1367,6 +1380,7 @@ public class CmdTopics extends CmdBase {
 
             System.out.println("Publish time: " + message.getPublishTime());
             System.out.println("Event time: " + message.getEventTime());
+            printCompressionType(message);
 
             if (message.getDeliverAtTime() != 0) {
                 System.out.println("Deliver at time: " + message.getDeliverAtTime());

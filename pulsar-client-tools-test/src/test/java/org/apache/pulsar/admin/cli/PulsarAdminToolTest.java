@@ -74,6 +74,7 @@ import org.apache.pulsar.client.admin.ProxyStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.ResourceQuotas;
+import org.apache.pulsar.client.admin.ScalableTopics;
 import org.apache.pulsar.client.admin.Schemas;
 import org.apache.pulsar.client.admin.Tenants;
 import org.apache.pulsar.client.admin.TopicPolicies;
@@ -90,6 +91,8 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -1589,6 +1592,21 @@ public class PulsarAdminToolTest {
         verify(mockTopics).setOffloadPolicies("persistent://myprop/ns1/ds2", offloadPolicies2);
     }
 
+    @Test
+    public void scalableTopicsStats() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        ScalableTopics mockScalableTopics = mock(ScalableTopics.class);
+        when(admin.scalableTopics()).thenReturn(mockScalableTopics);
+
+        CmdScalableTopics cmdScalableTopics = new CmdScalableTopics(() -> admin);
+
+        cmdScalableTopics.run(split("stats myprop/ns1/ds1"));
+        verify(mockScalableTopics).getStats("myprop/ns1/ds1");
+
+        cmdScalableTopics.run(split("segment-stats segment://myprop/ns1/ds1/0000-ffff-3"));
+        verify(mockScalableTopics).getSegmentStats("segment://myprop/ns1/ds1/0000-ffff-3");
+    }
+
 
     @SuppressWarnings({"deprecation", "unchecked"})
     @Test
@@ -2804,6 +2822,67 @@ public class PulsarAdminToolTest {
 
         public static void main(String[] args) {
         }
+    }
+
+    @Test
+    public void topicsPrintMessageCompressionType() throws Exception {
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
+        CmdTopics cmdTopics = new CmdTopics(() -> admin);
+
+        MessageImpl<byte[]> compressed = mockMessage(CompressionType.LZ4);
+        MessageImpl<byte[]> uncompressed = mockMessage(null);
+        when(mockTopics.peekMessages("persistent://myprop/ns1/ds1", "sub1", 2, false,
+                TransactionIsolationLevel.READ_COMMITTED)).thenReturn(List.of(compressed, uncompressed));
+        when(mockTopics.examineMessage("persistent://myprop/ns1/ds1", "latest", 1)).thenReturn(compressed);
+        when(mockTopics.getMessageById("persistent://myprop/ns1/ds1", 10, 2)).thenReturn(compressed);
+
+        String peekOutput = captureStdOut(
+                () -> cmdTopics.run(split("peek-messages persistent://myprop/ns1/ds1 -s sub1 -n 2")));
+        assertEquals(peekOutput.split("Compression type: LZ4", -1).length - 1, 1, peekOutput);
+
+        String examineOutput = captureStdOut(
+                () -> cmdTopics.run(split("examine-messages persistent://myprop/ns1/ds1")));
+        assertTrue(examineOutput.contains("Compression type: LZ4"), examineOutput);
+
+        String getByIdOutput = captureStdOut(
+                () -> cmdTopics.run(split("get-message-by-id persistent://myprop/ns1/ds1 -l 10 -e 2")));
+        assertTrue(getByIdOutput.contains("Compression type: LZ4"), getByIdOutput);
+
+        when(mockTopics.examineMessage("persistent://myprop/ns1/ds1", "latest", 1)).thenReturn(uncompressed);
+        String uncompressedOutput = captureStdOut(
+                () -> cmdTopics.run(split("examine-messages persistent://myprop/ns1/ds1")));
+        assertFalse(uncompressedOutput.contains("Compression type"), uncompressedOutput);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static MessageImpl<byte[]> mockMessage(CompressionType compressionType) {
+        MessageImpl<byte[]> message = mock(MessageImpl.class);
+        MessageMetadata metadata = new MessageMetadata();
+        if (compressionType != null) {
+            metadata.setCompression(compressionType);
+        }
+        when(message.getMessageBuilder()).thenReturn(metadata);
+        when(message.getMessageId()).thenReturn(new MessageIdImpl(1L, 1L, 1));
+        when(message.getData()).thenReturn(new byte[]{});
+        return message;
+    }
+
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    private static String captureStdOut(ThrowingRunnable runnable) throws Exception {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
+        try {
+            runnable.run();
+        } finally {
+            System.setOut(originalOut);
+        }
+        return output.toString(StandardCharsets.UTF_8);
     }
 
     String[] split(String s) {

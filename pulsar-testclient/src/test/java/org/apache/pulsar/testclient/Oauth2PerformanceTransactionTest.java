@@ -22,7 +22,6 @@ import static org.mockito.Mockito.spy;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
 import java.net.URI;
-import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -171,7 +170,7 @@ public class Oauth2PerformanceTransactionTest extends ProducerConsumerBase {
         String testProduceTopic = testTopic + UUID.randomUUID();
         String testSub = "testSub";
         String args = String.format(argString, testConsumeTopic, testProduceTopic,
-                pulsar.getBrokerServiceUrl(), testSub, new URL(pulsar.getWebServiceAddress()),
+                pulsar.getBrokerServiceUrl(), testSub, URI.create(pulsar.getWebServiceAddress()).toURL(),
                 authenticationPlugin, authenticationParameters);
 
         // v5 transactions are scalable-topic-only; scalable topics must be pre-created (they don't

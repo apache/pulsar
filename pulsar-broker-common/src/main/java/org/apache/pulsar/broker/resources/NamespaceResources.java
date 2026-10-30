@@ -144,6 +144,14 @@ public class NamespaceResources extends BaseResources<Policies> {
         return getCache().get(joinPath(BASE_POLICIES_PATH, ns.toString()));
     }
 
+    /**
+     * Get the namespace policies from the metadata store, rather than from the cache, which may not have caught up
+     * with an update made on another broker yet.
+     */
+    public CompletableFuture<Optional<Policies>> refreshAndGetPoliciesAsync(NamespaceName ns) {
+        return refreshAndGetAsync(joinPath(BASE_POLICIES_PATH, ns.toString()));
+    }
+
     public void setPolicies(NamespaceName ns, Function<Policies, Policies> function) throws MetadataStoreException {
         set(joinPath(BASE_POLICIES_PATH, ns.toString()), function);
     }
@@ -260,6 +268,30 @@ public class NamespaceResources extends BaseResources<Policies> {
         public PartitionedTopicResources(MetadataStore configurationStore, int operationTimeoutSec, Executor executor) {
             super(configurationStore, PartitionedTopicMetadata.class, operationTimeoutSec);
             this.executor = executor;
+        }
+
+        /**
+         * Returns the partitioned topic whose metadata is stored at the path, if it is such a path.
+         */
+        public static Optional<TopicName> topicNameFromPath(String path) {
+            if (!path.startsWith(PARTITIONED_TOPIC_PATH + "/")) {
+                return Optional.empty();
+            }
+            // PARTITIONED_TOPIC_PATH/{namespace}/{domain}/{encodedLocalName}
+            String rest = path.substring(PARTITIONED_TOPIC_PATH.length() + 1);
+            int localNameIndex = rest.lastIndexOf('/');
+            int domainIndex = rest.lastIndexOf('/', localNameIndex - 1);
+            if (domainIndex <= 0) {
+                return Optional.empty();
+            }
+            try {
+                return Optional.of(TopicName.get(rest.substring(domainIndex + 1, localNameIndex),
+                        NamespaceName.get(rest.substring(0, domainIndex)),
+                        Codec.decode(rest.substring(localNameIndex + 1))));
+            } catch (IllegalArgumentException e) {
+                // A namespace or domain node above the topics
+                return Optional.empty();
+            }
         }
 
         public CompletableFuture<Void> updatePartitionedTopicAsync(TopicName tn, Function<PartitionedTopicMetadata,

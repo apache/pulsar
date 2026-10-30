@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import org.apache.pulsar.client.api.Authentication;
@@ -32,8 +33,8 @@ public class AuthenticationFactoryOAuth2Test {
 
     @Test
     public void testBuilder() throws IOException {
-        URL issuerUrl = new URL("http://localhost");
-        URL credentialsUrl = new URL("http://localhost");
+        URL issuerUrl = URI.create("http://localhost").toURL();
+        URL credentialsUrl = URI.create("http://localhost").toURL();
         String audience = "audience";
         String scope = "scope";
         Duration connectTimeout = Duration.parse("PT11S");
@@ -55,33 +56,31 @@ public class AuthenticationFactoryOAuth2Test {
 
     @Test
     public void testBuilderWithTlsClientAuthFlow() throws Exception {
-        URL issuerUrl = new URL("http://localhost");
+        URL issuerUrl = URI.create("http://localhost").toURL();
         String clientId = "test-client";
         String tlsCertFile = "/path/to/cert.pem";
         String tlsKeyFile = "/path/to/key.pem";
         String audience = "audience";
         String scope = "scope";
         Duration autoCertRefreshDuration = Duration.ofSeconds(123);
-        OAuth2MockHttpClient.withMockedSslFactory(() -> {
-            try (Authentication authentication =
-                         AuthenticationFactoryOAuth2.clientCredentialsBuilder().issuerUrl(issuerUrl)
-                                 .tokenEndpointAuthMethod(TokenEndpointAuthMethod.TLS_CLIENT_AUTH)
-                                 .clientId(clientId)
-                                 .tlsCertFile(tlsCertFile)
-                                 .tlsKeyFile(tlsKeyFile)
-                                 .audience(audience)
-                                 .scope(scope)
-                                 .autoCertRefreshDuration(autoCertRefreshDuration)
-                                 .build()) {
-                assertTrue(authentication instanceof AuthenticationOAuth2);
-                assertEquals(((AuthenticationOAuth2) authentication).flow.getClass(), TlsClientAuthFlow.class);
-            }
-        });
+        try (Authentication authentication =
+                     AuthenticationFactoryOAuth2.clientCredentialsBuilder().issuerUrl(issuerUrl)
+                             .tokenEndpointAuthMethod(TokenEndpointAuthMethod.TLS_CLIENT_AUTH)
+                             .clientId(clientId)
+                             .tlsCertFile(tlsCertFile)
+                             .tlsKeyFile(tlsKeyFile)
+                             .audience(audience)
+                             .scope(scope)
+                             .autoCertRefreshDuration(autoCertRefreshDuration)
+                             .build()) {
+            assertTrue(authentication instanceof AuthenticationOAuth2);
+            assertEquals(((AuthenticationOAuth2) authentication).flow.getClass(), TlsClientAuthFlow.class);
+        }
     }
 
     @Test
     public void testBuilderWithTlsClientAuthMissingCertOrKey() throws IOException {
-        URL issuerUrl = new URL("http://localhost");
+        URL issuerUrl = URI.create("http://localhost").toURL();
         assertThrows(IllegalArgumentException.class, () ->
                 AuthenticationFactoryOAuth2.clientCredentialsBuilder()
                         .issuerUrl(issuerUrl)
@@ -91,8 +90,8 @@ public class AuthenticationFactoryOAuth2Test {
 
     @Test
     public void testStandardAuthzServerBuilder() throws IOException {
-        URL issuerUrl = new URL("http://localhost");
-        URL credentialsUrl = new URL("http://localhost");
+        URL issuerUrl = URI.create("http://localhost").toURL();
+        URL credentialsUrl = URI.create("http://localhost").toURL();
         String audience = "audience";
         String scope = "scope";
         try (Authentication authentication =
@@ -105,8 +104,8 @@ public class AuthenticationFactoryOAuth2Test {
     @SuppressWarnings("deprecation")
     @Test
     public void testClientCredentials() throws IOException {
-        URL issuerUrl = new URL("http://localhost");
-        URL credentialsUrl = new URL("http://localhost");
+        URL issuerUrl = URI.create("http://localhost").toURL();
+        URL credentialsUrl = URI.create("http://localhost").toURL();
         String audience = "audience";
         try (Authentication authentication =
                      AuthenticationFactoryOAuth2.clientCredentials(issuerUrl, credentialsUrl, audience)) {

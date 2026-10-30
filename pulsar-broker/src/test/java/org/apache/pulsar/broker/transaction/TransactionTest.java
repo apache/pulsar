@@ -38,6 +38,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import io.netty.buffer.Unpooled;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
@@ -47,7 +48,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -70,8 +70,10 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.Lombok;
 import org.apache.bookkeeper.common.util.Bytes;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -603,6 +605,35 @@ public class TransactionTest extends TransactionTestBase {
                 );
             });
         });
+    }
+
+    @Test
+    public void testPendingAckStoreEntriesArentPulsarMessages() throws Exception {
+        String topicName = TopicName.get(NAMESPACE1 + "/" + "testPendingAckStoreEntriesArentPulsarMessages")
+                .toString();
+        String subName = "test";
+        // acknowledging inside a transaction initializes the pending ack store, and with it its managed ledger
+        @Cleanup
+        Consumer<byte[]> consumer = getConsumer(topicName, subName);
+        Transaction transaction = pulsarClient.newTransaction()
+                .withTransactionTimeout(10, TimeUnit.SECONDS).build().get();
+        try {
+            consumer.acknowledgeAsync(new MessageIdImpl(10, 10, 10), transaction).get();
+        } catch (ExecutionException e) {
+            // the acknowledged message id doesn't exist, which is enough to initialize the store
+            assertTrue(e.getCause() instanceof PulsarClientException.TransactionConflictException);
+        }
+
+        PersistentTopic originPersistentTopic = (PersistentTopic) getPulsarServiceList().get(0)
+                .getBrokerService().getTopic(topicName, false).get().get();
+        PersistentSubscription subscription = originPersistentTopic.getSubscription(subName);
+
+        // the pending ack store keeps PendingAckMetadataEntry records, which can never parse as message metadata,
+        // so its managed ledger must be marked as not holding Pulsar messages
+        ManagedLedger pendingAckManagedLedger = subscription.getPendingAckManageLedger().get();
+        assertFalse(pendingAckManagedLedger.getConfig().isPulsarMessageEntries());
+        // control: the topic's own managed ledger does hold Pulsar messages, which is the default
+        assertTrue(originPersistentTopic.getManagedLedger().getConfig().isPulsarMessageEntries());
     }
 
     @Test
@@ -1597,9 +1628,8 @@ public class TransactionTest extends TransactionTestBase {
         // Create subscription.
         String subscriptionName = "sub-a";
         boolean replicated = false;
-        Map<String, String> subscriptionProperties = Collections.emptyMap();
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, subscriptionName,
-                cursorSubscription, replicated, subscriptionProperties);
+                cursorSubscription, replicated);
         org.apache.pulsar.broker.service.Consumer consumer = mock(org.apache.pulsar.broker.service.Consumer.class);
         try {
             CompletableFuture<Void> addConsumerFuture = persistentSubscription.addConsumer(consumer);
@@ -1620,7 +1650,7 @@ public class TransactionTest extends TransactionTestBase {
     public void testTBRecoverChangeStateError() throws InterruptedException, TimeoutException {
         final AtomicReference<PersistentTopic> persistentTopic = new AtomicReference<>();
         // Create Executor
-        ScheduledExecutorService executorServiceRecover = mock(ScheduledExecutorService.class);
+        ListeningScheduledExecutorService executorServiceRecover = mock(ListeningScheduledExecutorService.class);
         // Mock serviceConfiguration.
         ServiceConfiguration serviceConfiguration = mock(ServiceConfiguration.class);
         when(serviceConfiguration.isEnableReplicatedSubscriptions()).thenReturn(false);
@@ -1674,6 +1704,9 @@ public class TransactionTest extends TransactionTestBase {
         when(pulsar.getConfiguration()).thenReturn(serviceConfiguration);
         when(pulsar.getConfig()).thenReturn(serviceConfiguration);
         when(pulsar.getTransactionExecutorProvider()).thenReturn(executorProvider);
+        OrderedScheduler snapshotRecoverExecutorProvider = mock(OrderedScheduler.class);
+        when(snapshotRecoverExecutorProvider.chooseThread(any(Object.class))).thenReturn(executorServiceRecover);
+        when(pulsar.getTransactionSnapshotRecoverExecutorProvider()).thenReturn(snapshotRecoverExecutorProvider);
         when(pulsar.getTransactionBufferSnapshotServiceFactory()).thenReturn(transactionBufferSnapshotServiceFactory);
         TopicTransactionBufferProvider topicTransactionBufferProvider = new TopicTransactionBufferProvider();
         when(pulsar.getTransactionBufferProvider()).thenReturn(topicTransactionBufferProvider);
@@ -1731,8 +1764,10 @@ public class TransactionTest extends TransactionTestBase {
         // test error
         transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
                 .build().get();
+        // Wait for the broker to end the txn, so the client's commit fails with TransactionNotFound
+        // instead of racing the broker's commit as a concurrent duplicate, which can succeed.
         pulsarServiceList.get(0).getTransactionMetadataStoreService()
-                .endTransaction(transaction.getTxnID(), 0, false);
+                .endTransaction(transaction.getTxnID(), 0, false).get();
         transaction.commit();
         Transaction errorTxn = transaction;
         Awaitility.await().until(() -> errorTxn.getState() == Transaction.State.ERROR);
