@@ -898,7 +898,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_POLICIES,
         doc = "Max pending publish requests per connection to avoid keeping large number of pending "
-                + "requests in memory. Default: 1000"
+                + "requests in memory. This pauses subsequent automatic socket reads; requests already read "
+                + "continue processing and can exceed this threshold. Default: 1000"
     )
     private int maxPendingPublishRequestsPerConnection = 1000;
 
@@ -1261,14 +1262,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Max Rate(in 1 seconds) of Message allowed to publish for a broker "
-            + "when broker publish rate limiting enabled. (Disable message rate limit with value 0)"
+            + "when broker publish rate limiting enabled. Requests already read continue processing and may cause "
+            + "short-term bursts above this rate. (Disable message rate limit with value 0)"
     )
     private int brokerPublisherThrottlingMaxMessageRate = 0;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a broker "
-            + "when broker publish rate limiting enabled. (Disable byte rate limit with value 0)"
+            + "when broker publish rate limiting enabled. Requests already read continue processing and may cause "
+            + "short-term bursts above this rate. (Disable byte rate limit with value 0)"
     )
     private long brokerPublisherThrottlingMaxByteRate = 0;
 
@@ -1299,14 +1302,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Max Rate(in 1 seconds) of Message allowed to publish for a topic "
-            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
+            + "when topic publish rate limiting enabled. Requests already read continue processing and may cause "
+            + "short-term bursts above this rate. (Disable byte rate limit with value 0)"
     )
     private int maxPublishRatePerTopicInMessages = 0;
     @FieldContext(
         category = CATEGORY_SERVER,
         dynamic = true,
         doc = "Max Rate(in 1 seconds) of Byte allowed to publish for a topic "
-            + "when topic publish rate limiting enabled. (Disable byte rate limit with value 0)"
+            + "when topic publish rate limiting enabled. Requests already read continue processing and may cause "
+            + "short-term bursts above this rate. (Disable byte rate limit with value 0)"
     )
     private long maxPublishRatePerTopicInBytes = 0;
 
@@ -1943,6 +1948,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " from the connection. The processing messages means messages are sends to broker"
             + " but broker have not send response to client, usually waiting to write to bookies.\n\n"
             + " It's shared across all the topics running in the same broker.\n\n"
+            + " Requests already read continue processing and can exceed this threshold.\n\n"
             + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
         (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 2 / (1024 * 1024)));
