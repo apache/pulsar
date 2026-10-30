@@ -447,7 +447,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                                     int partitionIndex = TopicName.getPartitionIndex(partitionName);
                                     return producers.computeIfAbsent(partitionIndex, (idx) -> new ProducerImpl<>(
                                             client, partitionName, conf, new CompletableFuture<>(),
-                                            idx, schema, interceptors,
+                                            idx, schema, internalProducerInterceptors,
                                             Optional.ofNullable(overrideProducerName))).producerCreatedFuture();
                                 }).collect(Collectors.toList());
 
