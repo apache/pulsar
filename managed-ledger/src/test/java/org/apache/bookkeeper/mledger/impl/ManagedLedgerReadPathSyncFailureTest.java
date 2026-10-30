@@ -24,9 +24,11 @@ import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.validateMockitoUsage;
@@ -49,6 +51,7 @@ import java.util.function.Predicate;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -164,6 +167,37 @@ public class ManagedLedgerReadPathSyncFailureTest extends MockedBookKeeperTestCa
 
         verify(batchCallback, timeout(1_000))
                 .readEntriesFailed(any(ManagedLedgerException.class), any());
+    }
+
+    /**
+     * A failed timeout registration must consume the completion guard for both callback kinds, and a
+     * late storage completion must release its entries without a second notification.
+     */
+    @Test
+    public void testRegistrationFailureConsumesGuardForBothCallbackTypes() {
+        ManagedLedgerException failure = new ManagedLedgerException("timeout registration failed");
+
+        ReadEntryCallback single = mock(ReadEntryCallback.class);
+        ManagedLedgerImpl.ReadEntryCallbackWrapper singleWrapper = ManagedLedgerImpl.ReadEntryCallbackWrapper
+                .create(mock(ManagedLedgerImpl.class), 1L, 1L, single, null, Long.MAX_VALUE);
+        singleWrapper.notifyRegistrationFailed(failure);
+        verify(single).readEntryFailed(same(failure), any());
+        EntryImpl lateEntry = EntryImpl.create(1L, 1L, new byte[8]);
+        singleWrapper.readEntryComplete(lateEntry, null);
+        verify(single, never()).readEntryComplete(any(), any());
+        Assert.assertEquals(lateEntry.refCnt(), 0, "The late entry must be released");
+
+        ReadEntriesCallback batch = mock(ReadEntriesCallback.class);
+        ManagedLedgerImpl.ReadEntryCallbackWrapper batchWrapper = ManagedLedgerImpl.ReadEntryCallbackWrapper
+                .create(mock(ManagedLedgerImpl.class), 1L, 1L, batch, null, Long.MAX_VALUE);
+        batchWrapper.notifyRegistrationFailed(failure);
+        verify(batch).readEntriesFailed(same(failure), any());
+        EntryImpl lateFirst = EntryImpl.create(1L, 1L, new byte[8]);
+        EntryImpl lateSecond = EntryImpl.create(1L, 2L, new byte[8]);
+        batchWrapper.readEntriesComplete(List.of(lateFirst, lateSecond), null);
+        verify(batch, never()).readEntriesComplete(any(), any());
+        Assert.assertEquals(lateFirst.refCnt(), 0, "The late entries must be released");
+        Assert.assertEquals(lateSecond.refCnt(), 0, "The late entries must be released");
     }
 
     private ReadEntriesCallback callback() {
