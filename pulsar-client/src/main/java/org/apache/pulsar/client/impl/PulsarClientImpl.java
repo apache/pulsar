@@ -1660,7 +1660,7 @@ public class PulsarClientImpl implements PulsarClient {
                 // Netty's default quiet period of 2 s would hold every close for at least 2 s, but it must not be zero:
                 // Netty 4.2 closes a loop's channels only in a pass that starts after the shutdown request, and with no
                 // quiet period a request that arrives while the loop is running tasks ends it without one, leaving the
-                // channels open. Netty checks the quiet period in 100 ms steps, so a shorter one would not close faster.
+                // channels open. Netty checks the quiet period in 100 ms steps: a shorter one would not close faster.
                 eventLoopGroup.shutdownGracefully(100, TimeUnit.SECONDS.toMillis(CLOSE_TIMEOUT_SECONDS),
                                 TimeUnit.MILLISECONDS)
                         .get(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
