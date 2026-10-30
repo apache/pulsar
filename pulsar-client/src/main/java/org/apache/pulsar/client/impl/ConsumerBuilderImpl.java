@@ -89,9 +89,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public ConsumerBuilder<T> loadConf(Map<String, Object> config) {
-        this.conf = ConfigurationDataUtils.loadData(config, conf, ConsumerConfigurationData.class);
+        this.conf = ConfigurationDataUtils.updateData(config, conf.clone());
         return this;
     }
 

@@ -153,7 +153,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
     }
 
     /**
-     * Verifies: Broker side throttling:
+     * Verifies: Broker side throttling.
      *
      * <pre>
      * 1. concurrent_consumer_creation > maxConcurrentLookupRequest at broker

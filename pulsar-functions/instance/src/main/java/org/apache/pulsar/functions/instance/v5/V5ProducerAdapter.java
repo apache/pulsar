@@ -122,6 +122,7 @@ public class V5ProducerAdapter<T> implements Producer<T> {
     }
 
     @Override
+    @SuppressWarnings("deprecation") // ProducerStats is deprecated, like the Producer method it overrides
     public ProducerStats getStats() {
         throw new UnsupportedOperationException("Producer stats are not available with the V5 client");
     }
