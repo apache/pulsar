@@ -59,6 +59,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -303,6 +304,30 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                ConsumerInterceptors<T> interceptors,
                                                boolean createTopicIfDoesNotExist,
                                                long startMessageRollbackDurationInSec) {
+        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
+                parentConsumerHasListener, subscribeFuture, startMessageId, schema, interceptors,
+                createTopicIfDoesNotExist, startMessageRollbackDurationInSec, null);
+    }
+
+    /**
+     * @param internalExecutor the consumer's internal pinned executor, or null for one of the client's internal
+     *                         executors. A multi-topics consumer passes its own, so that the hand-offs between it
+     *                         and its consumers stay on one thread
+     */
+    static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
+                                               String topic,
+                                               ConsumerConfigurationData<T> conf,
+                                               ExecutorProvider executorProvider,
+                                               int partitionIndex,
+                                               boolean hasParentConsumer,
+                                               boolean parentConsumerHasListener,
+                                               CompletableFuture<Consumer<T>> subscribeFuture,
+                                               MessageId startMessageId,
+                                               Schema<T> schema,
+                                               ConsumerInterceptors<T> interceptors,
+                                               boolean createTopicIfDoesNotExist,
+                                               long startMessageRollbackDurationInSec,
+                                               ExecutorService internalExecutor) {
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
                     subscribeFuture,
@@ -313,7 +338,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     parentConsumerHasListener,
                     subscribeFuture, startMessageId,
                     startMessageRollbackDurationInSec /* rollback time in sec to start msgId */,
-                    schema, interceptors, createTopicIfDoesNotExist);
+                    schema, interceptors, createTopicIfDoesNotExist, internalExecutor);
         }
     }
 
@@ -324,8 +349,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                            long startMessageRollbackDurationInSec, Schema<T> schema,
                            ConsumerInterceptors<T> interceptors,
                            boolean createTopicIfDoesNotExist) {
+        this(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, parentConsumerHasListener,
+                subscribeFuture, startMessageId, startMessageRollbackDurationInSec, schema, interceptors,
+                createTopicIfDoesNotExist, null);
+    }
+
+    protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+                           ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
+                           boolean parentConsumerHasListener, CompletableFuture<Consumer<T>> subscribeFuture,
+                           MessageId startMessageId,
+                           long startMessageRollbackDurationInSec, Schema<T> schema,
+                           ConsumerInterceptors<T> interceptors,
+                           boolean createTopicIfDoesNotExist, ExecutorService internalExecutor) {
         super(client, topic, conf, conf.getReceiverQueueSize(), executorProvider, subscribeFuture, schema,
-                interceptors);
+                interceptors, internalExecutor);
         this.consumerId = client.newConsumerId();
         this.log = LOG.with()
                 .attr("topic", topic)
