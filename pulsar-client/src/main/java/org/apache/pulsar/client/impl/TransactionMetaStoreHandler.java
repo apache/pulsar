@@ -280,10 +280,9 @@ public class TransactionMetaStoreHandler extends HandlerState
         pendingRequests.forEach((k, op) -> {
             // Release the op even if its caller already completed or cancelled the future.
             if (op != null) {
-                op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                failRequestOnClose(op, new PulsarClientException.AlreadyClosedException(
                         "Could not get response from transaction meta store when "
                                 + "the transaction meta store has already close."));
-                onResponse(op);
             }
         });
         this.pendingRequests.clear();
@@ -724,6 +723,17 @@ public class TransactionMetaStoreHandler extends HandlerState
         semaphore.release();
     }
 
+    private void failRequestOnClose(OpBase<?> op, Throwable cause) {
+        CompletableFuture<?> callback = op.callback;
+        onResponse(op);
+        // Completing a future can invoke user callbacks inline, including one waiting for client shutdown.
+        // Release the op on its owner thread first, and keep those callbacks off the shutdown thread.
+        // The client's own executors may already have stopped, so use the default async executor.
+        if (!callback.isDone()) {
+            CompletableFuture.runAsync(() -> callback.completeExceptionally(cause));
+        }
+    }
+
     private boolean canSendRequest(CompletableFuture<?> callback) {
         try {
             if (blockIfReachMaxPendingOps) {
@@ -756,9 +766,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                 }
             });
         } catch (RejectedExecutionException e) {
-            op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+            failRequestOnClose(op, new PulsarClientException.AlreadyClosedException(
                     "Could not send the request to the transaction meta store: the client is already closed."));
-            onResponse(op);
         }
     }
 
@@ -786,12 +795,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                 return true;
             case Closing:
             case Closed:
-                op.callback.completeExceptionally(
+                failRequestOnClose(op,
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "
                                         + transactionCoordinatorId
                                         + " is closing or closed."));
-                onResponse(op);
                 return false;
             case Failed:
                 op.callback.completeExceptionally(
