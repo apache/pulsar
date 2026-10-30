@@ -184,7 +184,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
         ServerConfiguration serverConfiguration = shutdownBookie(auditor);
 
         auditorElectors.remove(addr);
-        startBookie(serverConfiguration);
+        startAndAddBookie(serverConfiguration);
         // starting corresponding auditor elector
 
         log.debug("Performing Auditor Election:" + addr);

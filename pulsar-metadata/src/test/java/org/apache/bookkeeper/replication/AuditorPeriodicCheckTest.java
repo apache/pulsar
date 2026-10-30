@@ -406,6 +406,8 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         } catch (Exception e) {
             log.error().exception(e).log("Caught exception while checking all ledgers");
             fail();
+        } finally {
+            auditor.close();
         }
     }
 
