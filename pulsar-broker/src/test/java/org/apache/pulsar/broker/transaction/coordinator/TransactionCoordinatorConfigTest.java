@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.transaction.coordinator;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
 import com.google.common.collect.Sets;
@@ -113,7 +114,7 @@ public class TransactionCoordinatorConfigTest extends BrokerTestBase {
             build.get(10, TimeUnit.SECONDS).close();
             fail();
         } catch (ExecutionException e) {
-            assertTrue(e.getCause() instanceof PulsarClientException);
+            assertThat(e).hasRootCauseInstanceOf(PulsarClientException.NotAllowedException.class);
         }
     }
 }
