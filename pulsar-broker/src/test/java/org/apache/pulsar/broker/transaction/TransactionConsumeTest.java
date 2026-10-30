@@ -518,10 +518,12 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         // cleanup.
         consumer.close();
+        List<CompletableFuture<Void>> closeFutures = new ArrayList<>(producerCount);
         for (int i = 0; i < producerCount; i++) {
             producerList.get(i).close();
-            clientList.get(i).close();
+            closeFutures.add(clientList.get(i).closeAsync());
         }
+        CompletableFuture.allOf(closeFutures.toArray(CompletableFuture[]::new)).get();
         admin.topics().delete(topic, false);
     }
 }

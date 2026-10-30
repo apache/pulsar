@@ -33,6 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -350,7 +351,7 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
                 future.completeExceptionally(exception);
             }
         }, null);
-        return wait(future, "read entry from " + position);
+        return waitForResource(future, "read entry from " + position, Entry::release);
     }
 
     // This method will be deprecated and removed in version 4.x.0
@@ -442,6 +443,16 @@ public class SnapshotSegmentAbortedTxnProcessorImpl extends AbstractSnapshotAbor
     private long getSystemClientOperationTimeoutMs() throws Exception {
         PulsarClientImpl pulsarClient = (PulsarClientImpl) topic.getBrokerService().getPulsar().getClient();
         return pulsarClient.getConfiguration().getOperationTimeoutMs();
+    }
+
+    private <R> R waitForResource(CompletableFuture<R> future, String msg, Consumer<R> cleanup) throws Exception {
+        try {
+            return wait(future, msg);
+        } catch (Exception e) {
+            // Stopping the wait does not cancel the operation; its successful result still needs to be released.
+            future.thenAccept(cleanup);
+            throw e;
+        }
     }
 
     private <R> R wait(CompletableFuture<R> future, String msg) throws Exception {

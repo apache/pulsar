@@ -23,6 +23,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.time.Instant;
@@ -283,6 +284,34 @@ public class RetryTopicTest extends SharedPulsarBaseTest {
         Message<byte[]> retried = consumer.receive(10, TimeUnit.SECONDS);
         assertNotNull(retried);
         assertEquals(retried.getProperty("custom_key"), "custom_value");
+    }
+
+    @Test(timeOut = 30000)
+    public void testReconsumeLaterMessagesFailsWithoutRetryEnabled() throws Exception {
+        final String topic = newTopicName();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Shared)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .batchReceivePolicy(BatchReceivePolicy.builder().maxNumMessages(3).timeout(5, TimeUnit.SECONDS).build())
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+        for (int i = 0; i < 3; i++) {
+            producer.send(("message-" + i).getBytes());
+        }
+
+        Messages<byte[]> messages = consumer.batchReceive();
+        assertEquals(messages.size(), 3);
+
+        // Retry is not enabled: like reconsumeLater(Message), the batch variant must report it
+        assertThrows(PulsarClientException.class, () -> consumer.reconsumeLater(messages, 1, TimeUnit.SECONDS));
     }
 
     @Data
