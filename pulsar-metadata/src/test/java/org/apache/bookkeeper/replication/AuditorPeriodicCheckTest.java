@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.bookie.Bookie;
 import org.apache.bookkeeper.bookie.BookieAccessor;
@@ -126,14 +127,15 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
     @AfterMethod
     @Override
     public void tearDown() throws Exception {
-        if (null != driver) {
-            driver.close();
-        }
-
-        for (AuditorElector e : auditorElectors.values()) {
-            e.shutdown();
-        }
-        super.tearDown();
+        ParallelAuditorShutdown.cleanup(
+                () -> {
+                    if (null != driver) {
+                        driver.close();
+                    }
+                },
+                () -> ParallelAuditorShutdown.shutdown(auditorElectors.values()),
+                auditorElectors::clear,
+                () -> super.tearDown());
     }
 
     /**
@@ -240,6 +242,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
     @Test
     public void testPeriodicCheckWhenDisabled() throws Exception {
         LedgerManagerFactory mFactory = driver.getLedgerManagerFactory();
+        @Cleanup
         final LedgerUnderreplicationManager underReplicationManager = mFactory.newLedgerUnderreplicationManager();
         final int numLedgers = 10;
         final int numMsgs = 2;
@@ -397,6 +400,7 @@ public class AuditorPeriodicCheckTest extends BookKeeperClusterTestCase {
         TestStatsLogger statsLogger = statsProvider.getStatsLogger(AUDITOR_SCOPE);
         Counter numLedgersChecked = statsLogger
                 .getCounter(ReplicationStats.NUM_LEDGERS_CHECKED);
+        @Cleanup
         Auditor auditor = new Auditor(BookieImpl.getBookieId(configuration).toString(),
                 configuration, statsLogger);
 

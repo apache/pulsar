@@ -156,8 +156,10 @@ public class AuditorLedgerCheckerTest extends BookKeeperClusterTestCase {
     @AfterMethod
     @Override
     public void tearDown() throws Exception {
-        stopAuditorElectors();
-        super.tearDown();
+        ParallelAuditorShutdown.cleanup(
+                () -> ParallelAuditorShutdown.shutdown(auditorElectors.values()),
+                auditorElectors::clear,
+                () -> super.tearDown());
     }
 
     private void startAuditorElectors() throws Exception {
