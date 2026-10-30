@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.functions.java;
 
 import static org.testng.Assert.assertEquals;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,6 +37,7 @@ import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
@@ -90,18 +92,21 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
         // get function stats
         getFunctionStatsEmpty(functionName);
 
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "status",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
-        );
+        // the instance starts after the function is created
+        Awaitility.await().atMost(Duration.ofSeconds(30)).ignoreExceptions().untilAsserted(() -> {
+            ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "functions",
+                    "status",
+                    "--tenant", "public",
+                    "--namespace", "default",
+                    "--name", functionName
+            );
 
-        FunctionStatus functionStatus = FunctionStatusUtil.decode(result.getStdout());
-        assertEquals(functionStatus.getNumInstances(), 1);
-        assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
+            FunctionStatus functionStatus = FunctionStatusUtil.decode(result.getStdout());
+            assertEquals(functionStatus.getNumInstances(), 1);
+            assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
+        });
     }
 
 
