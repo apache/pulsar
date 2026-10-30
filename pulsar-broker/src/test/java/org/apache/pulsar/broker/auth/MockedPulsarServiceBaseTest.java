@@ -398,6 +398,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         log.info().attr("brokerServiceUrl", pulsar.getBrokerServiceUrl())
                 .attr("webServiceAddress", pulsar.getWebServiceAddress())
                 .log("Stopping Pulsar broker");
+        // Close the admin client first: the broker's graceful web service stop would wait for its idle connections
+        // to time out (1 s). startBroker() creates a new one.
+        closeAdmin();
         pulsar.close();
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
