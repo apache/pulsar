@@ -1657,7 +1657,11 @@ public class PulsarClientImpl implements PulsarClient {
     private void shutdownEventLoopGroup(EventLoopGroup eventLoopGroup) throws PulsarClientException {
         if (createdEventLoopGroup && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
             try {
-                eventLoopGroup.shutdownGracefully().get(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                // No quiet period: the loop still closes its channels and runs the tasks already queued before it
+                // terminates, while a quiet period would only keep it accepting new tasks until none has arrived for
+                // that long (Netty's default of 2 s would hold every close for at least 2 s).
+                eventLoopGroup.shutdownGracefully(0, CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .get(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             } catch (Throwable t) {
                 throw PulsarClientException.unwrap(t);
             }

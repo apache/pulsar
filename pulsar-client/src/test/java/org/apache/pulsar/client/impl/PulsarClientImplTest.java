@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -113,6 +114,22 @@ public class PulsarClientImplTest {
         assertFalse(client.isClosed());
         client.close();
         assertTrue(client.isClosed());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testCloseDoesNotWaitForEventLoopQuietPeriod() throws Exception {
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .build();
+        EventLoopGroup clientEventLoopGroup = client.eventLoopGroup();
+
+        long startNanos = System.nanoTime();
+        client.close();
+        long closeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+
+        assertThat(clientEventLoopGroup.isTerminated()).as("event loop terminated").isTrue();
+        // Netty's default quiet period would hold close() for at least 2 s
+        assertThat(closeMillis).as("close() time in ms").isLessThan(1000);
     }
 
     @DataProvider
