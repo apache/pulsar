@@ -497,8 +497,12 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
                 .untilAsserted(create);
     }
 
+    // Keeps the file name: the worker gives the package the name of the uploaded file, which for a Python function
+    // must be the name of its module
     private String copyFromContainer(String path) throws IOException {
-        Path file = Files.createTempFile("pulsar-state-test-", "-" + Path.of(path).getFileName());
+        Path dir = Files.createTempDirectory("pulsar-state-test-");
+        dir.toFile().deleteOnExit();
+        Path file = dir.resolve(Path.of(path).getFileName());
         file.toFile().deleteOnExit();
         container.copyFileFromContainer(path, in -> Files.copy(in, file, StandardCopyOption.REPLACE_EXISTING));
         return file.toString();
