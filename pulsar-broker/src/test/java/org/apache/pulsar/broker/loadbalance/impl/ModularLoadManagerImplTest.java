@@ -43,6 +43,7 @@ import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -278,7 +279,7 @@ public class ModularLoadManagerImplTest {
         pulsar1.start();
 
         primaryBrokerId = pulsar1.getBrokerId();
-        url1 = new URL(pulsar1.getWebServiceAddress());
+        url1 = URI.create(pulsar1.getWebServiceAddress()).toURL();
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
         // Start broker 2
@@ -318,7 +319,7 @@ public class ModularLoadManagerImplTest {
         pulsar3 = new PulsarService(config);
 
         secondaryBrokerId = pulsar2.getBrokerId();
-        url2 = new URL(pulsar2.getWebServiceAddress());
+        url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
         primaryLoadManager = (ModularLoadManagerImpl) getField(pulsar1.getLoadManager().get(), "loadManager");

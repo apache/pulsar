@@ -24,15 +24,39 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.api.PulsarClientSharedResources.SharedResource;
 import org.apache.pulsar.client.impl.ConsumerBase;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test
 @CustomLog
 public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
+
+    private PulsarClientSharedResources asyncBatchReceiveSharedResources;
+
+    @BeforeClass(alwaysRun = true)
+    public void setupAsyncBatchReceiveSharedResources() {
+        // Keep each async test's client isolated while paying the event loop shutdown quiet period once.
+        asyncBatchReceiveSharedResources = PulsarClientSharedResources.builder()
+                .resourceTypes(SharedResource.EventLoopGroup)
+                .configureEventLoop(config -> config.numberOfThreads(10))
+                .build();
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void cleanupAsyncBatchReceiveSharedResources() throws Exception {
+        if (asyncBatchReceiveSharedResources != null) {
+            asyncBatchReceiveSharedResources.close();
+            ((PulsarClientSharedResourcesImpl) asyncBatchReceiveSharedResources)
+                    .getIoEventLoopGroup().terminationFuture().get(60, TimeUnit.SECONDS);
+        }
+    }
 
     @DataProvider(name = "partitioned")
     public Object[][] partitionedTopicProvider() {
@@ -502,7 +526,11 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
         }
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().ioThreads(10).serviceUrl(getBrokerServiceUrl()).build();
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .ioThreads(10)
+                .serviceUrl(getBrokerServiceUrl())
+                .sharedResources(asyncBatchReceiveSharedResources)
+                .build();
         ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic);
         if (!batchProduce) {
             producerBuilder.enableBatching(false);

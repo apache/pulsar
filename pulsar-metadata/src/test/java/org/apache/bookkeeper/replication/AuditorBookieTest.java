@@ -24,6 +24,7 @@ import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNotSame;
 import static org.testng.AssertJUnit.assertSame;
 import static org.testng.AssertJUnit.assertTrue;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -69,12 +70,15 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
     @AfterMethod
     @Override
     public void tearDown() throws Exception {
-        stopAuditorElectors();
+        List<ParallelAuditorShutdown.Cleanup> cleanups = new ArrayList<>();
+        cleanups.add(() -> ParallelAuditorShutdown.shutdown(auditorElectors.values()));
+        cleanups.add(auditorElectors::clear);
         for (ZooKeeper zk : zkClients) {
-            zk.close();
+            cleanups.add(zk::close);
         }
-        zkClients.clear();
-        super.tearDown();
+        cleanups.add(zkClients::clear);
+        cleanups.add(() -> super.tearDown());
+        ParallelAuditorShutdown.cleanup(cleanups);
     }
 
     /**
@@ -184,7 +188,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
         ServerConfiguration serverConfiguration = shutdownBookie(auditor);
 
         auditorElectors.remove(addr);
-        startBookie(serverConfiguration);
+        startAndAddBookie(serverConfiguration);
         // starting corresponding auditor elector
 
         log.debug("Performing Auditor Election:" + addr);

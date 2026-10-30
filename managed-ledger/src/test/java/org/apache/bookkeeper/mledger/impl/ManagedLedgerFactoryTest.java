@@ -34,7 +34,9 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
@@ -43,6 +45,7 @@ import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenReadOnlyManagedLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -52,6 +55,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.ReadOnlyManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.ManagedLedgerInitializeLedgerCallback;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.awaitility.Awaitility;
@@ -298,6 +302,111 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         shutdown.get(5, TimeUnit.SECONDS);
         assertEquals(lateLedger.getState(), ManagedLedgerImpl.State.Closed);
         assertThat(factory.ledgers).isEmpty();
+    }
+
+    @Test(timeOut = 30000)
+    public void testShutdownDoesNotMissOpenRegisteringItsFuture() throws Exception {
+        factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        CompletableFuture<Void> acquisitionStarted = new CompletableFuture<>();
+        CountDownLatch acquisitionGate = new CountDownLatch(1);
+        AtomicInteger instancesCreated = new AtomicInteger();
+        factory = new ManagedLedgerFactoryImpl(metadataStore, policy -> {
+            acquisitionStarted.complete(null);
+            try {
+                assertThat(acquisitionGate.await(10, TimeUnit.SECONDS)).isTrue();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return CompletableFuture.failedFuture(e);
+            }
+            return CompletableFuture.completedFuture(bkc);
+        }, new ManagedLedgerFactoryConfig()) {
+            @Override
+            protected ManagedLedgerImpl createManagedLedger(BookKeeper bk, MetaStore store, String name,
+                    ManagedLedgerConfig config, Supplier<CompletableFuture<Boolean>> mlOwnershipChecker) {
+                instancesCreated.incrementAndGet();
+                return super.createManagedLedger(bk, store, name, config, mlOwnershipChecker);
+            }
+        };
+        factory.setShutdownLedgerCloseTimeoutMillis(100);
+        CompletableFuture<Void> invocationReturned = new CompletableFuture<>();
+        CompletableFuture<ManagedLedger> open =
+                CompletableFuture.supplyAsync(() -> openAsync("registration-race", defaultConfig()), cachedExecutor)
+                        .whenComplete((__, ___) -> invocationReturned.complete(null))
+                        .thenCompose(future -> future);
+        try {
+            // Pause inside the real asyncOpen path, where computeIfAbsent used to hide the future from shutdown.
+            acquisitionStarted.get(5, TimeUnit.SECONDS);
+            factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        } finally {
+            acquisitionGate.countDown();
+        }
+        invocationReturned.get(5, TimeUnit.SECONDS);
+        assertThat(factory.ledgers).isEmpty();
+        assertThatThrownBy(() -> open.get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(ManagedLedgerException.ManagedLedgerFactoryClosedException.class);
+        assertThat(instancesCreated).hasValue(0);
+    }
+
+    @Test(timeOut = 30000)
+    public void testReadOnlyOpenAfterShutdownFailsOnceWithoutAcquiringBookKeeper() throws Exception {
+        factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        AtomicInteger acquisitions = new AtomicInteger();
+        factory = new ManagedLedgerFactoryImpl(metadataStore, policy -> {
+            acquisitions.incrementAndGet();
+            return CompletableFuture.completedFuture(bkc);
+        }, new ManagedLedgerFactoryConfig());
+        factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        AtomicInteger callbacks = new AtomicInteger();
+        Object context = new Object();
+        factory.asyncOpenReadOnlyManagedLedger("closed-read-only", new OpenReadOnlyManagedLedgerCallback() {
+            @Override
+            public void openReadOnlyManagedLedgerComplete(ReadOnlyManagedLedger ledger, Object ctx) {
+                callbacks.incrementAndGet();
+                Assert.fail("A closed factory must reject the read-only open");
+            }
+
+            @Override
+            public void openReadOnlyManagedLedgerFailed(ManagedLedgerException exception, Object ctx) {
+                callbacks.incrementAndGet();
+                assertThat(exception).isInstanceOf(ManagedLedgerException.ManagedLedgerFactoryClosedException.class);
+                assertThat(ctx).isSameAs(context);
+            }
+        }, defaultConfig(), context);
+        assertThat(acquisitions).hasValue(0);
+        assertThat(callbacks).hasValue(1);
+    }
+
+    @Test(timeOut = 30000)
+    public void testShutdownTimeoutDoesNotDependOnManagedLedgerScheduler() throws Exception {
+        factory.shutdownAsync().get(5, TimeUnit.SECONDS);
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setNumManagedLedgerSchedulerThreads(1);
+        factory = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+        factory.setShutdownLedgerCloseTimeoutMillis(100);
+        factory.open("blocked-scheduler", defaultConfig());
+        CountDownLatch workerBlocked = new CountDownLatch(1);
+        CountDownLatch workerGate = new CountDownLatch(1);
+        factory.getScheduledExecutor().execute(() -> {
+            workerBlocked.countDown();
+            try {
+                workerGate.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        CompletableFuture<Void> shutdown = null;
+        try {
+            assertThat(workerBlocked.await(5, TimeUnit.SECONDS)).isTrue();
+            shutdown = factory.shutdownAsync();
+            // The close callback and its timeout must not both wait behind the blocked worker.
+            shutdown.get(5, TimeUnit.SECONDS);
+            assertThat(factory.getScheduledExecutor().isShutdown()).isTrue();
+        } finally {
+            workerGate.countDown();
+            if (shutdown != null) {
+                shutdown.get(5, TimeUnit.SECONDS);
+            }
+        }
     }
 
     @Test(timeOut = 30000)

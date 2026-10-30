@@ -133,6 +133,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
+        int totalReadEntries = 0;
+        int totalReadMessages = 0;
         int filteredMessageCount = 0;
         int filteredEntryCount = 0;
         long filteredBytesCount = 0;
@@ -158,6 +160,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
 
             int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
+            totalReadEntries++;
+            totalReadMessages += entryMsgCnt;
             if (hasFilter) {
                 this.filterProcessedMsgs.add(entryMsgCnt);
             }
@@ -322,6 +326,23 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                     filteredMessageCount, filteredBytesCount);
         }
 
+        if (totalMessages == 0 && totalReadEntries > 0 && totalReadMessages > 0) {
+            if (consumer != null) {
+                if (consumer.getAvgMessagesPerEntry() <= 0) {
+                    consumer.updateAvgMessagesPerEntry(totalReadMessages, totalReadEntries);
+                }
+            } else {
+                List<Consumer> consumers = getConsumers();
+                if (consumers != null) {
+                    for (Consumer c : consumers) {
+                        if (c != null && c.getAvgMessagesPerEntry() <= 0) {
+                            c.updateAvgMessagesPerEntry(totalReadMessages, totalReadEntries);
+                        }
+                    }
+                }
+            }
+        }
+
         sendMessageInfo.setTotalMessages(totalMessages);
         sendMessageInfo.setTotalBytes(totalBytes);
         sendMessageInfo.setTotalChunkedMessages(totalChunkedMessages);
@@ -393,7 +414,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 || getRateLimiter().isPresent();
     }
 
-    protected Pair<Integer, Long> applyRateLimitsToMessagesAndBytesToRead(int messagesToRead, long bytesToRead) {
+    public Pair<Integer, Long> applyRateLimitsToMessagesAndBytesToRead(int messagesToRead, long bytesToRead) {
         MutablePair<Integer, Long> readLimits = new MutablePair<>(messagesToRead, bytesToRead);
         Topic topic = subscription.getTopic();
 
@@ -425,7 +446,18 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         // update messagesToRead according to available dispatch rate limit.
         int availablePermitsOnMsg = (int) rateLimiter.getAvailableDispatchRateLimitOnMsg();
         if (availablePermitsOnMsg >= 0) {
-            readLimits.setLeft(Math.min(readLimits.getLeft(), availablePermitsOnMsg));
+            int maxEntriesByRateLimit = availablePermitsOnMsg;
+            if (!dispatchThrottlingOnBatchMessageEnabled) {
+                if (availablePermitsOnMsg == 0) {
+                    maxEntriesByRateLimit = 0;
+                } else {
+                    int avgMessagesPerEntry = getAvgMessagesPerEntry();
+                    maxEntriesByRateLimit = avgMessagesPerEntry > 0
+                            ? Math.max(1, availablePermitsOnMsg / avgMessagesPerEntry)
+                            : 1;
+                }
+            }
+            readLimits.setLeft(Math.min(readLimits.getLeft(), maxEntriesByRateLimit));
         }
         long availablePermitsOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
         if (availablePermitsOnByte >= 0) {
@@ -461,6 +493,51 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             return false;
         }
         return true;
+    }
+
+    protected int getAvgMessagesPerEntry() {
+        List<Consumer> consumers = getConsumers();
+        if (consumers != null && !consumers.isEmpty()) {
+            int total = 0;
+            int count = 0;
+            for (Consumer consumer : consumers) {
+                if (consumer != null && consumer.getAvgMessagesPerEntry() > 0) {
+                    total += consumer.getAvgMessagesPerEntry();
+                    count++;
+                }
+            }
+            if (count > 0) {
+                return (int) Math.round((double) total / count);
+            }
+        }
+        return 0;
+    }
+
+    protected void initConsumerAvgMessagesPerEntry(List<Entry> entries, Consumer consumer) {
+        if (consumer == null || consumer.getAvgMessagesPerEntry() > 0 || entries == null || entries.isEmpty()) {
+            return;
+        }
+        int totalReadEntries = 0;
+        int totalReadMessages = 0;
+        for (Entry entry : entries) {
+            if (entry != null) {
+                totalReadEntries++;
+                MessageMetadata msgMetadata;
+                if (entry instanceof EntryAndMetadata entryAndMetadata) {
+                    msgMetadata = entryAndMetadata.getMetadata();
+                } else {
+                    msgMetadata = entry.getMessageMetadata();
+                    if (msgMetadata == null) {
+                        msgMetadata = Commands.peekMessageMetadata(entry.getDataBuffer(),
+                                subscription != null ? subscription.toString() : "", -1);
+                    }
+                }
+                totalReadMessages += msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
+            }
+        }
+        if (totalReadEntries > 0 && totalReadMessages > 0) {
+            consumer.updateAvgMessagesPerEntry(totalReadMessages, totalReadEntries);
+        }
     }
 
     protected byte[] peekStickyKey(Entry entry) {

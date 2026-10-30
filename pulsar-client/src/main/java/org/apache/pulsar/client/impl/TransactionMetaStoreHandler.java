@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -742,15 +743,23 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     // The op owns its buffer and a semaphore permit. As a cleanup task, this still runs if the client shuts the
-    // executor down while it's busy, and then fails the op, the handler being closed by then.
+    // executor down while it's busy, and then fails the op, the handler being closed by then. Once the executor is
+    // stopped, it rejects the task: then fail and release the op here, since its caller only learns the outcome
+    // from the request's future.
     private void registerAndSend(long requestId, OpBase<?> op) {
-        internalPinnedExecutor.execute((ExecutorProvider.CleanupTask) () -> {
-            pendingRequests.put(requestId, op);
-            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            if (!checkStateAndSendRequest(op)) {
-                pendingRequests.remove(requestId);
-            }
-        });
+        try {
+            internalPinnedExecutor.execute((ExecutorProvider.CleanupTask) () -> {
+                pendingRequests.put(requestId, op);
+                timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+                if (!checkStateAndSendRequest(op)) {
+                    pendingRequests.remove(requestId);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                    "Could not send the request to the transaction meta store: the client is already closed."));
+            onResponse(op);
+        }
     }
 
     private boolean checkStateAndSendRequest(OpBase<?> op) {
