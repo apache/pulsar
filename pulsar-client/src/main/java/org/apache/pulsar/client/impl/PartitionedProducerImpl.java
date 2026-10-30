@@ -309,6 +309,19 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             if (createState == State.Failed) {
                 return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
             }
+            // close() may have iterated the producers before this one was added, and would leave it open
+            if (getState() == State.Closing || getState() == State.Closed) {
+                producers.remove(partition, newProducer);
+                newProducer.closeAsync().exceptionally(e -> {
+                    log.error()
+                            .attr("partitionIndex", partition)
+                            .exception(e)
+                            .log("Could not close internal producer");
+                    return null;
+                });
+                return FutureUtil.failedFuture(
+                        new PulsarClientException.AlreadyClosedException("Producer already closed"));
+            }
         }
 
         return producers.get(partition).internalSendWithTxnAsync(message, txn);
