@@ -64,7 +64,7 @@ public class BookkeeperBucketSnapshotStorageTest extends MockedPulsarServiceBase
         bucketSnapshotStorage.close();
     }
 
-    private static final String TOPIC_NAME = "topicName";
+    private static final String TOPIC_NAME = "persistent://public/default/bucket-snapshot-storage-test";
     private static final String CURSOR_NAME = "sub";
 
     @Test

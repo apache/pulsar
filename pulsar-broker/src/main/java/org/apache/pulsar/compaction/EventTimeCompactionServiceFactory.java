@@ -28,6 +28,6 @@ public class EventTimeCompactionServiceFactory extends PulsarCompactionServiceFa
     PulsarService pulsarService = getPulsarService();
     return new EventTimeOrderCompactor(pulsarService.getConfiguration(),
         pulsarService.getClient(), pulsarService.getBookKeeperClient(),
-        pulsarService.getCompactorExecutor());
+        pulsarService.getCompactorExecutor(), pulsarService::getBookKeeperClientContext);
   }
 }

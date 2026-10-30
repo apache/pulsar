@@ -21,17 +21,21 @@ package org.apache.pulsar.compaction;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.function.Function;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.storage.BookKeeperClientContext;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawBatchConverter;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.naming.TopicName;
 
 @CustomLog
 public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageId> {
@@ -40,6 +44,14 @@ public class PublishingOrderCompactor extends AbstractTwoPhaseCompactor<MessageI
         BookKeeper bk,
         ScheduledExecutorService scheduler) {
         super(conf, pulsar, bk, scheduler);
+    }
+
+    public PublishingOrderCompactor(ServiceConfiguration conf,
+        PulsarClient pulsar,
+        BookKeeper bk,
+        ScheduledExecutorService scheduler,
+        Function<TopicName, CompletableFuture<BookKeeperClientContext>> bookKeeperClientContextProvider) {
+        super(conf, pulsar, bk, scheduler, bookKeeperClientContextProvider);
     }
 
     @Override
