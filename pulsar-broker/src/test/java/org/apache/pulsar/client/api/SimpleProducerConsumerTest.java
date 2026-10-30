@@ -738,8 +738,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         startBroker();
 
-        // We should not have received any message
-        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        // We should not have received any message. A producer resends its pending messages before it is connected
+        // again, so wait for the reconnections first.
+        Awaitility.await().until(() -> producer.isConnected() && consumer.isConnected());
+        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg);
         consumer.close();
         log.info().attr("method", methodName).log("Exiting test");
@@ -805,8 +807,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         startBroker();
 
-        // 5. We should not have received any message
-        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        // 5. We should not have received any message. A producer resends its pending messages before it is connected
+        // again, so wait for the reconnections first.
+        Awaitility.await().until(() -> partitionedProducer.isConnected() && consumer.isConnected());
+        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg);
 
         // 6. We keep sending data after connection reconnected.
@@ -1512,9 +1516,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
         });
 
+        // the acks reach the consumer each message was dispatched to, so the broker has nothing to redeliver
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(getBrokerConsumer(consumer1).getUnackedMessages(), 0);
+            assertEquals(getBrokerConsumer(consumer2).getUnackedMessages(), 0);
+        });
         consumer1.redeliverUnacknowledgedMessages();
         consumer2.redeliverUnacknowledgedMessages();
-        Thread.sleep(1000L);
 
         try {
             if (consumer1.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS) != null
@@ -1594,6 +1602,34 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     private long getMsgBacklog(Consumer<?> consumer) throws Exception {
         return admin.topics().getStats(consumer.getTopic()).getSubscriptions().get(consumer.getSubscription())
                 .getMsgBacklog();
+    }
+
+    /**
+     * Waits until none of the consumers of the multi-topics consumer has permits left at the broker, so the broker
+     * dispatches nothing more to it.
+     */
+    private void awaitNoPermitsAtBroker(MultiTopicsConsumerImpl<?> consumer) {
+        Awaitility.await().untilAsserted(() -> {
+            for (ConsumerImpl<?> topicConsumer : consumer.getConsumers()) {
+                assertEquals(getBrokerConsumer(topicConsumer).getAvailablePermits(), 0, topicConsumer.getTopic());
+            }
+        });
+    }
+
+    /**
+     * Waits until the broker has dispatched every message published to the topics of the consumer exactly once, so
+     * none is in flight or left to dispatch.
+     */
+    private void awaitAllMessagesDispatched(Consumer<?> consumer) {
+        List<String> topics = consumer instanceof MultiTopicsConsumerImpl<?> multiTopicsConsumer
+                ? multiTopicsConsumer.getConsumers().stream().map(ConsumerImpl::getTopic).toList()
+                : List.of(consumer.getTopic());
+        Awaitility.await().untilAsserted(() -> {
+            for (String topic : topics) {
+                TopicStats stats = admin.topics().getStats(topic);
+                assertEquals(stats.getMsgOutCounter(), stats.getMsgInCounter(), topic);
+            }
+        });
     }
 
     /**
@@ -2337,10 +2373,19 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             future.get();
         }
 
-        for (int i = 0; i < 20; i++) {
-            consumer1.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS);
-            consumer2.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS);
-        }
+        // consumer1 and consumer2 receive what the broker dispatched to them, and give it permits for the 5 messages
+        // produced next
+        Awaitility.await().untilAsserted(() -> {
+            for (Consumer<byte[]> consumer : List.of(consumer1, consumer2)) {
+                while (consumer.receive(0, TimeUnit.MILLISECONDS) != null) {
+                    // empty the receiver queue
+                }
+            }
+            TopicStats stats = admin.topics().getStats("persistent://my-property/my-ns/my-topic2");
+            assertEquals(stats.getMsgOutCounter(), stats.getMsgInCounter());
+            assertTrue(getBrokerConsumer(consumer1).getAvailablePermits()
+                    + getBrokerConsumer(consumer2).getAvailablePermits() >= 5);
+        });
 
         /**
          * a. consumer1 and consumer2 now has more permits (as received and sent more permits) b. try to produce more
@@ -3170,8 +3215,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         // 3. KeyReder is not set by consumer
-        // Receive should fail since key reader is not setup
-        msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        // Receive should fail since key reader is not setup: the consumer drops every message the broker dispatches
+        awaitAllMessagesDispatched(consumer);
+        msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg, "Receive should have failed with no keyreader");
 
         // 4. Set consumer config to consume even if decryption fails
@@ -3229,8 +3275,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
-        // Receive should proceed and discard encrypted messages
-        msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        // Receive should proceed and discard encrypted messages: the consumer acks the messages it discards
+        Consumer<byte[]> discardingConsumer = consumer;
+        Awaitility.await().untilAsserted(() -> assertEquals(getMsgBacklog(discardingConsumer), 0));
+        msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
 
         consumer.close();
@@ -3606,17 +3654,23 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 ("my-message-" + counter++).getBytes());
         }
 
-        // 7. should not consume any messages
-        assertNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        // 7. should not consume any messages: the paused consumers, including the ones for the new partitions, give
+        // the broker no permits
+        awaitNoPermitsAtBroker((MultiTopicsConsumerImpl<?>) consumer);
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
 
 
         // 8. resume multi-topic consumer
         consumer.resume();
 
         // 9. continue to consume
-        while (consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
-           counter++;
+        while (counter < 10) {
+            assertNotNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+            counter++;
         }
+        // every message was dispatched once, so no more arrive
+        awaitAllMessagesDispatched(consumer);
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
         assertEquals(counter, 10);
 
         producer.close();
@@ -3687,16 +3741,22 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             counter++;
         }
 
-        // 6. should not consume any messages
-        Awaitility.await().untilAsserted(() -> assertNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)));
+        // 6. should not consume any messages: the paused consumers, including the one added manually, give the broker
+        // no permits
+        awaitNoPermitsAtBroker((MultiTopicsConsumerImpl<?>) consumer);
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
 
         // 7. resume multi-topic consumer
         consumer.resume();
 
         // 8. continue to consume
-        while (consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
+        while (counter < 30) {
+            assertNotNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
             counter++;
         }
+        // every message was dispatched once, so no more arrive
+        awaitAllMessagesDispatched(consumer);
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
         assertEquals(counter, 30);
 
         producer1.close();
@@ -4996,7 +5056,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // Verify all messages will be consumed.
         Set<String> receivedMessages = new HashSet<>();
-        while (true) {
+        while (receivedMessages.size() < messagesCount) {
             Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
             if (msg != null) {
                 receivedMessages.add(msg.getValue());
@@ -5099,14 +5159,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         sendFutureList.get(messageCount - 1).join();
 
-        // Left 2 seconds to wait the code in the finally-block, which is using to avoid this test to be flaky.
-        Thread.sleep(1000 * 2);
-
-        // Verify: payload's refCnf.
-        for (int i = 0; i < messageCount; i++) {
-            log.info().attr("payload", i).attr("th", payloads[i].refCnt()).log("Payload refCnt (4th)");
-            assertEquals(payloads[i].refCnt(), 1);
-        }
+        // Verify: payload's refCnf, once the producer released its reference in the finally-block that runs after the
+        // send completes.
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < messageCount; i++) {
+                log.info().attr("payload", i).attr("th", payloads[i].refCnt()).log("Payload refCnt (4th)");
+                assertEquals(payloads[i].refCnt(), 1);
+            }
+        });
 
         // Verify: the messages has not been released when calling interceptor.
         assertFalse(payloadWasReleasedWhenIntercept.get());
@@ -5465,7 +5525,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         String mlName = TopicName.get(topic).getPersistenceNamingEncoding();
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
-        config.setMinimumRolloverTime(1, TimeUnit.SECONDS);
+        config.setMinimumRolloverTime(100, TimeUnit.MILLISECONDS);
         if (!trimLegderBeforeGetStats) {
             config.setRetentionTime(3600, TimeUnit.SECONDS);
         }
@@ -5476,8 +5536,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .create();
         for (int i = 0; i < 4; i++) {
             producer.send("message-" + i);
-            Thread.sleep(1000);
+            // outlast the minimum rollover time, so that every second message rolls the ledger over
+            Thread.sleep(200);
         }
+        // the last message rolled the ledger over to an empty one
+        Awaitility.await().untilAsserted(() -> assertEquals(ml.getCurrentLedgerEntries(), 0));
         producer.close();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         assertEquals(persistentTopic.getManagedLedger(), ml);
