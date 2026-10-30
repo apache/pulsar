@@ -29,6 +29,7 @@ import io.oxia.client.api.RangeScanConsumer;
 import io.oxia.client.api.Version;
 import io.oxia.client.api.exceptions.AlreadyClosedException;
 import io.oxia.client.api.exceptions.KeyAlreadyExistsException;
+import io.oxia.client.api.exceptions.ResourceUnavailableException;
 import io.oxia.client.api.exceptions.UnexpectedVersionIdException;
 import io.oxia.client.api.options.DeleteOption;
 import io.oxia.client.api.options.GetOption;
@@ -48,13 +49,16 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.NonNull;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataEventSynchronizer;
@@ -206,7 +210,8 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                                         new MetadataStoreException.NotEmptyException(path));
                             } else {
                                 Set<DeleteOption> delOption = deleteOptions(opts, expectedVersion);
-                                CompletableFuture<Boolean> result = client.delete(path, delOption);
+                                CompletableFuture<Boolean> result =
+                                        retryWrite(() -> client.delete(path, delOption));
                                 return result
                                         .thenCompose(
                                                 exists -> {
@@ -331,8 +336,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                         var parentPath = parent == null ? "/" : parent;
 
                         actualPath =
-                                client
-                                        .put(parentPath, new byte[] {})
+                                retryWrite(() -> client.put(parentPath, new byte[] {}))
                                         .thenApply(
                                                 r -> String.format("%s%010d", path, r.version().modificationsCount()));
                         expectedVersion = Optional.of(-1L);
@@ -368,10 +372,10 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
 
                     return actualPath
                             .thenCompose(
-                                    aPath ->
-                                            client
-                                                    .put(aPath, data, putOptions)
-                                                    .thenApply(res -> new PathWithPutResult(aPath, res)))
+                                    aPath -> (sequenceKeysDeltas != null
+                                            ? client.put(aPath, data, putOptions)
+                                            : retryWrite(() -> client.put(aPath, data, putOptions)))
+                                            .thenApply(res -> new PathWithPutResult(aPath, res)))
                             // Use the effective key returned by Oxia — for SequenceKeysDeltas this is
                             // the server-assigned key with sequence suffixes appended.
                             .thenApply(res -> convertStat(res.result().key(), res.result().version()))
@@ -450,6 +454,48 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
         }
     }
 
+    /**
+     * Runs a write, and runs it again while it fails with {@link ResourceUnavailableException}, for up to the request
+     * timeout. The Oxia client fails the writes in flight when a shard leader changes and doesn't send them again,
+     * since it can't tell whether the old leader applied them. A write that was applied fails when it's run again
+     * with a conditional put or a delete, as a ZooKeeper operation retried after a connection loss does.
+     */
+    private <T> CompletableFuture<T> retryWrite(Supplier<CompletableFuture<T>> write) {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        Backoff backoff = Backoff.builder()
+                .initialDelay(WRITE_RETRY_INITIAL_DELAY)
+                .maxBackoff(WRITE_RETRY_MAX_DELAY)
+                .build();
+        runWrite(write, backoff, System.nanoTime() + requestTimeout.toNanos(), result);
+        return result;
+    }
+
+    private <T> void runWrite(Supplier<CompletableFuture<T>> write, Backoff backoff, long deadlineNanos,
+                              CompletableFuture<T> result) {
+        FutureUtil.supplySafely(write).whenComplete((value, ex) -> {
+            if (ex == null) {
+                result.complete(value);
+                return;
+            }
+            long delayNanos = backoff.next().toNanos();
+            if (!(FutureUtil.unwrapCompletionException(ex) instanceof ResourceUnavailableException)
+                    || isClosed() || System.nanoTime() + delayNanos > deadlineNanos) {
+                result.completeExceptionally(ex);
+                return;
+            }
+            log.debug().exceptionMessage(ex).attr("delayMs", TimeUnit.NANOSECONDS.toMillis(delayNanos))
+                    .log("Oxia write failed, retrying");
+            try {
+                scheduleDelayedTask(delayNanos, TimeUnit.NANOSECONDS,
+                        () -> runWrite(write, backoff, deadlineNanos, result));
+            } catch (RejectedExecutionException e) {
+                result.completeExceptionally(ex);
+            }
+        });
+    }
+
+    private static final Duration WRITE_RETRY_INITIAL_DELAY = Duration.ofMillis(100);
+    private static final Duration WRITE_RETRY_MAX_DELAY = Duration.ofSeconds(1);
     private static final byte[] EMPTY_VALUE = new byte[0];
     private static final Set<PutOption> IF_RECORD_DOES_NOT_EXIST =
             Collections.singleton(PutOption.IfRecordDoesNotExist);
@@ -465,8 +511,7 @@ public class OxiaMetadataStore extends AbstractMetadataStore {
                             if (exists) {
                                 return CompletableFuture.completedFuture(null);
                             } else {
-                                return client
-                                        .put(parent, EMPTY_VALUE, IF_RECORD_DOES_NOT_EXIST)
+                                return retryWrite(() -> client.put(parent, EMPTY_VALUE, IF_RECORD_DOES_NOT_EXIST))
                                         .thenCompose(__ -> createParents(parent));
                             }
                         })
