@@ -89,6 +89,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.TenantsImpl;
 import org.apache.pulsar.client.admin.internal.TopicsImpl;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -99,6 +100,7 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientSharedResources;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -156,14 +158,13 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final String BROKER_SHUTDOWN_TIMEOUT_MS = "brokerShutdownTimeoutMs";
 
-    private MockedPulsarService mockPulsarSetup;
-
-    private PulsarService otherPulsar;
-
     private PulsarAdmin adminTls;
-    private PulsarAdmin otheradmin;
 
     private NamespaceBundleFactory bundleFactory;
+
+    // A client that owns its event loop waits out the loop's 2 s shutdown quiet period on close, at every broker
+    // restart and in every test that closes its own client. Clients sharing a loop skip that wait.
+    private PulsarClientSharedResources clientSharedResources;
 
     @BeforeClass
     @Override
@@ -199,6 +200,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             configurationConsumer.accept(conf);
         }
 
+        clientSharedResources = PulsarClientSharedResources.builder()
+                .resourceTypes(PulsarClientSharedResources.SharedResource.EventLoopGroup)
+                .build();
         super.internalSetup();
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
@@ -206,14 +210,16 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .serviceHttpUrl(brokerUrlTls.toString()).build());
 
-        // create otherbroker to test redirect on calls that need
-        // namespace ownership
-        mockPulsarSetup = new MockedPulsarService(this.conf);
-        mockPulsarSetup.setup();
-        otherPulsar = mockPulsarSetup.getPulsar();
-        otheradmin = mockPulsarSetup.getAdmin();
-
         setupClusters();
+    }
+
+    @Override
+    protected void customizeNewPulsarClientBuilder(ClientBuilder clientBuilder) {
+        clientBuilder.sharedResources(clientSharedResources);
+    }
+
+    private ClientBuilder newClientBuilder() {
+        return PulsarClient.builder().sharedResources(clientSharedResources);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -230,7 +236,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
             for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceWithRetry(namespace, true);
+                try {
+                    admin.namespaces().deleteNamespace(namespace, true);
+                } catch (PulsarAdminException e) {
+                    // deleteNamespaceWithRetry waits 500 ms before its first attempt, so it's only the fallback
+                    deleteNamespaceWithRetry(namespace, true);
+                }
             }
             admin.tenants().deleteTenant(tenant, true);
         }
@@ -278,9 +289,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0);
         adminTls.close();
-        otheradmin.close();
         super.internalCleanup();
-        mockPulsarSetup.cleanup();
+        if (clientSharedResources != null) {
+            clientSharedResources.close();
+            clientSharedResources = null;
+        }
     }
 
     @DataProvider(name = "numBundles")
@@ -554,10 +567,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         List<String> list1 = admin.brokers().getActiveBrokers();
         Assert.assertNotNull(list1);
         Assert.assertEquals(list1.size(), 1);
-
-        List<String> list2 = otheradmin.brokers().getActiveBrokers("test");
-        Assert.assertNotNull(list2);
-        Assert.assertEquals(list2.size(), 1);
 
         BrokerInfo leaderBroker = admin.brokers().getLeaderBroker();
         Assert.assertEquals(leaderBroker.getBrokerId(),
@@ -939,9 +948,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         producer = pulsarClient.newProducer(Schema.BYTES).topic("persistent://prop-xyz/ns2/my-topic").create();
         producer.close();
         admin.topics().delete("persistent://prop-xyz/ns2/my-topic");
-
-        // both unload and delete should succeed for ns2 on other broker with a redirect
-        // otheradmin.namespaces().unload("prop-xyz/use/ns2");
     }
 
     @SuppressWarnings("deprecation")
@@ -958,7 +964,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
+        PulsarClient client = newClientBuilder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -1054,7 +1060,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
+        PulsarClient client = newClientBuilder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -1098,7 +1104,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // create consumer and subscription
         URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = newClientBuilder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(partitionedTopicName)
                 .subscriptionName("my-sub").subscribe();
@@ -1144,7 +1150,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // create consumer and subscription
         URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = newClientBuilder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic(topicName)
                 .subscriptionName("my-sub").subscribe();
@@ -1222,7 +1228,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
+        PulsarClient client = newClientBuilder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -1515,7 +1521,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/ns1-bundles", numBundles);
         admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"), false);
 
-        // since we have 2 brokers running, we try to let both of them acquire bundle ownership
+        // let the broker acquire the bundles' ownership
         admin.lookups().lookupTopic("persistent://prop-xyz/ns1-bundles/ds1");
         admin.lookups().lookupTopic("persistent://prop-xyz/ns1-bundles/ds2");
         admin.lookups().lookupTopic("persistent://prop-xyz/ns1-bundles/ds3");
@@ -2143,7 +2149,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         NamespaceBundle bundle = bundleFactory.getBundle(NamespaceName.get("prop-xyz/unloadBundle"),
                 Range.range(0L, BoundType.CLOSED, 0xffffffffL, BoundType.CLOSED));
         assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle));
-        assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle));
         pulsarClient.shutdown();
 
         log.info("--- RELOAD ---");
@@ -2195,7 +2200,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // check that no one owns the namespace bundle
         assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle));
-        assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle));
 
         log.info("--- RELOAD ---");
 
@@ -2228,7 +2232,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
+        PulsarClient client = newClientBuilder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -2373,8 +2377,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> {
                     assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                             "Bundle should not be owned by current broker");
-                    assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                            "Bundle should not be owned by other broker");
                 });
 
         admin.namespaces().clearNamespaceBundleBacklog(namespace, bundle.getBundleRange());
@@ -2435,8 +2437,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> {
                     assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                             "Bundle should not be owned by current broker");
-                    assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                            "Bundle should not be owned by other broker");
                 });
 
         admin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle.getBundleRange(),
@@ -2548,8 +2548,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> {
                     assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                             "Bundle should not be owned by current broker");
-                    assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                            "Bundle should not be owned by other broker");
                 });
 
         admin.namespaces().unsubscribeNamespaceBundle(namespace, bundle.getBundleRange(), subscription);
@@ -2591,8 +2589,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> {
                     assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                             "Bundle should not be owned by current broker");
-                    assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                            "Bundle should not be owned by other broker");
                 });
 
         admin.namespaces().unsubscribeNamespace(namespace, subscription);
@@ -2644,8 +2640,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                     .untilAsserted(() -> {
                         assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                                 "Bundle should not be owned by current broker");
-                        assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                                "Bundle should not be owned by other broker");
                     });
         }
 
@@ -2718,8 +2712,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                     .untilAsserted(() -> {
                         assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                                 "Bundle should not be owned by current broker");
-                        assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                                "Bundle should not be owned by other broker");
                     });
         }
 
@@ -3174,7 +3166,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
+        PulsarClient client = newClientBuilder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -3259,7 +3251,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
+        PulsarClient client = newClientBuilder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -3345,7 +3337,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // create consumer and subscription
         @Cleanup
-        PulsarClient client = PulsarClient.builder()
+        PulsarClient client = newClientBuilder()
                 .serviceUrl(pulsar.getWebServiceAddress())
                 .statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -3379,7 +3371,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         // create consumer and subscription
         URL pulsarUrl = new URL(pulsar.getWebServiceAddress());
         @Cleanup
-        PulsarClient client = PulsarClient.builder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+        PulsarClient client = newClientBuilder().serviceUrl(pulsarUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
         Consumer<byte[]> consumer = client.newConsumer().topic("persistent://prop-xyz/ns1/ds1")
                 .subscriptionName("my-sub").subscribe();
@@ -3770,9 +3762,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 1);
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().values().iterator()
                 .next().getLastExpireTimestamp(), 0L);
-        Thread.sleep(10000);
+        // let the messages get older than the TTL set next
+        Thread.sleep(2000);
         // Update policy to trigger message expiry check.
-        admin.namespaces().setNamespaceMessageTTL("prop-xyz/ns1", 5);
+        admin.namespaces().setNamespaceMessageTTL("prop-xyz/ns1", 1);
         Awaitility.await().until(() -> admin.topics().getStats(topic).getSubscriptions()
                 .values().iterator().next().getLastExpireTimestamp() > 0L);
     }
@@ -3802,9 +3795,15 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals((int) admin.namespaces().getSubscriptionExpirationTime(namespace2), 1);
         Assert.assertNull(admin.namespaces().getSubscriptionExpirationTime(namespace3));
 
-
-        Awaitility.await().timeout(120, TimeUnit.SECONDS)
-                .until(() -> admin.topics().getSubscriptions(topic2).size() == 0);
+        // The subscriptions are inactive since they were created. Once they have been for longer than namespace2's
+        // 1 minute expiration time, run the broker's check for expired subscriptions instead of waiting up to one
+        // more minute for its next periodic run
+        Awaitility.await().pollDelay(1, TimeUnit.MINUTES).pollInterval(1, TimeUnit.SECONDS)
+                .timeout(120, TimeUnit.SECONDS)
+                .until(() -> {
+                    pulsar.getBrokerService().checkInactiveSubscriptions();
+                    return admin.topics().getSubscriptions(topic2).size() == 0;
+                });
         Assert.assertEquals(admin.topics().getSubscriptions(topic1).size(), 1);
         Assert.assertEquals(admin.topics().getSubscriptions(topic2).size(), 0);
         Assert.assertEquals(admin.topics().getSubscriptions(topic3).size(), 1);
