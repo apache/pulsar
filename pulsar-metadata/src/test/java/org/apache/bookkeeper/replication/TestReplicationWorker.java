@@ -541,6 +541,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
         LedgerManagerFactory mFactory = clientDriver.getLedgerManagerFactory();
 
         LedgerUnderreplicationManager underReplicationManager = mFactory.newLedgerUnderreplicationManager();
+        Thread bookieRestarter = null;
         try {
             //mark ledger underreplicated
             for (int i = 0; i < bookiesKilled.length; i++) {
@@ -554,7 +555,7 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
 
             AtomicBoolean isBookieRestarted = new AtomicBoolean(false);
 
-            (new Thread(new Runnable() {
+            bookieRestarter = new Thread(new Runnable() {
                 @Override
                 public void run() {
                     try {
@@ -564,12 +565,13 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
                          * after sleeping for 3000 msecs, restart one of the
                          * bookie, so that replication can succeed.
                          */
-                        startBookie(killedBookiesConfig[0]);
+                        startAndAddBookie(killedBookiesConfig[0]);
                     } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
-            })).start();
+            });
+            bookieRestarter.start();
 
             int rw1PrevFailedAttemptsCount = 0;
             int rw2PrevFailedAttemptsCount = 0;
@@ -641,6 +643,10 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
             rw1.shutdown();
             rw2.shutdown();
             underReplicationManager.close();
+            // The restarted bookie must be in the cluster before the teardown stops it.
+            if (bookieRestarter != null) {
+                bookieRestarter.join();
+            }
         }
     }
 
@@ -862,20 +868,24 @@ public class TestReplicationWorker extends BookKeeperClusterTestCase {
 
             ReplicationWorker rw = new ReplicationWorker(baseConf);
             rw.start();
-            for (int i = 0; i < 10; i++) {
-                if (rw.isRunning()) {
-                    break;
+            try {
+                for (int i = 0; i < 10; i++) {
+                    if (rw.isRunning()) {
+                        break;
+                    }
+                    Thread.sleep(1000);
                 }
+                assertTrue("Replication worker should be running", rw.isRunning());
+
+                stopZKCluster();
+                // ZK is down for shorter period than reconnect timeout
                 Thread.sleep(1000);
+                startZKCluster();
+
+                assertTrue("Replication worker should not shutdown", rw.isRunning());
+            } finally {
+                rw.shutdown();
             }
-            assertTrue("Replication worker should be running", rw.isRunning());
-
-            stopZKCluster();
-            // ZK is down for shorter period than reconnect timeout
-            Thread.sleep(1000);
-            startZKCluster();
-
-            assertTrue("Replication worker should not shutdown", rw.isRunning());
         }
     }
 
