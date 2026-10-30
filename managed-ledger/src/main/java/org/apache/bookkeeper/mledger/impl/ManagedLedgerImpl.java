@@ -3301,7 +3301,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (!STATE_UPDATER.compareAndSet(this, TRACKED, COMPLETED)) {
                 return false;
             }
-            managedLedger.getExecutor().execute(() -> notifyReadFailed(exception));
+            try {
+                managedLedger.getExecutor().execute(() -> notifyReadFailed(exception));
+            } catch (RejectedExecutionException e) {
+                // The executor is shutting down: notify inline. The wrapper is already COMPLETED, so
+                // a late completion cannot deliver a second notification.
+                notifyReadFailed(exception);
+            }
             return true;
         }
 

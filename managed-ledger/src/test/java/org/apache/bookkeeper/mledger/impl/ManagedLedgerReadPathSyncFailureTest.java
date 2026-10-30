@@ -28,7 +28,9 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.validateMockitoUsage;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.github.merlimat.slog.Logger;
 import java.time.Duration;
@@ -38,12 +40,14 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.common.util.ThreadBoundExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -53,6 +57,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -136,6 +141,29 @@ public class ManagedLedgerReadPathSyncFailureTest extends MockedBookKeeperTestCa
             assertThat(completions).hasValue(0);
             assertThat(entries).isEmpty();
         });
+    }
+
+    /**
+     * When the read timeout fires while the executor is shutting down and rejects the notification
+     * task, the wrapper must notify the callback inline: it is already COMPLETED, and nobody else
+     * would ever notify it, leaving the read pending forever.
+     */
+    @Test
+    public void testReadTimeoutNotifiesInlineWhenExecutorRejects() {
+        ThreadBoundExecutor rejectingExecutor = mock(ThreadBoundExecutor.class);
+        doThrow(new RejectedExecutionException("shutting down")).when(rejectingExecutor).execute(any());
+        ManagedLedgerImpl rejectedLedger = mock(ManagedLedgerImpl.class);
+        doReturn(rejectingExecutor).when(rejectedLedger).getExecutor();
+        ReadEntriesCallback batchCallback = mock(ReadEntriesCallback.class);
+        ManagedLedgerImpl.ReadEntryCallbackWrapper wrapper = ManagedLedgerImpl.ReadEntryCallbackWrapper.create(
+                rejectedLedger, 1L, 1L, batchCallback, null, Long.MAX_VALUE);
+
+        Assert.assertTrue(wrapper.registerTimeout());
+        Assert.assertTrue(wrapper.triggerReadTimeout(
+                new ManagedLedgerException("read timed out")));
+
+        verify(batchCallback, timeout(1_000))
+                .readEntriesFailed(any(ManagedLedgerException.class), any());
     }
 
     private ReadEntriesCallback callback() {
