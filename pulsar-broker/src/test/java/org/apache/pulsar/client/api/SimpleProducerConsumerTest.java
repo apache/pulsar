@@ -1561,15 +1561,21 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
      * Receives messages until the broker has blocked the consumer on its unacked messages limit and the consumer has
      * received every message dispatched to it. The broker dispatches nothing more to a blocked consumer, so a short
      * receive is enough to check that the consumer stops receiving.
+     *
+     * <p>A blocked consumer holds at least its limit of unacked messages. Checking that too keeps a blocked flag
+     * read just before the broker processes pending acks or a redelivery from passing with the unacked count read
+     * just after.
      */
     private <T> List<Message<T>> receiveUntilBlockedOnUnackedMessages(Consumer<T> consumer) throws Exception {
         org.apache.pulsar.broker.service.Consumer brokerConsumer = getBrokerConsumer(consumer);
         List<Message<T>> messages = new ArrayList<>();
-        while (!brokerConsumer.isBlocked() || brokerConsumer.getUnackedMessages() != messages.size()) {
+        while (!brokerConsumer.isBlocked() || brokerConsumer.getUnackedMessages() != messages.size()
+                || messages.size() < brokerConsumer.getMaxUnackedMessages()) {
             Message<T> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             if (msg == null) {
                 fail("Consumer not blocked after " + messages.size() + " messages: blocked="
-                        + brokerConsumer.isBlocked() + ", unacked=" + brokerConsumer.getUnackedMessages());
+                        + brokerConsumer.isBlocked() + ", unacked=" + brokerConsumer.getUnackedMessages()
+                        + ", limit=" + brokerConsumer.getMaxUnackedMessages());
             }
             messages.add(msg);
         }
