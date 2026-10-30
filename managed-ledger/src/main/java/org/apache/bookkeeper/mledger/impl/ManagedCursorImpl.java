@@ -2061,6 +2061,12 @@ public class ManagedCursorImpl implements ManagedCursor {
      * reads gets one for the replay, so that the dispatcher's increment, when it adds the entry to the replay queue
      * again, keeps it cached. Each wanted entry, or its failure, reaches the callback as a single-entry read's would.
      */
+    /**
+     * Issues the replay's reads, cached ones first and the rest from storage in runs. The pending set
+     * assumes a read is issued as soon as its issuer returns normally: an issuer that fails after
+     * submitting the read must report the failure itself rather than throwing, or the position will be
+     * failed twice and the aggregate callback's count will be wrong.
+     */
     private void readReplayPositions(List<Position> replayPositions, ReadEntryCallback cb, Object ctx) {
         ReadEntryCallback singleReadCallback = new ReadEntryCallback() {
             @Override
