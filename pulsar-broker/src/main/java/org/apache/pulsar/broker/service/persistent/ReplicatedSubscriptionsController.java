@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
@@ -37,12 +38,15 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionSnapshotCache.ClusterEntry;
+import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionSnapshotCache.SnapshotResult;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
 import org.apache.pulsar.common.api.proto.ClusterMessageId;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -78,6 +82,22 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     private final ConcurrentMap<String, ReplicatedSubscriptionsSnapshotBuilder> pendingSnapshots =
             new ConcurrentHashMap<>();
+
+    private final ConcurrentMap<String, PendingSubscriptionUpdate> pendingSubscriptionUpdates =
+            new ConcurrentHashMap<>();
+    private final Object subscriptionUpdateLifecycleLock = new Object();
+    private final AtomicBoolean closed = new AtomicBoolean();
+
+    private static final class PendingSubscriptionUpdate {
+        private final PersistentSubscription subscription;
+        private final SnapshotResult snapshot;
+        private final AtomicBoolean inFlight = new AtomicBoolean();
+
+        private PendingSubscriptionUpdate(PersistentSubscription subscription, SnapshotResult snapshot) {
+            this.subscription = subscription;
+            this.snapshot = new SnapshotResult(snapshot.position(), List.copyOf(snapshot.clusters()));
+        }
+    }
 
     @PulsarDeprecatedMetric(
             newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_OPERATION_COUNT_METRIC_NAME)
@@ -138,21 +158,101 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     public void localSubscriptionUpdated(String subscriptionName,
                                          ReplicatedSubscriptionSnapshotCache.SnapshotResult snapshot) {
-        log.debug()
-                .attr("subscription", subscriptionName)
-                .attr("clusters", snapshot.clusters().stream()
-                        .map(entry -> String.format("%s -> %s", entry.cluster(), entry.position()))
-                        .collect(Collectors.toList()))
-                .log("Updating subscription to snapshot");
-
-        Map<String, MarkersMessageIdData> clusterIds = new TreeMap<>();
-        for (ReplicatedSubscriptionSnapshotCache.ClusterEntry cluster : snapshot.clusters()) {
-            clusterIds.put(cluster.cluster(), new MarkersMessageIdData().setLedgerId(cluster.position().getLedgerId())
-                    .setEntryId(cluster.position().getEntryId()));
+        PersistentSubscription subscription = topic.getSubscription(subscriptionName);
+        if (closed.get() || subscription == null || !subscription.isReplicated()
+                || subscription.getCursor().getMarkDeletedPosition().compareTo(snapshot.position()) < 0) {
+            return;
         }
 
-        ByteBuf subscriptionUpdate = Markers.newReplicatedSubscriptionsUpdate(subscriptionName, clusterIds);
-        writeMarker(subscriptionUpdate);
+        PendingSubscriptionUpdate update;
+        synchronized (subscriptionUpdateLifecycleLock) {
+            Position markDeletePosition = subscription.getCursor().getMarkDeletedPosition();
+            if (closed.get() || topic.getSubscription(subscriptionName) != subscription || !subscription.isReplicated()
+                    || markDeletePosition.compareTo(snapshot.position()) < 0) {
+                return;
+            }
+            update = pendingSubscriptionUpdates.compute(subscriptionName, (name, pending) -> {
+                if (pending != null && pending.subscription == subscription
+                        && pending.snapshot.position().compareTo(markDeletePosition) <= 0
+                        && pending.snapshot.position().compareTo(snapshot.position()) >= 0) {
+                    return pending;
+                }
+                // Keep a coherent snapshot vector. Combining positions from different snapshots
+                // could acknowledge a cut that was never covered by the local subscription.
+                return new PendingSubscriptionUpdate(subscription, snapshot);
+            });
+        }
+        tryPublishSubscriptionUpdate(subscriptionName, update);
+    }
+
+    private boolean isCurrentSubscriptionUpdate(String subscriptionName, PendingSubscriptionUpdate update) {
+        if (closed.get() || pendingSubscriptionUpdates.get(subscriptionName) != update) {
+            return false;
+        }
+        PersistentSubscription subscription = topic.getSubscription(subscriptionName);
+        if (subscription != update.subscription || !subscription.isReplicated()
+                || subscription.getCursor().getMarkDeletedPosition().compareTo(update.snapshot.position()) < 0) {
+            // A removed, replaced, disabled or reset subscription must not retry an old update.
+            pendingSubscriptionUpdates.remove(subscriptionName, update);
+            return false;
+        }
+        return true;
+    }
+
+    private void tryPublishSubscriptionUpdate(String subscriptionName, PendingSubscriptionUpdate update) {
+        if (!isCurrentSubscriptionUpdate(subscriptionName, update)
+                || !update.inFlight.compareAndSet(false, true)) {
+            return;
+        }
+        // A timer may have retained this entry while another publish completed or a newer
+        // snapshot replaced it. Claiming inFlight alone does not establish entry ownership.
+        if (!isCurrentSubscriptionUpdate(subscriptionName, update)) {
+            update.inFlight.set(false);
+            return;
+        }
+
+        try {
+            log.debug()
+                    .attr("subscription", subscriptionName)
+                    .attr("position", update.snapshot.position())
+                    .attr("clusters", () -> update.snapshot.clusters().stream()
+                            .map(entry -> String.format("%s -> %s", entry.cluster(), entry.position()))
+                            .collect(Collectors.toList()))
+                    .log("Updating subscription to snapshot");
+
+            Map<String, MarkersMessageIdData> clusterIds = new TreeMap<>();
+            for (ClusterEntry cluster : update.snapshot.clusters()) {
+                clusterIds.put(cluster.cluster(), new MarkersMessageIdData()
+                        .setLedgerId(cluster.position().getLedgerId()).setEntryId(cluster.position().getEntryId()));
+            }
+            // Each attempt owns a fresh marker; writeMarkerAndGetPosition releases it on every path.
+            ByteBuf marker = Markers.newReplicatedSubscriptionsUpdate(subscriptionName, clusterIds);
+            writeMarkerAndGetPosition(marker).whenComplete((position, error) -> {
+                try {
+                    if (error == null) {
+                        // Remove before releasing inFlight so a stale timer entry cannot claim
+                        // the just-completed update. An older completion must retain newer work.
+                        pendingSubscriptionUpdates.remove(subscriptionName, update);
+                    } else {
+                        logSubscriptionUpdateFailure(subscriptionName, update, error);
+                    }
+                } finally {
+                    update.inFlight.set(false);
+                }
+            });
+        } catch (Exception error) {
+            update.inFlight.set(false);
+            logSubscriptionUpdateFailure(subscriptionName, update, error);
+        }
+    }
+
+    private void logSubscriptionUpdateFailure(String subscriptionName, PendingSubscriptionUpdate update,
+                                              Throwable error) {
+        log.debug()
+                .attr("subscription", subscriptionName)
+                .attr("position", update.snapshot.position())
+                .exceptionMessage(error)
+                .log("Failed to publish replicated subscription update; retaining it for retry");
     }
 
     private void receivedSnapshotRequest(ReplicatedSubscriptionsSnapshotRequest request) {
@@ -278,6 +378,15 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     private void startNewSnapshot() {
+        if (closed.get()) {
+            return;
+        }
+        // UPDATE appends need their own retry: their selected snapshot has already left
+        // the subscription cache, and an idle topic need not create another snapshot.
+        pendingSubscriptionUpdates.forEach(this::tryPublishSubscriptionUpdate);
+        if (closed.get()) {
+            return;
+        }
         cleanupTimedOutSnapshots();
 
         if (lastCompletedSnapshotStartTime == 0 && !pendingSnapshots.isEmpty()) {
@@ -415,8 +524,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
      */
     @Override
     public void completed(Exception e, long ledgerId, long entryId) {
-        // Nothing to do in case of publish errors since the retry logic is applied upstream after a snapshot is not
-        // closed
+        // Snapshot timeouts and pending subscription updates handle their respective publish retries.
         log.debug()
                 .attr("brokerId", topic.getBrokerService().pulsar().getBrokerId())
                 .attr("ledgerId", ledgerId)
@@ -448,6 +556,12 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     @Override
     public void close() {
+        synchronized (subscriptionUpdateLifecycleLock) {
+            if (!closed.compareAndSet(false, true)) {
+                return;
+            }
+            pendingSubscriptionUpdates.clear();
+        }
         timer.cancel(true);
     }
 }
