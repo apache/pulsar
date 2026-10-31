@@ -287,8 +287,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 return;
             }
             // Process the message, add to the queue and trigger listener or async callback
+            final boolean skipDueToSeek = seekingTopics.contains(consumer.getTopic());
             messages.forEach(msg -> {
-                final boolean skipDueToSeek = seekingTopics.contains(consumer.getTopic());
                 MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
                 ClientCnx cnx = msgImpl.getCnx();
                 boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
