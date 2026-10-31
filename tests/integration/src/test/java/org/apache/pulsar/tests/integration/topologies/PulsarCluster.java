@@ -668,8 +668,13 @@ public class PulsarCluster {
     }
 
     public synchronized void startWorkers() {
-        // Start workers that have been initialized
-        inParallel(workerContainers.values(), WorkerContainer::start);
+        // Start workers that have been initialized, the first one alone: a worker creates the subscription of the
+        // coordination topic unless it finds it, and exits if another worker creates it meanwhile
+        List<WorkerContainer> workers = new ArrayList<>(workerContainers.values());
+        if (!workers.isEmpty()) {
+            workers.get(0).start();
+            inParallel(workers.subList(1, workers.size()), WorkerContainer::start);
+        }
         log.info().attr("started", workerContainers.size()).log("Successfully started worker containers.");
     }
 
