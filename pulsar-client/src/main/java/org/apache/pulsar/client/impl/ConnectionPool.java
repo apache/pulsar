@@ -24,11 +24,12 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
-import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.group.ChannelGroup;
 import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.resolver.AddressResolver;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -158,7 +159,16 @@ public class ConnectionPool implements AutoCloseable {
         try {
             channelInitializerHandler = new PulsarChannelInitializer(conf, clientCnxSupplier,
                     scheduledExecutorService);
-            bootstrap.handler(channelInitializerHandler);
+            bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+                @Override
+                protected void initChannel(SocketChannel ch) {
+                    ch.pipeline().addLast(channelInitializerHandler);
+                    // Added on the channel's event loop as it registers the channel, so that a channel added after
+                    // close() is closed while the loop still runs. The caller of bootstrap.register() can resume
+                    // after the loop has terminated, when the loop would reject the close.
+                    channels.add(ch);
+                }
+            });
         } catch (Exception e) {
             log.error("Failed to create channel initializer");
             throw new PulsarClientException(e);
@@ -453,7 +463,7 @@ public class ConnectionPool implements AutoCloseable {
                                                         InetSocketAddress unresolvedPhysicalAddress,
                                                         InetSocketAddress sniHost) {
         if (clientConfig.isUseTls()) {
-            return registerChannel()
+            return toCompletableFuture(bootstrap.register())
                     .thenCompose(channel -> channelInitializerHandler
                             .initTls(channel, sniHost != null ? sniHost : physicalAddress))
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
@@ -462,19 +472,13 @@ public class ConnectionPool implements AutoCloseable {
                                     unresolvedPhysicalAddress))
                     .thenCompose(channel -> connectToPhysicalAddress(channel, physicalAddress));
         } else {
-            return registerChannel()
+            return toCompletableFuture(bootstrap.register())
                     .thenCompose(channelInitializerHandler::initSocks5IfConfig)
                     .thenCompose(ch ->
                             channelInitializerHandler.initializeClientCnx(ch, logicalAddress,
                                     unresolvedPhysicalAddress))
                     .thenCompose(channel -> connectToPhysicalAddress(channel, physicalAddress));
         }
-    }
-
-    private CompletableFuture<Channel> registerChannel() {
-        ChannelFuture registerFuture = bootstrap.register();
-        channels.add(registerFuture.channel());
-        return toCompletableFuture(registerFuture);
     }
 
     protected CompletableFuture<Channel> connectToPhysicalAddress(Channel channel, InetSocketAddress physicalAddress) {

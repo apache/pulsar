@@ -41,10 +41,13 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.resolver.AddressResolver;
 import io.netty.resolver.dns.DefaultDnsServerAddressStreamProvider;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.lang.reflect.Field;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -171,6 +174,66 @@ public class PulsarClientImplTest {
         // Reaches the end of the stream only if the client closed its end of the connection
         connection.setSoTimeout(10_000);
         connection.getInputStream().readAllBytes();
+    }
+
+    @Test(timeOut = 60_000)
+    public void testPoolCloseClosesChannelRegisteredAfterIt() throws Exception {
+        // Pauses the connection attempt right after it has queued the registration of its channel
+        CompletableFuture<Channel> registeringChannel = new CompletableFuture<>();
+        CountDownLatch resumeConnectionAttempt = new CountDownLatch(1);
+        @Cleanup("shutdownGracefully")
+        EventLoopGroup group = new MultiThreadIoEventLoopGroup(1, new DefaultThreadFactory("pool-close-test"),
+                NioIoHandler.newFactory()) {
+            @Override
+            public ChannelFuture register(Channel channel) {
+                ChannelFuture registerFuture = super.register(channel);
+                registeringChannel.complete(channel);
+                try {
+                    resumeConnectionAttempt.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return registerFuture;
+            }
+        };
+        // Resolves on the calling thread, so that the connection attempt registers its channel from outside the loop
+        @SuppressWarnings("unchecked")
+        AddressResolver<InetSocketAddress> resolver = mock(AddressResolver.class);
+        when(resolver.resolveAll(any())).thenAnswer(invocation -> ImmediateEventExecutor.INSTANCE
+                .newSucceededFuture(List.of((InetSocketAddress) invocation.getArgument(0))));
+        ConnectionPool pool = ConnectionPool.builder()
+                .instrumentProvider(InstrumentProvider.NOOP)
+                .conf(new ClientConfigurationData())
+                .eventLoopGroup(group)
+                .addressResolverSupplier(Optional.of(() -> resolver))
+                .build();
+
+        // Keep the only event loop running a task until it has been asked to shut down, so that it registers the
+        // channel after the pool has been closed
+        CountDownLatch taskStarted = new CountDownLatch(1);
+        CountDownLatch releaseTask = new CountDownLatch(1);
+        group.execute(() -> {
+            taskStarted.countDown();
+            try {
+                releaseTask.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        taskStarted.await();
+        CompletableFuture<Void> connectionAttempt = CompletableFuture.runAsync(
+                () -> pool.getConnection(new InetSocketAddress(InetAddress.getLoopbackAddress(), 6650)));
+        Channel channel = registeringChannel.get(10, TimeUnit.SECONDS);
+
+        pool.close();
+        group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
+        releaseTask.countDown();
+        assertTrue(group.awaitTermination(10, TimeUnit.SECONDS));
+        // The connection attempt only goes on once the event loop has terminated
+        resumeConnectionAttempt.countDown();
+        connectionAttempt.get(10, TimeUnit.SECONDS);
+
+        assertThat(channel.isOpen()).as("channel open").isFalse();
     }
 
     @DataProvider
