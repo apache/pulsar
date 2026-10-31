@@ -109,7 +109,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final ConsumerConfigurationData<T> internalConfig;
 
     private final MessageIdAdv startMessageId;
-    private volatile boolean duringSeek = false;
+    // Partition topic names whose consumers an ongoing seek applies to. Only their receives are
+    // paused and their buffered messages discarded, so the other topics keep flowing while a
+    // seek of a subset of the topics runs.
+    private final Set<String> seekingTopics = ConcurrentHashMap.newKeySet();
     private final long startMessageRollbackDurationInSec;
     private final ConsumerInterceptors<T> internalConsumerInterceptors;
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
@@ -265,7 +268,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
-        if (duringSeek) {
+        if (seekingTopics.contains(consumer.getTopic())) {
             log.info().attr("topic", consumer.getTopic())
                     .log("Pause receiving messages for topic due to seek");
             return;
@@ -285,7 +288,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
-                final boolean skipDueToSeek = duringSeek;
+                final boolean skipDueToSeek = seekingTopics.contains(consumer.getTopic());
                 MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
                 ClientCnx cnx = msgImpl.getCnx();
                 boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
@@ -864,12 +867,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return seekAllAsync(consumer -> consumer.seekAsync(timestamp));
     }
 
-    private CompletableFuture<Void> seekAsyncInternal(Collection<ConsumerImpl<T>> consumers,
+    private CompletableFuture<Void> seekAsyncInternal(Collection<ConsumerImpl<T>> consumersToSeek,
                                                       Function<ConsumerImpl<T>, CompletableFuture<Void>> seekFunc) {
-        beforeSeek();
+        beforeSeek(consumersToSeek);
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        FutureUtil.waitForAll(consumers.stream().map(seekFunc).collect(Collectors.toList()))
-                .whenComplete((__, e) -> afterSeek(future, e));
+        FutureUtil.waitForAll(consumersToSeek.stream().map(seekFunc).collect(Collectors.toList()))
+                .whenComplete((__, e) -> afterSeek(future, consumersToSeek, e));
         return future;
     }
 
@@ -877,21 +880,57 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return seekAsyncInternal(consumers.values(), seekFunc);
     }
 
-    private void beforeSeek() {
-        duringSeek = true;
-        unAckedMessageTracker.clear();
-        clearIncomingMessages();
+    private void beforeSeek(Collection<ConsumerImpl<T>> consumersToSeek) {
+        Set<String> topics = new HashSet<>();
+        for (ConsumerImpl<T> consumer : consumersToSeek) {
+            topics.add(consumer.getTopic());
+            seekingTopics.add(consumer.getTopic());
+            removeTopicMessagesFromUnackedTracker(consumer.getTopic());
+        }
+        clearIncomingMessagesForTopics(topics);
     }
 
-    private void afterSeek(CompletableFuture<Void> seekFuture, @Nullable Throwable throwable) {
-        duringSeek = false;
-        log.info().attr("keySet", consumers.keySet())
+    private void afterSeek(CompletableFuture<Void> seekFuture, Collection<ConsumerImpl<T>> consumersToSeek,
+                           @Nullable Throwable throwable) {
+        List<String> topics = new ArrayList<>();
+        for (ConsumerImpl<T> consumer : consumersToSeek) {
+            topics.add(consumer.getTopic());
+            seekingTopics.remove(consumer.getTopic());
+        }
+        log.info().attr("topics", topics)
                 .log("Resume receiving messages for since seek is done");
-        startReceivingMessages(new ArrayList<>(consumers.values()), true);
+        startReceivingMessages(new ArrayList<>(consumersToSeek), true);
         if (throwable == null) {
             seekFuture.complete(null);
         } else {
             seekFuture.completeExceptionally(throwable);
+        }
+    }
+
+    /**
+     * Discard the buffered messages of the given topics, keeping the buffered messages of the other
+     * topics, which a seek of a subset of the topics must not drop: their consumers did not seek, so
+     * there is nothing that would deliver the discarded messages again.
+     *
+     * <p>The kept messages are drained and re-added, so they keep their relative order, though a
+     * message of another topic enqueued concurrently may end up before them.
+     */
+    private void clearIncomingMessagesForTopics(Set<String> topics) {
+        if (topics.isEmpty()) {
+            return;
+        }
+        List<Message<T>> drainedMessages = new ArrayList<>();
+        Message<T> message;
+        while ((message = incomingMessages.poll()) != null) {
+            drainedMessages.add(message);
+        }
+        for (Message<T> drainedMessage : drainedMessages) {
+            if (drainedMessage.getMessageId() instanceof TopicMessageId topicMessageId
+                    && topics.contains(topicMessageId.getOwnerTopic())) {
+                discardIncomingMessage(drainedMessage);
+            } else {
+                incomingMessages.add(drainedMessage);
+            }
         }
     }
 

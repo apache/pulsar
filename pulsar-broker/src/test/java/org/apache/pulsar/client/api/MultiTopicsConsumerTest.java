@@ -349,6 +349,66 @@ public class MultiTopicsConsumerTest extends SharedPulsarBaseTest {
         consumer.close();
     }
 
+    @Test(timeOut = 30000)
+    public void testSeekOnePartitionKeepsOtherPartitionsMessages() throws Exception {
+        final var topic = TopicName.get(newTopicName()).toString();
+        final var numPartitions = 2;
+        admin.topics().createPartitionedTopic(topic, numPartitions);
+
+        @Cleanup final var producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .messageRouter(new MessageRouter() {
+                    int index = 0;
+                    @Override
+                    public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                        return index++ % metadata.numPartitions();
+                    }
+                })
+                .create();
+        @Cleanup final var consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic).subscriptionName("sub").subscribe();
+        assertTrue(consumer instanceof MultiTopicsConsumerImpl);
+
+        final var numMessagesPerPartition = 10;
+        final var msgIdsPerPartition = new ArrayList<List<MessageId>>();
+        for (int i = 0; i < numPartitions; i++) {
+            msgIdsPerPartition.add(new ArrayList<>());
+        }
+        for (int i = 0; i < numMessagesPerPartition * numPartitions; i++) {
+            var msgId = (MessageIdImpl) producer.send(i / numPartitions);
+            msgIdsPerPartition.get(msgId.getPartitionIndex()).add(msgId);
+        }
+
+        // Wait until the consumer has buffered the messages of both partitions, so that the seek below
+        // runs while the messages of the partition that is not sought are still buffered.
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                ((MultiTopicsConsumerImpl<Integer>) consumer).numMessagesInQueue(),
+                numMessagesPerPartition * numPartitions));
+
+        final var partition0 = topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 0;
+        consumer.seek(TopicMessageId.create(partition0, msgIdsPerPartition.get(0).get(0)));
+
+        // Partition 0 replays the messages after the one sought to; the messages of partition 1, which
+        // did not seek, must still be delivered.
+        final var totalExpected = (numMessagesPerPartition - 1) + numMessagesPerPartition;
+        final var received = new ArrayList<Message<Integer>>();
+        for (int i = 0; i < totalExpected; i++) {
+            Message<Integer> message = consumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(message, "Missing message " + i + " after the seek");
+            received.add(message);
+        }
+        Assert.assertNull(consumer.receive(1, TimeUnit.SECONDS), "No more messages are expected");
+
+        final var valuesPerPartition = received.stream().collect(Collectors.groupingBy(
+                message -> ((TopicMessageId) message.getMessageId()).getOwnerTopic(),
+                Collectors.mapping(Message::getValue, Collectors.toList())));
+        assertEquals(valuesPerPartition.get(partition0),
+                IntStream.rangeClosed(1, numMessagesPerPartition - 1).boxed().collect(Collectors.toList()));
+        assertEquals(valuesPerPartition.get(topic + TopicName.PARTITIONED_TOPIC_SUFFIX + 1),
+                IntStream.rangeClosed(0, numMessagesPerPartition - 1).boxed().collect(Collectors.toList()));
+    }
+
     @Test(invocationCount = 10, timeOut = 30000)
     public void testMultipleIOThreads() throws Exception {
         final var topic = TopicName.get(newTopicName()).toString();
