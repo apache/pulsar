@@ -124,4 +124,25 @@ public class TopicListHashBenchmark {
         treeSet.remove(newTopic);
         return hash;
     }
+
+    // --- Full rebuild benchmarks: build the set from sorted topics then hash ---
+    // Mirrors TopicListWatcher construction (initial filterTopics) and updateTopics clear/refill.
+    // TreeSet insertion is O(n log n) vs LinkedHashSet O(n); these benchmarks quantify that tradeoff
+    // against the SortedSet-hash savings to establish the net benefit at 1k/10k/100k topic scales.
+
+    /** Baseline: build LinkedHashSet from sorted topics, then hash via Collection overload. */
+    @Benchmark
+    public String rebuildAndHashLinkedHashSet() {
+        Set<String> set = new LinkedHashSet<>(seedTopics.size());
+        set.addAll(seedTopics);
+        return TopicList.calculateHash(set);
+    }
+
+    /** This PR's path: build TreeSet from sorted topics, then hash via SortedSet overload. */
+    @Benchmark
+    public String rebuildAndHashTreeSet() {
+        SortedSet<String> set = new TreeSet<>();
+        set.addAll(seedTopics);
+        return TopicList.calculateHash(set);
+    }
 }
