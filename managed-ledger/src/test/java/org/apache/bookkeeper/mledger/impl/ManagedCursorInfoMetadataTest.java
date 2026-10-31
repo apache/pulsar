@@ -98,6 +98,31 @@ public class ManagedCursorInfoMetadataTest {
     }
 
     @Test(dataProvider = "compressionTypeProvider")
+    public void testDecodeCursorInfoWithProperties(String compressionType) throws Exception {
+        if (INVALID_TYPE.equals(compressionType)) {
+            return;
+        }
+        ManagedCursorInfo managedCursorInfo = generateManagedCursorInfo(10000, 1000);
+        for (int i = 0; i < 100; i++) {
+            managedCursorInfo.addProperty().setName("property-" + i).setValue(i);
+            managedCursorInfo.addCursorProperty().setName("cursor-property-" + i).setValue("value-" + i);
+        }
+        MetaStoreImpl metaStore = new MetaStoreImpl(null, null, null,
+                new MetadataCompressionConfig(compressionType, 0));
+
+        // String fields must still be readable after the decompressed buffer has been released.
+        ManagedCursorInfo info = metaStore.parseManagedCursorInfo(metaStore.compressCursorInfo(managedCursorInfo));
+        assertEquals(info.getPropertiesCount(), 100);
+        assertEquals(info.getCursorPropertiesCount(), 100);
+        for (int i = 0; i < 100; i++) {
+            assertEquals(info.getPropertyAt(i).getName(), "property-" + i);
+            assertEquals(info.getPropertyAt(i).getValue(), i);
+            assertEquals(info.getCursorPropertyAt(i).getName(), "cursor-property-" + i);
+            assertEquals(info.getCursorPropertyAt(i).getValue(), "value-" + i);
+        }
+    }
+
+    @Test(dataProvider = "compressionTypeProvider")
     public void testCompressionThreshold(String compressionType) throws IOException {
         int compressThreshold = 512;
 

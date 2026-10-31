@@ -70,8 +70,13 @@ public interface AsyncDualMemoryLimiter {
     void release(AsyncDualMemoryLimiterPermit permit);
     /**
      * Execute the specified function with acquired permits and release the permits after the returned future completes.
+     * When the permits can't be acquired, including when the memory size is larger than the limit
+     * ({@link AsyncSemaphore.PermitAcquireLimitExceededException}), permitAcquireErrorHandler is called instead.
      * @param memorySize memory size to acquire permits for
      * @param limitType memory limit type to acquire permits for
+     * @param isCancelled supplier that returns true if the request has been cancelled. When it returns true after
+     *                    the permits have been acquired, the function isn't executed, the permits are released and
+     *                    permitAcquireErrorHandler is called with AsyncSemaphore.PermitAcquireCancelledException
      * @param function function to execute with acquired permits
      * @return result of the function
      * @param <T> type of the CompletableFuture returned by the function
@@ -82,14 +87,18 @@ public interface AsyncDualMemoryLimiter {
                                                                  CompletableFuture<T>> function,
                                                          Function<Throwable, CompletableFuture<T>>
                                                                  permitAcquireErrorHandler) {
-        return AsyncDualMemoryLimiterUtil.withPermitsFuture(acquire(memorySize, limitType, isCancelled), function,
-                permitAcquireErrorHandler, this::release);
+        return AsyncDualMemoryLimiterUtil.withPermitsFuture(
+                AsyncDualMemoryLimiterUtil.requestPermits(() -> acquire(memorySize, limitType, isCancelled)),
+                isCancelled, function, permitAcquireErrorHandler, this::release);
     }
 
     /**
      * Executed the specified function with updated permits and release the permits after the returned future completes.
      * @param initialPermit initial permit to update
      * @param newMemorySize new memory size to update to
+     * @param isCancelled supplier that returns true if the request has been cancelled. When it returns true after
+     *                    the permits have been updated, the function isn't executed, the permits are released and
+     *                    permitAcquireErrorHandler is called with AsyncSemaphore.PermitAcquireCancelledException
      * @param function function to execute with updated permits
      * @return result of the function
      * @param <T> type of the CompletableFuture returned by the function
@@ -100,8 +109,9 @@ public interface AsyncDualMemoryLimiter {
                                                                 CompletableFuture<T>> function,
                                                         Function<Throwable, CompletableFuture<T>>
                                                                 permitAcquireErrorHandler) {
-        return AsyncDualMemoryLimiterUtil.withPermitsFuture(update(initialPermit, newMemorySize, isCancelled), function,
-                permitAcquireErrorHandler, this::release);
+        return AsyncDualMemoryLimiterUtil.withPermitsFuture(
+                AsyncDualMemoryLimiterUtil.requestPermits(() -> update(initialPermit, newMemorySize, isCancelled)),
+                isCancelled, function, permitAcquireErrorHandler, this::release);
     }
 
     /**

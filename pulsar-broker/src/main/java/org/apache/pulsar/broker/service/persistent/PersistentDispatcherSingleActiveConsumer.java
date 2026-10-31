@@ -165,8 +165,8 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         }
     }
 
-    private synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch,
-                                                  long readOpEpoch, Position originalLedgerReadPosition) {
+    synchronized void readEntriesComplete(List<Entry> entries, Consumer readConsumer, long epoch,
+                                          long readOpEpoch, Position originalLedgerReadPosition) {
         if (readOpEpoch != this.readOpEpoch) {
             // Stale completion: this read was disowned by a redeliver-driven cursor rewind + re-arm
             // (internalRedeliverUnacknowledgedMessages) that already issued a newer read. Clearing
@@ -207,12 +207,16 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
         Consumer currentConsumer = getActiveConsumer();
 
+        if (currentConsumer != null && currentConsumer.getAvgMessagesPerEntry() <= 0) {
+            initConsumerAvgMessagesPerEntry(entries, currentConsumer);
+        }
+
         if (isKeyHashRangeFiltered) {
             Iterator<Entry> iterator = entries.iterator();
             while (iterator.hasNext()) {
                 Entry entry = iterator.next();
-                byte[] key = peekStickyKey(entry);
-                Consumer consumer = stickyKeyConsumerSelector.select(key);
+                Consumer consumer = stickyKeyConsumerSelector.select(
+                        stickyKeyConsumerSelector.makeStickyKeyHashOfKeyHash(peekStickyKeyHash(entry)));
                 // Skip the entry if it's not for current active consumer.
                 if (consumer == null || currentConsumer != consumer) {
                     entry.release();
@@ -284,7 +288,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         } else if (readOnActiveConsumerTask != null) {
             log.debug()
                     .attr("consumer", consumer)
-                    .log("Ignoring flow control message since consumer is waiting for cursor to be rewinded");
+                    .log("Ignoring flow control message since consumer is waiting for cursor to be rewound");
         } else {
             log.debug()
                     .attr("consumer", consumer)
@@ -319,7 +323,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         if (readOnActiveConsumerTask != null) {
             log.info()
                     .attr("consumer", consumer)
-                    .log("Ignoring reDeliverUnAcknowledgedMessages: consumer is waiting for cursor to be rewinded");
+                    .log("Ignoring reDeliverUnAcknowledgedMessages: consumer is waiting for cursor to be rewound");
             return;
         }
         cursor.cancelPendingReadRequest();
@@ -327,7 +331,7 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
         cursor.rewind(consumer.readCompacted());
         log.debug()
                 .attr("consumer", consumer)
-                .log("Cursor rewinded, redelivering unacknowledged messages.");
+                .log("Cursor rewound, redelivering unacknowledged messages.");
         readMoreEntries(consumer);
     }
 

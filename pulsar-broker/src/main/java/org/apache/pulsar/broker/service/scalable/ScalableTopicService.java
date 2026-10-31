@@ -18,9 +18,12 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import io.opentelemetry.api.OpenTelemetry;
+import io.prometheus.client.CollectorRegistry;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.CustomLog;
@@ -67,6 +70,7 @@ public class ScalableTopicService {
     private final BrokerService brokerService;
     private final ScalableTopicResources resources;
     private final CoordinationService coordinationService;
+    private final ScalableTopicControllerMetrics metrics;
 
     /**
      * Active controllers for topics this broker coordinates. The value is a future so
@@ -82,15 +86,69 @@ public class ScalableTopicService {
         this.brokerService = brokerService;
         this.resources = resources;
         this.coordinationService = coordinationService;
+        this.metrics = createControllerMetrics();
     }
+
+    private ScalableTopicControllerMetrics createControllerMetrics() {
+        try {
+            var pulsar = brokerService.getPulsar();
+            var telemetry = pulsar.getOpenTelemetry();
+            var config = pulsar.getConfiguration();
+            return new ScalableTopicControllerMetrics(telemetry != null ? telemetry.getMeter()
+                    : OpenTelemetry.noop().getMeter(ScalableTopicService.class.getName()),
+                    config != null ? Objects.toString(config.getClusterName(), "") : "", this::metricCounts);
+        } catch (RuntimeException e) {
+            log.warn().exceptionMessage(e)
+                    .log("Failed to initialize scalable-topic controller metrics; continuing without them");
+            return ScalableTopicControllerMetrics.NOOP;
+        }
+    }
+
+    private ScalableTopicControllerMetrics.Counts metricCounts() {
+        long leaders = 0;
+        long active = 0;
+        long sealed = 0;
+        for (CompletableFuture<ScalableTopicController> future : controllers.values()) {
+            if (!future.isDone() || future.isCompletedExceptionally()) {
+                continue;
+            }
+            ScalableTopicControllerMetrics.Counts counts = future.join().metricCounts();
+            leaders += counts.controllers();
+            active += counts.active();
+            sealed += counts.sealed();
+        }
+        return new ScalableTopicControllerMetrics.Counts(leaders, active, sealed);
+    }
+
+    private volatile ScalableTopicConsumerMetrics consumerMetrics;
 
     // --- Lifecycle ---
 
-    public void start() {
+    public synchronized void start() {
+        if (consumerMetrics != null) {
+            return;
+        }
+        try {
+            consumerMetrics = new ScalableTopicConsumerMetrics(
+                    brokerService.getPulsar().getOpenTelemetry().getMeter(), CollectorRegistry.defaultRegistry,
+                    brokerService.getPulsar().getConfiguration().getClusterName(), this::consumerStats);
+        } catch (RuntimeException e) {
+            log.warn().exceptionMessage(e)
+                    .log("Failed to initialize scalable-topic consumer metrics; continuing without them");
+        }
         log.info("ScalableTopicService started");
     }
 
+    /** Release only this service's instruments, without changing controller or metadata-store lifecycles. */
+    public void closeMetrics() {
+        if (consumerMetrics != null) {
+            consumerMetrics.close();
+        }
+        metrics.close();
+    }
+
     public void close() {
+        closeMetrics();
         log.info().attr("controllerCount", controllers.size())
                 .log("Closing ScalableTopicService, releasing controllers");
         List<CompletableFuture<Void>> closeFutures = controllers.values().stream()
@@ -103,6 +161,21 @@ public class ScalableTopicService {
                 .toList();
         FutureUtil.waitForAll(closeFutures).join();
         controllers.clear();
+    }
+
+    SubscriptionCoordinator.ConsumerStats consumerStats() {
+        SubscriptionCoordinator.ConsumerStats stats = SubscriptionCoordinator.ConsumerStats.EMPTY;
+        for (CompletableFuture<ScalableTopicController> future : controllers.values()) {
+            // Collection never waits for controller initialization or a failed takeover.
+            if (!future.isDone() || future.isCompletedExceptionally()) {
+                continue;
+            }
+            ScalableTopicController controller = future.getNow(null);
+            if (controller != null) {
+                stats = stats.plus(controller.consumerStats());
+            }
+        }
+        return stats;
     }
 
     // --- Controller management ---
@@ -128,6 +201,10 @@ public class ScalableTopicService {
     private CompletableFuture<ScalableTopicController> newController(String key, TopicName topic) {
         ScalableTopicController controller = new ScalableTopicController(
                 topic, resources, brokerService, coordinationService);
+        controller.setMetrics(metrics);
+        if (consumerMetrics != null) {
+            controller.setRebalanceListener(consumerMetrics::recordRebalance);
+        }
         CompletableFuture<ScalableTopicController> future = new CompletableFuture<>();
         // Released once its topic is deleted: the admin delete stops the controller on the
         // broker serving it, not the ones other brokers hold for the topic. Closed before it is
@@ -219,8 +296,9 @@ public class ScalableTopicService {
         // (re)materialized on demand the first time a client connects to it — see the
         // active-segment reconciliation in BrokerService.isAllowAutoTopicCreationAsync — so
         // eager materialization here is a happy-path latency optimization, not a correctness
-        // requirement.
-        return resources.createScalableTopicAsync(topic, metadata)
+        // requirement. The creation lock keeps it from interleaving with a migration of the
+        // regular topic of the same name (see ScalableTopicResources#runWithCreationLock).
+        return resources.runWithCreationLock(topic, __ -> resources.createScalableTopicAsync(topic, metadata))
                 .thenCompose(__ -> {
                     List<CompletableFuture<Void>> segmentFutures =
                             metadata.getSegments().values().stream()

@@ -48,7 +48,6 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1629,9 +1628,8 @@ public class TransactionTest extends TransactionTestBase {
         // Create subscription.
         String subscriptionName = "sub-a";
         boolean replicated = false;
-        Map<String, String> subscriptionProperties = Collections.emptyMap();
         PersistentSubscription persistentSubscription = new PersistentSubscription(topic, subscriptionName,
-                cursorSubscription, replicated, subscriptionProperties);
+                cursorSubscription, replicated);
         org.apache.pulsar.broker.service.Consumer consumer = mock(org.apache.pulsar.broker.service.Consumer.class);
         try {
             CompletableFuture<Void> addConsumerFuture = persistentSubscription.addConsumer(consumer);
@@ -1766,8 +1764,10 @@ public class TransactionTest extends TransactionTestBase {
         // test error
         transaction = pulsarClient.newTransaction().withTransactionTimeout(1, TimeUnit.SECONDS)
                 .build().get();
+        // Wait for the broker to end the txn, so the client's commit fails with TransactionNotFound
+        // instead of racing the broker's commit as a concurrent duplicate, which can succeed.
         pulsarServiceList.get(0).getTransactionMetadataStoreService()
-                .endTransaction(transaction.getTxnID(), 0, false);
+                .endTransaction(transaction.getTxnID(), 0, false).get();
         transaction.commit();
         Transaction errorTxn = transaction;
         Awaitility.await().until(() -> errorTxn.getState() == Transaction.State.ERROR);

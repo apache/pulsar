@@ -18,6 +18,12 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -36,6 +42,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -1111,6 +1118,112 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
 
         producer.close();
         consumer.close();
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testProducerInterceptorClosedOnceOnProducerClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor =
+                mock(org.apache.pulsar.client.api.interceptor.ProducerInterceptor.class);
+        when(interceptor.eligible(any())).thenReturn(true);
+        when(interceptor.beforeSend(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .intercept(interceptor)
+                .create();
+        producer.send("msg");
+        verify(interceptor).beforeSend(any(), any());
+        verify(interceptor, never()).close();
+
+        producer.close();
+        producer.close();
+
+        verify(interceptor).close();
+    }
+
+    @Test
+    public void testProducerInterceptorClosedOnceAfterPartitionsGrow() throws Exception {
+        String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor =
+                mock(org.apache.pulsar.client.api.interceptor.ProducerInterceptor.class);
+        when(interceptor.eligible(any())).thenReturn(true);
+        when(interceptor.beforeSend(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .intercept(interceptor)
+                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
+                .create();
+
+        admin.topics().updatePartitionedTopic(topic, 3);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(((PartitionedProducerImpl<String>) producer).getNumOfPartitions(), 3));
+        producer.send("msg");
+        producer.close();
+
+        // The producer of the added partition must not close the user's interceptor on its own
+        verify(interceptor).close();
+    }
+
+    @Test
+    public void testProducerInterceptorSharedByTwoProducersClosedForEach() throws Exception {
+        String topic = newTopicName();
+        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor =
+                mock(org.apache.pulsar.client.api.interceptor.ProducerInterceptor.class);
+        ProducerBuilder<String> builder = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .intercept(interceptor);
+        Producer<String> producer1 = builder.create();
+        Producer<String> producer2 = builder.create();
+
+        producer1.close();
+        verify(interceptor).close();
+
+        producer2.close();
+        verify(interceptor, times(2)).close();
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testConsumerInterceptorClosedOnceOnConsumerClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+        ConsumerInterceptor<String> interceptor = mock(ConsumerInterceptor.class);
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .intercept(interceptor)
+                .subscribe();
+        verify(interceptor, never()).close();
+
+        consumer.close();
+        consumer.close();
+
+        verify(interceptor).close();
+    }
+
+    @Test(dataProvider = "topicPartition")
+    public void testReaderInterceptorClosedOnceOnReaderClose(int topicPartition) throws Exception {
+        String topic = newTopicName();
+        if (topicPartition > 0) {
+            admin.topics().createPartitionedTopic(topic, topicPartition);
+        }
+        ReaderInterceptor<String> interceptor = mock(ReaderInterceptor.class);
+        Reader<String> reader = pulsarClient.newReader(Schema.STRING)
+                .topic(topic)
+                .startMessageId(MessageId.earliest)
+                .intercept(interceptor)
+                .create();
+        verify(interceptor, never()).close();
+
+        reader.close();
+        reader.close();
+
+        verify(interceptor).close();
     }
 
     private void produceAndConsume(int msgCount, Producer<byte[]> producer, Reader<byte[]> reader)

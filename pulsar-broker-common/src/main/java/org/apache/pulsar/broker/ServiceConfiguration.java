@@ -337,9 +337,20 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
         category = CATEGORY_SERVER,
         doc = "Number of threads to use for Netty IO."
-            + " Default is set to `2 * Runtime.getRuntime().availableProcessors()`"
+            + " Default is set to half the available processors, but no fewer than 8 unless that exceeds twice the"
+            + " available processors: `Math.min(2 * n, Math.max(8, n / 2))` for n available processors."
+            + " Increase it when the busiest pulsar-io thread stays busy and consumers' backlogs grow"
     )
-    private int numIOThreads = 2 * Runtime.getRuntime().availableProcessors();
+    private int numIOThreads = defaultNumIOThreads(Runtime.getRuntime().availableProcessors());
+
+    /**
+     * The default number of Netty IO threads for the given number of available processors: half of them, but no fewer
+     * than 8 unless that exceeds twice the processors. Fewer, busier event loops batch more work per wakeup and
+     * system call, and the threads that hand work over to them, such as a managed ledger's, wake them less often.
+     */
+    static int defaultNumIOThreads(int availableProcessors) {
+        return Math.min(2 * availableProcessors, Math.max(8, availableProcessors / 2));
+    }
 
     @FieldContext(
         category = CATEGORY_SERVER,
@@ -473,11 +484,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
             (disable with value -1)""")
     private int delayedDeliveryMaxNumBuckets = -1;
 
+    @FieldContext(category = CATEGORY_SERVER, doc = "Allow the in-memory delayed delivery tracker "
+            + "to pause cursor reads "
+            + "after detecting ordered delivery times in a lookahead window. Default is false. "
+            + "Enable only when applications guarantee non-decreasing delivery times for all messages on the broker, "
+            + "including future publications. An immediate message must not follow a message scheduled in the future. "
+            + "The broker cannot verify the delivery times of unread messages. "
+            + "When disabled, the broker scans and tracks the delayed backlog, which can increase memory and read I/O. "
+            + "Enabling this option restores the legacy fixed-delay read-pause behavior. Requires a broker restart.")
+    private boolean delayedDeliveryAssumeOrderedDeliveryTimes = false;
+
     @FieldContext(category = CATEGORY_SERVER, doc = "Size of the lookahead window to use "
             + "when detecting if all the messages in the topic have a fixed delay for "
             + "InMemoryDelayedDeliveryTracker (the default DelayedDeliverTracker). "
             + "Default is 50,000. Setting the lookahead window to 0 will disable the "
-            + "logic to handle fixed delays in messages in a different way.")
+            + "logic to handle fixed delays in messages in a different way. "
+            + "A positive value only enables read pauses when delayedDeliveryAssumeOrderedDeliveryTimes is true.")
     private long delayedDeliveryFixedDelayDetectionLookahead = 50_000;
 
     @FieldContext(category = CATEGORY_SERVER, doc = """
@@ -2634,14 +2656,16 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int managedLedgerCacheSizeMB = Math.max(64,
             (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 5 / (1024 * 1024)));
 
-    @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Whether we should make a copy of the entry payloads when "
+    @FieldContext(category = CATEGORY_STORAGE_ML, dynamic = true,
+        doc = "Whether we should make a copy of the entry payloads when "
             + "inserting in cache. Without a copy, a cached entry keeps the buffer that it was received in allocated\n"
             + "while it stays in the cache. That is a buffer of the Netty connection that the entry arrived on, from\n"
             + "a client or from a bookie, such as a receive buffer or one that the TLS handler or the frame decoder\n"
             + "allocated, and it can be much larger than the entry. The cache size limit counts only\n"
             + "the entry's own size, so size-based eviction doesn't bound that memory, and\n"
             + "managedLedgerCacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes extends how long it\n"
-            + "stays allocated.")
+            + "stays allocated. Dynamic updates apply to subsequent cache insertions; existing cached entries keep "
+            + "their original buffers and are not cleared.")
     private boolean managedLedgerCacheCopyEntries = false;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum buffer size in MB for bytes read from storage"
@@ -2655,6 +2679,19 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "Set to 0 to disable the feature.\n"
             + "Set to a value greater than 0 to use that many MB.")
     private Long managedLedgerMaxReadsInFlightSizeInMB = null;
+
+    @FieldContext(
+            category = CATEGORY_STORAGE_ML,
+            doc = "Read ahead for cursors that read ranges of entries, such as subscriptions catching up with a"
+                    + " backlog: when a cursor reads a range, the managed ledger also reads the next range of the"
+                    + " same ledger into the entry cache, unless it's cached, so that the cursor's next read finds it"
+                    + " in the cache or joins the read in progress instead of waiting for the storage. A cursor has at"
+                    + " most one read ahead in progress; a read ahead takes no permits of"
+                    + " managedLedgerMaxReadsInFlightSizeInMB that reads are waiting for, nor ones that would leave"
+                    + " more than 70 % of the limit in use, and is skipped when the entry cache is at its eviction"
+                    + " watermark (managedLedgerCacheEvictionWatermark). Set to false to disable it"
+    )
+    private boolean managedLedgerReadAheadEnabled = true;
 
     @FieldContext(category = CATEGORY_STORAGE_ML, doc = "Maximum time to wait for acquiring permits for max reads in "
             + "flight when managedLedgerMaxReadsInFlightSizeInMB is set (>0) and the limit is reached.")
@@ -4169,7 +4206,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
-        doc = "The directory where nar Extraction of offloaders happens"
+        doc = "The directory where nar packages are extracted. Default is java.io.tmpdir. Outside of Kubernetes,"
+            + " OS cleanup of /tmp (for example, by systemd-tmpfiles) can delete extracted files while the broker is"
+            + " running, which causes ClassNotFoundException or NoClassDefFoundError errors. In that case, set this"
+            + " to a dedicated directory that isn't cleaned up automatically."
     )
     private String narExtractionDirectory = NarClassLoader.DEFAULT_NAR_EXTRACTION_DIR;
 

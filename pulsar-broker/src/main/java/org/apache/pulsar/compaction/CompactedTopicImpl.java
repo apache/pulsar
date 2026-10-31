@@ -78,6 +78,7 @@ public class CompactedTopicImpl implements CompactedTopic {
 
             // Do NOT set compactedTopicContext or compactionHorizon yet — those are promoted only
             // after the caller's mark-delete is durable (see promoteNewCompactedLedger).
+            // The missing-ledger fallback is handled in promoteNewCompactedLedger().
             pendingCompactedLedger = new PendingCompactedLedger(newFuture, compactedLedgerId);
 
             // delete the ledger from the old context once the new one is open
@@ -304,9 +305,7 @@ public class CompactedTopicImpl implements CompactedTopic {
 
     @Override
     public CompletableFuture<Entry> readLastEntryOfCompactedLedger() {
-        // Capture the context once: the missing-ledger callback may clear the field between a null
-        // check and the composition below, which would dereference null a second time and throw a
-        // synchronous NullPointerException instead of failing through the returned future.
+        // Capture the context once so an explicit reset cannot race the null check and composition.
         CompletableFuture<CompactedTopicContext> context = compactedTopicContext;
         if (compactionHorizon == null || context == null) {
             return CompletableFuture.completedFuture(null);
@@ -387,7 +386,7 @@ public class CompactedTopicImpl implements CompactedTopic {
         return Optional.ofNullable(this.compactionHorizon);
     }
 
-    public void reset() {
+    public synchronized void reset() {
         this.compactionHorizon = null;
         this.compactedTopicContext = null;
         this.pendingCompactedLedger = null;
@@ -414,4 +413,3 @@ public class CompactedTopicImpl implements CompactedTopic {
         }
     }
 }
-

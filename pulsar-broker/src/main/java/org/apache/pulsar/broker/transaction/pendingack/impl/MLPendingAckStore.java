@@ -35,6 +35,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -60,6 +62,7 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.transaction.coordinator.impl.TxnBatchedPositionImpl;
 import org.apache.pulsar.transaction.coordinator.impl.TxnLogBufferedWriter;
@@ -120,6 +123,8 @@ public class MLPendingAckStore implements PendingAckStore {
 
     private TxnLogBufferedWriter<PendingAckMetadataEntry> bufferedWriter;
 
+    private final Timer timer;
+
     @SuppressWarnings("unchecked")
     public MLPendingAckStore(ManagedLedger managedLedger, ManagedCursor cursor,
                              ManagedCursor subManagedCursor, long transactionPendingAckLogIndexMinLag,
@@ -136,6 +141,7 @@ public class MLPendingAckStore implements PendingAckStore {
         this.lastConfirmedEntry = managedLedger.getLastConfirmedEntry();
         this.pendingAckLogIndex = new ConcurrentSkipListMap<>();
         this.subManagedCursor = subManagedCursor;
+        this.timer = timer;
         this.logIndexBackoff = new LogIndexLagBackoff(transactionPendingAckLogIndexMinLag, Long.MAX_VALUE, 1);
         this.maxIndexLag = logIndexBackoff.next(0);
         this.bufferedWriter = new TxnLogBufferedWriter(managedLedger, executor,
@@ -148,8 +154,8 @@ public class MLPendingAckStore implements PendingAckStore {
 
     @Override
     public void replayAsync(PendingAckHandleImpl pendingAckHandle, ExecutorService transactionReplayExecutor) {
-        transactionReplayExecutor
-                .execute(new PendingAckReplay(new MLPendingAckReplyCallBack(pendingAckHandle)));
+        transactionReplayExecutor.execute(new PendingAckReplay(new MLPendingAckReplyCallBack(pendingAckHandle),
+                transactionReplayExecutor));
     }
 
     //TODO can control the number of entry to read
@@ -395,22 +401,30 @@ public class MLPendingAckStore implements PendingAckStore {
 
         private final FillEntryQueueCallback fillEntryQueueCallback;
         private final PendingAckReplyCallBack pendingAckReplyCallBack;
+        private final Executor replayExecutor;
+        private final Backoff readRetryBackoff = Backoff.builder().build();
+        private boolean retryingRead;
 
-        PendingAckReplay(PendingAckReplyCallBack pendingAckReplyCallBack) {
+        PendingAckReplay(PendingAckReplyCallBack pendingAckReplyCallBack, Executor replayExecutor) {
             this.fillEntryQueueCallback = new FillEntryQueueCallback();
             this.pendingAckReplyCallBack = pendingAckReplyCallBack;
+            this.replayExecutor = replayExecutor;
         }
 
         @Override
         public void run() {
             try {
                 if (cursor.isClosed()) {
-                    pendingAckReplyCallBack.replayFailed(new ManagedLedgerException
+                    failReplay(new ManagedLedgerException
                             .CursorAlreadyClosedException("MLPendingAckStore cursor have been closed."));
                     log.warn("MLPendingAckStore cursor have been closed, close replay thread");
                     return;
                 }
                 while (lastConfirmedEntry.compareTo(currentLoadPosition) > 0 && fillEntryQueueCallback.fillQueue()) {
+                    if (retryingRead && fillEntryQueueCallback.hasReadSucceededSinceFailure()) {
+                        retryingRead = false;
+                        readRetryBackoff.reset();
+                    }
                     Entry entry = entryQueue.poll();
                     if (entry != null) {
                         try {
@@ -445,8 +459,7 @@ public class MLPendingAckStore implements PendingAckStore {
                         // ManagedCursorImpl#asyncReadEntriesWithSkip, which clears isReadable and ends
                         // the loop through the existing read failure handling.
                         if (cursor.isClosed()) {
-                            stopReplay();
-                            pendingAckReplyCallBack.replayFailed(new ManagedLedgerException
+                            failReplay(new ManagedLedgerException
                                     .CursorAlreadyClosedException("MLPendingAckStore cursor was closed "
                                     + "while replaying."));
                             log.warn("MLPendingAckStore cursor was closed while replaying, close replay thread");
@@ -459,8 +472,7 @@ public class MLPendingAckStore implements PendingAckStore {
                             // be reported as successful: replayFailed() lets PendingAckHandleImpl decide
                             // whether to retry instead of leaving the handle Ready with partial state.
                             Thread.currentThread().interrupt();
-                            stopReplay();
-                            pendingAckReplyCallBack.replayFailed(e);
+                            failReplay(e);
                             log.warn()
                                     .exception(e)
                                     .log("Transaction pending ack replay thread was interrupted");
@@ -469,9 +481,25 @@ public class MLPendingAckStore implements PendingAckStore {
                     }
                 }
             } catch (Exception e) {
-                stopReplay();
-                pendingAckReplyCallBack.replayFailed(e);
+                failReplay(e);
                 log.error().exception(e).log("Pending ack recover fail");
+                return;
+            }
+            ManagedLedgerException readFailure = fillEntryQueueCallback.takeReadFailure();
+            if (readFailure != null && lastConfirmedEntry.compareTo(currentLoadPosition) > 0) {
+                // A read failed before the replay caught up. If it had already caught up, the failure of a
+                // read beyond the last confirmed entry does not matter.
+                if (readFailure instanceof ManagedLedgerException.NonRecoverableLedgerException
+                        || readFailure.getCause() instanceof RejectedExecutionException) {
+                    // A non-recoverable failure means autoSkipNonRecoverableData is disabled (otherwise the
+                    // replay was completed), so the read position cannot move and retrying can never succeed.
+                    // A rejected completion means the read succeeded and moved the read position, but the
+                    // managed ledger executor, which is shutting down, could not deliver the entries; retrying
+                    // would skip them.
+                    failReplay(readFailure);
+                    return;
+                }
+                retryReadLater(readFailure);
                 return;
             }
             stopReplay();
@@ -479,14 +507,59 @@ public class MLPendingAckStore implements PendingAckStore {
         }
 
         /**
+         * Pauses the replay after a transient read failure and resumes it after a backoff delay, releasing the
+         * replay thread meanwhile: it is shared by every subscription assigned to it. The attempt continues
+         * where it stopped, with its replayed state and the cursor left as they are. A failed read does not move
+         * the cursor's read position, so nothing is skipped or replayed twice. Starting a new attempt instead
+         * would replay the log again on top of the state the handle has already built, and the replay handlers
+         * are not idempotent. The entries read before the failure have already been processed, see
+         * {@link FillEntryQueueCallback#fillQueue()}.
+         */
+        private void retryReadLater(ManagedLedgerException readFailure) {
+            long delayMs = readRetryBackoff.next().toMillis();
+            retryingRead = true;
+            log.warn()
+                    .exceptionMessage(readFailure)
+                    .attr("currentLoadPosition", currentLoadPosition)
+                    .attr("retryDelayMs", delayMs)
+                    .log("Pending ack replay read failed, retrying the read");
+            try {
+                timer.newTimeout(timeout -> {
+                    try {
+                        replayExecutor.execute(this);
+                    } catch (RejectedExecutionException e) {
+                        failReplay(e);
+                    }
+                }, delayMs, TimeUnit.MILLISECONDS);
+            } catch (RuntimeException e) {
+                // The timer has been stopped: the broker is shutting down.
+                failReplay(e);
+            }
+        }
+
+        /**
          * Ends the replay. Entries that were read but never processed are released, and any read that is
          * still in flight will release its entries itself instead of queueing them, so nothing is left
-         * holding a buffer once the replay thread is gone. Called on every exit from {@link #run()}.
+         * holding a buffer once the replay thread is gone. Called whenever the replay ends.
          */
         private void stopReplay() {
             for (Entry entry : fillEntryQueueCallback.stopAndDrain()) {
                 entry.release();
             }
+        }
+
+        /**
+         * Ends this replay attempt as failed. If the handle retries, it creates a new store and never closes this
+         * one, so the buffered writer is closed here to cancel its recurring flush timer. Closing it is
+         * idempotent, and no append can be in flight because acknowledgements are queued until the handle is
+         * ready; if the handle gives up instead, the queued requests it then drains fail against the closed
+         * writer rather than being persisted on top of an incomplete replay. The cursor and the managed ledger
+         * stay open: they are cached and reused by the next attempt.
+         */
+        private void failReplay(Throwable t) {
+            stopReplay();
+            bufferedWriter.close();
+            pendingAckReplyCallBack.replayFailed(t);
         }
     }
 
@@ -512,6 +585,11 @@ public class MLPendingAckStore implements PendingAckStore {
     class FillEntryQueueCallback implements AsyncCallbacks.ReadEntriesCallback {
 
         private volatile boolean isReadable = true;
+        /**
+         * A read failure that the replay thread has not handled yet, or null. While it is set, no read is issued.
+         */
+        private volatile ManagedLedgerException readFailure;
+        private volatile boolean readSucceededSinceFailure;
         private final AtomicLong outstandingReadsRequests = new AtomicLong(0);
         private static final int NUMBER_OF_PER_READ_ENTRY = 100;
         /**
@@ -523,8 +601,12 @@ public class MLPendingAckStore implements PendingAckStore {
         private boolean stopped;
 
         boolean fillQueue() {
+            // isReadable and readFailure must be checked after outstandingReadsRequests: readEntriesFailed sets
+            // them before decrementing, so no read is ever issued after a failed one.
             if (entryQueue.size() + NUMBER_OF_PER_READ_ENTRY < entryQueue.capacity()
-                    && outstandingReadsRequests.get() == 0) {
+                    && outstandingReadsRequests.get() == 0
+                    && isReadable
+                    && readFailure == null) {
                 if (cursor.hasMoreEntries()) {
                     outstandingReadsRequests.incrementAndGet();
                     readAsync(NUMBER_OF_PER_READ_ENTRY, this);
@@ -548,6 +630,11 @@ public class MLPendingAckStore implements PendingAckStore {
                                     + "because the cursor has nothing left to read");
                     isReadable = false;
                 }
+            }
+            if (readFailure != null) {
+                // Process the entries read before the failure, then let the replay thread handle it. Queued
+                // entries hold read permits until they are released, so retrying first could fail forever.
+                return !entryQueue.isEmpty();
             }
             return isReadable;
         }
@@ -574,6 +661,7 @@ public class MLPendingAckStore implements PendingAckStore {
                     }
                 }
             }
+            readSucceededSinceFailure = true;
             // Released outside the lock: releasing an entry can run a deallocation callback.
             if (entriesToRelease != null) {
                 entriesToRelease.forEach(Entry::release);
@@ -599,14 +687,43 @@ public class MLPendingAckStore implements PendingAckStore {
 
         @Override
         public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-            if (managedLedger.getConfig().isAutoSkipNonRecoverableData()
-                    && exception instanceof ManagedLedgerException.NonRecoverableLedgerException
+            // These failures complete the replay as if it had reached the end of the log: the unreadable
+            // data is skipped by explicit configuration, or the store is being taken over or torn down
+            // and the handle must still become ready to release its callers.
+            boolean completesReplay = (managedLedger.getConfig().isAutoSkipNonRecoverableData()
+                    && exception instanceof ManagedLedgerException.NonRecoverableLedgerException)
                     || exception instanceof ManagedLedgerException.ManagedLedgerFencedException
-                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException) {
+                    || exception instanceof ManagedLedgerException.CursorAlreadyClosedException;
+            if (completesReplay) {
+                // Nothing downstream logs this: the handle goes on to report a successful recovery.
+                log.warn()
+                        .exception(exception)
+                        .attr("currentLoadPosition", currentLoadPosition)
+                        .attr("lastConfirmedEntry", lastConfirmedEntry)
+                        .log("Pending ack replay read failed, completing the replay");
                 isReadable = false;
+            } else {
+                // Any other failure stops reading instead of re-issuing the same read in a hot loop; the replay
+                // thread then retries it with backoff or fails the replay.
+                readFailure = exception;
             }
-            log.error().exception(exception).log("MLPendingAckStore of topic stat reply fail");
+            // Set before the decrement, see fillQueue().
             outstandingReadsRequests.decrementAndGet();
+        }
+
+        /**
+         * Returns and clears the read failure that stopped the replay loop, or null, letting reads be issued
+         * again. Only called by the replay thread once the loop has exited, when no read is in flight.
+         */
+        ManagedLedgerException takeReadFailure() {
+            ManagedLedgerException failure = readFailure;
+            readSucceededSinceFailure = false;
+            readFailure = null;
+            return failure;
+        }
+
+        boolean hasReadSucceededSinceFailure() {
+            return readSucceededSinceFailure;
         }
 
     }

@@ -391,7 +391,7 @@ public class RawBatchMessageContainerImplTest {
         // Replace the real crypto with one whose encrypt() throws an unexpected RuntimeException, so the batch
         // payload is built (getCompressedBatchMetadataAndPayload) and then encryption fails outside the
         // PulsarClientException contract.
-        MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
+        MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock();
         when(crypto.getMaxOutputSize(anyInt())).thenReturn(128);
         doThrow(new RuntimeException("mocked crypto failure"))
                 .when(crypto).encrypt(anySet(), any(), any(), any(), any());
@@ -434,7 +434,7 @@ public class RawBatchMessageContainerImplTest {
         container.setCryptoKeyReader(cryptoKeyReader);
         container.add(createMessage("my-topic", "hi-1", 0), null);
 
-        MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock(MessageCrypto.class);
+        MessageCrypto<MessageMetadata, MessageMetadata> crypto = mock();
         when(crypto.getMaxOutputSize(anyInt())).thenReturn(128);
         doThrow(new PulsarClientException("mocked crypto failure"))
                 .when(crypto).encrypt(anySet(), any(), any(), any(), any());

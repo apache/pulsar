@@ -47,6 +47,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.lang.reflect.Field;
@@ -67,6 +68,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -86,6 +88,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -130,10 +133,12 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerTestUtil;
 import org.apache.bookkeeper.mledger.util.ManagedLedgerUtils;
+import org.apache.bookkeeper.mledger.util.MockClock;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.commons.collections4.iterators.EmptyIterator;
 import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.IntRange;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -3915,6 +3920,373 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     }
 
     @Test(timeOut = 20000)
+    void testReplayEntriesReadsRunsOfClosePositionsTogether() throws Exception {
+        replayRunsOfClosePositions("test_replay_runs", false, true);
+    }
+
+    @Test(timeOut = 20000)
+    void testReplayEntriesReadsCachedPositionsAndRunsOfTheOthers() throws Exception {
+        replayRunsOfClosePositions("test_replay_runs_partly_cached", true, true);
+    }
+
+    @Test(timeOut = 20000)
+    void testReplayEntriesReadsRunsOfClosePositionsWithReadPositionBasedEviction() throws Exception {
+        replayRunsOfClosePositions("test_replay_runs_read_position_eviction", false, false);
+    }
+
+    @Test
+    void testReplayRunsAreBoundedByTheGapAndTheSizeOfTheEntries() {
+        List<Position> positions = new ArrayList<>();
+        for (long entryId : new long[]{0, 2, 4, 12, 30, 600, 601}) {
+            positions.add(PositionFactory.create(1, entryId));
+        }
+        positions.add(PositionFactory.create(2, 0));
+        // small entries: the positions in a ledger at most 8 entries apart
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> 100, Long.MAX_VALUE)),
+                List.of(List.of(0L, 2L, 4L, 12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        // 100 KiB entries: one entry in between fits the 192 KiB gap, and 10 entries the 1 MiB span
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100 * 1024, ledgerId -> 100 * 1024,
+                        Long.MAX_VALUE)),
+                List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(List.of(PositionFactory.create(1, 0),
+                        PositionFactory.create(1, 3)), 100 * 1024, ledgerId -> 100 * 1024, Long.MAX_VALUE)),
+                List.of(List.of(0L), List.of(3L)));
+        // entries larger than the gap: only adjacent positions are read together
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 200 * 1024, ledgerId -> 200 * 1024,
+                        Long.MAX_VALUE)),
+                List.of(List.of(0L), List.of(2L), List.of(4L), List.of(12L), List.of(30L), List.of(600L, 601L),
+                        List.of(0L)));
+        // a replay's runs take at most the given bytes of entries in between in all, by the estimated entry size of
+        // their ledger; adjacent positions still make a run
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> 100, 800)),
+                List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> ledgerId == 1 ? 1000 : 100,
+                        8000)),
+                List.of(List.of(0L, 2L, 4L), List.of(12L), List.of(30L), List.of(600L, 601L), List.of(0L)));
+        // without an estimate, no entries in between
+        assertEquals(runEntryIds(ManagedCursorImpl.replayRuns(positions, 100, ledgerId -> -1, Long.MAX_VALUE)),
+                List.of(List.of(0L), List.of(2L), List.of(4L), List.of(12L), List.of(30L), List.of(600L, 601L),
+                        List.of(0L)));
+    }
+
+    // A range read holds its permits on the inflight reads limiter until its wanted entries are released, which the
+    // replay keeps until its other reads complete. With a limit that the wanted entries' own reads fit, the replay's
+    // runs of 16 KiB entries, 8 entries apart, would take more than the limit together, and the last one would time
+    // out waiting for permits, if the entries in between weren't bounded by the limiter's bytes that the wanted
+    // entries leave.
+    @Test
+    void testReplayRangeReadsFitTheInflightReadsLimit() throws Exception {
+        replayUnderInflightReadsLimit("test_replay_inflight_limit", false);
+    }
+
+    // The same, with a ledger of small entries after the ledger of the replayed 16 KiB entries, which makes the
+    // managed ledger's average entry size smaller than the replayed ledger's: the limiter acquires the permits by the
+    // replayed ledger's own entry size.
+    @Test
+    void testReplayRangeReadsFitTheInflightReadsLimitWithLedgersOfDifferentEntrySizes() throws Exception {
+        replayUnderInflightReadsLimit("test_replay_inflight_limit_mixed", true);
+    }
+
+    private void replayUnderInflightReadsLimit(String name, boolean smallEntriesInTheNextLedger) throws Exception {
+        ManagedLedgerFactoryConfig factoryConfig = new ManagedLedgerFactoryConfig();
+        factoryConfig.setMaxCacheSize(0);
+        factoryConfig.setManagedLedgerMaxReadsInFlightSize(5 * 1024 * 1024);
+        factoryConfig.setManagedLedgerMaxReadsInFlightPermitsAcquireTimeoutMillis(500);
+        ManagedLedgerFactoryImpl limitedFactory = new ManagedLedgerFactoryImpl(metadataStore, bkc, factoryConfig);
+        try {
+            ManagedLedgerConfig config = defaultConfig();
+            config.setMaxEntriesPerLedger(377);
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) limitedFactory.open(name, config);
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+            byte[] data = new byte[16 * 1024];
+            Set<Position> positions = new TreeSet<>();
+            for (int i = 0; i <= 376; i++) {
+                Position position = ledger.addEntry(data);
+                if (i % 8 == 0) {
+                    positions.add(position);
+                }
+            }
+            if (smallEntriesInTheNextLedger) {
+                for (int i = 0; i <= 376; i++) {
+                    ledger.addEntry(new byte[128]);
+                }
+                // the full ledger rolls over to a third, empty one in the background
+                Awaitility.await().untilAsserted(() -> assertEquals(ledger.getLedgersInfo().size(), 3));
+            }
+            CompletableFuture<List<Entry>> replayed = new CompletableFuture<>();
+            cursor.asyncReplayEntries(positions, new AsyncCallbacks.ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    replayed.complete(entries);
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    replayed.completeExceptionally(exception);
+                }
+            }, null);
+            List<Entry> entries = replayed.get(10, TimeUnit.SECONDS);
+            try {
+                assertEquals(entries.stream().map(Entry::getPosition).sorted().toList(), List.copyOf(positions));
+            } finally {
+                entries.forEach(Entry::release);
+            }
+        } finally {
+            limitedFactory.shutdown();
+        }
+    }
+
+    private static List<List<Long>> runEntryIds(List<List<Position>> runs) {
+        return runs.stream().map(run -> run.stream().map(Position::getEntryId).toList()).toList();
+    }
+
+    // Replays runs of close positions whose entries aren't cached, or of which every third one is cached, which is read
+    // from the cache, with some entries in between the others cached too, which their range reads take from the cache.
+    // With the expected read count based eviction, it checks the expected read counts too, which the read position
+    // based eviction doesn't use: it can evict a replayed entry once the cursor's read position has passed it.
+    private void replayRunsOfClosePositions(String name, boolean partlyCached, boolean evictionByExpectedReadCount)
+            throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setCacheEvictionByExpectedReadCount(evictionByExpectedReadCount);
+        config.setMaxEntriesPerLedger(300);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(name, config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> added = new ArrayList<>();
+        for (int i = 0; i < 600; i++) {
+            added.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        // a run of every 8th entry longer than a range read takes, positions in both ledgers, and lone positions in
+        // the second ledger, further apart than a range read's gap
+        Set<Position> positions = new TreeSet<>();
+        for (int i = 0; i < 296; i += 8) {
+            positions.add(added.get(i));
+        }
+        positions.add(added.get(299));
+        positions.add(added.get(300));
+        positions.add(added.get(590));
+        // the replay reads the entries from storage, unless they're cached
+        ledger.entryCache.clear();
+        if (partlyCached) {
+            List<Position> toCache = new ArrayList<>();
+            int i = 0;
+            for (Position position : positions) {
+                if (i++ % 3 == 0) {
+                    toCache.add(position);
+                }
+            }
+            // entries in between the uncached positions 8 and 16, and 32 and 40, which other cursors will read
+            toCache.add(added.get(12));
+            toCache.add(added.get(36));
+            for (Position position : toCache) {
+                // the replay positions with the expected read that the dispatcher adds for the replay
+                int expectedReadCount = positions.contains(position) ? 1 : 2;
+                CompletableFuture<Entry> read = new CompletableFuture<>();
+                ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+                    @Override
+                    public void readEntryComplete(Entry entry, Object ctx) {
+                        read.complete(entry);
+                    }
+
+                    @Override
+                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                        read.completeExceptionally(exception);
+                    }
+                }, null);
+                Entry entry = read.get(10, TimeUnit.SECONDS);
+                EntryImpl toInsert = EntryImpl.create(position, entry.getDataBuffer(), expectedReadCount);
+                ledger.entryCache.insert(toInsert);
+                toInsert.setDecreaseReadCountOnRelease(false);
+                toInsert.release();
+                entry.release();
+                assertEquals(cachedExpectedReadCount(ledger, position), expectedReadCount);
+            }
+        }
+        assertFalse(ledger.entryCache.hasEntry(added.get(1)));
+
+        CompletableFuture<List<Entry>> replayed = new CompletableFuture<>();
+        cursor.asyncReplayEntries(positions, new AsyncCallbacks.ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                replayed.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                replayed.completeExceptionally(exception);
+            }
+        }, null, true);
+
+        List<Entry> entries = replayed.get(10, TimeUnit.SECONDS);
+        // exactly the positions, in order, with their data, each with an expected read for the replay
+        assertEquals(entries.stream().map(Entry::getPosition).toList(), new ArrayList<>(positions));
+        for (Entry entry : entries) {
+            assertEquals(new String(entry.getData(), Encoding), "entry-" + added.indexOf(entry.getPosition()));
+        }
+        if (!evictionByExpectedReadCount) {
+            entries.forEach(Entry::release);
+            return;
+        }
+        for (Entry entry : entries) {
+            assertEquals(entry.getReadCountHandler().getExpectedReadCount(), 1,
+                    "expected read count of " + entry.getPosition());
+        }
+        // the dispatcher adds the position 8 to the replay queue again, and releases the entries
+        entries.get(1).getReadCountHandler().incrementExpectedReadCount();
+        entries.forEach(Entry::release);
+        // the replay's read is done, and the position added again keeps an expected read
+        assertEquals(cachedExpectedReadCount(ledger, added.get(0)), 0);
+        assertEquals(cachedExpectedReadCount(ledger, added.get(8)), 1);
+        assertEquals(cachedExpectedReadCount(ledger, added.get(590)), 0);
+        if (partlyCached) {
+            // the entries in between that the cache had keep the other cursors' expected reads
+            assertEquals(cachedExpectedReadCount(ledger, added.get(12)), 2);
+            assertEquals(cachedExpectedReadCount(ledger, added.get(36)), 2);
+        } else {
+            // the entries in between that a range read took from storage are cached without expected reads, and the
+            // entries outside the ranges aren't read
+            assertEquals(cachedExpectedReadCount(ledger, added.get(1)), 0);
+            assertFalse(ledger.entryCache.hasEntry(added.get(589)));
+            // another cursor's read of the entry 1 has no expected read to take
+            CompletableFuture<Entry> read = new CompletableFuture<>();
+            ledger.asyncReadEntry(added.get(1), new AsyncCallbacks.ReadEntryCallback() {
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
+                    read.complete(entry);
+                }
+
+                @Override
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    read.completeExceptionally(exception);
+                }
+            }, null);
+            read.get(10, TimeUnit.SECONDS).release();
+            assertEquals(cachedExpectedReadCount(ledger, added.get(1)), 0);
+            // and a replay of it adds an expected read for the replay
+            CompletableFuture<List<Entry>> replayedAgain = new CompletableFuture<>();
+            cursor.asyncReplayEntries(Set.of(added.get(1)), new AsyncCallbacks.ReadEntriesCallback() {
+                @Override
+                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                    replayedAgain.complete(entries);
+                }
+
+                @Override
+                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    replayedAgain.completeExceptionally(exception);
+                }
+            }, null, true);
+            Entry entry = replayedAgain.get(10, TimeUnit.SECONDS).get(0);
+            assertEquals(entry.getReadCountHandler().getExpectedReadCount(), 1);
+            entry.release();
+            assertEquals(cachedExpectedReadCount(ledger, added.get(1)), 0);
+        }
+    }
+
+    @Test(timeOut = 20000)
+    void testReplayAtReadPositionMovesReadPositionForwardOnce() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test_replay_at_read_position");
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> added = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            added.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        assertEquals(cursor.getReadPosition(), added.get(0));
+
+        // a replay of the read position moves it to the next position, so that a normal read doesn't read it again
+        cursor.replayEntries(Set.of(added.get(0))).forEach(Entry::release);
+        assertEquals(cursor.getReadPosition(), added.get(1));
+
+        // a normal read of the entries 1 and 2 completes while a replay of the entry 1 compares it with the read
+        // position: the replay must neither move the read position back to the entry 2 nor past the entry 3
+        Position afterNormalRead = added.get(2).getNext();
+        Position replayed = added.get(1);
+        AtomicBoolean normalReadCompleted = new AtomicBoolean();
+        Position racingReplayPosition = new Position() {
+            @Override
+            public long getLedgerId() {
+                return replayed.getLedgerId();
+            }
+
+            @Override
+            public long getEntryId() {
+                return replayed.getEntryId();
+            }
+
+            @Override
+            public int compareTo(Position that) {
+                int result = replayed.compareTo(that);
+                if (that == cursor.readPosition && normalReadCompleted.compareAndSet(false, true)) {
+                    cursor.setReadPosition(afterNormalRead);
+                }
+                return result;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                return replayed.equals(obj);
+            }
+
+            @Override
+            public int hashCode() {
+                return replayed.hashCode();
+            }
+        };
+        List<Entry> entries = cursor.replayEntries(Set.of(racingReplayPosition));
+        assertEquals(entries.size(), 1);
+        assertEquals(new String(entries.get(0).getData(), Encoding), "entry-1");
+        entries.forEach(Entry::release);
+        assertTrue(normalReadCompleted.get());
+        assertEquals(cursor.getReadPosition(), afterNormalRead);
+    }
+
+    @Test(timeOut = 20000)
+    void testReadsOfAnInactiveCursorAreNotCached() throws Exception {
+        ManagedLedgerConfig config = initManagedLedgerConfig(defaultConfig());
+        config.setCacheEvictionByExpectedReadCount(true);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test_inactive_cursor_reads", config);
+        ManagedCursorImpl active = (ManagedCursorImpl) ledger.openCursor("active");
+        ManagedCursorImpl inactive = (ManagedCursorImpl) ledger.openCursor("inactive");
+        List<Position> added = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            added.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        ledger.entryCache.clear();
+        inactive.setInactive();
+        // an active cursor's reads are cached with an expected read, and an inactive cursor's aren't cached
+        assertEquals(active.getNumberOfCursorsAtSamePositionOrBefore(), 1);
+        assertEquals(inactive.getNumberOfCursorsAtSamePositionOrBefore(), EntryImpl.NO_EXPECTED_READ_COUNT);
+
+        List<Entry> entries = inactive.readEntries(10);
+        assertEquals(entries.size(), 10);
+        entries.forEach(Entry::release);
+        for (Position position : added) {
+            assertFalse(ledger.entryCache.hasEntry(position));
+        }
+    }
+
+    // The expected read count of the cached entry, which reading it doesn't change
+    private static int cachedExpectedReadCount(ManagedLedgerImpl ledger, Position position) throws Exception {
+        assertTrue(ledger.entryCache.hasEntry(position));
+        CompletableFuture<Entry> read = new CompletableFuture<>();
+        ledger.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                read.complete(entry);
+            }
+
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                read.completeExceptionally(exception);
+            }
+        }, null);
+        EntryImpl entry = (EntryImpl) read.get(10, TimeUnit.SECONDS);
+        int expectedReadCount = entry.getReadCountHandler() != null
+                ? entry.getReadCountHandler().getExpectedReadCount() : -1;
+        entry.setDecreaseReadCountOnRelease(false);
+        entry.release();
+        return expectedReadCount;
+    }
+
+    @Test(timeOut = 20000)
     void testGetLastIndividualDeletedRange() throws Exception {
         ManagedLedger ledger = factory.open("test_last_individual_deleted", initManagedLedgerConfig(defaultConfig()));
 
@@ -4092,6 +4464,74 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         e = c1.getNthEntry(1, IndividualDeletedEntries.Exclude);
         assertNull(e);
+    }
+
+    @DataProvider(name = "skipOrGetNthEntry")
+    public static Object[][] skipOrGetNthEntry() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    /**
+     * An acknowledgment that moves the mark-delete position over the individually deleted entries must not land
+     * between reading the mark-delete position and counting the individually deleted entries. Otherwise the
+     * deleted entries counted from the old state get skipped again from the new mark-delete position, and entries
+     * that were never acknowledged get skipped.
+     */
+    @Test(timeOut = 20000, dataProvider = "skipOrGetNthEntry")
+    void testPositionAfterNIsComputedFromConsistentCursorState(boolean skip) throws Exception {
+        ManagedLedgerImpl ledger = spy((ManagedLedgerImpl) factory.open(
+                "testPositionAfterNIsComputedFromConsistentCursorState-" + skip,
+                initManagedLedgerConfig(defaultConfig())));
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        cursor.delete(positions.get(1));
+        cursor.delete(positions.get(2));
+
+        // While the position after N is being computed, acknowledge entry 0 from another thread. That moves the
+        // mark-delete position to entry 2 and removes the individually deleted range (0, 2].
+        ReentrantReadWriteLock cursorLock = (ReentrantReadWriteLock) cursor.lock;
+        Thread callerThread = Thread.currentThread();
+        AtomicBoolean armed = new AtomicBoolean(true);
+        AtomicReference<Thread> ackThread = new AtomicReference<>();
+        AtomicReference<Throwable> ackFailure = new AtomicReference<>();
+        AtomicBoolean ackBlockedByCursorLock = new AtomicBoolean();
+        doAnswer(invocation -> {
+            if (Thread.currentThread() == callerThread && armed.compareAndSet(true, false)) {
+                Thread thread = new Thread(() -> {
+                    try {
+                        cursor.delete(positions.get(0));
+                    } catch (Throwable t) {
+                        ackFailure.set(t);
+                    }
+                }, "concurrent-ack");
+                ackThread.set(thread);
+                thread.start();
+                Awaitility.await().until(() -> cursorLock.hasQueuedThread(thread) || !thread.isAlive());
+                ackBlockedByCursorLock.set(cursorLock.hasQueuedThread(thread));
+            }
+            return invocation.callRealMethod();
+        }).when(ledger).getPositionAfterN(any(), anyLong(), any());
+
+        // skip or read the 2nd entry that isn't individually deleted: entry 3
+        if (skip) {
+            cursor.skipEntries(2, IndividualDeletedEntries.Exclude);
+        } else {
+            Entry entry = cursor.getNthEntry(2, IndividualDeletedEntries.Exclude);
+            assertNotNull(entry);
+            assertEquals(entry.getPosition(), positions.get(3));
+            entry.release();
+        }
+        assertNotNull(ackThread.get());
+        ackThread.get().join();
+        assertNull(ackFailure.get());
+
+        assertTrue(ackBlockedByCursorLock.get(),
+                "the acknowledgment should wait until the position after N has been computed");
+        assertEquals(cursor.getMarkDeletedPosition(), positions.get(skip ? 3 : 2));
+        assertEquals(cursor.getNumberOfEntries(), skip ? 6 : 7);
     }
 
     @Test(timeOut = 20000)
@@ -4543,6 +4983,45 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         assertEquals(markDeletePosition, cursor.getMarkDeletedPosition());
     }
 
+    @Test(timeOut = 30000)
+    public void testMarkDeleteFailureCallbackRunsOutsideCursorLock() throws Exception {
+        ManagedLedger ledger = factory.open("testMarkDeleteFailureCallbackRunsOutsideCursorLock", defaultConfig());
+        ManagedCursor cursor = ledger.openCursor("c1");
+        Position first = ledger.addEntry("entry1".getBytes(Encoding));
+        Position second = ledger.addEntry("entry2".getBytes(Encoding));
+        cursor.markDelete(second);
+
+        ExecutorService executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mark-delete-callback"));
+        CompletableFuture<Void> callbackCompleted = new CompletableFuture<>();
+        try {
+            cursor.asyncMarkDelete(first, new MarkDeleteCallback() {
+                @Override
+                public void markDeleteComplete(Object ctx) {
+                    callbackCompleted.completeExceptionally(new AssertionError("Expected mark-delete to fail"));
+                }
+
+                @Override
+                public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                    try {
+                        assertThat(exception.getCause()).isInstanceOf(IllegalArgumentException.class);
+                        // A non-empty replay acquires the cursor read lock even when every position is acknowledged.
+                        Future<Set<? extends Position>> replay = executor.submit(() -> cursor.asyncReplayEntries(
+                                Set.of(first), mock(ReadEntriesCallback.class), null));
+                        assertEquals(replay.get(10, TimeUnit.SECONDS), Set.of(first));
+                        callbackCompleted.complete(null);
+                    } catch (Exception | AssertionError e) {
+                        callbackCompleted.completeExceptionally(e);
+                    }
+                }
+            }, null);
+            callbackCompleted.get(10, TimeUnit.SECONDS);
+            assertEquals(cursor.getMarkDeletedPosition(), second);
+        } finally {
+            executor.shutdownNow();
+            assertTrue(executor.awaitTermination(10, TimeUnit.SECONDS));
+        }
+    }
+
     @Test
     public void testEstimatedUnackedSize() throws Exception {
         ManagedLedgerConfig config = defaultConfig();
@@ -4794,6 +5273,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         when(ml.getName()).thenReturn(mlName);
         when(ml.getStore()).thenReturn(mockMetaStore);
         when(ml.getLastPosition()).thenReturn(lastPosition);
+        when(ml.getLastPositionAndCounter()).thenReturn(Pair.of(lastPosition, 0L));
         when(ml.getNextValidLedger(markDeleteLedgerId)).thenReturn(3L);
         when(ml.getNextValidPosition(lastPosition)).thenReturn(nextPosition);
         when(ml.ledgerExists(markDeleteLedgerId)).thenReturn(false);
@@ -5658,6 +6138,76 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         }
 
         assertNotEquals(cursor.getCursorLedger(), initialLedgerId);
+    }
+
+    @Test
+    public void testShouldCloseLedgerObservesUpdatedMetadataMaxEntriesPerLedger() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataMaxEntriesPerLedger(10_000);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerObservesUpdatedMetadataMaxEntriesPerLedger", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        LedgerHandle lh = mock(LedgerHandle.class);
+        when(lh.getLastAddConfirmed()).thenReturn(1L);
+
+        // Cursor was created with a large rollover threshold, so a single persisted entry is not enough.
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        ManagedLedgerConfig updated = new ManagedLedgerConfig();
+        updated.setMetadataMaxEntriesPerLedger(1);
+        ledger.setConfig(updated);
+
+        // shouldCloseLedger must read the live config, not a cached derived threshold.
+        assertTrue(cursor.shouldCloseLedger(lh));
+    }
+
+    @Test
+    public void testShouldCloseLedgerObservesUpdatedLedgerRolloverTimeout() throws Exception {
+        MockClock clock = new MockClock();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setClock(clock);
+        config.setLedgerRolloverTimeout(14400);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerObservesUpdatedLedgerRolloverTimeout", config);
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+
+        LedgerHandle lh = mock(LedgerHandle.class);
+        // Keep lastAddConfirmed below the entries threshold so only the time check can close.
+        when(lh.getLastAddConfirmed()).thenReturn(0L);
+
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        // 2s is far below 14400s, but past the 1s timeout even with 5% jitter.
+        clock.advance(2, TimeUnit.SECONDS);
+        assertFalse(cursor.shouldCloseLedger(lh));
+
+        ManagedLedgerConfig updated = new ManagedLedgerConfig();
+        updated.setClock(clock);
+        updated.setLedgerRolloverTimeout(1);
+        ledger.setConfig(updated);
+
+        assertTrue(cursor.shouldCloseLedger(lh));
+    }
+
+    @Test
+    public void testShouldCloseLedgerEntriesJitterStaysWithinConfiguredMax() throws Exception {
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMetadataMaxEntriesPerLedger(1000);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(
+                "testShouldCloseLedgerEntriesJitterStaysWithinConfiguredMax", config);
+
+        LedgerHandle belowJitterRange = mock(LedgerHandle.class);
+        when(belowJitterRange.getLastAddConfirmed()).thenReturn(949L);
+        LedgerHandle atConfiguredMax = mock(LedgerHandle.class);
+        when(atConfiguredMax.getLastAddConfirmed()).thenReturn(1000L);
+
+        // Every cursor draws its own jitter: none may roll over before 95% of the limit or go past the limit.
+        for (int i = 0; i < 50; i++) {
+            ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c" + i);
+            assertFalse(cursor.shouldCloseLedger(belowJitterRange));
+            assertTrue(cursor.shouldCloseLedger(atConfiguredMax));
+        }
     }
 
     @Test
@@ -7401,6 +7951,88 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
         assertEquals(spyCursor.getMarkDeletedPosition(), markDeletePosition);
         assertEquals(spyCursor.getProperties(), properties);
+    }
+
+    @Test(timeOut = 30000)
+    public void testResetCursorIsNotDroppedByAckQueuedBehindIt() throws Exception {
+        CompletableFuture<Void> releaseReads = new CompletableFuture<>();
+        AtomicBoolean holdReads = new AtomicBoolean(false);
+        bkc.setReadHandleInterceptor((ledgerId, firstEntry, lastEntry, entries) ->
+                holdReads.get() ? releaseReads.thenApply(__ -> entries) : CompletableFuture.completedFuture(entries));
+
+        String ledgerName = "testResetCursorIsNotDroppedByAckQueuedBehindIt";
+        ManagedLedger ledger = factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ledger.openCursor("c1");
+        cursor.setInactive(); // disable caching when adding entries, so reads go to the bookie
+        List<Position> positions = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+            positions.add(ledger.addEntry(("entry-" + i).getBytes(Encoding)));
+        }
+        cursor.markDelete(positions.get(4));
+
+        // Keep a read in flight, so mark-delete requests are queued
+        holdReads.set(true);
+        CompletableFuture<List<Entry>> readFuture = new CompletableFuture<>();
+        cursor.asyncReadEntries(1, new ReadEntriesCallback() {
+            @Override
+            public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                readFuture.complete(entries);
+            }
+
+            @Override
+            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                readFuture.completeExceptionally(exception);
+            }
+        }, null, PositionFactory.LATEST);
+        Awaitility.await().until(() -> cursor.getPendingReadOpsCount() == 1);
+
+        // Queue a reset, then an ack that advances the mark-delete position behind it
+        CompletableFuture<Void> resetFuture = new CompletableFuture<>();
+        cursor.asyncResetCursor(positions.get(0), false, new AsyncCallbacks.ResetCursorCallback() {
+            @Override
+            public void resetComplete(Object ctx) {
+                resetFuture.complete(null);
+            }
+
+            @Override
+            public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                resetFuture.completeExceptionally(exception);
+            }
+        });
+        Awaitility.await().until(() -> cursor.pendingMarkDeleteOps.size() == 1);
+        cursor.asyncDelete(positions.get(5), new DeleteCallback() {
+            @Override
+            public void deleteComplete(Object ctx) {
+            }
+
+            @Override
+            public void deleteFailed(ManagedLedgerException exception, Object ctx) {
+            }
+        }, null);
+        assertEquals(cursor.pendingMarkDeleteOps.size(), 2);
+        assertEquals(cursor.pendingMarkDeleteOps.getLast().newPosition, positions.get(5));
+
+        // Completing the read flushes the queued mark-delete requests
+        releaseReads.complete(null);
+        readFuture.get(10, TimeUnit.SECONDS).forEach(Entry::release);
+        resetFuture.get(10, TimeUnit.SECONDS);
+
+        Position resetMarkDeletePosition = ((ManagedLedgerImpl) ledger).getPreviousPosition(positions.get(0));
+        assertEquals(cursor.getReadPosition(), positions.get(0));
+        assertEquals(cursor.getMarkDeletedPosition(), resetMarkDeletePosition);
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), resetMarkDeletePosition);
+        assertFalse(cursor.isMessageDeleted(positions.get(5)));
+
+        // Acknowledgments after the reset are persisted
+        holdReads.set(false);
+        cursor.markDelete(positions.get(2));
+        ledger.close();
+
+        ManagedLedger reopenedLedger = factory.open(ledgerName, defaultConfig());
+        ManagedCursorImpl reopenedCursor = (ManagedCursorImpl) reopenedLedger.openCursor("c1");
+        assertEquals(reopenedCursor.getMarkDeletedPosition(), positions.get(2));
+        assertFalse(reopenedCursor.isMessageDeleted(positions.get(5)));
+        reopenedLedger.close();
     }
 
     @SuppressWarnings("try")

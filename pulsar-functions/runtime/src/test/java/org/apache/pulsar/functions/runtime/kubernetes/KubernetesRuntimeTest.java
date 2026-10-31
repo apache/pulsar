@@ -485,14 +485,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 54;
-            portArg = 41;
-            metricsPortArg = 43;
-        } else {
-            extraDepsEnv = "";
+            totalArgs = 53;
             portArg = 40;
             metricsPortArg = 42;
-            totalArgs = 53;
+        } else {
+            extraDepsEnv = "";
+            portArg = 39;
+            metricsPortArg = 41;
+            totalArgs = 52;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -527,7 +527,6 @@ public class KubernetesRuntimeTest {
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
                 + " -Dio.netty.tryReflectionSetAccessible=true"
                 + " -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
-                + " -Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true"
                 + " --add-opens java.base/java.nio=ALL-UNNAMED"
                 + " --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
                 + " --add-opens java.base/java.util.zip=ALL-UNNAMED"
@@ -1030,7 +1029,10 @@ public class KubernetesRuntimeTest {
     public void testGolangConstructor() throws Exception {
         InstanceConfig config = createGolangInstanceConfig();
 
-        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0);
+        factory = createKubernetesRuntimeFactory(null, 10, 1.0, 1.0, Optional.empty(),
+                null, null, AuthenticationConfig.builder()
+                        .clientAuthenticationPlugin("com.MyAuth")
+                        .clientAuthenticationParameters("{\"authParam1\": \"authParamValue1\"}").build());
 
         verifyGolangInstance(config);
     }
@@ -1100,6 +1102,8 @@ public class KubernetesRuntimeTest {
                 + ".TestSink\",\"topic\":\"container-output\",\"serDeClassName\":\"org.apache.pulsar.functions"
                 + ".runtime.serde.Utf8Serializer\",\"typeClassName\":\"java.lang.String\"},\"resources\":{\"cpu\":1"
                 + ".0,\"ram\":\"1000\",\"disk\":\"10000\"}}"));
+        assertEquals(goInstanceConfig.get("clientAuthenticationPlugin"), "com.MyAuth");
+        assertEquals(goInstanceConfig.get("clientAuthenticationParameters"), "{\"authParam1\": \"authParamValue1\"}");
 
         // check padding and xmx
         V1Container containerSpec = container.getFunctionContainer(Collections.emptyList(), RESOURCES);
