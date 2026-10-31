@@ -513,7 +513,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             }
             // Once the replication has finished, a duplicate on the remote cluster would stay in the backlog.
             waitReplicateFinish(TopicName.get(topicName), admin1);
-            Awaitility.await().untilAsserted(() -> assertEquals(admin2.topics().getStats(topicName)
+            Awaitility.await().untilAsserted(() -> assertEquals(admin2.topics().getStats(topicName, true)
                     .getSubscriptions().get(subscriptionName).getMsgBacklog(), 0,
                     "deduplication must not leave duplicate messages"));
             assertNull(consumer.receive(200, TimeUnit.MILLISECONDS), "deduplication must not leave duplicate messages");
@@ -1711,7 +1711,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // The replicators skip the aborted message and the abort marker. Once they have acknowledged both, r2 can
         // not get a message any more.
         waitReplicateFinish(TopicName.get(topic), admin1);
-        assertEquals(admin2.topics().getStats(topic).getSubscriptions().get("sub-rep").getMsgBacklog(), 0);
+        assertEquals(admin2.topics().getStats(topic, true).getSubscriptions().get("sub-rep").getMsgBacklog(), 0);
         assertNull(consumerFromR2.receive(200, TimeUnit.MILLISECONDS));
 
         TransactionImpl transaction = (TransactionImpl) client.newTransaction()
@@ -1723,7 +1723,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         PersistentTopic sourceTopic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topic, false).join().get();
         assertTrue(sourceTopic.getMaxReadPosition()
                 .compareTo(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId())) < 0);
-        assertEquals(admin2.topics().getStats(topic).getSubscriptions().get("sub-rep").getMsgBacklog(), 0);
+        assertEquals(admin2.topics().getStats(topic, true).getSubscriptions().get("sub-rep").getMsgBacklog(), 0);
         assertNull(consumerFromR2.receive(200, TimeUnit.MILLISECONDS));
         transaction.commit();
 
@@ -2007,7 +2007,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 result.add(new String(receive.getValue()));
                 consumer.acknowledge(receive);
             }
-            assertEquals(admin2.topics().getStats(topic.toString()).getSubscriptions().get("sub").getMsgBacklog(), 0);
+            assertEquals(admin2.topics().getStats(topic.toString(), true).getSubscriptions().get("sub")
+                    .getMsgBacklog(), 0);
         });
 
         assertEquals(result, Lists.newArrayList("V1", "V4"));
