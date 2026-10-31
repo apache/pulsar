@@ -505,22 +505,39 @@ public class DualMetadataStore implements MetadataStoreExtended {
     /**
      * Applies the migration phase handling of {@link #put} and {@link #delete} to a write made through a
      * {@link DualMetadataCache}, whose inner cache writes to its own store directly. The write fails during
-     * PREPARATION and COPYING. In NOT_STARTED and FAILED, it's counted as a pending source write, which the
-     * preparation waits for, and an ephemeral put is tracked to be recreated in the target store.
+     * PREPARATION and COPYING, and after the completion until the cache has switched to the target store. In
+     * NOT_STARTED and FAILED, it's counted as a pending source write, which the preparation waits for, and an
+     * ephemeral put is tracked to be recreated in the target store.
      */
-    <T> CompletableFuture<T> cacheWrite(String path, Set<Option> opts, Supplier<CompletableFuture<T>> write) {
-        return switch (migrationState.getPhase()) {
-            case NOT_STARTED, FAILED -> {
+    <T> CompletableFuture<T> cacheWrite(DualMetadataCache<?> cache, String path, Set<Option> opts,
+                                        Supplier<CompletableFuture<T>> write) {
+        MigrationPhase phase;
+        // Check the phase and count the write under the lock that the phase changes take, so that a preparation
+        // started after the check waits for the write
+        synchronized (migrationLock) {
+            phase = migrationState.getPhase();
+            if (phase == MigrationPhase.NOT_STARTED || phase == MigrationPhase.FAILED) {
                 if (OptionsHelper.isEphemeral(opts)) {
                     localEphemeralPaths.add(path);
                 }
                 pendingSourceWrites.incrementAndGet();
+            }
+        }
+        return switch (phase) {
+            case NOT_STARTED, FAILED -> {
                 CompletableFuture<T> future = FutureUtil.supplySafely(write);
                 future.whenComplete((result, e) -> pendingSourceWrites.decrementAndGet());
-                yield future;
+                // Return a copy: a caller completing it, e.g. with orTimeout(), must not end the count before the
+                // write completes
+                CompletableFuture<T> copy = new CompletableFuture<>();
+                FutureUtil.completeAfter(copy, future);
+                yield copy;
             }
             case PREPARATION, COPYING -> CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
-            case COMPLETED -> FutureUtil.supplySafely(write);
+            // The completion switches the caches after changing the phase. Until then, the cache would write to the
+            // source store, which has already been copied.
+            case COMPLETED -> cache.isOnTargetStore() ? FutureUtil.supplySafely(write)
+                    : CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
         };
     }
 

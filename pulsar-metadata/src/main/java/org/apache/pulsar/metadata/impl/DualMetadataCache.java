@@ -110,29 +110,34 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
 
     @Override
     public CompletableFuture<T> readModifyUpdateOrCreate(String path, Function<Optional<T>, T> modifyFunction) {
-        return dualMetadataStore.cacheWrite(path, Set.of(),
+        return dualMetadataStore.cacheWrite(this, path, Set.of(),
                 () -> metadataCache.get().readModifyUpdateOrCreate(path, modifyFunction));
     }
 
     @Override
     public CompletableFuture<T> readModifyUpdate(String path, Function<T, T> modifyFunction) {
-        return dualMetadataStore.cacheWrite(path, Set.of(),
+        return dualMetadataStore.cacheWrite(this, path, Set.of(),
                 () -> metadataCache.get().readModifyUpdate(path, modifyFunction));
     }
 
     @Override
     public CompletableFuture<Void> create(String path, T value) {
-        return dualMetadataStore.cacheWrite(path, Set.of(), () -> metadataCache.get().create(path, value));
+        return dualMetadataStore.cacheWrite(this, path, Set.of(), () -> metadataCache.get().create(path, value));
     }
 
     @Override
     public CompletableFuture<Void> put(String path, T value, Set<Option> opts) {
-        return dualMetadataStore.cacheWrite(path, opts, () -> metadataCache.get().put(path, value, opts));
+        return dualMetadataStore.cacheWrite(this, path, opts, () -> metadataCache.get().put(path, value, opts));
     }
 
     @Override
     public CompletableFuture<Void> delete(String path) {
-        return dualMetadataStore.cacheWrite(path, Set.of(), () -> metadataCache.get().delete(path));
+        return dualMetadataStore.cacheWrite(this, path, Set.of(), () -> metadataCache.get().delete(path));
+    }
+
+    // Read under the lock of the switch, so that once it's true, metadataCache is the target store's cache
+    synchronized boolean isOnTargetStore() {
+        return onTargetStore;
     }
 
     @Override
