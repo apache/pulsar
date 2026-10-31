@@ -40,11 +40,11 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.ChannelGroupFuture;
 import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
@@ -1111,11 +1111,6 @@ public class BrokerService implements Closeable {
                                 if (scalableTopicService != null) {
                                     scalableTopicService.closeMetrics();
                                 }
-                                listenChannels.forEach(ch -> {
-                                    if (ch.isOpen()) {
-                                        asyncCloseFutures.add(closeChannel(ch));
-                                    }
-                                });
 
                                 // PIP-478: dispose any PulsarTlsFactory subscriptions held by the listeners.
                                 pulsarChannelInitializers.forEach(PulsarChannelInitializer::close);
@@ -1232,38 +1227,44 @@ public class BrokerService implements Closeable {
         log.info("Closing listeners and connections...");
         List<CompletableFuture<Void>> listenersClosed = new ArrayList<>(listenChannels.size());
         listenChannels.forEach(ch -> listenersClosed.add(closeChannel(ch)));
-        return FutureUtil.waitForAll(listenersClosed)
-                .thenCompose(__ -> NettyFutureUtil.toCompletableFutureVoid(acceptedConnections.close()))
-                .exceptionally(e -> {
-                    log.warn().exceptionMessage(e).log("Failed to close some connections");
-                    return null;
-                })
-                .thenCompose(__ -> runQueuedTasks(workerGroup));
+        return FutureUtil.waitForAll(listenersClosed).thenCompose(__ -> {
+            ChannelGroupFuture connectionsClosed = acceptedConnections.close();
+            return NettyFutureUtil.toCompletableFutureVoid(connectionsClosed)
+                    .exceptionally(e -> {
+                        log.warn().exceptionMessage(e).log("Failed to close some connections");
+                        return null;
+                    })
+                    .thenCompose(___ -> {
+                        List<CompletableFuture<Void>> deregistered = new ArrayList<>();
+                        connectionsClosed.forEach(future -> deregistered.add(whenDeregistered(future.channel())));
+                        return FutureUtil.waitForAll(deregistered);
+                    });
+        });
     }
 
     /**
-     * Completes after every event loop of the group has run the tasks queued so far, and the tasks those queue.
-     * Netty completes a channel's close future before it queues the task that fires channelInactive, so the second
-     * round runs after the close handlers of the channels closed so far.
+     * Completes once a closed channel is deregistered from its event loop. Netty completes the close future first and
+     * then fires channelInactive and deregisters the channel in tasks it queues on the event loop, so this checks
+     * again behind them.
      */
-    private static CompletableFuture<Void> runQueuedTasks(EventLoopGroup eventLoopGroup) {
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
-        for (EventExecutor executor : eventLoopGroup) {
-            CompletableFuture<Void> future = new CompletableFuture<>();
-            futures.add(future);
-            try {
-                executor.execute(() -> {
-                    try {
-                        executor.execute(() -> future.complete(null));
-                    } catch (RejectedExecutionException e) {
-                        future.complete(null);
-                    }
-                });
-            } catch (RejectedExecutionException e) {
-                future.complete(null);
+    private static CompletableFuture<Void> whenDeregistered(Channel channel) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Runnable check = new Runnable() {
+            @Override
+            public void run() {
+                if (!channel.isRegistered()) {
+                    future.complete(null);
+                    return;
+                }
+                try {
+                    channel.eventLoop().execute(this);
+                } catch (RejectedExecutionException e) {
+                    future.complete(null);
+                }
             }
-        }
-        return FutureUtil.waitForAll(futures);
+        };
+        check.run();
+        return future;
     }
 
     /**
@@ -1275,7 +1276,10 @@ public class BrokerService implements Closeable {
             @Override
             protected void initChannel(SocketChannel ch) {
                 acceptedConnections.add(ch);
-                ch.pipeline().addLast(childHandler);
+                // the group closes the connections it gets after its close: don't start serving them
+                if (ch.isOpen()) {
+                    ch.pipeline().addLast(childHandler);
+                }
             }
         };
     }

@@ -22,10 +22,13 @@ import io.netty.buffer.ByteBuf;
 import java.io.InputStream;
 import java.net.Socket;
 import java.util.Optional;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.MockBrokerInterceptor;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
@@ -59,6 +62,25 @@ public class BrokerEventLoopShutdownTest {
         return config;
     }
 
+    /**
+     * Opens a connection to the broker and waits for its answer to a CONNECT command, so that the broker has accepted
+     * the connection.
+     */
+    private static Socket connect(PulsarService broker) throws Exception {
+        final var socket = new Socket("localhost", broker.getBrokerListenPort().orElseThrow());
+        socket.setSoTimeout(30_000);
+        final ByteBuf connect = Commands.newConnect("none", "", null);
+        try {
+            final var bytes = new byte[connect.readableBytes()];
+            connect.readBytes(bytes);
+            socket.getOutputStream().write(bytes);
+        } finally {
+            connect.release();
+        }
+        Assert.assertNotEquals(socket.getInputStream().read(), -1);
+        return socket;
+    }
+
     @Test(timeOut = 60000)
     public void testCloseOneBroker() throws Exception {
         @Cleanup final var broker0 = new PulsarService(newConfig());
@@ -82,19 +104,8 @@ public class BrokerEventLoopShutdownTest {
         @Cleanup final var broker = new PulsarService(config);
         broker.start();
 
-        @Cleanup final var socket = new Socket("localhost", broker.getBrokerListenPort().orElseThrow());
-        socket.setSoTimeout(30_000);
-        final ByteBuf connect = Commands.newConnect("none", "", null);
-        try {
-            final var bytes = new byte[connect.readableBytes()];
-            connect.readBytes(bytes);
-            socket.getOutputStream().write(bytes);
-        } finally {
-            connect.release();
-        }
+        @Cleanup final var socket = connect(broker);
         final InputStream in = socket.getInputStream();
-        // the broker answers the CONNECT command, so it has accepted the connection
-        Assert.assertNotEquals(in.read(), -1);
 
         broker.getBrokerService().closeAsync().get();
 
@@ -104,6 +115,41 @@ public class BrokerEventLoopShutdownTest {
         while (in.read() != -1) {
             // skip the rest of the CONNECTED response
         }
+    }
+
+    @Test(timeOut = 60000)
+    public void testInterceptorSeesClosedConnectionsBeforeItCloses() throws Exception {
+        final var events = new CopyOnWriteArrayList<String>();
+        final var interceptor = new MockBrokerInterceptor() {
+            @Override
+            public void onConnectionClosed(ServerCnx cnx) {
+                // a slow close handler, which the broker service must not close the interceptor under
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                events.add("connection closed");
+            }
+
+            @Override
+            public void close() {
+                events.add("interceptor closed");
+            }
+        };
+        @Cleanup final var broker = new PulsarService(newConfig()) {
+            @Override
+            protected BrokerInterceptor newBrokerInterceptor() {
+                return interceptor;
+            }
+        };
+        broker.start();
+        @Cleanup final var socket = connect(broker);
+
+        broker.close();
+
+        Assert.assertTrue(events.contains("connection closed"), events.toString());
+        Assert.assertEquals(events.get(events.size() - 1), "interceptor closed", events.toString());
     }
 
     @Test(timeOut = 60000)
