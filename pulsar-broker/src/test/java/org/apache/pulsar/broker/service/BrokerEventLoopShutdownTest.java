@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
+import io.netty.buffer.ByteBuf;
+import java.io.InputStream;
+import java.net.Socket;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -66,6 +70,40 @@ public class BrokerEventLoopShutdownTest {
         broker0.close();
         final var closeTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
         Assert.assertTrue(closeTimeMs < 1000, "close time: " + closeTimeMs + " ms");
+    }
+
+    @Test(timeOut = 60000)
+    public void testBrokerServiceCloseClosesConnections() throws Exception {
+        final var config = newConfig();
+        // PulsarService.close() closes the broker service a second time, which shuts its BookKeeper OrderedExecutor
+        // down again: that executor then reports that it isn't terminated, and the graceful shutdown would wait for
+        // its whole timeout
+        config.setBrokerShutdownTimeoutMs(0);
+        @Cleanup final var broker = new PulsarService(config);
+        broker.start();
+
+        @Cleanup final var socket = new Socket("localhost", broker.getBrokerListenPort().orElseThrow());
+        socket.setSoTimeout(30_000);
+        final ByteBuf connect = Commands.newConnect("none", "", null);
+        try {
+            final var bytes = new byte[connect.readableBytes()];
+            connect.readBytes(bytes);
+            socket.getOutputStream().write(bytes);
+        } finally {
+            connect.release();
+        }
+        final InputStream in = socket.getInputStream();
+        // the broker answers the CONNECT command, so it has accepted the connection
+        Assert.assertNotEquals(in.read(), -1);
+
+        broker.getBrokerService().closeAsync().get();
+
+        // The broker service closes its connections itself: the IO event loops, which belong to the PulsarService,
+        // are still running. A connection left open would make this read time out.
+        Assert.assertFalse(broker.getIoEventLoopGroup().isShuttingDown());
+        while (in.read() != -1) {
+            // skip the rest of the CONNECTED response
+        }
     }
 
     @Test(timeOut = 60000)
