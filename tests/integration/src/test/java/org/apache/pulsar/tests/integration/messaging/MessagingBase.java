@@ -56,7 +56,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
         String nsName = generateNamespaceName();
         createNamespace(nsName);
 
-        return generateTopicName(nsName, topicPrefix, true);
+        return generateTopicName(nsName, topicPrefix, isPersistent);
     }
 
     protected String getPartitionedTopic(String topicPrefix, boolean isPersistent, int partitions) throws Exception {
@@ -64,7 +64,7 @@ public abstract class MessagingBase extends PulsarTestSuite {
         String nsName = generateNamespaceName();
         createNamespace(nsName);
 
-        String topicName = generateTopicName(nsName, topicPrefix, true);
+        String topicName = generateTopicName(nsName, topicPrefix, isPersistent);
         pulsarAdmin.topics().createPartitionedTopic(topicName, partitions);
         return topicName;
     }
@@ -80,12 +80,13 @@ public abstract class MessagingBase extends PulsarTestSuite {
         Set<T> messagesReceived = Sets.newHashSet();
         Map<Consumer<T>, Map<String, Message<T>>> lastReceivedMaps = new HashMap<>();
         receiveMessages(consumerList, messagesToReceive, (consumer, currentReceived) -> {
-            // Make sure that messages are received in order
+            // Make sure that messages are received in the order they were sent. By sequence id: a non-persistent topic
+            // gives all its messages the same message id
             Map<String, Message<T>> lastReceivedMap =
                     lastReceivedMaps.computeIfAbsent(consumer, k -> new HashMap<>());
             if (lastReceivedMap.containsKey(currentReceived.getTopicName())) {
-                assertTrue(currentReceived.getMessageId().compareTo(
-                        lastReceivedMap.get(currentReceived.getTopicName()).getMessageId()) > 0,
+                assertTrue(currentReceived.getSequenceId()
+                                > lastReceivedMap.get(currentReceived.getTopicName()).getSequenceId(),
                         "Received messages are not in order.");
             }
             lastReceivedMap.put(currentReceived.getTopicName(), currentReceived);
