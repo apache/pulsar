@@ -20,7 +20,6 @@ package org.apache.pulsar.broker.service;
 
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -46,20 +45,20 @@ public class BrokerEventLoopShutdownTest {
         bk.stop();
     }
 
+    private ServiceConfiguration newConfig() {
+        final var config = new ServiceConfiguration();
+        config.setClusterName("test");
+        config.setAdvertisedAddress("localhost");
+        config.setBrokerServicePort(Optional.of(0));
+        config.setWebServicePort(Optional.of(0));
+        config.setMetadataStoreUrl("zk:127.0.0.1:" + bk.getZookeeperPort());
+        return config;
+    }
+
     @Test(timeOut = 60000)
     public void testCloseOneBroker() throws Exception {
-        final var clusterName = "test";
-        final Supplier<ServiceConfiguration> configSupplier = () -> {
-            final var config = new ServiceConfiguration();
-            config.setClusterName(clusterName);
-            config.setAdvertisedAddress("localhost");
-            config.setBrokerServicePort(Optional.of(0));
-            config.setWebServicePort(Optional.of(0));
-            config.setMetadataStoreUrl("zk:127.0.0.1:" + bk.getZookeeperPort());
-            return config;
-        };
-        @Cleanup final var broker0 = new PulsarService(configSupplier.get());
-        @Cleanup final var broker1 = new PulsarService(configSupplier.get());
+        @Cleanup final var broker0 = new PulsarService(newConfig());
+        @Cleanup final var broker1 = new PulsarService(newConfig());
         broker0.start();
         broker1.start();
 
@@ -67,5 +66,17 @@ public class BrokerEventLoopShutdownTest {
         broker0.close();
         final var closeTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
         Assert.assertTrue(closeTimeMs < 1000, "close time: " + closeTimeMs + " ms");
+    }
+
+    @Test(timeOut = 60000)
+    public void testCloseBrokerThatNeverStarted() throws Exception {
+        final var broker = new PulsarService(newConfig());
+
+        final var startNs = System.nanoTime();
+        broker.close();
+        final var closeTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
+        // Nothing is left on the IO event loops, so the close doesn't wait for Netty's default 2 s quiet period
+        Assert.assertTrue(closeTimeMs < 1000, "close time: " + closeTimeMs + " ms");
+        Assert.assertTrue(broker.getIoEventLoopGroup().isTerminated());
     }
 }

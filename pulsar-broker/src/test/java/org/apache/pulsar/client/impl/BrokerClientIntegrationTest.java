@@ -282,6 +282,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
 
         // unload all other namespace
         pulsar.getBrokerService().close();
+        // The broker service closes its connections itself: the IO event loops belong to the PulsarService
+        assertFalse(pulsar.getIoEventLoopGroup().isShuttingDown());
 
         // [1] OwnershipCache should not contain any more namespaces
         OwnershipCache ownershipCache = pulsar.getNamespaceService().getOwnershipCache();

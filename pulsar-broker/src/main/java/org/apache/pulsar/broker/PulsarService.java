@@ -182,6 +182,7 @@ import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
 import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.common.util.ThreadDumpUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.apache.pulsar.common.util.netty.NettyFutureUtil;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
@@ -630,17 +631,19 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             executorServicesShutdown.shutdown(loadManagerExecutor);
 
             List<CompletableFuture<Void>> asyncCloseFutures = new ArrayList<>();
+            CompletableFuture<Void> brokerServiceCloseFuture = CompletableFuture.completedFuture(null);
             if (this.brokerService != null) {
                 CompletableFuture<Void> brokerCloseFuture = this.brokerService.closeAsync();
                 if (this.transactionMetadataStoreService != null) {
-                    asyncCloseFutures.add(brokerCloseFuture.whenComplete((__, ___) -> {
+                    brokerServiceCloseFuture = brokerCloseFuture.whenComplete((__, ___) -> {
                         // close transactionMetadataStoreService after the broker has been closed
                         this.transactionMetadataStoreService.close();
                         this.transactionMetadataStoreService = null;
-                    }));
+                    });
                 } else {
-                    asyncCloseFutures.add(brokerCloseFuture);
+                    brokerServiceCloseFuture = brokerCloseFuture;
                 }
+                asyncCloseFutures.add(brokerServiceCloseFuture);
                 this.brokerService = null;
             }
 
@@ -771,7 +774,15 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                 openTelemetryTopicStats = null;
             }
 
-            asyncCloseFutures.add(EventLoopUtil.shutdownGracefully(ioEventLoopGroup));
+            // The IO event loops carry the broker service's connections and the channels of the BookKeeper and Pulsar
+            // clients closed above. Shut them down once the broker service is closed too, without a quiet period:
+            // nothing is left on them, and Netty would wait for a quiet period in 100 ms steps.
+            CompletableFuture<Void> ioEventLoopShutdownFuture = brokerServiceCloseFuture
+                    .handle((__, ___) -> null)
+                    .thenCompose(__ -> shutdownIoEventLoopGroup());
+            // shut them down also when the close is cancelled or times out
+            FutureUtil.whenCancelledOrTimedOut(ioEventLoopShutdownFuture, this::shutdownIoEventLoopGroup);
+            asyncCloseFutures.add(ioEventLoopShutdownFuture);
 
             // add timeout handling for closing executors
             asyncCloseFutures.add(executorServicesShutdown.handle());
@@ -825,6 +836,13 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     private synchronized void resetMetricsServlet() {
         metricsServlet = null;
+    }
+
+    private CompletableFuture<Void> shutdownIoEventLoopGroup() {
+        long timeoutMs = (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT
+                * getConfiguration().getBrokerShutdownTimeoutMs());
+        return NettyFutureUtil.toCompletableFutureVoid(
+                ioEventLoopGroup.shutdownGracefully(0, timeoutMs, TimeUnit.MILLISECONDS));
     }
 
     private CompletableFuture<Void> addTimeoutHandling(CompletableFuture<Void> future) {
