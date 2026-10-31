@@ -6599,14 +6599,15 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         // 3. Add Entry 2. Triggers second rollover process.
         // This implicitly calls maybeUpdateCursorBeforeTrimmingConsumedLedger due to rollover
-        Position p = ledger.addEntry("entry-2".getBytes(Encoding));
+        ledger.addEntry("entry-2".getBytes(Encoding));
 
         // Wait for background tasks (metadata callback and trim) to complete.
         // We expect only one ledger (Rollover and trim happened).
         Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> ledger.getLedgersInfo().size() == 1);
-        // All ledgers are trimmed, left one empty ledger, trim process moves markDeletedPosition to p.getLedgerId():0
-        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
-        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(p.getLedgerId(), 0));
+        long emptyLedgerId = ledger.getLedgersInfo().lastEntry().getValue().getLedgerId();
+        // All ledgers are trimmed, left one empty ledger, trim process moves markDeletedPosition to emptyLedgerId:-1.
+        assertEquals(cursor.getMarkDeletedPosition(), PositionFactory.create(emptyLedgerId, -1));
+        assertEquals(cursor.getPersistentMarkDeletedPosition(), PositionFactory.create(emptyLedgerId, -1));
 
         // Verify properties are preserved after cursor reset
         assertEquals(cursor.getProperties(), properties);
@@ -6731,7 +6732,13 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         nonDurableCursorsMarkDeleteCompletedLatch.countDown();
 
         assertTrue(advanceCursorsMarkDeleteCompletedLatch.await(5, TimeUnit.SECONDS));
-        assertEquals(nonDurableCursor.getMarkDeletedPosition(), pos2);
+        // The ledger of pos2 is fully consumed, so the mark-delete moves to nextLedgerId:-1 if the rollover
+        // already added the next ledger.
+        Position markDeletedPosition = nonDurableCursor.getMarkDeletedPosition();
+        Long nextLedgerId = ledger.getNextValidLedger(pos2.getLedgerId());
+        if (nextLedgerId == null || !markDeletedPosition.equals(PositionFactory.create(nextLedgerId, -1))) {
+            assertEquals(markDeletedPosition, pos2);
+        }
         assertEquals(nonDurableCursor.getProperties(), properties);
     }
 
