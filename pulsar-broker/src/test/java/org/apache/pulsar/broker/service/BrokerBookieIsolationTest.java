@@ -774,6 +774,7 @@ public class BrokerBookieIsolationTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDeleteIsolationGroup() throws Exception {
 

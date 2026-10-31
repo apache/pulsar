@@ -50,13 +50,15 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.local.LocalIoHandler;
 import io.netty.util.ReferenceCountUtil;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -228,7 +230,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
 
-        eventLoopGroup = new DefaultEventLoopGroup();
+        eventLoopGroup = new MultiThreadIoEventLoopGroup(LocalIoHandler.newFactory());
         doReturn(eventLoopGroup.next()).when(channel).eventLoop();
         doReturn(channel).when(ctx).channel();
         doReturn(ctx).when(serverCnx).ctx();
@@ -384,11 +386,17 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doThrow(new RejectedExecutionException("rejected"))
                 .when(publishContext).completed(any(), anyLong(), anyLong());
 
-        topic.publishTxnMessage(new TxnID(1, 2), Unpooled.wrappedBuffer("content".getBytes()), publishContext);
+        ByteBuf payload = Unpooled.wrappedBuffer("content".getBytes());
+        try {
+            topic.publishTxnMessage(new TxnID(1, 2), payload, publishContext);
+        } finally {
+            payload.release();
+        }
 
         // The failure must not complete the publish context a second time.
         verify(publishContext, times(1)).completed(any(), anyLong(), anyLong());
         verify(publishContext).completed(null, 1, 2);
+        assertThat(topic.getPendingWriteOps().get()).isZero();
     }
 
     @Test
@@ -1860,9 +1868,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
 
         PulsarService pulsar = pulsarTestContext.getPulsarService();
-        final URL brokerUrl = new URL(
+        final URL brokerUrl = URI.create(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort()
-                        .get());
+                        .get()).toURL();
         @Cleanup
         PulsarClient client = spy(PulsarClient.builder().serviceUrl(brokerUrl.toString()).build());
         PulsarClientImpl clientImpl = (PulsarClientImpl) client;

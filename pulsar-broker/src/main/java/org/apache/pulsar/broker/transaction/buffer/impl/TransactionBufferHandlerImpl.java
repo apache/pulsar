@@ -161,7 +161,12 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 }
             } else {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                log.error().attr("topic", op.topic).exception(cause).log("endTxn error topic");
+                if (cause instanceof PulsarClientException.ConnectException) {
+                    log.warn().attr("topic", op.topic).exceptionMessage(cause)
+                            .log("endTxn failed, connection closed");
+                } else {
+                    log.error().attr("topic", op.topic).exception(cause).log("endTxn error topic");
+                }
                 if (cause instanceof PulsarClientException.BrokerMetadataException) {
                     op.cb.complete(null);
                 } else {

@@ -122,6 +122,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
     private final NameResolver<InetAddress> nameResolver;
     private final EventLoopGroup eventLoopGroup;
     private final boolean createdEventLoopGroup;
+    private final int maxConnectionsPerHost;
     private final Map<String, ConcurrencyReducer<Response>> concurrencyReducers = new ConcurrentHashMap<>();
     // PIP-478 (new TLS path): the PulsarTlsFactory this connector reads, carried with the responsibility for
     // closing it — owned when this connector resolved it, borrowed when AsyncHttpConnectorProvider supplied
@@ -168,6 +169,7 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                        PulsarClientSharedResourcesImpl sharedResources,
                        TlsFactoryOwnership suppliedTlsFactory) {
         this.suppliedTlsFactory = suppliedTlsFactory;
+        this.maxConnectionsPerHost = conf.getConnectionsPerBroker();
         Validate.notEmpty(conf.getServiceUrl(), "Service URL is not provided");
         serviceNameResolver = new PulsarServiceNameResolver();
         String serviceUrl = conf.getServiceUrl();
@@ -260,13 +262,13 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                                                 int requestTimeoutMs,
                                                 DefaultAsyncHttpClientConfig.Builder confBuilder,
                                                 PulsarClientSharedResourcesImpl sharedResources) {
-        if (conf.getConnectionsPerBroker() > 0) {
-            confBuilder.setMaxConnectionsPerHost(conf.getConnectionsPerBroker());
-            // Use the request timeout value for acquireFreeChannelTimeout so that we don't need to add
-            // yet another configuration property. When the ConcurrencyReducer is in use, it shouldn't be necessary to
-            // wait for a free channel since the ConcurrencyReducer will queue the requests.
-            confBuilder.setAcquireFreeChannelTimeout(conf.getRequestTimeoutMs());
-        }
+        // The connections per host are limited by the ConcurrencyReducer in executeRequest, which queues requests
+        // without blocking a thread. Disable AsyncHttpClient's own limit, whatever its JVM-wide default: a connection
+        // closed in the background, e.g. by the idle connection cleaner, keeps its permit until its event loop has
+        // processed the close, while the ConcurrencyReducer starts the next request right away on the completing
+        // thread, often that event loop. The request then fails for lack of a permit, or blocks the thread that would
+        // free it.
+        confBuilder.setMaxConnectionsPerHost(-1);
         if (conf.getConnectionMaxIdleSeconds() > 0) {
             confBuilder.setPooledConnectionIdleTimeout(Duration.ofSeconds(conf.getConnectionMaxIdleSeconds()));
         }
@@ -618,11 +620,10 @@ public class AsyncHttpConnector implements Connector, AsyncHttpRequestExecutor {
                     new MaxRedirectException("Maximum redirect reached: " + maxRedirects + " uri:" + request.getUri()));
         }
         CompletableFuture<Response> responseFuture;
-        if (httpClient.getConfig().getMaxConnectionsPerHost() > 0) {
+        if (maxConnectionsPerHost > 0) {
             String hostAndPort = request.getUri().getHost() + ":" + request.getUri().getPort();
             ConcurrencyReducer<Response> responseConcurrencyReducer = concurrencyReducers.computeIfAbsent(hostAndPort,
-                    h -> ConcurrencyReducer.create(httpClient.getConfig().getMaxConnectionsPerHost(),
-                            DEFAULT_MAX_QUEUE_SIZE_PER_HOST));
+                    h -> ConcurrencyReducer.create(maxConnectionsPerHost, DEFAULT_MAX_QUEUE_SIZE_PER_HOST));
             responseFuture = responseConcurrencyReducer.add(() -> doExecuteRequest(request, handlerSupplier));
         } else {
             responseFuture = doExecuteRequest(request, handlerSupplier);
