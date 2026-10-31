@@ -26,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -33,6 +34,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -80,6 +82,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
@@ -777,6 +780,115 @@ public class PersistentTopicTest extends BrokerTestBase {
         // Make delete success.
         makeDeletedFailed.set(false);
         persistentTopic.delete().get();
+    }
+
+    @DataProvider
+    public Object[][] deletedTopicCacheRemoval() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @DataProvider
+    public Object[][] postCacheCleanupFailures() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "postCacheCleanupFailures", timeOut = 60000)
+    public void testDeleteCompletesExceptionallyWhenPostCacheCleanupFails(boolean failDispatchCleanup)
+            throws Exception {
+        String topicName = "persistent://prop/ns-abc/delete-cleanup-failure-" + UUID.randomUUID();
+        TopicName parsedTopic = TopicName.get(topicName);
+        conf.setDispatchThrottlingRatePerTopicInMsg(1);
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        doReturn(brokerService).when(pulsar).getBrokerService();
+        DispatchRateLimiter limiter = mock(DispatchRateLimiter.class);
+        DispatchRateLimiterFactory factory = spy(brokerService.getDispatchRateLimiterFactory());
+        doReturn(limiter).when(factory).createTopicDispatchRateLimiter(any(PersistentTopic.class));
+        doReturn(factory).when(brokerService).getDispatchRateLimiterFactory();
+        TopicPoliciesService policiesService = spy(pulsar.getTopicPoliciesService());
+        doReturn(policiesService).when(pulsar).getTopicPoliciesService();
+        PersistentTopic topic = (PersistentTopic) brokerService.getTopic(topicName, true)
+                .get(10, TimeUnit.SECONDS).orElseThrow();
+        assertThat(topic.getDispatchRateLimiter()).contains(limiter);
+        RuntimeException failure = new RuntimeException("Injected post-cache-removal cleanup failure");
+        if (failDispatchCleanup) {
+            doThrow(failure).when(limiter).close();
+        } else {
+            doThrow(failure).when(policiesService).unregisterListener(eq(parsedTopic), any(TopicPolicyListener.class));
+        }
+        try {
+            CompletableFuture<Void> deletion = topic.delete();
+            assertThatThrownBy(() -> deletion.get(10, TimeUnit.SECONDS)).hasRootCause(failure);
+            assertThat(deletion).isCompletedExceptionally();
+            assertThat(topic.isFenced()).isFalse();
+            assertThat(brokerService.getTopics()).doesNotContainKey(topicName);
+            assertThat(pulsar.getPulsarResources().getTopicResources().persistentTopicExists(parsedTopic)
+                    .get(10, TimeUnit.SECONDS)).isFalse();
+        } finally {
+            doNothing().when(limiter).close();
+            doCallRealMethod().when(policiesService)
+                    .unregisterListener(eq(parsedTopic), any(TopicPolicyListener.class));
+        }
+        // The ledger was really deleted before cleanup failed. Retry must still complete through its NoNode path.
+        topic.delete().get(10, TimeUnit.SECONDS);
+        PersistentTopic recreated = (PersistentTopic) brokerService.getTopic(topicName, true)
+                .get(10, TimeUnit.SECONDS).orElseThrow();
+        assertThat(recreated).isNotSameAs(topic);
+    }
+
+    @Test(dataProvider = "deletedTopicCacheRemoval", timeOut = 60000)
+    public void testDeleteWaitsForCacheRemovalAndRetriesAfterFailure(boolean failRemoval) throws Exception {
+        String topicName = "persistent://prop/ns-abc/delete-cache-removal-" + UUID.randomUUID();
+        TopicName parsedTopic = TopicName.get(topicName);
+        BrokerService brokerService = pulsar.getBrokerService();
+        PersistentTopic topic = (PersistentTopic) brokerService.getTopic(topicName, true)
+                .get(10, TimeUnit.SECONDS).orElseThrow();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        NamespaceBundle bundle = namespaceService.getBundleAsync(parsedTopic).get(10, TimeUnit.SECONDS);
+        CompletableFuture<NamespaceBundle> cacheRemoval = new CompletableFuture<>();
+        CompletableFuture<Void> cacheRemovalStarted = new CompletableFuture<>();
+        AtomicBoolean interceptCacheRemoval = new AtomicBoolean(true);
+        when(namespaceService.getBundleAsync(parsedTopic)).thenAnswer(invocation -> {
+            if (!interceptCacheRemoval.get()) {
+                return invocation.callRealMethod();
+            }
+            cacheRemovalStarted.complete(null);
+            return cacheRemoval;
+        });
+        try {
+            CompletableFuture<Void> deletion = topic.delete();
+            cacheRemovalStarted.get(10, TimeUnit.SECONDS);
+            Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
+                    assertThat(pulsar.getPulsarResources().getTopicResources().persistentTopicExists(parsedTopic)
+                            .get(10, TimeUnit.SECONDS)).isFalse());
+            assertThat(ledger.getState()).isEqualTo(ManagedLedgerImpl.State.FencedForDeletion);
+            assertThat(deletion).as("deletion must wait for the deleted topic to leave the broker cache")
+                    .isNotDone();
+
+            if (failRemoval) {
+                RuntimeException failure = new RuntimeException("Injected bundle lookup failure during cache removal");
+                cacheRemoval.completeExceptionally(failure);
+                assertThatThrownBy(() -> deletion.get(10, TimeUnit.SECONDS)).hasRootCause(failure);
+                assertThat(brokerService.getTopicReference(topicName)).contains(topic);
+                interceptCacheRemoval.set(false);
+                // Retry against the actual fenced ledger whose metadata was already deleted above.
+                // Its NoNode completion must still retry cache cleanup, without a mocked ledger callback.
+                topic.delete().get(10, TimeUnit.SECONDS);
+            } else {
+                cacheRemoval.complete(bundle);
+                deletion.get(10, TimeUnit.SECONDS);
+            }
+            assertThat(brokerService.getTopicReference(topicName)).isEmpty();
+            assertThat(brokerService.getTopics()).doesNotContainKey(topicName);
+            PersistentTopic recreated = (PersistentTopic) brokerService.getTopic(topicName, true)
+                    .get(10, TimeUnit.SECONDS).orElseThrow();
+            assertThat(recreated).isNotSameAs(topic);
+            assertThat(pulsar.getPulsarResources().getTopicResources().persistentTopicExists(parsedTopic)
+                    .get(10, TimeUnit.SECONDS)).isTrue();
+        } finally {
+            interceptCacheRemoval.set(false);
+            cacheRemoval.complete(bundle);
+        }
     }
 
     @DataProvider(name = "topicLevelPolicy")
