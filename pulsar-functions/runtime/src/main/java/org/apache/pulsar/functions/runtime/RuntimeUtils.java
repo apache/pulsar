@@ -379,7 +379,6 @@ public class RuntimeUtils {
             args.add("-Dio.netty.tryReflectionSetAccessible=true");
             // Handle possible shaded Netty versions
             args.add("-Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true");
-            args.add("-Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true");
 
             if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_11)) {
                 // Needed for optimized Netty direct byte buffer support
@@ -557,6 +556,8 @@ public class RuntimeUtils {
     }
 
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
+        // An IPv6 host address is not bracketed here, which URI parsing would reject.
+        @SuppressWarnings("deprecation")
         URL url = new URL(String.format("http://%s:%s", InetAddress.getLocalHost().getHostAddress(), metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");

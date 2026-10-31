@@ -29,7 +29,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
@@ -58,8 +59,8 @@ public class PortForwarder implements AutoCloseable {
     @SuppressWarnings("try")
     public PortForwarder(SocketAddress listenAddress, SocketAddress targetAddress) {
         this.targetAddress = targetAddress;
-        this.bossGroup = new NioEventLoopGroup(1);
-        this.workerGroup = new NioEventLoopGroup();
+        this.bossGroup = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
+        this.workerGroup = new MultiThreadIoEventLoopGroup(NioIoHandler.newFactory());
         try {
             ServerBootstrap b = new ServerBootstrap();
             this.serverChannel = b.group(bossGroup, workerGroup)

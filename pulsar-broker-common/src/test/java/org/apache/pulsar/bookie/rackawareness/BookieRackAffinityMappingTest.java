@@ -57,11 +57,15 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieNode;
 import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.net.NetworkTopology;
+import org.apache.bookkeeper.net.NetworkTopologyImpl;
 import org.apache.bookkeeper.proto.BookieAddressResolver;
 import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -378,6 +382,17 @@ public class BookieRackAffinityMappingTest {
         repp.withDefaultRack(NetworkTopology.DEFAULT_REGION_AND_RACK);
 
         mapping.registerRackChangeListener(repp);
+
+        // Both loops below log on every call, hundreds of thousands of lines in all: quiet those loggers
+        Map<String, Level> quietLevels = Map.of(
+                BookieRackAffinityMapping.class.getName(), Level.WARN,
+                NetworkTopologyImpl.class.getName(), Level.WARN,
+                "org.apache.bookkeeper.client.TopologyAwareEnsemblePlacementPolicy", Level.ERROR);
+        Map<String, Level> originalLevels = new HashMap<>();
+        quietLevels.keySet().forEach(name -> originalLevels.put(name, LogManager.getLogger(name).getLevel()));
+        Configurator.setLevel(quietLevels);
+        @Cleanup
+        AutoCloseable restoreLevels = () -> Configurator.setLevel(originalLevels);
 
         @Cleanup("shutdownNow")
         ExecutorService executor1 = Executors.newSingleThreadExecutor();

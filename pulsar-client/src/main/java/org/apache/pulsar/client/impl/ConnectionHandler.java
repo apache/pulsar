@@ -269,14 +269,34 @@ public class ConnectionHandler {
     }
 
     /**
-     * Update the {@link ClientCnx} for the class, then increment and get the epoch value. Note that the epoch value is
-     * currently only used by the {@link ProducerImpl}.
+     * Update the {@link ClientCnx} for the class, then increment and get the epoch value. The epoch identifies the
+     * connection attempt, see {@link #isSupersededAttempt}.
      * @param clientCnx - the new {@link ClientCnx}
-     * @return the epoch value to use for this pair of {@link ClientCnx} and {@link ProducerImpl}
+     * @return the epoch value to use for this pair of {@link ClientCnx} and handler
      */
     protected long switchClientCnx(ClientCnx clientCnx) {
         setClientCnx(clientCnx);
         return EPOCH_UPDATER.incrementAndGet(this);
+    }
+
+    /**
+     * Whether the connection attempt that {@link #switchClientCnx} started on {@code cnx} with {@code epoch} has been
+     * superseded: the handler has since been disconnected from {@code cnx}, or has started another attempt. The
+     * response to a superseded attempt can arrive after the handler is connected again, so it must not change the
+     * handler.
+     */
+    boolean isSupersededAttempt(ClientCnx cnx, long epoch) {
+        return cnx() != cnx || getEpoch() != epoch;
+    }
+
+    /**
+     * Ends the connection attempt that {@link #switchClientCnx} started on {@code cnx} with {@code epoch}, if it is
+     * still the current one, and tells whether it was. The handler is then left without a connection, so a
+     * disconnection from {@code cnx} no longer reconnects it: only completing the failed attempt does. The caller
+     * must hold the lock under which it calls {@link #switchClientCnx}.
+     */
+    boolean endAttempt(ClientCnx cnx, long epoch) {
+        return getEpoch() == epoch && CLIENT_CNX_UPDATER.compareAndSet(this, cnx, null);
     }
 
     @VisibleForTesting

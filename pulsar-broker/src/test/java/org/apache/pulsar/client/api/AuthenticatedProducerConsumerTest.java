@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -32,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.crypto.SecretKey;
@@ -43,6 +46,8 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderToken;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationBasic;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.auth.AuthenticationToken;
@@ -52,6 +57,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.apache.zookeeper.KeeperException.Code;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
@@ -146,6 +152,64 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     @DataProvider(name = "batch")
     public Object[][] codecProvider() {
         return new Object[][] { { 0 }, { 1000 } };
+    }
+
+    @Test(timeOut = 60_000)
+    public void testSendAfterSchemaRegistrationTimesOut() throws Exception {
+        internalSetup(new AuthenticationToken(ADMIN_TOKEN));
+        admin.clusters().createCluster("test", ClusterData.builder().build());
+        admin.tenants().createTenant("my-property",
+                new TenantInfoImpl(Collections.emptySet(), Set.of("test")));
+        String namespace = "my-property/my-ns";
+        admin.namespaces().createNamespace(namespace, Set.of("test"));
+        String role = "schema-timeout-producer";
+        String topic = "persistent://" + namespace + "/schema-timeout";
+        Set<String> originalSuperUsers = Set.copyOf(pulsar.getConfiguration().getSuperUserRoles());
+        Set<String> superUsers = new HashSet<>(originalSuperUsers);
+        superUsers.add(role);
+        String allowedSuperUsers = String.join(",", superUsers);
+        admin.brokers().updateDynamicConfiguration("superUserRoles", allowedSuperUsers);
+        Awaitility.await().until(() -> pulsar.getConfiguration().getSuperUserRoles().contains(role));
+        String token = AuthTokenUtils.createToken(SECRET_KEY, role, Optional.empty());
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl())
+                    .authentication(new AuthenticationToken(token))
+                    .startingBackoffInterval(60, TimeUnit.SECONDS).maxBackoffInterval(60, TimeUnit.SECONDS).build();
+             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe();
+             Producer<byte[]> producer = client.newProducer().topic(topic).enableBatching(false)
+                    .sendTimeout(5, TimeUnit.SECONDS).create();
+             TestLogAppender logs = TestLogAppender.create(ProducerImpl.class)) {
+            ProducerImpl<?> producerImpl = (ProducerImpl<?>) producer;
+            ClientCnx cnx = producerImpl.getClientCnx();
+            long epoch = producerImpl.getConnectionHandler().getEpoch();
+
+            // Unlike namespace policy updates, this dynamic config change does not disconnect existing producers.
+            // The next schema registration still checks the current authorization rules.
+            admin.brokers().updateDynamicConfiguration("superUserRoles", String.join(",", originalSuperUsers));
+            Awaitility.await().until(() -> !pulsar.getConfiguration().getSuperUserRoles().contains(role));
+            assertThat(producer.isConnected()).isTrue();
+            CompletableFuture<MessageId> expired = producer.newMessage(Schema.STRING).value("expired").sendAsync();
+            Awaitility.await().untilAsserted(() -> assertThat(logs.getEvents()).anySatisfy(event -> {
+                assertThat(event.getMessage().getFormattedMessage()).contains("GetOrCreateSchema error");
+                assertThat(event.getThrown()).isInstanceOf(PulsarClientException.AuthorizationException.class);
+            }));
+            admin.brokers().updateDynamicConfiguration("superUserRoles", allowedSuperUsers);
+            Awaitility.await().until(() -> pulsar.getConfiguration().getSuperUserRoles().contains(role));
+            assertThatThrownBy(() -> expired.get(15, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(PulsarClientException.TimeoutException.class);
+
+            // This message needs no schema registration and must not wait for the expired message's 60s backoff.
+            producer.sendAsync(new byte[] {1}).get(10, TimeUnit.SECONDS);
+            Message<byte[]> received = consumer.receive(5, TimeUnit.SECONDS);
+            assertThat(received).isNotNull();
+            assertThat(received.getData()).containsExactly((byte) 1);
+            consumer.acknowledge(received);
+            assertThat(producerImpl.getClientCnx()).isSameAs(cnx);
+            assertThat(producerImpl.getConnectionHandler().getEpoch()).isEqualTo(epoch);
+        } finally {
+            admin.brokers().deleteDynamicConfiguration("superUserRoles");
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(pulsar.getConfiguration().getSuperUserRoles()).isEqualTo(originalSuperUsers));
+        }
     }
 
     private void testSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {

@@ -106,6 +106,7 @@ dependencies {
     implementation(project(":pulsar-functions:pulsar-functions-proto"))
 
     compileOnly(libs.swagger.annotations)
+    testCompileOnly(libs.swagger.annotations)
     compileOnly(libs.jsr305)
 
     testImplementation(project(":testmocks"))

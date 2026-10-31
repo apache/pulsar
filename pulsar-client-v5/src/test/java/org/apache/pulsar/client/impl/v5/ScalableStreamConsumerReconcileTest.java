@@ -53,6 +53,7 @@ import org.apache.pulsar.client.util.ScheduledExecutorProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.mockito.ArgumentMatchers;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -103,7 +104,7 @@ public class ScalableStreamConsumerReconcileTest {
             retryDelays.add(invocation.getArgument(1));
             return null;
         });
-        when(scheduler.schedule(any(Callable.class), anyLong(), any())).thenAnswer(invocation -> {
+        when(scheduler.schedule(ArgumentMatchers.<Callable<Object>>any(), anyLong(), any())).thenAnswer(invocation -> {
             Callable<?> task = invocation.getArgument(0);
             drainPolls.add(() -> {
                 try {
