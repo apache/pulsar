@@ -257,7 +257,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
+    @VisibleForTesting
+    void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
         if (duringSeek) {
             log.info().attr("topic", consumer.getTopic())
                     .log("Pause receiving messages for topic due to seek");
@@ -285,7 +286,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 if (isValidEpoch && !skipDueToSeek) {
                     messageReceived(consumer, msg);
                 } else if (!isValidEpoch) {
-                    consumer.increaseAvailablePermits(cnx);
+                    // Only a listener's messages still hold their permit here. Without a listener, the sub consumer
+                    // gave it back when it handed over the message.
+                    if (listener != null) {
+                        consumer.increaseAvailablePermits(cnx);
+                    }
                 } else if (skipDueToSeek) {
                     log.info().attr("messageId", msg.getMessageId())
                             .log("Skip processing message received during seek");
