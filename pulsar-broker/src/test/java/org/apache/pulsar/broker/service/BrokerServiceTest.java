@@ -86,6 +86,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorTestUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
@@ -1677,9 +1678,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) sub.getCursor();
 
         // make cursor last active time to very small to check if it will be deleted
-        Field cursorLastActiveField = ManagedCursorImpl.class.getDeclaredField("lastActive");
-        cursorLastActiveField.setAccessible(true);
-        cursorLastActiveField.set(cursor, 0);
+        ManagedCursorTestUtil.setLastActive(cursor, 0);
 
         // replace origin object. so we can check if subscription is deleted.
         PersistentSubscription spySubscription = Mockito.spy(sub);

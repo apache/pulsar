@@ -38,7 +38,7 @@ grpc = "1.85.1"
 slf4j = "2.0.18"
 slog = "0.10.1"
 log4j2 = "2.26.1"
-lombok = "1.18.46"
+lombok = "1.18.48"
 # OpenTelemetry
 opentelemetry = "1.67.0"
 opentelemetry-alpha = "1.67.0-alpha"
