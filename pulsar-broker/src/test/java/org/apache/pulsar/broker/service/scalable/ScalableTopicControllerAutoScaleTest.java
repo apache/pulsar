@@ -18,7 +18,9 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,10 +38,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ScalableTopics;
@@ -49,6 +53,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AutoScalePolicyOverride;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
@@ -119,6 +124,12 @@ public class ScalableTopicControllerAutoScaleTest {
         when(pulsar.getBrokerId()).thenReturn(BROKER_ID);
         when(pulsar.getExecutor()).thenReturn(scheduler);
         when(pulsar.getConfig()).thenReturn(config);
+        // Physical segment topics are mocked out in this fixture. Resolve stats through
+        // the existing local absent-topic stub so public policy/cooldown stats remain usable.
+        NamespaceService namespaceService = mock(NamespaceService.class);
+        when(pulsar.getNamespaceService()).thenReturn(namespaceService);
+        when(namespaceService.isServiceUnitOwnedAsync(any()))
+                .thenReturn(CompletableFuture.completedFuture(true));
 
         // Namespace policies feed the per-namespace auto-scale override resolution.
         // Default: no policies → broker config applies. Tests install overrides via
@@ -407,6 +418,45 @@ public class ScalableTopicControllerAutoScaleTest {
         assertEquals(activeSegmentCount(), 3, "second split blocked by cooldown");
     }
 
+    @Test
+    public void testGcBeforeRebucketCooldownExpiresPreservesTheObservedRollover() throws Exception {
+        config.setScalableTopicRebucketCooldownSeconds(3600);
+        config.setScalableTopicAutoScaleIntervalSeconds(3600);
+        TopicPoliciesService topicPolicies = mock(TopicPoliciesService.class);
+        when(pulsar.getTopicPoliciesService()).thenReturn(topicPolicies);
+        when(topicPolicies.getTopicPoliciesAsync(any(), any()))
+                .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+        namespacePolicies = new Policies();
+        namespacePolicies.retention_policies = new RetentionPolicies(0, -1);
+        when(scalableTopics.deleteSegmentAsync(anyString(), anyBoolean()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        startController(1);
+        controller.rebucketSegment(0, 8).get();
+        String lastRollover = controller.getStats().get().getAutoScale().getLastRebucketAt();
+        assertThat(lastRollover).isNotNull();
+
+        controller.runGcTickAsync().get();
+        assertThat(controller.getLayout().get().getAllSegments()).doesNotContainKey(0L);
+        assertThat(controller.getLayout().get().getActiveSegments().values())
+                .singleElement().satisfies(segment -> assertThat(segment.parentIds()).isEmpty());
+        assertThat(controller.getStats().get().getAutoScale().getLastRebucketAt())
+                .as("pruning lineage must not erase a cooldown already observed in this term")
+                .isEqualTo(lastRollover);
+
+        // Without its parent the successor no longer identifies the rollover in the DAG.
+        // More consumers must still wait for the recorded cooldown before another rollover.
+        config.setScalableTopicAutoScaleEnabled(false);
+        for (int i = 1; i <= 9; i++) {
+            controller.registerConsumer("sub", "c" + i, i, ScalableConsumerType.STREAM,
+                    mock(TransportCnx.class)).get();
+        }
+        Awaitility.await().atMost(Duration.ofSeconds(10))
+                .until(() -> !controller.isAutoScaleEvaluationInFlight());
+        config.setScalableTopicAutoScaleEnabled(true);
+        controller.evaluateAutoScaleForTest().get();
+        assertEquals(soleActiveBucketCount(), 8, "GC must not allow a rollover inside the cooldown");
+    }
+
     private int soleActiveBucketCount() throws Exception {
         var active = controller.getLayout().get().getActiveSegments().values();
         assertEquals(active.size(), 1, "expected a single active segment");
@@ -630,12 +680,17 @@ public class ScalableTopicControllerAutoScaleTest {
         assertThrows(java.util.concurrent.ExecutionException.class,
                 () -> controller.evaluateAutoScaleForTest().get());
         assertEquals(activeSegmentCount(), 2, "failed split leaves the layout unchanged");
+        assertThat(controller.getStats().get().getAutoScale().getLastSplitAt())
+                .as("a failed create does not start the split cooldown").isNull();
 
         // The failure must not have started the cooldown: once the transient error clears,
         // the next evaluation splits immediately instead of waiting out the hour.
         when(scalableTopics.createSegmentAsync(anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        controller.evaluateAutoScaleForTest().get();
-        assertEquals(activeSegmentCount(), 3, "retry after a failed split is not cooldown-blocked");
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+            assertEquals(activeSegmentCount(), 3, "the persisted split retry is not cooldown-blocked");
+            assertThat(controller.getStats().get().getAutoScale().getLastSplitAt())
+                    .as("the recovered durable commit starts the cooldown").isNotNull();
+        });
     }
 }

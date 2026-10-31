@@ -90,6 +90,7 @@ import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -264,7 +265,7 @@ public class ScalableTopicControllerTest {
         controller = newController(topicName);
         controller.initialize().get();
         doReturn(CompletableFuture.failedFuture(new IllegalStateException("CAS failed")))
-                .when(resources).updateScalableTopicAsync(eq(topicName), any());
+                .when(resources).commitLayoutTransitionAsync(eq(topicName), any(), any());
 
         assertThrows(ExecutionException.class, () -> controller.splitSegment(0).get());
         verify(scalableTopics).terminateSegmentAsync(anyString());
@@ -1442,7 +1443,7 @@ public class ScalableTopicControllerTest {
         controller = newController(topicName);
         controller.initialize().get();
         doReturn(CompletableFuture.failedFuture(new IllegalStateException("layout commit failed")))
-                .when(resources).updateScalableTopicAsync(eq(topicName), any());
+                .when(resources).commitLayoutTransitionAsync(eq(topicName), any(), any());
         assertThatThrownBy(() -> controller.splitSegment(0).get()).hasCauseInstanceOf(IllegalStateException.class);
         ScalableTopicStats stats = controller.getStats().get();
         assertOperation(stats, "split", "manual", "partial", List.of(0L));
@@ -1465,6 +1466,7 @@ public class ScalableTopicControllerTest {
     public void testCommittedLayoutFailuresAreNotPartial(String operation, boolean notificationFailure)
             throws Exception {
         controller.close().get();
+        ScalableTopicResources actualResources = resources;
         resources = spy(resources);
         controller = newController(topicName);
         controller.initialize().get();
@@ -1475,8 +1477,14 @@ public class ScalableTopicControllerTest {
         if (notificationFailure) {
             doThrow(operationFailure).when(cnx).sendScalableConsumerAssignment(eq(1L), any());
         } else {
-            doReturn(CompletableFuture.failedFuture(operationFailure))
-                    .when(resources).getScalableTopicMetadataAsync(topicName, true);
+            doAnswer(invocation -> {
+                CompletableFuture<Optional<ScalableTopicMetadata>> read =
+                        actualResources.getScalableTopicMetadataAsync(topicName, true);
+                // Planning and replay now read the record before the CAS as well. Fail only
+                // the readback of the committed generation, preserving this test's cut point.
+                return read.thenCompose(md -> md.orElseThrow().getEpoch() > 0
+                        ? CompletableFuture.failedFuture(operationFailure) : CompletableFuture.completedFuture(md));
+            }).when(resources).getScalableTopicMetadataAsync(topicName, true);
         }
 
         CompletableFuture<SegmentLayout> change = switch (operation) {
@@ -1502,17 +1510,18 @@ public class ScalableTopicControllerTest {
 
     @Test(dataProvider = "splitFailurePhases")
     public void testSuccessfulPruneReplacesEarlierSplitFailure(boolean afterSeal) throws Exception {
-        installGcMocks(0);
+        installGcMocks(1);
         AdjustableClock clock = new AdjustableClock(1_700_000_000_000L);
         controller.close().get();
         resources = spy(resources);
         controller = newControllerWithClock(topicName, clock, Duration.ofHours(1));
         controller.initialize().get();
         controller.splitSegment(0).get(); // An older sealed segment is available for the next GC tick.
+        clock.set(clock.millis() + TimeUnit.MINUTES.toMillis(1));
         IllegalStateException splitFailure = new IllegalStateException("split failed");
         if (afterSeal) {
             doReturn(CompletableFuture.failedFuture(splitFailure))
-                    .when(resources).updateScalableTopicAsync(eq(topicName), any());
+                    .when(resources).commitLayoutTransitionAsync(eq(topicName), any(), any());
         } else {
             when(scalableTopics.createSegmentAsync(anyString(), any()))
                     .thenReturn(CompletableFuture.failedFuture(splitFailure));
@@ -1521,8 +1530,15 @@ public class ScalableTopicControllerTest {
         assertOperation(controller.getStats().get(), "split", "manual",
                 afterSeal ? "partial" : "failure", List.of(1L));
         if (afterSeal) {
-            doCallRealMethod().when(resources).updateScalableTopicAsync(eq(topicName), any());
+            doCallRealMethod().when(resources).commitLayoutTransitionAsync(eq(topicName), any(), any());
+        } else {
+            when(scalableTopics.createSegmentAsync(anyString(), any()))
+                    .thenReturn(CompletableFuture.completedFuture(null));
         }
+        // A failed transition is now durable and recovery precedes another layout writer.
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
+                assertThat(resources.getScalableTopicMetadataAsync(topicName, true).get().orElseThrow()
+                        .getPendingLayoutTransition()).isNull());
         clock.set(clock.millis() + 1000);
         controller.runGcTickAsync().get();
 
@@ -1548,12 +1564,15 @@ public class ScalableTopicControllerTest {
         assertThat(stats.getAutoScale().getLastSplitAt()).isNull();
         when(scalableTopics.createSegmentAsync(anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() ->
+                assertThat(resources.getScalableTopicMetadataAsync(topicName, true).get().orElseThrow()
+                        .getPendingLayoutTransition()).isNull());
         when(scalableTopics.terminateSegmentAsync(anyString()))
                 .thenReturn(CompletableFuture.completedFuture(null))
                 .thenReturn(CompletableFuture.failedFuture(new IllegalStateException("second seal failed")));
-        assertThatThrownBy(() -> controller.mergeSegments(0, 1).get()).hasCauseInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> controller.mergeSegments(1, 2).get()).hasCauseInstanceOf(IllegalStateException.class);
         stats = controller.getStats().get();
-        assertOperation(stats, "merge", "manual", "partial", List.of(0L, 1L));
+        assertOperation(stats, "merge", "manual", "partial", List.of(1L, 2L));
         assertThat(stats.getLayout().getLastOperation().getError()).contains("second seal failed");
         assertThat(stats.getAutoScale().getLastMergeAt()).isNull();
     }
