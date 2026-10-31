@@ -105,6 +105,7 @@ import org.apache.bookkeeper.stats.NullStatsLogger;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.broker.qos.AsyncTokenBucket;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
@@ -123,6 +124,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final BookkeeperFactoryForCustomEnsemblePlacementPolicy bookkeeperFactory;
     private final boolean isBookkeeperManaged;
     private final ManagedLedgerFactoryConfig config;
+    @Getter
+    private final AsyncTokenBucket offloadTokenBucket;
     @Getter
     protected final OrderedScheduler scheduledExecutor;
     @Getter
@@ -258,6 +261,17 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 compressionConfigForManagedLedgerInfo,
                 compressionConfigForManagedCursorInfo);
         this.config = config;
+        long offloadFlowPermitsPerSecond = config.getManagedLedgerOffloadFlowPermitsPerSecond();
+        long offloadTokenBucketCapacity = offloadFlowPermitsPerSecond > Long.MAX_VALUE / 2
+                ? Long.MAX_VALUE
+                : 2 * offloadFlowPermitsPerSecond;
+        this.offloadTokenBucket = offloadFlowPermitsPerSecond > 0
+                ? AsyncTokenBucket.builder()
+                        .initialTokens(0)
+                        .capacity(offloadTokenBucketCapacity)
+                        .rate(offloadFlowPermitsPerSecond)
+                        .build()
+                : null;
         this.mbean = new ManagedLedgerFactoryMBeanImpl(this);
         this.entryCacheManager = new RangeEntryCacheManagerImpl(this, scheduledExecutor, openTelemetry);
         this.readEntryTimeoutTracker = new ReadEntryTimeoutTracker(scheduledExecutor);
