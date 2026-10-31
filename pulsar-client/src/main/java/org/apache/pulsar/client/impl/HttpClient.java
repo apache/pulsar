@@ -66,13 +66,10 @@ import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.BoundRequestBuilder;
 import org.asynchttpclient.DefaultAsyncHttpClient;
 import org.asynchttpclient.DefaultAsyncHttpClientConfig;
-import org.asynchttpclient.Realm;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.Response;
 import org.asynchttpclient.SslEngineFactory;
 import org.asynchttpclient.channel.DefaultKeepAliveStrategy;
-import org.asynchttpclient.proxy.ProxyServer;
-import org.asynchttpclient.proxy.ProxyType;
 
 
 @CustomLog
@@ -491,6 +488,11 @@ public class HttpClient implements Closeable {
      * <p>The default scope for {@code PulsarClient} is {@link Socks5ProxyScope#BINARY_ONLY}, so
      * HTTP lookups and failover HTTP clients will NOT use the proxy unless the caller explicitly
      * sets the scope to {@link Socks5ProxyScope#HTTP_ONLY} or {@link Socks5ProxyScope#BOTH}.
+     *
+     * <p>The SOCKS5 handler is installed directly on the Netty pipeline rather than through AHC's
+     * {@code confBuilder.setProxyServer(...)}, because AHC 2.x never actually installs its SOCKS
+     * handler and silently bypasses the proxy. See {@link Socks5ProxyChannelConfigurer} for the
+     * detailed analysis and for how HTTPS-over-SOCKS5 ordering is handled.
      */
     private static void configureSocks5ProxyIfNeeded(DefaultAsyncHttpClientConfig.Builder confBuilder,
                                                      ClientConfigurationData conf) {
@@ -504,18 +506,17 @@ public class HttpClient implements Closeable {
         if (!conf.getSocks5ProxyScope().appliesToHttp()) {
             return;
         }
-        ProxyServer.Builder proxyBuilder =
-                new ProxyServer.Builder(socks5Address.getHostString(), socks5Address.getPort())
-                        .setProxyType(ProxyType.SOCKS_V5);
         String socks5Username = conf.getSocks5ProxyUsername();
-        if (StringUtils.isNotBlank(socks5Username)) {
-            Realm realm = new Realm.Builder(socks5Username, conf.getSocks5ProxyPassword())
-                    .setScheme(Realm.AuthScheme.BASIC)
-                    .build();
-            proxyBuilder.setRealm(realm);
-        }
-        confBuilder.setProxyServer(proxyBuilder.build());
-        log.info().attr("proxy", socks5Address).log("Pulsar client HTTP lookup is using SOCKS5 proxy");
+        String socks5Password = conf.getSocks5ProxyPassword();
+        boolean hasAuth = StringUtils.isNotBlank(socks5Username);
+        // Install the Socks5ProxyHandler at the head of the pipeline so the SOCKS5 handshake
+        // completes before any HTTP bytes are written to the wire, and hold back the connect
+        // promise until that handshake finishes so AHC's TLS handler is inserted behind the
+        // established tunnel instead of in front of it (see Socks5ProxyChannelConfigurer).
+        confBuilder.setHttpAdditionalChannelInitializer(channel ->
+                Socks5ProxyChannelConfigurer.install(channel, socks5Address, socks5Username, socks5Password));
+        log.info().attr("proxy", socks5Address).attr("auth", hasAuth ? "password" : "***")
+                .log("Pulsar client HTTP lookup is using SOCKS5 proxy");
     }
 
 }
