@@ -25,8 +25,6 @@ import static org.testng.Assert.fail;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.packages.management.core.common.PackageMetadata;
 import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
@@ -40,7 +38,6 @@ public class PackagesCliTest extends TestRetrySupport {
 
     private static final String clusterNamePrefix = "packages-service";
     private PulsarCluster pulsarCluster;
-    private PulsarAdmin admin;
 
     @SuppressWarnings("deprecation")
     @BeforeClass(alwaysRun = true)
@@ -52,16 +49,11 @@ public class PackagesCliTest extends TestRetrySupport {
                 .build();
         pulsarCluster = PulsarCluster.forSpec(spec);
         pulsarCluster.start();
-        admin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
     }
 
     @AfterClass(alwaysRun = true)
     public final void cleanup() {
         markCurrentSetupNumberCleaned();
-        if (admin != null) {
-            admin.close();
-            admin = null;
-        }
         if (pulsarCluster != null) {
             pulsarCluster.stop();
             pulsarCluster = null;
@@ -130,17 +122,19 @@ public class PackagesCliTest extends TestRetrySupport {
                 "--contact", contact, "-PpropertyA=A", testPackageName);
         assertEquals(result.getExitCode(), 0);
 
-        // What update-metadata and delete did is checked with the admin client: pulsar-admin in a broker container
-        // would start a JVM for every check, and the commands above check get-metadata and list-versions
-        PackageMetadata metadata = admin.packages().getMetadata(testPackageName);
-        assertEquals(metadata.getDescription(), "a test package");
-        assertEquals(metadata.getContact(), contact);
-        assertEquals(metadata.getProperties().get("propertyA"), "A");
+        result = runPackagesCommand("get-metadata", testPackageName);
+        assertEquals(result.getExitCode(), 0);
+        assertFalse(result.getStdout().isEmpty());
+        assertTrue(result.getStdout().contains("a test package"));
+        assertTrue(result.getStdout().contains(contact));
+        assertTrue(result.getStdout().contains("propertyA"));
 
         result = runPackagesCommand("delete", testPackageName);
         assertEquals(result.getExitCode(), 0);
 
-        assertTrue(admin.packages().listPackageVersions("function://public/default/test").isEmpty());
+        result = runPackagesCommand("list-versions", "function://public/default/test");
+        assertEquals(result.getExitCode(), 0);
+        result.assertNoStdout();
     }
 
     private ContainerExecResult runPackagesCommand(String... commands) throws Exception {
