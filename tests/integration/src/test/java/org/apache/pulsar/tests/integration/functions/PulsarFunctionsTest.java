@@ -416,8 +416,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // The function fails every 10th message, which it negatively acknowledges. The timeout sets the delay
         // before such a message is redelivered (1 minute by default); in Java and Python it also sets the ack timeout,
-        // which the Python client requires to be at least 10 s.
-        java.util.function.Consumer<CommandGenerator> setTimeout = generator -> generator.setTimeoutMs(10000L);
+        // which the Python client requires to be at least 10 s. Go has no ack timeout.
+        long timeoutMs = runtime == Runtime.GO ? 1000L : 10000L;
+        java.util.function.Consumer<CommandGenerator> setTimeout = generator -> generator.setTimeoutMs(timeoutMs);
         if (runtime == Runtime.PYTHON) {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE,
