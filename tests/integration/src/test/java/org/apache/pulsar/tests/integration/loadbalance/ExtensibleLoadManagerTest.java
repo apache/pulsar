@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
@@ -147,10 +148,13 @@ public class ExtensibleLoadManagerTest extends TestRetrySupport {
             return;
         }
         List<BrokerContainer> brokers = new ArrayList<>(pulsarCluster.getBrokers());
-        // Restart the brokers that the previous test method stopped, in parallel
-        brokers.parallelStream()
+        // Restart the brokers that the previous test method stopped, in parallel. allOf completes only once every
+        // restart has finished, so when one fails, the cluster cleanup that follows can't overlap a restart still
+        // in progress.
+        CompletableFuture.allOf(brokers.stream()
                 .filter(brokerContainer -> !brokerContainer.isRunning())
-                .forEach(BrokerContainer::start);
+                .map(brokerContainer -> CompletableFuture.runAsync(brokerContainer::start))
+                .toArray(CompletableFuture<?>[]::new)).get();
         // Build admin clients once and reuse across poll iterations to avoid the per-tick
         // connection churn (3 brokers x N polls of admin builder/close). Connection setup
         // contends with brokers that are still warming up after a stop/restart.
