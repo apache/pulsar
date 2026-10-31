@@ -510,6 +510,14 @@ public class ProxyService implements Closeable {
             Thread.currentThread().interrupt();
         }
 
+        // No listener accepts connections any more, the extensions' included (they are on the acceptor group too).
+        // Close the extensions before what they may still use while closing: the open connections, the discovery
+        // provider, the metadata stores and the event loops.
+        if (proxyExtensions != null) {
+            proxyExtensions.close();
+            proxyExtensions = null;
+        }
+
         closeAllConnections();
 
         dnsAddressResolverGroup.close();

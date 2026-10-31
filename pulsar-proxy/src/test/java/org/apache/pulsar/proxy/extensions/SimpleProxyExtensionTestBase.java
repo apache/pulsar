@@ -20,6 +20,7 @@ package org.apache.pulsar.proxy.extensions;
 
 import static org.apache.pulsar.common.util.PortManager.nextLockedFreePort;
 import static org.apache.pulsar.common.util.PortManager.releaseLockedPort;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import io.netty.buffer.ByteBuf;
@@ -66,6 +67,9 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
     public static final class MyProxyExtension implements ProxyExtension {
 
         private ProxyConfiguration conf;
+        private ProxyService service;
+        private int closeCount;
+        private boolean workerGroupShuttingDownAtClose;
 
         private final List<Integer> ports = new ArrayList<>();
 
@@ -86,6 +90,7 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
 
         @Override
         public void start(ProxyService service) {
+            this.service = service;
         }
 
         @Override
@@ -119,6 +124,8 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
 
         @Override
         public void close() {
+            closeCount++;
+            workerGroupShuttingDownAtClose = service.getWorkerGroup().isShuttingDown();
             ports.removeIf(p -> releaseLockedPort(p));
         }
     }
@@ -153,13 +160,18 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
                 proxyConfig.getBrokerClientAuthenticationParameters());
         proxyClientAuthentication.start();
 
-        proxyService = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
+        proxyService = startProxyService();
+    }
+
+    private ProxyService startProxyService() throws Exception {
+        ProxyService service = Mockito.spy(new ProxyService(proxyConfig, new AuthenticationService(
                 PulsarConfigurationLoader.convertFrom(proxyConfig)), proxyClientAuthentication));
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(proxyService).createLocalMetadataStore();
-        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(proxyService)
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeper))).when(service).createLocalMetadataStore();
+        doReturn(registerCloseable(new ZKMetadataStore(mockZooKeeperGlobal))).when(service)
                 .createConfigurationMetadataStore();
 
-        proxyService.start();
+        service.start();
+        return service;
     }
 
     @Test
@@ -178,6 +190,18 @@ public abstract class SimpleProxyExtensionTestBase extends MockedPulsarServiceBa
             String res = IOUtils.toString(socket.getInputStream(), StandardCharsets.UTF_8);
             assertEquals(res, "ok");
         }
+    }
+
+    @Test
+    public void testCloseClosesExtensions() throws Exception {
+        ProxyService service = startProxyService();
+        MyProxyExtension extension = (MyProxyExtension) service.getProxyExtensions().extension("test");
+
+        service.close();
+
+        assertThat(extension.closeCount).isEqualTo(1);
+        // The proxy's event loops were still running, so the extension could use them while closing
+        assertThat(extension.workerGroupShuttingDownAtClose).isFalse();
     }
 
     @AfterClass(alwaysRun = true)
