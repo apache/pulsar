@@ -356,6 +356,19 @@ public interface Topic {
 
     boolean isTransferring();
 
+    /**
+     * Indicates whether this topic is in a transitional teardown state — fenced, closing (unloading/transferring),
+     * or deleting. Scheduled maintenance jobs that iterate over topics should skip topics in this state,
+     * because the managed-ledger, cursor, and subscription state they read/mutate is concurrently being torn down.
+     * <p>
+     * The default implementation returns {@code false}. Subclasses override this to reflect their specific state flags.
+     *
+     * @return {@code true} if this topic is being torn down and should be skipped by maintenance jobs
+     */
+    default boolean isInTeardown() {
+        return false;
+    }
+
     /* ------ Transaction related ------ */
 
     /**

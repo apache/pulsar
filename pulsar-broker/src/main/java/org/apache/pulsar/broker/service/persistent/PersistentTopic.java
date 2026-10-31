@@ -3458,6 +3458,18 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     @Override
     public CompletableFuture<PersistentTopicInternalStats> getInternalStats(boolean includeLedgerMetadata) {
 
+        if (isInTeardown()) {
+            log.warn()
+                    .attr("topic", topic)
+                    .attr("isFenced", isFenced)
+                    .attr("isClosingOrDeleting", isClosingOrDeleting)
+                    .log("Skipping getInternalStats because topic is in teardown state");
+            return FutureUtil.failedFuture(
+                    new BrokerServiceException.TopicFencedException(
+                            "Topic " + topic + " is in teardown state (fenced=" + isFenced
+                                    + ", closingOrDeleting=" + isClosingOrDeleting + ")"));
+        }
+
         CompletableFuture<PersistentTopicInternalStats> statFuture = new CompletableFuture<>();
 
         ledger.getManagedLedgerInternalStats(includeLedgerMetadata)
@@ -5309,6 +5321,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 close();
             }
         }
+    }
+
+    @Override
+    public boolean isInTeardown() {
+        // For PersistentTopic, teardown includes both the generic fenced state (from AbstractTopic)
+        // and the persistent-topic-specific closing-or-deleting state.
+        return isFenced || isClosingOrDeleting;
     }
 
     private void fenceTopicToCloseOrDelete() {
