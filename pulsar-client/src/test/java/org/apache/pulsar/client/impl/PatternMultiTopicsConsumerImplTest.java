@@ -22,20 +22,27 @@ import static org.apache.pulsar.client.impl.ClientTestFixtures.createDelayedComp
 import static org.apache.pulsar.client.impl.ClientTestFixtures.createPulsarClientMockWithMockedClientCnx;
 import static org.apache.pulsar.client.impl.ClientTestFixtures.mockClientCnx;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.google.common.collect.Sets;
+import io.netty.buffer.ByteBuf;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timeout;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import io.netty.util.concurrent.DefaultThreadFactory;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -46,14 +53,24 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.client.util.ExecutorProvider.CleanupTask;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.CommandSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicUpdate;
 import org.apache.pulsar.common.lookup.GetTopicsResult;
@@ -63,8 +80,10 @@ import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.awaitility.Awaitility;
 import org.jspecify.annotations.NonNull;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -73,6 +92,7 @@ import org.testng.annotations.Test;
 public class PatternMultiTopicsConsumerImplTest {
     private PatternMultiTopicsConsumerImpl.TopicsChangedListener mockListener;
     private ExecutorProvider executorProvider;
+    private ExecutorProvider internalExecutorProvider;
     private ExecutorService internalExecutor;
     private PulsarClientImpl clientMock;
     private ClientCnx cnx;
@@ -81,7 +101,8 @@ public class PatternMultiTopicsConsumerImplTest {
     @BeforeMethod(alwaysRun = true)
     public void setUp() {
         executorProvider = new ExecutorProvider(1, "PatternMultiTopicsConsumerImplTest");
-        internalExecutor = Executors.newSingleThreadScheduledExecutor();
+        internalExecutorProvider = new ExecutorProvider(1, "PatternConsumerInternalTest");
+        internalExecutor = internalExecutorProvider.getExecutor();
         cnx = mockClientCnx();
         clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor, cnx);
         timer = new HashedWheelTimer();
@@ -97,8 +118,9 @@ public class PatternMultiTopicsConsumerImplTest {
             executorProvider.shutdownNow();
             executorProvider = null;
         }
-        if (internalExecutor != null) {
-            internalExecutor.shutdownNow();
+        if (internalExecutorProvider != null) {
+            internalExecutorProvider.shutdownNow();
+            internalExecutorProvider = null;
             internalExecutor = null;
         }
         if (timer != null) {
@@ -349,6 +371,412 @@ public class PatternMultiTopicsConsumerImplTest {
         assertThat(consumer.getUnAckedMessageTracker().remove(otherTopicMessageId)).isTrue();
         verify(partitionConsumer0).closeAsync();
         verify(partitionConsumer1).closeAsync();
+    }
+
+    @Test
+    public void testFailedChildIsRemovedAndFullRecheckCreatesReadyReplacement() throws Exception {
+        String topic = "persistent://tenant/namespace/t190008";
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/t.*",
+                TopicsPattern.RegexImplementation.JDK);
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAutoUpdatePartitions(false);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(conf, pattern);
+        CompletableFuture<ProducerResponse> firstSubscribe = new CompletableFuture<>();
+        AtomicBoolean firstRequest = new AtomicBoolean(true);
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return firstRequest.compareAndSet(true, false)
+                    ? firstSubscribe : CompletableFuture.completedFuture(mock(ProducerResponse.class));
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        clientMock.getConfiguration().setOperationTimeoutMs(0);
+        try {
+            CompletableFuture<Void> adding = consumer.topicsChangeListener.onTopicsAdded(Collections.singleton(topic));
+            Awaitility.await().untilAsserted(() -> assertThat(consumer.getConsumers()).hasSize(1));
+            ConsumerImpl<byte[]> failedChild = consumer.getConsumers().get(0);
+
+            firstSubscribe.completeExceptionally(
+                    new PulsarClientException.TimeoutException("Initial subscribe timed out"));
+
+            assertThat(adding).failsWithin(Duration.ofSeconds(5));
+            assertThat(failedChild.subscribeFuture()).isCompletedExceptionally();
+            assertThat(consumer.getPartitions()).as("a failed child must not mask a missing subscription").isEmpty();
+            assertThat(consumer.allTopicPartitionsNumber.get()).isZero();
+
+            clientMock.getConfiguration().setOperationTimeoutMs(30000);
+            List<String> fullSnapshot = Collections.singletonList(topic);
+            LookupService lookup = clientMock.getLookup();
+            doReturn(CompletableFuture.completedFuture(new GetTopicsResult(fullSnapshot,
+                    TopicList.calculateHash(fullSnapshot), true, true)))
+                    .when(lookup).getTopicsUnderNamespace(any(), any(), any(), any(), any());
+            consumer.recheckTopicsChange().get(5, TimeUnit.SECONDS);
+
+            assertThat(consumer.getPartitions()).containsExactly(topic);
+            assertThat(consumer.getConsumers()).hasSize(1);
+            ConsumerImpl<byte[]> replacement = consumer.getConsumers().get(0);
+            assertThat(replacement).isNotSameAs(failedChild);
+            assertThat(replacement.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(replacement.isConnected()).isTrue();
+            assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(1);
+        } finally {
+            firstSubscribe.complete(mock(ProducerResponse.class));
+            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @DataProvider
+    public Object[][] listenerThreadCounts() {
+        return new Object[][] {{1}, {3}};
+    }
+
+    @Test(dataProvider = "listenerThreadCounts")
+    @SuppressWarnings("unchecked")
+    public void testFailedChildCleanupDoesNotDeadlockListenerClose(int listenerThreads) throws Exception {
+        executorProvider.shutdownNow();
+        executorProvider = spy(new ExecutorProvider(listenerThreads, "PatternListenerCloseTest"));
+        // Pin both the listener and the old cleanup path to the selected listener executor, including with >1 threads.
+        ExecutorService listenerExecutor = spy(executorProvider.getExecutor());
+        doReturn(listenerExecutor).when(executorProvider).getExecutor();
+        internalExecutor = spy(internalExecutor);
+        clientMock = createPulsarClientMockWithMockedClientCnx(executorProvider, internalExecutor, cnx);
+        when(clientMock.timer()).thenReturn(timer);
+        doReturn(true).when(cnx).isSupportsTopicWatchers();
+        doReturn(true).when(cnx).isSupportsTopicWatcherReconcile();
+        doReturn(CompletableFuture.completedFuture(new CommandWatchTopicListSuccess()
+                .setRequestId(0).setWatcherId(0).setTopicsHash(TopicList.calculateHash(Collections.emptyList()))))
+                .when(cnx).newWatchTopicList(anyLong(), anyLong(), any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(new CommandSuccess()))
+                .when(cnx).newWatchTopicListClose(any(), anyLong());
+        CountDownLatch cleanupSubmitted = new CountDownLatch(1);
+        for (ExecutorService executor : List.of(listenerExecutor, internalExecutor)) {
+            doAnswer(invocation -> {
+                Runnable task = invocation.getArgument(0);
+                invocation.callRealMethod();
+                if (task instanceof CleanupTask) {
+                    cleanupSubmitted.countDown();
+                }
+                return null;
+            }).when(executor).execute(any(Runnable.class));
+        }
+        CountDownLatch listenerEntered = new CountDownLatch(1);
+        CountDownLatch allowListenerClose = new CountDownLatch(1);
+        CompletableFuture<Void> listenerClosed = new CompletableFuture<>();
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAutoUpdatePartitions(false);
+        conf.setMessageListener((consumer, message) -> {
+            listenerEntered.countDown();
+            try {
+                if (!allowListenerClose.await(5, TimeUnit.SECONDS)) {
+                    throw new AssertionError("Failed subscribe did not reach deferred cleanup");
+                }
+                consumer.close();
+                listenerClosed.complete(null);
+            } catch (Throwable error) {
+                listenerClosed.completeExceptionally(error);
+            }
+        });
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/t.*",
+                TopicsPattern.RegexImplementation.JDK);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(conf, pattern);
+        CompletableFuture<ProducerResponse> firstSubscribe = new CompletableFuture<>();
+        AtomicBoolean firstRequest = new AtomicBoolean(true);
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return firstRequest.compareAndSet(true, false)
+                    ? firstSubscribe : CompletableFuture.completedFuture(mock(ProducerResponse.class));
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        clientMock.getConfiguration().setOperationTimeoutMs(0);
+        try {
+            assertThat(consumer.subscribeFuture).succeedsWithin(Duration.ofSeconds(5));
+            assertThat(consumer.getWatcherFuture()).succeedsWithin(Duration.ofSeconds(5));
+            Message<byte[]> message = mock(Message.class);
+            // Use the consumer's actual default listener dispatch with a controlled user callback.
+            consumer.messageListenerExecutor.execute(message, () -> consumer.listener.received(consumer, message));
+            assertThat(listenerEntered.await(5, TimeUnit.SECONDS)).isTrue();
+            String topic = "persistent://tenant/namespace/t190008";
+            consumer.getTopicListWatcher().handleCommandWatchTopicUpdate(new CommandWatchTopicUpdate()
+                    .setWatcherId(0).setTopicsHash(TopicList.calculateHash(Collections.singletonList(topic)))
+                    .addAllNewTopics(Collections.singletonList(topic)));
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(consumer.getConsumers()).hasSize(1);
+                assertThat(consumer.getConsumers().get(0).subscribeFuture()).isNotDone();
+            });
+
+            firstSubscribe.completeExceptionally(
+                    new PulsarClientException.TimeoutException("Initial subscribe failed"));
+            assertThat(cleanupSubmitted.await(5, TimeUnit.SECONDS)).isTrue();
+            // Let the listener close only after cleanup is submitted, so the closed flag cannot skip cleanup.
+            allowListenerClose.countDown();
+
+            assertThat(listenerClosed).succeedsWithin(Duration.ofSeconds(5));
+            assertThat(consumer.getState()).isEqualTo(HandlerState.State.Closed);
+            assertThat(consumer.getConsumers()).isEmpty();
+            assertThat(consumer.allTopicPartitionsNumber.get()).isZero();
+        } finally {
+            allowListenerClose.countDown();
+            firstSubscribe.complete(mock(ProducerResponse.class));
+            // Interrupt a deadlocked old listener and replay queued CleanupTasks after its executor terminates.
+            executorProvider.shutdownNow();
+            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private ConsumerImpl<byte[]> childForFailedAttemptTest(String topic, boolean initialFailure,
+                                                          HandlerState.State state) {
+        ConsumerImpl<byte[]> child = mock(ConsumerImpl.class, Mockito.RETURNS_DEEP_STUBS);
+        doReturn(topic).when(child).getTopic();
+        doReturn(state).when(child).getState();
+        CompletableFuture<Consumer<byte[]>> initial = new CompletableFuture<>();
+        if (initialFailure) {
+            initial.completeExceptionally(new PulsarClientException.TimeoutException("Initial subscribe failed"));
+        } else {
+            initial.complete(child);
+        }
+        doReturn(initial).when(child).subscribeFuture();
+        doReturn(CompletableFuture.completedFuture(null)).when(child).closeAsync();
+        return child;
+    }
+
+    @Test
+    public void testFailedPartitionExpansionPreservesHealthyAndReconnectingChildren() throws Exception {
+        String base = "persistent://tenant/namespace/partitioned";
+        String partition0 = base + "-partition-0";
+        String partition1 = base + "-partition-1";
+        String partition2 = base + "-partition-2";
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
+                TopicsPattern.RegexImplementation.JDK);
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAutoUpdatePartitions(false);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(conf, pattern);
+        ConsumerImpl<byte[]> healthy = childForFailedAttemptTest(partition0, false, HandlerState.State.Ready);
+        ConsumerImpl<byte[]> reconnecting = childForFailedAttemptTest(partition1, false, HandlerState.State.Connecting);
+        // The exceptional initial future, not a later state assignment, identifies the failed attempt.
+        ConsumerImpl<byte[]> failed = childForFailedAttemptTest(partition2, true, HandlerState.State.Connecting);
+        CompletableFuture<Void> closingFailed = new CompletableFuture<>();
+        doReturn(closingFailed).when(failed).closeAsync();
+        consumer.partitionedTopics.put(base, 3);
+        consumer.consumers.put(partition0, healthy);
+        consumer.consumers.put(partition1, reconnecting);
+        consumer.consumers.put(partition2, failed);
+        consumer.allTopicPartitionsNumber.set(3);
+        CompletableFuture<Void> failedUpdate = new CompletableFuture<>();
+        try {
+            consumer.handleSubscribeOneTopicError(partition2, new RuntimeException("Expansion failed"), failedUpdate);
+            Awaitility.await().untilAsserted(() -> verify(failed).closeAsync());
+            assertThat(failedUpdate).isNotDone();
+            closingFailed.complete(null);
+            assertThat(failedUpdate).failsWithin(Duration.ofSeconds(5));
+
+            assertThat(consumer.getPartitions()).containsExactlyInAnyOrder(partition0, partition1);
+            assertThat(consumer.partitionedTopics).containsEntry(base, 3);
+            assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(2);
+            verify(healthy, never()).closeAsync();
+            verify(reconnecting, never()).closeAsync();
+
+            consumer.topicsChangeListener.onTopicsAdded(Collections.singleton(partition2)).get(5, TimeUnit.SECONDS);
+            assertThat(consumer.getPartitions()).containsExactlyInAnyOrder(partition0, partition1, partition2);
+            assertThat(consumer.consumers.get(partition0)).isSameAs(healthy);
+            assertThat(consumer.consumers.get(partition1)).isSameAs(reconnecting);
+            assertThat(consumer.consumers.get(partition2)).isNotSameAs(failed);
+            assertThat(consumer.consumers.get(partition2).getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(3);
+        } finally {
+            closingFailed.complete(null);
+            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testFailedChildCleanupDoesNotRemoveHealthyReplacement() throws Exception {
+        String topic = "persistent://tenant/namespace/child-replacement";
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
+                TopicsPattern.RegexImplementation.JDK);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(pattern);
+        ConsumerImpl<byte[]> failed = childForFailedAttemptTest(topic, true, HandlerState.State.Connecting);
+        ConsumerImpl<byte[]> replacement = childForFailedAttemptTest(topic, false, HandlerState.State.Ready);
+        CompletableFuture<Void> closingFailed = new CompletableFuture<>();
+        doReturn(closingFailed).when(failed).closeAsync();
+        consumer.consumers.put(topic, failed);
+        consumer.allTopicPartitionsNumber.set(1);
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        try {
+            consumer.handleSubscribeOneTopicError(topic, new RuntimeException("Subscribe failed"), result);
+            Awaitility.await().untilAsserted(() -> verify(failed).closeAsync());
+            consumer.consumers.put(topic, replacement);
+            closingFailed.complete(null);
+            assertThat(result).failsWithin(Duration.ofSeconds(5));
+            assertThat(consumer.consumers.get(topic)).isSameAs(replacement);
+            assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(1);
+            verify(replacement, never()).closeAsync();
+        } finally {
+            closingFailed.complete(null);
+            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testLateFailedChildCallbackAfterCloseDoesNotScheduleCleanup() throws Exception {
+        internalExecutor = spy(internalExecutor);
+        doReturn(internalExecutor).when(clientMock).getInternalExecutorService();
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
+                TopicsPattern.RegexImplementation.JDK);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(pattern);
+        consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        clearInvocations(internalExecutor);
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        consumer.handleSubscribeOneTopicError("persistent://tenant/namespace/t190008",
+                new RuntimeException("Late failed subscribe"), result);
+        assertThat(result).isCompletedExceptionally();
+        verify(internalExecutor, never()).execute(any(Runnable.class));
+        assertThat(consumer.getConsumers()).isEmpty();
+        assertThat(consumer.allTopicPartitionsNumber.get()).isZero();
+    }
+
+    @Test
+    public void testAllFailedPartitionsRemoveEmptyBaseEntry() throws Exception {
+        String base = "persistent://tenant/namespace/all-failed";
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
+                TopicsPattern.RegexImplementation.JDK);
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAutoUpdatePartitions(false);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(conf, pattern);
+        consumer.partitionedTopics.put(base, 2);
+        consumer.allTopicPartitionsNumber.set(2);
+        for (int index = 0; index < 2; index++) {
+            String partition = base + "-partition-" + index;
+            consumer.consumers.put(partition,
+                    childForFailedAttemptTest(partition, true, HandlerState.State.Connecting));
+        }
+        try {
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            consumer.handleSubscribeOneTopicError(base, new RuntimeException("Initial partitions failed"), result);
+            assertThat(result).failsWithin(Duration.ofSeconds(5));
+            assertThat(consumer.getConsumers()).isEmpty();
+            assertThat(consumer.partitionedTopics).doesNotContainKey(base);
+            assertThat(consumer.allTopicPartitionsNumber.get()).isZero();
+        } finally {
+            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testCloseCannotPublishRecheckTimeoutAfterCancellingIt() throws Exception {
+        timer.stop();
+        timer = mock(Timer.class);
+        when(clientMock.timer()).thenReturn(timer);
+        CountDownLatch scheduling = new CountDownLatch(1);
+        CountDownLatch publishTimeout = new CountDownLatch(1);
+        AtomicReference<PatternMultiTopicsConsumerImpl<byte[]>> parent = new AtomicReference<>();
+        Timeout timeout = mock(Timeout.class);
+        doAnswer(invocation -> {
+            TimerTask task = invocation.getArgument(0);
+            if (task instanceof PatternMultiTopicsConsumerImpl) {
+                parent.set((PatternMultiTopicsConsumerImpl<byte[]>) task);
+                scheduling.countDown();
+                assertThat(publishTimeout.await(5, TimeUnit.SECONDS)).isTrue();
+                return timeout;
+            }
+            return mock(Timeout.class);
+        }).when(timer).newTimeout(any(), anyLong(), any());
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAutoUpdatePartitions(false);
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
+                TopicsPattern.RegexImplementation.JDK);
+        ExecutorService creator = Executors.newSingleThreadExecutor(new DefaultThreadFactory("pattern-close-creation"));
+        CompletableFuture<PatternMultiTopicsConsumerImpl<byte[]>> created = CompletableFuture.supplyAsync(
+                () -> createPatternMultiTopicsConsumer(conf, pattern), creator);
+        CompletableFuture<Void> closed = new CompletableFuture<>();
+        Thread closer = new Thread(() -> {
+            try {
+                parent.get().closeAsync().get(5, TimeUnit.SECONDS);
+                closed.complete(null);
+            } catch (Throwable error) {
+                closed.completeExceptionally(error);
+            }
+        }, "pattern-close-during-schedule");
+        try {
+            assertThat(scheduling.await(5, TimeUnit.SECONDS)).isTrue();
+            closer.start();
+            // Old code finishes close while newTimeout is blocked. Correct code waits for the scheduler monitor.
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(() -> {
+                ThreadInfo info = ManagementFactory.getThreadMXBean().getThreadInfo(closer.getId());
+                return closed.isDone() || info != null && info.getThreadState() == Thread.State.BLOCKED
+                        && info.getLockInfo() != null
+                        && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(parent.get());
+            });
+            publishTimeout.countDown();
+            PatternMultiTopicsConsumerImpl<byte[]> consumer = created.get(5, TimeUnit.SECONDS);
+            closed.get(5, TimeUnit.SECONDS);
+            assertThat(consumer.getRecheckPatternTimeout()).isNull();
+            verify(timeout).cancel();
+        } finally {
+            publishTimeout.countDown();
+            closer.join(1000);
+            creator.shutdownNow();
+        }
+    }
+
+    @Test
+    public void testFailedChildCleanupCompletesWhenExecutorRejectsTask() throws Exception {
+        String topic = "persistent://tenant/namespace/rejected-cleanup";
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
+                TopicsPattern.RegexImplementation.JDK);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(pattern);
+        ConsumerImpl<byte[]> failed = childForFailedAttemptTest(topic, true, HandlerState.State.Connecting);
+        consumer.consumers.put(topic, failed);
+        consumer.allTopicPartitionsNumber.set(1);
+        internalExecutor.shutdown();
+        try {
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            RuntimeException subscribeError = new RuntimeException("Initial subscribe failed");
+            consumer.handleSubscribeOneTopicError(topic, subscribeError, result);
+            assertThat(result).isCompletedExceptionally();
+            verify(failed, never()).closeAsync();
+        } finally {
+            // The base close path also needs the deliberately terminated internal executor.
+            assertThatThrownBy(() -> consumer.closeAsync().get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(RejectedExecutionException.class);
+            consumer.getUnAckedMessageTracker().close();
+        }
+    }
+
+    @Test
+    public void testQueuedFailedChildCleanupRunsWhenExecutorShutsDown() throws Exception {
+        String topic = "persistent://tenant/namespace/queued-cleanup";
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
+                TopicsPattern.RegexImplementation.JDK);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(pattern);
+        ConsumerImpl<byte[]> failed = childForFailedAttemptTest(topic, true, HandlerState.State.Connecting);
+        consumer.consumers.put(topic, failed);
+        consumer.allTopicPartitionsNumber.set(1);
+        CountDownLatch blocked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        internalExecutor.execute(() -> {
+            blocked.countDown();
+            try {
+                release.await();
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        try {
+            assertThat(blocked.await(5, TimeUnit.SECONDS)).isTrue();
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            consumer.handleSubscribeOneTopicError(topic, new RuntimeException("Initial subscribe failed"), result);
+            assertThat(result).isNotDone();
+            internalExecutorProvider.shutdownNow();
+            assertThat(result).failsWithin(Duration.ofSeconds(5));
+            assertThat(consumer.getConsumers()).isEmpty();
+            assertThat(consumer.allTopicPartitionsNumber.get()).isZero();
+            verify(failed).closeAsync();
+        } finally {
+            release.countDown();
+            // The base close path also needs the deliberately terminated internal executor.
+            assertThatThrownBy(() -> consumer.closeAsync().get(5, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(RejectedExecutionException.class);
+            consumer.getUnAckedMessageTracker().close();
+        }
     }
 
     private static void runTimerTasks(Deque<TimerTask> tasks) throws Exception {
