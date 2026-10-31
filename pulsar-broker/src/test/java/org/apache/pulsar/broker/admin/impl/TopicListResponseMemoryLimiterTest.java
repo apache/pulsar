@@ -409,6 +409,27 @@ public class TopicListResponseMemoryLimiterTest {
     }
 
     @Test
+    public void testListTopicsAfterCollectingSkipsCollectingWhenResponseIsAlreadyDone() {
+        responseDone.set(true);
+        AtomicInteger collectorCalls = new AtomicInteger();
+        TopicListing listing = TopicListing.namespaceTopics(NAMESPACE, Mode.ALL);
+
+        CompletableFuture<List<String>> result = TopicListResponseMemoryLimiter.listTopicsAfterCollecting(
+                brokerService, response, listing, null, () -> {
+                    collectorCalls.incrementAndGet();
+                    return CompletableFuture.completedFuture(TOPICS);
+                }, CompletableFuture::completedFuture);
+
+        assertThat(result).failsWithin(Duration.ofSeconds(5));
+        assertThat(collectorCalls).hasValue(0);
+        assertThat(result).failsWithin(Duration.ofSeconds(5)).withThrowableThat()
+                .havingRootCause().isInstanceOf(TopicListResponseMemoryLimiter.RequestCancelledException.class);
+        assertThat(acquiredHeapPermits()).isZero();
+        // Cancelling the initializing request must allow a later live request to obtain an estimate.
+        assertThat(sizeCache.getTopicListSize(listing, null).getSizeAsync()).isDone();
+    }
+
+    @Test
     public void testListTopicsAfterCollectingSkipsCollectingWhenEstimateIsLargerThanLimit() {
         sizeCache = new TopicListSizeResultCache(MAX_HEAP_MEMORY, () -> true);
         when(brokerService.getTopicListSizeResultCache()).thenReturn(sizeCache);

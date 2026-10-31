@@ -21,16 +21,33 @@ package org.apache.pulsar.broker.admin;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
+import jakarta.ws.rs.container.AsyncResponse;
+import jakarta.ws.rs.container.CompletionCallback;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.admin.impl.TopicListResponseMemoryLimiter;
+import org.apache.pulsar.broker.admin.v2.Namespaces;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
 import org.apache.pulsar.broker.topiclistlimit.TopicListing;
@@ -41,12 +58,15 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace.Mode;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.LimitType;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -63,6 +83,11 @@ public class TopicListRestMemoryLimitTest extends MockedPulsarServiceBaseTest {
         conf.setMaxTopicListInFlightHeapMemSizePermitsAcquireTimeoutMillis(200);
     }
 
+    @Override
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        return BrokerTestUtil.spyWithoutRecordingInvocations(brokerService);
+    }
+
     @BeforeClass
     @Override
     protected void setup() throws Exception {
@@ -74,6 +99,123 @@ public class TopicListRestMemoryLimitTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @DataProvider
+    public Object[][] cancellationWhileWaitingForEstimate() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "cancellationWhileWaitingForEstimate")
+    public void testCancelledAllListingSkipsBundleCollection(boolean estimateCompletedBeforeCancellation)
+            throws Exception {
+        String namespace = BrokerTestUtil.newUniqueName("public/cancelled-all-listing");
+        NamespaceName namespaceName = NamespaceName.get(namespace);
+        admin.namespaces().createNamespace(namespace, 1);
+        String persistentTopic = "persistent://" + namespace + "/persistent";
+        String nonPersistentTopic = "non-persistent://" + namespace + "/non-persistent";
+        admin.topics().createNonPartitionedTopic(persistentTopic);
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(nonPersistentTopic).create();
+
+        // Delay completion of the first real persistent listing, leaving the ALL size estimate initializing.
+        CompletableFuture<Void> releaseFirstListing = new CompletableFuture<>();
+        CompletableFuture<Void> firstListingStarted = new CompletableFuture<>();
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        doAnswer(invocation -> {
+            CompletableFuture<?> actualListing = (CompletableFuture<?>) invocation.callRealMethod();
+            firstListingStarted.complete(null);
+            return actualListing.thenCompose(topics -> releaseFirstListing.thenApply(__ -> topics));
+        }).when(namespaceService).getListOfPersistentTopics(namespaceName);
+
+        // Also control the interval after the estimate completes but before the waiting continuation runs.
+        Queue<Runnable> continuations = new ConcurrentLinkedQueue<>();
+        CompletableFuture<Void> waitingForEstimate = new CompletableFuture<>();
+        BrokerService brokerService = pulsar.getBrokerService();
+        AsyncDualMemoryLimiterImpl limiter = brokerService.getMaxTopicListInFlightLimiter();
+        AsyncDualMemoryLimiterImpl gatedLimiter = spy(limiter);
+        doAnswer(__ -> {
+            waitingForEstimate.complete(null);
+            return (Executor) continuations::add;
+        }).when(gatedLimiter).getCompletionExecutor();
+        doReturn(gatedLimiter).when(brokerService).getMaxTopicListInFlightLimiter();
+        try {
+            CompletableFuture<List<String>> first = admin.namespaces().getTopicsAsync(namespace,
+                    ListNamespaceTopicsOptions.builder().mode(org.apache.pulsar.client.admin.Mode.ALL).build());
+            firstListingStarted.get(10, TimeUnit.SECONDS);
+
+            // Only the servlet response is simulated: authorization, policies, size cache, memory permits,
+            // and the collector's HTTP requests to the bundle owner all use their real implementations.
+            AsyncResponse waitingResponse = mock(AsyncResponse.class);
+            AtomicBoolean responseDone = new AtomicBoolean();
+            when(waitingResponse.isDone()).thenAnswer(__ -> responseDone.get());
+            CompletableFuture<CompletionCallback> registered = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                registered.complete(invocation.getArgument(0));
+                return List.of();
+            }).when(waitingResponse).register(any(Object.class));
+            CompletableFuture<List<String>> waitingResult = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                waitingResult.complete(invocation.getArgument(0));
+                return !responseDone.get();
+            }).when(waitingResponse).resume(any(Object.class));
+            doAnswer(invocation -> {
+                waitingResult.completeExceptionally(invocation.getArgument(0));
+                return !responseDone.get();
+            }).when(waitingResponse).resume(any(Throwable.class));
+            CountingNamespaces waitingRequest = new CountingNamespaces();
+            waitingRequest.setPulsar(pulsar);
+            waitingRequest.getTopics(waitingResponse, namespaceName.getTenant(), namespaceName.getLocalName(),
+                    Mode.ALL, false);
+            CompletionCallback callback = registered.get(10, TimeUnit.SECONDS);
+            waitingForEstimate.get(10, TimeUnit.SECONDS);
+            assertThat(waitingResult).isNotDone();
+            assertThat(waitingRequest.bundleCollections).hasValue(0);
+
+            if (estimateCompletedBeforeCancellation) {
+                releaseFirstListing.complete(null);
+                assertThat(first.get(10, TimeUnit.SECONDS)).contains(persistentTopic, nonPersistentTopic);
+                Awaitility.await().untilAsserted(() -> assertThat(continuations).hasSize(1));
+            }
+            // An async response timeout can complete without a throwable.
+            responseDone.set(true);
+            callback.onComplete(null);
+            releaseFirstListing.complete(null);
+            assertThat(first.get(10, TimeUnit.SECONDS)).contains(persistentTopic, nonPersistentTopic);
+            Awaitility.await().untilAsserted(() -> assertThat(continuations).hasSize(1));
+            continuations.remove().run();
+
+            assertThat(waitingResult).failsWithin(Duration.ofSeconds(10));
+            assertThat(waitingRequest.bundleCollections).as("Cancelled requests must not query bundle owners")
+                    .hasValue(0);
+            assertThat(TopicListResponseMemoryLimiter.isRequestCancelled(
+                    waitingResult.handle((__, error) -> error).get(10, TimeUnit.SECONDS))).isTrue();
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isZero());
+
+            // A later live request still uses the estimate and returns both kinds of topics.
+            assertThat(admin.namespaces().getTopics(namespace, ListNamespaceTopicsOptions.builder()
+                    .mode(org.apache.pulsar.client.admin.Mode.ALL).build()))
+                    .contains(persistentTopic, nonPersistentTopic);
+        } finally {
+            releaseFirstListing.complete(null);
+            doCallRealMethod().when(namespaceService).getListOfPersistentTopics(eq(namespaceName));
+            doReturn(limiter).when(brokerService).getMaxTopicListInFlightLimiter();
+            Runnable continuation;
+            while ((continuation = continuations.poll()) != null) {
+                continuation.run();
+            }
+        }
+    }
+
+    private static class CountingNamespaces extends Namespaces {
+        private final AtomicInteger bundleCollections = new AtomicInteger();
+
+        @Override
+        protected CompletableFuture<List<String>> internalGetNonPersistentTopics(Policies policies) {
+            bundleCollections.incrementAndGet();
+            return super.internalGetNonPersistentTopics(policies);
+        }
     }
 
     @Test
