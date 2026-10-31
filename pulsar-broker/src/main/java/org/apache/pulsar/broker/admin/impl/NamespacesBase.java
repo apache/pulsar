@@ -413,6 +413,12 @@ public abstract class NamespacesBase extends AdminResource {
         return null;
     }
 
+    // Cluster service URLs are not validated as strict URIs, so keep URL(String)'s lenient parsing.
+    @SuppressWarnings("deprecation")
+    private static URL parseUrl(String serviceUrl) throws MalformedURLException {
+        return new URL(serviceUrl);
+    }
+
     private boolean isDeletedAlongWithUserCreatedTopic(String topic) {
         // The transaction pending ack topic will be deleted while topic unsubscribe corresponding subscription.
         return topic.endsWith(SystemTopicNames.PENDING_ACK_STORE_SUFFIX);
@@ -524,9 +530,9 @@ public abstract class NamespacesBase extends AdminResource {
                                             URL replClusterUrl;
                                             try {
                                                 if (!replClusterData.isBrokerClientTlsEnabled()) {
-                                                    replClusterUrl = new URL(replClusterData.getServiceUrl());
+                                                    replClusterUrl = parseUrl(replClusterData.getServiceUrl());
                                                 } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
-                                                    replClusterUrl = new URL(replClusterData.getServiceUrlTls());
+                                                    replClusterUrl = parseUrl(replClusterData.getServiceUrlTls());
                                                 } else {
                                                     throw new RestException(Status.PRECONDITION_FAILED,
                                                     "The replication cluster does not provide TLS encrypted service");

@@ -84,6 +84,7 @@ dependencies {
     implementation(libs.fastutil)
 
     compileOnly(libs.swagger.annotations)
+    testCompileOnly(libs.swagger.annotations)
     compileOnly(libs.protobuf.java)
     compileOnly(libs.joda.time)
     compileOnly(libs.spotbugs.annotations)

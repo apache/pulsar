@@ -35,6 +35,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -279,10 +280,9 @@ public class TransactionMetaStoreHandler extends HandlerState
         pendingRequests.forEach((k, op) -> {
             // Release the op even if its caller already completed or cancelled the future.
             if (op != null) {
-                op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                failRequestOnClose(op, new PulsarClientException.AlreadyClosedException(
                         "Could not get response from transaction meta store when "
                                 + "the transaction meta store has already close."));
-                onResponse(op);
             }
         });
         this.pendingRequests.clear();
@@ -723,6 +723,17 @@ public class TransactionMetaStoreHandler extends HandlerState
         semaphore.release();
     }
 
+    private void failRequestOnClose(OpBase<?> op, Throwable cause) {
+        CompletableFuture<?> callback = op.callback;
+        onResponse(op);
+        // Completing a future can invoke user callbacks inline, including one waiting for client shutdown.
+        // Release the op on its owner thread first, and keep those callbacks off the shutdown thread.
+        // The client's own executors may already have stopped, so use the default async executor.
+        if (!callback.isDone()) {
+            CompletableFuture.runAsync(() -> callback.completeExceptionally(cause));
+        }
+    }
+
     private boolean canSendRequest(CompletableFuture<?> callback) {
         try {
             if (blockIfReachMaxPendingOps) {
@@ -742,15 +753,22 @@ public class TransactionMetaStoreHandler extends HandlerState
     }
 
     // The op owns its buffer and a semaphore permit. As a cleanup task, this still runs if the client shuts the
-    // executor down while it's busy, and then fails the op, the handler being closed by then.
+    // executor down while it's busy, and then fails the op, the handler being closed by then. Once the executor is
+    // stopped, it rejects the task: then fail and release the op here, since its caller only learns the outcome
+    // from the request's future.
     private void registerAndSend(long requestId, OpBase<?> op) {
-        internalPinnedExecutor.execute((ExecutorProvider.CleanupTask) () -> {
-            pendingRequests.put(requestId, op);
-            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            if (!checkStateAndSendRequest(op)) {
-                pendingRequests.remove(requestId);
-            }
-        });
+        try {
+            internalPinnedExecutor.execute((ExecutorProvider.CleanupTask) () -> {
+                pendingRequests.put(requestId, op);
+                timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+                if (!checkStateAndSendRequest(op)) {
+                    pendingRequests.remove(requestId);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            failRequestOnClose(op, new PulsarClientException.AlreadyClosedException(
+                    "Could not send the request to the transaction meta store: the client is already closed."));
+        }
     }
 
     private boolean checkStateAndSendRequest(OpBase<?> op) {
@@ -777,12 +795,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                 return true;
             case Closing:
             case Closed:
-                op.callback.completeExceptionally(
+                failRequestOnClose(op,
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "
                                         + transactionCoordinatorId
                                         + " is closing or closed."));
-                onResponse(op);
                 return false;
             case Failed:
                 op.callback.completeExceptionally(

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -36,7 +37,9 @@ import jakarta.ws.rs.core.UriInfo;
 import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -67,6 +70,7 @@ import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
@@ -83,12 +87,14 @@ import org.apache.pulsar.client.impl.schema.generic.GenericJsonRecord;
 import org.apache.pulsar.client.impl.schema.generic.GenericJsonSchema;
 import org.apache.pulsar.client.impl.schema.generic.GenericSchemaImpl;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ClusterDataImpl;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.apache.pulsar.common.schema.SchemaInfoWithVersion;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerAcks;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.data.ProducerMessages;
@@ -943,6 +949,125 @@ public class TopicsTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(sellerGenericJsonRecord.getField("street"), expected.get(i).getSeller().getStreet());
             Number zipCode = (Number) sellerGenericJsonRecord.getField("zipCode");
             Assert.assertEquals(zipCode.longValue(), expected.get(i).getSeller().getZipCode());
+        }
+    }
+
+    @Test
+    public void testProduceWithBacklogQuotaSizeExceeded() throws Exception {
+        String namespaceName = testTenant + "/" + testNamespace;
+        String topicName = "persistent://" + namespaceName + "/" + testTopicName;
+        admin.topics().createNonPartitionedTopic(topicName);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(0)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
+                .build();
+        admin.namespaces().setBacklogQuota(namespaceName, backlogQuota,
+                BacklogQuota.BacklogQuotaType.destination_storage);
+
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        ProducerMessages producerMessages = new ProducerMessages();
+        String message = "[{\"payload\":\"rest-produce\"}]";
+        producerMessages.setMessages(createMessages(message));
+        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName,
+                false, producerMessages);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
+        Object responseEntity = responseCaptor.getValue().getEntity();
+        Assert.assertTrue(responseEntity instanceof ProducerAcks);
+        ProducerAcks response = (ProducerAcks) responseEntity;
+        Assert.assertEquals(response.getMessagePublishResults().size(), 1);
+        for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
+            Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 2);
+            Assert.assertTrue(response.getMessagePublishResults().get(index).getErrorMsg()
+                    .contains("Cannot create producer on topic with backlog quota exceeded"));
+        }
+    }
+
+    @Test
+    public void testProduceToPartitionedTopicWithBacklogEvictionPolicy() throws Exception {
+        String namespaceName = testTenant + "/" + testNamespace;
+        String topicName = "persistent://" + namespaceName + "/" + testTopicName;
+        admin.topics().createPartitionedTopic(topicName, 3);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitSize(0)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                .build();
+        admin.namespaces().setBacklogQuota(namespaceName, backlogQuota,
+                BacklogQuota.BacklogQuotaType.destination_storage);
+
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        ProducerMessages producerMessages = new ProducerMessages();
+        StringBuilder message = new StringBuilder("[");
+        for (int i = 0; i < 9; i++) {
+            message.append(i == 0 ? "" : ",").append("{\"payload\":\"rest-produce-").append(i).append("\"}");
+        }
+        producerMessages.setMessages(createMessages(message.append("]").toString()));
+        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName,
+                false, producerMessages);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
+        ProducerAcks response = (ProducerAcks) responseCaptor.getValue().getEntity();
+        Assert.assertEquals(response.getMessagePublishResults().size(), 9);
+        // The eviction policy never rejects producers, and each partition keeps the request order.
+        Map<Integer, Long> lastEntryIdByPartition = new HashMap<>();
+        for (ProducerAck ack : response.getMessagePublishResults()) {
+            Assert.assertEquals(ack.getErrorCode(), 0, ack.getErrorMsg());
+            String[] messageId = ack.getMessageId().split(":");
+            long entryId = Long.parseLong(messageId[1]);
+            int partition = Integer.parseInt(messageId[2]);
+            Long lastEntryId = lastEntryIdByPartition.put(partition, entryId);
+            Assert.assertTrue(lastEntryId == null || lastEntryId < entryId, ack.getMessageId());
+        }
+        Assert.assertEquals(lastEntryIdByPartition.size(), 3);
+    }
+
+    @Test
+    public void testProduceWithBacklogQuotaTimeExceeded() throws Exception {
+        pulsar.getConfiguration().setPreciseTimeBasedBacklogQuotaCheck(true);
+        String namespaceName = testTenant + "/" + testNamespace;
+        String topicName = "persistent://" + namespaceName + "/" + testTopicName;
+        admin.topics().createNonPartitionedTopic(topicName);
+        BacklogQuota backlogQuota = BacklogQuota.builder()
+                .limitTime(1)
+                .retentionPolicy(BacklogQuota.RetentionPolicy.producer_exception)
+                .build();
+        admin.namespaces().setBacklogQuota(namespaceName, backlogQuota,
+                BacklogQuota.BacklogQuotaType.message_age);
+        admin.topics().createSubscription(topicName, "time-quota-sub", MessageId.earliest);
+
+        @Cleanup
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .create();
+        producer.send("backlog-message");
+        Topic topic = pulsar.getBrokerService().getTopic(topicName, false)
+                .get()
+                .orElseThrow(() -> new IllegalStateException("Topic not loaded: " + topicName));
+        PersistentTopic persistentTopic = (PersistentTopic) topic;
+        await().atMost(5, TimeUnit.SECONDS).untilAsserted(() ->
+                Assert.assertTrue(persistentTopic.checkTimeBacklogExceeded(true).get()));
+
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        ProducerMessages producerMessages = new ProducerMessages();
+        String message = "["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"eventTime\":1603045262772,\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"eventTime\":1603045262772,\"sequenceId\":2}]";
+        producerMessages.setMessages(createMessages(message));
+        topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName,
+                false, producerMessages);
+        ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+        verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
+        Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
+        Object responseEntity = responseCaptor.getValue().getEntity();
+        Assert.assertTrue(responseEntity instanceof ProducerAcks);
+        ProducerAcks response = (ProducerAcks) responseEntity;
+        Assert.assertEquals(response.getMessagePublishResults().size(), 2);
+        for (int index = 0; index < response.getMessagePublishResults().size(); index++) {
+            Assert.assertEquals(response.getMessagePublishResults().get(index).getErrorCode(), 2);
+            Assert.assertTrue(response.getMessagePublishResults().get(index).getErrorMsg()
+                    .contains("Cannot create producer on topic with backlog quota exceeded"));
         }
     }
 

@@ -998,7 +998,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             log.info("createComplete finished, state: " + ledger.getState());
             ledger.executor.execute(createLatch::countDown);
             return o;
-        }).when(ledger).createComplete(anyInt(), any(), any());
+        }).when(ledger).createComplete(anyInt(), any(), any(), anyLong());
         ledger.internalAsyncAddEntry(op);
         createLatch.await();
         closeLatch.await();
@@ -4021,11 +4021,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         AtomicReference<Object> ctxHolder = new AtomicReference<>();
         ledger.asyncCreateLedger(bk, config, BookKeeper.DigestType.CRC32C, (rc, lh, ctx) -> {
             response.set(rc);
-            latch.countDown();
             ctxHolder.set(ctx);
+            latch.countDown();
         }, Collections.emptyMap(), ledger.getLogger());
 
-        latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS);
+        assertTrue(latch.await(config.getMetadataOperationsTimeoutSeconds() + 2, TimeUnit.SECONDS));
         assertEquals(response.get(), BKException.Code.TimeoutException);
         assertTrue(ctxHolder.get() instanceof CompletableFuture);
         CompletableFuture<?> ledgerCreateHook = (CompletableFuture<?>) ctxHolder.get();
@@ -5912,6 +5912,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         doAnswer(inv -> {
             if (mlPath.equals(inv.getArgument(0)) && interceptNextPut.compareAndSet(true, false)) {
                 putIntercepted.countDown();
+                @SuppressWarnings("unchecked")
                 CompletableFuture<Stat> real = (CompletableFuture<Stat>) inv.callRealMethod();
                 CompletableFuture<Stat> gated = new CompletableFuture<>();
                 // Forward the real result to `gated` only once `releaseGate` is completed.
@@ -6019,6 +6020,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         doAnswer(inv -> {
             if (mlPath.equals(inv.getArgument(0)) && interceptNextPut.compareAndSet(true, false)) {
                 putIntercepted.countDown();
+                @SuppressWarnings("unchecked")
                 CompletableFuture<Stat> real = (CompletableFuture<Stat>) inv.callRealMethod();
                 CompletableFuture<Stat> gated = new CompletableFuture<>();
                 real.whenComplete((stat, ex) -> releaseGate.whenComplete((ignored, ignoredEx) -> {

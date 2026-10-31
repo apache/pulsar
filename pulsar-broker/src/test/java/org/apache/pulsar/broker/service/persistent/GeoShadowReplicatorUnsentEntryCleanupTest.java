@@ -130,7 +130,7 @@ public class GeoShadowReplicatorUnsentEntryCleanupTest {
     public void testCompletedExceptionalSchemaSchedulesRetryWithoutImmediateRead() throws Exception {
         ReplicatorFixture fixture = newReplicatorFixture();
         ExceptionallyCompletedSchemaGeoReplicator replicator = new ExceptionallyCompletedSchemaGeoReplicator(fixture);
-        ProducerImpl producer = mock(ProducerImpl.class);
+        ProducerImpl<?> producer = mock(ProducerImpl.class);
         replicator.startForTest(producer);
         EntryFixture entry = entry(0);
         try {
@@ -162,7 +162,7 @@ public class GeoShadowReplicatorUnsentEntryCleanupTest {
         return requests.get(0);
     }
 
-    private static SendCallback capturedCallback(ProducerImpl producer) {
+    private static SendCallback capturedCallback(ProducerImpl<?> producer) {
         ArgumentCaptor<SendCallback> callbackCaptor = ArgumentCaptor.forClass(SendCallback.class);
         verify(producer).sendAsync(any(), callbackCaptor.capture());
         return callbackCaptor.getValue();

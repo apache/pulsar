@@ -2646,6 +2646,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
                 "Non-existent namespace should return 404");
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testBundleValidationAfterSplit() throws Exception {
         LookupResult localWebServiceUrl = LookupResult.builder()
