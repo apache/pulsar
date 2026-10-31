@@ -377,6 +377,19 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     )
     private DeadLetterPolicy deadLetterPolicy;
 
+    @Schema(
+            name = "shareRetryAndDeadLetterProducers",
+            description = "If `true`, all partition sub-consumers of a partitioned-topic subscription will share a "
+                    + "single pair of retry-letter / dead-letter producers, instead of one pair per partition. "
+                    + "This reduces broker-side producer footprint from N (partitions) to 1 per subscription, which "
+                    + "is especially valuable for topics with high partition counts. "
+                    + "The behavior is fully transparent to application code; the only observable difference is that "
+                    + "the retry/DLQ producer stats on a single partition sub-consumer reflect the aggregated throughput "
+                    + "across the whole subscription. Set to `false` to restore the historical per-partition producer "
+                    + "behaviour."
+    )
+    private boolean shareRetryAndDeadLetterProducers = true;
+
     private boolean retryEnable = false;
 
     @JsonIgnore

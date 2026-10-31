@@ -231,6 +231,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private volatile int retryLetterProducerFailureCount;
     private final ReadWriteLock createProducerLock = new ReentrantReadWriteLock();
 
+    // When this consumer is a partition sub-consumer of a MultiTopicsConsumerImpl, the parent sets a
+    // shared provider so that retry-letter / dead-letter producers are created only once per
+    // subscription instead of once per partition. See RetryOrDlqProducerProvider.
+    // When null, this consumer owns its own producers (the historical behavior) and is responsible
+    // for closing them in closeAsync().
+    private volatile RetryOrDlqProducerProvider retryOrDlqProducerProvider;
+    // Ensures stats.setRetryLetterProducerStats / setDeadLetterProducerStats is invoked at most
+    // once when running under a shared provider. Without this guard each reconsumeLater call
+    // from any partition sub-consumer would re-publish the same shared ProducerStats back into
+    // this consumer's ConsumerStats, generating N contended volatile writes per retry (where N
+    // is the number of concurrent reconsumeLater callers) with no additional information.
+    private final AtomicBoolean sharedRetryLetterStatsBound = new AtomicBoolean(false);
+    private final AtomicBoolean sharedDeadLetterStatsBound = new AtomicBoolean(false);
+
     protected volatile boolean paused;
 
     protected Map<String, ChunkedMessageCtx> chunkedMessagesMap = new ConcurrentHashMap<>();
@@ -1336,19 +1350,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         ArrayList<CompletableFuture<Void>> closeFutures = new ArrayList<>(4);
         closeFutures.add(closeFuture);
-        if (retryLetterProducer != null) {
-            closeFutures.add(retryLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
-                if (ex != null) {
-                    log.warn().exception(ex).log("Exception ignored in closing retryLetterProducer");
-                }
-            }));
-        }
-        if (deadLetterProducer != null) {
-            closeFutures.add(deadLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
-                if (ex != null) {
-                    log.warn().exception(ex).log("Exception ignored in closing deadLetterProducer of consumer");
-                }
-            }));
+        // Only close the retry/DLQ producers if this consumer owns them (i.e. no external provider is set).
+        // When a shared provider is in use, the owning MultiTopicsConsumerImpl is responsible for closing them.
+        if (retryOrDlqProducerProvider == null) {
+            if (retryLetterProducer != null) {
+                closeFutures.add(retryLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
+                    if (ex != null) {
+                        log.warn().exception(ex).log("Exception ignored in closing retryLetterProducer");
+                    }
+                }));
+            }
+            if (deadLetterProducer != null) {
+                closeFutures.add(deadLetterProducer.thenCompose(p -> p.closeAsync()).whenComplete((ignore, ex) -> {
+                    if (ex != null) {
+                        log.warn().exception(ex).log("Exception ignored in closing deadLetterProducer of consumer");
+                    }
+                }));
+            }
         }
         if (schema != null) {
             closeFutures.add(schema.closeAsync().whenComplete((ignore, ex) -> {
@@ -2823,8 +2841,34 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
+    /**
+     * Install a shared retry-letter / dead-letter producer provider. Must be called by the owning
+     * {@link MultiTopicsConsumerImpl} right after this sub-consumer is created and before any
+     * reconsumeLater / processPossibleToDLQ invocation. After this call, this consumer will delegate
+     * producer acquisition to the provider and will not close any producers in closeAsync().
+     */
+    void setRetryOrDlqProducerProvider(RetryOrDlqProducerProvider provider) {
+        this.retryOrDlqProducerProvider = provider;
+    }
+
+    // Visible for testing.
+    RetryOrDlqProducerProvider getRetryOrDlqProducerProviderForTesting() {
+        return retryOrDlqProducerProvider;
+    }
+
     @SuppressWarnings("unchecked")
     private CompletableFuture<Producer<byte[]>> initDeadLetterProducerIfNeeded() {
+        RetryOrDlqProducerProvider provider = retryOrDlqProducerProvider;
+        if (provider != null) {
+            return provider.getOrCreateDeadLetterProducer(schema).whenComplete((producer, ex) -> {
+                // Only bind the shared ProducerStats into this consumer's ConsumerStats once.
+                // Subsequent reconsumeLater invocations would otherwise republish the exact same
+                // reference, generating pointless volatile writes under contention.
+                if (ex == null && producer != null && sharedDeadLetterStatsBound.compareAndSet(false, true)) {
+                    stats.setDeadLetterProducerStats(producer.getStats());
+                }
+            });
+        }
         CompletableFuture<Producer<byte[]>> p = deadLetterProducer;
         if (p == null || p.isCompletedExceptionally()) {
             createProducerLock.writeLock().lock();
@@ -2899,6 +2943,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     private CompletableFuture<Producer<byte[]>> initRetryLetterProducerIfNeeded() {
+        RetryOrDlqProducerProvider provider = retryOrDlqProducerProvider;
+        if (provider != null) {
+            return provider.getOrCreateRetryLetterProducer(schema).whenComplete((producer, ex) -> {
+                // See initDeadLetterProducerIfNeeded for the one-shot-binding rationale.
+                if (ex == null && producer != null && sharedRetryLetterStatsBound.compareAndSet(false, true)) {
+                    stats.setRetryLetterProducerStats(producer.getStats());
+                }
+            });
+        }
         CompletableFuture<Producer<byte[]>> p = retryLetterProducer;
         if (p == null || p.isCompletedExceptionally()) {
             createProducerLock.writeLock().lock();
