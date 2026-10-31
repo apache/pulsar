@@ -32,7 +32,6 @@ import java.time.LocalTime;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
-import java.util.Objects;
 import java.util.WeakHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -98,27 +97,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 @SuppressWarnings("unchecked")
 public final class PulsarClientImplementationBindingImpl implements PulsarClientImplementationBinding {
     private final Map<Class<?>, WeakReference<Schema<?>>>  avroCache = Collections.synchronizedMap(new WeakHashMap<>());
-    private final Map<Class<?>, WeakReference<Schema<?>>> protobufCache = Collections.synchronizedMap
-            (new WeakHashMap<>());
-    private final Map<Class<?>, WeakReference<Schema<?>>> jsonCache = Collections.synchronizedMap(new WeakHashMap<>());
 
-    private static <T> boolean isDefaultDefinition(SchemaDefinition<T> d) {
-        Class<T> pojo = d.getPojo();
-        if (pojo == null) {
-            return false;
-        }
-        // what Schema.AVRO(Class) builds
-        SchemaDefinition<T> plain = new SchemaDefinitionBuilderImpl<T>().withPojo(pojo).build();
-
-        return d.getAlwaysAllowNull() == plain.getAlwaysAllowNull()
-                && d.isJsr310ConversionEnabled() == plain.isJsr310ConversionEnabled()
-                && d.getSupportSchemaVersioning() == plain.getSupportSchemaVersioning()
-                && Objects.equals(d.getProperties(), plain.getProperties())
-                && Objects.equals(d.getJsonDef(), plain.getJsonDef())
-                && d.getClassLoader() == plain.getClassLoader()
-                && !d.getSchemaReaderOpt().isPresent()
-                && !d.getSchemaWriterOpt().isPresent();
-    }
 
     @VisibleForTesting
     void clearAvroCache() {
@@ -129,13 +108,6 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
             Map<Class<?>, WeakReference<Schema<?>>> cache,
             Class<T> clazz,
             Function<Class<T>, Schema<T>> factory) {
-        /*
-        if (!isDefaultDefinition(definition)) {
-            return factory.apply(definition);   // custom options: no caching, no sharing
-        }
-
-         */
-        //Class<T> pojo = definition.getPojo();
         synchronized (cache) {
             WeakReference<Schema<?>> ref = cache.get(clazz);
             Schema<T> cached = (ref == null) ? null : (Schema<T>) ref.get();
@@ -280,16 +252,6 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
     @Override
     public <T> Schema<T> newAvroSchema(Class<T> pojo) {
         return getOrCreate(avroCache, pojo, AvroSchema::of);
-    }
-
-    @Override
-    public <T extends com.google.protobuf.GeneratedMessage> Schema<T> newProtobufSchema(Class<T> clazz) {
-        return getOrCreate(protobufCache, clazz, ProtobufSchema::of);
-    }
-
-    @Override
-    public <T> Schema<T> newJSONSchema(Class<T> pojo) {
-        return getOrCreate(jsonCache, pojo, JSONSchema::of);
     }
 
     @SuppressWarnings("rawtypes")
