@@ -2677,6 +2677,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final boolean isEncrypted = cmdProducer.isEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
         final SchemaData schema = cmdProducer.hasSchema() ? getSchema(cmdProducer.getSchema()) : null;
+        final boolean isAutoProduceBytes = cmdProducer.isAutoProduceBytes();
 
         final ProducerAccessMode producerAccessMode = cmdProducer.getProducerAccessMode();
         final Optional<Long> topicEpoch = cmdProducer.hasTopicEpoch()
@@ -2795,10 +2796,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
                     boolean isReplicatorProducer = Producer.isRemoteOrShadow(producerName,
                             getBrokerService().getPulsar().getConfig().getReplicatorPrefix());
-                    CompletableFuture<SchemaVersion> schemaVersionFuture = tryAddSchema(topic, schema,
-                            isReplicatorProducer);
+                    CompletableFuture<SchemaRegistrationResult> schemaRegistrationFuture =
+                            tryAddSchema(topic, schema, isReplicatorProducer, isAutoProduceBytes);
 
-                    schemaVersionFuture.exceptionallyAsync(exception -> {
+                    schemaRegistrationFuture.exceptionallyAsync(exception -> {
                         if (producerFuture.completeExceptionally(exception)) {
                             String message = exception.getMessage();
                             if (exception.getCause() != null) {
@@ -2829,7 +2830,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         return null;
                     }, ctx.executor());
 
-                    schemaVersionFuture.thenAcceptAsync(schemaVersion -> {
+                    schemaRegistrationFuture.thenAcceptAsync(schemaRegistrationResult -> {
                         CompletionStage<Subscription> createInitSubFuture;
                         if (!Strings.isNullOrEmpty(initialSubscriptionName)
                                 && topic.isPersistent()
@@ -2881,8 +2882,11 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                             }
 
                             buildProducerAndAddTopic(topic, producerId, producerName, requestId, isEncrypted,
-                                    metadata, schemaVersion, epoch, userProvidedProducerName, topicName,
-                                    producerAccessMode, topicEpoch, supportsPartialProducer, producerFuture);
+                                    metadata, schemaRegistrationResult.schemaVersion(), epoch,
+                                    userProvidedProducerName, topicName,
+                                    producerAccessMode, topicEpoch, supportsPartialProducer, isAutoProduceBytes,
+                                    schema == null && schemaRegistrationResult.topicHasSchema(),
+                                    producerFuture);
                         }, ctx.executor());
                     }, ctx.executor());
                 }, ctx.executor());
@@ -2954,7 +2958,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                              boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion, long epoch,
                              boolean userProvidedProducerName, TopicName topicName,
                              ProducerAccessMode producerAccessMode,
-                             Optional<Long> topicEpoch, boolean supportsPartialProducer,
+                             Optional<Long> topicEpoch, boolean supportsPartialProducer, boolean isAutoProduceBytes,
+                             boolean requiresSchemaVersion,
                              CompletableFuture<Producer> producerFuture){
         if (producerFuture.isCompletedExceptionally()) {
             log.info()
@@ -2968,7 +2973,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         CompletableFuture<Void> producerQueuedFuture = new CompletableFuture<>();
         Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName,
                 getPrincipal(), isEncrypted, metadata, schemaVersion, epoch,
-                userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer);
+                userProvidedProducerName, producerAccessMode, topicEpoch, supportsPartialProducer,
+                isAutoProduceBytes, requiresSchemaVersion);
 
         topic.addProducer(producer, producerQueuedFuture).thenAcceptAsync(newTopicEpoch -> {
             if (isActive()) {
@@ -3967,9 +3973,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         topicFuture.thenAccept(topicOpt -> {
             if (topicOpt.isPresent()) {
                 Topic topic = topicOpt.get();
-                CompletableFuture<SchemaVersion> schemaVersionFuture =
-                        tryAddSchema(topic, schema, isReplicatorProducer);
-                schemaVersionFuture.exceptionally(ex -> {
+                CompletableFuture<SchemaRegistrationResult> schemaRegistrationFuture =
+                        tryAddSchema(topic, schema, isReplicatorProducer, false);
+                schemaRegistrationFuture.exceptionally(ex -> {
                     ServerError errorCode = BrokerServiceException.getClientErrorCode(ex);
                     String message = ex.getMessage();
                     if (ex.getCause() != null) {
@@ -3977,8 +3983,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     }
                     commandSender.sendGetOrCreateSchemaErrorResponse(requestId, errorCode, message);
                     return null;
-                }).thenAccept(schemaVersion -> {
-                    commandSender.sendGetOrCreateSchemaResponse(requestId, schemaVersion);
+                }).thenAccept(schemaRegistrationResult -> {
+                    commandSender.sendGetOrCreateSchemaResponse(requestId,
+                            schemaRegistrationResult.schemaVersion());
                 });
             } else {
                 commandSender.sendGetOrCreateSchemaErrorResponse(requestId, ServerError.TopicNotFound,
@@ -4616,28 +4623,33 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         });
     }
 
-    private CompletableFuture<SchemaVersion> tryAddSchema(Topic topic, SchemaData schema,
-                                                          boolean isReplicatorProducer) {
+    private CompletableFuture<SchemaRegistrationResult> tryAddSchema(Topic topic, SchemaData schema,
+                                                                      boolean isReplicatorProducer,
+                                                                      boolean isAutoProduceBytes) {
         if (schema != null) {
-            return topic.addSchema(schema, isReplicatorProducer);
+            return topic.addSchema(schema, isReplicatorProducer)
+                    .thenApply(schemaVersion -> new SchemaRegistrationResult(schemaVersion, true));
         } else {
             return topic.hasSchema().thenCompose((hasSchema) -> {
                 log.debug()
                         .attr("topic", topic.getName())
                         .attr("hasSchema", hasSchema)
                         .log("configured with schema");
-                CompletableFuture<SchemaVersion> result = new CompletableFuture<>();
-                if (hasSchema && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
+                CompletableFuture<SchemaRegistrationResult> result = new CompletableFuture<>();
+                if (hasSchema && !isAutoProduceBytes
+                        && (schemaValidationEnforced || topic.getSchemaValidationEnforced())) {
                     result.completeExceptionally(new IncompatibleSchemaException(
                             "Producers cannot connect or send message without a schema to topics with a schema"
                          + "when SchemaValidationEnforced is enabled"));
                 } else {
-                    result.complete(SchemaVersion.Empty);
+                    result.complete(new SchemaRegistrationResult(SchemaVersion.Empty, hasSchema));
                 }
                 return result;
             });
         }
     }
+
+    private record SchemaRegistrationResult(SchemaVersion schemaVersion, boolean topicHasSchema) {}
 
     @Override
     protected void handleAddSubscriptionToTxn(CommandAddSubscriptionToTxn command) {
