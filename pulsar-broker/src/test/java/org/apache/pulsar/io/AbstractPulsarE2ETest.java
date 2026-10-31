@@ -148,6 +148,9 @@ public abstract class AbstractPulsarE2ETest {
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");
+        // The function worker elects its leader through a Failover subscription: don't delay the election by the
+        // default 1 s
+        config.setActiveConsumerFailoverDelayTimeMillis(0);
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());

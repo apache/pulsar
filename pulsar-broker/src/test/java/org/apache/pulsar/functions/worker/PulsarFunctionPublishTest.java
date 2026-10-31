@@ -74,6 +74,7 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -141,6 +142,9 @@ public class PulsarFunctionPublishTest {
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setTlsAllowInsecureConnection(true);
         config.setAdvertisedAddress("localhost");
+        // The function worker elects its leader through a Failover subscription: don't delay the election by the
+        // default 1 s
+        config.setActiveConsumerFailoverDelayTimeMillis(0);
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
@@ -211,9 +215,7 @@ public class PulsarFunctionPublishTest {
         System.setProperty(JAVA_INSTANCE_JAR_PROPERTY,
                 FutureUtil.class.getProtectionDomain().getCodeSource().getLocation().getPath());
 
-        while (!functionsWorkerService.getLeaderService().isLeader()) {
-            Thread.sleep(1000);
-        }
+        Awaitility.await().until(() -> functionsWorkerService.getLeaderService().isLeader());
     }
 
     @AfterMethod(alwaysRun = true)
