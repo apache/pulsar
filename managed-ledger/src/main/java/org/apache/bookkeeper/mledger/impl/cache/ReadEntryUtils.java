@@ -26,15 +26,21 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
 
 class ReadEntryUtils {
 
     static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
                                                       long lastEntry, boolean batchReadEnabled, long maxSizeBytes) {
+        if (ml instanceof ReadOnlyManagedLedgerImpl && firstEntry == lastEntry) {
+            // A shared cache may retain an older read-only instance whose inventory predates this ledger.
+            // Published point positions must not depend on that inventory or an open handle's piggyback LAC.
+            // Closed handles still enforce their final LAC; cursor/count frontiers are not advanced here.
+            return handle.isClosed() ? handle.readAsync(firstEntry, lastEntry)
+                    : handle.readUnconfirmedAsync(firstEntry, lastEntry);
+        }
         if (ml.getOptionalLedgerInfo(handle.getId()).isEmpty()) {
-            // The read handle comes from another managed ledger, in this case, we can only compare the entry range with
-            // the LAC of that read handle. Specifically, it happens when this method is called by a
-            // ReadOnlyManagedLedgerImpl object.
+            // Other reads of a handle outside this managed ledger's inventory are bounded by the handle's LAC.
             return handle.readAsync(firstEntry, lastEntry);
         }
         // Compare the entry range with the lastConfirmedEntry maintained by the managed ledger because the entry cache
