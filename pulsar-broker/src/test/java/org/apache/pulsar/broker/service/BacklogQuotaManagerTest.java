@@ -45,14 +45,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -2432,6 +2435,182 @@ public class BacklogQuotaManagerTest {
         assertThat(pendingAcks).isNotNull();
         assertThat(pendingAcks.size()).isEqualTo(expected);
         assertThat(consumer.getUnackedMessages()).isEqualTo(expected);
+    }
+
+    @Test
+    public void testSizeBacklogEvictionRaceWithTopicCloseDoesNotSkipEntries() throws Exception {
+        @Cleanup
+        AutoCloseable pausedQuotaChecks = pauseBacklogQuotaChecks();
+        final int msgSize = 1024;
+        final int quotaSizeLimit = 10 * 1024;
+        final int numMsgs = 20;
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(adminUrl.toString())
+                .build();
+        final String topicName =
+                BrokerTestUtil.newUniqueName("persistent://prop/ns-quota/topic-closing-size");
+        final String subName = "closing-size-sub";
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer = createProducer(client, topicName);
+        byte[] content = new byte[msgSize];
+        for (int i = 0; i < numMsgs; i++) {
+            producer.send(content);
+            consumer.receive();
+        }
+        PersistentTopic topic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentSubscription sub = topic.getSubscription(subName);
+        Position markDeleteBeforeEviction = sub.getCursor().getMarkDeletedPosition();
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
+                BacklogQuota.builder()
+                        .limitSize(quotaSizeLimit)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                        .build());
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(topic.getBacklogQuota(destination_storage).getLimitSize(), quotaSizeLimit));
+
+        BlockingBacklogQuotaManager backlogQuotaManager = new BlockingBacklogQuotaManager(pulsar);
+        CompletableFuture<Void> evictionFuture = CompletableFuture.runAsync(
+                () -> backlogQuotaManager.handleExceededBacklogQuota(topic, destination_storage, false));
+        try {
+            backlogQuotaManager.awaitBeforeMutation();
+            CompletableFuture<Void> closeFuture;
+            // Hold off subscription.close() so the cursor remains writable after topic close starts.
+            synchronized (sub) {
+                closeFuture = CompletableFuture.supplyAsync(() -> topic.close(false)).thenCompose(future -> future);
+                Awaitility.await().untilAsserted(() -> assertTrue(topic.isClosingOrDeleting()));
+                assertFalse(((ManagedCursorImpl) sub.getCursor()).isClosed());
+                backlogQuotaManager.allowMutationPointToContinue();
+                Awaitility.await().until(() -> evictionFuture.isDone()
+                        || !sub.getCursor().getMarkDeletedPosition().equals(markDeleteBeforeEviction));
+                assertEquals(sub.getCursor().getMarkDeletedPosition(), markDeleteBeforeEviction);
+                evictionFuture.get(30, SECONDS);
+            }
+            closeFuture.get(30, SECONDS);
+        } finally {
+            backlogQuotaManager.allowMutationPointToContinue();
+        }
+    }
+
+    @Test
+    public void testTimeBacklogEvictionRaceWithTopicCloseDoesNotMarkDelete() throws Exception {
+        @Cleanup
+        AutoCloseable pausedQuotaChecks = pauseBacklogQuotaChecks();
+        final int numMsgs = 14;
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(adminUrl.toString())
+                .build();
+        final String topicName =
+                BrokerTestUtil.newUniqueName("persistent://prop/ns-quota/topic-closing-time");
+        final String subName = "closing-time-sub";
+
+        @Cleanup
+        Consumer<byte[]> consumer = client.newConsumer()
+                .topic(topicName)
+                .subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Key_Shared)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer = createProducer(client, topicName);
+        byte[] content = new byte[1024];
+        for (int i = 0; i < numMsgs; i++) {
+            producer.send(content);
+            consumer.receive();
+        }
+        PersistentTopic topic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        PersistentSubscription sub = topic.getSubscription(subName);
+        Position markDeleteBeforeEviction = sub.getCursor().getMarkDeletedPosition();
+        Thread.sleep(SECONDS.toMillis(2));
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
+                BacklogQuota.builder()
+                        .limitTime(1)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                        .build(), message_age);
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(topic.getBacklogQuota(message_age).getLimitTime(), 1));
+
+        BlockingBacklogQuotaManager backlogQuotaManager = new BlockingBacklogQuotaManager(pulsar);
+        CompletableFuture<Void> evictionFuture = CompletableFuture.runAsync(
+                () -> backlogQuotaManager.handleExceededBacklogQuota(topic, message_age, false));
+        try {
+            backlogQuotaManager.awaitBeforeMutation();
+            CompletableFuture<Void> closeFuture;
+            // Hold off subscription.close() so the cursor remains writable after topic close starts.
+            synchronized (sub) {
+                closeFuture = CompletableFuture.supplyAsync(() -> topic.close(false)).thenCompose(future -> future);
+                Awaitility.await().untilAsserted(() -> assertTrue(topic.isClosingOrDeleting()));
+                assertFalse(((ManagedCursorImpl) sub.getCursor()).isClosed());
+                backlogQuotaManager.allowMutationPointToContinue();
+                Awaitility.await().until(() -> evictionFuture.isDone()
+                        || !sub.getCursor().getMarkDeletedPosition().equals(markDeleteBeforeEviction));
+                assertEquals(sub.getCursor().getMarkDeletedPosition(), markDeleteBeforeEviction);
+                evictionFuture.get(30, SECONDS);
+            }
+            closeFuture.get(30, SECONDS);
+        } finally {
+            backlogQuotaManager.allowMutationPointToContinue();
+        }
+    }
+
+    private AutoCloseable pauseBacklogQuotaChecks() throws Exception {
+        CountDownLatch paused = new CountDownLatch(1);
+        CountDownLatch resume = new CountDownLatch(1);
+        Future<?> task = pulsar.getBrokerService().getBacklogQuotaChecker().submit(() -> {
+            paused.countDown();
+            try {
+                assertTrue(resume.await(30, SECONDS));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+        });
+        assertTrue(paused.await(30, SECONDS));
+        return () -> {
+            resume.countDown();
+            task.get(30, SECONDS);
+        };
+    }
+
+    private static class BlockingBacklogQuotaManager extends BacklogQuotaManager {
+        private final CountDownLatch beforeMutation = new CountDownLatch(1);
+        private final CountDownLatch continueMutation = new CountDownLatch(1);
+        private final AtomicBoolean blocked = new AtomicBoolean();
+
+        BlockingBacklogQuotaManager(PulsarService pulsar) {
+            super(pulsar);
+        }
+
+        @Override
+        protected void beforeBacklogQuotaCursorMutation(PersistentTopic persistentTopic) {
+            if (!blocked.compareAndSet(false, true)) {
+                return;
+            }
+            beforeMutation.countDown();
+            try {
+                assertTrue(continueMutation.await(30, SECONDS));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+            }
+        }
+
+        void awaitBeforeMutation() throws InterruptedException {
+            assertTrue(beforeMutation.await(30, SECONDS));
+        }
+
+        void allowMutationPointToContinue() {
+            continueMutation.countDown();
+        }
     }
 
     @Test
