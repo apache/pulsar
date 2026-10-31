@@ -18,12 +18,10 @@
  */
 package org.apache.pulsar.tests.integration.topologies;
 
-import static org.testng.Assert.assertEquals;
 import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.commons.io.IOUtils;
 import org.apache.pulsar.tests.integration.containers.StandaloneContainer;
-import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.testcontainers.containers.Network;
 import org.testng.annotations.DataProvider;
 
@@ -88,12 +86,6 @@ public abstract class PulsarStandaloneTestBase extends PulsarTestBase {
         log.info().attr("cluster", clusterName).log("Pulsar cluster is up running");
         log.info().attr("url", container.getPlainTextServiceUrl()).log("\tBinary Service Url");
         log.info().attr("url", container.getHttpServiceUrl()).log("\tHttp Service Url");
-
-        // add cluster to public tenant
-        ContainerExecResult result = container.execCmd(
-                "/pulsar/bin/pulsar-admin", "namespaces", "policies", "public/default");
-        assertEquals(0, result.getExitCode());
-        log.info().attr("are", result.getStdout()).log("public/default namespace policies are");
     }
 
     protected void stopCluster() throws Exception {
