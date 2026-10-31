@@ -369,6 +369,10 @@ public class RuntimeUtils {
             // miss log events from the SLF4J logger (resolved via the root classloader).
             args.add("-Dlog4j2.contextSelector="
                     + "org.apache.logging.log4j.core.selector.BasicContextSelector");
+            // Log4j2 is shut down explicitly by JavaInstanceStarter after the instance has been closed.
+            // Otherwise Log4j2's own JVM shutdown hook can stop the appenders before Sink.close() and
+            // Function.close() have run, which drops the logs written by them.
+            args.add("-Dlog4j.shutdownHookEnabled=false");
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(
                     "%s-%s",
