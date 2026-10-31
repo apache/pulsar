@@ -174,6 +174,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class SubscriptionAlreadyExistsException extends BrokerServiceException {
+        public SubscriptionAlreadyExistsException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class UnsupportedSubscriptionException extends BrokerServiceException {
         public UnsupportedSubscriptionException(String msg) {
             super(msg);
