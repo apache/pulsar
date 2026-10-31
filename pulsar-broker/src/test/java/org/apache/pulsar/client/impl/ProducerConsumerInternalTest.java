@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -38,8 +42,11 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.transaction.Transaction;
 import org.apache.pulsar.common.api.proto.CommandCloseProducer;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.awaitility.Awaitility;
@@ -54,6 +61,112 @@ import org.testng.annotations.Test;
 @CustomLog
 @Test(groups = "broker-impl")
 public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
+
+    @DataProvider
+    public Object[][] failedFlushTransactions() {
+        List<Object[]> cases = new ArrayList<>();
+        for (BatcherBuilder builder : List.of(BatcherBuilder.DEFAULT, BatcherBuilder.KEY_BASED,
+                new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000)))) {
+            cases.add(new Object[] {builder, true});
+            cases.add(new Object[] {builder, false});
+        }
+        return cases.toArray(Object[][]::new);
+    }
+
+    @Test(dataProvider = "failedFlushTransactions", timeOut = 60000)
+    public void testTransactionBoundaryAfterFailedFlush(BatcherBuilder builder, boolean abort) throws Exception {
+        String topic = newTopicName();
+        AtomicInteger failures = new AtomicInteger();
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(getBrokerServiceUrl())
+                .enableTransaction(true).memoryLimit(2700, SizeUnit.BYTES).build();
+             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe();
+             Producer<byte[]> producer = client.newProducer().topic(topic).batcherBuilder(builder)
+                     .batchingMaxPublishDelay(1, TimeUnit.DAYS).create()) {
+            PulsarClientImpl clientImpl = (PulsarClientImpl) client;
+            // Use the real allocation accounting and its pressure callback, without replacing the producer,
+            // batch containers, crypto, transport or transaction coordinator with mocks.
+            clientImpl.getMemoryLimitController().registerTrigger(() -> {
+                if (failures.getAndIncrement() == 0) {
+                    throw new OutOfMemoryError("injected batch growth failure");
+                }
+            });
+            Transaction txn = client.newTransaction().withTransactionTimeout(30, TimeUnit.SECONDS).build()
+                    .get(10, TimeUnit.SECONDS);
+            CompletableFuture<MessageId> first = producer.newMessage(txn).key("key-1").value(new byte[500])
+                    .sendAsync();
+            CompletableFuture<MessageId> second = producer.newMessage(txn).key("key-1").value(new byte[500])
+                    .sendAsync();
+            ProducerImpl<byte[]> producerImpl = (ProducerImpl<byte[]>) producer;
+            Awaitility.await().untilAsserted(() -> assertThat(producerImpl.getPendingQueueSize()).isEqualTo(2));
+            CompletableFuture<MessageId> plain = producer.newMessage().key("key-1").value(new byte[32]).sendAsync();
+            assertThat(failures).hasValue(1);
+            producer.flushAsync().get(10, TimeUnit.SECONDS);
+            first.get(10, TimeUnit.SECONDS);
+            second.get(10, TimeUnit.SECONDS);
+            if (abort) {
+                txn.abort().get(10, TimeUnit.SECONDS);
+            } else {
+                txn.commit().get(10, TimeUnit.SECONDS);
+            }
+            assertThat(plain).as("the incompatible message must fail instead of joining the retained transaction")
+                    .isCompletedExceptionally();
+
+            CompletableFuture<MessageId> retry = producer.newMessage().key("key-1").value(new byte[32]).sendAsync();
+            producer.flushAsync().get(10, TimeUnit.SECONDS);
+            retry.get(10, TimeUnit.SECONDS);
+            if (!abort) {
+                assertThat(consumer.receive(10, TimeUnit.SECONDS).getData()).hasSize(500);
+                assertThat(consumer.receive(10, TimeUnit.SECONDS).getData()).hasSize(500);
+            }
+            Message<byte[]> delivered = consumer.receive(10, TimeUnit.SECONDS);
+            assertThat(delivered).as("the retried plain message must be delivered after transaction completion")
+                    .isNotNull();
+            assertThat(delivered.getData()).hasSize(32);
+            assertThat(consumer.receive(100, TimeUnit.MILLISECONDS)).isNull();
+            assertThat(clientImpl.getMemoryLimitController().currentUsage()).isZero();
+        }
+    }
+
+    @DataProvider
+    public Object[][] failedAddBuilders() {
+        return new Object[][] {
+                {BatcherBuilder.KEY_BASED},
+                {new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000))}
+        };
+    }
+
+    @Test(dataProvider = "failedAddBuilders", timeOut = 30000)
+    public void testSendToAnotherBucketAfterFailedAdd(BatcherBuilder builder) throws Exception {
+        String topic = newTopicName();
+        AtomicInteger failures = new AtomicInteger();
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(getBrokerServiceUrl())
+                .memoryLimit(1000, SizeUnit.BYTES).build();
+             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe();
+             Producer<byte[]> producer = client.newProducer().topic(topic).batcherBuilder(builder)
+                     .batchingMaxPublishDelay(20, TimeUnit.MILLISECONDS).create()) {
+            PulsarClientImpl clientImpl = (PulsarClientImpl) client;
+            clientImpl.getMemoryLimitController().registerTrigger(() -> {
+                if (failures.getAndIncrement() == 0) {
+                    throw new OutOfMemoryError("injected first batch allocation failure");
+                }
+            });
+            CompletableFuture<MessageId> recovered;
+            // Keep the real flush timer out until both adds have finished, then let only the timer send.
+            synchronized (producer) {
+                CompletableFuture<MessageId> failed = producer.newMessage().key("key-1").value(new byte[16])
+                        .sendAsync();
+                assertThat(failed).isCompletedExceptionally();
+                assertThat(clientImpl.getMemoryLimitController().currentUsage()).isZero();
+                recovered = producer.newMessage().key("key-2").value(new byte[16]).sendAsync();
+            }
+            recovered.get(10, TimeUnit.SECONDS);
+            Message<byte[]> delivered = consumer.receive(10, TimeUnit.SECONDS);
+            assertThat(delivered).isNotNull();
+            assertThat(delivered.getKey()).isEqualTo("key-2");
+            assertThat(consumer.receive(100, TimeUnit.MILLISECONDS)).isNull();
+            assertThat(clientImpl.getMemoryLimitController().currentUsage()).isZero();
+        }
+    }
 
     @Test
     public void testSameProducerRegisterTwice() throws Exception {
