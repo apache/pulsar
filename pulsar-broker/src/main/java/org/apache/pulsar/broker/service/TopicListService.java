@@ -106,8 +106,10 @@ public class TopicListService {
                     new LinkedBlockingDeque<>(topicListUpdateMaxQueueSize);
         }
 
-        public synchronized SortedSet<String> getMatchingTopics() {
-            return Collections.unmodifiableSortedSet(matchingTopics);
+        public synchronized List<String> getMatchingTopics() {
+            // Return a snapshot copy so callers can iterate safely even when concurrent topic
+            // events modify the underlying set (prevents ConcurrentModificationException).
+            return new ArrayList<>(matchingTopics);
         }
 
         /***
