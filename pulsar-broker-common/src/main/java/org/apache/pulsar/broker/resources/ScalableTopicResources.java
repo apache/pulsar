@@ -552,23 +552,9 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
      * children — a missing child is ignored.
      */
     public CompletableFuture<Void> deleteSubscriptionAsync(TopicName tn, String subscription) {
-        String subPath = subscriptionPath(tn, subscription);
-        String consumersPath = joinPath(subPath, CONSUMERS_SEGMENT);
-        // Delete all consumer children first, then the consumers dir, then the subscription
-        return subscriptionCache.getChildren(consumersPath)
-                .thenCompose(children -> {
-                    if (children == null || children.isEmpty()) {
-                        return CompletableFuture.completedFuture(null);
-                    }
-                    CompletableFuture<?>[] futs = children.stream()
-                            .map(c -> consumerRegistrationCache
-                                    .delete(joinPath(consumersPath, c))
-                                    .exceptionally(ignoreMissing()))
-                            .toArray(CompletableFuture[]::new);
-                    return CompletableFuture.allOf(futs);
-                })
-                .thenCompose(__ -> subscriptionCache.delete(subPath)
-                        .exceptionally(ignoreMissing()));
+        // Recursive: the consumer registrations are under a consumers record, a child of the
+        // subscription record, and ZooKeeper and Oxia refuse to delete a record that has children.
+        return getStore().deleteRecursive(subscriptionPath(tn, subscription));
     }
 
     public CompletableFuture<List<String>> listSubscriptionsAsync(TopicName tn) {
