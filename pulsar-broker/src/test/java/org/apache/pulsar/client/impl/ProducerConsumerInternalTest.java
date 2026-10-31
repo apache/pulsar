@@ -166,6 +166,38 @@ public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
         consumer.close();
     }
 
+    @Test(timeOut = 60000)
+    public void testSameConsumerSubscribeTwiceRedeliversDispatchedMessages() throws Exception {
+        final String topicName = newTopicName();
+        final int numMessages = 5;
+        admin.topics().createNonPartitionedTopic(topicName);
+
+        @Cleanup
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName("sub").receiverQueueSize(10)
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        for (int i = 0; i < numMessages; i++) {
+            producer.send(("msg-" + i).getBytes());
+        }
+        Awaitility.await().untilAsserted(() -> assertEquals(consumer.numMessagesInQueue(), numMessages));
+
+        // A superseded subscribe attempt that fails schedules a reconnect while the consumer is still live on the
+        // broker: the client clears its queue and sends a second subscribe for the same consumer id on the same
+        // connection.
+        consumer.getConnectionHandler().reconnectLater(new PulsarClientException("injected"));
+        assertEquals(consumer.getState(), HandlerState.State.Connecting);
+        Awaitility.await().untilAsserted(() -> assertEquals(consumer.getState(), HandlerState.State.Ready));
+
+        // The messages dropped from the client queue must be redelivered, not left unacked on the broker.
+        for (int i = 0; i < numMessages; i++) {
+            Message<byte[]> msg = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(msg, "Message " + i + " was not redelivered");
+            consumer.acknowledge(msg);
+        }
+    }
+
     @DataProvider(name = "containerBuilder")
     public Object[][] containerBuilderProvider() {
         return new Object[][] {

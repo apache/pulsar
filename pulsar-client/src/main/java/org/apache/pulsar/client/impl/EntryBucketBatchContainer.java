@@ -55,6 +55,16 @@ class EntryBucketBatchContainer extends AbstractBatchMessageContainer {
 
     @Override
     public boolean add(MessageImpl<?> msg, SendCallback callback) {
+        if (numMessagesInBatch == 0) {
+            // The whole container takes the transaction identity of its first message, which the inherited
+            // hasSameTxn checks later messages against: a bucket's entry gives the transaction id of its own
+            // first message to every message in it. Both fields are assigned unconditionally, as in
+            // BatchMessageKeyBasedContainer, so a plain first message drops the identity of a failed first add.
+            boolean msgHasTxn = msg.getMessageBuilder().hasTxnidMostBits()
+                    && msg.getMessageBuilder().hasTxnidLeastBits();
+            currentTxnidMostBits = msgHasTxn ? msg.getMessageBuilder().getTxnidMostBits() : -1L;
+            currentTxnidLeastBits = msgHasTxn ? msg.getMessageBuilder().getTxnidLeastBits() : -1L;
+        }
         int hashCode = entryBucketHash(msg);
         int bucket = bucketOf(splits, hashCode);
         final BatchMessageContainerImpl batchMessageContainer =

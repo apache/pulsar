@@ -198,6 +198,14 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     private void receiveSubscriptionUpdated(ReplicatedSubscriptionsUpdate update) {
+        if (PersistentTopic.isCompactionSubscription(update.getSubscriptionName())) {
+            // The compactor owns this cursor: it may only move together with the compacted ledger
+            log.debug()
+                    .attr("subscriptionName", update.getSubscriptionName())
+                    .log("Ignoring replicated subscription update for the compaction subscription");
+            return;
+        }
+
         MarkersMessageIdData updatedMessageId = null;
         for (int i = 0, size = update.getClustersCount(); i < size; i++) {
             ClusterMessageId cmid = update.getClusterAt(i);

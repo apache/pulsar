@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.MessageDeduplication;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -239,6 +240,28 @@ public class BrokerMessageDeduplicationTest {
 
         assertEquals(String.valueOf(deduplication.getStatus()), "Disabled");
         verify(managedLedger, times(1)).asyncDeleteCursor(any(), any(), any());
+    }
+
+    @Test
+    public void checkStatusRetriesCursorDeleteAfterFailureOnInitialDisable() throws Exception {
+        final var deleteCursorCallback = new AtomicReference<AsyncCallbacks.DeleteCursorCallback>();
+        doReturn(false).when(topic).isDeduplicationEnabled();
+        doAnswer(invocation -> {
+            deleteCursorCallback.set(invocation.getArgument(1));
+            return null;
+        }).when(managedLedger).asyncDeleteCursor(any(), any(), any());
+
+        deduplication.checkStatus().get(3, TimeUnit.SECONDS);
+        assertEquals(String.valueOf(deduplication.getStatus()), "Removing");
+        deleteCursorCallback.get().deleteCursorFailed(new ManagedLedgerException("delete failed"), null);
+        assertEquals(String.valueOf(deduplication.getStatus()), "Failed");
+
+        final var retryFuture = deduplication.checkStatus();
+        verify(managedLedger, times(2)).asyncDeleteCursor(any(), any(), any());
+        deleteCursorCallback.get().deleteCursorComplete(null);
+        retryFuture.get(3, TimeUnit.SECONDS);
+
+        assertEquals(String.valueOf(deduplication.getStatus()), "Disabled");
     }
 
     @Test

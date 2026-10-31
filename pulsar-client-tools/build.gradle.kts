@@ -54,8 +54,10 @@ dependencies {
     runtimeOnly(libs.jna)
 
     compileOnly(libs.swagger.annotations)
+    testCompileOnly(libs.swagger.annotations)
 
     testImplementation(libs.jackson.dataformat.yaml)
+    testImplementation(libs.log4j.core)
 }
 
 // Maven uses ant-plugin to copy pom.xml -> dummy.nar for TestCmdSinks/TestCmdSources.

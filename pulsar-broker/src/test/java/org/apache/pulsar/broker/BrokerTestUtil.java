@@ -30,6 +30,7 @@ import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.util.Arrays;
@@ -200,7 +201,7 @@ public class BrokerTestUtil {
      */
     @SneakyThrows
     public static String getJsonResourceAsString(String uri) {
-        URL url = new URL(uri);
+        URL url = URI.create(uri).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept", "application/json");

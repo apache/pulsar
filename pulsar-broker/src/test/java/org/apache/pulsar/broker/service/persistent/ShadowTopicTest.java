@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.bookkeeper.mledger.ManagedLedgerConfig.PROPERTY_SOURCE_TOPIC_KEY;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -68,6 +70,7 @@ import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -130,6 +133,82 @@ public class ShadowTopicTest extends BrokerTestBase {
         Assert.assertThrows(PulsarAdminException.PreconditionFailedException.class,
                 () -> admin.topics().removeProperties(partitionedShadowTopic, PROPERTY_SOURCE_TOPIC_KEY));
         Assert.assertEquals(admin.topics().getShadowSource(partitionedShadowTopic), partitionedSourceTopic);
+    }
+
+    @DataProvider(name = "shadowSourceTopicTypes")
+    public Object[][] shadowSourceTopicTypes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "shadowSourceTopicTypes")
+    public void testShadowSourcePropertyCannotBeChanged(boolean partitioned) throws Exception {
+        String sourceTopic = newTopicName();
+        String otherSourceTopic = newTopicName();
+        String shadowTopic = sourceTopic + "-shadow";
+        if (partitioned) {
+            admin.topics().createPartitionedTopic(sourceTopic, 1);
+            admin.topics().createPartitionedTopic(otherSourceTopic, 1);
+        } else {
+            admin.topics().createNonPartitionedTopic(sourceTopic);
+            admin.topics().createNonPartitionedTopic(otherSourceTopic);
+        }
+        admin.topics().createShadowTopic(shadowTopic, sourceTopic);
+        String loadedShadowTopic = partitioned ? TopicName.get(shadowTopic).getPartition(0).toString() : shadowTopic;
+        String loadedSourceTopic = partitioned ? TopicName.get(sourceTopic).getPartition(0).toString() : sourceTopic;
+        pulsar.getBrokerService().getTopicIfExists(loadedShadowTopic).get(10, TimeUnit.SECONDS).orElseThrow();
+
+        assertThatThrownBy(() -> admin.topics().updateProperties(shadowTopic,
+                Map.of(PROPERTY_SOURCE_TOPIC_KEY, otherSourceTopic, "unchanged", "value")))
+                .isInstanceOf(PulsarAdminException.PreconditionFailedException.class);
+        assertThat(admin.topics().getProperties(shadowTopic))
+                .containsEntry(PROPERTY_SOURCE_TOPIC_KEY, sourceTopic).doesNotContainKey("unchanged");
+
+        // Ordinary updates and reapplying the same source remain supported.
+        admin.topics().updateProperties(shadowTopic, Map.of("custom", "value"));
+        admin.topics().updateProperties(shadowTopic, Map.of(PROPERTY_SOURCE_TOPIC_KEY, sourceTopic));
+        assertThat(admin.topics().getProperties(shadowTopic)).containsEntry("custom", "value");
+        if (partitioned) {
+            String otherSourcePartition = TopicName.get(otherSourceTopic).getPartition(0).toString();
+            assertThatThrownBy(() -> admin.topics().updateProperties(loadedShadowTopic,
+                    Map.of(PROPERTY_SOURCE_TOPIC_KEY, otherSourcePartition, "unchanged", "value")))
+                    .isInstanceOf(PulsarAdminException.PreconditionFailedException.class);
+            assertThat(admin.topics().getProperties(loadedShadowTopic))
+                    .containsEntry(PROPERTY_SOURCE_TOPIC_KEY, loadedSourceTopic).doesNotContainKey("unchanged");
+            admin.topics().updateProperties(loadedShadowTopic, Map.of(PROPERTY_SOURCE_TOPIC_KEY, loadedSourceTopic));
+            admin.topics().updateProperties(loadedShadowTopic, admin.topics().getProperties(loadedShadowTopic));
+        }
+        admin.topics().unload(loadedShadowTopic);
+        PersistentTopic reloaded = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(loadedShadowTopic)
+                .get(10, TimeUnit.SECONDS).orElseThrow();
+        assertThat(reloaded.getShadowSourceTopic()).contains(TopicName.get(loadedSourceTopic));
+    }
+
+    @Test(dataProvider = "shadowSourceTopicTypes")
+    public void testExistingTopicCannotBecomeShadowThroughPropertyUpdate(boolean partitioned) throws Exception {
+        String sourceTopic = newTopicName();
+        String regularTopic = newTopicName();
+        if (partitioned) {
+            admin.topics().createPartitionedTopic(sourceTopic, 1);
+            admin.topics().createPartitionedTopic(regularTopic, 1);
+        } else {
+            admin.topics().createNonPartitionedTopic(sourceTopic);
+            admin.topics().createNonPartitionedTopic(regularTopic);
+        }
+        assertThatThrownBy(() -> admin.topics().updateProperties(regularTopic,
+                Map.of(PROPERTY_SOURCE_TOPIC_KEY, sourceTopic)))
+                .isInstanceOf(PulsarAdminException.PreconditionFailedException.class);
+        assertThat(admin.topics().getShadowSource(regularTopic)).isNull();
+        if (partitioned) {
+            String regularPartition = TopicName.get(regularTopic).getPartition(0).toString();
+            String sourcePartition = TopicName.get(sourceTopic).getPartition(0).toString();
+            try (Producer<byte[]> producer = pulsarClient.newProducer().topic(regularPartition).create()) {
+                producer.send(new byte[] {1});
+                assertThatThrownBy(() -> admin.topics().updateProperties(regularPartition,
+                        Map.of(PROPERTY_SOURCE_TOPIC_KEY, sourcePartition)))
+                        .isInstanceOf(PulsarAdminException.PreconditionFailedException.class);
+                assertThat(admin.topics().getShadowSource(regularPartition)).isNull();
+            }
+        }
     }
 
     @Test

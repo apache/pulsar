@@ -31,6 +31,7 @@ import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
@@ -49,13 +50,15 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.DefaultEventLoopGroup;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.local.LocalIoHandler;
 import io.netty.util.ReferenceCountUtil;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.URL;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -74,6 +77,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -114,6 +118,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PulsarCompactorSubscription;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
+import org.apache.pulsar.broker.transaction.buffer.TransactionBufferProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.MessageId;
@@ -224,7 +230,7 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         ctx = mock(ChannelHandlerContext.class);
         Channel channel = mock(Channel.class);
 
-        eventLoopGroup = new DefaultEventLoopGroup();
+        eventLoopGroup = new MultiThreadIoEventLoopGroup(LocalIoHandler.newFactory());
         doReturn(eventLoopGroup.next()).when(channel).eventLoop();
         doReturn(channel).when(ctx).channel();
         doReturn(ctx).when(serverCnx).ctx();
@@ -360,6 +366,37 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         assertTrue(latch.await(1, TimeUnit.SECONDS));
         assertEquals(topic.getLastMaxReadPositionMovedForwardTimestamp(), lastMaxReadPositionMovedForwardTimestamp,
                 "Topics without a replicated-subscription controller should not maintain the snapshot timestamp");
+    }
+
+    @Test
+    public void testPublishTxnMessageCompletesPublishContextOnce() throws Exception {
+        pulsarTestContext.getConfig().setTransactionCoordinatorEnabled(true);
+        TransactionBuffer transactionBuffer = mock(TransactionBuffer.class);
+        doReturn(CompletableFuture.completedFuture(PositionFactory.create(1, 2)))
+                .when(transactionBuffer).appendBufferToTxn(any(), anyLong(), any());
+        TransactionBufferProvider transactionBufferProvider = mock(TransactionBufferProvider.class);
+        doReturn(transactionBuffer).when(transactionBufferProvider).newTransactionBuffer(any());
+        doReturn(transactionBufferProvider).when(pulsarTestContext.getPulsarService()).getTransactionBufferProvider();
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        assertThat(topic.getTransactionBuffer()).isSameAs(transactionBuffer);
+
+        // Completing the publish context fails after it may have already handed itself over, e.g. when the
+        // connection's executor rejects the task.
+        Topic.PublishContext publishContext = mock(Topic.PublishContext.class);
+        doThrow(new RejectedExecutionException("rejected"))
+                .when(publishContext).completed(any(), anyLong(), anyLong());
+
+        ByteBuf payload = Unpooled.wrappedBuffer("content".getBytes());
+        try {
+            topic.publishTxnMessage(new TxnID(1, 2), payload, publishContext);
+        } finally {
+            payload.release();
+        }
+
+        // The failure must not complete the publish context a second time.
+        verify(publishContext, times(1)).completed(any(), anyLong(), anyLong());
+        verify(publishContext).completed(null, 1, 2);
+        assertThat(topic.getPendingWriteOps().get()).isZero();
     }
 
     @Test
@@ -1831,9 +1868,9 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         PersistentTopic topic = new PersistentTopic(globalTopicName, ledgerMock, brokerService);
 
         PulsarService pulsar = pulsarTestContext.getPulsarService();
-        final URL brokerUrl = new URL(
+        final URL brokerUrl = URI.create(
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort()
-                        .get());
+                        .get()).toURL();
         @Cleanup
         PulsarClient client = spy(PulsarClient.builder().serviceUrl(brokerUrl.toString()).build());
         PulsarClientImpl clientImpl = (PulsarClientImpl) client;
@@ -1886,6 +1923,22 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         sub.acknowledgeMessageAsync(Collections.singletonList(position), AckType.Cumulative,
                 Map.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId)).join();
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
+    }
+
+    @Test
+    public void testCompactorSubscriptionCannotBeReplicated() {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentSubscription sub = new PulsarCompactorSubscription(topic, mock(CompactedTopic.class),
+                Compactor.COMPACTION_SUBSCRIPTION, cursorMock);
+        doReturn(true).when(cursorMock).putProperty(anyString(), anyLong());
+        doReturn(true).when(cursorMock).removeProperty(anyString());
+
+        assertFalse(sub.setReplicated(true));
+        assertFalse(sub.isReplicated());
+        verify(cursorMock, Mockito.never()).putProperty(anyString(), anyLong());
+
+        // Disabling still works, so a replicated status that was set before can be removed
+        assertTrue(sub.setReplicated(false));
     }
 
     @Test

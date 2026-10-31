@@ -29,11 +29,13 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -41,6 +43,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.CommandAddPartitionToTxnResponse;
 import org.apache.pulsar.common.api.proto.CommandAddSubscriptionToTxnResponse;
@@ -213,7 +216,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                                 .log("Transaction coordinator client connect success! tcId");
                         if (registerToConnection(cnx)) {
                             this.connectionHandler.resetBackoff();
-                            pendingRequests.forEach((requestID, opBase) -> checkStateAndSendRequest(opBase));
+                            resendPendingRequests();
                         }
                         future.complete(null);
                     });
@@ -260,14 +263,26 @@ public class TransactionMetaStoreHandler extends HandlerState
         }
     }
 
-    private void failPendingRequest() {
+    private void resendPendingRequests() {
         // this method is executed in internalPinnedExecutor.
+        List<Long> failedRequestIds = new ArrayList<>();
+        pendingRequests.forEach((requestId, op) -> {
+            if (!checkStateAndSendRequest(op)) {
+                // The op has been completed and recycled, it must not stay in pendingRequests.
+                failedRequestIds.add(requestId);
+            }
+        });
+        failedRequestIds.forEach(pendingRequests::remove);
+    }
+
+    private void failPendingRequest() {
+        // this method is executed in internalPinnedExecutor, or once it has terminated.
         pendingRequests.forEach((k, op) -> {
-            if (op != null && !op.callback.isDone()) {
-                op.callback.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+            // Release the op even if its caller already completed or cancelled the future.
+            if (op != null) {
+                failRequestOnClose(op, new PulsarClientException.AlreadyClosedException(
                         "Could not get response from transaction meta store when "
                                 + "the transaction meta store has already close."));
-                onResponse(op);
             }
         });
         this.pendingRequests.clear();
@@ -283,13 +298,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         ByteBuf cmd = Commands.newTxn(transactionCoordinatorId, requestId, unit.toMillis(timeout), scalable);
         String description = String.format("Create new transaction %s", transactionCoordinatorId);
         OpForTxnIdCallBack op = OpForTxnIdCallBack.create(cmd, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
-            pendingRequests.put(requestId, op);
-            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            if (!checkStateAndSendRequest(op)) {
-                pendingRequests.remove(requestId);
-            }
-        });
+        registerAndSend(requestId, op);
         return callback;
     }
 
@@ -363,13 +372,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                 String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack
                 .create(cmd, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
-            pendingRequests.put(requestId, op);
-            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            if (!checkStateAndSendRequest(op)) {
-                pendingRequests.remove(requestId);
-            }
-        });
+        registerAndSend(requestId, op);
 
         return callback;
     }
@@ -445,13 +448,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         String description = String.format("Add subscription %s to TXN %s", toStringSubscriptionList(subscriptionList),
                 String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack.create(cmd, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
-            pendingRequests.put(requestId, op);
-            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            if (!checkStateAndSendRequest(op)) {
-                pendingRequests.remove(requestId);
-            }
-        });
+        registerAndSend(requestId, op);
         return callback;
     }
 
@@ -537,13 +534,7 @@ public class TransactionMetaStoreHandler extends HandlerState
         ByteBuf buf = Commands.serializeWithSize(cmd);
         String description = String.format("End [%s] TXN %s", String.valueOf(action), String.valueOf(txnID));
         OpForVoidCallBack op = OpForVoidCallBack.create(buf, callback, client, description, cnx());
-        internalPinnedExecutor.execute(() -> {
-            pendingRequests.put(requestId, op);
-            timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
-            if (!checkStateAndSendRequest(op)) {
-                pendingRequests.remove(requestId);
-            }
-        });
+        registerAndSend(requestId, op);
         return callback;
     }
 
@@ -732,6 +723,17 @@ public class TransactionMetaStoreHandler extends HandlerState
         semaphore.release();
     }
 
+    private void failRequestOnClose(OpBase<?> op, Throwable cause) {
+        CompletableFuture<?> callback = op.callback;
+        onResponse(op);
+        // Completing a future can invoke user callbacks inline, including one waiting for client shutdown.
+        // Release the op on its owner thread first, and keep those callbacks off the shutdown thread.
+        // The client's own executors may already have stopped, so use the default async executor.
+        if (!callback.isDone()) {
+            CompletableFuture.runAsync(() -> callback.completeExceptionally(cause));
+        }
+    }
+
     private boolean canSendRequest(CompletableFuture<?> callback) {
         try {
             if (blockIfReachMaxPendingOps) {
@@ -748,6 +750,25 @@ public class TransactionMetaStoreHandler extends HandlerState
             return false;
         }
         return true;
+    }
+
+    // The op owns its buffer and a semaphore permit. As a cleanup task, this still runs if the client shuts the
+    // executor down while it's busy, and then fails the op, the handler being closed by then. Once the executor is
+    // stopped, it rejects the task: then fail and release the op here, since its caller only learns the outcome
+    // from the request's future.
+    private void registerAndSend(long requestId, OpBase<?> op) {
+        try {
+            internalPinnedExecutor.execute((ExecutorProvider.CleanupTask) () -> {
+                pendingRequests.put(requestId, op);
+                timeoutQueue.add(new RequestTime(System.currentTimeMillis(), requestId));
+                if (!checkStateAndSendRequest(op)) {
+                    pendingRequests.remove(requestId);
+                }
+            });
+        } catch (RejectedExecutionException e) {
+            failRequestOnClose(op, new PulsarClientException.AlreadyClosedException(
+                    "Could not send the request to the transaction meta store: the client is already closed."));
+        }
     }
 
     private boolean checkStateAndSendRequest(OpBase<?> op) {
@@ -774,12 +795,11 @@ public class TransactionMetaStoreHandler extends HandlerState
                 return true;
             case Closing:
             case Closed:
-                op.callback.completeExceptionally(
+                failRequestOnClose(op,
                         new TransactionCoordinatorClientException.MetaStoreHandlerNotReadyException(
                                 "Transaction meta store handler for tcId "
                                         + transactionCoordinatorId
                                         + " is closing or closed."));
-                onResponse(op);
                 return false;
             case Failed:
                 op.callback.completeExceptionally(
@@ -814,7 +834,8 @@ public class TransactionMetaStoreHandler extends HandlerState
                 RequestTime lastPolled = timeoutQueue.poll();
                 if (lastPolled != null) {
                     OpBase<?> op = pendingRequests.remove(lastPolled.requestId);
-                    if (op != null && !op.callback.isDone()) {
+                    // Release the op even if its caller already completed or cancelled the future.
+                    if (op != null) {
                         op.callback.completeExceptionally(new PulsarClientException.TimeoutException(
                             String.format("%s failed due to timeout. connection: %s. pending-queue: %s",
                                 op.description, op.clientCnx, pendingRequests.size())));
@@ -882,6 +903,20 @@ public class TransactionMetaStoreHandler extends HandlerState
     public void close() throws IOException {
         this.requestTimeout.cancel();
         this.setState(State.Closed);
+        // A closed handler doesn't reconnect and its timeout sweep is cancelled, so nothing else would complete
+        // the pending requests and release their buffers. As a cleanup task, this still runs if the client shuts
+        // the executor down while it's busy.
+        internalPinnedExecutor.execute((ExecutorProvider.CleanupTask) this::failPendingRequest);
+    }
+
+    @VisibleForTesting
+    int getPendingRequestsCount() {
+        return (int) pendingRequests.size();
+    }
+
+    @VisibleForTesting
+    int getAvailableRequestPermits() {
+        return semaphore.availablePermits();
     }
 
     @VisibleForTesting

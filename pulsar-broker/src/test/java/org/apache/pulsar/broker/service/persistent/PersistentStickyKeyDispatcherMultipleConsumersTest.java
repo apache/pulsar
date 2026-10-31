@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.persistent;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.serializeMetadataAndPayload;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.anyInt;
@@ -31,10 +32,12 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockConstruction;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -44,11 +47,14 @@ import com.google.common.collect.Range;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.ImmediateEventExecutor;
 import io.netty.util.concurrent.Promise;
 import io.netty.util.concurrent.SucceededFuture;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.lang.reflect.Field;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -62,9 +68,12 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -74,6 +83,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.util.collections.ConcurrentLongLongHashMap;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.delayed.DelayedDeliveryTracker;
@@ -97,6 +107,8 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedConstruction;
+import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -280,6 +292,81 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         verify(consumer, times(1)).disconnect();
         assertEquals(0, persistentDispatcher.getConsumers().size());
         assertTrue(persistentDispatcher.getSelector().getConsumerKeyHashRanges().isEmpty());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testMarkDeleteCleanupDoesNotLeavePhantomStickyKeyHash() throws Exception {
+        int stickyKeyHash = 123;
+        ConcurrentLongLongHashMap refCounts = ConcurrentLongLongHashMap.newBuilder()
+                .concurrencyLevel(2).expectedItems(128).autoShrink(true).build();
+        CountDownLatch incrementRead = new CountDownLatch(1);
+        CountDownLatch finishIncrement = new CountDownLatch(1);
+        AtomicBoolean pauseIncrement = new AtomicBoolean();
+        AtomicReference<Thread> cleanupThread = new AtomicReference<>();
+        ExecutorService executor = Executors.newFixedThreadPool(2,
+                new DefaultThreadFactory("redelivery-hash-test"));
+
+        persistentDispatcher.close().join();
+        // Preserve the real map operations and pause only between the increment's get and put.
+        try (MockedConstruction<ConcurrentLongLongHashMap> construction = mockConstruction(
+                ConcurrentLongLongHashMap.class, withSettings().defaultAnswer(delegatesTo(refCounts)),
+                (map, context) -> doAnswer(invocation -> {
+                    long count = refCounts.get(stickyKeyHash);
+                    if (pauseIncrement.compareAndSet(true, false)) {
+                        incrementRead.countDown();
+                        assertThat(finishIncrement.await(10, TimeUnit.SECONDS)).isTrue();
+                    }
+                    return count;
+                }).when(map).get(stickyKeyHash))) {
+            try {
+                persistentDispatcher = new PersistentStickyKeyDispatcherMultipleConsumers(
+                        topicMock, cursorMock, subscriptionMock, configMock,
+                        new KeySharedMeta().setKeySharedMode(KeySharedMode.AUTO_SPLIT));
+                PersistentStickyKeyDispatcherMultipleConsumers dispatcher = persistentDispatcher;
+                assertThat(construction.constructed()).hasSize(1);
+                assertThat(dispatcher.addMessageToReplay(1, 1, stickyKeyHash)).isTrue();
+                assertThat(refCounts.get(stickyKeyHash)).isEqualTo(1);
+
+                doReturn(PositionFactory.create(1, 1)).when(cursorMock).getMarkDeletedPosition();
+                pauseIncrement.set(true);
+                var addition = executor.submit(() -> dispatcher.addMessageToReplay(1, 2, stickyKeyHash));
+                assertThat(incrementRead.await(10, TimeUnit.SECONDS)).isTrue();
+                var cleanup = executor.submit(() -> {
+                    cleanupThread.set(Thread.currentThread());
+                    dispatcher.markDeletePositionMoveForward();
+                });
+                // Before the fix cleanup completes during the paused increment. With the fix it waits
+                // on the same dispatcher monitor, so release the increment once that is established.
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).until(() -> {
+                    if (cleanup.isDone()) {
+                        return true;
+                    }
+                    Thread thread = cleanupThread.get();
+                    ThreadInfo info = thread == null ? null
+                            : ManagementFactory.getThreadMXBean().getThreadInfo(thread.threadId());
+                    return info != null && info.getThreadState() == Thread.State.BLOCKED
+                            && info.getLockInfo() != null
+                            && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(dispatcher);
+                });
+                finishIncrement.countDown();
+                assertThat(addition.get(10, TimeUnit.SECONDS)).isTrue();
+                cleanup.get(10, TimeUnit.SECONDS);
+                assertThat(dispatcher.redeliveryMessages.size()).isEqualTo(1);
+                long countAfterConcurrentUpdate = refCounts.get(stickyKeyHash);
+
+                doReturn(PositionFactory.create(1, 2)).when(cursorMock).getMarkDeletedPosition();
+                dispatcher.markDeletePositionMoveForward();
+                assertThat(dispatcher.redeliveryMessages.isEmpty()).isTrue();
+                assertThat(dispatcher.redeliveryMessages.containsStickyKeyHash(stickyKeyHash))
+                        .as("no phantom hash after replay is empty; count after concurrent update=%s, final count=%s",
+                                countAfterConcurrentUpdate, refCounts.get(stickyKeyHash))
+                        .isFalse();
+            } finally {
+                finishIncrement.countDown();
+                executor.shutdownNow();
+                assertThat(executor.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+            }
+        }
     }
 
     @Test
@@ -654,7 +741,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
     public void testGetMessagesToReplayNowChecksDelayedTrackerOnce() {
         DelayedDeliveryTracker trackerMock = mock(DelayedDeliveryTracker.class);
         DelayedDeliveryTrackerFactory trackerFactoryMock = mock(DelayedDeliveryTrackerFactory.class);
-        doReturn(trackerMock).when(trackerFactoryMock).newTracker(any());
+        doReturn(CompletableFuture.completedFuture(trackerMock)).when(trackerFactoryMock).newTrackerAsync(any());
         doReturn(trackerFactoryMock).when(brokerMock).getDelayedDeliveryTrackerFactory();
         doReturn(true).when(topicMock).isDelayedDeliveryEnabled();
         doReturn(true).when(trackerMock).addMessage(anyLong(), anyLong(), anyLong());
@@ -1040,7 +1127,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // the first replay read stays in flight until the test completes it
         CompletableFuture<Runnable> firstReplayRead = new CompletableFuture<>();
         doAnswer(invocationOnMock -> {
-            Set<Position> positions = new TreeSet<>(invocationOnMock.getArgument(0, Set.class));
+            Set<Position> positions = new TreeSet<>(invocationOnMock.<Set<Position>>getArgument(0));
             List<Entry> entries = allEntries.stream()
                     .filter(entry -> positions.contains(entry.getPosition()))
                     .toList();
@@ -1153,7 +1240,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // the first replay read stays in flight until the test completes it
         CompletableFuture<Runnable> firstReplayRead = new CompletableFuture<>();
         doAnswer(invocationOnMock -> {
-            Set<Position> positions = new TreeSet<>(invocationOnMock.getArgument(0, Set.class));
+            Set<Position> positions = new TreeSet<>(invocationOnMock.<Set<Position>>getArgument(0));
             List<Entry> entries = allEntries.stream()
                     .filter(entry -> positions.contains(entry.getPosition()))
                     .toList();
@@ -1284,7 +1371,7 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
         // the first replay read stays in flight until the test completes it
         CompletableFuture<Runnable> firstReplayRead = new CompletableFuture<>();
         doAnswer(invocationOnMock -> {
-            Set<Position> positions = new TreeSet<>(invocationOnMock.getArgument(0, Set.class));
+            Set<Position> positions = new TreeSet<>(invocationOnMock.<Set<Position>>getArgument(0));
             List<Entry> entries = allEntries.stream()
                     .filter(entry -> positions.contains(entry.getPosition()))
                     .toList();
@@ -1466,6 +1553,116 @@ public class PersistentStickyKeyDispatcherMultipleConsumersTest {
             verify(consumerMock, never()).sendMessages(anyList(), any(), any(), anyInt(), anyLong(), anyLong(), any());
         } finally {
             dispatcher.close();
+        }
+    }
+
+    /**
+     * A replay read is in flight when the subscription's last consumer disconnects and a new one connects. The
+     * cursor is rewound for the new consumer, so the replay read's entry must not be dispatched as well.
+     */
+    @Test(dataProvider = "writableSubscriptionTypes", timeOut = 30000)
+    public void testReplayReadPendingWhenAllConsumersDisconnectIsNotDispatchedAgain(boolean keyShared)
+            throws Exception {
+        persistentDispatcher.close();
+        PersistentDispatcherMultipleConsumers dispatcher = createWritableTestDispatcher(keyShared);
+        doReturn(PositionFactory.create(1, 0)).when(cursorMock).getMarkDeletedPosition();
+        Entry redelivered = createEntry(1, 1, "message1", 1);
+        Entry published = createEntry(1, 2, "message2", 2);
+
+        // The cursor's entries and read position: a normal read gets the entries past the read position, or waits
+        // for the next one, and a rewind moves the read position back to the first entry.
+        List<Entry> ledgerEntries = new ArrayList<>(List.of(redelivered));
+        AtomicInteger readIndex = new AtomicInteger();
+        List<Runnable> waitingReads = new ArrayList<>();
+        doAnswer(invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(2);
+            Object ctx = invocation.getArgument(3);
+            List<Entry> entries;
+            synchronized (ledgerEntries) {
+                if (readIndex.get() == ledgerEntries.size()) {
+                    waitingReads.add(() -> {
+                        List<Entry> newEntries;
+                        synchronized (ledgerEntries) {
+                            newEntries = copyEntries(ledgerEntries.subList(readIndex.get(), ledgerEntries.size()));
+                            readIndex.set(ledgerEntries.size());
+                        }
+                        callback.readEntriesComplete(newEntries, ctx);
+                    });
+                    return null;
+                }
+                entries = copyEntries(ledgerEntries.subList(readIndex.get(), ledgerEntries.size()));
+                readIndex.set(ledgerEntries.size());
+            }
+            callback.readEntriesComplete(entries, ctx);
+            return null;
+        }).when(cursorMock).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+        doAnswer(invocation -> {
+            synchronized (ledgerEntries) {
+                readIndex.set(0);
+            }
+            return null;
+        }).when(cursorMock).rewind();
+        doAnswer(invocation -> {
+            synchronized (ledgerEntries) {
+                boolean cancelled = !waitingReads.isEmpty();
+                waitingReads.clear();
+                return cancelled;
+            }
+        }).when(cursorMock).cancelPendingReadRequest();
+
+        // the replay read stays in flight until the test completes it
+        CompletableFuture<Runnable> replayRead = new CompletableFuture<>();
+        Answer<Set<Position>> replay = invocation -> {
+            AsyncCallbacks.ReadEntriesCallback callback = invocation.getArgument(1);
+            Object ctx = invocation.getArgument(2);
+            replayRead.complete(() -> callback.readEntriesComplete(copyEntries(List.of(redelivered)), ctx));
+            return Collections.emptySet();
+        };
+        doAnswer(replay).when(cursorMock).asyncReplayEntries(anySet(), any(), any());
+        doAnswer(replay).when(cursorMock).asyncReplayEntries(anySet(), any(), any(), anyBoolean());
+
+        Consumer consumerA = createMockConsumer();
+        doReturn("a").when(consumerA).consumerName();
+        doReturn(true).when(consumerA).isWritable();
+        doReturn(1000).when(consumerA).getAvailablePermits();
+        mockSendMessages(consumerA, null);
+        Consumer consumerB = createMockConsumer();
+        doReturn("b").when(consumerB).consumerName();
+        doReturn(true).when(consumerB).isWritable();
+        doReturn(1000).when(consumerB).getAvailablePermits();
+        List<Position> receivedByB = new CopyOnWriteArrayList<>();
+        mockSendMessages(consumerB, entries -> entries.forEach(entry -> receivedByB.add(entry.getPosition())));
+
+        try {
+            dispatcher.addConsumer(consumerA).join();
+            // a has already received the entry when it asks for its redelivery
+            synchronized (ledgerEntries) {
+                readIndex.set(1);
+            }
+            dispatcher.redeliverUnacknowledgedMessages(consumerA, List.of(redelivered.getPosition()));
+            Runnable completeReplayRead = replayRead.get(5, TimeUnit.SECONDS);
+
+            // a disconnects and b connects while the replay read is in flight
+            dispatcher.removeConsumer(consumerA);
+            dispatcher.addConsumer(consumerB).join();
+            completeReplayRead.run();
+
+            // a new entry completes the normal read that waits for one
+            List<Runnable> readsToComplete;
+            synchronized (ledgerEntries) {
+                ledgerEntries.add(published);
+                readsToComplete = new ArrayList<>(waitingReads);
+                waitingReads.clear();
+            }
+            readsToComplete.forEach(Runnable::run);
+
+            Awaitility.await().untilAsserted(() -> assertThat(receivedByB).contains(published.getPosition()));
+            assertThat(receivedByB).as("each entry once, from the rewound cursor")
+                    .containsExactly(redelivered.getPosition(), published.getPosition());
+        } finally {
+            dispatcher.close();
+            redelivered.release();
+            published.release();
         }
     }
 

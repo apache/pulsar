@@ -56,7 +56,7 @@ public class RemoteApplicationsTest {
                 """);
 
         ObjectNode remoteWorkload = PerformanceLauncher.remoteApplicationsWorkload(workload, remote,
-                remote.serviceUrl("iot-1"));
+                remote.serviceUrl("iot-1", TlsSettings.DISABLED));
 
         assertThat(remoteWorkload.path("serviceUrl").asText()).isEqualTo("pulsar://iot-1-remote-pulsar-broker-0:6650");
         assertThat(remoteWorkload.path("rate").asInt()).isEqualTo(1000);

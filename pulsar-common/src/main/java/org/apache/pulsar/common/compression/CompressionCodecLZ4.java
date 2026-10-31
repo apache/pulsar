@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.common.compression;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.compress.lz4.Lz4Compressor;
 import io.airlift.compress.lz4.Lz4Decompressor;
 import io.airlift.compress.lz4.Lz4RawCompressor;
 import io.airlift.compress.lz4.Lz4RawDecompressor;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -32,6 +34,17 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  * LZ4 Compression.
  */
 public class CompressionCodecLZ4 implements CompressionCodec {
+
+    private final ByteBufAllocator allocator;
+
+    public CompressionCodecLZ4() {
+        this(PulsarByteBufAllocator.DEFAULT);
+    }
+
+    @VisibleForTesting
+    CompressionCodecLZ4(ByteBufAllocator allocator) {
+        this.allocator = allocator;
+    }
 
     private static final FastThreadLocal<Lz4Compressor> LZ4_COMPRESSOR = new FastThreadLocal<Lz4Compressor>() {
         @Override
@@ -59,7 +72,7 @@ public class CompressionCodecLZ4 implements CompressionCodec {
         int uncompressedLength = source.readableBytes();
         int maxLength = Lz4RawCompressor.maxCompressedLength(uncompressedLength);
 
-        ByteBuf target = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
+        ByteBuf target = allocator.buffer(maxLength, maxLength);
 
         int compressedLength;
         if (source.hasMemoryAddress() && target.hasMemoryAddress()) {
@@ -88,7 +101,7 @@ public class CompressionCodecLZ4 implements CompressionCodec {
         if (uncompressedLength <= 0) {
             throw new IOException("Invalid uncompressed length: " + uncompressedLength);
         }
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = allocator.buffer(uncompressedLength, uncompressedLength);
         try {
             if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
                 Lz4RawDecompressor.decompress(null, encoded.memoryAddress() + encoded.readerIndex(),
@@ -103,9 +116,11 @@ public class CompressionCodecLZ4 implements CompressionCodec {
 
             uncompressed.writerIndex(uncompressedLength);
             return uncompressed;
-        } catch (RuntimeException e) {
+        } catch (Throwable t) {
+            // The output buffer is only ever handed to the caller on success: release it when the decompressor
+            // rejects the input, whether as malformed or as not fitting the advertised uncompressed size.
             uncompressed.release();
-            throw e;
+            throw t;
         }
     }
 

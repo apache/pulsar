@@ -22,10 +22,13 @@ import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -69,6 +72,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -79,6 +83,7 @@ import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.TopicFactory;
@@ -100,6 +105,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -109,7 +115,13 @@ import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.policies.data.TopicStats;
+import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.utils.TestLogAppender;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.MockZooKeeper;
+import org.assertj.core.api.SoftAssertions;
 import org.awaitility.Awaitility;
 import org.mockito.ArgumentCaptor;
 import org.testng.Assert;
@@ -1078,6 +1090,92 @@ public class PersistentTopicTest extends BrokerTestBase {
     }
 
     @Test
+    public void testRemoveSubscriptionKeepsReplacementWithSameName() throws Exception {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
+        doReturn(Collections.emptyMap()).when(ledger).getProperties();
+        PersistentTopic topic = new PersistentTopic(
+                "persistent://prop/ns-abc/testRemoveSubscription-" + UUID.randomUUID(), ledger,
+                pulsar.getBrokerService());
+        String subscriptionName = "shared-subscription";
+        PersistentSubscription expected = mock(PersistentSubscription.class);
+        PersistentSubscription replacement = mock(PersistentSubscription.class);
+        doReturn(CompletableFuture.completedFuture(new SubscriptionStatsImpl()))
+                .when(expected).getStatsAsync(any());
+        doReturn(CompletableFuture.completedFuture(new SubscriptionStatsImpl()))
+                .when(replacement).getStatsAsync(any());
+        topic.getSubscriptions().put(subscriptionName, replacement);
+
+        topic.removeSubscription(subscriptionName, expected).get(3, TimeUnit.SECONDS);
+
+        assertThat(topic.getSubscriptions().get(subscriptionName)).isSameAs(replacement);
+    }
+
+    @Test
+    public void testAsyncNonDurableCursorDeleteFailureKeepsSubscriptionMapped() throws Exception {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
+        doReturn(Collections.emptyMap()).when(ledger).getProperties();
+        PersistentTopic topic = new PersistentTopic(
+                "persistent://prop/ns-abc/testAsyncCursorDeleteFailure-" + UUID.randomUUID(), ledger,
+                pulsar.getBrokerService());
+        String subscriptionName = "shared-subscription";
+        PersistentSubscription expected = mock(PersistentSubscription.class);
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doReturn(cursor).when(expected).getCursor();
+        doReturn(subscriptionName).when(cursor).getName();
+        doReturn(CompletableFuture.completedFuture(new SubscriptionStatsImpl()))
+                .when(expected).getStatsAsync(any());
+        topic.getSubscriptions().put(subscriptionName, expected);
+        ManagedLedgerException failure = new ManagedLedgerException("cursor deletion failed");
+        doAnswer(invocation -> {
+            AsyncCallbacks.DeleteCursorCallback callback = invocation.getArgument(1);
+            callback.deleteCursorFailed(failure, null);
+            return null;
+        }).when(ledger).asyncDeleteCursor(any(), any(), any());
+
+        ExecutionException thrown = null;
+        try {
+            topic.removeNonDurableSubscription(subscriptionName, expected).get(3, TimeUnit.SECONDS);
+        } catch (ExecutionException exception) {
+            thrown = exception;
+        }
+        assertThat(thrown).isNotNull();
+        assertThat(thrown.getCause()).isSameAs(failure);
+        assertThat(topic.getSubscriptions().get(subscriptionName)).isSameAs(expected);
+    }
+
+    @Test
+    public void testSynchronousNonDurableCursorDeleteFailureKeepsSubscriptionMapped() throws Exception {
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        doReturn(new ManagedLedgerConfig()).when(ledger).getConfig();
+        doReturn(Collections.emptyMap()).when(ledger).getProperties();
+        PersistentTopic topic = new PersistentTopic(
+                "persistent://prop/ns-abc/testSyncCursorDeleteFailure-" + UUID.randomUUID(), ledger,
+                pulsar.getBrokerService());
+        String subscriptionName = "shared-subscription";
+        PersistentSubscription expected = mock(PersistentSubscription.class);
+        ManagedCursor cursor = mock(ManagedCursor.class);
+        doReturn(cursor).when(expected).getCursor();
+        doReturn(subscriptionName).when(cursor).getName();
+        doReturn(CompletableFuture.completedFuture(new SubscriptionStatsImpl()))
+                .when(expected).getStatsAsync(any());
+        topic.getSubscriptions().put(subscriptionName, expected);
+        IllegalStateException failure = new IllegalStateException("cursor deletion failed synchronously");
+        doThrow(failure).when(ledger).asyncDeleteCursor(any(), any(), any());
+
+        ExecutionException thrown = null;
+        try {
+            topic.removeNonDurableSubscription(subscriptionName, expected).get(3, TimeUnit.SECONDS);
+        } catch (ExecutionException exception) {
+            thrown = exception;
+        }
+        assertThat(thrown).isNotNull();
+        assertThat(thrown.getCause()).isSameAs(failure);
+        assertThat(topic.getSubscriptions().get(subscriptionName)).isSameAs(expected);
+    }
+
+    @Test
     public void testDynamicConfigurationAutoSkipNonRecoverableData() throws Exception {
         pulsar.getConfiguration().setAutoSkipNonRecoverableData(false);
         final String topicName = "persistent://prop/ns-abc/testAutoSkipNonRecoverableData";
@@ -1125,6 +1223,276 @@ public class PersistentTopicTest extends BrokerTestBase {
 
         subscribe.close();
         admin.topics().delete(topicName);
+    }
+
+    @DataProvider
+    public Object[][] concurrentDurableCreations() {
+        return new Object[][] {{false, false}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "concurrentDurableCreations")
+    public void testNonDurableSubscriptionRejectedDuringDurableCursorInitialization(boolean createDuplicate,
+                                                                                    boolean cancelDuplicate)
+            throws Exception {
+        String topicName = "persistent://prop/ns-abc/concurrent-subscription-creation";
+        String subscriptionName = "mixed-subscription";
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                .getOrCreateTopic(topicName).get(30, TimeUnit.SECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+        CountDownLatch executorPaused = new CountDownLatch(1);
+        CountDownLatch resumeExecutor = new CountDownLatch(1);
+        // Hold the real metadata completion before the cursor is added to the ledger's cache.
+        CompletableFuture<Void> pause = CompletableFuture.runAsync(() -> {
+            executorPaused.countDown();
+            try {
+                assertThat(resumeExecutor.await(60, TimeUnit.SECONDS)).isTrue();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+            }
+        }, ledger.getScheduledExecutor().chooseThread(ledger.getName()));
+        Consumer<byte[]> nonDurableConsumer = null;
+        try {
+            assertThat(executorPaused.await(30, TimeUnit.SECONDS)).isTrue();
+            CompletableFuture<?> durableCreation = topic.createSubscription(subscriptionName,
+                    CommandSubscribe.InitialPosition.Earliest, false, Collections.emptyMap());
+            CompletableFuture<?> duplicate = null;
+            if (createDuplicate) {
+                duplicate = topic.createSubscription(subscriptionName,
+                        CommandSubscribe.InitialPosition.Earliest, false, Collections.emptyMap());
+                if (cancelDuplicate) {
+                    assertThat(duplicate.cancel(false)).isTrue();
+                }
+            }
+            assertThat(durableCreation).isNotDone();
+            assertThat(topic.getSubscription(subscriptionName)).isNull();
+            assertThat(ledger.getCursors().get(Codec.encode(subscriptionName))).isNull();
+
+            AtomicReference<Throwable> nonDurableFailure = new AtomicReference<>();
+            nonDurableConsumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .subscriptionMode(SubscriptionMode.NonDurable).subscribeAsync().handle((consumer, error) -> {
+                        nonDurableFailure.set(FutureUtil.unwrapCompletionException(error));
+                        return consumer;
+                    }).get(30, TimeUnit.SECONDS);
+
+            resumeExecutor.countDown();
+            pause.get(30, TimeUnit.SECONDS);
+            Throwable durableFailure = durableCreation.handle((subscription, error) -> error)
+                    .get(30, TimeUnit.SECONDS);
+            SoftAssertions softly = new SoftAssertions();
+            softly.assertThat(nonDurableFailure.get()).as("the pending durable creation reserves the name")
+                    .isInstanceOf(PulsarClientException.NotAllowedException.class);
+            softly.assertThat(durableFailure).as("the original durable creation must succeed").isNull();
+            softly.assertThat(ledger.getCursors().get(Codec.encode(subscriptionName)))
+                    .as("the topic and managed ledger must own the same cursor")
+                    .isSameAs(topic.getSubscription(subscriptionName).getCursor());
+            if (duplicate != null && !cancelDuplicate) {
+                softly.assertThat(duplicate.handle((subscription, error) -> subscription).get(30, TimeUnit.SECONDS))
+                        .as("concurrent durable requests must share the published subscription")
+                        .isSameAs(topic.getSubscription(subscriptionName));
+            }
+            softly.assertAll();
+        } finally {
+            resumeExecutor.countDown();
+            pause.get(30, TimeUnit.SECONDS);
+            if (nonDurableConsumer != null) {
+                nonDurableConsumer.close();
+            }
+        }
+    }
+
+    @Test
+    public void testNonDurableSubscriptionRejectedBeforeDurableSubscriptionPublication() throws Exception {
+        restartBroker(BrokerTestInterceptor.INSTANCE::configure);
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+        String topicName = "persistent://prop/ns-abc/pending-subscription-publication";
+        String subscriptionName = "mixed-subscription";
+        CompletableFuture<ManagedCursor> cursorCached = new CompletableFuture<>();
+        CompletableFuture<Void> nonDurableAdmissionChecked = new CompletableFuture<>();
+        CountDownLatch publishSubscription = new CountDownLatch(1);
+        BrokerTestInterceptor.INSTANCE.setManagedLedgerDecorator(created -> {
+            ManagedLedgerImpl decorated = spy(created);
+            try {
+                doAnswer(invocation -> {
+                    try {
+                        return invocation.callRealMethod();
+                    } finally {
+                        nonDurableAdmissionChecked.complete(null);
+                    }
+                }).when(decorated).newNonDurableCursor(any(), eq(subscriptionName), any(), anyBoolean());
+            } catch (ManagedLedgerException e) {
+                throw new AssertionError(e);
+            }
+            return decorated;
+        });
+        BrokerTestInterceptor.INSTANCE.setPersistentTopicDecorator(created -> {
+            if (!topicName.equals(created.getName())) {
+                return created;
+            }
+            PersistentTopic decorated = spy(created);
+            doAnswer(invocation -> {
+                cursorCached.complete(invocation.getArgument(1));
+                assertThat(publishSubscription.await(60, TimeUnit.SECONDS)).isTrue();
+                return invocation.callRealMethod();
+            }).when(decorated).createPersistentSubscription(eq(subscriptionName), any(), any(), any());
+            return decorated;
+        });
+        Consumer<byte[]> nonDurableConsumer = null;
+        try {
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                    .getOrCreateTopic(topicName).get(30, TimeUnit.SECONDS);
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+            CompletableFuture<?> durableCreation = topic.createSubscription(subscriptionName,
+                    CommandSubscribe.InitialPosition.Earliest, false, Collections.emptyMap());
+            ManagedCursor durableCursor = cursorCached.get(30, TimeUnit.SECONDS);
+            assertThat(ledger.getCursors().get(Codec.encode(subscriptionName))).isSameAs(durableCursor);
+            assertThat(topic.getSubscription(subscriptionName)).isNull();
+
+            AtomicReference<Throwable> nonDurableFailure = new AtomicReference<>();
+            CompletableFuture<Consumer<byte[]>> nonDurableCreation = client.newConsumer().topic(topicName)
+                    .subscriptionName(subscriptionName).subscriptionMode(SubscriptionMode.NonDurable)
+                    .subscribeAsync().handle((consumer, error) -> {
+                        nonDurableFailure.set(FutureUtil.unwrapCompletionException(error));
+                        nonDurableAdmissionChecked.complete(null);
+                        return consumer;
+                    });
+            // Either admission rejects the request or the real cursor lookup has already happened.
+            nonDurableAdmissionChecked.get(30, TimeUnit.SECONDS);
+            publishSubscription.countDown();
+            Object durableSubscription = durableCreation.get(30, TimeUnit.SECONDS);
+            nonDurableConsumer = nonDurableCreation.get(30, TimeUnit.SECONDS);
+            SoftAssertions softly = new SoftAssertions();
+            softly.assertThat(nonDurableFailure.get()).as("a cached durable cursor still reserves the name")
+                    .isInstanceOf(PulsarClientException.NotAllowedException.class);
+            softly.assertThat(topic.getSubscription(subscriptionName))
+                    .as("the durable subscription must retain ownership after publication")
+                    .isSameAs(durableSubscription);
+            softly.assertAll();
+        } finally {
+            publishSubscription.countDown();
+            try {
+                if (nonDurableConsumer != null) {
+                    nonDurableConsumer.close();
+                }
+            } finally {
+                BrokerTestInterceptor.INSTANCE.reset();
+            }
+        }
+    }
+
+    @Test
+    public void testNonDurableSubscriptionAllowedAfterDurableCursorInitializationFails() throws Exception {
+        String topicName = "persistent://prop/ns-abc/failed-durable-subscription-creation";
+        String subscriptionName = "mixed-subscription";
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService()
+                .getOrCreateTopic(topicName).get(30, TimeUnit.SECONDS);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+        String cursorPath = "/managed-ledgers/" + ledger.getName() + "/" + Codec.encode(subscriptionName);
+        mockZooKeeper.failConditional(KeeperException.Code.BADVERSION,
+                (operation, path) -> operation == MockZooKeeper.Op.CREATE && path.equals(cursorPath));
+
+        assertThatThrownBy(() -> topic.createSubscription(subscriptionName,
+                CommandSubscribe.InitialPosition.Earliest, false, Collections.emptyMap()).get(30, TimeUnit.SECONDS))
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseInstanceOf(BrokerServiceException.PersistenceException.class);
+        assertThat(topic.getSubscription(subscriptionName)).isNull();
+        assertThat(ledger.getCursors().get(Codec.encode(subscriptionName))).isNull();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscriptionMode(SubscriptionMode.NonDurable).subscribe();
+        ManagedCursor cursor = topic.getSubscription(subscriptionName).getCursor();
+        assertThat(cursor.isDurable()).isFalse();
+        assertThat(ledger.getCursors().get(subscriptionName)).isSameAs(cursor);
+    }
+
+    @Test
+    public void testDurableSubscriptionRejectedDuringNonDurableCursorRetirement() throws Exception {
+        restartBroker(configuration -> configuration.setTopicFactoryClassName(
+                InitializationTopicFactory.class.getName()));
+
+        final String topicName = "persistent://" + newTopicName();
+        final String subscriptionName = "shared-subscription";
+        CountDownLatch removalStarted = new CountDownLatch(1);
+        CompletableFuture<Void> allowRemoval = new CompletableFuture<>();
+        AtomicReference<PersistentTopic> decoratedTopic = new AtomicReference<>();
+        AtomicReference<PersistentSubscription> retiringSubscription = new AtomicReference<>();
+
+        BrokerTestInterceptor.INSTANCE.setPersistentTopicDecorator(topic -> {
+            if (!topic.getName().equals(topicName)) {
+                return topic;
+            }
+
+            PersistentTopic decorated = spy(topic);
+            doAnswer(invocation -> {
+                String removedSubscriptionName = invocation.getArgument(0);
+                PersistentSubscription expected = invocation.getArgument(1);
+                if (subscriptionName.equals(removedSubscriptionName)
+                        && expected == retiringSubscription.get()) {
+                    removalStarted.countDown();
+                    return allowRemoval.thenComposeAsync(ignored -> {
+                        try {
+                            @SuppressWarnings("unchecked")
+                            CompletableFuture<Void> result = (CompletableFuture<Void>) invocation.callRealMethod();
+                            return result;
+                        } catch (Throwable error) {
+                            return CompletableFuture.failedFuture(error);
+                        }
+                    }, pulsar.getExecutor());
+                }
+                return invocation.callRealMethod();
+            }).when(decorated).removeSubscription(any(String.class), any(PersistentSubscription.class));
+            decoratedTopic.set(decorated);
+            return decorated;
+        });
+
+        PulsarClient client = null;
+        Consumer<byte[]> consumer = null;
+        try {
+            client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
+            consumer = client.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                    .subscriptionMode(SubscriptionMode.NonDurable).subscribe();
+
+            PersistentTopic topic = decoratedTopic.get();
+            assertThat(topic).as("the broker must use the decorated persistent topic").isNotNull();
+            PersistentSubscription subscription = topic.getSubscription(subscriptionName);
+            assertThat(subscription).isNotNull();
+            retiringSubscription.set(subscription);
+            ManagedLedgerImpl ledger = (ManagedLedgerImpl) topic.getManagedLedger();
+
+            consumer.closeAsync().get(10, TimeUnit.SECONDS);
+            assertThat(removalStarted.await(10, TimeUnit.SECONDS))
+                    .as("the real non-durable cursor deletion must reach the map-removal boundary")
+                    .isTrue();
+            assertThat(ledger.getCursors().get(subscriptionName))
+                    .as("non-durable cursor deletion has completed before map removal")
+                    .isNull();
+            assertThat(topic.getSubscription(subscriptionName))
+                    .as("the retiring subscription remains reserved until map removal")
+                    .isSameAs(subscription);
+
+            CompletableFuture<?> durableAdmission = topic.createSubscription(subscriptionName,
+                    CommandSubscribe.InitialPosition.Earliest, false, Collections.emptyMap());
+            assertThatThrownBy(() -> durableAdmission.get(10, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseInstanceOf(BrokerServiceException.NotAllowedException.class);
+            assertThat(ledger.getCursors().get(subscriptionName))
+                    .as("rejected durable admission must not leave an orphaned cursor")
+                    .isNull();
+        } finally {
+            allowRemoval.complete(null);
+            try {
+                if (consumer != null) {
+                    consumer.close();
+                }
+                if (client != null) {
+                    client.close();
+                }
+            } finally {
+                BrokerTestInterceptor.INSTANCE.reset();
+            }
+        }
     }
 
     @Test
