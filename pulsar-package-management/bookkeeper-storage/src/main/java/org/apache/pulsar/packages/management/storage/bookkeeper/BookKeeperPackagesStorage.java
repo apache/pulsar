@@ -66,7 +66,11 @@ public class BookKeeperPackagesStorage implements PackagesStorage {
             .setWriteQuorumSize(configuration.getPackagesReplicas())
             .setEnsembleSize(configuration.getPackagesReplicas())
             .setAckQuorumSize(configuration.getPackagesReplicas())
-            .setLockTimeout(DistributedLogConstants.LOCK_IMMEDIATE);
+            .setLockTimeout(DistributedLogConstants.LOCK_IMMEDIATE)
+            // A path is updated by deleting its log and writing a new one, whose log segment gets the same
+            // metadata path. The log segment metadata cache would keep the old segment on the broker that
+            // wrote it, and that broker would keep reading the old data.
+            .setLogSegmentCacheEnabled(false);
         if (!Strings.isNullOrEmpty(configuration.getBookkeeperClientAuthenticationPlugin())) {
             conf.setProperty("bkc.clientAuthProviderFactoryClass",
                 configuration.getBookkeeperClientAuthenticationPlugin());
