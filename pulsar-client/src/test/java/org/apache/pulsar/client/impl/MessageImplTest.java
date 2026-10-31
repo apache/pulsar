@@ -50,6 +50,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecZLib;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.protocol.Commands.ChecksumType;
 import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.schema.KeyValueEncodingType;
 import org.testng.Assert;
@@ -60,6 +61,84 @@ import org.testng.annotations.Test;
  * Unit test of {@link MessageImpl}.
  */
 public class MessageImplTest {
+
+    @DataProvider(name = "deserializedMessageBufferTypes")
+    public Object[][] deserializedMessageBufferTypes() {
+        return new Object[][]{{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "deserializedMessageBufferTypes")
+    public void testGetDataOfDeserializedMessage(boolean skipBrokerEntryMetadata, boolean directBuffer)
+            throws Exception {
+        byte[] expected = {1, 2, 3, 4};
+        MessageMetadata metadata = new MessageMetadata().setProducerName("test-producer")
+                .setSequenceId(1).setPublishTime(1);
+        ByteBuf payload = Unpooled.wrappedBuffer(expected);
+        try {
+            ByteBuf serialized = Commands.serializeMetadataAndPayload(ChecksumType.Crc32c, metadata, payload);
+            try {
+                ByteBuf input = directBuffer ? Unpooled.directBuffer(serialized.readableBytes())
+                        : Unpooled.buffer(serialized.readableBytes());
+                try {
+                    input.writeBytes(serialized);
+                    MessageImpl<byte[]> message = skipBrokerEntryMetadata
+                            ? MessageImpl.deserializeSkipBrokerEntryMetaData(input) : MessageImpl.deserialize(input);
+                    try {
+                        assertThat(input.readerIndex()).as("metadata was consumed by the deserializer").isPositive();
+                        assertThat(message.size()).isEqualTo(expected.length);
+                        assertRepeatedGetData(message, expected);
+                    } finally {
+                        message.recycle();
+                    }
+                } finally {
+                    input.release();
+                }
+                assertThat(input.refCnt()).isZero();
+            } finally {
+                serialized.release();
+            }
+        } finally {
+            payload.release();
+        }
+    }
+
+    @Test(dataProvider = "messageBufferTypes")
+    public void testGetDataOfPartiallyWrittenBuffer(boolean pooledMessage, boolean directBuffer) {
+        byte[] expected = {1, 2, 3};
+        ByteBuf source = directBuffer ? Unpooled.directBuffer(8) : Unpooled.buffer(8);
+        try {
+            source.writeBytes(expected);
+            MessageImpl<byte[]> message = MessageImpl.create("test-topic", new MessageIdImpl(1, 2, -1),
+                    new MessageMetadata(), source, Optional.empty(), null, Schema.BYTES, 0, pooledMessage,
+                    Commands.DEFAULT_CONSUMER_EPOCH);
+            try {
+                assertRepeatedGetData(message, expected);
+            } finally {
+                if (pooledMessage) {
+                    message.release();
+                } else {
+                    message.getDataBuffer().release();
+                }
+            }
+        } finally {
+            source.release();
+        }
+        assertThat(source.refCnt()).isZero();
+    }
+
+    @Test
+    public void testGetDataReusesCompleteHeapArray() {
+        byte[] expected = {1, 2, 3};
+        MessageImpl<byte[]> message = MessageImpl.create(new MessageMetadata(), ByteBuffer.wrap(expected),
+                Schema.BYTES, "test-topic");
+        try {
+            assertThat(message.getData()).isSameAs(expected);
+            assertRepeatedGetData(message, expected);
+        } finally {
+            message.getDataBuffer().release();
+            message.recycle();
+        }
+    }
 
     @DataProvider(name = "messageBufferTypes")
     public Object[][] messageBufferTypes() {

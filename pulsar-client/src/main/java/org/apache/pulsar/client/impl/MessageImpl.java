@@ -406,7 +406,8 @@ public class MessageImpl<T> implements TraceableMessage, Message<T> {
             payload.getBytes(payload.readerIndex(), data);
             return data;
         }
-        if (payload.arrayOffset() == 0 && payload.capacity() == payload.array().length) {
+        if (payload.arrayOffset() == 0 && payload.readerIndex() == 0
+                && payload.readableBytes() == payload.array().length) {
             return payload.array();
         } else {
             // Need to copy into a smaller byte array
