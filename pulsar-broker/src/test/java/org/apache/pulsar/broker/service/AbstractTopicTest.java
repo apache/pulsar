@@ -71,6 +71,23 @@ public class AbstractTopicTest {
     }
 
     @Test
+    public void testIsInTeardownDefaultFalse() {
+        assertFalse(topic.isInTeardown());
+    }
+
+    @Test
+    public void testIsInTeardownWhenFenced() {
+        topic.isFenced = true;
+        assertTrue(topic.isInTeardown());
+    }
+
+    @Test
+    public void testIsInTeardownWhenNotFenced() {
+        topic.isFenced = false;
+        assertFalse(topic.isInTeardown());
+    }
+
+    @Test
     public void testGetMsgOutCounter() {
         topic.msgOutFromRemovedSubscriptions.add(1L);
         when(subscription.getMsgOutCounter()).thenReturn(2L);
