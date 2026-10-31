@@ -159,6 +159,17 @@ public interface MetadataStoreExtended extends MetadataStore {
     }
 
     /**
+     * Whether a record whose stat reports {@code createdBySelf} is guaranteed to be bound to the
+     * live session. Stores that scope the creator identity to the session return {@code true}
+     * (the default); stores whose creator identity outlives the session — scoped to the client
+     * identity, like the oxia backend — return {@code false}: a self-created record may still be
+     * bound to an expired session, and only re-writing it re-binds it to the live session.
+     */
+    default boolean isCreatorIdentitySessionScoped() {
+        return true;
+    }
+
+    /**
      * Get {@link MetadataEventSynchronizer} to notify and synchronize metadata events.
      *
      * @return
