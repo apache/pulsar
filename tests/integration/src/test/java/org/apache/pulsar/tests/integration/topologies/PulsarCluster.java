@@ -25,15 +25,22 @@ import static org.apache.pulsar.tests.integration.containers.PulsarContainer.BRO
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.CS_PORT;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.PULSAR_CONTAINERS_LEAVE_RUNNING;
 import static org.apache.pulsar.tests.integration.containers.PulsarContainer.ZK_PORT;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.Cleanup;
@@ -65,6 +72,10 @@ public class PulsarCluster {
     public static final String CLIENT_SCRIPT = "/pulsar/bin/pulsar-client";
     public static final String PULSAR_COMMAND_SCRIPT = "/pulsar/bin/pulsar";
     public static final String CURL = "/usr/bin/curl";
+
+    // Starts and stops containers, a thread for each: the threads mostly wait for Docker and for the services
+    private static final ExecutorService CONTAINER_EXECUTOR = Executors.newCachedThreadPool(
+            new ThreadFactoryBuilder().setNameFormat("pulsar-cluster-container-%d").setDaemon(true).build());
 
     /**
      * Pulsar Cluster Spec.
@@ -430,20 +441,11 @@ public class PulsarCluster {
     }
 
     public void start(boolean doInit) throws Exception {
+        // Each group of containers starts at once, since it only needs the groups before it: the metadata stores,
+        // then the bookies, then the brokers and the proxy
 
-        if (!spec.enableOxia) {
-            // start the local zookeeper
-            zkContainer.start();
-            log.info("Successfully started local zookeeper container.");
-
-            // start the configuration store
-            if (!sharedCsContainer) {
-                csContainer.start();
-                log.info("Successfully started configuration store container.");
-            }
-        } else {
-            oxiaContainer.start();
-        }
+        inParallel(metadataStoreContainers(), GenericContainer::start);
+        log.info("Successfully started metadata store containers.");
 
         if (doInit) {
             // Run cluster metadata initialization
@@ -459,15 +461,18 @@ public class PulsarCluster {
         }
 
         // start bookies
-        bookieContainers.values().forEach(BKContainer::start);
+        inParallel(bookieContainers.values(), BKContainer::start);
         log.info().attr("started", bookieContainers.size()).log("Successfully started bookie containers.");
 
-        // start brokers
-        this.startAllBrokers();
-        log.info().attr("started", brokerContainers.size()).log("Successfully started broker containers.");
-
+        // start brokers and the proxy, which finds the brokers as they register. A broker container is started once
+        // the broker is ready, which is after it has registered
+        List<PulsarContainer<?>> brokersAndProxy = new ArrayList<>(brokerContainers.values());
         if (proxyContainer != null) {
-            proxyContainer.start();
+            brokersAndProxy.add(proxyContainer);
+        }
+        inParallel(brokersAndProxy, PulsarContainer::start);
+        log.info().attr("started", brokerContainers.size()).log("Successfully started broker containers.");
+        if (proxyContainer != null) {
             log.info("Successfully started pulsar proxy.");
         }
 
@@ -481,7 +486,7 @@ public class PulsarCluster {
         this.externalServices = spec.externalServices;
         this.externalServiceEnvs = spec.externalServiceEnvs;
         if (null != externalServices) {
-            externalServices.entrySet().parallelStream().forEach(service -> {
+            inParallel(externalServices.entrySet(), service -> {
                 GenericContainer<?> serviceContainer = service.getValue();
                 serviceContainer.withNetwork(network);
                 serviceContainer.withNetworkAliases(service.getKey());
@@ -537,31 +542,23 @@ public class PulsarCluster {
             return;
         }
 
-        stopInParallel(workerContainers.values());
+        // Each group of containers stops at once, after the groups that use it
+        inParallel(workerContainers.values(), GenericContainer::stop);
 
         if (externalServices != null) {
-            stopInParallel(externalServices.values());
+            inParallel(externalServices.values(), GenericContainer::stop);
         }
 
-        if (null != proxyContainer) {
-            proxyContainer.stop();
-        }
+        // The brokers stop before the bookies, which they need to close their ledgers, and the proxy meanwhile, as it
+        // needs neither
+        Runnable stopBrokersAndBookies = () -> {
+            inParallel(brokerContainers.values(), GenericContainer::stop);
+            inParallel(bookieContainers.values(), GenericContainer::stop);
+        };
+        Runnable stopProxy = proxyContainer != null ? proxyContainer::stop : () -> { };
+        inParallel(List.of(stopBrokersAndBookies, stopProxy), Runnable::run);
 
-        stopInParallel(brokerContainers.values());
-
-        stopInParallel(bookieContainers.values());
-
-        if (!sharedCsContainer && null != csContainer) {
-            csContainer.stop();
-        }
-
-        if (null != zkContainer) {
-            zkContainer.stop();
-        }
-
-        if (oxiaContainer != null) {
-            oxiaContainer.stop();
-        }
+        inParallel(metadataStoreContainers(), GenericContainer::stop);
 
         if (closeNetworkOnExit) {
             try {
@@ -575,10 +572,28 @@ public class PulsarCluster {
         }
     }
 
-    private static void stopInParallel(Collection<? extends GenericContainer<?>> containers) {
-        containers.parallelStream()
+    // The local zookeeper and the configuration store, unless another cluster owns it, or else oxia
+    private List<GenericContainer<?>> metadataStoreContainers() {
+        return Arrays.asList(zkContainer, sharedCsContainer ? null : csContainer, oxiaContainer);
+    }
+
+    /**
+     * Runs the action on all the items, such as containers to start, at once, each in a thread of its own, and returns
+     * once every action is done. A failure is rethrown only then, so that whatever the caller does next, such as
+     * stopping the cluster, doesn't overlap an action that's still running. A parallel stream did neither: it runs a
+     * TreeMap's 2 values one after the other, and rethrows a failure as soon as it happens.
+     */
+    private static <T> void inParallel(Collection<T> items, Consumer<? super T> action) {
+        CompletableFuture<?>[] futures = items.stream()
                 .filter(Objects::nonNull)
-                .forEach(GenericContainer::stop);
+                .map(item -> CompletableFuture.runAsync(() -> action.accept(item), CONTAINER_EXECUTOR))
+                .toArray(CompletableFuture[]::new);
+        try {
+            CompletableFuture.allOf(futures).join();
+        } catch (CompletionException e) {
+            Throwables.throwIfUnchecked(e.getCause());
+            throw e;
+        }
     }
 
     public synchronized void setupFunctionWorkers(String suffix, FunctionRuntimeType runtimeType,
@@ -654,7 +669,7 @@ public class PulsarCluster {
 
     public synchronized void startWorkers() {
         // Start workers that have been initialized
-        workerContainers.values().parallelStream().forEach(WorkerContainer::start);
+        inParallel(workerContainers.values(), WorkerContainer::start);
         log.info().attr("started", workerContainers.size()).log("Successfully started worker containers.");
     }
 
@@ -680,7 +695,7 @@ public class PulsarCluster {
             return;
         }
         // Stop workers that have been initialized
-        workerContainers.values().parallelStream().forEach(WorkerContainer::stop);
+        inParallel(workerContainers.values(), WorkerContainer::stop);
         workerContainers.clear();
     }
 
@@ -700,7 +715,7 @@ public class PulsarCluster {
             logIgnoringStopDueToLeaveRunning();
             return;
         }
-        containers.values().parallelStream().forEach(GenericContainer::stop);
+        inParallel(containers.values(), GenericContainer::stop);
         log.info().attr("containers", containers).log("Successfully stop containers");
     }
 
