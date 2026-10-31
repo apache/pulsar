@@ -259,7 +259,6 @@ public final class PulsarClientImplementationBindingImpl implements PulsarClient
         return JSONSchema.of(schemaDefinition);
     }
 
-
     public Schema<GenericRecord> newAutoConsumeSchema() {
         return new AutoConsumeSchema();
     }
