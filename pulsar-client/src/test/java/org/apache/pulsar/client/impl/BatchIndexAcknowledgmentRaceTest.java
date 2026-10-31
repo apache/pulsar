@@ -68,6 +68,10 @@ public class BatchIndexAcknowledgmentRaceTest {
         ACK_BEFORE_FLUSH, FLUSH_BEFORE_ACK, CONCURRENT_FLUSH
     }
 
+    private enum CleanupSchedule {
+        AFTER_LOOKUP, DURING_RETRY_INITIALIZATION
+    }
+
     @BeforeClass
     public void setup() {
         eventLoopGroup = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
@@ -231,6 +235,147 @@ public class BatchIndexAcknowledgmentRaceTest {
             resume.countDown();
             actors.shutdownNow();
             assertThat(actors.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @DataProvider
+    public Object[][] cleanupSchedules() {
+        List<Object[]> cases = new ArrayList<>();
+        for (CleanupSchedule schedule : CleanupSchedule.values()) {
+            for (boolean list : new boolean[] {false, true}) {
+                for (boolean replayAck : new boolean[] {false, true}) {
+                    cases.add(new Object[] {schedule, list, replayAck});
+                }
+            }
+        }
+        return cases.toArray(new Object[0][]);
+    }
+
+    @Test(dataProvider = "cleanupSchedules", timeOut = 60000)
+    public void testBatchIndexAckCannotCrossCleanup(CleanupSchedule schedule, boolean list, boolean replayAck)
+            throws Exception {
+        ConsumerImpl<?> consumer = mock(ConsumerImpl.class);
+        consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        doReturn(new ConsumerStatsRecorderImpl()).when(consumer).getStats();
+        doReturn(UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED)
+                .when(consumer).getUnAckedMessageTracker();
+        doReturn(HandlerState.State.Ready).when(consumer).getState();
+        ClientCnx connection = mock(ClientCnx.class);
+        AtomicReference<ClientCnx> subscribedConnection = new AtomicReference<>(connection);
+        doAnswer(__ -> subscribedConnection.get()).when(consumer).getClientCnx();
+        doReturn(Commands.getCurrentProtocolVersion()).when(connection).getRemoteEndpointProtocolVersion();
+        ChannelHandlerContext context = mock(ChannelHandlerContext.class);
+        doReturn(context).when(connection).ctx();
+        List<BaseCommand> frames = Collections.synchronizedList(new ArrayList<>());
+        ChannelFuture successfulWrite = completedWrite(true);
+        doAnswer(invocation -> {
+            captureFrame(invocation.getArgument(0), frames);
+            return successfulWrite;
+        }).when(context).writeAndFlush(any());
+        doAnswer(invocation -> {
+            captureFrame(invocation.getArgument(0), frames);
+            return successfulWrite;
+        }).when(context).write(any());
+
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setBatchIndexAckEnabled(true);
+        conf.setAcknowledgementsGroupTimeMicros(TimeUnit.HOURS.toMicros(1));
+        BitSet ackSet = BatchMessageIdImpl.newAckSet(4);
+        CountDownLatch lookupPaused = new CountDownLatch(1);
+        CountDownLatch resumeLookup = new CountDownLatch(1);
+        CountDownLatch initializationPaused = new CountDownLatch(1);
+        CountDownLatch resumeInitialization = new CountDownLatch(1);
+        AtomicBoolean pauseLookup = new AtomicBoolean(true);
+        AtomicBoolean pauseInitialization = new AtomicBoolean();
+        BatchMessageIdImpl first = new BatchMessageIdImpl(5, 1, 0, 0, 4, ackSet);
+        BatchMessageIdImpl second = new BatchMessageIdImpl(5, 1, 0, 1, 4, ackSet) {
+            @Override
+            public int getBatchIndex() {
+                if (!ackSet.get(1) && pauseLookup.compareAndSet(true, false)) {
+                    assertThat(Thread.holdsLock(ackSet)).isFalse();
+                    lookupPaused.countDown();
+                    awaitResume(resumeLookup);
+                }
+                return super.getBatchIndex();
+            }
+
+            @Override
+            public BitSet getAckSet() {
+                if (pauseInitialization.compareAndSet(true, false)) {
+                    initializationPaused.countDown();
+                    awaitResume(resumeInitialization);
+                }
+                return super.getAckSet();
+            }
+        };
+        BatchMessageIdImpl replay = new BatchMessageIdImpl(5, 1, 0, 2, 4, BatchMessageIdImpl.newAckSet(4));
+        ExecutorService actors = Executors.newSingleThreadExecutor(new DefaultThreadFactory("batch-ack-cleanup"));
+        try (var tracker = new PersistentAcknowledgmentsGroupingTracker(consumer, conf, eventLoopGroup)) {
+            acknowledge(tracker, first, list).get(10, TimeUnit.SECONDS);
+            assertThat(tracker.isDuplicate(first)).isTrue();
+            CompletableFuture<Void> inFlight = CompletableFuture.supplyAsync(
+                    () -> acknowledge(tracker, second, list), actors).thenCompose(future -> future);
+            assertThat(lookupPaused.await(10, TimeUnit.SECONDS)).as("ACK paused after bitmap lookup").isTrue();
+            if (schedule == CleanupSchedule.DURING_RETRY_INITIALIZATION) {
+                tracker.flush();
+                pauseInitialization.set(true);
+                resumeLookup.countDown();
+                assertThat(initializationPaused.await(10, TimeUnit.SECONDS))
+                        .as("ordinary flush caused a retry, paused before bitmap publication").isTrue();
+            }
+
+            subscribedConnection.set(null);
+            tracker.flushAndClean();
+            int framesBeforeReplay = frames.size();
+            assertThat(tracker.isDuplicate(first)).as("cleanup must allow replay of completed ACK 0").isFalse();
+            if (replayAck) {
+                acknowledge(tracker, replay, list).get(10, TimeUnit.SECONDS);
+                tracker.flush();
+            }
+            resumeLookup.countDown();
+            resumeInitialization.countDown();
+            inFlight.get(10, TimeUnit.SECONDS);
+
+            assertThat(tracker.isDuplicate(first)).as("old ACK 0 must not be restored after cleanup").isFalse();
+            assertThat(tracker.isDuplicate(second)).as("the invalidated ACK must not modify replay state").isFalse();
+            assertThat(tracker.isDuplicate(replay)).isEqualTo(replayAck);
+            assertThat(tracker.pendingIndividualBatchIndexAcks).hasSize(replayAck ? 1 : 0);
+            subscribedConnection.set(connection);
+            tracker.flush();
+            tracker.flush();
+            List<BaseCommand> replayFrames = frames.subList(framesBeforeReplay, frames.size());
+            assertThat(replayFrames).hasSize(replayAck ? 1 : 0);
+            if (replayAck) {
+                var ack = replayFrames.get(0).getAck();
+                assertThat(ack.getMessageIdsCount()).isEqualTo(1);
+                var messageId = ack.getMessageIdAt(0);
+                assertThat(messageId.getLedgerId()).isEqualTo(5);
+                assertThat(messageId.getEntryId()).isEqualTo(1);
+                assertThat(messageId.getAckSetsCount()).isEqualTo(1);
+                assertThat(messageId.getAckSetAt(0)).as("only replay ACK 2 may be sent after cleanup")
+                        .isEqualTo(0b1011L);
+            }
+            assertThat(tracker.pendingIndividualBatchIndexAcks).isEmpty();
+        } finally {
+            resumeLookup.countDown();
+            resumeInitialization.countDown();
+            actors.shutdownNow();
+            assertThat(actors.awaitTermination(10, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    private static CompletableFuture<Void> acknowledge(PersistentAcknowledgmentsGroupingTracker tracker,
+                                                       MessageId id, boolean list) {
+        return list ? tracker.addListAcknowledgment(List.of(id), AckType.Individual, Collections.emptyMap())
+                : tracker.addAcknowledgment(id, AckType.Individual, Collections.emptyMap());
+    }
+
+    private static void awaitResume(CountDownLatch resume) {
+        try {
+            assertThat(resume.await(10, TimeUnit.SECONDS)).as("resume the application ACK").isTrue();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
         }
     }
 

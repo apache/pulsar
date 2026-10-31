@@ -30,7 +30,9 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -102,9 +104,16 @@ public class BatchIndexAcknowledgmentFlushTest extends SharedPulsarBaseTest {
             CompletableFuture.allOf(workers.toArray(new CompletableFuture[0])).get(20, TimeUnit.SECONDS);
             CompletableFuture.allOf(acknowledgments.toArray(new CompletableFuture[0])).get(20, TimeUnit.SECONDS);
             assertThat(acknowledgments).hasSize(messageCount / 2);
-            Awaitility.await().atMost(15, TimeUnit.SECONDS).untilAsserted(() ->
-                    assertThat(admin.topics().getStats(topic).getSubscriptions().get("sub").getUnackedMessages())
-                            .isEqualTo(messageCount / 2));
+            PersistentTopic brokerTopic = (PersistentTopic) getTopicReference(topic).orElseThrow();
+            ManagedCursor cursor = brokerTopic.getSubscription("sub").getCursor();
+            // Wait for the exact batch masks recorded by the broker before requesting redelivery.
+            Awaitility.await().atMost(15, TimeUnit.SECONDS).untilAsserted(() -> {
+                for (int i = 0; i < messageCount; i += 4) {
+                    MessageIdAdv id = (MessageIdAdv) messages.get(i).getMessageId();
+                    assertThat(cursor.getDeletedBatchIndexesAsLongArray(id.getLedgerId(), id.getEntryId()))
+                            .as("broker ACK mask for batch %s", id).containsExactly(0b1100L);
+                }
+            });
 
             // Validate the broker's ACK state: only indices 2 and 3 of each batch may be redelivered.
             consumer.redeliverUnacknowledgedMessages();
