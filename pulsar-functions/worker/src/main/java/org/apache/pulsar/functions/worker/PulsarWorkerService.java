@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.admin.Topics;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -423,6 +424,34 @@ public class PulsarWorkerService implements WorkerService {
         }
     }
 
+    /**
+     * Creates the subscription that the leader election uses on the coordination topic, if it is missing.
+     *
+     * <p>Workers that start at the same time can all find it missing and all create it. The broker fails the
+     * creations after the first one with 409 Conflict or, when two of them overlap, with 412 "Subscription Busy"
+     * (both reset the cursor of the same new subscription). Since 409 also reports other failures, such as a
+     * reached subscription limit, a worker whose creation fails goes on only if the subscription exists.
+     */
+    @VisibleForTesting
+    static void createCoordinationSubscriptionIfMissing(Topics topics, String coordinationTopic)
+            throws PulsarAdminException {
+        String subscription = MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION;
+        if (topics.getSubscriptions(coordinationTopic).contains(subscription)) {
+            return;
+        }
+        try {
+            topics.createSubscription(coordinationTopic, subscription, MessageId.earliest);
+        } catch (PulsarAdminException.ConflictException | PulsarAdminException.PreconditionFailedException e) {
+            if (!topics.getSubscriptions(coordinationTopic).contains(subscription)) {
+                throw e;
+            }
+            log.info().attr("topic", coordinationTopic)
+                    .attr("subscription", subscription)
+                    .attr("error", e.getMessage())
+                    .log("Another worker created the subscription on the coordination topic");
+        }
+    }
+
     @Override
     public void start(AuthenticationService authenticationService,
                       AuthorizationService authorizationService,
@@ -484,13 +513,8 @@ public class PulsarWorkerService implements WorkerService {
             this.functionsManager = new FunctionsManager(workerConfig);
 
             //create membership manager
-            String coordinationTopic = workerConfig.getClusterCoordinationTopic();
-            if (!getBrokerAdmin().topics().getSubscriptions(coordinationTopic)
-                    .contains(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION)) {
-                getBrokerAdmin().topics()
-                        .createSubscription(coordinationTopic, MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION,
-                                MessageId.earliest);
-            }
+            createCoordinationSubscriptionIfMissing(getBrokerAdmin().topics(),
+                    workerConfig.getClusterCoordinationTopic());
             this.membershipManager = new MembershipManager(this, client, getBrokerAdmin());
 
             // create function runtime manager
