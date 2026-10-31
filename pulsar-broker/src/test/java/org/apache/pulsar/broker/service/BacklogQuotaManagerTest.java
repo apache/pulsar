@@ -1313,11 +1313,6 @@ public class BacklogQuotaManagerTest {
         assertEquals(admin.namespaces().getBacklogQuotaMap("prop/ns-quota"),
                 new HashMap<>());
         var backlogSizeLimit = 10 * 1024;
-        admin.namespaces().setBacklogQuota("prop/ns-quota",
-                BacklogQuota.builder()
-                        .limitSize(backlogSizeLimit)
-                        .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
-                        .build());
         @Cleanup
         PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, SECONDS)
                 .build();
@@ -1337,6 +1332,15 @@ public class BacklogQuotaManagerTest {
             consumer2.receive();
         }
 
+        // Set the quota only once the whole backlog is written. Otherwise a periodic quota check that runs during
+        // the loop evicts, and the remaining messages push the backlog over the limit again for a second eviction.
+        admin.namespaces().setBacklogQuota("prop/ns-quota",
+                BacklogQuota.builder()
+                        .limitSize(backlogSizeLimit)
+                        .retentionPolicy(BacklogQuota.RetentionPolicy.consumer_backlog_eviction)
+                        .build());
+
+        // If the quota hasn't reached the topic yet when this check runs, the next periodic check evicts.
         admin.brokers().backlogQuotaCheck();
         Awaitility.await().pollInterval(100, MILLISECONDS).untilAsserted(() -> {
             assertTrue(getTopicStats(topic1).getBacklogSize() < backlogSizeLimit);
