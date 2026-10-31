@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.URI;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
@@ -99,15 +100,15 @@ public abstract class NetworkErrorTestBase extends TestRetrySupport {
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
         broker1 = pulsar1.getBrokerService();
-        url1 = new URL(pulsar1.getWebServiceAddress());
-        urlTls1 = new URL(pulsar1.getWebServiceAddressTls());
+        url1 = URI.create(pulsar1.getWebServiceAddress()).toURL();
+        urlTls1 = URI.create(pulsar1.getWebServiceAddressTls()).toURL();
 
         setConfigDefaults(config2, cluster1, bkEnsemble1.getZookeeperPort());
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
         broker2 = pulsar2.getBrokerService();
-        url2 = new URL(pulsar2.getWebServiceAddress());
-        urlTls2 = new URL(pulsar2.getWebServiceAddressTls());
+        url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
+        urlTls2 = URI.create(pulsar2.getWebServiceAddressTls()).toURL();
 
         log.info().attr("broker1", broker1.getListenPort()).attr("broker2", broker2.getListenPort())
                 .log("broker-1, broker-2");

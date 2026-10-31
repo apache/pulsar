@@ -485,14 +485,14 @@ public class KubernetesRuntimeTest {
         if (null != depsDir) {
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            totalArgs = 54;
-            portArg = 41;
-            metricsPortArg = 43;
-        } else {
-            extraDepsEnv = "";
+            totalArgs = 53;
             portArg = 40;
             metricsPortArg = 42;
-            totalArgs = 53;
+        } else {
+            extraDepsEnv = "";
+            portArg = 39;
+            metricsPortArg = 41;
+            totalArgs = 52;
         }
         if (secretsAttached) {
             totalArgs += 4;
@@ -527,7 +527,6 @@ public class KubernetesRuntimeTest {
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-$SHARD_ID"
                 + " -Dio.netty.tryReflectionSetAccessible=true"
                 + " -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
-                + " -Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true"
                 + " --add-opens java.base/java.nio=ALL-UNNAMED"
                 + " --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
                 + " --add-opens java.base/java.util.zip=ALL-UNNAMED"

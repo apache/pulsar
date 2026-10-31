@@ -270,6 +270,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected volatile long lastLedgerCreatedTimestamp = 0;
     private volatile long lastLedgerCreationFailureTimestamp = 0;
     private long lastLedgerCreationInitiationTimestamp = 0;
+    // Identifies the ledger creation in progress, so that the late completion of a creation that was given up on is
+    // discarded instead of replacing the current ledger
+    private long ledgerCreationGeneration = 0;
 
     private long lastOffloadLedgerId = 0;
     private volatile long lastOffloadSuccessTimestamp = 0;
@@ -1073,7 +1076,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info("Creating a new ledger");
                 this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
                 mbean.startDataLedgerCreateOp();
-                asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap(), log);
+                asyncCreateLedger(bookKeeper, config, digestType, newLedgerCreationCallback(), Collections.emptyMap(),
+                        log);
             }
         } else {
             checkArgument(state == State.LedgerOpened, "ledger=%s is not opened", state);
@@ -1934,6 +1938,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public synchronized void createComplete(int rc, final LedgerHandle lh, Object ctx) {
+        createComplete(rc, lh, ctx, ledgerCreationGeneration);
+    }
+
+    private synchronized CreateCallback newLedgerCreationCallback() {
+        long generation = ++ledgerCreationGeneration;
+        return (rc, lh, ctx) -> createComplete(rc, lh, ctx, generation);
+    }
+
+    /**
+     * Completes a ledger creation.
+     *
+     * @param generation the ledger creation that completed: if it is not the one in progress, because it was failed
+     *                   by force and a new creation was started since, its ledger is discarded
+     */
+    @VisibleForTesting
+    synchronized void createComplete(int rc, final LedgerHandle lh, Object ctx, long generation) {
         if (STATE_UPDATER.get(this) == State.Closed) {
             if (lh != null) {
                 log.warn().attr("rc", rc)
@@ -1951,6 +1971,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return;
         }
 
+        if (generation != ledgerCreationGeneration) {
+            discardStaleLedger(lh);
+            return;
+        }
+
         mbean.endDataLedgerCreateOp();
         if (STATE_UPDATER.get(this) == State.Terminated) {
             // Terminated while the ledger was being created, whether the creation succeeded, failed or timed out
@@ -1961,6 +1986,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (rc != BKException.Code.OK) {
             log.error().attr("rc", rc).attr("message", BKException.getMessage(rc)).log("Error creating ledger");
             ManagedLedgerException status = createManagedLedgerException(rc);
+            // The creation is over: if it was failed by force, its ledger may still be created later, and must not be
+            // used then
+            ledgerCreationGeneration++;
 
             // no pending entries means that creating this new ledger is NOT caused by write failure
             if (pendingAddEntries.isEmpty()) {
@@ -1999,6 +2027,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 // to the in-memory list, so the metadata update of the terminate, which waits for
                                 // this one to complete, drops it again
                                 abortRolloverAfterTerminate(lh);
+                            } else if (generation != ledgerCreationGeneration) {
+                                // Failed by force while the ledgers list was being updated. As above, the next
+                                // metadata update drops the new ledger again
+                                discardStaleLedger(lh);
                             } else {
                                 LedgerHandle originalCurrentLedger = currentLedger;
                                 ledgers.put(lh.getId(), newLedger);
@@ -2048,6 +2080,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     synchronized (ManagedLedgerImpl.this) {
                         lastLedgerCreationFailureTimestamp = clock.millis();
+                        if (generation != ledgerCreationGeneration) {
+                            // Failed by force already: the state and the pending adds belong to a newer creation
+                            return;
+                        }
                         if (STATE_UPDATER.get(ManagedLedgerImpl.this) == State.Terminated) {
                             // Terminated while the ledgers list was being updated. The new ledger is deleted above
                             abortRolloverAfterTerminate(null);
@@ -2059,7 +2095,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
             };
 
-            updateLedgersListAfterRollover(cb, lh, newLedger);
+            updateLedgersListAfterRollover(cb, lh, newLedger, generation);
+        }
+    }
+
+    /**
+     * Discards the ledger of a creation that was failed by force, because it did not complete in time, and that was
+     * superseded by a new creation since.
+     *
+     * @param lh the ledger that was created, or null if the creation failed
+     */
+    private void discardStaleLedger(@Nullable LedgerHandle lh) {
+        if (lh != null) {
+            log.warn().attr("ledgerId", lh.getId())
+                    .log("Ledger created after its creation was given up on, deleting it");
+            lh.closeAsync().whenComplete((ignore, ex) -> asyncDeleteLedger(lh.getId(), DEFAULT_LEDGER_DELETE_RETRIES));
         }
     }
 
@@ -2087,16 +2137,21 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private synchronized void updateLedgersListAfterRollover(MetaStoreCallback<Void> callback, LedgerHandle lh,
-                                                             LedgerInfo newLedger) {
+                                                             LedgerInfo newLedger, long generation) {
         if (STATE_UPDATER.get(this) == State.Terminated) {
             // Terminated while this update was deferred: the new ledger must not make it to the ledgers list
             abortRolloverAfterTerminate(lh);
             return;
         }
+        if (generation != ledgerCreationGeneration) {
+            // Failed by force while this update was deferred
+            discardStaleLedger(lh);
+            return;
+        }
 
         if (!metadataMutex.tryLock()) {
             // Defer update for later
-            scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback, lh, newLedger),
+            scheduledExecutor.schedule(() -> updateLedgersListAfterRollover(callback, lh, newLedger, generation),
                     100, TimeUnit.MILLISECONDS);
             return;
         }
@@ -2387,10 +2442,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             STATE_UPDATER.set(this, State.CreatingLedger);
             this.lastLedgerCreationInitiationTimestamp = System.currentTimeMillis();
             mbean.startDataLedgerCreateOp();
+            CreateCallback createCallback = newLedgerCreationCallback();
             // Use the executor here is to avoid use the Zookeeper thread to create the ledger which will lead
             // to deadlock at the zookeeper client, details to see https://github.com/apache/pulsar/issues/13736
             this.executor.execute(() ->
-                    asyncCreateLedger(bookKeeper, config, digestType, this, Collections.emptyMap(), log));
+                    asyncCreateLedger(bookKeeper, config, digestType, createCallback, Collections.emptyMap(), log));
         }
     }
 
@@ -3309,6 +3365,32 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void updateActiveCursor(ManagedCursorImpl cursor, Position newPosition) {
+        // The cursor publishes its position before notifying us. An active cursor has already been registered,
+        // and any later activation will snapshot that published position, so ordinary reads need no monitor.
+        if (cursor.isActive()) {
+            updateActiveCursorPosition(cursor, newPosition);
+            return;
+        }
+        // Activation snapshots the position and adds the cursor before publishing its active flag. Serialize
+        // an inactive cursor's notification with those steps so it cannot be lost before the insertion.
+        synchronized (activeCursors) {
+            // Waiting can make the notification's argument stale. Reconcile with the published position,
+            // and retry if an active update overtakes this snapshot before it reaches the container.
+            Position currentPosition;
+            do {
+                currentPosition = getCursorPositionForCacheEviction(cursor);
+                updateActiveCursorPosition(cursor, currentPosition);
+            } while (!currentPosition.equals(getCursorPositionForCacheEviction(cursor)));
+        }
+    }
+
+    private Position getCursorPositionForCacheEviction(ManagedCursor cursor) {
+        Position position = config.isCacheEvictionByMarkDeletedPosition()
+                ? cursor.getMarkDeletedPosition() : cursor.getReadPosition();
+        return position != null ? position : PositionFactory.EARLIEST;
+    }
+
+    private void updateActiveCursorPosition(ManagedCursorImpl cursor, Position newPosition) {
         if (config.isCacheEvictionByExpectedReadCount()) {
             activeCursors.updateCursor(cursor, newPosition);
         } else {
@@ -5109,13 +5191,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public void activateCursor(ManagedCursor cursor) {
         synchronized (activeCursors) {
             if (!isCursorActive(cursor)) {
-                Position positionForOrdering = config.isCacheEvictionByMarkDeletedPosition()
-                        ? cursor.getMarkDeletedPosition()
-                        : cursor.getReadPosition();
-                if (positionForOrdering == null) {
-                    positionForOrdering = PositionFactory.EARLIEST;
-                }
-                activeCursors.add(cursor, positionForOrdering);
+                activeCursors.add(cursor, getCursorPositionForCacheEviction(cursor));
             }
         }
     }

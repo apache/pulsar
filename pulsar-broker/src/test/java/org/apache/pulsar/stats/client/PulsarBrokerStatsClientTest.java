@@ -25,6 +25,7 @@ import static org.testng.Assert.assertTrue;
 import jakarta.ws.rs.ClientErrorException;
 import jakarta.ws.rs.ServerErrorException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +65,7 @@ public class PulsarBrokerStatsClientTest extends SharedPulsarBaseTest {
 
     @Test
     public void testServiceException() throws Exception {
-        URL url = new URL("http://localhost:15000");
+        URL url = URI.create("http://localhost:15000").toURL();
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
         BrokerStatsImpl client = (BrokerStatsImpl) admin.brokerStats();
