@@ -210,7 +210,7 @@ public class OneWayReplicatorDeduplicationTest extends OneWayReplicatorTestBase 
                 messages.add(msg);
                 consumer.acknowledgeAsync(msg);
             }
-            assertEquals(admin.topics().getStats(topicName).getSubscriptions().get(consumer.getSubscription())
+            assertEquals(admin.topics().getStats(topicName, true).getSubscriptions().get(consumer.getSubscription())
                     .getMsgBacklog(), 0);
         });
         return messages;
