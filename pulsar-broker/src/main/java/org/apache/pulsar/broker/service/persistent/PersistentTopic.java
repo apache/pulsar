@@ -99,6 +99,7 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
@@ -118,6 +119,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionAlreadyExistsException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionConflictUnloadException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
@@ -1078,7 +1080,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             CompletableFuture<? extends Subscription> subscriptionFuture = isDurable
                     ? getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
-                    replicatedSubscriptionState, subscriptionProperties)
+                    replicatedSubscriptionState, subscriptionProperties, false)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
 
@@ -1213,7 +1215,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                                    InitialPosition initialPosition,
                                                                    long startMessageRollbackDurationSec,
                                                                    Boolean replicated,
-                                                                   Map<String, String> subscriptionProperties) {
+                                                                   Map<String, String> subscriptionProperties,
+                                                                   boolean failIfExists) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new NotAllowedException(
@@ -1228,11 +1231,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 try {
                     log.debug().attr("subscription", subscriptionName).log("Opened cursor");
 
+                    MutableBoolean created = new MutableBoolean();
                     PersistentSubscription subscription = subscriptions.get(subscriptionName);
                     if (subscription == null) {
-                        subscription = subscriptions.computeIfAbsent(subscriptionName,
-                                      name -> createPersistentSubscription(subscriptionName, cursor,
-                                              replicated, subscriptionProperties));
+                        subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
+                            created.setTrue();
+                            return createPersistentSubscription(subscriptionName, cursor, replicated,
+                                    subscriptionProperties);
+                        });
                     } else {
                         // if subscription exists, check if it's a non-durable subscription
                         if (subscription.getCursor() != null && !subscription.getCursor().isDurable()) {
@@ -1240,6 +1246,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     "NonDurable subscription with the same name already exists."));
                             return;
                         }
+                    }
+                    if (failIfExists && created.isFalse()) {
+                        // The subscription existed, or an overlapping call added it while this one opened the cursor
+                        subscriptionFuture.completeExceptionally(new SubscriptionAlreadyExistsException(
+                                "Subscription " + subscriptionName + " already exists"));
+                        return;
                     }
                     if (replicated != null && replicated && !subscription.isReplicated()) {
                         // Flip the subscription state
@@ -1411,7 +1423,20 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                               boolean replicateSubscriptionState,
                                                               Map<String, String> subscriptionProperties) {
         return getDurableSubscription(subscriptionName, initialPosition,
-                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties);
+                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties, false);
+    }
+
+    /**
+     * Creates a durable subscription that doesn't exist yet. Unlike {@link #createSubscription}, which completes with
+     * the existing subscription, it fails with {@link SubscriptionAlreadyExistsException} when the subscription exists,
+     * also when an overlapping call creates it first: only the call that creates the subscription gets it.
+     */
+    public CompletableFuture<Subscription> createNewSubscription(String subscriptionName,
+                                                                 InitialPosition initialPosition,
+                                                                 boolean replicateSubscriptionState,
+                                                                 Map<String, String> subscriptionProperties) {
+        return getDurableSubscription(subscriptionName, initialPosition,
+                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties, true);
     }
 
     /**
