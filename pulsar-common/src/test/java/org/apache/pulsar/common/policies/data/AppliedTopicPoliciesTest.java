@@ -19,9 +19,12 @@
 package org.apache.pulsar.common.policies.data;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import com.fasterxml.jackson.databind.JsonNode;
 import java.lang.reflect.Field;
 import java.util.Set;
 import java.util.TreeSet;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 public class AppliedTopicPoliciesTest {
@@ -42,5 +45,19 @@ public class AppliedTopicPoliciesTest {
         Set<String> expected = fieldNames(TopicPolicies.class);
         expected.remove("isGlobal");
         assertEquals(fieldNames(AppliedTopicPolicies.class), expected);
+    }
+
+    @Test
+    public void testTopicPoliciesJsonHasNoDerivedProperties() throws Exception {
+        TopicPolicies policies = TopicPolicies.builder().retentionPolicies(new RetentionPolicies(60, 1024))
+                .isGlobal(true).build();
+        String json = ObjectMapperFactory.getMapper().writer().writeValueAsString(policies);
+        JsonNode tree = ObjectMapperFactory.getMapper().reader().readTree(json);
+        tree.fieldNames().forEachRemaining(name -> assertFalse(name.endsWith("Set") || name.equals("globalPolicies"),
+                "derived property serialized: " + name));
+        // It still reads back, so the stored format is unchanged for readers.
+        TopicPolicies read = ObjectMapperFactory.getMapper().reader().readValue(json, TopicPolicies.class);
+        assertEquals(read.getRetentionPolicies(), policies.getRetentionPolicies());
+        assertEquals(read.getIsGlobal(), Boolean.TRUE);
     }
 }

@@ -171,8 +171,10 @@ public class TopicPolicyResolver {
         }
         applied.setBackLogQuotaMap(quotas);
 
-        // Policies that exist only at topic level are returned as stored.
-        applied.setShadowTopics(resolve(topic.getShadowTopics(), null, () -> null));
+        // Policies that exist only at topic level are returned as stored, and are absent when unset.
+        if (topic.getShadowTopics() != null) {
+            applied.setShadowTopics(new AppliedValue<>(topic.getShadowTopics(), PolicySource.TOPIC));
+        }
         applied.setSubscriptionPolicies(topic.getSubscriptionPolicies());
         return applied;
     }

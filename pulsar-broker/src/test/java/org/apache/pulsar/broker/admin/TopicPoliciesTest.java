@@ -4789,6 +4789,9 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNull(none.get("retentionPolicies"));
         assertNull(none.get("messageTTLInSeconds"));
         assertEquals(none.get("isGlobal"), Boolean.FALSE);
+        // Derived helper properties are not part of the response.
+        assertNull(none.get("retentionSet"));
+        assertNull(none.get("globalPolicies"));
         assertEquals(admin.topicPolicies(true).getTopicPoliciesAsync(testTopic).get().get("isGlobal"), Boolean.TRUE);
 
         admin.topicPolicies().setRetention(testTopic, new RetentionPolicies(60, 1024));
@@ -4908,6 +4911,8 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         assertNotNull(applied);
         assertApplied(applied, "retentionPolicies", "BROKER");
         assertNull(applied.get("isGlobal"));
+        // A topic-only policy that is not set is absent rather than attributed to the broker.
+        assertNull(applied.get("shadowTopics"));
     }
 
     private static Object appliedValue(Map<String, Object> applied, String policy) {
