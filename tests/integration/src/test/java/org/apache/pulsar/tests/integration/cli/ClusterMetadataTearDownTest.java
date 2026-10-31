@@ -183,7 +183,7 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
             }
         }
 
-        pulsarCluster.getBrokers().forEach(ChaosContainer::stop);
+        pulsarCluster.getBrokers().parallelStream().forEach(ChaosContainer::stop);
 
         assertTrue(getNumOfLedgers() > 0);
         log.info()
@@ -219,13 +219,17 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
         final CountDownLatch processDone = new CountDownLatch(1);
         final AtomicLong numOfLedgers = new AtomicLong(0L);
 
-        ledgerManager.asyncProcessLedgers((ledgerId, cb) -> numOfLedgers.incrementAndGet(), (rc, path, ctx) -> {
+        // The final callback runs once the processor has called back for every ledger
+        ledgerManager.asyncProcessLedgers((ledgerId, cb) -> {
+            numOfLedgers.incrementAndGet();
+            cb.processResult(BKException.Code.OK, null, null);
+        }, (rc, path, ctx) -> {
             returnCode.set(rc);
             processDone.countDown();
         }, null, BKException.Code.OK, BKException.Code.ReadException);
 
         try {
-            processDone.await(5, TimeUnit.SECONDS); // a timeout which is long enough
+            assertTrue(processDone.await(5, TimeUnit.SECONDS), "asyncProcessLedgers didn't complete");
         } catch (InterruptedException e) {
             fail("asyncProcessLedgers failed", e);
         }
