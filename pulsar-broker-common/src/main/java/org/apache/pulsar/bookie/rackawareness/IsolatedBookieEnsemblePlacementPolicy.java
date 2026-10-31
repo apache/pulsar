@@ -136,8 +136,14 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         if (excludeBookies == null) {
             excludeBookies = new HashSet<>();
         }
-        excludeBookies.addAll(getExcludedBookies(ensembleSize, customMetadata));
-        return super.newEnsemble(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, excludeBookies);
+        // Keep isolation filtering and BookKeeper selection on the same topology view.
+        rwLock.readLock().lock();
+        try {
+            excludeBookies.addAll(getExcludedBookies(ensembleSize, customMetadata));
+            return super.newEnsemble(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, excludeBookies);
+        } finally {
+            rwLock.readLock().unlock();
+        }
     }
 
     @Override
@@ -148,9 +154,14 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         if (excludeBookies == null) {
             excludeBookies = new HashSet<>();
         }
-        excludeBookies.addAll(getExcludedBookies(ensembleSize, customMetadata));
-        return super.replaceBookie(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, currentEnsemble,
-                bookieToReplace, excludeBookies);
+        rwLock.readLock().lock();
+        try {
+            excludeBookies.addAll(getExcludedBookies(ensembleSize, customMetadata));
+            return super.replaceBookie(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, currentEnsemble,
+                    bookieToReplace, excludeBookies);
+        } finally {
+            rwLock.readLock().unlock();
+        }
     }
 
     private Set<BookieId> getExcludedBookies(int ensembleSize, Map<String, byte[]> customMetadata){
@@ -219,6 +230,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
         if (isolationGroups != null && isolationGroups.getLeft().contains(PULSAR_SYSTEM_TOPIC_ISOLATION_GROUP)) {
             return excludedBookies;
         }
+        // Keep isolation counts and exclusions on one cluster view while onClusterChanged updates knownBookies.
+        rwLock.readLock().lock();
         try {
             if (bookieMappingCache != null) {
                 bookieMappingCache.get(BookieRackAffinityMapping.BOOKIE_INFO_ROOT_PATH)
@@ -308,6 +321,8 @@ public class IsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlac
             }
         } catch (Exception e) {
             log.warn("Error getting bookie isolation info from metadata store: {}", e.getMessage());
+        } finally {
+            rwLock.readLock().unlock();
         }
         return excludedBookies;
     }
