@@ -87,6 +87,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             backOff.reset();
         } else {
             log.info("Replicator was stopped while creating the producer, closing it");
+            // Do not keep the producer set above: the replicator was stopped.
+            this.producer = null;
             doCloseProducerAsync(producer, () -> {});
             return;
         }
