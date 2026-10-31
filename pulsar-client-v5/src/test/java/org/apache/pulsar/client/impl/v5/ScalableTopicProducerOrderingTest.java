@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.RETURNS_SELF;
 import static org.mockito.Mockito.doAnswer;
@@ -29,6 +31,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.Timeout;
+import io.netty.util.Timer;
+import io.netty.util.TimerTask;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -49,7 +54,9 @@ import org.apache.pulsar.client.api.EncodeData;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException.AlreadyClosedException;
+import org.apache.pulsar.client.api.PulsarClientException.NotFoundException;
 import org.apache.pulsar.client.api.PulsarClientException.TopicTerminatedException;
+import org.apache.pulsar.client.api.v5.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.MemoryLimitController;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -91,6 +98,7 @@ public class ScalableTopicProducerOrderingTest {
     private final List<Sent> sent = Collections.synchronizedList(new ArrayList<>());
     private final Set<Long> closedSegments = ConcurrentHashMap.newKeySet();
     private final Map<String, Long> segmentIds = new HashMap<>();
+    private final List<TestTimeout> sendTimeouts = new ArrayList<>();
     private TestExecutor dispatchExecutor;
     private ExecutorService completionExecutor;
     private ExecutorProvider external;
@@ -105,6 +113,7 @@ public class ScalableTopicProducerOrderingTest {
     @BeforeMethod
     public void setup() {
         sent.clear();
+        sendTimeouts.clear();
         closedSegments.clear();
         segmentCloseResult = CompletableFuture.completedFuture(null);
         for (var layout : List.of(L0, L1, L2)) {
@@ -117,6 +126,16 @@ public class ScalableTopicProducerOrderingTest {
         memory = new MemoryLimitController(64 * 1024 * 1024);
         v4 = mock(PulsarClientImpl.class);
         external = mock(ExecutorProvider.class);
+        Timer timer = mock(Timer.class);
+        when(v4.timer()).thenReturn(timer);
+        when(timer.newTimeout(any(), anyLong(), any())).thenAnswer(invocation -> {
+            TimerTask task = invocation.getArgument(0);
+            long delay = invocation.getArgument(1);
+            TimeUnit unit = invocation.getArgument(2);
+            TestTimeout timeout = new TestTimeout(timer, task, unit.toNanos(delay));
+            sendTimeouts.add(timeout);
+            return timeout;
+        });
         EventLoopGroup eventLoopGroup = mock(EventLoopGroup.class);
         when(v4.getMemoryLimitController()).thenReturn(memory);
         when(v4.getInternalExecutorService()).thenReturn(dispatchExecutor);
@@ -168,6 +187,176 @@ public class ScalableTopicProducerOrderingTest {
         assertThat(segmentOf(a2)).isEqualTo(1);
         assertThat(segmentOf(b1)).isEqualTo(2);
         assertThat(segmentOf(b2)).isEqualTo(2);
+        assertThat(producer.waitingSendCount()).isZero();
+        assertThat(memory.currentUsage()).isZero();
+    }
+
+    @Test
+    public void waitsForTheConfiguredTimeoutWhenTheLayoutTakesLongerThanTheOldRetryBudget() {
+        create(L0, 120_000);
+        var a1 = send(KEY_A, "a1");
+        complete(0, new TopicTerminatedException("sealed"));
+        var a2 = send(KEY_A, "a2");
+
+        // The old retirement checks gave up after about four seconds, although the application
+        // configured two minutes. Use only existing hooks so this test also runs on that baseline.
+        await().pollDelay(4500, TimeUnit.MILLISECONDS).atMost(6, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertThat(a1).isNotDone();
+            assertThat(a2).isNotDone();
+            assertThat(producer.waitingSendCount()).isEqualTo(2);
+        });
+        var a3 = send(KEY_A, "a3");
+        applyLayout(L1, L0);
+        assertThat(values(1)).containsExactly("a1", "a2", "a3");
+        complete(1, null);
+        assertThat(segmentOf(a1)).isEqualTo(1);
+        assertThat(segmentOf(a2)).isEqualTo(1);
+        assertThat(segmentOf(a3)).isEqualTo(1);
+        assertThat(memory.currentUsage()).isZero();
+    }
+
+    @Test
+    public void aParkedSendExpiresWithATimeoutCausedByItsSegmentFailure() throws Exception {
+        create(L0, 1000);
+        var a1 = send(KEY_A, "a1");
+        var terminated = new TopicTerminatedException("sealed");
+        complete(0, terminated);
+        assertThat(producer.waitingSendCount()).isEqualTo(1);
+        assertThat(sendTimeouts).hasSize(1);
+        assertThat(sendTimeouts.get(0).delayNanos).isPositive().isLessThanOrEqualTo(TimeUnit.SECONDS.toNanos(1));
+
+        sendTimeouts.get(0).fire();
+        dispatchExecutor.runAll();
+        assertThat(a1).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                .isInstanceOf(TimeoutException.class)
+                .withCause(terminated);
+        assertThat(producer.waitingSendCount()).isZero();
+        assertThat(producer.inFlightSendCount()).isZero();
+        assertThat(memory.currentUsage()).isZero();
+    }
+
+    @Test
+    public void reSendingDoesNotRestartTheLogicalSendTimeout() throws Exception {
+        create(L0, 1000);
+        var a1 = send(KEY_A, "a1");
+        var terminated = new TopicTerminatedException("sealed");
+        complete(0, terminated);
+        var a2 = send(KEY_A, "a2");
+        TestTimeout originalTimeout = sendTimeouts.get(0);
+        applyLayout(L1, L0);
+        assertThat(values(1)).containsExactly("a1", "a2");
+        assertThat(sendTimeouts).hasSize(2);
+        assertThat(originalTimeout.isCancelled()).isFalse();
+
+        // The original timer still owns a1's deadline after routing it to the successor. The
+        // successor's eventual acknowledgement must not complete or release its reservation twice.
+        originalTimeout.fire();
+        dispatchExecutor.runAll();
+        assertThat(a1).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                .isInstanceOf(TimeoutException.class)
+                .withCause(terminated);
+        assertThat(a2).isNotDone();
+        complete(1, null);
+        assertThat(segmentOf(a2)).isEqualTo(1);
+        assertThat(sendTimeouts.get(1).isCancelled()).isTrue();
+        assertThat(producer.inFlightSendCount()).isZero();
+        assertThat(memory.currentUsage()).isZero();
+    }
+
+    @Test
+    public void aHeldSendCanExpireWhileAnOlderSendStillBlocksItsKey() throws Exception {
+        create(L0, 1000);
+        var a1 = send(KEY_A, "a1");
+        applyLayout(L1, L0);
+        var a2 = send(KEY_A, "a2");
+        assertThat(producer.waitingSendCount()).isEqualTo(1);
+
+        // Drive this timer independently: expiry of a held send must not remove the retiring
+        // segment's older, unresolved send or release later sends of its key ahead of it.
+        sendTimeouts.get(1).fire();
+        dispatchExecutor.runAll();
+        assertThat(a2).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                .isInstanceOf(TimeoutException.class);
+        assertThat(a1).isNotDone();
+        var a3 = send(KEY_A, "a3");
+        assertThat(values(1)).isEmpty();
+        assertThat(producer.waitingSendCount()).isEqualTo(1);
+
+        complete(0, new TopicTerminatedException("sealed"));
+        assertThat(values(1)).containsExactly("a1", "a3");
+        complete(1, null);
+        assertThat(segmentOf(a1)).isEqualTo(1);
+        assertThat(segmentOf(a3)).isEqualTo(1);
+        assertThat(producer.waitingSendCount()).isZero();
+        assertThat(memory.currentUsage()).isZero();
+    }
+
+    @Test
+    public void aSendThatTimesOutBeforeProducerCreationIsNotDispatchedLater() throws Exception {
+        var creation = new CompletableFuture<Producer<String>>();
+        doAnswer(__ -> creation).when(v4).createSegmentProducerAsync(any(), any());
+        create(L0, 1000);
+        var a1 = send(KEY_A, "a1");
+        var a2 = send(KEY_A, "a2");
+        sendTimeouts.get(0).fire();
+        dispatchExecutor.runAll();
+        assertThat(a1).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                .isInstanceOf(TimeoutException.class);
+
+        creation.complete(segmentProducer(0));
+        dispatchExecutor.runAll();
+        assertThat(values(0)).containsExactly("a2");
+        complete(0, null);
+        assertThat(segmentOf(a2)).isZero();
+        assertThat(sendTimeouts.get(1).isCancelled()).isTrue();
+        assertThat(producer.inFlightSendCount()).isZero();
+        assertThat(memory.currentUsage()).isZero();
+    }
+
+    @Test
+    public void zeroDisablesTheLogicalSendTimeoutAndCloseStillFailsWaitingSends() {
+        create(L0, 0);
+        var a1 = send(KEY_A, "a1");
+        complete(0, new TopicTerminatedException("sealed"));
+        var a2 = send(KEY_A, "a2");
+        assertThat(sendTimeouts).isEmpty();
+        assertThat(a1).isNotDone();
+        assertThat(a2).isNotDone();
+        assertThat(producer.waitingSendCount()).isEqualTo(2);
+
+        assertThat(producer.closeAsync()).isCompleted();
+        assertClosedFailure(a1);
+        assertClosedFailure(a2);
+        assertThat(producer.waitingSendCount()).isZero();
+        assertThat(memory.currentUsage()).isZero();
+    }
+
+    @Test
+    public void closeCancelsTheTimeoutsOfParkedAndHeldSends() throws Exception {
+        create(L0, 120_000);
+        var a1 = send(KEY_A, "a1");
+        complete(0, new TopicTerminatedException("sealed"));
+        var a2 = send(KEY_A, "a2");
+        assertThat(producer.closeAsync()).isCompleted();
+        assertClosedFailure(a1);
+        assertClosedFailure(a2);
+        assertThat(sendTimeouts).hasSize(2).allMatch(TestTimeout::isCancelled);
+        for (var timeout : sendTimeouts) {
+            timeout.fire();
+        }
+        dispatchExecutor.runAll();
+        assertThat(producer.waitingSendCount()).isZero();
+        assertThat(memory.currentUsage()).isZero();
+    }
+
+    @Test
+    public void aKnownDeletedTopicFailsImmediatelyAndCancelsTheSendTimeout() {
+        create(L0, 120_000);
+        var a1 = send(KEY_A, "a1");
+        complete(0, new NotFoundException("topic deleted"));
+        assertThat(a1).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                .isInstanceOf(org.apache.pulsar.client.api.v5.PulsarClientException.NotFoundException.class);
+        assertThat(sendTimeouts).hasSize(1).allMatch(TestTimeout::isCancelled);
         assertThat(producer.waitingSendCount()).isZero();
         assertThat(memory.currentUsage()).isZero();
     }
@@ -372,6 +561,10 @@ public class ScalableTopicProducerOrderingTest {
     }
 
     private void create(ClientSegmentLayout initial) {
+        create(initial, 30_000);
+    }
+
+    private void create(ClientSegmentLayout initial, long sendTimeoutMs) {
         DagWatchClient watch = mock(DagWatchClient.class);
         when(watch.topicName()).thenReturn(TOPIC);
         doAnswer(invocation -> {
@@ -380,6 +573,7 @@ public class ScalableTopicProducerOrderingTest {
         }).when(watch).setListener(any());
         ProducerConfigurationData conf = new ProducerConfigurationData();
         conf.setTopicName(TOPIC.toString());
+        conf.setSendTimeoutMs(sendTimeoutMs);
         dispatchExecutor.testThread = Thread.currentThread();
         producer = new ScalableTopicProducer<>(client, Schema.string(), conf, watch, initial);
     }
@@ -499,6 +693,57 @@ public class ScalableTopicProducerOrderingTest {
                     .setState(SegmentState.ACTIVE).setCreatedAtEpoch(2).addParentId(1);
         }
         return ClientSegmentLayout.fromProto(dag, TOPIC);
+    }
+
+    /** A manually fired client timer; no scheduler thread or wall-clock wait for timeout tests. */
+    private static final class TestTimeout implements Timeout {
+        private final Timer timer;
+        private final TimerTask task;
+        final long delayNanos;
+        private boolean cancelled;
+        private boolean expired;
+
+        TestTimeout(Timer timer, TimerTask task, long delayNanos) {
+            this.timer = timer;
+            this.task = task;
+            this.delayNanos = delayNanos;
+        }
+
+        void fire() throws Exception {
+            if (!cancelled && !expired) {
+                expired = true;
+                task.run(this);
+            }
+        }
+
+        @Override
+        public Timer timer() {
+            return timer;
+        }
+
+        @Override
+        public TimerTask task() {
+            return task;
+        }
+
+        @Override
+        public boolean isExpired() {
+            return expired;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return cancelled;
+        }
+
+        @Override
+        public boolean cancel() {
+            if (cancelled || expired) {
+                return false;
+            }
+            cancelled = true;
+            return true;
+        }
     }
 
     /**
