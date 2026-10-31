@@ -183,7 +183,7 @@ public class ClusterMetadataTearDownTest extends TestRetrySupport {
             }
         }
 
-        pulsarCluster.getBrokers().parallelStream().forEach(ChaosContainer::stop);
+        pulsarCluster.getBrokers().forEach(ChaosContainer::stop);
 
         assertTrue(getNumOfLedgers() > 0);
         log.info()
