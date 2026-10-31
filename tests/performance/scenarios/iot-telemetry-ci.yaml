@@ -1,0 +1,47 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Small correctness workload for the nightly fault suite, not a performance baseline. Keep the network overlays'
+# original timing, including metadata session expiry and silent-connection keep-alive detection. The failover overlays
+# add their second broker and four bookies; geo-partition adds its remote cluster. The failover topology's configured
+# heap/direct-memory ceilings total about 8 GB, excluding native-memory and host headroom.
+extends: [iot-telemetry-base.yaml, configs/iot-telemetry-low-mem.yaml]
+workloads:
+  iotTelemetry:
+    warmup:
+      seconds: 10
+    measurement:
+      seconds: 120
+    timeoutSeconds: 300
+    rate: 200
+    devices:
+      count: 1000
+    gateways:
+      count: 2
+      producer:
+        ioThreads: 2
+        listenerThreads: 2
+        maxOutstanding: 256
+    # Retain 30 topics so that both brokers in the failover overlays serve traffic.
+    topics:
+      count: 30
+    applications:
+      count: 2
+      podsPerApplication: 2
+      client:
+        ioThreads: 2
+        listenerThreads: 2
