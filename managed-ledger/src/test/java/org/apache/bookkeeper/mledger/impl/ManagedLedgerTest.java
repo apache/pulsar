@@ -44,6 +44,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
@@ -136,6 +137,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
@@ -5014,6 +5016,81 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
         cursor.close();
         cursor2.close();
+        ledger.close();
+    }
+
+    @DataProvider
+    public Object[][] closeFailures() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "closeFailures")
+    public void testReadHandlesReleasedWhenCloseFails(boolean fenced) throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadHandlesReleasedWhenCloseFails", config);
+        ManagedCursor cursor = ledger.openCursor("test-cursor");
+        for (int i = 0; i < 3; i++) {
+            ledger.addEntry(String.valueOf(i).getBytes(Encoding));
+        }
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 4));
+        factory.getEntryCacheManager().clear();
+        cursor.readEntries(3).forEach(Entry::release);
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgerCache.size(), 3));
+
+        // The cached read handles keep listening to ledger metadata updates, so they must be released even if the
+        // managed ledger cannot be closed cleanly
+        if (fenced) {
+            ledger.setFenced();
+        } else {
+            bkc.failNow(BKException.Code.UnexpectedConditionException);
+        }
+        assertThatThrownBy(ledger::close).isInstanceOf(ManagedLedgerException.class);
+        assertEquals(ledger.ledgerCache.size(), 0);
+    }
+
+    @Test
+    public void testReadHandleOpenedAfterCloseIsNotCached() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testReadHandleOpenedAfterCloseIsNotCached",
+                config);
+        ledger.openCursor("test-cursor");
+        ledger.addEntry("0".getBytes(Encoding));
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 2));
+        long ledgerId = ledger.ledgers.firstKey();
+        ledger.close();
+
+        // A read that started before the close can ask for a handle after the cached ones were released
+        assertThatThrownBy(() -> ledger.getLedgerHandle(ledgerId).get())
+                .hasCauseInstanceOf(ManagedLedgerAlreadyClosedException.class);
+        assertEquals(ledger.ledgerCache.size(), 0);
+    }
+
+    @Test
+    public void testFailedReadHandleDoesNotEvictItsReplacement() throws Exception {
+        ManagedLedgerConfig config = defaultConfig();
+        initManagedLedgerConfig(config);
+        config.setMaxEntriesPerLedger(1);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("testFailedReadHandleDoesNotEvictItsReplacement",
+                config);
+        ledger.openCursor("test-cursor");
+        ledger.addEntry("0".getBytes(Encoding));
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgers.size(), 2));
+        long ledgerId = ledger.ledgers.firstKey();
+
+        ReadHandle failedHandle = ledger.getLedgerHandle(ledgerId).get();
+        ledger.invalidateLedgerHandle(failedHandle);
+        assertNull(ledger.ledgerCache.get(ledgerId));
+        ReadHandle replacement = ledger.getLedgerHandle(ledgerId).get();
+        assertNotSame(replacement, failedHandle);
+
+        // Another read that failed on the first handle must not evict the handle that replaced it, which nothing
+        // would close then
+        ledger.invalidateLedgerHandle(failedHandle);
+        assertSame(ledger.ledgerCache.get(ledgerId).get(), replacement);
         ledger.close();
     }
 
