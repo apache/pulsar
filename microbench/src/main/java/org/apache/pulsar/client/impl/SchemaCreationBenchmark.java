@@ -20,8 +20,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.util.concurrent.TimeUnit;
-import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.schema.SchemaDefinition;
 import org.apache.pulsar.client.impl.schema.AvroSchema;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -41,21 +39,16 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Benchmark)
 @Warmup(iterations = 3, time = 2)
 @Measurement(iterations = 5, time = 2)
-@Fork(1)
+@Fork(2)
 public class SchemaCreationBenchmark {
     public static class Foo {
         public String name;
-        public int age;
         public java.util.List<String> tags;
     }
-    private Schema<Foo> prebuilt;
-    private SchemaDefinition<Foo> definition;
     private PulsarClientImplementationBindingImpl binding;
     @Setup(Level.Trial)
     public void setup() {
         binding = new PulsarClientImplementationBindingImpl();
-        definition = SchemaDefinition.<Foo>builder().withPojo(Foo.class).build();
-        prebuilt = Schema.AVRO(Foo.class);   // warms cache, keeps value strongly reachable
     }
     @Benchmark
     public void cacheMiss(Blackhole bh) {
@@ -67,19 +60,8 @@ public class SchemaCreationBenchmark {
         bh.consume(binding.newAvroSchema(Foo.class));
     }
     @Benchmark
-    public void cloneOnly(Blackhole bh) {
-        bh.consume(prebuilt.clone());
-    }
-
-    @Benchmark
     public void ofOnly(Blackhole bh) {
         binding.clearAvroCache();
         bh.consume(AvroSchema.of(Foo.class));
     }
-    @Benchmark
-    public void clearOnly() {
-        binding.clearAvroCache();
-    }
-
-
 }

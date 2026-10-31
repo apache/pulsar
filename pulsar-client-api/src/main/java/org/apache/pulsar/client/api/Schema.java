@@ -345,7 +345,7 @@ public interface Schema<T> extends Cloneable {
      */
     static <T> Schema<T> AVRO(Class<T> pojo) {
         return DefaultImplementation.getDefaultImplementation()
-                .newAvroSchema(SchemaDefinition.builder().withPojo(pojo).build());
+                .newAvroSchema(pojo);
     }
 
     /**
