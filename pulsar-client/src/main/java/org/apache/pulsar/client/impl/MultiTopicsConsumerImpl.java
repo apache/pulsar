@@ -411,7 +411,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             while (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
-                if (isValidConsumerEpoch((TopicMessageImpl<T>) message)) {
+                // The listener drain also takes messages here. Keep them: callMessageListener() gives back the
+                // permits that a listener's messages hold, before it drops the messages from an older epoch.
+                if (listener != null || isValidConsumerEpoch((TopicMessageImpl<T>) message)) {
                     break;
                 }
                 message = incomingMessages.poll(deadlineNanos - System.nanoTime(), TimeUnit.NANOSECONDS);

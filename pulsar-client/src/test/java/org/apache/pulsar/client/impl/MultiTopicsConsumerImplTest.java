@@ -33,6 +33,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import com.google.common.collect.Sets;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
@@ -40,6 +41,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -47,15 +49,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
@@ -353,6 +358,47 @@ public class MultiTopicsConsumerImplTest {
         pendingAck.complete(null);
 
         assertEquals(impl.getUnAckedMessageTracker().size(), 1);
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testListenerDrainGivesBackPermitsAfterRedeliver() throws Exception {
+        String topic = "persistent://public/default/topic-partition-0";
+        int numMessages = 3;
+        AtomicInteger queuedAtRedeliver = new AtomicInteger(-1);
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setSubscriptionType(SubscriptionType.Failover);
+        // Run the listener inside the listener drain, so that it requests the redelivery while the drain still has
+        // queued messages
+        conf.setMessageListenerExecutor((message, runnable) -> runnable.run());
+        conf.setMessageListener((consumer, message) -> {
+            if (queuedAtRedeliver.get() < 0) {
+                queuedAtRedeliver.set(((ConsumerBase<byte[]>) consumer).getTotalIncomingMessages());
+                consumer.redeliverUnacknowledgedMessages();
+            }
+        });
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ConsumerImpl<byte[]> partitionConsumer = mock(ConsumerImpl.class);
+        when(partitionConsumer.isValidConsumerEpoch(any())).thenReturn(true);
+
+        // Queue messages received before the redelivery, then start the listener drain
+        impl.internalPinnedExecutor.submit(() -> {
+            for (int i = 0; i < numMessages; i++) {
+                MessageImpl<byte[]> message = MessageImpl.create(topic, new MessageIdImpl(1, i, 0),
+                        new MessageMetadata(), Unpooled.wrappedBuffer(new byte[1]), Optional.empty(), null,
+                        Schema.BYTES, 0, false, 0);
+                impl.enqueueMessageAndCheckBatchReceive(new TopicMessageImpl<>(topic, message, partitionConsumer));
+            }
+            impl.tryTriggerListener();
+        }).get();
+        // The drain runs on the pinned executor before this task
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+
+        assertEquals(queuedAtRedeliver.get(), numMessages - 1);
+        // Each drained message gave its permit back to the consumer that received it
+        verify(partitionConsumer, times(numMessages)).increaseAvailablePermits(any(MessageImpl.class));
     }
 
 }
