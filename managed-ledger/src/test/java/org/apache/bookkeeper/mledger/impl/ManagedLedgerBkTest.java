@@ -47,12 +47,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.client.BKException.BKNoSuchLedgerExistsOnMetadataServerException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -77,6 +79,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.cache.EntryCacheManager;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.proto.PositionInfo;
 import org.apache.bookkeeper.mledger.util.ThrowableToStringUtil;
 import org.apache.bookkeeper.net.BookieId;
@@ -86,7 +89,9 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.impl.FaultInjectionMetadataStore;
 import org.apache.zookeeper.KeeperException.BadVersionException;
 import org.awaitility.Awaitility;
@@ -106,7 +111,16 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 
     @Test(timeOut = 30000)
     public void testInitializationMetadataConflictClosesUnpublishedWriteHandle() throws Exception {
-        String name = "initialization-conflict-" + testName;
+        verifyInitializationMetadataFailureCleanup(true);
+    }
+
+    @Test(timeOut = 30000)
+    public void testInitializationMetadataWriteTimeoutKeepsPublishedLedger() throws Exception {
+        verifyInitializationMetadataFailureCleanup(false);
+    }
+
+    private void verifyInitializationMetadataFailureCleanup(boolean badVersion) throws Exception {
+        String name = "initialization-failure-" + testName;
         String path = "/managed-ledgers/" + name;
         @Cleanup
         PulsarBookKeeperTestClient client = new PulsarBookKeeperTestClient(
@@ -118,17 +132,32 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         initialFactory.open(name, config).close();
         GetResult original = metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow();
         AtomicBoolean changeVersion = new AtomicBoolean(true);
+        AtomicBoolean loseWriteResponse = new AtomicBoolean(true);
         // Perform a real competing metadata update after the read, so the initialization's CAS loses.
         FaultInjectionMetadataStore conflictingStore = new FaultInjectionMetadataStore(metadataStore) {
             @Override
             public CompletableFuture<Optional<GetResult>> get(String requestedPath, Set<Option> options) {
                 return super.get(requestedPath, options).thenCompose(result -> {
-                    if (requestedPath.equals(path) && changeVersion.compareAndSet(true, false)) {
+                    if (badVersion && requestedPath.equals(path) && changeVersion.compareAndSet(true, false)) {
                         GetResult read = result.orElseThrow();
                         return metadataStore.put(path, read.getValue(), Optional.of(read.getStat().getVersion()))
                                 .thenApply(__ -> result);
                     }
                     return CompletableFuture.completedFuture(result);
+                });
+            }
+
+            @Override
+            public CompletableFuture<Stat> put(String requestedPath, byte[] value, Optional<Long> expectedVersion,
+                                               Set<Option> options) {
+                return super.put(requestedPath, value, expectedVersion, options).thenCompose(stat -> {
+                    if (!badVersion && requestedPath.equals(path) && loseWriteResponse.compareAndSet(true, false)) {
+                        // Commit the real ledger-list update, then lose its response. A timeout cannot establish
+                        // that the write failed, so cleanup must retain this now-published ledger.
+                        return CompletableFuture.failedFuture(new MetadataStoreException(
+                                new TimeoutException("Lost metadata write response")));
+                    }
+                    return CompletableFuture.completedFuture(stat);
                 });
             }
         };
@@ -146,20 +175,38 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         };
         try {
             assertThatThrownBy(() -> openLedgerAsync(factory, name, config).get(10, TimeUnit.SECONDS))
-                    .hasRootCauseInstanceOf(BadVersionException.class);
+                    .hasRootCauseInstanceOf(badVersion ? BadVersionException.class : TimeoutException.class);
             ManagedLedgerImpl failedLedger = failedInstance.get();
-            assertThat(failedLedger.getState()).isEqualTo(ManagedLedgerImpl.State.Fenced);
+            assertThat(failedLedger.getState()).isEqualTo(
+                    badVersion ? ManagedLedgerImpl.State.Fenced : ManagedLedgerImpl.State.Closed);
             assertThat(factory.ledgers).doesNotContainKey(name);
             LedgerHandle unpublishedHandle = failedLedger.currentLedger;
             assertThat(unpublishedHandle).isNotNull();
             GetResult winningMetadata = metadataStore.get(path).get(5, TimeUnit.SECONDS).orElseThrow();
             assertThat(winningMetadata.getStat().getVersion()).isEqualTo(original.getStat().getVersion() + 1);
-            assertThat(winningMetadata.getValue()).isEqualTo(original.getValue());
+            if (badVersion) {
+                assertThat(winningMetadata.getValue()).isEqualTo(original.getValue());
+            } else {
+                ManagedLedgerInfo persisted = new ManagedLedgerInfo();
+                persisted.parseFrom(winningMetadata.getValue());
+                assertThat(persisted.getLedgerInfosList().stream()
+                        .anyMatch(info -> info.getLedgerId() == unpublishedHandle.getId())).isTrue();
+            }
             Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
                 assertThat(client.hasScheduledAddTimeout(unpublishedHandle))
                         .as("the failed initialization must release its periodic add-timeout task").isFalse();
                 assertThat(unpublishedHandle.isClosed()).isTrue();
             });
+            if (badVersion) {
+                Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+                        assertThatThrownBy(() -> client.getLedgerMetadata(unpublishedHandle.getId())
+                                .get(5, TimeUnit.SECONDS))
+                                .as("an initialization that loses the metadata CAS must delete its unpublished ledger")
+                                .hasRootCauseInstanceOf(BKNoSuchLedgerExistsOnMetadataServerException.class));
+            } else {
+                assertThat(client.getLedgerMetadata(unpublishedHandle.getId()).get(5, TimeUnit.SECONDS).isClosed())
+                        .as("a ledger published before a lost metadata response must remain in BookKeeper").isTrue();
+            }
             ManagedLedger retry = factory.open(name, config);
             retry.addEntry("after-conflict".getBytes(StandardCharsets.UTF_8));
             retry.close();
