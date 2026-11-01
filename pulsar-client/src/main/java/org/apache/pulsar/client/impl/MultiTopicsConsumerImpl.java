@@ -576,7 +576,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         if (ackType == AckType.Cumulative) {
             Consumer<T> individualConsumer = consumers.get(topicMessageId.getOwnerTopic());
             if (individualConsumer != null) {
-                return individualConsumer.reconsumeLaterCumulativeAsync(message, delayTime, unit);
+                return individualConsumer.reconsumeLaterCumulativeAsync(message, customProperties, delayTime, unit);
             } else {
                 return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
             }
