@@ -1012,9 +1012,17 @@ public class ManagedCursorImpl implements ManagedCursor {
         PENDING_READ_OPS_UPDATER.incrementAndGet(this);
         // Skip deleted entries.
         boolean skipOnlyMessageDeleted = skipCondition == null;
-        skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
-        OpReadEntry op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, maxSizeBytes, callback, ctx,
-                maxPosition, skipCondition, true);
+        OpReadEntry op;
+        try {
+            skipCondition = skipCondition == null ? this::isMessageDeleted
+                    : skipCondition.or(this::isMessageDeleted);
+            op = OpReadEntry.create(this, readPosition, numOfEntriesToRead, maxSizeBytes, callback, ctx,
+                    maxPosition, skipCondition, true);
+        } catch (Throwable t) {
+            readOperationCompleted();
+            callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
+            return;
+        }
         op.skipOnlyMessageDeleted = skipOnlyMessageDeleted;
         ledger.asyncReadEntries(op);
     }
@@ -1171,9 +1179,18 @@ public class ManagedCursorImpl implements ManagedCursor {
         } else {
             // Skip deleted entries.
             boolean skipOnlyMessageDeleted = skipCondition == null;
-            skipCondition = skipCondition == null ? this::isMessageDeleted : skipCondition.or(this::isMessageDeleted);
-            OpReadEntry op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, maxSizeBytes, callback,
-                    ctx, maxPosition, skipCondition, true);
+            OpReadEntry op;
+            try {
+                skipCondition = skipCondition == null ? this::isMessageDeleted
+                        : skipCondition.or(this::isMessageDeleted);
+                op = OpReadEntry.create(this, readPosition, numberOfEntriesToRead, maxSizeBytes, callback,
+                        ctx, maxPosition, skipCondition, true);
+            } catch (Throwable t) {
+                // No read was counted as pending and none was issued: failing through the callback is
+                // the only cleanup needed.
+                callback.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(t), ctx);
+                return;
+            }
             op.skipOnlyMessageDeleted = skipOnlyMessageDeleted;
             int opReadId = op.id;
             if (!WAITING_READ_OP_UPDATER.compareAndSet(this, null, op)) {
@@ -1949,6 +1966,12 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
 
         final int totalValidPositions = positions.size() - alreadyAcknowledgedPositions.size();
+        if (totalValidPositions == 0) {
+            // Every position was already acknowledged: the aggregate counts the valid positions, so
+            // without completing here the caller would wait forever.
+            callback.readEntriesComplete(entries, ctx);
+            return alreadyAcknowledgedPositions;
+        }
         final AtomicReference<ManagedLedgerException> exception = new AtomicReference<>();
         ReadEntryCallback cb = new ReadEntryCallback() {
             int pendingCallbacks = totalValidPositions;
@@ -1992,23 +2015,33 @@ public class ManagedCursorImpl implements ManagedCursor {
         };
 
         List<Position> validPositions = new ArrayList<>(totalValidPositions);
-        positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
-                .forEach(p ->{
-                    // A normal read can complete concurrently and move the read position past p: only move it from p
-                    // to the next position atomically, so that it never goes backward nor skips an entry
-                    Position currentReadPosition = this.readPosition;
-                    if (p.compareTo(currentReadPosition) == 0) {
-                        Position nextReadPosition = p.getNext();
-                        if (READ_POSITION_UPDATER.compareAndSet(this, currentReadPosition, nextReadPosition)) {
-                            ledger.onCursorReadPositionUpdated(this, nextReadPosition);
-                            log.warn()
-                                    .attr("replayPosition", p)
-                                    .attr("readPosition", nextReadPosition)
-                                    .log("Replay position equals read position, setting next readPosition");
+        try {
+            positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
+                    .forEach(p ->{
+                        // A normal read can complete concurrently and move the read position past p: only
+                        // move it from p to the next position atomically, so that it never goes backward
+                        // nor skips an entry
+                        Position currentReadPosition = this.readPosition;
+                        if (p.compareTo(currentReadPosition) == 0) {
+                            Position nextReadPosition = p.getNext();
+                            if (READ_POSITION_UPDATER.compareAndSet(this, currentReadPosition, nextReadPosition)) {
+                                ledger.onCursorReadPositionUpdated(this, nextReadPosition);
+                                log.warn()
+                                        .attr("replayPosition", p)
+                                        .attr("readPosition", nextReadPosition)
+                                        .log("Replay position equals read position, setting next readPosition");
+                            }
                         }
-                    }
-                    validPositions.add(p);
-                });
+                        validPositions.add(p);
+                    });
+        } catch (Throwable t) {
+            // No read was issued yet: fail every valid position through the aggregate, or it would
+            // never complete
+            ManagedLedgerException replayException = ManagedLedgerException.getManagedLedgerException(t);
+            positions.stream().filter(position -> !alreadyAcknowledgedPositions.contains(position))
+                    .forEach(p -> cb.readEntryFailed(replayException, ctx));
+            return alreadyAcknowledgedPositions;
+        }
         readReplayPositions(validPositions, cb, ctx);
 
         return alreadyAcknowledgedPositions;
@@ -2046,6 +2079,12 @@ public class ManagedCursorImpl implements ManagedCursor {
      * reads gets one for the replay, so that the dispatcher's increment, when it adds the entry to the replay queue
      * again, keeps it cached. Each wanted entry, or its failure, reaches the callback as a single-entry read's would.
      */
+    /**
+     * Issues the replay's reads, cached ones first and the rest from storage in runs. The pending set
+     * assumes a read is issued as soon as its issuer returns normally: an issuer that fails after
+     * submitting the read must report the failure itself rather than throwing, or the position will be
+     * failed twice and the aggregate callback's count will be wrong.
+     */
     private void readReplayPositions(List<Position> replayPositions, ReadEntryCallback cb, Object ctx) {
         ReadEntryCallback singleReadCallback = new ReadEntryCallback() {
             @Override
@@ -2059,41 +2098,66 @@ public class ManagedCursorImpl implements ManagedCursor {
                 cb.readEntryFailed(exception, readCtx);
             }
         };
-        // the positions to read from storage
-        List<Position> positions = new ArrayList<>(replayPositions.size());
-        for (Position position : replayPositions) {
-            if (ledger.entryCache.hasEntry(position)) {
-                ledger.asyncReadEntry(position, REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
-            } else {
-                positions.add(position);
-            }
-        }
-        if (positions.isEmpty()) {
-            // the cache had every position
-            return;
-        }
-        positions.sort(null);
-        long averageEntrySize = Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
-        // A range read holds its permits on the inflight reads limiter until its wanted entries are released, which
-        // the callback may keep until the replay's other reads complete. So that the replay's reads can take their
-        // permits together whenever the wanted entries' own reads could, the entries in between take at most the
-        // limiter's bytes that the wanted entries leave, by the per-ledger entry size estimates that the limiter
-        // acquires the permits with. Without an estimate for a ledger, the replay takes no entries in between.
-        long maxReadsInFlightSize = ledger.getFactory().getConfig().getManagedLedgerMaxReadsInFlightSize();
-        long maxGapBytes = Long.MAX_VALUE;
-        if (maxReadsInFlightSize > 0) {
-            maxGapBytes = maxReadsInFlightSize;
+        // The positions whose read was not issued yet: on a failure to issue the reads, they are
+        // failed through the callback so the aggregate - which counts every position - completes.
+        Set<Position> pending = new HashSet<>(replayPositions);
+        try {
+            // the positions to read from storage
+            List<Position> positions = new ArrayList<>(replayPositions.size());
             for (Position position : replayPositions) {
-                long estimatedEntrySize = ledger.getEstimatedReadEntrySize(position.getLedgerId());
-                maxGapBytes = estimatedEntrySize < 0 ? 0 : Math.max(0, maxGapBytes - estimatedEntrySize);
+                if (!pending.contains(position)) {
+                    continue;
+                }
+                if (ledger.entryCache.hasEntry(position)) {
+                    ledger.asyncReadEntry(position, REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
+                    pending.remove(position);
+                } else {
+                    positions.add(position);
+                }
             }
-        }
-        for (List<Position> run : replayRuns(positions, averageEntrySize, ledger::getEstimatedReadEntrySize,
-                maxGapBytes)) {
-            if (run.size() == 1) {
-                ledger.asyncReadEntry(run.get(0), REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
-            } else {
-                readReplayRange(run, cb, ctx);
+            if (positions.isEmpty()) {
+                // the cache had every position
+                return;
+            }
+            positions.sort(null);
+            long averageEntrySize =
+                    Math.max(1, ledger.getTotalSize() / Math.max(1, ledger.getNumberOfEntries()));
+            // A range read holds its permits on the inflight reads limiter until its wanted entries are released,
+            // which the callback may keep until the replay's other reads complete. So that the replay's reads can
+            // take their permits together whenever the wanted entries' own reads could, the entries in between
+            // take at most the limiter's bytes that the wanted entries leave, by the per-ledger entry size
+            // estimates that the limiter acquires the permits with. Without an estimate for a ledger, the replay
+            // takes no entries in between.
+            long maxReadsInFlightSize = ledger.getFactory().getConfig().getManagedLedgerMaxReadsInFlightSize();
+            long maxGapBytes = Long.MAX_VALUE;
+            if (maxReadsInFlightSize > 0) {
+                maxGapBytes = maxReadsInFlightSize;
+                for (Position position : replayPositions) {
+                    long estimatedEntrySize = ledger.getEstimatedReadEntrySize(position.getLedgerId());
+                    maxGapBytes = estimatedEntrySize < 0 ? 0 : Math.max(0, maxGapBytes - estimatedEntrySize);
+                }
+            }
+            for (List<Position> run : replayRuns(positions, averageEntrySize, ledger::getEstimatedReadEntrySize,
+                    maxGapBytes)) {
+                if (run.size() == 1) {
+                    ledger.asyncReadEntry(run.get(0), REPLAYED_ENTRY_EXPECTED_READ_COUNT, singleReadCallback, ctx);
+                } else {
+                    readReplayRange(run, cb, ctx);
+                }
+                pending.removeAll(run);
+            }
+        } catch (Throwable t) {
+            log.warn().exception(t).log("Failed to issue the reads of a replay");
+            ManagedLedgerException exception = ManagedLedgerException.getManagedLedgerException(t);
+            for (Position position : pending) {
+                try {
+                    cb.readEntryFailed(exception, ctx);
+                } catch (Throwable notifyFailure) {
+                    // Notify the remaining positions even if one notification throws, or the aggregate
+                    // would never complete
+                    log.warn().attr("position", position).exception(notifyFailure)
+                            .log("Failed to deliver a replay read failure");
+                }
             }
         }
     }
