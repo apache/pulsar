@@ -39,7 +39,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
  * compactor.compact(topic, strategy);
  *
  * // Run table view by the compaction strategy.
- * // While updating messages in the table view <key,value> map,
+ * // While updating messages in the table view {@code <key,value>} map,
  * //   it will choose messages only if TopicCompactionStrategy.shouldKeepLeft(prev, cur) returns false.
  * TableView tableView = pulsar.getClient().newTableViewBuilder(strategy.getSchema())
  *                 .topic(topic)

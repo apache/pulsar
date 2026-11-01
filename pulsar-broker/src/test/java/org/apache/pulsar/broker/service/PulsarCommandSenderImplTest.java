@@ -30,17 +30,25 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
+import org.apache.pulsar.broker.intercept.BrokerInterceptorWithClassLoader;
+import org.apache.pulsar.broker.intercept.BrokerInterceptors;
+import org.apache.pulsar.broker.intercept.CounterBrokerInterceptor;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.common.api.proto.BaseCommand;
+import org.apache.pulsar.common.api.proto.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
+import org.apache.pulsar.common.intercept.InterceptException;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Commands.ChecksumType;
+import org.apache.pulsar.common.protocol.PulsarDecoder;
 import org.mockito.MockedStatic;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -50,6 +58,7 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PulsarCommandSenderImplTest {
     private EmbeddedChannel channel;
+    private ServerCnx cnx;
     private PulsarCommandSenderImpl commandSender;
     private PulsarTestContext testContext;
     private final List<BaseCommand.Type> interceptedTypes = new ArrayList<>();
@@ -58,7 +67,7 @@ public class PulsarCommandSenderImplTest {
     public void setup() throws Exception {
         interceptedTypes.clear();
         channel = new EmbeddedChannel(new ChannelInboundHandlerAdapter());
-        ServerCnx cnx = mock(ServerCnx.class);
+        cnx = mock(ServerCnx.class);
         when(cnx.ctx()).thenReturn(channel.pipeline().firstContext());
         // an interceptor that builds another command on the same thread, as one that sends a message with a
         // producer does: the commands built by Commands share a thread-local instance
@@ -202,7 +211,7 @@ public class PulsarCommandSenderImplTest {
     private void createDispatchCommandSender() throws Exception {
         channel.finishAndReleaseAll();
         testContext = PulsarTestContext.builderForNonStartableContext().build();
-        ServerCnx cnx = new ServerCnx(testContext.getPulsarService());
+        cnx = new ServerCnx(testContext.getPulsarService());
         cnx.setRemoteEndpointProtocolVersion(ProtocolVersion.v21.getValue());
         channel = new EmbeddedChannel(ByteBufPair.getEncoder(false), cnx);
         commandSender = (PulsarCommandSenderImpl) cnx.getCommandSender();
@@ -236,6 +245,114 @@ public class PulsarCommandSenderImplTest {
         }
         return commandSender.sendMessagesToConsumer(1, "persistent://tenant/namespace/topic", null, 0,
                 entries, batchSizes, null, new InMemoryRedeliveryTracker(), 0);
+    }
+
+    @DataProvider
+    public Object[][] interceptorCounts() {
+        return new Object[][] {{2}, {3}};
+    }
+
+    @Test(dataProvider = "interceptorCounts")
+    public void testSendReceiptIsPreservedAcrossInterceptors(int interceptorCount) {
+        List<BaseCommand> interceptedCommands = installReentrantInterceptors(interceptorCount);
+
+        commandSender.sendSendReceiptResponse(1, 2, 3, 4, 5);
+
+        assertThat(interceptedCommands).hasSize(interceptorCount);
+        interceptedCommands.add(readResponse());
+        assertThat(interceptedCommands).allSatisfy(command -> {
+            assertThat(command.getType()).isEqualTo(BaseCommand.Type.SEND_RECEIPT);
+            assertThat(command.getSendReceipt()).satisfies(receipt -> {
+                assertThat(receipt.getProducerId()).isEqualTo(1);
+                assertThat(receipt.getSequenceId()).isEqualTo(2);
+                assertThat(receipt.getHighestSequenceId()).isEqualTo(3);
+                assertThat(receipt.getMessageId().getLedgerId()).isEqualTo(4);
+                assertThat(receipt.getMessageId().getEntryId()).isEqualTo(5);
+            });
+        });
+    }
+
+    @Test(dataProvider = "interceptorCounts")
+    public void testPartitionMetadataResponseIsPreservedAcrossInterceptors(int interceptorCount) {
+        List<BaseCommand> interceptedCommands = installReentrantInterceptors(interceptorCount);
+
+        commandSender.sendPartitionMetadataResponse(7, 42);
+
+        assertThat(interceptedCommands).hasSize(interceptorCount);
+        interceptedCommands.add(readResponse());
+        assertThat(interceptedCommands).allSatisfy(command -> {
+            assertThat(command.getType()).isEqualTo(BaseCommand.Type.PARTITIONED_METADATA_RESPONSE);
+            assertThat(command.getPartitionMetadataResponse().getRequestId()).isEqualTo(42);
+            assertThat(command.getPartitionMetadataResponse().getPartitions()).isEqualTo(7);
+        });
+    }
+
+    @Test
+    public void testInboundCommandMutationIsPreserved() {
+        List<Long> requestIds = new ArrayList<>();
+        BrokerInterceptor modifier = new CounterBrokerInterceptor() {
+            @Override
+            public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
+                command.getPartitionMetadata().setRequestId(43);
+                Commands.newSuccess(Long.MAX_VALUE).release();
+            }
+        };
+        BrokerInterceptor observer = new CounterBrokerInterceptor() {
+            @Override
+            public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
+                requestIds.add(command.getPartitionMetadata().getRequestId());
+            }
+        };
+        BrokerInterceptors interceptors = createInterceptors(List.of(modifier, observer));
+        EmbeddedChannel decoderChannel = new EmbeddedChannel(new PulsarDecoder() {
+            @Override
+            protected void messageReceived(BaseCommand command) {
+            }
+
+            @Override
+            protected void interceptCommand(BaseCommand command) throws InterceptException {
+                interceptors.onPulsarCommand(command, cnx);
+            }
+
+            @Override
+            protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata command) {
+                requestIds.add(command.getRequestId());
+            }
+        });
+        try {
+            ByteBuf frame = Commands.newPartitionMetadataRequest("persistent://public/default/test", 42, true);
+            frame.readInt();
+            decoderChannel.writeInbound(frame);
+            assertThat(requestIds).containsExactly(43L, 43L);
+        } finally {
+            decoderChannel.finishAndReleaseAll();
+        }
+    }
+
+    private List<BaseCommand> installReentrantInterceptors(int interceptorCount) {
+        List<BaseCommand> interceptedCommands = new ArrayList<>();
+        List<BrokerInterceptor> interceptors = new ArrayList<>();
+        for (int i = 0; i < interceptorCount; i++) {
+            BrokerInterceptor interceptor = new CounterBrokerInterceptor() {
+                @Override
+                public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
+                    interceptedCommands.add(new BaseCommand().copyFrom(command));
+                    // Build another response on this thread, reusing both BaseCommand and its nested receipt.
+                    Commands.newSendReceiptCommand(101, 102, 103, 104, 105);
+                }
+            };
+            interceptors.add(interceptor);
+        }
+        commandSender = new PulsarCommandSenderImpl(createInterceptors(interceptors), cnx, null);
+        return interceptedCommands;
+    }
+
+    private BrokerInterceptors createInterceptors(List<BrokerInterceptor> interceptors) {
+        Map<String, BrokerInterceptorWithClassLoader> wrappers = new LinkedHashMap<>();
+        for (int i = 0; i < interceptors.size(); i++) {
+            wrappers.put("interceptor-" + i, new BrokerInterceptorWithClassLoader(interceptors.get(i), null));
+        }
+        return new BrokerInterceptors(wrappers);
     }
 
     private BaseCommand readResponse() {

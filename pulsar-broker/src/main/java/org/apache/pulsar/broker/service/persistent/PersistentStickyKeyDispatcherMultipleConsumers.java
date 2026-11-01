@@ -183,6 +183,14 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     }
 
     @Override
+    protected synchronized void onDispatchDiscarded(ReadType readType) {
+        if (readType == ReadType.Replay && replayDispatchesQueued > 0) {
+            replayDispatchesQueued--;
+        }
+        onReadEnded(readType);
+    }
+
+    @Override
     protected synchronized void onReadEnded(ReadType readType) {
         if (readType == ReadType.Replay) {
             replayReadEnded();
@@ -202,6 +210,16 @@ public class PersistentStickyKeyDispatcherMultipleConsumers extends PersistentDi
     @VisibleForTesting
     synchronized int getReplayAdditionsHashCount() {
         return replayAdditions.size();
+    }
+
+    @VisibleForTesting
+    synchronized int getReplayReadsInFlight() {
+        return replayReadsInFlight;
+    }
+
+    @VisibleForTesting
+    synchronized int getReplayDispatchesQueued() {
+        return replayDispatchesQueued;
     }
 
     private void clearReplayAdditions() {
