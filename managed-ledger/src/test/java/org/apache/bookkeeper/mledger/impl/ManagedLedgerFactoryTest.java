@@ -65,6 +65,41 @@ import org.testng.annotations.Test;
 
 public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
 
+    @Test
+    public void testOffloadTokenBucketIsScopedToFactory() throws Exception {
+        assertThat(factory.getOffloadTokenBucket()).isNull();
+
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setManagedLedgerOffloadFlowPermitsPerSecond(100);
+        ManagedLedgerFactoryImpl first = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+        ManagedLedgerFactoryImpl second = null;
+        try {
+            second = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+
+            assertThat(first.getOffloadTokenBucket()).isNotNull();
+            assertThat(first.getOffloadTokenBucket().getRate()).isEqualTo(100);
+            assertThat(first.getOffloadTokenBucket()).isSameAs(first.getOffloadTokenBucket());
+            assertThat(first.getOffloadTokenBucket()).isNotSameAs(second.getOffloadTokenBucket());
+        } finally {
+            first.shutdownAsync().get(5, TimeUnit.SECONDS);
+            if (second != null) {
+                second.shutdownAsync().get(5, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    @Test
+    public void testOffloadTokenBucketCapacityDoesNotOverflow() throws Exception {
+        ManagedLedgerFactoryConfig config = new ManagedLedgerFactoryConfig();
+        config.setManagedLedgerOffloadFlowPermitsPerSecond(Long.MAX_VALUE);
+        ManagedLedgerFactoryImpl factoryWithLargeLimit = new ManagedLedgerFactoryImpl(metadataStore, bkc, config);
+        try {
+            assertThat(factoryWithLargeLimit.getOffloadTokenBucket().getCapacity()).isEqualTo(Long.MAX_VALUE);
+        } finally {
+            factoryWithLargeLimit.shutdownAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
     @Test(timeOut = 20000)
     public void testGetManagedLedgerInfoWithClose() throws Exception {
         ManagedLedgerConfig conf = defaultConfig();
