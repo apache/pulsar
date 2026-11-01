@@ -37,6 +37,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
@@ -78,6 +80,23 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     private final ConcurrentMap<String, ReplicatedSubscriptionsSnapshotBuilder> pendingSnapshots =
             new ConcurrentHashMap<>();
+
+    private final ConcurrentMap<String, PendingReceivedSubscriptionUpdate> pendingReceivedSubscriptionUpdates =
+            new ConcurrentHashMap<>();
+    private final Object subscriptionUpdateLifecycleLock = new Object();
+    private final AtomicBoolean closed = new AtomicBoolean();
+
+    private static final class PendingReceivedSubscriptionUpdate {
+        private final AtomicReference<PersistentSubscription> subscription;
+        private final Position position;
+        private final AtomicBoolean inFlight = new AtomicBoolean();
+        private final AtomicBoolean attempted = new AtomicBoolean();
+
+        private PendingReceivedSubscriptionUpdate(PersistentSubscription subscription, Position position) {
+            this.subscription = new AtomicReference<>(subscription);
+            this.position = position;
+        }
+    }
 
     @PulsarDeprecatedMetric(
             newMetricName = OpenTelemetryReplicatedSubscriptionStats.SNAPSHOT_OPERATION_COUNT_METRIC_NAME)
@@ -198,86 +217,195 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     }
 
     private void receiveSubscriptionUpdated(ReplicatedSubscriptionsUpdate update) {
-        if (PersistentTopic.isCompactionSubscription(update.getSubscriptionName())) {
-            // The compactor owns this cursor: it may only move together with the compacted ledger
+        // The parser reuses a thread-local protobuf. Retain only immutable values across futures.
+        String subscriptionName = update.getSubscriptionName();
+        if (closed.get()) {
+            return;
+        }
+        if (PersistentTopic.isCompactionSubscription(subscriptionName)) {
+            // The compactor owns this cursor: it may only move together with the compacted ledger.
             log.debug()
-                    .attr("subscriptionName", update.getSubscriptionName())
+                    .attr("subscriptionName", subscriptionName)
                     .log("Ignoring replicated subscription update for the compaction subscription");
             return;
         }
 
-        MarkersMessageIdData updatedMessageId = null;
+        Position position = null;
         for (int i = 0, size = update.getClustersCount(); i < size; i++) {
-            ClusterMessageId cmid = update.getClusterAt(i);
-            if (localCluster.equals(cmid.getCluster())) {
-                updatedMessageId = cmid.getMessageId();
+            ClusterMessageId clusterMessageId = update.getClusterAt(i);
+            if (localCluster.equals(clusterMessageId.getCluster())) {
+                MarkersMessageIdData messageId = clusterMessageId.getMessageId();
+                position = PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId());
             }
         }
-
-        if (updatedMessageId == null) {
-            // No updates for this cluster, ignore
+        if (position == null) {
             return;
         }
+        Position target = position;
+        PendingReceivedSubscriptionUpdate pendingUpdate;
+        synchronized (subscriptionUpdateLifecycleLock) {
+            if (closed.get()) {
+                return;
+            }
+            PersistentSubscription subscription = topic.getSubscription(subscriptionName);
+            pendingUpdate = pendingReceivedSubscriptionUpdates.compute(subscriptionName, (name, pending) -> {
+                if (pending != null) {
+                    PersistentSubscription bound = pending.subscription.get();
+                    if ((bound == null || bound == subscription) && pending.position.compareTo(target) >= 0) {
+                        // An initially missing subscription may have been created while its retry
+                        // was pending. Preserve the higher target, but bind its current identity.
+                        return bound == subscription ? pending
+                                : new PendingReceivedSubscriptionUpdate(subscription, pending.position);
+                    }
+                }
+                return new PendingReceivedSubscriptionUpdate(subscription, target);
+            });
+        }
+        tryApplyReceivedSubscriptionUpdate(subscriptionName, pendingUpdate);
+    }
 
-        Position pos = PositionFactory.create(updatedMessageId.getLedgerId(), updatedMessageId.getEntryId());
+    private boolean isCurrentReceivedSubscriptionUpdate(String subscriptionName,
+                                                         PendingReceivedSubscriptionUpdate update) {
+        if (closed.get() || pendingReceivedSubscriptionUpdates.get(subscriptionName) != update) {
+            return false;
+        }
+        PersistentSubscription subscription = update.subscription.get();
+        PersistentSubscription current = topic.getSubscription(subscriptionName);
+        if (subscription == null && current != null) {
+            update.subscription.compareAndSet(null, current);
+            subscription = update.subscription.get();
+        }
+        if (subscription != current) {
+            // A retry bound to an existing subscription must not recreate or update its replacement.
+            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+            return false;
+        }
+        return true;
+    }
 
-        log.debug()
-                .attr("subscriptionName", update.getSubscriptionName())
-                .attr("pos", pos)
-                .log("Received update for subscription to");
+    private void tryApplyReceivedSubscriptionUpdate(String subscriptionName, PendingReceivedSubscriptionUpdate update) {
+        if (!isCurrentReceivedSubscriptionUpdate(subscriptionName, update)
+                || !update.inFlight.compareAndSet(false, true)) {
+            return;
+        }
+        if (!isCurrentReceivedSubscriptionUpdate(subscriptionName, update)) {
+            update.inFlight.set(false);
+            return;
+        }
+        boolean firstAttempt = update.attempted.compareAndSet(false, true);
+        PersistentSubscription subscription = update.subscription.get();
+        if (!firstAttempt && subscription != null
+                && subscription.getCursor().getMarkDeletedPosition().compareTo(update.position) >= 0) {
+            // Preserve the initial ACK call, but do not repeatedly ACK an already-applied target.
+            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+            update.inFlight.set(false);
+            return;
+        }
+        applyReceivedSubscriptionUpdate(subscriptionName, update).whenComplete((ignored, error) -> {
+            try {
+                if (error == null) {
+                    pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+                } else {
+                    handleReceivedSubscriptionUpdateFailure(subscriptionName, update, error, firstAttempt);
+                }
+            } finally {
+                update.inFlight.set(false);
+            }
+        });
+    }
 
-        PersistentSubscription sub = topic.getSubscription(update.getSubscriptionName());
-        if (sub != null) {
-            acknowledgeSubscriptionUpdate(update.getSubscriptionName(), sub, pos);
+    private void handleReceivedSubscriptionUpdateFailure(String subscriptionName,
+                                                          PendingReceivedSubscriptionUpdate update,
+                                                          Throwable error, boolean firstAttempt) {
+        if (!isCurrentReceivedSubscriptionUpdate(subscriptionName, update)) {
+            return;
+        }
+        PersistentSubscription subscription = update.subscription.get();
+        Position markDeletePosition = subscription == null ? null : subscription.getCursor().getMarkDeletedPosition();
+        if (markDeletePosition != null && update.position.compareTo(markDeletePosition) <= 0) {
+            // A failed ACK future can still have applied, or a local consumer can have advanced farther.
+            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+            log.debug()
+                    .attr("subscriptionName", subscriptionName)
+                    .attr("pos", update.position)
+                    .attr("markDeletePosition", markDeletePosition)
+                    .log("Ignoring replicated subscription update behind the mark-delete position");
+        } else if (firstAttempt) {
+            if (subscription == null) {
+                log.warn()
+                        .attr("subscriptionName", subscriptionName)
+                        .attr("pos", update.position)
+                        .exceptionMessage(FutureUtil.unwrapCompletionException(error))
+                        .log("Failed to create replicated subscription");
+            } else {
+                log.warn()
+                        .attr("subscriptionName", subscriptionName)
+                        .attr("pos", update.position)
+                        .attr("markDeletePosition", markDeletePosition)
+                        .exceptionMessage(FutureUtil.unwrapCompletionException(error))
+                        .log("Failed to update replicated subscription");
+            }
         } else {
-            // Subscription doesn't exist. We need to force the creation of the subscription in this cluster.
-            log.info()
-                    .attr("subscriptionName", update.getSubscriptionName())
-                    .attr("ledgerId", updatedMessageId.getLedgerId())
-                    .attr("pos", pos)
-                    .log("Creating subscription at: after receiving update from replicated subscription");
-            topic.createSubscription(update.getSubscriptionName(), InitialPosition.Earliest,
-                            true /* replicateSubscriptionState */, Collections.emptyMap())
-                    .thenAccept(subscriptionCreated -> acknowledgeSubscriptionUpdate(update.getSubscriptionName(),
-                            (PersistentSubscription) subscriptionCreated, pos))
-                    .exceptionally(e -> {
-                        log.warn()
-                                .attr("subscriptionName", update.getSubscriptionName())
-                                .attr("pos", pos)
-                                .exceptionMessage(FutureUtil.unwrapCompletionException(e))
-                                .log("Failed to create replicated subscription");
-                        return null;
-                    });
+            log.debug()
+                    .attr("subscriptionName", subscriptionName)
+                    .attr("pos", update.position)
+                    .attr("markDeletePosition", markDeletePosition)
+                    .exceptionMessage(FutureUtil.unwrapCompletionException(error))
+                    .log("Failed to apply replicated subscription update; retaining it for retry");
         }
     }
 
-    private CompletableFuture<Void> acknowledgeSubscriptionUpdate(String subscriptionName,
-                                                                  PersistentSubscription sub, Position pos) {
-        return sub.acknowledgeMessageAsync(Collections.singletonList(pos), AckType.Cumulative, Collections.emptyMap())
-                .whenComplete((__, e) -> {
-                    if (e == null) {
-                        return;
-                    }
-                    Position markDeletePosition = sub.getCursor().getMarkDeletedPosition();
-                    if (pos.compareTo(markDeletePosition) <= 0) {
-                        // Local consumers already acknowledged past the replicated position: nothing to update
-                        log.debug()
-                                .attr("subscriptionName", subscriptionName)
-                                .attr("pos", pos)
-                                .attr("markDeletePosition", markDeletePosition)
-                                .log("Ignoring replicated subscription update behind the mark-delete position");
-                    } else {
-                        log.warn()
-                                .attr("subscriptionName", subscriptionName)
-                                .attr("pos", pos)
-                                .attr("markDeletePosition", markDeletePosition)
-                                .exceptionMessage(FutureUtil.unwrapCompletionException(e))
-                                .log("Failed to update replicated subscription");
-                    }
-                });
+    private CompletableFuture<Void> applyReceivedSubscriptionUpdate(String subscriptionName,
+                                                                    PendingReceivedSubscriptionUpdate update) {
+        return FutureUtil.supplySafely(() -> {
+            if (!isCurrentReceivedSubscriptionUpdate(subscriptionName, update)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            PersistentSubscription subscription = update.subscription.get();
+            if (subscription != null) {
+                // Received updates historically apply to existing non-replicated subscriptions too.
+                return subscription.acknowledgeMessageAsync(Collections.singletonList(update.position),
+                        AckType.Cumulative, Collections.emptyMap());
+            }
+            log.debug()
+                    .attr("subscription", subscriptionName)
+                    .attr("position", update.position)
+                    .log("Creating subscription for received replicated subscription update");
+            return topic.createSubscription(subscriptionName, InitialPosition.Earliest,
+                            true /* replicateSubscriptionState */, Collections.emptyMap())
+                    .thenCompose(created -> {
+                        if (closed.get() || pendingReceivedSubscriptionUpdates.get(subscriptionName) != update) {
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        PersistentSubscription createdSubscription = (PersistentSubscription) created;
+                        if (topic.getSubscription(subscriptionName) != createdSubscription) {
+                            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        if (!update.subscription.compareAndSet(null, createdSubscription)
+                                && update.subscription.get() != createdSubscription) {
+                            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        if (!isCurrentReceivedSubscriptionUpdate(subscriptionName, update)) {
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        return FutureUtil.supplySafely(() -> createdSubscription.acknowledgeMessageAsync(
+                                Collections.singletonList(update.position), AckType.Cumulative,
+                                Collections.emptyMap()));
+                    });
+        });
     }
 
     private void startNewSnapshot() {
+        if (closed.get()) {
+            return;
+        }
+        // The received marker may already be consumed; applying it must retry even on idle topics.
+        pendingReceivedSubscriptionUpdates.forEach(this::tryApplyReceivedSubscriptionUpdate);
+        if (closed.get()) {
+            return;
+        }
         cleanupTimedOutSnapshots();
 
         if (lastCompletedSnapshotStartTime == 0 && !pendingSnapshots.isEmpty()) {
@@ -448,6 +576,12 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
 
     @Override
     public void close() {
+        synchronized (subscriptionUpdateLifecycleLock) {
+            if (!closed.compareAndSet(false, true)) {
+                return;
+            }
+            pendingReceivedSubscriptionUpdates.clear();
+        }
         timer.cancel(true);
     }
 }
