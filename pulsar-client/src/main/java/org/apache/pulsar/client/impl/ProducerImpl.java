@@ -2476,6 +2476,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private void resendMessages(ClientCnx cnx, long expectedEpoch) {
         cnx.ctx().channel().eventLoop().execute(() -> {
             synchronized (ProducerImpl.this) {
+                // The attempt may have been superseded after its success response queued this task.
+                // Check before Closing/Closed too, so a broker-closed registration does not cause stale work
+                // to close the possibly shared channel.
+                if (connectionHandler.isSupersededAttempt(cnx, expectedEpoch)) {
+                    return;
+                }
                 if (getState() == State.Closing || getState() == State.Closed) {
                     // Producer was closed while reconnecting, close the connection to make sure the broker
                     // drops the producer on its side
