@@ -39,7 +39,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 
 /**
- * Resource Group Config Listener
+ * Resource Group Config Listener.
  *
  * <P>Meta data store listener of updates to resource group config.
  * <P>Listens to resource group configuration changes and updates internal datastructures.
