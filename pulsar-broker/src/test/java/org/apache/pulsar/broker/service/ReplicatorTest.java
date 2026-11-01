@@ -944,7 +944,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
     }
 
-    @SuppressWarnings("unchecked")
     @Test(priority = 5, timeOut = 30000)
     public void testReplicatorProducerClosing() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
@@ -955,17 +954,16 @@ public class ReplicatorTest extends ReplicatorTestBase {
         MessageProducer producer1 = new MessageProducer(url1, dest);
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName).get();
         final String replicatorClusterName = topic.getReplicators().keySet().stream().toList().get(0);
-        Replicator replicator = topic.getPersistentReplicator(replicatorClusterName);
+        AbstractReplicator replicator = (AbstractReplicator) topic.getPersistentReplicator(replicatorClusterName);
+        // Terminate a replicator that has a producer to close
+        Awaitility.await().until(replicator::isConnected);
         pulsar2.close();
         pulsar2 = null;
         pulsar3.close();
         pulsar3 = null;
-        replicator.terminate();
-        Thread.sleep(100);
-        Field field = AbstractReplicator.class.getDeclaredField("producer");
-        field.setAccessible(true);
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) field.get(replicator);
-        assertNull(producer);
+        // The replicator clears its producer when the close of the producer completes
+        replicator.terminate().get();
+        assertNull(replicator.getProducer());
     }
 
     @Test(priority = 5, timeOut = 30000)
