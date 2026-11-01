@@ -47,14 +47,19 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
 
     @BeforeMethod()
     public void start() throws Exception {
+        storage = newStorage();
+    }
+
+    private PackagesStorage newStorage() throws Exception {
         PackagesStorageProvider provider = PackagesStorageProvider
             .newProvider(BookKeeperPackagesStorageProvider.class.getName());
         DefaultPackagesStorageConfiguration configuration = new DefaultPackagesStorageConfiguration();
         configuration.setProperty("metadataStoreUrl", zkUtil.getZooKeeperConnectString());
         configuration.setProperty("packagesReplicas", "1");
         configuration.setProperty("packagesManagementLedgerRootPath", "/ledgers");
-        storage = provider.getStorage(configuration);
-        storage.initialize();
+        PackagesStorage packagesStorage = provider.getStorage(configuration);
+        packagesStorage.initialize();
+        return packagesStorage;
     }
 
     @AfterMethod(alwaysRun = true)
@@ -180,6 +185,34 @@ public class BookKeeperPackagesStorageTest extends BookKeeperClusterTestCase {
         } catch (Exception e) {
             assertTrue(e.getCause() instanceof ZKException);
         }
+    }
+
+    @Test(timeOut = 60000)
+    public void testReadAfterAnotherStorageRewritesThePath() throws Exception {
+        // a second storage on the same cluster, as on another broker
+        PackagesStorage otherStorage = newStorage();
+        try {
+            String testPath = "test-rewrite-path";
+
+            // write the data with this storage, then delete and rewrite it with the other one,
+            // as PackagesManagementImpl.updateMeta does with the package metadata
+            storage.writeAsync(testPath, new ByteArrayInputStream("old-data".getBytes(StandardCharsets.UTF_8))).get();
+            otherStorage.deleteAsync(testPath).get();
+            otherStorage.writeAsync(testPath, new ByteArrayInputStream("new-data".getBytes(StandardCharsets.UTF_8)))
+                    .get();
+
+            // both storages read the new data right away
+            assertEquals(readString(storage, testPath), "new-data");
+            assertEquals(readString(otherStorage, testPath), "new-data");
+        } finally {
+            otherStorage.closeAsync().get();
+        }
+    }
+
+    private static String readString(PackagesStorage storage, String path) throws Exception {
+        ByteArrayOutputStream readData = new ByteArrayOutputStream();
+        storage.readAsync(path, readData).get();
+        return readData.toString(StandardCharsets.UTF_8);
     }
 
     @Test(timeOut = 60000)
