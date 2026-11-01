@@ -229,6 +229,7 @@ public class TransactionMetaStoreHandler extends HandlerState
                                 || e.getCause() instanceof PulsarClientException.NotAllowedException) {
                             setState(State.Closed);
                             cnx.channel().close();
+                            connectFuture.completeExceptionally(e.getCause());
                             future.complete(null);
                         } else {
                             future.completeExceptionally(e.getCause());
