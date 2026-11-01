@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,13 +34,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
+import org.apache.pulsar.broker.resources.ScalableTopicMetadata.PendingLayoutTransition;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentLoadStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -415,6 +419,98 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
                                                                      ScalableTopicMetadata> updateFunction) {
         // Refresh property indexes on every update — the modify function may add or remove
         // properties and the underlying store needs to see the post-modification view.
+        return updateTopicRecordAsync(tn, md -> {
+            PendingLayoutTransition pending = md.getPendingLayoutTransition();
+            String incarnationId = md.getIncarnationId();
+            long originalEpoch = md.getEpoch();
+            long originalNextSegmentId = md.getNextSegmentId();
+            Map<Long, SegmentInfo> originalSegments = new LinkedHashMap<>(md.getSegments());
+            ScalableTopicMetadata updated = updateFunction.apply(md);
+            if (incarnationId != null) {
+                // Layout projections made by generic writers must not erase the record's lifetime identity.
+                updated = updated.toBuilder().incarnationId(incarnationId).build();
+            }
+            if (pending != null) {
+                // Policy/property/deletion updates may proceed, but must preserve the recovery plan.
+                // Every layout writer, including GC, must wait until the reserved plan is committed.
+                if (updated.getEpoch() != originalEpoch
+                        || updated.getNextSegmentId() != originalNextSegmentId
+                        || !updated.getSegments().equals(originalSegments)) {
+                    throw new IllegalStateException("A scalable topic layout transition is pending: " + tn);
+                }
+                updated = updated.toBuilder().pendingLayoutTransition(pending).build();
+            }
+            return updated;
+        });
+    }
+
+    /** Upgrade an old record once, before a controller serves or plans physical layout changes. */
+    public CompletableFuture<String> ensureScalableTopicIncarnationAsync(TopicName tn, BooleanSupplier currentTerm) {
+        String incarnationId = UUID.randomUUID().toString();
+        return getScalableTopicMetadataAsync(tn, true).thenCompose(optMd -> {
+            ScalableTopicMetadata existing = optMd.orElseThrow();
+            if (!currentTerm.getAsBoolean() || existing.isDeleted()) {
+                throw new IllegalStateException("Lost scalable topic leadership: " + tn);
+            }
+            if (existing.getIncarnationId() != null) {
+                return CompletableFuture.completedFuture(existing.getIncarnationId());
+            }
+            return getCache().readModifyUpdate(topicPath(tn), md -> {
+                if (!currentTerm.getAsBoolean() || md.isDeleted()) {
+                    throw new IllegalStateException("Lost scalable topic leadership: " + tn);
+                }
+                return md.getIncarnationId() == null ? md.toBuilder().incarnationId(incarnationId).build() : md;
+            }, PROPERTY_INDEX_EXTRACTOR).thenApply(ScalableTopicMetadata::getIncarnationId);
+        });
+    }
+
+    /** Reserve a fixed plan without publishing its successor IDs or advancing the DAG epoch. */
+    public CompletableFuture<Void> reserveLayoutTransitionAsync(TopicName tn, PendingLayoutTransition pending,
+                                                                BooleanSupplier currentTerm) {
+        return updateTopicRecordAsync(tn, md -> {
+            validateTransitionBase(tn, md, pending, currentTerm);
+            PendingLayoutTransition existing = md.getPendingLayoutTransition();
+            if (existing != null && !existing.equals(pending)) {
+                throw new IllegalStateException("Another scalable topic layout transition is pending: " + tn);
+            }
+            return md.toBuilder().pendingLayoutTransition(pending).build();
+        });
+    }
+
+    /** Publish exactly the reserved plan and remove its intent atomically in the topic record. */
+    public CompletableFuture<Void> commitLayoutTransitionAsync(TopicName tn, PendingLayoutTransition pending,
+                                                               BooleanSupplier currentTerm) {
+        return updateTopicRecordAsync(tn, md -> {
+            validateTransitionBase(tn, md, pending, currentTerm);
+            if (!pending.equals(md.getPendingLayoutTransition())) {
+                throw new IllegalStateException("Scalable topic layout transition was replaced: " + tn);
+            }
+            Map<Long, SegmentInfo> segments = new LinkedHashMap<>(md.getSegments());
+            segments.putAll(pending.replacements());
+            return md.toBuilder().epoch(pending.baseEpoch() + 1).nextSegmentId(pending.nextSegmentId())
+                    .segments(segments).pendingLayoutTransition(null).build();
+        });
+    }
+
+    /**
+     * Fence callbacks against the stored record lifetime and the current election term. The store's
+     * versioned CAS still provides the write boundary: these checks cannot cancel an already-issued
+     * store write or physical segment request across a concurrent topic delete and recreation.
+     */
+    private static void validateTransitionBase(TopicName tn, ScalableTopicMetadata md,
+                                               PendingLayoutTransition pending, BooleanSupplier currentTerm) {
+        if (!currentTerm.getAsBoolean() || md.isDeleted()
+                || pending.incarnationId() == null || !pending.incarnationId().equals(md.getIncarnationId())
+                || md.getEpoch() != pending.baseEpoch()
+                || md.getNextSegmentId() != pending.baseNextSegmentId()
+                || !pending.sources().entrySet().stream()
+                        .allMatch(entry -> entry.getValue().equals(md.getSegments().get(entry.getKey())))) {
+            throw new IllegalStateException("Scalable topic layout transition lost its source generation: " + tn);
+        }
+    }
+
+    private CompletableFuture<Void> updateTopicRecordAsync(TopicName tn,
+                                      Function<ScalableTopicMetadata, ScalableTopicMetadata> updateFunction) {
         return getCache().readModifyUpdate(topicPath(tn), updateFunction, PROPERTY_INDEX_EXTRACTOR)
                 .thenApply(__ -> null);
     }

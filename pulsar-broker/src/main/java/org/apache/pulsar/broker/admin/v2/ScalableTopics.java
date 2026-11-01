@@ -47,6 +47,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -533,7 +534,7 @@ public class ScalableTopics extends AdminResource {
                         asyncResponse.resume(new RestException(Response.Status.NOT_FOUND,
                                 "Scalable topic not found: " + tn));
                     } else {
-                        asyncResponse.resume(optMd.get());
+                        asyncResponse.resume(optMd.get().withoutRecoveryMetadata());
                     }
                 })
                 .exceptionally(ex -> {
@@ -1489,7 +1490,12 @@ public class ScalableTopics extends AdminResource {
                                                          boolean force) {
         try {
             var admin = pulsar().getAdminClient();
-            CompletableFuture<?>[] futures = metadata.getSegments().values().stream()
+            Map<Long, SegmentInfo> segments = new LinkedHashMap<>(metadata.getSegments());
+            if (metadata.getPendingLayoutTransition() != null) {
+                // Successors can already exist even though their DAG has not been published.
+                segments.putAll(metadata.getPendingLayoutTransition().replacements());
+            }
+            CompletableFuture<?>[] futures = segments.values().stream()
                     .map(seg -> {
                         String segmentTopicName = SegmentTopicName.backingTopicName(parentTopic, seg);
                         CompletableFuture<Void> delete = seg.isLegacy()
