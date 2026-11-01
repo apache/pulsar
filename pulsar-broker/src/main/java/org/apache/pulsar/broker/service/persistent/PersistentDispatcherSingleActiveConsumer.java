@@ -138,17 +138,22 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
 
         readOnActiveConsumerTask = topic.getBrokerService().executor().schedule(() -> {
             synchronized (this) {
-                readOnActiveConsumerTask = null;
+                log.debug()
+                        .attr("activeConsumerFailoverDelayTimeMillis",
+                                serviceConfig.getActiveConsumerFailoverDelayTimeMillis())
+                        .log("Rewind cursor and read more entries after ms delay");
+                Consumer activeConsumer = getActiveConsumer();
+                try {
+                    cursor.rewind(activeConsumer != null && activeConsumer.readCompacted());
+                } finally {
+                    // Keep the handoff marker set until the cursor has been rewound. This prevents a concurrent
+                    // FLOW callback from issuing a read from the old cursor position between marker cleanup and
+                    // rewind. Clear it even if rewind fails so a later recovery attempt is not suppressed forever.
+                    readOnActiveConsumerTask = null;
+                }
+                notifyActiveConsumerChanged(activeConsumer);
+                readMoreEntries(activeConsumer);
             }
-            log.debug()
-                    .attr("activeConsumerFailoverDelayTimeMillis",
-                            serviceConfig.getActiveConsumerFailoverDelayTimeMillis())
-                    .log("Rewind cursor and read more entries after ms delay");
-            Consumer activeConsumer = getActiveConsumer();
-            cursor.rewind(activeConsumer != null && activeConsumer.readCompacted());
-
-            notifyActiveConsumerChanged(activeConsumer);
-            readMoreEntries(activeConsumer);
         }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
 
     }
@@ -384,6 +389,12 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
                 }
                 if (havePendingRead) {
                     log.debug("Skipping read due to pending read");
+                    return;
+                }
+                if (readOnActiveConsumerTask != null) {
+                    log.debug()
+                            .attr("consumer", consumer)
+                            .log("Skipping read while waiting for cursor to be rewound");
                     return;
                 }
 
@@ -643,9 +654,9 @@ public class PersistentDispatcherSingleActiveConsumer extends AbstractDispatcher
     }
 
     @Override
-    public boolean checkAndUnblockIfStuck() {
+    public synchronized boolean checkAndUnblockIfStuck() {
         Consumer consumer = getActiveConsumer();
-        if (consumer == null || cursor.checkAndUpdateReadPositionChanged()) {
+        if (consumer == null || readOnActiveConsumerTask != null || cursor.checkAndUpdateReadPositionChanged()) {
             return false;
         }
         boolean isConsumerAvailable = !consumer.isBlocked() && consumer.getAvailablePermits() > 0;

@@ -37,8 +37,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
@@ -250,7 +251,7 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
         topic = new PersistentTopic(TOPIC, ledger, brokerService);
         // Open the cursor AFTER topic construction so the topic does not auto-create a second
         // subscription sharing this cursor.
-        cursor = (ManagedCursorImpl) ledger.openCursor("sub");
+        cursor = spy((ManagedCursorImpl) ledger.openCursor("sub"));
         // A real subscription that adopts the spied dispatcher through the production test seam, so
         // addConsumer/removeConsumer drive the real consumer lifecycle. The returned reference must be
         // qualified: the inherited PersistentSubscription.dispatcher field would otherwise shadow ours.
@@ -745,6 +746,7 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
         captureFailoverHandoffTasks = true;
         connect(consumer);
         awaitFailoverHandoffTaskCount(1);
+        failoverHandoffTasks.remove(0).run();
         dispatcher.readMoreEntries(consumer);
 
         Position unacked = publish();
@@ -769,25 +771,15 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
             connect(replacement);
             disconnect(consumer);
 
-            AtomicBoolean failOldReadBeforeHandoffTaskReturns = new AtomicBoolean(true);
-            doAnswer(invocation -> {
-                Object result = invocation.callRealMethod();
-                if (failOldReadBeforeHandoffTaskReturns.compareAndSet(true, false)) {
-                    entries.close();
-                    readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
-                    awaitBoardHasAtLeast(1);
-                    Assert.assertTrue(dispatcherExecutor.runOne(),
-                            "old read failure should run before the handoff task returns");
-                }
-                return result;
-            }).when(dispatcher).readMoreEntries(replacement);
+            entries.close();
+            readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
+            awaitBoardHasAtLeast(1);
+            Assert.assertTrue(dispatcherExecutor.runOne(), "old read failure should be queued");
 
-            failoverHandoffTasks.remove(0).run();
-
-            // Before the fix, the timer remains registered until the handoff task returns, so the failure callback
-            // cannot schedule a replacement. Clearing it before the read attempt preserves this wake-up.
+            // The owner-change failure must schedule a delayed handoff for the replacement active.
+            awaitFailoverHandoffTaskCount(1);
             Assert.assertTrue(failoverHandoffTasks.size() >= 1,
-                    "read failure during delayed handoff must schedule a replacement handoff");
+                    "read failure after active handoff must schedule a delayed handoff");
             failoverHandoffTasks.remove(0).run();
         } finally {
             bkc.setReadHandleInterceptor(null);
@@ -799,6 +791,142 @@ public class PersistentDispatcherSingleActiveConsumerStuckReadTest extends Mocke
                 readResult.completeExceptionally(BKException.create(BKException.Code.ReadException));
             }
         }
+    }
+
+    /** All read entry points must honor a delayed handoff marker until the cursor has been rewound. */
+    @Test(groups = "broker")
+    public void testDelayedFailoverHandoffBlocksDirectRead() throws Exception {
+        buildFixture("sac-failover-delayed-direct-read-race", 10, POSITIVE_FAILOVER_DELAY_MILLIS);
+        captureFailoverHandoffTasks = true;
+        connect(consumer);
+        awaitFailoverHandoffTaskCount(1);
+        dispatcher.readMoreEntries(consumer);
+        Assert.assertFalse(dispatcher.havePendingRead,
+                "a direct read must not bypass the pending delayed handoff");
+        Assert.assertFalse(cursor.hasPendingReadRequest(),
+                "a direct read must not arm the cursor before cursor rewind");
+    }
+
+    /**
+     * A flow callback must not start a read between the delayed handoff task clearing its marker and rewinding the
+     * cursor. Otherwise the callback can read from the old position and prevent the unacknowledged entry from being
+     * replayed after the rewind.
+     */
+    @Test(groups = "broker")
+    public void testDelayedFailoverHandoffRewindsBeforeFlowCanRead() throws Exception {
+        buildFixture("sac-failover-delayed-flow-race", 10, POSITIVE_FAILOVER_DELAY_MILLIS);
+        captureFailoverHandoffTasks = true;
+        connect(consumer);
+        awaitFailoverHandoffTaskCount(1);
+        failoverHandoffTasks.remove(0).run();
+
+        Position unacked = publish();
+        awaitBoardHasAtLeast(1);
+        Assert.assertTrue(dispatcherExecutor.runOne());
+        Assert.assertTrue(deliveries.contains(Delivery.of("c1", unacked)));
+        // Do not run the follow-up read posted by the successful send. The delayed handoff must own the next read.
+        Assert.assertFalse(dispatcherExecutor.takeAll().isEmpty());
+
+        Consumer replacement = newMockConsumer("c2");
+        doReturn(-1).when(replacement).getPriorityLevel();
+        connect(replacement);
+        disconnect(consumer);
+        awaitFailoverHandoffTaskCount(1);
+
+        CountDownLatch rewindStarted = new CountDownLatch(1);
+        CountDownLatch allowRewind = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            rewindStarted.countDown();
+            Assert.assertTrue(allowRewind.await(BOARD_WAIT_SECONDS, TimeUnit.SECONDS),
+                    "handoff rewind did not receive release");
+            return invocation.callRealMethod();
+        }).when(cursor).rewind(anyBoolean());
+
+        FutureTask<Void> handoffTask = new FutureTask<>(() -> {
+            failoverHandoffTasks.remove(0).run();
+            return null;
+        });
+        FutureTask<Void> flowTask = null;
+        CountDownLatch flowTaskStarted = new CountDownLatch(1);
+        CountDownLatch flowReadStarted = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            if ("flow-test".equals(Thread.currentThread().getName())) {
+                flowReadStarted.countDown();
+            }
+            return invocation.callRealMethod();
+        }).when(dispatcher).readMoreEntries(replacement);
+        try {
+            Thread handoffThread = new Thread(handoffTask, "handoff-test");
+            handoffThread.start();
+            Assert.assertTrue(rewindStarted.await(BOARD_WAIT_SECONDS, TimeUnit.SECONDS),
+                    "handoff task did not reach cursor rewind");
+
+            dispatcher.consumerFlow(replacement, 1);
+            flowTask = new FutureTask<>(() -> {
+                flowTaskStarted.countDown();
+                dispatcherExecutor.runOne();
+                return null;
+            });
+            Thread flowThread = new Thread(flowTask, "flow-test");
+            flowThread.start();
+
+            // The flow task is queued, but must wait for the handoff monitor instead of issuing a read at the old
+            // cursor position. Before the fix, this becomes true while rewind is blocked.
+            Assert.assertTrue(flowTaskStarted.await(BOARD_WAIT_SECONDS, TimeUnit.SECONDS),
+                    "FLOW task did not start");
+            Assert.assertFalse(flowReadStarted.await(100, TimeUnit.MILLISECONDS),
+                    "FLOW must not invoke readMoreEntries while the handoff rewind is in progress");
+            Assert.assertFalse(dispatcher.havePendingRead,
+                    "FLOW must not issue a read while the handoff rewind is in progress");
+            Assert.assertFalse(cursor.hasPendingReadRequest(),
+                    "FLOW must not arm a read while the handoff rewind is in progress");
+        } finally {
+            allowRewind.countDown();
+            Assert.assertNull(handoffTask.get(BOARD_WAIT_SECONDS, TimeUnit.SECONDS));
+            if (flowTask != null) {
+                Assert.assertNull(flowTask.get(BOARD_WAIT_SECONDS, TimeUnit.SECONDS));
+            }
+        }
+
+        Assert.assertTrue(pumpUntilDelivered(replacement, unacked),
+                "replacement active did not receive the unacknowledged message after handoff");
+    }
+
+    /**
+     * The stuck-subscription detector must not bypass a delayed handoff and read from the old cursor position.
+     */
+    @Test(groups = "broker")
+    public void testDelayedFailoverHandoffBlocksStuckSubscriptionRead() throws Exception {
+        buildFixture("sac-failover-delayed-stuck-read-race", 10, POSITIVE_FAILOVER_DELAY_MILLIS);
+        captureFailoverHandoffTasks = true;
+        connect(consumer);
+        awaitFailoverHandoffTaskCount(1);
+        failoverHandoffTasks.remove(0).run();
+
+        Position unacked = publish();
+        awaitBoardHasAtLeast(1);
+        Assert.assertTrue(dispatcherExecutor.runOne());
+        Assert.assertTrue(deliveries.contains(Delivery.of("c1", unacked)));
+        // Leave the send-completion read queued so only the delayed handoff can read for the replacement.
+        Assert.assertFalse(dispatcherExecutor.takeAll().isEmpty());
+
+        Consumer replacement = newMockConsumer("c2");
+        doReturn(-1).when(replacement).getPriorityLevel();
+        connect(replacement);
+        disconnect(consumer);
+        awaitFailoverHandoffTaskCount(1);
+        doReturn(false).when(cursor).checkAndUpdateReadPositionChanged();
+
+        Assert.assertFalse(dispatcher.checkAndUnblockIfStuck(),
+                "stuck-subscription detection must not claim recovery while a delayed handoff is pending");
+        Assert.assertFalse(dispatcher.havePendingRead,
+                "the stuck-subscription check must not issue a read before cursor rewind");
+        Assert.assertFalse(cursor.hasPendingReadRequest(),
+                "the stuck-subscription check must not arm a cursor read before cursor rewind");
+
+        failoverHandoffTasks.remove(0).run();
+        Assert.assertTrue(pumpUntilDelivered(replacement, unacked),
+                "replacement active did not receive the unacknowledged message after handoff");
     }
 
     @DataProvider(name = "abaInFlightReadOutcome")
