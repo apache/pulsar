@@ -32,7 +32,6 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Singular;
@@ -136,7 +135,7 @@ import org.mockito.internal.util.MockUtil;
 @CustomLog
 @ToString
 @Getter
-@Builder(builderClassName = "Builder")
+@lombok.Builder(builderClassName = "Builder")
 @SuppressWarnings("try")
 public class PulsarTestContext implements AutoCloseable {
     private final ServiceConfiguration config;
