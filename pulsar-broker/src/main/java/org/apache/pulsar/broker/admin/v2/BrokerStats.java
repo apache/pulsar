@@ -56,6 +56,23 @@ public class BrokerStats extends BrokerStatsBase {
     }
 
     @GET
+    @Path("/brokers/{brokerId}/topics")
+    @Operation(summary = "Get all the topic stats by namespace of the given broker",
+            description = "Redirects to the given broker when it is not the one serving the request")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Get all the topic stats by namespace of the given broker",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(type = "object", description = "Nested JSON object:"
+                                    + " namespace -> bundle range -> persistent/non-persistent -> topic -> stats"))),
+            @ApiResponse(responseCode = "307", description = "Redirect to the given broker"),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission"),
+            @ApiResponse(responseCode = "404", description = "Broker not found") })
+    public StreamingOutput getTopics2(@PathParam("brokerId") String brokerId) throws Exception {
+        validateSuperUserAccessAndRedirect(brokerId);
+        return super.getTopics2();
+    }
+
+    @GET
     @Path("/broker-resource-availability/{tenant}/{namespace}")
     @Operation(summary = "Broker availability report",
             description = "This API gives the current broker availability in "
