@@ -280,7 +280,7 @@ public final class TlsContextAcquisition {
             return TlsContexts.synthesizeNettyClientFromJdk(jdkContext, synthesis.enableHostnameVerification(),
                     factoryBaseline);
         }
-        return TlsContexts.synthesizeNettyServerFromJdk(jdkContext, synthesis.requireTrustedClientCert(),
+        return TlsContexts.synthesizeNettyServerFromJdk(jdkContext, synthesis.clientAuthMode(),
                 factoryBaseline);
     }
 

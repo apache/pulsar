@@ -81,7 +81,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                     scheduler, scheduler, proxyService.getOpenTelemetry().getOpenTelemetry());
             TlsFactorySupport.initializeBlocking(this.tlsFactory, initContext);
             this.tlsSubscription = TlsContextAcquisition.acquireNettyContext(this.tlsFactory, TlsPurpose.PROXY,
-                            TlsSynthesisSpec.server(serviceConfig.isTlsRequireTrustedClientCertOnConnect()),
+                            TlsSynthesisSpec.server(serviceConfig.resolveTlsClientAuthMode()),
                             ctx -> this.tlsServerContext = ctx)
                     .get()
                     .orElseThrow(() -> new IllegalStateException(

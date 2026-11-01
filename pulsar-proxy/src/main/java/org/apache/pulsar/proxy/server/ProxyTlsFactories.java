@@ -52,7 +52,7 @@ final class ProxyTlsFactories {
                                           Set<String> ciphers, Set<String> protocols) {
         Map<TlsPurpose, TlsPolicy> policies = Map.of(purpose, serverPolicy(config, purpose, ciphers, protocols));
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
-                .requireTrustedClientCert(config.isTlsRequireTrustedClientCertOnConnect())
+                .clientAuthMode(config.resolveTlsClientAuthMode())
                 .refreshIntervalSeconds(refreshIntervalSeconds(config))
                 .engineProvider(TlsFactorySupport.engineProvider(config.getTlsProvider()))
                 .build();
@@ -73,7 +73,6 @@ final class ProxyTlsFactories {
     static PulsarTlsFactory brokerClientFactory(ProxyConfiguration config, Authentication brokerClientAuth) {
         Map<TlsPurpose, TlsPolicy> policies = Map.of(TlsPurpose.BROKER_CLIENT, brokerClientPolicy(config));
         FileBasedTlsFactorySettings settings = FileBasedTlsFactorySettings.builder()
-                .requireTrustedClientCert(false)
                 .refreshIntervalSeconds(refreshIntervalSeconds(config))
                 .engineProvider(TlsFactorySupport.engineProvider(config.getBrokerClientSslProvider()))
                 .build();
@@ -112,14 +111,15 @@ final class ProxyTlsFactories {
         if (config.isTlsEnabledWithKeyStore()) {
             builder.format(TlsPolicy.Format.KEYSTORE)
                     .keyStoreType(config.getTlsKeyStoreType())
-                    .trustStoreType(config.getTlsTrustStoreType())
                     .keyStorePath(config.getTlsKeyStore())
-                    .keyStorePassword(config.getTlsKeyStorePassword())
-                    .trustStorePath(config.getTlsTrustStore())
-                    .trustStorePassword(config.getTlsTrustStorePassword());
+                    .keyStorePassword(config.getTlsKeyStorePassword());
+            TlsFactorySupport.applyServerTrustStore(builder, config.getTlsClientAuthTrustStore(),
+                    config.getTlsClientAuthTrustStoreType(), config.getTlsClientAuthTrustStorePassword(),
+                    config.getTlsTrustStore(), config.getTlsTrustStoreType(), config.getTlsTrustStorePassword());
         } else {
             builder.format(TlsPolicy.Format.PEM)
-                    .trustCertsFilePath(config.getTlsTrustCertsFilePath())
+                    .trustCertsFilePath(TlsFactorySupport.serverTrustCertsFilePath(
+                            config.getTlsClientAuthTrustCertsFilePath(), config.getTlsTrustCertsFilePath()))
                     .certificateFilePath(config.getTlsCertificateFilePath())
                     .keyFilePath(config.getTlsKeyFilePath());
         }
