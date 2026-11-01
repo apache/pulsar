@@ -1248,7 +1248,10 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 configurationData, client.externalExecutorProvider(),
                 partitionIndex, true, listener != null, subFuture,
                 startMessageId, schema, this.internalConsumerInterceptors,
-                createIfDoesNotExist, startMessageRollbackDurationInSec);
+                createIfDoesNotExist, startMessageRollbackDurationInSec,
+                // the consumer's receive loop hands each message from the internal consumer's executor to this
+                // consumer's and back: with one executor, these hand-offs don't wake another thread
+                internalPinnedExecutor);
     }
 
     // The child must already be published. Sharing the parent transition lock ensures that either
