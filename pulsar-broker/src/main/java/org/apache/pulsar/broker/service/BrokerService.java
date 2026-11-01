@@ -35,12 +35,17 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.ChannelGroupFuture;
+import io.netty.channel.group.DefaultChannelGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.GlobalEventExecutor;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.CollectorRegistry;
@@ -369,6 +374,8 @@ public class BrokerService implements Closeable {
     private PulsarChannelInitializer.Factory pulsarChannelInitFactory = PulsarChannelInitializer.DEFAULT_FACTORY;
 
     private final List<Channel> listenChannels = new ArrayList<>(2);
+    private final ChannelGroup acceptedConnections =
+            new DefaultChannelGroup("broker-connections", GlobalEventExecutor.INSTANCE, true);
     // PIP-478: the channel initializers that own a PulsarTlsFactory (new-SPI TLS path); closed on shutdown.
     private final List<PulsarChannelInitializer> pulsarChannelInitializers = new ArrayList<>(2);
     private Channel listenChannel;
@@ -639,9 +646,9 @@ public class BrokerService implements Closeable {
         } else {
             bootstrap = defaultServerBootstrap.clone();
         }
-        bootstrap.childHandler(initializer);
+        bootstrap.childHandler(trackAcceptedConnections(initializer));
         try {
-            bootstrap.bind(address).sync();
+            listenChannels.add(bootstrap.bind(address).sync().channel());
         } catch (Exception e) {
             throw new IOException("Failed to bind protocol `" + protocol + "` on " + address, e);
         }
@@ -710,7 +717,7 @@ public class BrokerService implements Closeable {
             PulsarChannelInitializer channelInitializer =
                     pulsarChannelInitFactory.newPulsarChannelInitializer(pulsar, opts);
             pulsarChannelInitializers.add(channelInitializer);
-            b.childHandler(channelInitializer);
+            b.childHandler(trackAcceptedConnections(channelInitializer));
             try {
                 Channel ch = b.bind(addr).sync().channel();
                 listenChannels.add(ch);
@@ -1075,16 +1082,20 @@ public class BrokerService implements Closeable {
             cancelConfigurationMetadataStoreListener.run();
 
             CompletableFuture<CompletableFuture<Void>> cancellableDownstreamFutureReference = new CompletableFuture<>();
-            log.info("Event loops shutting down gracefully...");
-            List<CompletableFuture<?>> shutdownEventLoops = new ArrayList<>();
-            shutdownEventLoops.add(shutdownEventLoopGracefully("acceptor", acceptorGroup));
-            shutdownEventLoops.add(shutdownEventLoopGracefully("worker", workerGroup));
-            for (final var pair : protocolHandlersWorkerGroups) {
-                shutdownEventLoops.add(shutdownEventLoopGracefully(pair.getLeft(), pair.getRight()));
-            }
-
             CompletableFuture<Void> shutdownFuture =
-                    CompletableFuture.allOf(shutdownEventLoops.toArray(new CompletableFuture[0]))
+                    closeListenersAndConnections()
+                            .thenCompose(__ -> {
+                                // The worker event loops belong to PulsarService, which shuts them down once all the
+                                // components using them have closed their channels
+                                log.info("Event loops shutting down gracefully...");
+                                List<CompletableFuture<?>> shutdownEventLoops = new ArrayList<>();
+                                shutdownEventLoops.add(shutdownEventLoopGracefully("acceptor", acceptorGroup));
+                                for (final var pair : protocolHandlersWorkerGroups) {
+                                    shutdownEventLoops.add(shutdownEventLoopGracefully(pair.getLeft(),
+                                            pair.getRight()));
+                                }
+                                return CompletableFuture.allOf(shutdownEventLoops.toArray(new CompletableFuture[0]));
+                            })
                             .handle((v, t) -> {
                                 if (t != null) {
                                     log.warn().exception(t).log("Error shutting down event loops gracefully");
@@ -1100,11 +1111,6 @@ public class BrokerService implements Closeable {
                                 if (scalableTopicService != null) {
                                     scalableTopicService.closeMetrics();
                                 }
-                                listenChannels.forEach(ch -> {
-                                    if (ch.isOpen()) {
-                                        asyncCloseFutures.add(closeChannel(ch));
-                                    }
-                                });
 
                                 // PIP-478: dispose any PulsarTlsFactory subscriptions held by the listeners.
                                 pulsarChannelInitializers.forEach(PulsarChannelInitializer::close);
@@ -1194,10 +1200,11 @@ public class BrokerService implements Closeable {
     CompletableFuture<Void> shutdownEventLoopGracefully(String name, EventLoopGroup eventLoopGroup) {
         long brokerShutdownTimeoutMs = pulsar.getConfiguration().getBrokerShutdownTimeoutMs();
         long timeout = (long) (GRACEFUL_SHUTDOWN_TIMEOUT_RATIO_OF_TOTAL_TIMEOUT * brokerShutdownTimeoutMs);
-        long periodMs = (timeout > 0) ? 1 : 0;
         long startNs = System.nanoTime();
+        // No quiet period: the channels of these event loops are closed already, and Netty would wait for a quiet
+        // period in 100 ms steps
         return NettyFutureUtil.toCompletableFutureVoid(eventLoopGroup.shutdownGracefully(
-                periodMs, timeout, MILLISECONDS)
+                0, timeout, MILLISECONDS)
         ).whenComplete((__, e) -> {
             final var elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
             if (e == null) {
@@ -1210,6 +1217,71 @@ public class BrokerService implements Closeable {
                         .log("Failed to shut down event loop");
             }
         });
+    }
+
+    /**
+     * Closes the listen channels, so that no more connections are accepted, then the accepted connections, and waits
+     * until their pipelines have handled the close.
+     */
+    private CompletableFuture<Void> closeListenersAndConnections() {
+        log.info("Closing listeners and connections...");
+        List<CompletableFuture<Void>> listenersClosed = new ArrayList<>(listenChannels.size());
+        listenChannels.forEach(ch -> listenersClosed.add(closeChannel(ch)));
+        return FutureUtil.waitForAll(listenersClosed).thenCompose(__ -> {
+            ChannelGroupFuture connectionsClosed = acceptedConnections.close();
+            return NettyFutureUtil.toCompletableFutureVoid(connectionsClosed)
+                    .exceptionally(e -> {
+                        log.warn().exceptionMessage(e).log("Failed to close some connections");
+                        return null;
+                    })
+                    .thenCompose(___ -> {
+                        List<CompletableFuture<Void>> deregistered = new ArrayList<>();
+                        connectionsClosed.forEach(future -> deregistered.add(whenDeregistered(future.channel())));
+                        return FutureUtil.waitForAll(deregistered);
+                    });
+        });
+    }
+
+    /**
+     * Completes once a closed channel is deregistered from its event loop. Netty completes the close future first and
+     * then fires channelInactive and deregisters the channel in tasks it queues on the event loop, so this checks
+     * again behind them.
+     */
+    private static CompletableFuture<Void> whenDeregistered(Channel channel) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Runnable check = new Runnable() {
+            @Override
+            public void run() {
+                if (!channel.isRegistered()) {
+                    future.complete(null);
+                    return;
+                }
+                try {
+                    channel.eventLoop().execute(this);
+                } catch (RejectedExecutionException e) {
+                    future.complete(null);
+                }
+            }
+        };
+        check.run();
+        return future;
+    }
+
+    /**
+     * Tracks the connections a listener accepts, so that {@link #closeAsync()} closes them before it shuts down the
+     * event loops.
+     */
+    private ChannelInitializer<SocketChannel> trackAcceptedConnections(ChannelHandler childHandler) {
+        return new ChannelInitializer<>() {
+            @Override
+            protected void initChannel(SocketChannel ch) {
+                acceptedConnections.add(ch);
+                // the group closes the connections it gets after its close: don't start serving them
+                if (ch.isOpen()) {
+                    ch.pipeline().addLast(childHandler);
+                }
+            }
+        };
     }
 
     private CompletableFuture<Void> closeChannel(Channel channel) {
