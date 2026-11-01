@@ -291,6 +291,7 @@ public class PulsarCluster {
     }
 
     /** The cluster's proxy, configured by the spec's proxy settings. */
+    @SuppressWarnings("deprecation")
     private ProxyContainer createProxyContainer() {
         ProxyContainer proxyContainer =
                 new ProxyContainer(clusterName, appendClusterName(ProxyContainer.NAME), spec.enableTls,

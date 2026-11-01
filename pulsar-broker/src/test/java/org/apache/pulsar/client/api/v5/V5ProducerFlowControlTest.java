@@ -139,6 +139,8 @@ public class V5ProducerFlowControlTest extends V5ClientBaseTest {
         return readConfField(v4Producer);
     }
 
+    // The field is read reflectively, so the map's type can't be checked.
+    @SuppressWarnings("unchecked")
     private static Map<Long, ?> readSegmentProducers(Producer<?> producer) throws Exception {
         Field field = producer.getClass().getDeclaredField("segmentProducers");
         field.setAccessible(true);

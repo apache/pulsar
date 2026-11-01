@@ -48,6 +48,8 @@ public class WorkerServerTlsFactoryTest {
     private static final String KEY =
             ResourceUtils.getAbsolutePath("certificate-authority/server-keys/broker.key-pk8.pem");
 
+    // The worker only opens its TLS web listener when the deprecated tlsEnabled flag is set.
+    @SuppressWarnings("deprecation")
     @Test
     public void webListenerServedThroughCustomTlsFactory() throws Exception {
         int before = CountingWebTlsFactory.createInstanceCount();

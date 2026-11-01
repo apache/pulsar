@@ -49,6 +49,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -368,13 +369,21 @@ public class ConnectionPool implements AutoCloseable {
             });
         }).exceptionally(exception -> {
             connectionsTcpFailureCounter.increment();
-            eventLoopGroup.execute(() -> {
-                log.warn().attr("physicalAddress", key.physicalAddress)
-                        .exceptionMessage(exception)
-                        .log("Failed to open connection to");
-                pool.remove(key, cnxFuture);
+            log.warn().attr("physicalAddress", key.physicalAddress)
+                    .exceptionMessage(exception)
+                    .log("Failed to open connection to");
+            try {
+                // Not on this thread: a connect that fails right away gets here inside the pool.computeIfAbsent()
+                // that is adding the connection, where removing it would be a recursive update
+                eventLoopGroup.execute(() -> {
+                    pool.remove(key, cnxFuture);
+                    cnxFuture.completeExceptionally(new PulsarClientException(exception));
+                });
+            } catch (RejectedExecutionException e) {
+                // The event loop has terminated, as when the client shuts down. Fail the future here, but leave it
+                // in the pool for the same reason: getConnection() drops a failed future it finds there.
                 cnxFuture.completeExceptionally(new PulsarClientException(exception));
-            });
+            }
             return null;
         });
 

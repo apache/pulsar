@@ -312,7 +312,9 @@ public class CmdProduce extends AbstractCmd {
                 messageBodies.add(fileBytes);
             }
         } catch (Exception e) {
-            STATIC_LOG.error().exception(e).log(e.getMessage());
+            if (!isInterruption(e)) {
+                STATIC_LOG.error().exception(e).log(e.getMessage());
+            }
         }
 
         return messageBodies;
@@ -377,7 +379,9 @@ public class CmdProduce extends AbstractCmd {
                 }
             }
         } catch (Exception e) {
-            log.error().exceptionMessage(e).log("Authentication plugin error");
+            if (!isInterruption(e)) {
+                log.error().exceptionMessage(e).log("Authentication plugin error");
+            }
             return -1;
         }
 
@@ -386,7 +390,9 @@ public class CmdProduce extends AbstractCmd {
         try {
             produceClient.start();
         } catch (Exception e) {
-            log.error().exception(e).log("Failed to start websocket-client");
+            if (!isInterruption(e)) {
+                log.error().exception(e).log("Failed to start websocket-client");
+            }
             return -1;
         }
 
@@ -396,7 +402,9 @@ public class CmdProduce extends AbstractCmd {
             produceClient.connect(produceSocket, produceRequest);
             connected.get();
         } catch (Exception e) {
-            log.error().exception(e).log("Failed to create web-socket session");
+            if (!isInterruption(e)) {
+                log.error().exception(e).log("Failed to create web-socket session");
+            }
             return -1;
         }
 
@@ -415,7 +423,9 @@ public class CmdProduce extends AbstractCmd {
             }
             produceSocket.close();
         } catch (Exception e) {
-            log.error().exception(e).log("Error while producing messages");
+            if (!isInterruption(e)) {
+                log.error().exception(e).log("Error while producing messages");
+            }
             returnCode = -1;
         } finally {
             log.infof("%d messages successfully produced", numMessagesSent);
@@ -424,12 +434,16 @@ public class CmdProduce extends AbstractCmd {
         try {
             produceClient.stop();
         } catch (Exception e) {
-            log.error().exception(e).log("Failed to stop websocket-client");
+            if (!isInterruption(e)) {
+                log.error().exception(e).log("Failed to stop websocket-client");
+            }
         }
         try {
             httpClient.stop();
         } catch (Exception e) {
-            log.error().exception(e).log("Failed to stop http-client");
+            if (!isInterruption(e)) {
+                log.error().exception(e).log("Failed to stop http-client");
+            }
         }
 
         return returnCode;
