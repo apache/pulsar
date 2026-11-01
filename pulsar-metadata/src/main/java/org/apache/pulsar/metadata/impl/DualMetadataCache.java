@@ -31,6 +31,7 @@ import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataSerde;
+import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.Option;
 
 public class DualMetadataCache<T> implements MetadataCache<T> {
@@ -40,6 +41,7 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
     private final String cacheName;
     private final MetadataSerde<T> serde;
     private final MetadataCacheConfig<?> cacheConfig;
+    private boolean closed;
 
     @Getter
     private final AtomicReference<MetadataCache<T>> metadataCache = new AtomicReference<>();
@@ -62,14 +64,16 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
         var target = dualMetadataStore.getMigrationPhase() == MigrationPhase.COMPLETED
                 ? dualMetadataStore.targetStore : null;
         onTargetStore = target != null;
-        var store = onTargetStore ? target : dualMetadataStore.sourceStore;
+        metadataCache.set(createCache(onTargetStore ? target : dualMetadataStore.sourceStore));
+    }
 
+    private MetadataCache<T> createCache(MetadataStore store) {
         if (clazz != null) {
-            this.metadataCache.set(store.getMetadataCache(clazz, cacheConfig));
+            return store.getMetadataCache(clazz, cacheConfig);
         } else if (typeRef != null) {
-            this.metadataCache.set(store.getMetadataCache(typeRef, cacheConfig));
+            return store.getMetadataCache(typeRef, cacheConfig);
         } else {
-            this.metadataCache.set(store.getMetadataCache(cacheName, serde, cacheConfig));
+            return store.getMetadataCache(cacheName, serde, cacheConfig);
         }
     }
 
@@ -148,18 +152,30 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
         metadataCache.get().refresh(path);
     }
 
-    synchronized void handleSwitchToTargetStore() {
-        // Both the migration completion and the registration of a new cache may switch it
-        if (onTargetStore) {
-            return;
+    @Override
+    public void close() {
+        MetadataCache<T> cache;
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            closed = true;
+            cache = metadataCache.get();
         }
-        onTargetStore = true;
-        if (clazz != null) {
-            metadataCache.set(dualMetadataStore.targetStore.getMetadataCache(clazz, cacheConfig));
-        } else if (typeRef != null) {
-            metadataCache.set(dualMetadataStore.targetStore.getMetadataCache(typeRef, cacheConfig));
-        } else {
-            metadataCache.set(dualMetadataStore.targetStore.getMetadataCache(cacheName, serde, cacheConfig));
+        dualMetadataStore.unregisterMetadataCache(this);
+        cache.close();
+    }
+
+    void handleSwitchToTargetStore() {
+        MetadataCache<T> previous;
+        synchronized (this) {
+            // Both the migration completion and the registration of a new cache may switch it.
+            if (closed || onTargetStore) {
+                return;
+            }
+            previous = metadataCache.getAndSet(createCache(dualMetadataStore.targetStore));
+            onTargetStore = true;
         }
+        previous.close();
     }
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.stats;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import com.github.benmanes.caffeine.cache.AsyncCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -26,6 +27,28 @@ import java.util.List;
 import org.testng.annotations.Test;
 
 public class CacheMetricsCollectorTest {
+
+    @Test
+    public void testRemovingReplacedCachePreservesCurrentMetrics() {
+        AsyncCache<String, Long> oldCache = Caffeine.newBuilder().recordStats().buildAsync();
+        AsyncCache<String, Long> currentCache = Caffeine.newBuilder().recordStats().buildAsync();
+        String name = "replaced-cache";
+        try {
+            CacheMetricsCollector.CAFFEINE.addCache(name, oldCache);
+            CacheMetricsCollector.CAFFEINE.addCache(name, currentCache);
+            CacheMetricsCollector.removeCache(name, oldCache);
+            assertThat(CacheMetricsCollector.CAFFEINE.collect()).anySatisfy(family ->
+                    assertThat(family.samples).anySatisfy(sample ->
+                            assertThat(sample.labelValues).contains(name)));
+            CacheMetricsCollector.removeCache(name, currentCache);
+            CacheMetricsCollector.removeCache(name, currentCache);
+            assertThat(CacheMetricsCollector.CAFFEINE.collect()).allSatisfy(family ->
+                    assertThat(family.samples).allSatisfy(sample ->
+                            assertThat(sample.labelValues).doesNotContain(name)));
+        } finally {
+            CacheMetricsCollector.CAFFEINE.removeCache(name);
+        }
+    }
 
     @Test
     public void testCache() {
