@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl.v5;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -147,7 +148,12 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
         PulsarClient client = newClient();
         String topic = newScalableTopic(1);
         long segmentId = singleActiveSegmentId(topic);
-        ScalableTopicProducer<byte[]> producer = newProducer(client, topic);
+        ScalableTopicProducer<byte[]> producer = (ScalableTopicProducer<byte[]>) track(
+                client.newProducer(Schema.bytes())
+                        .topic(topic)
+                        .batchingPolicy(BatchingPolicy.ofDisabled())
+                        .sendTimeout(Duration.ofSeconds(5))
+                        .create());
 
         Sends sends = new Sends();
         Thread sender = startSender(producer, sends);
@@ -155,7 +161,7 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
             Awaitility.await().until(() -> sends.segmentsAcked.contains(segmentId));
             // Terminate the segment topic underneath the layout: the state a split leaves the
             // producer in until the DAG watch delivers the new layout, held here until the sends'
-            // retry budget runs out. Terminated while quiet, so that no write fails on the closing
+            // send timeout expires. Terminated while quiet, so that no write fails on the closing
             // ledger and fences the topic instead; then the sends flow again, and on past the first
             // failure.
             sends.pause.set(true);
@@ -170,7 +176,7 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
         }
         allSettled(sends).get(60, TimeUnit.SECONDS);
 
-        // Every send that found the segment gone failed fast on its one producer: none created another.
+        // Sends that found the segment gone timed out on their one producer: none created another.
         assertEquals(producer.segmentProducersCreated.get(), 1);
     }
 
