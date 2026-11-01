@@ -317,18 +317,11 @@ public class PulsarCommandSenderImpl implements PulsarCommandSender {
                             ctx.write(coalesced, ctx.voidPromise());
                             coalesced = null;
                         }
-                        // increment ref-count of data and release at the end of process:
-                        // so, we can get chance to call entry.release
+                        ByteBufPair message = cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(),
+                                entry.getEntryId(), partitionIdx, redeliveryCount, metadataAndPayload, ackSet,
+                                topicName, epoch);
+                        // Retain only after construction succeeds; the entry owns the payload until then.
                         metadataAndPayload.retain();
-                        ByteBufPair message;
-                        try {
-                            message = cnx.newMessageAndIntercept(consumerId, entry.getLedgerId(), entry.getEntryId(),
-                                    partitionIdx, redeliveryCount, metadataAndPayload, ackSet, topicName, epoch);
-                        } catch (Throwable t) {
-                            // No message was handed to the channel to release this retained reference.
-                            metadataAndPayload.release();
-                            throw t;
-                        }
                         ctx.write(message, ctx.voidPromise());
                     }
                     entriesToRelease.add(entry);
