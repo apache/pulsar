@@ -27,7 +27,6 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -40,6 +39,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import static org.testng.Assert.fail;
@@ -284,36 +284,53 @@ public class BrokerServiceTest extends BrokerTestBase {
     public void testTopicLoadDoesNotOpenTheManagedLedgerOfABundleNoLongerServed() throws Exception {
         TopicName topicName = TopicName.get("persistent://prop/ns-abc/no-longer-served-" + UUID.randomUUID());
         BrokerService brokerService = spy(pulsar.getBrokerService());
-        // the bundle stopped being served while the load waited for the steps before opening the managed ledger
-        doReturn(CompletableFuture.failedFuture(new BrokerServiceException.ServiceUnitNotReadyException(
-                "Namespace bundle is not served"))).when(brokerService).checkTopicNsOwnership(topicName.toString());
+        admin.lookups().lookupTopic(topicName.toString());
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(topicName);
+        var ownershipChecker = pulsar.getNamespaceService().newTopicOwnershipChecker(topicName);
+        CompletableFuture<Void> ownershipCheckStarted = new CompletableFuture<>();
+        CompletableFuture<Void> continueOwnershipCheck = new CompletableFuture<>();
         TopicLoadingContext context = new TopicLoadingContext(topicName, true, new CompletableFuture<>(),
                 mock(PulsarStats.class));
+        context.setOwnershipChecker(() -> {
+            ownershipCheckStarted.complete(null);
+            return continueOwnershipCheck.thenCompose(__ -> ownershipChecker.get());
+        });
 
-        brokerService.createPersistentTopic0(context);
+        try {
+            brokerService.createPersistentTopic0(context);
+            ownershipCheckStarted.get(10, TimeUnit.SECONDS);
+            // The real captured generation stops being served before its pre-open ownership check completes.
+            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false).get();
+            continueOwnershipCheck.complete(null);
 
-        ExecutionException e = expectThrows(ExecutionException.class,
-                () -> context.getTopicFuture().get(10, TimeUnit.SECONDS));
-        assertTrue(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException, e.toString());
-        assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
-        assertFalse(pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
-                .containsKey(topicName.getPersistenceNamingEncoding()));
+            ExecutionException e = expectThrows(ExecutionException.class,
+                    () -> context.getTopicFuture().get(10, TimeUnit.SECONDS));
+            assertTrue(e.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException, e.toString());
+            assertEquals(context.getTopicLoadFailureReason(), TopicLoadFailureReason.FAILED_CHECK_OWNERSHIP);
+            assertFalse(pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
+                    .containsKey(topicName.getPersistenceNamingEncoding()));
+        } finally {
+            continueOwnershipCheck.complete(null);
+            pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, true).get();
+        }
     }
 
     @Test
     public void testTimedOutTopicLoadDoesNotOpenTheManagedLedger() throws Exception {
         TopicName topicName = TopicName.get("persistent://prop/ns-abc/timed-out-load-" + UUID.randomUUID());
         BrokerService brokerService = spy(pulsar.getBrokerService());
+        admin.lookups().lookupTopic(topicName.toString());
+        var ownershipChecker = pulsar.getNamespaceService().newTopicOwnershipChecker(topicName);
         CompletableFuture<Void> ownershipCheckStarted = new CompletableFuture<>();
         CompletableFuture<Void> ownershipCheck = new CompletableFuture<>();
-        doAnswer(invocation -> {
-            ownershipCheckStarted.complete(null);
-            return ownershipCheck;
-        }).when(brokerService).checkTopicNsOwnership(topicName.toString());
         ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
         doReturn(managedLedgerFactory).when(brokerService).getManagedLedgerFactoryForTopic(eq(topicName), any());
         TopicLoadingContext context = new TopicLoadingContext(topicName, true, new CompletableFuture<>(),
                 mock(PulsarStats.class));
+        context.setOwnershipChecker(() -> {
+            ownershipCheckStarted.complete(null);
+            return ownershipCheck.thenCompose(__ -> ownershipChecker.get());
+        });
         CompletableFuture<Optional<Topic>> topicFuture = context.getTopicFuture();
         brokerService.getTopics().put(topicName.toString(), topicFuture);
 
@@ -341,9 +358,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         CompletableFuture<Optional<Topic>> queuedFuture = queuedContext.getTopicFuture();
         brokerService.getTopics().put(queuedTopicName.toString(), queuedFuture);
         brokerService.getTopics().put(otherTopicName.toString(), otherContext.getTopicFuture());
-        doReturn(CompletableFuture.completedFuture(null)).when(brokerService)
-                .checkTopicNsOwnership(queuedTopicName.toString());
-        // acquire the ownership of the bundle so that the other topic can be loaded
+        // Both loads bind to real owned generations before the permit queue is exercised.
+        admin.lookups().lookupTopic(queuedTopicName.toString());
         admin.lookups().lookupTopic(otherTopicName.toString());
         try {
             // no permits are left, so the load is queued
@@ -375,8 +391,6 @@ public class BrokerServiceTest extends BrokerTestBase {
                 mock(PulsarStats.class));
         CompletableFuture<Optional<Topic>> topicFuture = context.getTopicFuture();
         brokerService.getTopics().put(topicName.toString(), topicFuture);
-        doReturn(CompletableFuture.completedFuture(null)).when(brokerService)
-                .checkTopicNsOwnership(topicName.toString());
         // acquire the ownership of the bundle so that the graceful unload unloads it
         admin.lookups().lookupTopic(topicName.toString());
         try {
@@ -399,6 +413,24 @@ public class BrokerServiceTest extends BrokerTestBase {
             brokerService.topicLoadRequestSemaphore.set(topicLoadSemaphore);
             conf.setNamespaceBundleUnloadingTimeoutMs(namespaceBundleUnloadingTimeoutMs);
             resetState();
+        }
+    }
+
+    @Test
+    public void testStaleFencedTopicCannotGateCurrentTopic() throws Exception {
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/stale-fence-" + UUID.randomUUID());
+        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName.toString()).create()) {
+            Topic current = pulsar.getBrokerService().getTopicReference(topicName.toString()).orElseThrow();
+            PersistentTopic stale = mock(PersistentTopic.class);
+            doReturn(topicName.toString()).when(stale).getName();
+
+            pulsar.getBrokerService().requireFreshOwnershipBeforeTopicReadmission(stale);
+
+            assertTrue(pulsar.getNamespaceService().newTopicOwnershipChecker(topicName)
+                    .get().get(10, TimeUnit.SECONDS));
+            assertSame(pulsar.getBrokerService().getTopicReference(topicName.toString()).orElseThrow(), current);
+        } finally {
+            admin.topics().delete(topicName.toString(), true);
         }
     }
 

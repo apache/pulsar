@@ -271,6 +271,11 @@ public class ServerCnxTest {
         doReturn(CompletableFuture.completedFuture(mock(NamespaceBundle.class))).when(namespaceService)
                 .getBundleAsync(any());
         doReturn(CompletableFuture.completedFuture(true)).when(namespaceService).checkBundleOwnership(any(), any());
+        doAnswer(invocation -> {
+            TopicName topicName = invocation.getArgument(0);
+            return (Supplier<CompletableFuture<Boolean>>) () -> brokerService
+                    .checkTopicNsOwnership(topicName.toString()).thenApply(__ -> true);
+        }).when(namespaceService).newTopicOwnershipChecker(any());
         doReturn(true).when(namespaceService).isServiceUnitOwned(any());
         doReturn(CompletableFuture.completedFuture(topics)).when(namespaceService).getListOfTopicsByProperties(
                 eq(NamespaceName.get("use", "ns-abc")), eq(CommandGetTopicsOfNamespace.Mode.ALL), any());

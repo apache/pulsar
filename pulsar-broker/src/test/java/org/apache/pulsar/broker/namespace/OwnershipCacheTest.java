@@ -55,6 +55,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.IntStream;
 import lombok.Cleanup;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -833,6 +834,9 @@ public class OwnershipCacheTest {
     private static class ControllableLock implements ResourceLock<NamespaceEphemeralData> {
         private final CompletableFuture<Void> expiredFuture = new CompletableFuture<>();
         private final AtomicBoolean released = new AtomicBoolean(false);
+        private final AtomicInteger validations = new AtomicInteger();
+        private final AtomicReference<CompletableFuture<Void>> validation =
+                new AtomicReference<>(CompletableFuture.completedFuture(null));
 
         @Override
         public String getPath() {
@@ -847,6 +851,12 @@ public class OwnershipCacheTest {
         @Override
         public CompletableFuture<Void> updateValue(NamespaceEphemeralData newValue) {
             return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public CompletableFuture<Void> validate() {
+            validations.incrementAndGet();
+            return validation.get();
         }
 
         @Override
@@ -891,6 +901,160 @@ public class OwnershipCacheTest {
             public void close() {
             }
         };
+    }
+
+    private OwnershipCache readmissionCache(List<ResourceLock<NamespaceEphemeralData>> locks) {
+        CoordinationService controlledCoordination = mock(CoordinationService.class);
+        doReturn(lockManagerHandingOut(locks)).when(controlledCoordination)
+                .getLockManager(NamespaceEphemeralData.class);
+        doReturn(controlledCoordination).when(pulsar).getCoordinationService();
+        return new OwnershipCache(pulsar, nsService);
+    }
+
+    private NamespaceBundle readmissionBundle(String namespace) {
+        return new NamespaceBundle(NamespaceName.get("pulsar/" + namespace),
+                Range.closedOpen(0L, (long) Integer.MAX_VALUE), bundleFactory);
+    }
+
+    private static TopicName readmissionTopic(NamespaceBundle bundle, int index) {
+        return IntStream.range(0, 100)
+                .mapToObj(i -> TopicName.get("persistent://" + bundle.getNamespaceObject() + "/topic-" + i))
+                .filter(bundle::includes).skip(index).findFirst().orElseThrow();
+    }
+
+    @Test
+    public void testFencedPendingCheckerCannotAdoptReplacementGeneration() throws Exception {
+        ControllableLock lock1 = new ControllableLock();
+        ControllableLock lock2 = new ControllableLock();
+        CompletableFuture<Void> delayedValidation = new CompletableFuture<>();
+        lock1.validation.set(delayedValidation);
+        OwnershipCache cache = readmissionCache(List.of(lock1, lock2));
+        NamespaceBundle bundle = readmissionBundle("ns-readmission-generation");
+        TopicName topic = readmissionTopic(bundle, 0);
+        cache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+        cache.requireFreshOwnershipBeforeReadmission(topic);
+        var waitingChecker = cache.newTopicOwnershipChecker(topic);
+        var notStartedChecker = cache.newTopicOwnershipChecker(topic);
+        CompletableFuture<Boolean> waiting = waitingChecker.get();
+        try {
+            assertEquals(lock1.validations.get(), 1);
+            cache.invalidateLocalOwnerCache(bundle);
+            cache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+            OwnedBundle replacement = cache.getOwnedBundle(bundle);
+            delayedValidation.complete(null);
+
+            assertFalse(waiting.get(10, TimeUnit.SECONDS));
+            assertFalse(waitingChecker.get().get(10, TimeUnit.SECONDS));
+            assertFalse(notStartedChecker.get().get(10, TimeUnit.SECONDS));
+            assertTrue(cache.newTopicOwnershipChecker(topic).get().get(10, TimeUnit.SECONDS));
+            assertSame(cache.getOwnedBundle(bundle), replacement);
+            assertSame(replacement.getResourceLock(), lock2);
+            assertFalse(lock2.released.get());
+            assertEquals(lock2.validations.get(), 0);
+        } finally {
+            delayedValidation.complete(null);
+        }
+    }
+
+    @Test
+    public void testSelfValidationRejectsOldCheckerAndAllowsFreshChecker() throws Exception {
+        ControllableLock lock = new ControllableLock();
+        OwnershipCache cache = readmissionCache(List.of(lock));
+        NamespaceBundle bundle = readmissionBundle("ns-readmission-self");
+        TopicName topic = readmissionTopic(bundle, 0);
+        cache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+        OwnedBundle generation = cache.getOwnedBundle(bundle);
+        cache.requireFreshOwnershipBeforeReadmission(topic);
+        var notStartedChecker = cache.newTopicOwnershipChecker(topic);
+
+        assertFalse(cache.newTopicOwnershipChecker(topic).get().get(10, TimeUnit.SECONDS));
+        assertFalse(notStartedChecker.get().get(10, TimeUnit.SECONDS));
+        assertTrue(cache.newTopicOwnershipChecker(topic).get().get(10, TimeUnit.SECONDS));
+        assertSame(cache.getOwnedBundle(bundle), generation);
+        assertFalse(lock.expiredFuture.isDone());
+        assertFalse(lock.released.get());
+        assertEquals(lock.validations.get(), 1);
+    }
+
+    @Test
+    public void testTimedOutReadmissionRetriesShareTheUnderlyingValidation() throws Exception {
+        config.setMetadataStoreOperationTimeoutSeconds(1);
+        ControllableLock lock = new ControllableLock();
+        CompletableFuture<Void> underlying = new CompletableFuture<>();
+        lock.validation.set(underlying);
+        OwnershipCache cache = readmissionCache(List.of(lock));
+        NamespaceBundle bundle = readmissionBundle("ns-readmission-timeout-coalescing");
+        TopicName topic = readmissionTopic(bundle, 0);
+        cache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+        cache.requireFreshOwnershipBeforeReadmission(topic);
+        CompletableFuture<Boolean> timedOut = cache.checkOwnershipAsync(topic, bundle);
+        try {
+            Throwable timeoutFailure;
+            try {
+                timedOut.get(10, TimeUnit.SECONDS);
+                fail("the caller deadline must expire while the underlying validation stays pending");
+                return;
+            } catch (ExecutionException error) {
+                assertTrue(error.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
+                timeoutFailure = error.getCause();
+            }
+            assertFalse(underlying.isDone());
+            int pendingDependents = underlying.getNumberOfDependents();
+            assertEquals(pendingDependents, 1);
+            for (int i = 0; i < 64; i++) {
+                assertSame(cache.checkOwnershipAsync(topic, bundle), timedOut);
+                assertEquals(underlying.getNumberOfDependents(), pendingDependents,
+                        "retries must not attach additional dependents to the unfinished validation");
+            }
+            assertEquals(lock.validations.get(), 1,
+                    "application retries must not enqueue work behind the still-pending lock validation");
+            assertTrue(cache.checkOwnershipAsync(bundle).get(10, TimeUnit.SECONDS));
+
+            // Late successful IO must not turn the old caller's timeout into admission or consume the new proof.
+            underlying.complete(null);
+            try {
+                timedOut.get(10, TimeUnit.SECONDS);
+                fail("the old caller must retain its original timeout after late validation success");
+            } catch (ExecutionException error) {
+                assertSame(error.getCause(), timeoutFailure);
+            }
+            lock.validation.set(CompletableFuture.completedFuture(null));
+            assertFalse(cache.newTopicOwnershipChecker(topic).get().get(10, TimeUnit.SECONDS));
+            assertTrue(cache.newTopicOwnershipChecker(topic).get().get(10, TimeUnit.SECONDS));
+            assertEquals(lock.validations.get(), 2);
+        } finally {
+            underlying.completeExceptionally(new MetadataStoreException("test cleanup"));
+        }
+    }
+
+    @Test
+    public void testUnavailableReadmissionValidationKeepsHealthyCachedTopicServing() throws Exception {
+        ControllableLock lock = new ControllableLock();
+        lock.validation.set(CompletableFuture.failedFuture(new MetadataStoreException("metadata unavailable")));
+        OwnershipCache cache = readmissionCache(List.of(lock));
+        NamespaceBundle bundle = readmissionBundle("ns-readmission-unavailable");
+        TopicName fenced = readmissionTopic(bundle, 0);
+        TopicName healthy = readmissionTopic(bundle, 1);
+        cache.tryAcquiringOwnership(bundle).get(10, TimeUnit.SECONDS);
+        OwnedBundle generation = cache.getOwnedBundle(bundle);
+        cache.requireFreshOwnershipBeforeReadmission(fenced);
+
+        try {
+            cache.newTopicOwnershipChecker(fenced).get().get(10, TimeUnit.SECONDS);
+            fail("unknown metadata state must reject fenced-topic readmission");
+        } catch (ExecutionException error) {
+            assertTrue(error.getCause() instanceof BrokerServiceException.ServiceUnitNotReadyException);
+        }
+        assertTrue(cache.newTopicOwnershipChecker(healthy).get().get(10, TimeUnit.SECONDS));
+        assertTrue(cache.checkOwnershipAsync(bundle).get(10, TimeUnit.SECONDS));
+        assertSame(cache.getOwnedBundle(bundle), generation);
+        assertFalse(lock.expiredFuture.isDone());
+        assertEquals(lock.validations.get(), 1);
+
+        lock.validation.set(CompletableFuture.completedFuture(null));
+        assertFalse(cache.newTopicOwnershipChecker(fenced).get().get(10, TimeUnit.SECONDS));
+        assertTrue(cache.newTopicOwnershipChecker(fenced).get().get(10, TimeUnit.SECONDS));
+        assertEquals(lock.validations.get(), 2);
     }
 
     @Test

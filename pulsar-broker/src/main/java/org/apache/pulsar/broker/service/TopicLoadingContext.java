@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Supplier;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -41,6 +42,9 @@ public class TopicLoadingContext extends LatencyTracer {
     @Getter
     private final CompletableFuture<Optional<Topic>> topicFuture;
     private final PulsarStats pulsarStats;
+    @Getter
+    @Setter
+    @Nullable private Supplier<CompletableFuture<Boolean>> ownershipChecker;
     @Nullable
     private volatile Long timeoutTimeInMillis;
     @Getter
