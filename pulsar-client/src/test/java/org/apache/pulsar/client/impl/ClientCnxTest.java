@@ -29,8 +29,10 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.EventExecutor;
 import java.lang.reflect.Field;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -68,7 +70,7 @@ public class ClientCnxTest {
         conf.setOperationTimeoutMs(10);
         conf.setKeepAliveIntervalSeconds(0);
         ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+        ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
         cnx.channelActive(ctx);
 
         try {
@@ -88,7 +90,7 @@ public class ClientCnxTest {
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
         ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+        ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
         cnx.channelActive(ctx);
         CountDownLatch countDownLatch = new CountDownLatch(1);
         CompletableFuture<Exception> completableFuture = new CompletableFuture<>();
@@ -121,7 +123,7 @@ public class ClientCnxTest {
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
         ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+        ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
         cnx.channelActive(ctx);
         cnx.state = ClientCnx.State.Ready;
         CountDownLatch countDownLatch = new CountDownLatch(1);
@@ -159,7 +161,7 @@ public class ClientCnxTest {
         conf.setOperationTimeoutMs(10_000);
         conf.setKeepAliveIntervalSeconds(0);
         ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+        ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
         cnx.channelActive(ctx);
         for (int i = 0; i < 5001; i++) {
             cnx.newLookup(null, i);
@@ -435,7 +437,7 @@ public class ClientCnxTest {
             conf.setOperationTimeoutMs(10);
             conf.setKeepAliveIntervalSeconds(0);
             ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-            ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+            ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
             cnx.channelActive(ctx);
 
             int initialPermits = cnx.getPendingLookupRequestSemaphore().availablePermits();
@@ -477,7 +479,7 @@ public class ClientCnxTest {
             conf.setConcurrentLookupRequest(1); // Only allow 1 concurrent lookup
             conf.setMaxLookupRequest(10);       // Allow up to 10 total (9 waiting)
             ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-            ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+            ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
             cnx.channelActive(ctx);
             cnx.state = ClientCnx.State.Ready;
 
@@ -534,7 +536,7 @@ public class ClientCnxTest {
             conf.setConcurrentLookupRequest(2);  // Allow 2 concurrent lookups
             conf.setMaxLookupRequest(10);        // Allow up to 10 total (8 waiting)
             ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-            ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+            ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
             cnx.channelActive(ctx);
             cnx.state = ClientCnx.State.Ready;
 
@@ -578,7 +580,7 @@ public class ClientCnxTest {
             conf.setOperationTimeoutMs(10_000);
             conf.setKeepAliveIntervalSeconds(0);
             ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-            ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+            ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
             cnx.channelActive(ctx);
             cnx.state = ClientCnx.State.Ready;
 
@@ -627,7 +629,7 @@ public class ClientCnxTest {
             conf.setOperationTimeoutMs(10_000);
             conf.setKeepAliveIntervalSeconds(0);
             ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-            ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+            ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
             cnx.channelActive(ctx);
 
             int initialPermits = cnx.getPendingLookupRequestSemaphore().availablePermits();
@@ -671,7 +673,7 @@ public class ClientCnxTest {
             conf.setConcurrentLookupRequest(1); // Only allow 1 concurrent lookup
             conf.setMaxLookupRequest(10);
             ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-            ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+            ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
             cnx.channelActive(ctx);
             cnx.state = ClientCnx.State.Ready;
 
@@ -732,7 +734,7 @@ public class ClientCnxTest {
             conf.setOperationTimeoutMs(10_000);
             conf.setKeepAliveIntervalSeconds(0);
             ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf, eventLoop);
-            ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+            ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
             cnx.channelActive(ctx);
 
             // The CONNECT frame has been sent but no CONNECTED response received, so the future is pending
@@ -749,6 +751,95 @@ public class ClientCnxTest {
         } finally {
             eventLoop.shutdownGracefully().sync();
         }
+    }
+
+    /**
+     * The request timeout task runs on the connection's own event loop. When a client shuts down, the other loops
+     * of its group can terminate before this one is done with its connections, so neither scheduling the task nor
+     * cancelling it may depend on them.
+     */
+    @Test
+    public void testRequestTimeoutTaskRunsOnConnectionEventLoop() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testRequestTimeoutTaskRunsOnConnectionEventLoop"));
+        try {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setOperationTimeoutMs(10);
+            conf.setKeepAliveIntervalSeconds(0);
+            ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf,
+                    terminatedEventLoopGroup("testRequestTimeoutTaskRunsOnConnectionEventLoop-other"));
+            ChannelHandlerContext ctx = mockChannelHandlerContext(eventLoop.next());
+            cnx.channelActive(ctx);
+
+            assertThat(cnx.newLookup(null, 1L)).failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(PulsarClientException.TimeoutException.class);
+
+            cnx.channelInactive(ctx);
+        } finally {
+            eventLoop.shutdownGracefully();
+        }
+    }
+
+    /**
+     * A lookup response sends the next waiting lookup and, for a TooManyRequests error, schedules the reset of the
+     * connection's count of rejected requests. Both run on the connection's own event loop, so that the response
+     * still completes its lookup, and the waiting one still gets sent, while the other loops of the group terminate.
+     */
+    @Test
+    public void testLookupResponseHandOffsUseConnectionEventLoop() throws Exception {
+        EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, false,
+                new DefaultThreadFactory("testLookupResponseHandOffsUseConnectionEventLoop"));
+        try {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setKeepAliveIntervalSeconds(0);
+            conf.setConcurrentLookupRequest(1);
+            conf.setMaxLookupRequest(2);
+            ClientCnx cnx = new ClientCnx(InstrumentProvider.NOOP, conf,
+                    terminatedEventLoopGroup("testLookupResponseHandOffsUseConnectionEventLoop-other"));
+            EventLoop connectionEventLoop = eventLoop.next();
+            cnx.setCtx(mockChannelHandlerContext(connectionEventLoop));
+            cnx.state = ClientCnx.State.Ready;
+
+            CompletableFuture<BinaryProtoLookupService.LookupDataResult> first = cnx.newLookup(null, 1L);
+            // Waits for the first lookup to complete
+            CompletableFuture<BinaryProtoLookupService.LookupDataResult> second = cnx.newLookup(null, 2L);
+
+            // Responses are handled on the connection's event loop, which runs the tasks they hand off in order
+            connectionEventLoop.submit(() -> cnx.handleLookupResponse(new CommandLookupTopicResponse()
+                    .setRequestId(1L)
+                    .setResponse(CommandLookupTopicResponse.LookupType.Failed)
+                    .setError(ServerError.TooManyRequests))).get(10, TimeUnit.SECONDS);
+            assertThat(first).failsWithin(0, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(PulsarClientException.TooManyRequestsException.class);
+
+            connectionEventLoop.submit(() -> cnx.handleLookupResponse(new CommandLookupTopicResponse()
+                    .setRequestId(2L)
+                    .setResponse(CommandLookupTopicResponse.LookupType.Connect)
+                    .setBrokerServiceUrl("pulsar://broker:6650"))).get(10, TimeUnit.SECONDS);
+            assertThat(second).isCompletedWithValueMatching(result -> "pulsar://broker:6650".equals(result.brokerUrl));
+        } finally {
+            eventLoop.shutdownGracefully();
+        }
+    }
+
+    /**
+     * Stands in for the other loops of a connection's event loop group, once they have terminated.
+     */
+    private static EventLoopGroup terminatedEventLoopGroup(String name) throws InterruptedException {
+        EventLoopGroup eventLoopGroup = EventLoopUtil.newEventLoopGroup(1, false, new DefaultThreadFactory(name));
+        eventLoopGroup.shutdownGracefully(0, 0, TimeUnit.SECONDS).sync();
+        return eventLoopGroup;
+    }
+
+    /**
+     * A mocked context whose executor stands in for the connection's own event loop.
+     */
+    private static ChannelHandlerContext mockChannelHandlerContext(EventExecutor executor) {
+        ChannelHandlerContext ctx = ClientTestFixtures.mockChannelHandlerContext();
+        when(ctx.executor()).thenReturn(executor);
+        return ctx;
     }
 
     private void withConnection(String testName, Consumer<ClientCnx> test) {
