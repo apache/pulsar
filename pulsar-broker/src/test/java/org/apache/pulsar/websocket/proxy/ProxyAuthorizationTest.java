@@ -74,10 +74,12 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        internalCleanup();
+        // Stop the proxy before the broker: the broker would wait for the proxy's connections to close when it stops
+        // its web service
         if (service != null) {
             service.close();
         }
+        internalCleanup();
     }
 
     @Test
