@@ -47,7 +47,7 @@ public class OpenTelemetrySanityTest {
     @Test(timeOut = 360_000)
     @SuppressWarnings("unchecked")
     public void testOpenTelemetryMetricsOtlpExport() throws Exception {
-        var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
+        var clusterName = newClusterName();
         var openTelemetryCollectorContainer = new OpenTelemetryCollectorContainer(clusterName);
 
         var exporter = "otlp";
@@ -99,7 +99,7 @@ public class OpenTelemetrySanityTest {
     @SuppressWarnings("unchecked")
     public void testOpenTelemetryMetricsPrometheusExport() throws Exception {
         var prometheusExporterPort = 9464;
-        var clusterName = "testOpenTelemetryMetrics-" + UUID.randomUUID();
+        var clusterName = newClusterName();
 
         var exporter = "prometheus";
         var prometheusExporterPortProp =
@@ -153,6 +153,13 @@ public class OpenTelemetrySanityTest {
                     Pair.of("service_version", PulsarVersion.getVersion()),
                     Pair.of("host_name", pulsarCluster.getAnyWorker().getHostname())).isEmpty());
         });
+    }
+
+    // Container names are "<cluster>-<hostname>", and Docker's DNS gives no reverse lookup answer for a name longer
+    // than a DNS label (63 characters). The ZooKeeper client in every container looks up the server's name from its
+    // address before it connects, and would wait 5 s per connection for that lookup to time out.
+    private static String newClusterName() {
+        return "testOpenTelemetryMetrics-" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     private static PrometheusMetricsClient.Metrics getMetricsFromPrometheus(ChaosContainer<?> container, int port) {
