@@ -3018,17 +3018,20 @@ public class BrokerService implements Closeable {
 
     /**
      * Iterates over all loaded topics in the broker.
+     * Skips topics that are in a transitional teardown state (fenced, closing, or deleting),
+     * because their managed-ledger, cursor, and subscription state may be concurrently torn down.
      */
     public void forEachTopic(Consumer<Topic> consumer) {
         topics.forEach((n, t) -> {
             Optional<Topic> topic = extractTopic(t);
-            topic.ifPresent(consumer::accept);
+            topic.filter(tp -> !tp.isInTeardown()).ifPresent(consumer::accept);
         });
     }
 
     public void forEachPersistentTopic(Consumer<PersistentTopic> consumer) {
         topics.values().stream().map(BrokerService::extractTopic)
                 .map(topicOp -> topicOp.filter(topic -> topic instanceof PersistentTopic))
+                .map(topicOp -> topicOp.filter(topic -> !topic.isInTeardown()))
                 .forEach(topicOp -> topicOp.ifPresent(topic -> consumer.accept((PersistentTopic) topic)));
     }
 
