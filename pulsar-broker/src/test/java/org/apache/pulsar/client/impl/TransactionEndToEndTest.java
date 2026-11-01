@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -56,6 +57,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -826,6 +828,82 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @Test
     public void txnAckTestNoBatchAndCumulativeSub() throws Exception {
         txnCumulativeAckTest(false, 1, SubscriptionType.Failover);
+    }
+
+    @Test
+    public void txnCumulativeAckOnPartitionedTopicIsUndoneByAbort() throws Exception {
+        String topic = NAMESPACE1 + "/txn-cumulative-ack-partitioned-abort";
+        int messageCount = 10;
+        @Cleanup
+        Consumer<Integer> consumer = subscribeAndProduceToTwoPartitions(topic, messageCount);
+        Message<Integer> lastMessage = receiveMessages(consumer, messageCount);
+
+        Transaction abortedTxn = getTxn();
+        consumer.acknowledgeCumulativeAsync(lastMessage.getMessageId(), abortedTxn).get();
+        abortedTxn.abort().get();
+
+        // The aborted transaction must not have acknowledged anything
+        consumer.redeliverUnacknowledgedMessages();
+        assertEquals(drainMessages(consumer).size(), messageCount);
+    }
+
+    @Test
+    public void txnCumulativeAckOnPartitionedTopicIsAppliedByCommit() throws Exception {
+        String topic = NAMESPACE1 + "/txn-cumulative-ack-partitioned-commit";
+        int messageCount = 10;
+        @Cleanup
+        Consumer<Integer> consumer = subscribeAndProduceToTwoPartitions(topic, messageCount);
+        // All messages are received, so the last one is the last of its partition
+        Message<Integer> lastMessage = receiveMessages(consumer, messageCount);
+
+        Transaction committedTxn = getTxn();
+        consumer.acknowledgeCumulativeAsync(lastMessage.getMessageId(), committedTxn).get();
+        committedTxn.commit().get();
+
+        // Only the other partition's messages may come back
+        consumer.redeliverUnacknowledgedMessages();
+        List<Message<Integer>> redelivered = drainMessages(consumer);
+        assertEquals(redelivered.size(), messageCount / 2);
+        for (Message<Integer> message : redelivered) {
+            assertNotEquals(message.getTopicName(), lastMessage.getTopicName());
+        }
+    }
+
+    private Consumer<Integer> subscribeAndProduceToTwoPartitions(String topic, int messageCount) throws Exception {
+        admin.topics().createPartitionedTopic(topic, 2);
+        Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
+                .topic(topic)
+                .subscriptionName("test")
+                .subscriptionType(SubscriptionType.Failover)
+                .subscribe();
+        @Cleanup
+        Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
+                .topic(topic)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition)
+                .create();
+        for (int i = 0; i < messageCount; i++) {
+            producer.send(i);
+        }
+        return consumer;
+    }
+
+    private Message<Integer> receiveMessages(Consumer<Integer> consumer, int messageCount) throws Exception {
+        Message<Integer> lastMessage = null;
+        for (int i = 0; i < messageCount; i++) {
+            lastMessage = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+            Assert.assertNotNull(lastMessage);
+        }
+        return lastMessage;
+    }
+
+    private List<Message<Integer>> drainMessages(Consumer<Integer> consumer) throws Exception {
+        List<Message<Integer>> messages = new ArrayList<>();
+        Message<Integer> message;
+        while ((message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS)) != null) {
+            messages.add(message);
+        }
+        return messages;
     }
 
     private void txnCumulativeAckTest(boolean batchEnable, int maxBatchSize, SubscriptionType subscriptionType)
