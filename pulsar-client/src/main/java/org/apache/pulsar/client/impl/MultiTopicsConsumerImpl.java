@@ -59,6 +59,7 @@ import org.apache.pulsar.client.api.BatchReceivePolicy;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerStats;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageIdAdv;
@@ -112,6 +113,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private volatile boolean duringSeek = false;
     private final long startMessageRollbackDurationInSec;
     private final ConsumerInterceptors<T> internalConsumerInterceptors;
+
+    // Keyed by the non-partitioned (subscription-level) topic name. One shared pair of
+    // retry-letter / dead-letter producers is created per topic and reused across all partition
+    // sub-consumers of that topic, instead of one pair per partition.
+    // Only populated when the user has enabled retry/DLQ via DeadLetterPolicy.
+    private final ConcurrentHashMap<String, SharedRetryOrDlqProducerProvider>
+            sharedRetryOrDlqProducerProviders = new ConcurrentHashMap<>();
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
             ExecutorProvider executorProvider, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
             ConsumerInterceptors<T> interceptors, boolean createTopicIfDoesNotExist) {
@@ -676,6 +684,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             })).collect(Collectors.toList());
 
         FutureUtil.waitForAll(futureList)
+            .thenComposeAsync((r) -> {
+                // Close all shared retry/DLQ producers after sub-consumers are closed so that any in-flight
+                // reconsumeLater / processPossibleToDLQ sends have had a chance to complete first.
+                List<CompletableFuture<Void>> providerCloses = sharedRetryOrDlqProducerProviders.values().stream()
+                        .map(SharedRetryOrDlqProducerProvider::close)
+                        .collect(Collectors.toList());
+                sharedRetryOrDlqProducerProviders.clear();
+                return FutureUtil.waitForAll(providerCloses);
+            }, internalPinnedExecutor)
             .thenComposeAsync((r) -> {
                 setState(State.Closed);
                 cleanupMultiConsumer();
@@ -1244,11 +1261,96 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         // A child can connect or reconnect before it is published in consumers. Keep it paused until
         // publication and reconciliation with the parent so it cannot send FLOW with a stale state.
         configurationData.setStartPaused(true);
-        return ConsumerImpl.newConsumerImpl(client, partitionName,
+        ConsumerImpl<T> consumer = ConsumerImpl.newConsumerImpl(client, partitionName,
                 configurationData, client.externalExecutorProvider(),
                 partitionIndex, true, listener != null, subFuture,
                 startMessageId, schema, this.internalConsumerInterceptors,
                 createIfDoesNotExist, startMessageRollbackDurationInSec);
+        // Install a shared retry/DLQ producer provider so that all partition sub-consumers of the
+        // same subscription-level topic reuse a single pair of producers.
+        installSharedRetryOrDlqProducerProviderIfNeeded(consumer, configurationData);
+        return consumer;
+    }
+
+    // Package-private for testing: expose the installation entry point so unit tests can
+    // directly drive it without having to simulate a full subscribe flow.
+    void installSharedRetryOrDlqProducerProviderIfNeeded(ConsumerImpl<T> consumer,
+                                                                 ConsumerConfigurationData<T> configurationData) {
+        DeadLetterPolicy configuredPolicy = configurationData.getDeadLetterPolicy();
+        if (configuredPolicy == null) {
+            return;
+        }
+        if (!configurationData.isShareRetryAndDeadLetterProducers()) {
+            // Opt-out: fall back to the historical per-partition producer behaviour.
+            return;
+        }
+        String subscriptionTopicName = TopicName.get(consumer.getTopic()).getPartitionedTopicName();
+        // partitionedTopics maps the subscription-level topic name to its partition count. Falls
+        // back to 1 when the entry is missing (e.g. non-partitioned topic routed through the
+        // multi-topics path or test fixtures that drive this method directly without going
+        // through subscribeAsync()). Used only as a scaling hint for maxPendingMessages, so an
+        // under-estimate is safe (degrades to historical single-partition buffering, not an error).
+        Integer numPartitions = partitionedTopics.get(subscriptionTopicName);
+        int partitionHint = (numPartitions != null && numPartitions > 0) ? numPartitions : 1;
+        SharedRetryOrDlqProducerProvider provider =
+                sharedRetryOrDlqProducerProviders.computeIfAbsent(subscriptionTopicName,
+                        k -> new SharedRetryOrDlqProducerProvider(client, k, subscription, consumerName,
+                                buildSubscriptionLevelDeadLetterPolicy(configuredPolicy, k), partitionHint));
+        consumer.setRetryOrDlqProducerProvider(provider);
+    }
+
+    // Visible for testing: expose the shared provider map so unit tests can assert whether a
+    // shared provider has been installed per subscription-level topic.
+    ConcurrentHashMap<String, SharedRetryOrDlqProducerProvider> getSharedRetryOrDlqProducerProvidersForTesting() {
+        return sharedRetryOrDlqProducerProviders;
+    }
+
+    /**
+     * Remove and close the shared retry/DLQ producer provider associated with the given
+     * subscription-level topic name. Invoked when a topic is being fully unsubscribed from this
+     * consumer (either via an explicit {@link #unsubscribeAsync(String)} or when a Pattern
+     * subscription detects that the topic has been deleted on the broker side). Safe to call
+     * when no provider exists for the given key -- this is simply a no-op.
+     */
+    private void removeSharedRetryOrDlqProducerProvider(String subscriptionTopicName) {
+        SharedRetryOrDlqProducerProvider removed = sharedRetryOrDlqProducerProviders.remove(subscriptionTopicName);
+        if (removed != null) {
+            removed.close().exceptionally(ex -> {
+                log.warn().attr("subscriptionTopicName", subscriptionTopicName)
+                        .exception(ex)
+                        .log("Error ignored while closing shared retry/DLQ producer provider on topic removal");
+                return null;
+            });
+        }
+    }
+
+    /**
+     * Build a DeadLetterPolicy whose retry/DLQ topic names are derived from the subscription-level
+     * (non-partitioned) topic name, mirroring the fallback logic in {@link ConsumerImpl}'s constructor
+     * but using the subscription-level topic name instead of the partition name. This guarantees that
+     * all partition sub-consumers of the same subscription share identical retry/DLQ topics.
+     */
+    private DeadLetterPolicy buildSubscriptionLevelDeadLetterPolicy(DeadLetterPolicy configured,
+                                                                    String subscriptionTopicName) {
+        String retryTopic = configured.getRetryLetterTopic();
+        String deadTopic = configured.getDeadLetterTopic();
+        if (retryTopic == null || retryTopic.isEmpty()) {
+            retryTopic = org.apache.pulsar.client.util.RetryMessageUtil
+                    .getRetryTopic(subscriptionTopicName, subscription);
+        }
+        if (deadTopic == null || deadTopic.isEmpty()) {
+            deadTopic = org.apache.pulsar.client.util.RetryMessageUtil
+                    .getDLQTopic(subscriptionTopicName, subscription);
+        }
+        DeadLetterPolicy policy = DeadLetterPolicy.builder()
+                .maxRedeliverCount(configured.getMaxRedeliverCount())
+                .retryLetterTopic(retryTopic)
+                .deadLetterTopic(deadTopic)
+                .build();
+        policy.setInitialSubscriptionName(configured.getInitialSubscriptionName());
+        policy.setRetryLetterProducerBuilderCustomizer(configured.getRetryLetterProducerBuilderCustomizer());
+        policy.setDeadLetterProducerBuilderCustomizer(configured.getDeadLetterProducerBuilderCustomizer());
+        return policy;
     }
 
     // The child must already be published. Sharing the parent transition lock ensures that either
@@ -1303,6 +1405,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                                 .exceptionMessage(error)
                                 .log("Failed to subscribe for topic in topics consumer, subscribe error");
                         removeTopic(topicName);
+                        // Subscription of this topic failed and all partition sub-consumers have
+                        // been torn down -- release any shared retry/DLQ provider that may have
+                        // been installed by the earliest successful createInternalConsumer call.
+                        removeSharedRetryOrDlqProducerProvider(
+                                TopicName.get(topicName).getPartitionedTopicName());
                         subscribeFuture.completeExceptionally(error);
                     }
                     return;
@@ -1350,6 +1457,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
                     removeTopic(topicName);
                     removeTopicMessagesFromUnackedTracker(topicName);
+                    // Release the shared retry/DLQ producer associated with this subscription-level
+                    // topic. Without this cleanup, long-running Pattern subscriptions that see topics
+                    // come and go would accumulate stale providers (and the underlying producers)
+                    // indefinitely until the whole MultiTopicsConsumer is closed.
+                    removeSharedRetryOrDlqProducerProvider(topicPartName);
 
                     unsubscribeFuture.complete(null);
                     log.info().attr("topic", topicName)
@@ -1477,11 +1589,26 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 }
 
                 return FutureUtil.waitForAll(futures)
-                        .thenRun(() -> removeTopicMessagesFromUnackedTracker(topicName));
+                        .thenRun(() -> {
+                            removeTopicMessagesFromUnackedTracker(topicName);
+                            // All sub-consumers for this topic have been closed; drop the shared
+                            // retry/DLQ producer provider so the underlying producer is released
+                            // rather than leaking until the whole MultiTopicsConsumer is closed.
+                            removeSharedRetryOrDlqProducerProvider(topicName);
+                        });
             } else if (oldPartitionNumber < currentPartitionNumber) {
                 allTopicPartitionsNumber.addAndGet(currentPartitionNumber - oldPartitionNumber);
                 partitionedTopics.put(topicName, currentPartitionNumber);
                 List<String> newPartitions = list.subList(oldPartitionNumber, currentPartitionNumber);
+                // Propagate the new partition count to the shared provider so that any producer
+                // created AFTER this expansion will size its maxPendingMessages against the new
+                // partition count. Already-created producers keep their existing size (see
+                // SharedRetryOrDlqProducerProvider#updatePartitionHint for rationale).
+                SharedRetryOrDlqProducerProvider existingProvider =
+                        sharedRetryOrDlqProducerProviders.get(topicName);
+                if (existingProvider != null) {
+                    existingProvider.updatePartitionHint(currentPartitionNumber);
+                }
                 // subscribe new added partitions
                 List<CompletableFuture<Consumer<T>>> futureList = newPartitions
                     .stream()
