@@ -105,6 +105,10 @@ public class ManagedLedgerReadHandleMetadataTest extends BookKeeperClusterTestCa
             @Cleanup
             BookKeeperAdmin admin = new BookKeeperAdmin(bkc, baseClientConf);
             admin.recoverBookieData(ledgerId, originalBookies, false, false);
+            // A metadata driver that caches the ledger metadata learns about the new ensemble asynchronously: wait for
+            // it, so that the reopen can't read the old one
+            Awaitility.await().untilAsserted(() -> assertThat(reader.getLedgerManager().readLedgerMetadata(ledgerId)
+                    .get().getValue().getEnsembleAt(0)).doesNotContainAnyElementsOf(originalBookies));
         }
         for (BookieId bookie : originalBookies) {
             killBookie(bookie);

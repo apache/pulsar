@@ -5039,8 +5039,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         cursor.readEntries(3).forEach(Entry::release);
         Awaitility.await().untilAsserted(() -> assertEquals(ledger.ledgerCache.size(), 3));
 
-        // The cached read handles keep listening to ledger metadata updates, so they must be released even if the
-        // managed ledger cannot be closed cleanly
+        // Nothing else releases the cached read handles, so the close must release them even if the managed ledger
+        // cannot be closed cleanly
         if (fenced) {
             ledger.setFenced();
         } else {

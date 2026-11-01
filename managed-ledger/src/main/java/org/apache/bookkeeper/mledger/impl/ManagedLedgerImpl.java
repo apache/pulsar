@@ -2879,14 +2879,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      *
      * @return the handle opened again when its ensembles differ from the failed one's, e.g. after the ledger was
      *         re-replicated off a decommissioned bookie, so that the read can be retried on the new bookies; null when
-     *         a retry would read from the same bookies, or the ledger can't be opened again
+     *         a retry would read from the same bookies, the handle reads offloaded data, which re-replication doesn't
+     *         move, the ledger no longer belongs to the managed ledger, or it can't be opened again
      */
     public CompletableFuture<ReadHandle> reopenLedgerHandleIfReplicated(ReadHandle ledgerHandle) {
         invalidateLedgerHandle(ledgerHandle);
-        if (ledgerHandle == currentLedger) {
+        long ledgerId = ledgerHandle.getId();
+        LedgerHandle currentLedger = this.currentLedger;
+        if (ledgerHandle == currentLedger || ledgerHandle instanceof OffloadedLedgerHandle
+                || !ledgers.containsKey(ledgerId)) {
             return CompletableFuture.completedFuture(null);
         }
-        return getLedgerHandle(ledgerHandle.getId()).handle((reopened, ex) -> {
+        return getLedgerHandle(ledgerId).handle((reopened, ex) -> {
             if (ex != null || reopened.getLedgerMetadata().getAllEnsembles()
                     .equals(ledgerHandle.getLedgerMetadata().getAllEnsembles())) {
                 return null;
@@ -2903,8 +2907,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // remove handle from ledger cache since we got a (read) error, unless another read already replaced it:
             // that handle would never be closed
             CompletableFuture<ReadHandle> cachedHandle = ledgerCache.get(ledgerId);
-            if (cachedHandle != null && cachedHandle.isDone() && !cachedHandle.isCompletedExceptionally()
-                    && cachedHandle.join() == ledgerHandle) {
+            if (cachedHandle != null && cachedHandle.getNow(null) == ledgerHandle) {
                 ledgerCache.remove(ledgerId, cachedHandle);
                 log.debug().attr("ledgerId", ledgerId).log("Removed ledger read handle from cache");
             }
