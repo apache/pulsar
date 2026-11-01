@@ -25,8 +25,11 @@ import static org.apache.bookkeeper.util.BookKeeperConstants.COOKIE_NODE;
 import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
 import static org.apache.pulsar.common.util.FutureUtil.Sequencer;
 import static org.apache.pulsar.common.util.FutureUtil.waitForAll;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -48,6 +51,7 @@ import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.versioning.LongVersion;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
@@ -68,6 +72,9 @@ public class PulsarRegistrationClient implements RegistrationClient {
     private final Set<RegistrationListener> writableBookiesWatchers = new CopyOnWriteArraySet<>();
     private final Set<RegistrationListener> readOnlyBookiesWatchers = new CopyOnWriteArraySet<>();
     private final Set<String> pendingBookieRefreshes = ConcurrentHashMap.newKeySet();
+    private final Set<BookieId> pendingBookieInfoReloads = ConcurrentHashMap.newKeySet();
+    // Accessed only by operations on the notification sequencer.
+    private final Map<String, Backoff> bookieRefreshBackoffs = new HashMap<>();
     private final MetadataCache<BookieServiceInfo> bookieServiceInfoMetadataCache;
     private final ScheduledExecutorService executor;
     private final Map<BookieId, Versioned<BookieServiceInfo>> writableBookieInfo;
@@ -79,6 +86,12 @@ public class PulsarRegistrationClient implements RegistrationClient {
 
     public PulsarRegistrationClient(MetadataStore store,
                                     String ledgersRootPath) {
+        this(store, ledgersRootPath, Executors.newSingleThreadScheduledExecutor(
+                new DefaultThreadFactory("pulsar-registration-client")));
+    }
+
+    @VisibleForTesting
+    PulsarRegistrationClient(MetadataStore store, String ledgersRootPath, ScheduledExecutorService executor) {
         this.store = (MetadataStoreExtended) store;
         this.ledgersRootPath = ledgersRootPath;
         this.bookieServiceInfoMetadataCache = store.getMetadataCache(BookieServiceInfoSerde.INSTANCE);
@@ -92,8 +105,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
         this.bookieRegistrationPath = ledgersRootPath + "/" + AVAILABLE_NODE;
         this.bookieAllRegistrationPath = ledgersRootPath + "/" + COOKIE_NODE;
         this.bookieReadonlyRegistrationPath = this.bookieRegistrationPath + "/" + READONLY;
-        this.executor = Executors
-                .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-registration-client"));
+        this.executor = executor;
 
         cancelListener = store.registerCancellableListener(this::updatedBookies);
         cancelSessionListener = this.store.registerCancellableSessionListener(this::refreshBookies);
@@ -111,14 +123,12 @@ public class PulsarRegistrationClient implements RegistrationClient {
         if (!SessionEvent.Reconnected.equals(sessionEvent) && !SessionEvent.SessionReestablished.equals(sessionEvent)){
             return;
         }
-        // Clean caches.
-        store.invalidateCaches(bookieRegistrationPath, bookieAllRegistrationPath, bookieReadonlyRegistrationPath);
-        bookieServiceInfoMetadataCache.invalidateAll();
-        // Refresh caches of the listeners.
-        getReadOnlyBookies().thenAccept(bookies ->
-                readOnlyBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
-        getWritableBookies().thenAccept(bookies ->
-                writableBookiesWatchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
+        sequencer.sequential(() -> {
+            store.invalidateCaches(bookieRegistrationPath, bookieAllRegistrationPath, bookieReadonlyRegistrationPath);
+            bookieServiceInfoMetadataCache.invalidateAll();
+            return refreshBookiesAndNotifyWatchers(bookieReadonlyRegistrationPath);
+        });
+        sequencer.sequential(() -> refreshBookiesAndNotifyWatchers(bookieRegistrationPath));
     }
 
     @Override
@@ -220,6 +230,9 @@ public class PulsarRegistrationClient implements RegistrationClient {
     }
 
     private CompletableFuture<Void> refreshBookiesAndNotifyWatchers(String path) {
+        if (executor.isShutdown()) {
+            return completedFuture(null);
+        }
         boolean readOnly = path.equals(bookieReadonlyRegistrationPath);
         Set<RegistrationListener> watchers = readOnly ? readOnlyBookiesWatchers : writableBookiesWatchers;
         CompletableFuture<Versioned<Set<BookieId>>> bookiesFuture =
@@ -228,6 +241,8 @@ public class PulsarRegistrationClient implements RegistrationClient {
             if (ex != null) {
                 log.debug().attr("path", path).exceptionMessage(ex).log("Failed to refresh bookies; retrying");
                 scheduleBookieRefresh(path);
+            } else {
+                bookieRefreshBackoffs.remove(path);
             }
         }).thenAccept(bookies -> watchers.forEach(w -> executor.execute(() -> w.onBookiesChanged(bookies))));
     }
@@ -236,6 +251,8 @@ public class PulsarRegistrationClient implements RegistrationClient {
         if (executor.isShutdown() || !pendingBookieRefreshes.add(path)) {
             return;
         }
+        long delayMillis = bookieRefreshBackoffs.computeIfAbsent(path, __ -> Backoff.builder()
+                .initialDelay(Duration.ofSeconds(1)).maxBackoff(Duration.ofSeconds(30)).build()).next().toMillis();
         try {
             // Keep at most one retry per registration type. Re-read current membership rather than replaying
             // the failed notification, and release the sequencer between attempts so deletes can still proceed.
@@ -247,7 +264,7 @@ public class PulsarRegistrationClient implements RegistrationClient {
                     }
                     return refreshBookiesAndNotifyWatchers(path);
                 });
-            }, 1, TimeUnit.SECONDS);
+            }, delayMillis, TimeUnit.MILLISECONDS);
         } catch (RejectedExecutionException ignored) {
             // The client can be closed after the shutdown check.
             pendingBookieRefreshes.remove(path);
@@ -354,16 +371,25 @@ public class PulsarRegistrationClient implements RegistrationClient {
             // The bookie can be registered and still missing here, if reading its info failed when it
             // registered. Reload it in background, without waiting, so that a retry can find it.
             // Use the notification sequencer so a late reload cannot refill the cache after a deletion.
-            sequencer.sequential(() -> readBookieInfoAsWritableBookie(bookieId)
-                    .thenCompose(writable -> writable.isPresent()
-                            ? completedFuture(writable)
-                            : readBookieInfoAsReadonlyBookie(bookieId))
-                    .thenApply(__ -> null))
-                    .exceptionally(ex -> {
+            if (!executor.isShutdown() && pendingBookieInfoReloads.add(bookieId)) {
+                sequencer.sequential(() -> FutureUtil.<Void>supplySafely(() -> {
+                    if (executor.isShutdown()) {
+                        return completedFuture(null);
+                    }
+                    return readBookieInfoAsWritableBookie(bookieId)
+                            .thenCompose(writable -> writable.isPresent()
+                                    ? completedFuture(writable)
+                                    : readBookieInfoAsReadonlyBookie(bookieId))
+                            .thenApply(__ -> null);
+                }).whenComplete((__, ex) -> {
+                    // Release the reload slot before advancing to the next notification, even on failure.
+                    pendingBookieInfoReloads.remove(bookieId);
+                    if (ex != null) {
                         log.debug().attr("bookieId", bookieId).exceptionMessage(ex)
                                 .log("Failed to reload the bookie info");
-                        return null;
-                    });
+                    }
+                }));
+            }
             return FutureUtils.exception(new BKException.BKBookieHandleNotAvailableException());
         }
     }

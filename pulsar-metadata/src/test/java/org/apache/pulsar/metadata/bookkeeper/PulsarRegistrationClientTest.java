@@ -42,6 +42,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -70,6 +72,7 @@ import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
@@ -442,6 +445,146 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
         assertThat(rc.getBookieServiceInfo(bookie).get(10, TimeUnit.SECONDS).getValue()).isNotNull();
     }
 
+    @DataProvider(name = "reconnect")
+    public static Object[][] reconnect() {
+        return new Object[][] {
+                {false, SessionEvent.Reconnected}, {true, SessionEvent.Reconnected},
+                {false, SessionEvent.SessionReestablished}, {true, SessionEvent.SessionReestablished}
+        };
+    }
+
+    @Test(dataProvider = "reconnect")
+    public void testWatchBookiesRecoversAfterReconnectReadFailure(boolean readOnly, SessionEvent event)
+            throws Exception {
+        @Cleanup
+        FailingReadsMetadataStore store = new FailingReadsMetadataStore("memory:" + UUID.randomUUID());
+        String ledgersRoot = "/ledgers";
+        @Cleanup
+        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
+        AtomicInteger updates = new AtomicInteger();
+        RegistrationClient.RegistrationListener listener = bookies -> updates.incrementAndGet();
+        (readOnly ? rc.watchReadOnlyBookies(listener) : rc.watchWritableBookies(listener))
+                .get(10, TimeUnit.SECONDS);
+        int initialUpdates = updates.get();
+        String path = ledgersRoot + "/" + AVAILABLE_NODE + (readOnly ? "/" + READONLY : "");
+        CompletableFuture<Void> failedRead = store.failNextChildrenReads(path, 1);
+
+        // Deliver a real store session event; no metadata change or address lookup drives recovery.
+        store.sendSessionEvent(event);
+        failedRead.get(10, TimeUnit.SECONDS);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                assertThat(updates.get()).isGreaterThan(initialUpdates));
+    }
+
+    @Test
+    public void testBookieRefreshBackoffResetsAfterRecovery() throws Exception {
+        @Cleanup
+        FailingReadsMetadataStore store = new FailingReadsMetadataStore("memory:" + UUID.randomUUID());
+        String ledgersRoot = "/ledgers";
+        @Cleanup
+        RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, new ServerConfiguration());
+        List<Long> retryDelays = Collections.synchronizedList(new ArrayList<>());
+        // Only accelerate the timer. All reads, sequencing and listener delivery use their real implementations.
+        @Cleanup("shutdownNow")
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1) {
+            @Override
+            public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+                if (delay > 0) {
+                    retryDelays.add(unit.toMillis(delay));
+                }
+                return super.schedule(command, 0, TimeUnit.MILLISECONDS);
+            }
+        };
+        @Cleanup
+        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot, executor);
+        AtomicInteger updates = new AtomicInteger();
+        rc.watchWritableBookies(bookies -> updates.incrementAndGet()).get(10, TimeUnit.SECONDS);
+        String path = ledgersRoot + "/" + AVAILABLE_NODE;
+        CompletableFuture<Void> failedReads = store.failNextChildrenReads(path, 7);
+        rm.registerBookie(BookieId.parse("127.0.0.1:3181"), false, new BookieServiceInfo());
+        failedReads.get(10, TimeUnit.SECONDS);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(updates.get()).isEqualTo(2));
+        assertThat(retryDelays).hasSize(7);
+        List<Long> expectedDelays = List.of(1000L, 2000L, 4000L, 8000L, 16000L, 30000L, 30000L);
+        for (int i = 0; i < expectedDelays.size(); i++) {
+            long expected = expectedDelays.get(i);
+            // Backoff applies up to five percent of jitter in either direction.
+            assertThat(retryDelays.get(i)).isBetween(expected * 95 / 100, expected * 105 / 100);
+        }
+
+        CompletableFuture<Void> nextFailure = store.failNextChildrenReads(path, 1);
+        store.sendSessionEvent(SessionEvent.Reconnected);
+        nextFailure.get(10, TimeUnit.SECONDS);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> assertThat(updates.get()).isEqualTo(3));
+        assertThat(retryDelays).hasSize(8);
+        assertThat(retryDelays.get(7)).isBetween(950L, 1050L);
+    }
+
+    @Test(dataProvider = "readOnly")
+    public void testBookieInfoReloadsAreCoalesced(boolean failReload) throws Exception {
+        @Cleanup
+        FailingReadsMetadataStore store = new FailingReadsMetadataStore("memory:" + UUID.randomUUID());
+        String ledgersRoot = "/ledgers";
+        @Cleanup
+        RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, new ServerConfiguration());
+        BookieId missingBookie = BookieId.parse("127.0.0.1:3181");
+        AtomicInteger reloads = new AtomicInteger();
+        @Cleanup
+        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot) {
+            @Override
+            public CompletableFuture<Optional<CacheGetResult<BookieServiceInfo>>> readBookieInfoAsWritableBookie(
+                    BookieId bookieId) {
+                if (bookieId.equals(missingBookie)) {
+                    reloads.incrementAndGet();
+                }
+                return super.readBookieInfoAsWritableBookie(bookieId);
+            }
+        };
+        AtomicReference<Set<BookieId>> observed = new AtomicReference<>(Collections.emptySet());
+        rc.watchWritableBookies(bookies -> observed.set(bookies.getValue())).get(10, TimeUnit.SECONDS);
+        String registrationPath = ledgersRoot + "/" + AVAILABLE_NODE + "/";
+        BookieId blockingBookie = BookieId.parse("127.0.0.1:3182");
+        CompletableFuture<Void> releaseRead = new CompletableFuture<>();
+        CompletableFuture<Void> readStarted = store.delayNextRead(registrationPath + blockingBookie, releaseRead);
+        CompletableFuture<Void> releaseReload = new CompletableFuture<>();
+        CompletableFuture<Void> reloadStarted = failReload ? null
+                : store.delayNextRead(registrationPath + missingBookie, releaseReload);
+        try {
+            rc.getBookieServiceInfo(blockingBookie);
+            readStarted.get(10, TimeUnit.SECONDS);
+            if (failReload) {
+                store.failNextRead(registrationPath + missingBookie);
+            }
+            for (int i = 0; i < 100; i++) {
+                assertThat(rc.getBookieServiceInfo(missingBookie)).isCompletedExceptionally();
+            }
+            assertThat(reloads.get()).isZero();
+            BookieId liveBookie = BookieId.parse("127.0.0.1:3183");
+            rm.registerBookie(liveBookie, false, new BookieServiceInfo());
+            releaseRead.complete(null);
+            if (!failReload) {
+                reloadStarted.get(10, TimeUnit.SECONDS);
+                // Coalesce misses while the reload is in flight, as well as while it was queued.
+                for (int i = 0; i < 100; i++) {
+                    assertThat(rc.getBookieServiceInfo(missingBookie)).isCompletedExceptionally();
+                }
+            }
+            releaseReload.complete(null);
+            // A real notification queued behind the misses is a barrier for all the queued reloads.
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(observed.get()).containsExactly(liveBookie));
+            assertThat(reloads.get()).isEqualTo(1);
+
+            // Both a failed reload and an absent record must release the per-bookie slot for a later attempt.
+            rc.getBookieServiceInfo(missingBookie);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(reloads.get()).isEqualTo(2));
+        } finally {
+            releaseRead.complete(null);
+            releaseReload.complete(null);
+        }
+    }
+
     @Test
     public void testBookieInfoReloadDoesNotResurrectDeletedBookie() throws Exception {
         @Cleanup
@@ -503,10 +646,10 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
             deleting.set(true);
             rm.unregisterBookie(bookie, false);
             deletedNotification.get(10, TimeUnit.SECONDS);
-            // Queue another miss after the deletion notification. Its completion is a barrier for the
-            // deletion even if a scheduled membership retry also publishes an empty view.
+            // Queue a different bookie's miss after the deletion notification, since same-bookie misses coalesce.
+            // Its completion is a deletion barrier even if a scheduled membership retry also publishes an empty view.
             afterDeletion.set(true);
-            rc.getBookieServiceInfo(bookie);
+            rc.getBookieServiceInfo(BookieId.parse("127.0.0.1:3182"));
 
             // Complete the successful read captured before the deletion, after its notification was delivered.
             releaseRead.complete(null);
@@ -523,6 +666,7 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
     private static class FailingReadsMetadataStore extends LocalMemoryMetadataStore {
         private final Map<String, ReadFailures> failingReads = new ConcurrentHashMap<>();
+        private final Map<String, ReadFailures> failingChildrenReads = new ConcurrentHashMap<>();
         private final Map<String, ReadDelay> delayedReads = new ConcurrentHashMap<>();
 
         private record ReadFailures(AtomicInteger remaining, CompletableFuture<Void> failed) { }
@@ -531,6 +675,30 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         FailingReadsMetadataStore(String url) throws MetadataStoreException {
             super(url, MetadataStoreConfig.builder().build());
+        }
+
+        void sendSessionEvent(SessionEvent event) {
+            receivedSessionEvent(event);
+        }
+
+        CompletableFuture<Void> failNextChildrenReads(String path, int count) {
+            CompletableFuture<Void> failed = new CompletableFuture<>();
+            failingChildrenReads.put(path, new ReadFailures(new AtomicInteger(count), failed));
+            return failed;
+        }
+
+        @Override
+        public CompletableFuture<List<String>> getChildrenFromStore(String path, Set<Option> opts) {
+            ReadFailures failures = failingChildrenReads.get(path);
+            int remaining = failures == null ? 0 : failures.remaining().getAndDecrement();
+            if (remaining > 0) {
+                if (remaining == 1) {
+                    failingChildrenReads.remove(path, failures);
+                    failures.failed().complete(null);
+                }
+                return CompletableFuture.failedFuture(new MetadataStoreException("Injected children read failure"));
+            }
+            return super.getChildrenFromStore(path, opts);
         }
 
         /**
