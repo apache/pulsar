@@ -361,6 +361,18 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         decreaseIncomingMessageSize(msg);
     }
 
+    @Override
+    protected void discardIncomingMessage(Message<?> message) {
+        if (listener != null) {
+            // With a listener, the consumer that received the message gives back its permit only when the listener
+            // gets the message, see callMessageListener(). Give it back before the release clears the connection
+            // that a pooled message was received on.
+            TopicMessageImpl<?> topicMessage = (TopicMessageImpl<?>) message;
+            topicMessage.receivedByconsumer.increaseAvailablePermits((MessageImpl<?>) topicMessage.getMessage());
+        }
+        super.discardIncomingMessage(message);
+    }
+
     private void resumeReceivingFromPausedConsumersIfNeeded() {
         if (incomingMessages.size() <= getCurrentReceiverQueueSize() / 2 && !pausedConsumers.isEmpty()) {
             while (true) {
