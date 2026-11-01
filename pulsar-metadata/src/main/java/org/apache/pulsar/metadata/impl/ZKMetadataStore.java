@@ -123,9 +123,22 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         }
     }
 
-    private void processSessionWatcher(WatchedEvent event) {
+    @VisibleForTesting
+    void processSessionWatcher(WatchedEvent event) {
         if (sessionWatcher != null) {
-            processEvent(sessionWatcher::process, event);
+            ZKSessionWatcher.SessionEventSnapshot stateSnapshot;
+            if (event instanceof PulsarZooKeeperClient.HandleStateWatchedEvent handleStateEvent) {
+                stateSnapshot = new ZKSessionWatcher.SessionEventSnapshot(event,
+                        handleStateEvent.getHandleGeneration(), handleStateEvent.getSessionId(),
+                        handleStateEvent.getClientState());
+            } else {
+                long handleGeneration = zkc instanceof PulsarZooKeeperClient
+                        ? ((PulsarZooKeeperClient) zkc).getCurrentHandleGeneration()
+                        : ZKSessionWatcher.UNKNOWN_HANDLE_GENERATION;
+                stateSnapshot = new ZKSessionWatcher.SessionEventSnapshot(
+                        event, handleGeneration, zkc.getSessionId(), zkc.getState());
+            }
+            processEvent(sessionWatcher::process, stateSnapshot);
         }
     }
 
@@ -140,15 +153,26 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     @VisibleForTesting
-    @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config, boolean isZkManaged) {
+        this(zkc, config, isZkManaged, true);
+    }
+
+    @VisibleForTesting
+    ZKMetadataStore(ZooKeeper zkc, boolean startSessionWatcherScheduler) {
+        this(zkc, MetadataStoreConfig.builder().build(), false, startSessionWatcherScheduler);
+    }
+
+    @SneakyThrows
+    private ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config, boolean isZkManaged,
+                            boolean startSessionWatcherScheduler) {
         super(config);
         this.zkConnectString = null;
         this.rootPath = null;
         this.metadataStoreConfig = null;
         this.isZkManaged = isZkManaged;
         this.zkc = zkc;
-        this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
+        this.sessionWatcher = new ZKSessionWatcher(
+                zkc, this::receivedSessionEvent, startSessionWatcherScheduler);
         zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
         initBatchStrategy();
     }

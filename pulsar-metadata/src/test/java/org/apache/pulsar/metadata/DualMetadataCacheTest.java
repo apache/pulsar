@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.metadata;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -25,6 +29,9 @@ import static org.testng.Assert.assertTrue;
 import java.util.EnumSet;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -40,7 +47,11 @@ import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -474,6 +485,132 @@ public class DualMetadataCacheTest extends BaseMetadataStoreTest {
     }
 
     @Test
+    public void testCacheCreatedDuringMigrationUsesSourceStore() throws Exception {
+        String path = newKey() + "/test-obj";
+        @Cleanup
+        MetadataStore sourceStore =
+                new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true);
+
+        String targetUrl = "memory:" + UUID.randomUUID();
+        @Cleanup
+        MetadataStore targetStore = MetadataStoreFactory.create(targetUrl,
+                MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+
+        // The target store holds a different version of the object, as if it was partially copied
+        putObject(sourceStore, path, new TestObject("source", 1));
+        putObject(targetStore, path, new TestObject("target", 1));
+
+        setMigrationState(sourceStore, MigrationPhase.PREPARATION, targetUrl);
+        // The store acknowledges the preparation once it has initialized the target store
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join().isEmpty()));
+        MetadataCache<TestObject> preparationCache = dualStore.getMetadataCache(TestObject.class);
+        assertEquals(preparationCache.get(path).join().get().getName(), "source");
+
+        setMigrationState(sourceStore, MigrationPhase.COPYING, targetUrl);
+        Awaitility.await().until(() -> dualStore.getMigrationPhase() == MigrationPhase.COPYING);
+        MetadataCache<TestObject> copyingCache = dualStore.getMetadataCache(TestObject.class);
+        assertEquals(copyingCache.get(path).join().get().getName(), "source");
+
+        // The completion moves both caches to the target store
+        setMigrationState(sourceStore, MigrationPhase.COMPLETED, targetUrl);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(preparationCache.get(path).join().get().getName(), "target");
+            assertEquals(copyingCache.get(path).join().get().getName(), "target");
+        });
+    }
+
+    @Test
+    public void testCacheCreatedAfterFailedMigrationUsesSourceStore() throws Exception {
+        String prefix = newKey();
+        String path = prefix + "/test-obj";
+        @Cleanup
+        MetadataStore sourceStore =
+                new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true);
+
+        String targetUrl = "memory:" + UUID.randomUUID();
+        @Cleanup
+        MetadataStore targetStore = MetadataStoreFactory.create(targetUrl,
+                MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+
+        putObject(sourceStore, path, new TestObject("source", 1));
+        putObject(targetStore, path, new TestObject("target", 1));
+
+        setMigrationState(sourceStore, MigrationPhase.PREPARATION, targetUrl);
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join().isEmpty()));
+        setMigrationState(sourceStore, MigrationPhase.FAILED, targetUrl);
+        Awaitility.await().until(() -> dualStore.getMigrationPhase() == MigrationPhase.FAILED);
+
+        // The target store stays initialized after the failure, but it's abandoned
+        MetadataCache<TestObject> cache = dualStore.getMetadataCache(TestObject.class);
+        assertEquals(cache.get(path).join().get().getName(), "source");
+
+        String newPath = prefix + "/new-obj";
+        cache.create(newPath, new TestObject("new", 1)).join();
+        assertTrue(sourceStore.exists(newPath).join());
+        assertFalse(targetStore.exists(newPath).join());
+    }
+
+    @Test
+    public void testCacheCreatedWhileMigrationCompletesSwitchesToTargetStore() throws Exception {
+        String path = newKey() + "/test-obj";
+        // Pause the creation of the cache after it has picked the source store
+        @Cleanup
+        LocalMemoryMetadataStore sourceStore = spy(new LocalMemoryMetadataStore("memory:local",
+                MetadataStoreConfig.builder().build()));
+        CountDownLatch cacheCreationPaused = new CountDownLatch(1);
+        CountDownLatch resumeCacheCreation = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            cacheCreationPaused.countDown();
+            assertTrue(resumeCacheCreation.await(10, TimeUnit.SECONDS));
+            return invocation.callRealMethod();
+        }).when(sourceStore).getMetadataCache(eq(TestObject.class), any(MetadataCacheConfig.class));
+
+        String targetUrl = "memory:" + UUID.randomUUID();
+        @Cleanup
+        MetadataStore targetStore = MetadataStoreFactory.create(targetUrl,
+                MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+        CountDownLatch sessionReestablished = new CountDownLatch(1);
+        dualStore.registerCancellableSessionListener(event -> {
+            if (event == SessionEvent.SessionReestablished) {
+                sessionReestablished.countDown();
+            }
+        });
+
+        putObject(sourceStore, path, new TestObject("source", 1));
+        putObject(targetStore, path, new TestObject("target", 1));
+
+        setMigrationState(sourceStore, MigrationPhase.PREPARATION, targetUrl);
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join().isEmpty()));
+
+        CompletableFuture<MetadataCache<TestObject>> cacheFuture =
+                CompletableFuture.supplyAsync(() -> dualStore.getMetadataCache(TestObject.class));
+        assertTrue(cacheCreationPaused.await(10, TimeUnit.SECONDS));
+
+        // The completion switches the registered caches before reestablishing the session, so it misses this one
+        setMigrationState(sourceStore, MigrationPhase.COMPLETED, targetUrl);
+        assertTrue(sessionReestablished.await(10, TimeUnit.SECONDS));
+
+        resumeCacheCreation.countDown();
+        MetadataCache<TestObject> cache = cacheFuture.get(10, TimeUnit.SECONDS);
+        assertEquals(cache.get(path).join().get().getName(), "target");
+    }
+
+    @Test
     public void testMultipleCachesWithDifferentTypes() throws Exception {
         String prefix = newKey();
         @Cleanup
@@ -527,5 +664,16 @@ public class DualMetadataCacheTest extends BaseMetadataStoreTest {
         Optional<TestObject> result = cache.get(path).join();
         assertTrue(result.isPresent());
         assertEquals(result.get().getName(), "test");
+    }
+
+    private static void setMigrationState(MetadataStore store, MigrationPhase phase, String targetUrl)
+            throws Exception {
+        store.put(MigrationState.MIGRATION_FLAG_PATH,
+                ObjectMapperFactory.getMapper().writer().writeValueAsBytes(new MigrationState(phase, targetUrl)),
+                Optional.empty()).join();
+    }
+
+    private static void putObject(MetadataStore store, String path, TestObject value) throws Exception {
+        store.put(path, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(value), Optional.empty()).join();
     }
 }

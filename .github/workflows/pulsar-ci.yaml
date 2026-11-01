@@ -270,6 +270,7 @@ jobs:
             timeout: 75
           - name: Brokers - Broker Group 1
             group: BROKER_GROUP_1
+            timeout: 70
           - name: Brokers - Broker Group 2
             group: BROKER_GROUP_2
           - name: Brokers - Broker Group 3
@@ -330,7 +331,9 @@ jobs:
           name: gradle-build-outputs
 
       - name: Extract build outputs
-        run: tar xf gradle-build-outputs.tar
+        run: |
+          tar xf gradle-build-outputs.tar
+          rm -f -- gradle-build-outputs.tar
 
       - name: Run setup commands
         if: ${{ matrix.setup }}
@@ -464,7 +467,16 @@ jobs:
           name: gradle-build-outputs
 
       - name: Extract build outputs
-        run: tar xf gradle-build-outputs.tar
+        run: |
+          tar xf gradle-build-outputs.tar
+          rm -f -- gradle-build-outputs.tar
+
+      - name: Setup Docker
+        uses: gradle/develocity-actions/setup-docker@f852d93dada312948b1ba533226c28e05d756866 # v2.4
+        with:
+          develocity-url: https://develocity.apache.org
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          develocity-project-id: pulsar
 
       - name: Build java-test-image Docker image
         run: ./gradlew :tests:java-test-image:dockerBuild${{ env.CI_JDK_MAJOR_VERSION != '21' && format(' -PdockerJavaVersion={0}', env.CI_JDK_MAJOR_VERSION) || '' }}
@@ -567,6 +579,13 @@ jobs:
         with:
           limit-access-to-actor: true
 
+      # Backwards compatibility tests pull several older Pulsar images
+      - name: Clean disk for backwards compatibility tests
+        if: ${{ matrix.group == 'BACKWARDS_COMPAT' }}
+        uses: ./.github/actions/clean-disk
+        with:
+          clean-threshold-gb: '30'
+
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}${{ matrix.runtime_jdk && matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && format(' and {0}', matrix.runtime_jdk) || '' }}
         if: ${{ matrix.group != 'NATIVE_IMAGE' }}
         uses: actions/setup-java@v5
@@ -596,7 +615,9 @@ jobs:
           name: gradle-build-outputs
 
       - name: Extract build outputs
-        run: tar xf gradle-build-outputs.tar
+        run: |
+          tar xf gradle-build-outputs.tar
+          rm -f -- gradle-build-outputs.tar
 
       - name: Download docker image
         uses: actions/download-artifact@v8
@@ -605,7 +626,9 @@ jobs:
           path: /tmp
 
       - name: Load docker image
-        run: docker load -i /tmp/java-test-image.tar.gz
+        run: |
+          docker load -i /tmp/java-test-image.tar.gz
+          rm -f -- /tmp/java-test-image.tar.gz
 
       - name: Run setup commands
         if: ${{ matrix.setup }}
@@ -711,7 +734,16 @@ jobs:
           name: gradle-build-outputs
 
       - name: Extract build outputs
-        run: tar xf gradle-build-outputs.tar
+        run: |
+          tar xf gradle-build-outputs.tar
+          rm -f -- gradle-build-outputs.tar
+
+      - name: Setup Docker
+        uses: gradle/develocity-actions/setup-docker@f852d93dada312948b1ba533226c28e05d756866 # v2.4
+        with:
+          develocity-url: https://develocity.apache.org
+          develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+          develocity-project-id: pulsar
 
       - name: Build pulsar-test-latest-version Docker image
         run: ./gradlew :tests:latest-version-image:dockerBuild${{ env.CI_JDK_MAJOR_VERSION != '21' && format(' -PdockerJavaVersion={0}', env.CI_JDK_MAJOR_VERSION) || '' }}
@@ -824,7 +856,9 @@ jobs:
           name: gradle-build-outputs
 
       - name: Extract build outputs
-        run: tar xf gradle-build-outputs.tar
+        run: |
+          tar xf gradle-build-outputs.tar
+          rm -f -- gradle-build-outputs.tar
 
       - name: Download docker image
         uses: actions/download-artifact@v8
@@ -833,7 +867,9 @@ jobs:
           path: /tmp
 
       - name: Load docker image
-        run: docker load -i /tmp/pulsar-test-latest-version.tar.gz
+        run: |
+          docker load -i /tmp/pulsar-test-latest-version.tar.gz
+          rm -f -- /tmp/pulsar-test-latest-version.tar.gz
 
       - name: Run system test group '${{ matrix.group }}'
         run: |

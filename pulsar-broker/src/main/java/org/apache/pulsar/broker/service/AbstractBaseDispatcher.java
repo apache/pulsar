@@ -52,6 +52,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ReplicatedSubscriptionsSnapshot;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.compaction.Compactor;
 import org.jspecify.annotations.Nullable;
 
@@ -132,6 +133,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         long totalBytes = 0;
         int totalChunkedMessages = 0;
         int totalEntries = 0;
+        int totalReadEntries = 0;
+        int totalReadMessages = 0;
         int filteredMessageCount = 0;
         int filteredEntryCount = 0;
         long filteredBytesCount = 0;
@@ -157,6 +160,8 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             }
 
             int entryMsgCnt = msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
+            totalReadEntries++;
+            totalReadMessages += entryMsgCnt;
             if (hasFilter) {
                 this.filterProcessedMsgs.add(entryMsgCnt);
             }
@@ -280,7 +285,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 // No explicit null write is needed for a missing ackSet. EntryBatchIndexesAcks is reset before
                 // reuse, so absent ack sets are already null.
                 if (ackSet != null) {
-                    indexesAcks.setIndexesAcks(i, Pair.of(batchSize, ackSet));
+                    indexesAcks.setIndexesAcks(i, batchSize, ackSet);
                 }
             }
 
@@ -319,6 +324,23 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         if (serviceConfig.isDispatchThrottlingForFilteredEntriesEnabled()) {
             acquirePermitsForDeliveredMessages(subscription.getTopic(), cursor, filteredEntryCount,
                     filteredMessageCount, filteredBytesCount);
+        }
+
+        if (totalMessages == 0 && totalReadEntries > 0 && totalReadMessages > 0) {
+            if (consumer != null) {
+                if (consumer.getAvgMessagesPerEntry() <= 0) {
+                    consumer.updateAvgMessagesPerEntry(totalReadMessages, totalReadEntries);
+                }
+            } else {
+                List<Consumer> consumers = getConsumers();
+                if (consumers != null) {
+                    for (Consumer c : consumers) {
+                        if (c != null && c.getAvgMessagesPerEntry() <= 0) {
+                            c.updateAvgMessagesPerEntry(totalReadMessages, totalReadEntries);
+                        }
+                    }
+                }
+            }
         }
 
         sendMessageInfo.setTotalMessages(totalMessages);
@@ -392,7 +414,7 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
                 || getRateLimiter().isPresent();
     }
 
-    protected Pair<Integer, Long> applyRateLimitsToMessagesAndBytesToRead(int messagesToRead, long bytesToRead) {
+    public Pair<Integer, Long> applyRateLimitsToMessagesAndBytesToRead(int messagesToRead, long bytesToRead) {
         MutablePair<Integer, Long> readLimits = new MutablePair<>(messagesToRead, bytesToRead);
         Topic topic = subscription.getTopic();
 
@@ -424,7 +446,18 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         // update messagesToRead according to available dispatch rate limit.
         int availablePermitsOnMsg = (int) rateLimiter.getAvailableDispatchRateLimitOnMsg();
         if (availablePermitsOnMsg >= 0) {
-            readLimits.setLeft(Math.min(readLimits.getLeft(), availablePermitsOnMsg));
+            int maxEntriesByRateLimit = availablePermitsOnMsg;
+            if (!dispatchThrottlingOnBatchMessageEnabled) {
+                if (availablePermitsOnMsg == 0) {
+                    maxEntriesByRateLimit = 0;
+                } else {
+                    int avgMessagesPerEntry = getAvgMessagesPerEntry();
+                    maxEntriesByRateLimit = avgMessagesPerEntry > 0
+                            ? Math.max(1, availablePermitsOnMsg / avgMessagesPerEntry)
+                            : 1;
+                }
+            }
+            readLimits.setLeft(Math.min(readLimits.getLeft(), maxEntriesByRateLimit));
         }
         long availablePermitsOnByte = rateLimiter.getAvailableDispatchRateLimitOnByte();
         if (availablePermitsOnByte >= 0) {
@@ -462,6 +495,51 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
         return true;
     }
 
+    protected int getAvgMessagesPerEntry() {
+        List<Consumer> consumers = getConsumers();
+        if (consumers != null && !consumers.isEmpty()) {
+            int total = 0;
+            int count = 0;
+            for (Consumer consumer : consumers) {
+                if (consumer != null && consumer.getAvgMessagesPerEntry() > 0) {
+                    total += consumer.getAvgMessagesPerEntry();
+                    count++;
+                }
+            }
+            if (count > 0) {
+                return (int) Math.round((double) total / count);
+            }
+        }
+        return 0;
+    }
+
+    protected void initConsumerAvgMessagesPerEntry(List<Entry> entries, Consumer consumer) {
+        if (consumer == null || consumer.getAvgMessagesPerEntry() > 0 || entries == null || entries.isEmpty()) {
+            return;
+        }
+        int totalReadEntries = 0;
+        int totalReadMessages = 0;
+        for (Entry entry : entries) {
+            if (entry != null) {
+                totalReadEntries++;
+                MessageMetadata msgMetadata;
+                if (entry instanceof EntryAndMetadata entryAndMetadata) {
+                    msgMetadata = entryAndMetadata.getMetadata();
+                } else {
+                    msgMetadata = entry.getMessageMetadata();
+                    if (msgMetadata == null) {
+                        msgMetadata = Commands.peekMessageMetadata(entry.getDataBuffer(),
+                                subscription != null ? subscription.toString() : "", -1);
+                    }
+                }
+                totalReadMessages += msgMetadata == null ? 1 : msgMetadata.getNumMessagesInBatch();
+            }
+        }
+        if (totalReadEntries > 0 && totalReadMessages > 0) {
+            consumer.updateAvgMessagesPerEntry(totalReadMessages, totalReadEntries);
+        }
+    }
+
     protected byte[] peekStickyKey(Entry entry) {
         if (entry instanceof EntryAndMetadata entryAndMetadata) {
             return entryAndMetadata.getStickyKey();
@@ -474,6 +552,26 @@ public abstract class AbstractBaseDispatcher extends EntryFilterSupport implemen
             return Commands.NONE_KEY;
         }
         return Commands.resolveStickyKey(metadata);
+    }
+
+    /**
+     * {@link Murmur3_32Hash#makeHash(byte[])} of {@link #peekStickyKey(Entry)}, which hashes the key where it is in the
+     * entry's metadata, as {@link Commands#resolveStickyKeyHash(MessageMetadata)} does.
+     */
+    protected int peekStickyKeyHash(Entry entry) {
+        MessageMetadata metadata;
+        if (entry instanceof EntryAndMetadata entryAndMetadata) {
+            metadata = entryAndMetadata.getMetadata();
+        } else {
+            metadata = entry.getMessageMetadata();
+            if (metadata == null) {
+                metadata = Commands.peekMessageMetadata(entry.getDataBuffer(), subscription.toString(), -1);
+            }
+        }
+        if (metadata == null) {
+            return Murmur3_32Hash.getInstance().makeHash(Commands.NONE_KEY);
+        }
+        return Commands.resolveStickyKeyHash(metadata);
     }
 
     protected String getSubscriptionName() {

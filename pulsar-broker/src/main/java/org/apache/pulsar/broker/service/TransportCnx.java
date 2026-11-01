@@ -106,4 +106,10 @@ public interface TransportCnx {
      * otherwise.
      */
     void sendScalableConsumerAssignment(long consumerId, ScalableConsumerAssignment assignment);
+
+    /**
+     * Make a scalable-topic consumer subscribe again: the controller holding its session stopped
+     * serving as the leader, and the consumer must subscribe with the one that leads now.
+     */
+    void closeScalableConsumerSession(long consumerId);
 }

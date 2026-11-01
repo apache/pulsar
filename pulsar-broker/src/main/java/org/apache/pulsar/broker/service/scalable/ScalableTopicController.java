@@ -22,6 +22,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -36,6 +37,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 import lombok.Getter;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -44,6 +48,7 @@ import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.TopicPoliciesService;
 import org.apache.pulsar.broker.service.TransportCnx;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.api.proto.ScalableConsumerType;
@@ -58,8 +63,12 @@ import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.compaction.Compactor;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
 import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
@@ -91,6 +100,28 @@ public class ScalableTopicController {
     private final Duration gcInterval;
 
     private volatile SegmentLayout currentLayout;
+    private ScalableTopicControllerMetrics metrics = ScalableTopicControllerMetrics.NOOP;
+    /** Monotonic start of the election term, including takeover retry backoff. Guarded by this. */
+    private long takeoverStartedNanos;
+
+    void setMetrics(ScalableTopicControllerMetrics metrics) {
+        this.metrics = metrics;
+    }
+
+    /**
+     * Read volatile state and an immutable layout without acquiring the controller monitor: controller work
+     * must not block the shared Prometheus scrape or OpenTelemetry collection of unrelated metrics.
+     */
+    ScalableTopicControllerMetrics.Counts metricCounts() {
+        SegmentLayout layout = currentLayout;
+        if (closed || leaderState != LeaderElectionState.Leading || layout == null) {
+            return new ScalableTopicControllerMetrics.Counts(0, 0, 0);
+        }
+        long active = layout.getActiveSegments().size();
+        return new ScalableTopicControllerMetrics.Counts(1, active, layout.getAllSegments().size() - active);
+    }
+
+    private Consumer<SubscriptionCoordinator.RebalanceReason> rebalanceListener = __ -> { };
 
     /** Per-subscription consumer tracking. */
     private final ConcurrentHashMap<String, SubscriptionCoordinator> subscriptions = new ConcurrentHashMap<>();
@@ -119,11 +150,74 @@ public class ScalableTopicController {
     /** Epoch millis of the last merge on this topic (manual or auto); MIN_VALUE if none. */
     private volatile long lastMergeAtMs = Long.MIN_VALUE;
     private volatile long lastRebucketAtMs = Long.MIN_VALUE;
+    private volatile String autoScaleBlockedReason;
+    private volatile LastLayoutOperation lastLayoutOperation;
 
+    private record LastLayoutOperation(String operation, String trigger, List<Long> segmentIds,
+                                       String status, String at, String error) {
+        ScalableTopicStats.LayoutOperationStats toStats() {
+            var stats = new ScalableTopicStats.LayoutOperationStats();
+            stats.setOperation(operation);
+            stats.setTrigger(trigger);
+            stats.setSegmentIds(new ArrayList<>(segmentIds));
+            stats.setStatus(status);
+            stats.setAt(at);
+            stats.setError(error);
+            return stats;
+        }
+    }
+
+    private record ResolvedAutoScalePolicy(AutoScaleConfig config, AutoScalePolicyOverride policy,
+                                           String blockedReason) {
+    }
+
+    /**
+     * {@link LeaderElectionState#Leading} while this controller serves as the leader, which starts once it
+     * has taken over (see {@link #takeOverLeadership()}), after its election reported Leading.
+     */
     @Getter
     private volatile LeaderElectionState leaderState = LeaderElectionState.NoLeader;
 
+    /** The state its leader election last reported to this controller. Guarded by {@code this}. */
+    private LeaderElectionState electionState = LeaderElectionState.NoLeader;
+
+    /**
+     * Incremented on every change of {@link #electionState}: a takeover started before the last change is
+     * stale, and must neither restore consumer sessions nor serve. Guarded by {@code this}.
+     */
+    private long term;
+
+    /**
+     * One per term the election makes this controller the leader in: completed once the controller
+     * serves, or once the term ends, across failed takeover attempts. Completed outside of a term.
+     * Guarded by {@code this}.
+     */
+    private CompletableFuture<Void> leadership = CompletableFuture.completedFuture(null);
+
+    /** The latest takeover attempt of the current term, completed if none. Guarded by {@code this}. */
+    private CompletableFuture<Void> takeOverAttempt = CompletableFuture.completedFuture(null);
+
+    /**
+     * Cadence of the retries of a failed takeover, e.g. on a metadata store error. Reset on every
+     * takeover. Guarded by {@code this}.
+     */
+    private final Backoff takeOverBackoff = Backoff.builder()
+            .initialDelay(Duration.ofSeconds(1))
+            .maxBackoff(Duration.ofMinutes(1))
+            .build();
+
     private volatile boolean closed = false;
+
+    /** Registered when this controller elects, see {@link #onControllerLockDeleted()}. */
+    private final ControllerLockListener controllerLockListener = new ControllerLockListener();
+    /** Registered when this controller elects, see {@link #onTopicRecordDeleted()}. */
+    private final TopicRecordListener topicRecordListener = new TopicRecordListener();
+
+    /** Set while re-electing after the controller lock was deleted, retries included. */
+    private final AtomicBoolean reElecting = new AtomicBoolean(false);
+
+    /** Run once this controller finds its topic deleted. Set by {@link ScalableTopicService}. */
+    private volatile Runnable topicDeletedAction = () -> { };
 
     ScalableTopicController(TopicName topicName,
                             ScalableTopicResources resources,
@@ -155,24 +249,125 @@ public class ScalableTopicController {
     }
 
     /**
-     * Reacts to leader election state transitions. On {@link LeaderElectionState#NoLeader}
+     * Reacts to leader election state transitions, including those of the elections the
+     * leader election runs by itself after the one {@link #initialize()} started: when the
+     * controller lock is deleted (its holder released it or lost its metadata session) and
+     * when the metadata session is re-established. Leading makes this controller take over
+     * as the leader; any other state makes it stop serving as the leader at once, so that a
+     * deposed leader never acts alongside the new one. On {@link LeaderElectionState#NoLeader}
      * we kick off another {@link #initialize()} so the cluster always converges toward
      * having a leader.
+     *
+     * <p>The election calls this while holding its monitor, one state change at a time.
      */
     private void onLeaderStateChange(LeaderElectionState state) {
         log.info().attr("state", state).log("Leader state change for scalable topic");
-        if (state != LeaderElectionState.Leading) {
-            // Stepped down (or never was leader). Stop the GC and auto-scale ticks so the
-            // deposed leader doesn't race the new one on layout writes / backing-topic
-            // deletes. The new leader's initialize() will reschedule.
-            cancelGcTask();
-            cancelAutoScaleTask();
+        if (state == LeaderElectionState.Leading) {
+            takeOverLeadership();
+        } else {
+            stopServingAsLeader(state);
         }
         if (state == LeaderElectionState.NoLeader && !closed) {
             initialize().exceptionally(ex -> {
                 log.warn().exceptionMessage(ex).log("Failed to re-elect after NoLeader");
                 return null;
             });
+        }
+    }
+
+    /**
+     * The controller lock was deleted while this broker follows the leader: the leader released
+     * the controller or lost its metadata session, or the topic is being deleted. A follower's
+     * election is closed once it settles (see {@link #electLeader()} and
+     * {@link #stopServingAsLeader(LeaderElectionState)}), so it doesn't take the lock over by
+     * itself, even for a topic being deleted, where it would re-create the lock under the record
+     * the delete is about to remove (failing that delete on stores that refuse to delete a node
+     * with children). Re-elect through {@link #initialize()} instead, unless the topic is gone or
+     * marked deleted, retrying with backoff while that fails.
+     */
+    private void onControllerLockDeleted() {
+        if (closed || !isFollowing() || !reElecting.compareAndSet(false, true)) {
+            return;
+        }
+        reElect(Backoff.builder()
+                .initialDelay(Duration.ofMillis(100))
+                .maxBackoff(Duration.ofSeconds(30))
+                .build());
+    }
+
+    private void reElect(Backoff backoff) {
+        readTopicRecord()
+                .thenCompose(optMd -> {
+                    if (closed || optMd.isEmpty() || optMd.get().isDeleted()) {
+                        log.debug().log("Controller lock released for a deleted topic, not re-electing");
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    return initialize();
+                })
+                .whenComplete((__, ex) -> {
+                    if (ex == null || closed) {
+                        reElecting.set(false);
+                        return;
+                    }
+                    long delayMs = backoff.next().toMillis();
+                    log.warn().attr("retryInMs", delayMs).exceptionMessage(ex)
+                            .log("Failed to re-elect after the controller lock was released");
+                    scheduler().schedule(() -> reElect(backoff), delayMs, TimeUnit.MILLISECONDS);
+                });
+    }
+
+    /**
+     * The topic record was deleted. The admin delete stops the controller on the broker serving
+     * it, but other brokers can hold one for the topic too; left running, it keeps serving
+     * consumers from the deleted layout. The event can arrive after the topic was re-created under
+     * the same name, so act only if the record is still gone.
+     */
+    private void onTopicRecordDeleted() {
+        if (closed) {
+            return;
+        }
+        readTopicRecord()
+                .thenAccept(optMd -> {
+                    if (optMd.isEmpty() && !closed) {
+                        log.debug().log("Scalable topic deleted, releasing its controller");
+                        topicDeletedAction.run();
+                    }
+                })
+                .exceptionally(ex -> {
+                    log.warn().exceptionMessage(ex).log("Failed to check the record of a deleted topic");
+                    return null;
+                });
+    }
+
+    void setTopicDeletedAction(Runnable topicDeletedAction) {
+        this.topicDeletedAction = topicDeletedAction;
+    }
+
+    private final class ControllerLockListener implements ScalableTopicResources.MetadataPathListener {
+        @Override
+        public String getMetadataPath() {
+            return resources.controllerLockPath(topicName);
+        }
+
+        @Override
+        public void onNotification(Notification notification) {
+            if (notification.getType() == NotificationType.Deleted) {
+                onControllerLockDeleted();
+            }
+        }
+    }
+
+    private final class TopicRecordListener implements ScalableTopicResources.MetadataPathListener {
+        @Override
+        public String getMetadataPath() {
+            return resources.topicPath(topicName);
+        }
+
+        @Override
+        public void onNotification(Notification notification) {
+            if (notification.getType() == NotificationType.Deleted) {
+                onTopicRecordDeleted();
+            }
         }
     }
 
@@ -192,19 +387,202 @@ public class ScalableTopicController {
                         return CompletableFuture.failedFuture(
                                 new IllegalStateException("Scalable topic not found: " + topicName));
                     }
+                    if (optMd.get().isDeleted()) {
+                        return CompletableFuture.failedFuture(
+                                new IllegalStateException("Scalable topic is being deleted: " + topicName));
+                    }
                     this.currentLayout = SegmentLayout.fromMetadata(optMd.get());
                     return electLeader();
                 })
-                .thenCompose(__ -> {
-                    if (isLeader()) {
-                        seedAutoScaleCooldownsFromLayout();
-                        scheduleGcTask();
-                        scheduleAutoScaleTask();
-                        return ensureActiveSegmentsExist()
-                                .thenCompose(___ -> restoreSessionsFromStore());
+                // The election reported its outcome to onLeaderStateChange before completing:
+                // wait for the takeover attempt that started, if it made this controller the leader.
+                .thenCompose(__ -> currentTakeOverAttempt());
+    }
+
+    private synchronized CompletableFuture<Void> currentTakeOverAttempt() {
+        return takeOverAttempt;
+    }
+
+    /**
+     * The takeover in progress if the leader election made this controller the leader and it
+     * doesn't serve yet, completed otherwise: a request arriving meanwhile can wait for it rather
+     * than fail as reaching a broker that is not the leader.
+     */
+    synchronized CompletableFuture<Void> takeOverInProgress() {
+        return leadership;
+    }
+
+    /** Whether no state change of the leader election, nor a close, came after {@code term}. */
+    private synchronized boolean isCurrentTerm(long term) {
+        return !closed && term == this.term;
+    }
+
+    private synchronized boolean isFollowing() {
+        return electionState == LeaderElectionState.Following;
+    }
+
+    /**
+     * The leader election made this controller the leader: take over. The layout is reloaded,
+     * since the previous leader may have changed it after this controller loaded it, the
+     * cooldowns and the consumer sessions of the previous leader are recovered, and the active
+     * segments are healed. Only then does this controller serve as the leader: a consumer
+     * registering before the sessions are restored would be handed segments that a restored
+     * session owns. A failed takeover is retried, backing off, as long as the election keeps
+     * this controller the leader.
+     */
+    private void takeOverLeadership() {
+        long term;
+        synchronized (this) {
+            if (closed || electionState == LeaderElectionState.Leading) {
+                return;
+            }
+            electionState = LeaderElectionState.Leading;
+            term = ++this.term;
+            lastLayoutOperation = null;
+            autoScaleBlockedReason = null;
+            takeoverStartedNanos = System.nanoTime();
+            leadership = new CompletableFuture<>();
+            takeOverBackoff.reset();
+        }
+        startTakeOver(term);
+    }
+
+    private void startTakeOver(long term) {
+        long startedNanos;
+        synchronized (this) {
+            if (!isCurrentTerm(term)) {
+                return;
+            }
+            startedNanos = takeoverStartedNanos;
+        }
+        // Not under the monitor: a takeover that finds the topic deleted closes this controller,
+        // and with it the leader election, whose monitor comes first.
+        CompletableFuture<Void> takeover = FutureUtil.supplySafely(() -> takeOver(term))
+                .whenComplete((__, ex) -> {
+                    // Superseded or closed attempts are abandoned, not failed takeovers.
+                    // Successful takeover is recorded at the actual transition to serving.
+                    if (ex != null && isCurrentTerm(term)) {
+                        metrics.recordTakeover(elapsedSeconds(startedNanos), false);
                     }
-                    return CompletableFuture.completedFuture(null);
                 });
+        long retryDelayMs;
+        synchronized (this) {
+            if (term != this.term) {
+                return;
+            }
+            takeOverAttempt = takeover;
+            retryDelayMs = takeOverBackoff.next().toMillis();
+        }
+        takeover.exceptionally(ex -> {
+            if (!isCurrentTerm(term)) {
+                // Closed, e.g. for a deleted topic, or overtaken by a later state change.
+                return null;
+            }
+            log.warn().attr("retryDelayMs", retryDelayMs).exceptionMessage(ex)
+                    .log("Failed to take over as the scalable topic leader, retrying");
+            scheduler().schedule(() -> startTakeOver(term), retryDelayMs, TimeUnit.MILLISECONDS);
+            return null;
+        });
+    }
+
+    /**
+     * A topic deleted or being deleted has nothing to serve. The delete marks the topic before
+     * releasing its leader, but this controller may have read the record before the mark and won
+     * the election after the release, re-creating the lock under the record the delete is about
+     * to remove: it gives the lock back by closing, and the takeover fails. ScalableTopicService
+     * replaces a closed controller.
+     */
+    private CompletableFuture<Void> takeOver(long term) {
+        return readTopicRecord()
+                .thenCompose(optMd -> {
+                    if (!isCurrentTerm(term)) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    if (optMd.isEmpty() || optMd.get().isDeleted()) {
+                        log.info().log("Scalable topic deleted while taking over as its leader, closing"
+                                + " the controller");
+                        return close().thenCompose(__ -> CompletableFuture.failedFuture(
+                                new IllegalStateException("Scalable topic is being deleted: " + topicName)));
+                    }
+                    this.currentLayout = SegmentLayout.fromMetadata(optMd.get());
+                    seedAutoScaleCooldownsFromLayout();
+                    return ensureActiveSegmentsExist()
+                            .thenCompose(__ -> restoreSessionsFromStore(term))
+                            .thenRun(() -> serveAsLeader(term));
+                });
+    }
+
+    /**
+     * The record of the topic, read from the store. Empty if it is missing or can't be read, like
+     * the empty one that a store re-creating missing parents leaves under the lock of a deleted
+     * topic.
+     */
+    private CompletableFuture<Optional<ScalableTopicMetadata>> readTopicRecord() {
+        return resources.getScalableTopicMetadataAsync(topicName, true)
+                .exceptionally(ex -> {
+                    if (FutureUtil.unwrapCompletionException(ex)
+                            instanceof MetadataStoreException.ContentDeserializationException) {
+                        return Optional.empty();
+                    }
+                    throw FutureUtil.wrapToCompletionException(ex);
+                });
+    }
+
+    private void serveAsLeader(long term) {
+        CompletableFuture<Void> served;
+        long startedNanos;
+        synchronized (this) {
+            if (closed || term != this.term) {
+                return;
+            }
+            leaderState = LeaderElectionState.Leading;
+            scheduleGcTask();
+            scheduleAutoScaleTask();
+            served = leadership;
+            startedNanos = takeoverStartedNanos;
+        }
+        // Record the completed takeover before waiters can close or supersede the serving controller.
+        metrics.recordTakeover(elapsedSeconds(startedNanos), true);
+        // Not under the monitor: the requests that waited for the takeover go on from here.
+        served.complete(null);
+    }
+
+    /**
+     * The leader election lost the controller lock, or reported that another broker holds it:
+     * stop serving as the leader at once. Besides the GC and auto split/merge ticks, the
+     * consumer sessions are dropped: a deposed leader must neither push assignments nor evict
+     * the consumers whose grace period runs out. The consumers connected here are made to
+     * subscribe again, with whichever broker leads now, which restores their sessions from the
+     * metadata store: nothing else would tell them to move.
+     */
+    private void stopServingAsLeader(LeaderElectionState state) {
+        CompletableFuture<Void> endedTerm = null;
+        synchronized (this) {
+            if (closed) {
+                return;
+            }
+            if (state != electionState) {
+                electionState = state;
+                term++;
+                leaderState = state;
+                endedTerm = leadership;
+                takeOverAttempt = CompletableFuture.completedFuture(null);
+                cancelGcTask();
+                cancelAutoScaleTask();
+                closeSubscriptions(true);
+            }
+        }
+        if (endedTerm != null) {
+            // The requests waiting for a takeover go on, and find that this controller doesn't serve.
+            endedTerm.complete(null);
+        }
+        if (state == LeaderElectionState.Following) {
+            // Like in electLeader(): a follower holds no lock, and closing its election keeps it
+            // from taking the lock over by itself once the lock is deleted, before this controller
+            // can check the topic. onControllerLockDeleted() re-elects. Not under the monitor: the
+            // election's comes first.
+            leaderElection.asyncClose();
+        }
     }
 
     /**
@@ -390,16 +768,27 @@ public class ScalableTopicController {
         }
         try {
             return resolveAutoScaleConfig(brokerConfig)
-                    .thenCompose(config -> {
+                    .thenCompose(resolved -> {
+                        AutoScaleConfig config = resolved.config();
+                        autoScaleBlockedReason = resolved.blockedReason();
+                        // Policy resolution is shared with stats; only evaluations count blocked decisions.
+                        if ("invalid_policy".equals(resolved.blockedReason()) && isLeader()) {
+                            metrics.recordBlocked("invalid_policy");
+                        }
                         if (!config.enabled()) {
                             return CompletableFuture.<Void>completedFuture(null);
                         }
                         Set<String> bucketSharing = bucketSharingSubscriptions();
                         return collectConsumerCounts()
-                                .thenCombine(collectLoadSamples(), (consumers, load) ->
-                                        AutoScalePolicyEvaluator.decide(currentLayout, load,
-                                                consumers, bucketSharing, config, clock.millis(),
-                                                lastSplitAtMs, lastMergeAtMs, lastRebucketAtMs))
+                                .thenCombine(collectLoadSamples(), (consumers, load) -> {
+                                    SegmentLayout layout = currentLayout;
+                                    AutoScaleDecision decision = AutoScalePolicyEvaluator.decide(layout, load,
+                                            consumers, bucketSharing, config, clock.millis(),
+                                            lastSplitAtMs, lastMergeAtMs, lastRebucketAtMs);
+                                    autoScaleBlockedReason = AutoScalePolicyEvaluator.blockedReasonForStats(
+                                            layout, decision, consumers, bucketSharing, config);
+                                    return decision;
+                                })
                                 .thenCompose(decision -> dispatch(decision, config, trigger));
                     })
                     .whenComplete((__, ex) -> {
@@ -432,7 +821,7 @@ public class ScalableTopicController {
      * evaluation until an operator fixes the overrides — rather than failing the evaluation
      * chain.
      */
-    private CompletableFuture<AutoScaleConfig> resolveAutoScaleConfig(
+    private CompletableFuture<ResolvedAutoScalePolicy> resolveAutoScaleConfig(
             ServiceConfiguration brokerConfig) {
         CompletableFuture<AutoScalePolicyOverride> namespaceOverride =
                 brokerService.getPulsar().getPulsarResources().getNamespaceResources()
@@ -444,8 +833,9 @@ public class ScalableTopicController {
                         .thenApply(opt -> opt.map(ScalableTopicMetadata::getAutoScalePolicy)
                                 .orElse(null));
         return namespaceOverride.thenCombine(topicOverride, (ns, topic) -> {
+            AutoScaleConfig effective = AutoScaleConfig.resolveUnvalidated(brokerConfig, ns, topic);
             try {
-                return AutoScaleConfig.resolve(brokerConfig, ns, topic);
+                return new ResolvedAutoScalePolicy(effective.validated(), effective.toPolicyOverride(), null);
             } catch (IllegalArgumentException e) {
                 log.warn().attr("reason", e.getMessage())
                         .log("Resolved auto split/merge policy is invalid; treating auto "
@@ -455,17 +845,24 @@ public class ScalableTopicController {
                 // the invalid part, re-validating here would just rethrow on every tick
                 // instead of the documented "treated as disabled". Only `enabled` is ever
                 // consulted on this object.
-                return AutoScaleConfig.disabledFallback(brokerConfig);
+                return new ResolvedAutoScalePolicy(AutoScaleConfig.disabledFallback(brokerConfig),
+                        effective.toPolicyOverride(), "invalid_policy");
             }
         });
     }
 
     private CompletableFuture<Void> dispatch(AutoScaleDecision decision, AutoScaleConfig config,
                                              String trigger) {
+        if (!isLeader() || closed) {
+            return CompletableFuture.completedFuture(null);
+        }
+        if (decision instanceof AutoScaleDecision.Blocked blocked) {
+            metrics.recordBlocked(blocked.reason());
+        }
         if (decision instanceof AutoScaleDecision.Split split) {
             log.info().attr("segmentId", split.segmentId()).attr("reason", split.reason())
                     .attr("trigger", trigger).log("Auto split");
-            return splitSegment(split.segmentId())
+            return splitSegment(split.segmentId(), "auto")
                     .thenApply(__ -> {
                         scheduleFollowUpEvaluation(config);
                         return null;
@@ -482,7 +879,7 @@ public class ScalableTopicController {
             CompletableFuture<Void> chain = CompletableFuture.completedFuture(null);
             for (long segmentId : rebucket.segmentIds()) {
                 chain = chain.thenCompose(__ ->
-                        rebucketSegment(segmentId, rebucket.newBucketCount()))
+                        rebucketSegment(segmentId, rebucket.newBucketCount(), "auto"))
                         .thenApply(__ -> null);
             }
             return chain.whenComplete((__, ___) ->
@@ -496,7 +893,7 @@ public class ScalableTopicController {
         if (decision instanceof AutoScaleDecision.Merge merge) {
             log.info().attr("segmentId1", merge.segmentId1()).attr("segmentId2", merge.segmentId2())
                     .attr("reason", merge.reason()).attr("trigger", trigger).log("Auto merge");
-            return mergeSegments(merge.segmentId1(), merge.segmentId2()).thenApply(__ -> null);
+            return mergeSegments(merge.segmentId1(), merge.segmentId2(), "auto").thenApply(__ -> null);
         }
         return CompletableFuture.completedFuture(null);
     }
@@ -592,25 +989,31 @@ public class ScalableTopicController {
      * on successful leader election so the newly-elected leader can resume servicing
      * consumers that were registered under a previous leader.
      */
-    private CompletableFuture<Void> restoreSessionsFromStore() {
+    private CompletableFuture<Void> restoreSessionsFromStore(long term) {
         return resources.listSubscriptionsAsync(topicName)
                 .thenCompose(subNames -> {
                     if (subNames.isEmpty()) {
                         return CompletableFuture.completedFuture(null);
                     }
                     CompletableFuture<?>[] futures = subNames.stream()
-                            .map(this::restoreSubscription)
+                            .map(subscription -> restoreSubscription(subscription, term))
                             .toArray(CompletableFuture[]::new);
                     return CompletableFuture.allOf(futures);
                 });
     }
 
-    private CompletableFuture<Void> restoreSubscription(String subscription) {
+    private CompletableFuture<Void> restoreSubscription(String subscription, long term) {
         return resources.listConsumersAsync(topicName, subscription)
                 .thenAccept(consumerNames -> {
-                    SubscriptionCoordinator coordinator = subscriptions.computeIfAbsent(
-                            subscription, this::createCoordinator);
-                    coordinator.restoreConsumers(consumerNames);
+                    synchronized (this) {
+                        if (closed || term != this.term) {
+                            // Stopped serving meanwhile: the sessions are the next leader's.
+                            return;
+                        }
+                        SubscriptionCoordinator coordinator = subscriptions.computeIfAbsent(
+                                subscription, this::createCoordinator);
+                        coordinator.restoreConsumers(consumerNames);
+                    }
                     log.info().attr("subscription", subscription)
                             .attr("consumerCount", consumerNames.size())
                             .log("Restored subscription");
@@ -630,6 +1033,30 @@ public class ScalableTopicController {
     }
 
     private SubscriptionCoordinator createCoordinator(String subscription,
+            ScalableConsumerType consumerType) {
+        SubscriptionCoordinator coordinator = newCoordinator(subscription, consumerType);
+        coordinator.setRebalanceListener(rebalanceListener);
+        return coordinator;
+    }
+
+    /** Set before initialization, so restored and newly registered coordinators share the broker counter. */
+    void setRebalanceListener(Consumer<SubscriptionCoordinator.RebalanceReason> listener) {
+        rebalanceListener = listener;
+    }
+
+    SubscriptionCoordinator.ConsumerStats consumerStats() {
+        if (closed || !isLeader()) {
+            return SubscriptionCoordinator.ConsumerStats.EMPTY;
+        }
+        SubscriptionCoordinator.ConsumerStats stats = SubscriptionCoordinator.ConsumerStats.EMPTY;
+        for (SubscriptionCoordinator coordinator : subscriptions.values()) {
+            stats = stats.plus(coordinator.consumerStats());
+        }
+        // Leadership may have ended while the lock-free snapshots were being read.
+        return closed || !isLeader() ? SubscriptionCoordinator.ConsumerStats.EMPTY : stats;
+    }
+
+    private SubscriptionCoordinator newCoordinator(String subscription,
             ScalableConsumerType consumerType) {
         // Parent-drain ordering matters only for STREAM consumers (Exclusive per-segment
         // subscription with broker-tracked cursors → preserving per-key order across a
@@ -751,9 +1178,25 @@ public class ScalableTopicController {
         // NamespaceService.createLookupResult(brokerId, ...), matching the pattern used by
         // the cluster-leader redirection in NamespacesBase.
         String brokerId = brokerService.getPulsar().getBrokerId();
+        // Registered before electing, so that no deletion is missed once the election settles.
+        resources.registerPathListener(controllerLockListener);
+        resources.registerPathListener(topicRecordListener);
+        if (closed) {
+            // close() may have deregistered them before they were registered.
+            resources.deregisterPathListener(controllerLockListener);
+            resources.deregisterPathListener(topicRecordListener);
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Controller closed for scalable topic: " + topicName));
+        }
         return leaderElection.elect(brokerId)
                 .thenAccept(state -> {
-                    this.leaderState = state;
+                    if (state == LeaderElectionState.Following || closed) {
+                        // A follower holds no lock. Closing its election keeps the election from
+                        // taking the lock over by itself once the lock is deleted, before this
+                        // controller can check the topic: onControllerLockDeleted() re-elects.
+                        // Closed while electing, this controller closes what elect() reopened.
+                        leaderElection.asyncClose();
+                    }
                     log.info().attr("state", state)
                             .log("Leader election for scalable topic");
                 });
@@ -788,6 +1231,15 @@ public class ScalableTopicController {
      * messages published before a consumer subscribes would be missed.
      */
     public CompletableFuture<SegmentLayout> splitSegment(long segmentId) {
+        return splitSegment(segmentId, "manual");
+    }
+
+    private CompletableFuture<SegmentLayout> splitSegment(long segmentId, String trigger) {
+        LayoutOperation operation = new LayoutOperation("split", trigger, List.of(segmentId));
+        return operation.track(() -> splitSegment(segmentId, operation));
+    }
+
+    private CompletableFuture<SegmentLayout> splitSegment(long segmentId, LayoutOperation operation) {
         checkLeader();
 
         // Single timestamp shared by the local preview and the CAS-retried metadata update,
@@ -808,13 +1260,13 @@ public class ScalableTopicController {
         // already provisioned (the create call routes to each segment's owning broker).
         return resources.listSubscriptionsAsync(topicName)
           .thenCompose(parentSubs -> {
-              var subList = new java.util.ArrayList<>(parentSubs);
+              var subList = new ArrayList<>(parentSubs);
               return createSegmentTopic(child1, subList)
                       .thenCompose(__ -> createSegmentTopic(child2, subList));
           })
 
           // Step 3: Terminate the parent segment topic so producers get TopicTerminated
-          .thenCompose(__ -> terminateSegmentTopic(parentTopicName))
+          .thenCompose(__ -> terminateSegmentTopic(parentTopicName).thenRun(operation::sealed))
 
           // Step 4: Atomic metadata update (only after topics + cursors are ready + parent terminated)
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
@@ -822,6 +1274,7 @@ public class ScalableTopicController {
               SegmentLayout updated = latest.splitSegment(segmentId, nowMs);
               return updated.toMetadata(md);
           }))
+          .thenRun(operation::committed)
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
               currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
@@ -845,6 +1298,16 @@ public class ScalableTopicController {
      * created before the parent is terminated, and the metadata CAS lands last.
      */
     public CompletableFuture<SegmentLayout> rebucketSegment(long segmentId, int newBucketCount) {
+        return rebucketSegment(segmentId, newBucketCount, "manual");
+    }
+
+    private CompletableFuture<SegmentLayout> rebucketSegment(long segmentId, int newBucketCount, String trigger) {
+        LayoutOperation operation = new LayoutOperation("rebucket", trigger, List.of(segmentId));
+        return operation.track(() -> rebucketSegment(segmentId, newBucketCount, operation));
+    }
+
+    private CompletableFuture<SegmentLayout> rebucketSegment(long segmentId, int newBucketCount,
+                                                           LayoutOperation operation) {
         checkLeader();
         int maxBuckets = maxEntryBucketsPerSegment();
         if (newBucketCount < 1 || newBucketCount > maxBuckets) {
@@ -869,13 +1332,14 @@ public class ScalableTopicController {
 
         return resources.listSubscriptionsAsync(topicName)
           .thenCompose(parentSubs ->
-                  createSegmentTopic(successor, new java.util.ArrayList<>(parentSubs)))
-          .thenCompose(__ -> terminateSegmentTopic(parentTopicName))
+                  createSegmentTopic(successor, new ArrayList<>(parentSubs)))
+          .thenCompose(__ -> terminateSegmentTopic(parentTopicName).thenRun(operation::sealed))
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
               SegmentLayout latest = SegmentLayout.fromMetadata(md);
               SegmentLayout updated = latest.rebucketSegment(segmentId, newSplits, nowMs);
               return updated.toMetadata(md);
           }))
+          .thenRun(operation::committed)
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
               currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
@@ -899,6 +1363,16 @@ public class ScalableTopicController {
      * are created before the metadata update.
      */
     public CompletableFuture<SegmentLayout> mergeSegments(long segmentId1, long segmentId2) {
+        return mergeSegments(segmentId1, segmentId2, "manual");
+    }
+
+    private CompletableFuture<SegmentLayout> mergeSegments(long segmentId1, long segmentId2, String trigger) {
+        LayoutOperation operation = new LayoutOperation("merge", trigger, List.of(segmentId1, segmentId2));
+        return operation.track(() -> mergeSegments(segmentId1, segmentId2, operation));
+    }
+
+    private CompletableFuture<SegmentLayout> mergeSegments(long segmentId1, long segmentId2,
+                                                          LayoutOperation operation) {
         checkLeader();
 
         // Single timestamp shared by the local preview and the CAS-retried metadata
@@ -918,11 +1392,11 @@ public class ScalableTopicController {
         // truth, see splitSegment), then create the merged segment topic with those
         // subscriptions provisioned.
         return resources.listSubscriptionsAsync(topicName)
-          .thenCompose(parentSubs -> createSegmentTopic(merged, new java.util.ArrayList<>(parentSubs)))
+          .thenCompose(parentSubs -> createSegmentTopic(merged, new ArrayList<>(parentSubs)))
 
           // Step 2: Terminate both parent segment topics
-          .thenCompose(__ -> terminateSegmentTopic(parent1Topic))
-          .thenCompose(__ -> terminateSegmentTopic(parent2Topic))
+          .thenCompose(__ -> terminateSegmentTopic(parent1Topic).thenRun(operation::sealed))
+          .thenCompose(__ -> terminateSegmentTopic(parent2Topic).thenRun(operation::sealed))
 
           // Step 3: Atomic metadata update (only after topic + cursors are ready + parents terminated)
           .thenCompose(__ -> resources.updateScalableTopicAsync(topicName, md -> {
@@ -931,6 +1405,7 @@ public class ScalableTopicController {
                       maxEntryBucketsPerSegment());
               return updated.toMetadata(md);
           }))
+          .thenRun(operation::committed)
           .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
               currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
@@ -939,6 +1414,75 @@ public class ScalableTopicController {
               lastMergeAtMs = nowMs;
               return notifySubscriptions(currentLayout);
           }).thenApply(__ -> currentLayout);
+    }
+
+    private static double elapsedSeconds(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000_000.0;
+    }
+
+    /** Tracks the irreversible boundaries separately from notification/readback failures. */
+    private final class LayoutOperation {
+        private final String operation;
+        private final String trigger;
+        private final List<Long> segmentIds;
+        private final long operationTerm;
+        private final long startedNanos = System.nanoTime();
+        private final boolean startedAsLeader;
+        private long sealedNanos;
+        private boolean committed;
+        private final AtomicInteger pendingStorageDeletes = new AtomicInteger();
+        private boolean layoutChanged;
+        private volatile Throwable storageError;
+
+        private LayoutOperation(String operation, String trigger, List<Long> segmentIds) {
+            this.operation = operation;
+            this.trigger = trigger;
+            this.segmentIds = List.copyOf(segmentIds);
+            startedAsLeader = isLeader();
+            synchronized (ScalableTopicController.this) {
+                operationTerm = term;
+            }
+        }
+
+        private void sealed() {
+            if (sealedNanos == 0) {
+                sealedNanos = System.nanoTime();
+            }
+        }
+
+        private void committed() {
+            committed = true;
+            if (startedAsLeader && sealedNanos != 0) {
+                metrics.recordSeal(operation, elapsedSeconds(sealedNanos));
+            }
+        }
+
+        private <T> CompletableFuture<T> track(Supplier<CompletableFuture<T>> action) {
+            return FutureUtil.supplySafely(action).whenComplete((__, ex) -> {
+                // Outcomes belong to the broker that started the operation, even after leadership changes.
+                // Requests rejected before starting as leader still contribute nothing.
+                if (!startedAsLeader) {
+                    return;
+                }
+                if ("prune".equals(operation) && committed && !layoutChanged) {
+                    return;
+                }
+                boolean partial = "prune".equals(operation)
+                        ? committed && pendingStorageDeletes.get() > 0
+                        : sealedNanos != 0 && !committed;
+                String status = partial ? "partial" : ex == null ? "success" : "failure";
+                metrics.recordOperation(operation, trigger, status, elapsedSeconds(startedNanos));
+                Throwable error = ex != null ? FutureUtil.unwrapCompletionException(ex) : storageError;
+                LastLayoutOperation completed = new LastLayoutOperation(operation, trigger, segmentIds,
+                        status, clock.instant().toString(), error == null ? null : error.toString());
+                synchronized (ScalableTopicController.this) {
+                    // A completion from a previous leadership term is not this leader's history.
+                    if (operationTerm == term && isLeader() && !closed) {
+                        lastLayoutOperation = completed;
+                    }
+                }
+            });
+        }
     }
 
     // --- Consumer management ---
@@ -964,9 +1508,13 @@ public class ScalableTopicController {
                                                                    ScalableConsumerType
                                                                            consumerType,
                                                                    TransportCnx cnx) {
-        checkLeader();
-        SubscriptionCoordinator coordinator = subscriptions.computeIfAbsent(
-                subscription, sub -> createCoordinator(sub, consumerType));
+        SubscriptionCoordinator coordinator;
+        synchronized (this) {
+            // Under the monitor: stopping to serve in between would miss the coordinator.
+            checkLeader();
+            coordinator = subscriptions.computeIfAbsent(
+                    subscription, sub -> createCoordinator(sub, consumerType));
+        }
         // The coordinator may have been created on the failover-restore path (consumer
         // type unknown then; we defaulted to "no parent-drain enforcement"). Now that we
         // know the type, upgrade if it's STREAM. installDrainChecker is a no-op if the
@@ -1263,6 +1811,10 @@ public class ScalableTopicController {
      * <p>STREAM consumer sessions (connected state, segment assignment) are the leader's
      * in-memory state, which is why the REST layer routes stats requests to the controller
      * leader.
+     *
+     * <p>The latest load records are read from metadata, not sampled by updating or resetting
+     * traffic rate meters. These on-demand reads retain normal metadata-store and cache metrics
+     * accounting, just like other admin reads.
      */
     public CompletableFuture<ScalableTopicStats> getStats() {
         SegmentLayout layout = this.currentLayout;
@@ -1308,6 +1860,8 @@ public class ScalableTopicController {
         }));
 
         Map<String, List<ScalableTopicStatsBuilder.StreamConsumer>> streamConsumers = new LinkedHashMap<>();
+        Map<String, Set<Long>> blockedSegments = new LinkedHashMap<>();
+        Set<String> checkpointGroups = new HashSet<>();
         subscriptions.forEach((subName, coordinator) -> {
             List<ScalableTopicStatsBuilder.StreamConsumer> consumers = new ArrayList<>();
             coordinator.currentAssignment().forEach((session, assignment) ->
@@ -1318,11 +1872,67 @@ public class ScalableTopicController {
                                     .map(ConsumerAssignment.AssignedSegment::segmentId)
                                     .toList())));
             streamConsumers.put(subName, consumers);
+            blockedSegments.put(subName, coordinator.getBlockedSegmentIds());
+            if (coordinator.isCheckpointGroup()) {
+                checkpointGroups.add(subName);
+            }
         });
 
-        return FutureUtil.waitForAll(futures)
-                .thenApply(__ -> ScalableTopicStatsBuilder.build(
-                        topicName, layout, segmentStats, persistedTypes, streamConsumers));
+        Map<Long, SegmentLoadSample> loadSamples = new ConcurrentHashMap<>();
+        for (long segmentId : layout.getAllSegments().keySet()) {
+            futures.add(resources.getSegmentLoadAsync(topicName, segmentId)
+                    .thenAccept(opt -> opt.ifPresent(result -> loadSamples.put(segmentId,
+                            new SegmentLoadSample(result.getValue(), result.getStat().getModificationTimestamp()))))
+                    .exceptionally(ex -> {
+                        log.debug().attr("segmentId", segmentId).exceptionMessage(ex)
+                                .log("Failed to collect segment load record for stats");
+                        return null;
+                    }));
+        }
+        ServiceConfiguration config = brokerConfig();
+        CompletableFuture<ResolvedAutoScalePolicy> policy = config == null
+                ? CompletableFuture.completedFuture(null)
+                : FutureUtil.supplySafely(() -> resolveAutoScaleConfig(config)).exceptionally(ex -> {
+                    log.debug().exceptionMessage(ex).log("Failed to collect auto-scale policy for stats");
+                    return null;
+                });
+        return FutureUtil.waitForAll(futures).thenCombine(policy, (__, resolved) -> {
+            ScalableTopicStats stats = ScalableTopicStatsBuilder.build(topicName, layout, segmentStats,
+                    persistedTypes, streamConsumers, blockedSegments, checkpointGroups);
+            stats.setControllerBroker(brokerService.getPulsar().getBrokerId());
+            var autoScale = new ScalableTopicStats.AutoScaleStats();
+            if (resolved != null) {
+                autoScale.setPolicy(resolved.policy());
+            }
+            autoScale.setBlockedReason(resolved != null && resolved.blockedReason() != null
+                    ? resolved.blockedReason() : autoScaleBlockedReason);
+            autoScale.setLastSplitAt(isoTimestamp(lastSplitAtMs));
+            autoScale.setLastMergeAt(isoTimestamp(lastMergeAtMs));
+            autoScale.setLastRebucketAt(isoTimestamp(lastRebucketAtMs));
+            stats.setAutoScale(autoScale);
+            LastLayoutOperation operation = lastLayoutOperation;
+            if (operation != null) {
+                stats.getLayout().setLastOperation(operation.toStats());
+            }
+            long nowMs = clock.millis();
+            loadSamples.forEach((segmentId, sample) -> {
+                ScalableTopicStats.LayoutSegment segment = stats.getLayout().getSegments().get(segmentId);
+                if (segment != null) {
+                    var load = new ScalableTopicStats.SegmentLoadStats();
+                    load.setMsgRateIn(sample.stats().msgRateIn());
+                    load.setByteRateIn(sample.stats().byteRateIn());
+                    load.setMsgRateOut(sample.stats().msgRateOut());
+                    load.setByteRateOut(sample.stats().byteRateOut());
+                    load.setAgeSeconds(Math.max(0, (nowMs - sample.modifiedAtMs()) / 1000.0));
+                    segment.setLoad(load);
+                }
+            });
+            return stats;
+        });
+    }
+
+    private static String isoTimestamp(long timestampMs) {
+        return timestampMs == Long.MIN_VALUE ? null : Instant.ofEpochMilli(timestampMs).toString();
     }
 
     /**
@@ -1351,7 +1961,10 @@ public class ScalableTopicController {
                                     ? CompletableFuture.<SegmentTopicStats>completedFuture(null)
                                     : optTopic.get()
                                             .asyncGetStats(ScalableTopicService.SEGMENT_STATS_OPTIONS)
-                                            .thenApply(SegmentTopicStatsBuilder::fromTopicStats));
+                                            .thenApply(stats -> SegmentTopicStatsBuilder.fromTopicStats(stats,
+                                                    optTopic.get() instanceof PersistentTopic persistentTopic
+                                                            && persistentTopic.getManagedLedger().isTerminated(),
+                                                    optTopic.get().getSubscriptions())));
                 });
     }
 
@@ -1471,6 +2084,13 @@ public class ScalableTopicController {
         if (!isLeader() || closed) {
             return CompletableFuture.completedFuture(null);
         }
+        LayoutOperation operation = new LayoutOperation("prune", "auto",
+                drained.stream().map(SegmentInfo::segmentId).toList());
+        operation.pendingStorageDeletes.set(drained.size());
+        return operation.track(() -> pruneAllAsync(drained, operation));
+    }
+
+    private CompletableFuture<Void> pruneAllAsync(List<SegmentInfo> drained, LayoutOperation operation) {
         for (SegmentInfo s : drained) {
             log.info().attr("segmentId", s.segmentId())
                     .attr("sealedAtMs", s.sealedAtMs())
@@ -1486,15 +2106,17 @@ public class ScalableTopicController {
                     updated = updated.pruneSegment(s.segmentId());
                 }
             }
+            operation.layoutChanged = updated != latest;
             return updated == latest ? md : updated.toMetadata(md);
-        }).thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
+        }).thenRun(operation::committed)
+          .thenCompose(__ -> resources.getScalableTopicMetadataAsync(topicName, true))
           .thenCompose(optMd -> {
               currentLayout = SegmentLayout.fromMetadata(optMd.orElseThrow());
               return notifySubscriptions(currentLayout);
           })
           .thenCompose(__ -> {
               CompletableFuture<?>[] deletes = drained.stream()
-                      .map(s -> deleteSegmentBackingTopic(s)
+                      .map(s -> deleteSegmentBackingTopic(s, operation)
                               // The segment is gone from the layout — drop its load record
                               // too, or the .../segments/{id}/load entry leaks forever.
                               .thenCompose(___ ->
@@ -1527,10 +2149,10 @@ public class ScalableTopicController {
             // No subscribers ever attached / all unsubscribed → nothing left to drain.
             return CompletableFuture.completedFuture(true);
         }
-        CompletableFuture<Boolean>[] checks = subs.stream()
+        List<CompletableFuture<Boolean>> checks = subs.stream()
                 .map(sub -> isSegmentDrained(seg, sub))
-                .toArray(CompletableFuture[]::new);
-        return CompletableFuture.allOf(checks)
+                .toList();
+        return CompletableFuture.allOf(checks.toArray(CompletableFuture<?>[]::new))
                 .thenApply(__ -> {
                     for (CompletableFuture<Boolean> c : checks) {
                         if (!c.join()) {
@@ -1549,22 +2171,24 @@ public class ScalableTopicController {
      * has already pruned the segment from the layout (the point of no return),
      * so a failed delete is just leaked storage that the next tick will retry.
      */
-    private CompletableFuture<Void> deleteSegmentBackingTopic(SegmentInfo seg) {
+    private CompletableFuture<Void> deleteSegmentBackingTopic(SegmentInfo seg, LayoutOperation operation) {
         String name = SegmentTopicName.backingTopicName(topicName, seg);
         try {
             PulsarAdmin admin = brokerService.getPulsar().getAdminClient();
             CompletableFuture<Void> delete = seg.isLegacy()
                     ? admin.topics().deleteAsync(name, /* force */ true)
                     : admin.scalableTopics().deleteSegmentAsync(name, /* force */ true);
-            return delete
+            return delete.thenRun(() -> operation.pendingStorageDeletes.decrementAndGet())
                     .exceptionally(ex -> {
                         Throwable cause =
                                 org.apache.pulsar.common.util.FutureUtil.unwrapCompletionException(ex);
                         if (cause instanceof org.apache.pulsar.client.admin.PulsarAdminException
                                 .NotFoundException) {
                             // Already gone — fine.
+                            operation.pendingStorageDeletes.decrementAndGet();
                             return null;
                         }
+                        operation.storageError = cause;
                         log.warn().attr("segment", name).exceptionMessage(cause)
                                 .log("GC: failed to delete backing segment topic;"
                                         + " will retry on next tick");
@@ -1644,15 +2268,45 @@ public class ScalableTopicController {
 
     // --- Lifecycle ---
 
+    /**
+     * Release the controller: its leader election is closed, which releases the controller lock
+     * if it holds it. The consumers connected here are not moved: on a broker shutdown their
+     * connections close anyway, and a deleted topic has nothing left to subscribe to.
+     */
     public CompletableFuture<Void> close() {
-        closed = true;
-        cancelGcTask();
-        cancelAutoScaleTask();
-        // Stop each coordinator's drain poller before clearing — otherwise the scheduler
-        // task keeps running after the controller goes away.
-        subscriptions.values().forEach(SubscriptionCoordinator::close);
+        // The election first, outside the monitor (the election calls onLeaderStateChange
+        // holding its own): ScalableTopicService replaces a controller seen closed, and the
+        // replacement gets an election of its own only once this one is closed.
+        CompletableFuture<Void> electionClosed = leaderElection.asyncClose();
+        CompletableFuture<Void> endedTerm;
+        synchronized (this) {
+            closed = true;
+            resources.deregisterPathListener(controllerLockListener);
+            resources.deregisterPathListener(topicRecordListener);
+            leaderState = LeaderElectionState.NoLeader;
+            endedTerm = leadership;
+            cancelGcTask();
+            cancelAutoScaleTask();
+            closeSubscriptions(false);
+        }
+        endedTerm.complete(null);
+        return electionClosed;
+    }
+
+    public boolean isClosed() {
+        return closed;
+    }
+
+    private void closeSubscriptions(boolean resubscribeConsumers) {
+        // Stop each coordinator's drain poller and grace timers before clearing — otherwise
+        // the scheduler tasks keep running after the controller stops serving.
+        subscriptions.values().forEach(coordinator -> {
+            coordinator.close();
+            if (resubscribeConsumers) {
+                coordinator.getConsumers().forEach(ConsumerSession::resubscribe);
+            }
+        });
         subscriptions.clear();
-        return leaderElection.asyncClose();
     }
 
     // --- Internal helpers ---

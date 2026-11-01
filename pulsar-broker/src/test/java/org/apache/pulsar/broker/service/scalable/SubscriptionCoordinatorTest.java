@@ -18,9 +18,15 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -252,6 +258,65 @@ public class SubscriptionCoordinatorTest {
         }
     }
 
+    @Test
+    public void testBlockedSegmentStatsTrackEveryAncestorAndExcludeDrainedSegments() throws Exception {
+        SubscriptionCoordinator orderedCoordinator = coordinatorDrainedOnlyByTest();
+        try {
+            assertThat(orderedCoordinator.isCheckpointGroup()).as("STREAM coordinator").isFalse();
+            assertThat(orderedCoordinator.getBlockedSegmentIds()).as("initial roots have no ancestors").isEmpty();
+            orderedCoordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).splitSegment(5, 0L)).get();
+
+            assertThat(orderedCoordinator.getBlockedSegmentIds())
+                    .as("both sealed children and active descendants wait for their ancestors")
+                    .containsExactlyInAnyOrder(4L, 5L, 6L, 7L);
+
+            orderedCoordinator.markSegmentsDrained(Set.of(5L));
+            assertThat(orderedCoordinator.getBlockedSegmentIds())
+                    .as("a drained segment is retired, but its children still wait for the undrained root")
+                    .containsExactlyInAnyOrder(4L, 6L, 7L);
+
+            orderedCoordinator.markSegmentsDrained(Set.of(0L));
+            assertThat(orderedCoordinator.getBlockedSegmentIds())
+                    .as("all ancestors drained releases every descendant").isEmpty();
+        } finally {
+            orderedCoordinator.close();
+        }
+    }
+
+    @Test
+    public void testBlockedSegmentStatsClearAsAncestorsDrainInOrder() throws Exception {
+        SubscriptionCoordinator orderedCoordinator = coordinatorDrainedOnlyByTest();
+        try {
+            orderedCoordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).splitSegment(5, 0L)).get();
+            orderedCoordinator.markSegmentsDrained(Set.of(0L));
+            assertThat(orderedCoordinator.getBlockedSegmentIds())
+                    .as("only grandchildren still wait for their direct parent")
+                    .containsExactlyInAnyOrder(6L, 7L);
+
+            orderedCoordinator.markSegmentsDrained(Set.of(5L));
+            assertThat(orderedCoordinator.getBlockedSegmentIds())
+                    .as("drained ancestors are retired rather than reported as blocked").isEmpty();
+        } finally {
+            orderedCoordinator.close();
+        }
+    }
+
+    @Test
+    public void testBlockedSegmentStatsDisabledWithoutDrainCheckerAndForCheckpointGroup() throws Exception {
+        coordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).splitSegment(5, 0L)).get();
+        assertThat(coordinator.isCheckpointGroup()).as("consumer type not yet known").isFalse();
+        assertThat(coordinator.getBlockedSegmentIds()).as("ordering is disabled without a drain checker").isEmpty();
+
+        coordinator.installDrainChecker((segment, sub) -> CompletableFuture.completedFuture(false));
+        assertThat(coordinator.getBlockedSegmentIds()).as("STREAM ordering enabled")
+                .containsExactlyInAnyOrder(4L, 5L, 6L, 7L);
+
+        coordinator.markCheckpointGroup();
+        assertThat(coordinator.isCheckpointGroup()).as("checkpoint consumer type is remembered").isTrue();
+        assertThat(coordinator.getBlockedSegmentIds()).as("checkpoint groups have no broker ancestor blocking")
+                .isEmpty();
+    }
+
     /** A merged segment waits for the ancestors of both segments it merges. */
     @Test
     public void testMergedChildBlockedUntilGrandparentDrained() throws Exception {
@@ -471,6 +536,42 @@ public class SubscriptionCoordinatorTest {
             assertEquals(active.size(), 1);
             assertEquals(active.iterator().next().getConsumerName(), "consumer-2");
         });
+    }
+
+    @Test
+    public void testClosedCoordinatorNeitherRegistersNorPushes() {
+        TransportCnx cnx1 = mock(TransportCnx.class);
+        coordinator.registerConsumer("consumer-1", 1L, cnx1).join();
+        CompletableFuture<Void> persisted = new CompletableFuture<>();
+        when(resources.registerConsumerAsync(any(), anyString(), eq("consumer-2"))).thenReturn(persisted);
+        TransportCnx cnx2 = mock(TransportCnx.class);
+        CompletableFuture<Map<ConsumerSession, ConsumerAssignment>> inFlight =
+                coordinator.registerConsumer("consumer-2", 2L, cnx2);
+
+        // The controller stops serving as the leader while consumer-2 registers.
+        coordinator.close();
+        clearInvocations(cnx1);
+        persisted.complete(null);
+        coordinator.onLayoutChange(initialLayout.splitSegment(0, System.currentTimeMillis()));
+
+        assertTrue(inFlight.isCompletedExceptionally(), "the registration completing after close must fail");
+        assertTrue(coordinator.registerConsumer("consumer-3", 3L, mock(TransportCnx.class))
+                .isCompletedExceptionally(), "a registration after close must fail");
+        verify(cnx1, never()).sendScalableConsumerAssignment(anyLong(), any());
+        verify(cnx2, never()).sendScalableConsumerAssignment(anyLong(), any());
+    }
+
+    @Test
+    public void testClosedCoordinatorDoesNotEvictExpiredSession() {
+        coordinator.registerConsumer("consumer-1", 1L, mock(TransportCnx.class)).join();
+        coordinator.onConsumerDisconnect("consumer-1");
+
+        // The controller stops serving as the leader: the session is the next leader's to restore.
+        coordinator.close();
+
+        // Past the 200ms grace period, the persisted registration must still be there.
+        Awaitility.await().during(1, TimeUnit.SECONDS).atMost(2, TimeUnit.SECONDS).untilAsserted(() ->
+                verify(resources, never()).unregisterConsumerAsync(topicName, "test-sub", "consumer-1"));
     }
 
     @Test

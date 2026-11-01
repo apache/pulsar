@@ -103,7 +103,9 @@ dependencies {
     distLib(project(":pulsar-broker-auth-oidc"))
     distLib(project(":pulsar-broker-auth-sasl"))
     distLib(project(":pulsar-client-auth-sasl"))
-    distLib(libs.bookkeeper.prometheus.metrics.provider)
+    // Pulsar's own BookKeeper stats provider, built on the Prometheus Java client 1.x. It replaces
+    // org.apache.bookkeeper.stats:prometheus-metrics-provider, which is still on the legacy simpleclient.
+    distLib(project(":pulsar-bookkeeper-prometheus-metrics-provider"))
     distLib(project(":pulsar-package-management:pulsar-package-bookkeeper-storage")) {
         exclude(group = "org.objenesis")
     }
@@ -125,6 +127,8 @@ dependencies {
     distLib(libs.log4j.layout.template.json)
     distLib(libs.log4j.slf4j2.impl)
     distLib(libs.log4j.jul)
+    // The async loggers that bin/pulsar enables need the LMAX Disruptor
+    distLib(libs.disruptor)
     distLib(libs.simpleclient.log4j2)
 
     // Metrics

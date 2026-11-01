@@ -1,9 +1,6 @@
 # PIP-38: Batch Receiving Messages
 
-- Status:
 - Author: Penghui Li
-- Discussion Thread:
-- Issue:
 - Pull Request: https://github.com/apache/pulsar/pull/4621
 
 ## Motivation
@@ -249,3 +246,7 @@ Ideally the pulsar client implementation should
 2. On receiving individual message, it polls a `Messages` from the queue, and poll a message out of the `Messages`.
 
 This can allow lazy deserialization and object creation, and it will increase the throughput using batch receive api because your cpu cycles can be reduced.
+
+# Links
+
+* Mailing List discussion thread: https://lists.apache.org/thread/p8v7q0b1n368100nq34cj106bfgt3sc0

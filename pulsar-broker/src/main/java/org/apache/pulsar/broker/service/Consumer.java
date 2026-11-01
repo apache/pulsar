@@ -109,6 +109,7 @@ public class Consumer {
     private volatile long firstConsumedFlowTimestamp;
     private volatile long lastConsumedFlowTimestamp;
     private Rate chunkedMessageRate;
+    private long lastRatesUpdateNanos = System.nanoTime();
 
     // Represents how many messages we can safely send to the consumer without
     // overflowing its receiving queue. The consumer will use Flow commands to
@@ -435,13 +436,7 @@ public class Consumer {
         }
 
         // calculate avg message per entry
-        if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
-            // set init value.
-            avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
-        } else {
-            avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
-                    + (1 - avgPercent) * totalMessages / totalEntries);
-        }
+        updateAvgMessagesPerEntry(totalMessages, totalEntries);
 
         // reduce permit and increment unackedMsg count with total number of messages in batch-msgs
         int ackedCount = batchIndexesAcks == null ? 0 : batchIndexesAcks.getTotalAckedIndexCount();
@@ -644,18 +639,14 @@ public class Consumer {
         for (int i = 0; i < ack.getMessageIdsCount(); i++) {
             MessageIdData msgId = ack.getMessageIdAt(i);
             boolean hasAckSet = msgId.getAckSetsCount() > 0;
-            ObjectIntPair<Consumer> ackOwnerConsumerAndBatchSize =
-                    getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(), msgId.getEntryId());
-
-            if (hasTxn && ackOwnerConsumerAndBatchSize == null) {
-                log.warn()
-                        .attr("ledgerId", msgId.getLedgerId())
-                        .attr("entryId", msgId.getEntryId())
-                        .log("Acknowledging message that was already deleted");
-                continue;
-            }
-
-            Consumer ackOwnerConsumer = ackOwnerConsumerAndBatchSize.left();
+            // the common case, this consumer's own pending ack, without allocating a pair
+            int ownRemainingUnacked = Subscription.isIndividualAckMode(subType)
+                    ? getPendingAcks().getRemainingUnacked(msgId.getLedgerId(), msgId.getEntryId())
+                    : PENDING_ACK_NOT_FOUND;
+            ObjectIntPair<Consumer> ackOwnerConsumerAndBatchSize = ownRemainingUnacked != PENDING_ACK_NOT_FOUND
+                    ? null : getAckOwnerConsumerAndBatchSize(msgId.getLedgerId(), msgId.getEntryId());
+            Consumer ackOwnerConsumer =
+                    ackOwnerConsumerAndBatchSize != null ? ackOwnerConsumerAndBatchSize.left() : this;
 
             if (hasTxn) {
                 // Transactional: use batch size from message ID (not from pendingAcks, which may not
@@ -699,7 +690,8 @@ public class Consumer {
             } else {
                 // Non-transactional: build position and compute acked count, defer state updates.
                 Position position = buildPosition(msgId);
-                int batchSize = ackOwnerConsumerAndBatchSize.rightInt();
+                int batchSize = ackOwnerConsumerAndBatchSize != null
+                        ? ackOwnerConsumerAndBatchSize.rightInt() : ownRemainingUnacked;
                 long ackedCount = computeAckedCount(msgId, position, ackOwnerConsumer, batchSize);
 
                 nonTxnPositions.add(position);
@@ -916,25 +908,21 @@ public class Consumer {
     }
 
     /**
-     * Retrieves the acknowledgment owner consumer and batch size for the specified ledgerId and entryId.
+     * Retrieves the acknowledgment owner consumer and batch size for the specified ledgerId and entryId, among the
+     * other consumers of the subscription: the caller has already looked up this consumer's pending acks.
      *
      * @param ledgerId The ID of the ledger.
      * @param entryId The ID of the entry.
-     * @return Pair<Consumer, BatchSize>
+     * @return {@code Pair<Consumer, BatchSize>}, this consumer and 1 when no other consumer has the pending ack
      */
     private ObjectIntPair<Consumer> getAckOwnerConsumerAndBatchSize(long ledgerId, long entryId) {
         if (Subscription.isIndividualAckMode(subType)) {
-            int remainingUnacked = getPendingAcks().getRemainingUnacked(ledgerId, entryId);
-            if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
-                return ObjectIntPair.of(this, remainingUnacked);
-            } else {
-                // If there are more consumers, this step will consume more CPU, and it should be optimized later.
-                for (Consumer consumer : subscription.getConsumers()) {
-                    if (consumer != this) {
-                        remainingUnacked = consumer.getPendingAcks().getRemainingUnacked(ledgerId, entryId);
-                        if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
-                            return ObjectIntPair.of(consumer, remainingUnacked);
-                        }
+            // If there are more consumers, this step will consume more CPU, and it should be optimized later.
+            for (Consumer consumer : subscription.getConsumers()) {
+                if (consumer != this) {
+                    int remainingUnacked = consumer.getPendingAcks().getRemainingUnacked(ledgerId, entryId);
+                    if (remainingUnacked != PENDING_ACK_NOT_FOUND) {
+                        return ObjectIntPair.of(consumer, remainingUnacked);
                     }
                 }
             }
@@ -1134,6 +1122,19 @@ public class Consumer {
         return (int) Math.round(avgMessagesPerEntry.get());
     }
 
+    public void updateAvgMessagesPerEntry(int totalMessages, int totalEntries) {
+        if (totalEntries <= 0 || totalMessages <= 0) {
+            return;
+        }
+        if (avgMessagesPerEntry.get() < 1) { //valid avgMessagesPerEntry should always >= 1
+            // set init value.
+            avgMessagesPerEntry.set(1.0 * totalMessages / totalEntries);
+        } else {
+            avgMessagesPerEntry.set(avgMessagesPerEntry.get() * avgPercent
+                    + (1 - avgPercent) * totalMessages / totalEntries);
+        }
+    }
+
     public boolean isBlocked() {
         return blockedConsumerOnUnackedMsgs;
     }
@@ -1179,10 +1180,15 @@ public class Consumer {
     }
 
     public void updateRates() {
-        msgOut.calculateRate();
-        chunkedMessageRate.calculateRate();
-        msgRedeliver.calculateRate();
-        messageAckRate.calculateRate();
+        long now = System.nanoTime();
+        // at least 1s, so the burst a new consumer receives while filling its receiver queue
+        // isn't extrapolated into a huge per-second rate
+        double periodInSeconds = Math.max((now - lastRatesUpdateNanos) / 1e9, 1);
+        lastRatesUpdateNanos = now;
+        msgOut.calculateRate(periodInSeconds);
+        chunkedMessageRate.calculateRate(periodInSeconds);
+        msgRedeliver.calculateRate(periodInSeconds);
+        messageAckRate.calculateRate(periodInSeconds);
 
         stats.msgRateOut = msgOut.getRate();
         stats.msgThroughputOut = msgOut.getValueRate();
@@ -1518,6 +1524,15 @@ public class Consumer {
                 totalRedeliveryMessages += remainingUnacked;
                 pendingPositions.add(position);
             }
+        }
+
+        if (totalRedeliveryMessages == 0) {
+            // A rejected transactional ACK can leave a zero count with unacked batch indexes.
+            // Preserve replay without releasing backpressure or deferred permits.
+            if (!pendingPositions.isEmpty()) {
+                subscription.redeliverUnacknowledgedMessages(this, pendingPositions);
+            }
+            return;
         }
 
         addAndGetUnackedMessages(-totalRedeliveryMessages);

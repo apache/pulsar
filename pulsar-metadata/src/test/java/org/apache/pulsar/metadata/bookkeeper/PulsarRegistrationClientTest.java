@@ -19,6 +19,8 @@
 package org.apache.pulsar.metadata.bookkeeper;
 
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.bookkeeper.util.BookKeeperConstants.AVAILABLE_NODE;
+import static org.apache.bookkeeper.util.BookKeeperConstants.READONLY;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -31,12 +33,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -51,10 +56,15 @@ import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.versioning.Version;
 import org.apache.bookkeeper.versioning.Versioned;
 import org.apache.pulsar.metadata.BaseMetadataStoreTest;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.MetadataStoreException;
+import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.apache.zookeeper.ZooKeeper;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -303,6 +313,67 @@ public class PulsarRegistrationClientTest extends BaseMetadataStoreTest {
 
         Versioned<Set<BookieId>> result = result(rc.getAllBookies());
         assertEquals(result.getValue().size(), addresses.size());
+    }
+
+    @Test(dataProvider = "readOnly")
+    public void testBookieInfoReloadedAfterFailedRead(boolean readOnly) throws Exception {
+        @Cleanup
+        FailingReadsMetadataStore store = new FailingReadsMetadataStore("memory:" + UUID.randomUUID());
+
+        String ledgersRoot = "/test/ledgers-" + UUID.randomUUID();
+
+        @Cleanup
+        RegistrationManager rm = new PulsarRegistrationManager(store, ledgersRoot, mock(AbstractConfiguration.class));
+
+        @Cleanup
+        RegistrationClient rc = new PulsarRegistrationClient(store, ledgersRoot);
+
+        BookieId bookie = new BookieSocketAddress("127.0.0.1", 3181).toBookieId();
+        String registrationPath = ledgersRoot + "/" + AVAILABLE_NODE + (readOnly ? "/" + READONLY : "") + "/" + bookie;
+
+        // The read of the bookie info, triggered by the registration notification, fails
+        CompletableFuture<Void> failedRead = store.failNextRead(registrationPath);
+        rm.registerBookie(bookie, readOnly, new BookieServiceInfo());
+        failedRead.get(10, TimeUnit.SECONDS);
+
+        // The bookie is registered but missing from the client cache, and no other notification will follow
+        assertTrue(expectThrows(ExecutionException.class, () -> rc.getBookieServiceInfo(bookie).get())
+                .getCause() instanceof BKException.BKBookieHandleNotAvailableException);
+
+        // The miss reloads the bookie info, so a retry finds it
+        Awaitility.await().ignoreExceptions().untilAsserted(() -> rc.getBookieServiceInfo(bookie).get());
+    }
+
+    @DataProvider(name = "readOnly")
+    public static Object[][] readOnly() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    private static class FailingReadsMetadataStore extends LocalMemoryMetadataStore {
+        private final Map<String, CompletableFuture<Void>> failingReads = new ConcurrentHashMap<>();
+
+        FailingReadsMetadataStore(String url) throws MetadataStoreException {
+            super(url, MetadataStoreConfig.builder().build());
+        }
+
+        /**
+         * Fail the next read of the path. The returned future completes once the read has failed.
+         */
+        CompletableFuture<Void> failNextRead(String path) {
+            CompletableFuture<Void> failed = new CompletableFuture<>();
+            failingReads.put(path, failed);
+            return failed;
+        }
+
+        @Override
+        public CompletableFuture<Optional<GetResult>> storeGet(String path, Set<Option> opts) {
+            CompletableFuture<Void> failed = failingReads.remove(path);
+            if (failed == null) {
+                return super.storeGet(path, opts);
+            }
+            failed.complete(null);
+            return CompletableFuture.failedFuture(new MetadataStoreException("Injected read failure"));
+        }
     }
 
     @Test(dataProvider = "impl")

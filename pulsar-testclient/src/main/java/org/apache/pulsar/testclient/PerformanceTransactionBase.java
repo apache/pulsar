@@ -23,20 +23,23 @@ import static org.apache.pulsar.testclient.PerfClientUtils.LATENCY_HISTOGRAM_SIG
 import static org.apache.pulsar.testclient.PerfClientUtils.addShutdownHook;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.RateLimiter;
 import io.github.merlimat.slog.Logger;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
@@ -94,6 +97,13 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
             new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
     private final Recorder messageSendRCumulativeRecorder =
             new Recorder(MAX_LATENCY_MICROS, LATENCY_HISTOGRAM_SIGNIFICANT_DIGITS);
+
+    /** Counted down once the run reaches {@code -ntxn} or its test duration, which wakes run() to stop. */
+    private final CountDownLatch runEnded = new CountDownLatch(1);
+    /** Transactions (with {@code --txn-disable}, tasks) the test threads have claimed against {@code -ntxn}. */
+    private final AtomicLong transactionsStarted = new AtomicLong();
+    /** Ends of the transactions ended so far that may still be in flight, awaited before the run reports done. */
+    private final Queue<CompletableFuture<Void>> pendingTxnEnds = new ConcurrentLinkedQueue<>();
 
     /** The parsed {@code transaction} command line. */
     protected final PerformanceTransaction arguments;
@@ -235,14 +245,12 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
             });
 
             // start perf test
-            AtomicBoolean executing = new AtomicBoolean(true);
-
             RateLimiter rateLimiter = arguments.openTxnRate > 0
                     ? RateLimiter.create(arguments.openTxnRate)
                     : null;
             for (int i = 0; i < arguments.numTestThreads; i++) {
-                executorService.submit(() -> runWorker(client, payloadBytes, executorService, executing,
-                        rateLimiter, testEndTime));
+                executorService.submit(() -> runWorker(client, payloadBytes, executorService, rateLimiter,
+                        testEndTime));
             }
 
             // Print report stats
@@ -261,9 +269,11 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
             histogramLogWriter.outputLogFormatVersion();
             histogramLogWriter.outputLegend();
 
-            while (!Thread.currentThread().isInterrupted() && executing.get()) {
+            while (!Thread.currentThread().isInterrupted()) {
                 try {
-                    Thread.sleep(10000);
+                    if (runEnded.await(10, TimeUnit.SECONDS)) {
+                        break;
+                    }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -307,6 +317,14 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
                 oldTime = now;
             }
 
+            if (runEnded.getCount() == 0) {
+                // The exit ends the process, and where it does not (in tests), closing the client
+                // would cut off the transaction ends still in flight.
+                stopWorkers(executorService);
+                PerfClientUtils.awaitTransactionEnds(log, pendingTxnEnds, arguments.transactionTimeout);
+                log.info("------------------- DONE -----------------------");
+                PerfClientUtils.exit(0);
+            }
             PerfClientUtils.removeAndRunShutdownHook(shutdownHookThread);
         } finally {
             closeClient(client);
@@ -314,24 +332,47 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
     }
 
     /**
+     * Stop the test threads once the run has reached its end. Each finishes the transaction it is in
+     * and stops before opening another. A thread blocked receiving, such as the standby consumer of a
+     * Failover subscription, never gets there, so after {@code --txn-timeout}, by when its transaction
+     * would time out on the broker anyway, the threads are interrupted, and each ends the transaction
+     * it is in on its way out.
+     */
+    private void stopWorkers(ExecutorService executorService) {
+        executorService.shutdown();
+        try {
+            if (!executorService.awaitTermination(arguments.transactionTimeout, TimeUnit.SECONDS)) {
+                executorService.shutdownNow();
+                if (!executorService.awaitTermination(arguments.transactionTimeout, TimeUnit.SECONDS)) {
+                    log.warn("Test threads did not stop within the transaction timeout");
+                }
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    /**
      * One test thread: build its own producers and consumers, then loop over transactions until the
-     * run is stopped. The loop has no break of its own; it ends through the executor's shutdownNow.
+     * run reaches its end or the thread is interrupted. The thread claims each transaction against
+     * {@code -ntxn} before running it, and ends the one it stops in on its way out.
      */
     private void runWorker(ClientT client, byte[] payloadBytes, ExecutorService executorService,
-                           AtomicBoolean executing, RateLimiter rateLimiter, long testEndTime) {
+                           RateLimiter rateLimiter, long testEndTime) {
         // The producer and consumer clients are built in advance, and then this thread is
         // responsible for the production and consumption tasks of the transaction through the loop.
         // A thread may perform tasks of multiple transactions in a traversing manner.
         List<ProducerT> producers = null;
         List<List<ConsumerT>> consumers = null;
-        AtomicReference<TxnT> atomicReference = null;
+        TxnT transaction = null;
         try {
             producers = buildProducers(client);
             consumers = buildConsumers(client);
             if (!arguments.isDisableTransaction) {
-                atomicReference = new AtomicReference<>(newTransaction(client));
-            } else {
-                atomicReference = new AtomicReference<>(null);
+                // Opened along with the producers and consumers, so that failing to open it is
+                // fatal as failing to build them is; the later opens are retried.
+                transaction = newTransaction(client);
+                totalNumTxnOpenTxnSuccess.increment();
             }
         } catch (Exception e) {
             if (PerfClientUtils.hasInterruptedException(e)) {
@@ -344,31 +385,25 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
             return;
         }
 
-        while (!Thread.currentThread().isInterrupted()) {
-            if (arguments.numTransactions > 0) {
-                if (totalNumTxnOpenTxnFail.sum()
-                        + totalNumTxnOpenTxnSuccess.sum() >= arguments.numTransactions) {
-                    if (totalNumEndTxnOpFailed.sum()
-                            + totalNumEndTxnOpSuccess.sum() < arguments.numTransactions) {
-                        continue;
-                    }
-                    log.info("------------------- DONE -----------------------");
-                    executing.compareAndSet(true, false);
-                    executorService.shutdownNow();
-                    PerfClientUtils.exit(0);
+        while (!Thread.currentThread().isInterrupted() && runEnded.getCount() > 0) {
+            if (arguments.testTime > 0 && System.nanoTime() > testEndTime) {
+                runEnded.countDown();
+                break;
+            }
+            // Claimed before each transaction runs, so that the test threads together run exactly
+            // -ntxn transactions.
+            if (arguments.numTransactions > 0
+                    && transactionsStarted.incrementAndGet() > arguments.numTransactions) {
+                runEnded.countDown();
+                break;
+            }
+            if (!arguments.isDisableTransaction && transaction == null) {
+                transaction = openTransaction(client);
+                if (transaction == null) {
+                    // Interrupted while opening it.
                     break;
                 }
             }
-            if (arguments.testTime > 0) {
-                if (System.nanoTime() > testEndTime) {
-                    log.info("------------------- DONE -----------------------");
-                    executing.compareAndSet(true, false);
-                    executorService.shutdownNow();
-                    PerfClientUtils.exit(0);
-                    break;
-                }
-            }
-            TxnT transaction = atomicReference.get();
             for (List<ConsumerT> subscriptions : consumers) {
                 for (ConsumerT consumer : subscriptions) {
                     for (int j = 0; j < arguments.numMessagesReceivedPerTransaction; j++) {
@@ -378,6 +413,11 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
                         } catch (Exception e) {
                             if (PerfClientUtils.hasInterruptedException(e)) {
                                 Thread.currentThread().interrupt();
+                                if (transaction != null) {
+                                    // Stopped inside this transaction: end it too rather than leave
+                                    // it to time out.
+                                    pendingTxnEnds.add(endTransaction(transaction));
+                                }
                                 return;
                             }
                             log.error().exception(e).log("Receive message failed");
@@ -417,13 +457,19 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
                 rateLimiter.tryAcquire();
             }
             if (!arguments.isDisableTransaction) {
-                endTransaction(transaction);
-                openNextTransaction(client, atomicReference, transaction);
+                pendingTxnEnds.removeIf(CompletableFuture::isDone);
+                pendingTxnEnds.add(endTransaction(transaction));
+                transaction = null;
             } else {
                 totalNumTxnOpenTxnSuccess.increment();
                 totalNumEndTxnOpSuccess.increment();
                 numTxnOpSuccess.increment();
             }
+        }
+        if (transaction != null) {
+            // The run ended before this thread used its first transaction, as when there are more
+            // test threads than -ntxn.
+            pendingTxnEnds.add(endTransaction(transaction));
         }
     }
 
@@ -483,12 +529,15 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
         });
     }
 
-    /** End the transaction according to {@code -abort}, counting the outcome. */
-    private void endTransaction(TxnT transaction) {
+    /**
+     * End the transaction according to {@code -abort}, counting the outcome. The returned stage
+     * completes, normally, once the outcome is counted.
+     */
+    private CompletableFuture<Void> endTransaction(TxnT transaction) {
         final boolean abort = arguments.isAbortTransaction;
         final Thread workerThread = Thread.currentThread();
         CompletableFuture<Void> endFuture = abort ? abortTransaction(transaction) : commitTransaction(transaction);
-        endFuture.thenRun(() -> {
+        return endFuture.thenRun(() -> {
             numTxnOpSuccess.increment();
             totalNumEndTxnOpSuccess.increment();
         }).exceptionally(exception -> {
@@ -505,13 +554,13 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
         });
     }
 
-    private void openNextTransaction(ClientT client, AtomicReference<TxnT> atomicReference, TxnT previous) {
+    /** Open a transaction, retrying until it opens, or {@code null} once the thread is interrupted. */
+    private TxnT openTransaction(ClientT client) {
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                TxnT newTransaction = newTransaction(client);
-                atomicReference.compareAndSet(previous, newTransaction);
+                TxnT transaction = newTransaction(client);
                 totalNumTxnOpenTxnSuccess.increment();
-                break;
+                return transaction;
             } catch (Exception throwable) {
                 if (PerfClientUtils.hasInterruptedException(throwable)) {
                     Thread.currentThread().interrupt();
@@ -523,6 +572,19 @@ public abstract class PerformanceTransactionBase<ClientT, ProducerT, ConsumerT, 
                 }
             }
         }
+        return null;
+    }
+
+    /** The count the summary reports as "transaction open successfully". */
+    @VisibleForTesting
+    long getTransactionsOpenedSuccessfully() {
+        return totalNumTxnOpenTxnSuccess.sum();
+    }
+
+    /** The count the summary reports as "transaction end successfully". */
+    @VisibleForTesting
+    long getTransactionsEndedSuccessfully() {
+        return totalNumEndTxnOpSuccess.sum();
     }
 
     private List<List<ConsumerT>> buildConsumers(ClientT client) throws Exception {

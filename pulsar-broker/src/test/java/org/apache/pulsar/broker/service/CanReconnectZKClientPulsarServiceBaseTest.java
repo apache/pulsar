@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import com.google.common.collect.Sets;
 import com.google.common.io.Resources;
 import io.netty.channel.Channel;
+import java.net.URI;
 import java.net.URL;
 import java.nio.channels.SelectionKey;
 import java.util.Collections;
@@ -96,7 +97,7 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         } else if (store instanceof ZKMetadataStore zkStore) {
             localZkOfBroker = zkStore.getZkClient();
         }
-        store.registerSessionListener(n -> {
+        store.registerCancellableSessionListener(n -> {
             log.info().attr("event", n).log("Received session event");
             sessionEvent = n;
         });
@@ -104,8 +105,8 @@ public abstract class CanReconnectZKClientPulsarServiceBaseTest extends TestRetr
         Object sendThread = WhiteboxImpl.getInternalState(cnxn, "sendThread");
         localMetaDataStoreClientCnx = WhiteboxImpl.getInternalState(sendThread, "clientCnxnSocket");
 
-        url = new URL(pulsar.getWebServiceAddress());
-        urlTls = new URL(pulsar.getWebServiceAddressTls());
+        url = URI.create(pulsar.getWebServiceAddress()).toURL();
+        urlTls = URI.create(pulsar.getWebServiceAddressTls()).toURL();
         admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
         client = PulsarClient.builder().serviceUrl(url.toString()).build();
     }

@@ -67,7 +67,7 @@ public class PulsarLedgerMetadataListenerTest {
     public void setup() throws Exception {
         store = MetadataStoreFactory.create("memory:local", MetadataStoreConfig.builder().build());
         deletionThread = new AtomicReference<>();
-        store.registerListener(notification -> {
+        store.registerCancellableListener(notification -> {
             if (notification.getType() == NotificationType.Deleted) {
                 deletionThread.set(Thread.currentThread());
             }
@@ -199,7 +199,7 @@ public class PulsarLedgerMetadataListenerTest {
         };
 
         CompletableFuture<Void> deletionProcessed = new CompletableFuture<>();
-        store.registerListener(notification -> {
+        store.registerCancellableListener(notification -> {
             if (notification.getType() == NotificationType.Deleted
                     && notification.getPath().equals(manager.getLedgerPath(LEDGER_ID))) {
                 deletionProcessed.complete(null);
@@ -324,7 +324,7 @@ public class PulsarLedgerMetadataListenerTest {
             if (thread == null) {
                 return false;
             }
-            ThreadInfo info = ManagementFactory.getThreadMXBean().getThreadInfo(thread.getId());
+            ThreadInfo info = ManagementFactory.getThreadMXBean().getThreadInfo(thread.threadId());
             return info != null && info.getThreadState() == Thread.State.BLOCKED
                     && info.getLockInfo() != null
                     && info.getLockInfo().getIdentityHashCode() == System.identityHashCode(monitor);
