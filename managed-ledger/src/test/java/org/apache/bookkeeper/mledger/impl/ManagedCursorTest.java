@@ -4010,7 +4010,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
                 for (int i = 0; i <= 376; i++) {
                     ledger.addEntry(new byte[128]);
                 }
-                assertEquals(ledger.getLedgersInfo().size(), 2);
+                // the full ledger rolls over to a third, empty one in the background
+                Awaitility.await().untilAsserted(() -> assertEquals(ledger.getLedgersInfo().size(), 3));
             }
             CompletableFuture<List<Entry>> replayed = new CompletableFuture<>();
             cursor.asyncReplayEntries(positions, new AsyncCallbacks.ReadEntriesCallback() {

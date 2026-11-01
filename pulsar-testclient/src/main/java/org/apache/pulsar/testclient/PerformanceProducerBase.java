@@ -336,13 +336,11 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
 
         while (!Thread.currentThread().isInterrupted()) {
             try {
-                Thread.sleep(10000);
+                if (doneLatch.await(10, TimeUnit.SECONDS)) {
+                    break;
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                break;
-            }
-
-            if (doneLatch.getCount() <= 0) {
                 break;
             }
 
@@ -681,8 +679,13 @@ public abstract class PerformanceProducerBase<ClientT, ProducerT, TxnT> {
             }
         } finally {
             awaitTransactionWork(pendingTxnEnds, "transaction ends");
-            doneLatch.countDown();
-            closeClient(client);
+            try {
+                closeClient(client);
+            } finally {
+                // Only once the client is closed: run() stops the test threads as soon as all of them
+                // have counted down, and that interrupt would cut off a close still in progress.
+                doneLatch.countDown();
+            }
         }
     }
 
