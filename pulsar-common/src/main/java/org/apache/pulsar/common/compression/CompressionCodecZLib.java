@@ -109,6 +109,9 @@ public class CompressionCodecZLib implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
+        if (uncompressedLength <= 0) {
+            throw new IOException("Invalid uncompressed length: " + uncompressedLength);
+        }
         ByteBuf uncompressed = allocator.heapBuffer(uncompressedLength, uncompressedLength);
         try {
             int len = encoded.readableBytes();

@@ -95,9 +95,11 @@ public class CompressionCodecZstd implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
+        if (uncompressedLength <= 0) {
+            throw new IOException("Invalid uncompressed length: " + uncompressedLength);
+        }
         ByteBuf uncompressed = allocator.buffer(uncompressedLength, uncompressedLength);
         try {
-
             if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
                 ZSTD_RAW_DECOMPRESSOR.get().decompress(
                         null,

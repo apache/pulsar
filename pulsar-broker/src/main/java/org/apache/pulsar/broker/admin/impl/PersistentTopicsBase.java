@@ -3579,7 +3579,13 @@ public class PersistentTopicsBase extends AdminResource {
         // Decode if needed
         CompressionCodec codec = CompressionCodecProvider
                 .getCompressionCodec(isEncrypted ? NONE : metadata.getCompression());
-        ByteBuf uncompressedPayload = codec.decode(metadataAndPayload, metadata.getUncompressedSize());
+        int uncompressedSize = metadata.getUncompressedSize();
+        int maxMessageSize = config().getMaxMessageSize();
+        if (uncompressedSize <= 0 || uncompressedSize > maxMessageSize) {
+            throw new IOException("Invalid uncompressedSize (" + uncompressedSize
+                    + ") for entry, maxMessageSize=" + maxMessageSize);
+        }
+        ByteBuf uncompressedPayload = codec.decode(metadataAndPayload, uncompressedSize);
 
         // Copy into a heap buffer for output stream compatibility
         ByteBuf data = PulsarByteBufAllocator.DEFAULT.heapBuffer(uncompressedPayload.readableBytes(),
