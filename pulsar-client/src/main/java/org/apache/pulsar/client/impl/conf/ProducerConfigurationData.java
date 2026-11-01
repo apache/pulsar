@@ -186,6 +186,10 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
             description = "Batching time period of sending messages."
     )
     private long batchingMaxPublishDelayMicros = TimeUnit.MILLISECONDS.toMicros(1);
+    @Schema(
+            name = "batchingPartitionSwitchFrequencyByPublishDelay",
+            description = "Partition switch frequency based on publish delay when batching is enabled."
+    )
     private int batchingPartitionSwitchFrequencyByPublishDelay = 10;
 
     @Schema(
@@ -193,6 +197,11 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
             description = "The maximum number of messages permitted in a batch."
     )
     private int batchingMaxMessages = DEFAULT_BATCHING_MAX_MESSAGES;
+
+    @Schema(
+            name = "batchingMaxBytes",
+            description = "The maximum number of bytes permitted in a batch."
+    )
     private int batchingMaxBytes = 128 * 1024; // 128KB (keep the maximum consistent as previous versions)
 
     @Schema(
@@ -208,6 +217,11 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
             description = "Enable chunking of messages."
     )
     private boolean chunkingEnabled = false;
+
+    @Schema(
+            name = "chunkMaxMessageSize",
+            description = "The maximum size of each chunk payload in bytes when chunking is enabled."
+    )
     private int chunkMaxMessageSize = -1;
 
     @JsonIgnore
@@ -216,6 +230,10 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     @JsonIgnore
     private transient MessageCrypto<?, ?> messageCrypto = null;
 
+    @Schema(
+            name = "encryptionKeys",
+            description = "The names of the public keys used to encrypt message payloads."
+    )
     private Set<String> encryptionKeys = new TreeSet<>();
 
     @Schema(
@@ -229,21 +247,54 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
     )
     private CompressionType compressionType = CompressionType.NONE;
 
+    @Schema(
+            name = "compressMinMsgBodySize",
+            description = "The minimum message body size in bytes to trigger compression."
+    )
     private int compressMinMsgBodySize = 4 * 1024; // 4kb
 
     // Cannot use Optional<Long> since it's not serializable
+    @Schema(
+            name = "initialSequenceId",
+            description = "Baseline for sequence ids of messages published by the producer."
+    )
     private Long initialSequenceId = null;
 
+    @Schema(
+            name = "autoUpdatePartitions",
+            description = "If enabled, partitioned producer will automatically discover new partitions at runtime."
+    )
     private boolean autoUpdatePartitions = true;
 
+    @Schema(
+            name = "autoUpdatePartitionsIntervalSeconds",
+            description = "The interval in seconds to check for partition updates when autoUpdatePartitions is enabled."
+    )
     private long autoUpdatePartitionsIntervalSeconds = 60;
 
+    @Schema(
+            name = "multiSchema",
+            description = "Controls whether the producer allows sending messages with different schemas."
+    )
     private boolean multiSchema = true;
 
+    @Schema(
+            name = "accessMode",
+            description = "The type of access to the topic that the producer requires "
+                    + "(Shared, Exclusive, WaitForExclusive, ExclusiveWithFencing)."
+    )
     private ProducerAccessMode accessMode = ProducerAccessMode.Shared;
 
+    @Schema(
+            name = "lazyStartPartitionedProducers",
+            description = "Whether to delay creating internal partition producers until messages are routed to each partition."
+    )
     private boolean lazyStartPartitionedProducers = false;
 
+    @Schema(
+            name = "properties",
+            description = "A map of user-defined properties associated with the producer."
+    )
     private SortedMap<String, String> properties = new TreeMap<>();
 
     private boolean isNonPartitionedTopicExpected;
