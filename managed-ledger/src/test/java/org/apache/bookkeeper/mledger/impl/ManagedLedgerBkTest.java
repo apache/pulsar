@@ -522,10 +522,15 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         });
         assertThat(cursor.getEstimatedSizeSinceMarkDeletePosition()).isZero();
 
-        // asyncMarkDelete currently accepts an ahead-of-LAC entry in the next ledger after consuming the old one.
-        // The estimator must not mistake that entry for the valid -1 sentinel just because the ledger is empty.
+        // asyncMarkDelete rejects an ahead-of-LAC entry in the next ledger after consuming the old one.
         Position invalidPosition = PositionFactory.create(cursor.getMarkDeletedPosition().getLedgerId(), 0);
-        cursor.markDelete(invalidPosition);
+        assertThatThrownBy(() -> cursor.markDelete(invalidPosition))
+                .isInstanceOf(ManagedLedgerException.class)
+                .hasMessageContaining("Invalid mark deleted position");
+
+        // The estimator must not mistake that entry for the valid -1 sentinel just because the ledger is empty,
+        // should the cursor still end up there.
+        ((ManagedCursorImpl) cursor).setAcknowledgedPosition(invalidPosition);
         assertThat(cursor.getMarkDeletedPosition()).isEqualTo(invalidPosition);
         assertThat(ledger.getCurrentLedgerEntries()).isZero();
         assertThat(ledger.getLastPosition()).isEqualTo(lastPosition);
