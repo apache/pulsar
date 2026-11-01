@@ -58,7 +58,7 @@ dependencies {
         exclude(group = "io.grpc")
         exclude(group = "com.google.protobuf")
     }
-    implementation(libs.grpc.netty.shaded)
+    implementation(libs.grpc.netty)
     implementation(libs.grpc.stub)
     runtimeOnly(libs.perfmark.api)
     implementation(libs.log4j.slf4j2.impl)
