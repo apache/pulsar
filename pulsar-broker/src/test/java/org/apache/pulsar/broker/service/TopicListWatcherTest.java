@@ -27,8 +27,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.topics.TopicList;
@@ -119,5 +121,42 @@ public class TopicListWatcherTest {
         verify(topicListService).sendTopicListUpdate(anyLong(), anyString(), any(), any(), any());
         verify(topicListService).updateTopicListWatcher(any());
         verifyNoMoreInteractions(topicListService);
+    }
+
+    /**
+     * Regression test: {@code getMatchingTopics()} must return a snapshot copy so that
+     * a caller holding an iterator is not affected by concurrent topic events mutating
+     * the underlying set. Without snapshot semantics, iterating after an {@code onTopicEvent}
+     * would throw {@link java.util.ConcurrentModificationException} or yield an inconsistent
+     * view.
+     */
+    @Test
+    public void testGetMatchingTopicsSnapshotSurvivesConcurrentTopicEvent() {
+        // Initial matching topics (filtered by pattern tenant/ns/topic\d+):
+        //   topic1, topic2   (t3 does not match the \d+ suffix)
+        List<String> snapshot = watcher.getMatchingTopics();
+        Assert.assertEquals(snapshot,
+                Arrays.asList("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2"));
+
+        // Take an iterator over the snapshot.
+        Iterator<String> it = snapshot.iterator();
+        Assert.assertTrue(it.hasNext());
+        Assert.assertEquals(it.next(), "persistent://tenant/ns/topic1");
+
+        // Fire a concurrent topic event that mutates the watcher's internal matching set.
+        String newTopic = "persistent://tenant/ns/topic9";
+        watcher.onTopicEvent(newTopic, NotificationType.Created);
+
+        // Continue iterating the snapshot. This must NOT throw
+        // ConcurrentModificationException, and it must NOT reflect the concurrently
+        // added topic — the snapshot is frozen at the moment getMatchingTopics() was called.
+        Assert.assertTrue(it.hasNext());
+        Assert.assertEquals(it.next(), "persistent://tenant/ns/topic2");
+        Assert.assertFalse(it.hasNext());
+
+        // The snapshot is a defensive copy: modifying it must not affect the watcher.
+        ((ArrayList<String>) snapshot).add("persistent://tenant/ns/should-not-leak");
+        Assert.assertEquals(watcher.getMatchingTopics(),
+                Arrays.asList("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2", newTopic));
     }
 }

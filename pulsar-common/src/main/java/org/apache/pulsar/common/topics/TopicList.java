@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.SortedSet;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -104,6 +105,23 @@ public class TopicList {
             if (i < sortedTopics.length - 1) {
                 hasher.putByte((byte) ',');
             }
+        }
+        return hasher.hash().toString();
+    }
+
+    /**
+     * Calculate hash of a SortedSet directly, avoiding O(n log n) copy+sort
+     * needed by {@link #calculateHash(Collection)}.
+     */
+    public static String calculateHash(SortedSet<String> topics) {
+        Hasher hasher = Hashing.crc32c().newHasher();
+        boolean first = true;
+        for (String topic : topics) {
+            if (!first) {
+                hasher.putByte((byte) ',');
+            }
+            hasher.putString(topic, StandardCharsets.UTF_8);
+            first = false;
         }
         return hasher.hash().toString();
     }
