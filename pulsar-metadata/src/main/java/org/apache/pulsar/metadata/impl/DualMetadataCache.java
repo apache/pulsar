@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import lombok.Getter;
+import org.apache.pulsar.common.migration.MigrationPhase;
 import org.apache.pulsar.metadata.api.CacheGetResult;
 import org.apache.pulsar.metadata.api.MetadataCache;
 import org.apache.pulsar.metadata.api.MetadataCacheConfig;
@@ -44,6 +45,8 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
 
     @Getter
     private final AtomicReference<MetadataCache<T>> metadataCache = new AtomicReference<>();
+    // Guarded by this
+    private boolean onTargetStore;
 
     public DualMetadataCache(DualMetadataStore dualMetadataStore, Class<T> clazz, TypeReference<T> typeRef,
                              String cacheName, MetadataSerde<T> serde,
@@ -55,8 +58,13 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
         this.serde = serde;
         this.cacheConfig = cacheConfig;
 
-        var target = dualMetadataStore.targetStore;
-        metadataCache.set(createCache(target != null ? target : dualMetadataStore.sourceStore));
+        // Operations go to the target store only once the migration has completed. Before that, the target store
+        // may be partially copied, and after a failed migration it's abandoned. On completion,
+        // handleSwitchToTargetStore() moves the cache to the target store.
+        var target = dualMetadataStore.getMigrationPhase() == MigrationPhase.COMPLETED
+                ? dualMetadataStore.targetStore : null;
+        onTargetStore = target != null;
+        metadataCache.set(createCache(onTargetStore ? target : dualMetadataStore.sourceStore));
     }
 
     private MetadataCache<T> createCache(MetadataStore store) {
@@ -161,10 +169,12 @@ public class DualMetadataCache<T> implements MetadataCache<T> {
     void handleSwitchToTargetStore() {
         MetadataCache<T> previous;
         synchronized (this) {
-            if (closed) {
+            // Both the migration completion and the registration of a new cache may switch it.
+            if (closed || onTargetStore) {
                 return;
             }
             previous = metadataCache.getAndSet(createCache(dualMetadataStore.targetStore));
+            onTargetStore = true;
         }
         previous.close();
     }

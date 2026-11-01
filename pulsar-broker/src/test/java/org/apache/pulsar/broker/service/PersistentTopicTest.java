@@ -386,11 +386,17 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
         doThrow(new RejectedExecutionException("rejected"))
                 .when(publishContext).completed(any(), anyLong(), anyLong());
 
-        topic.publishTxnMessage(new TxnID(1, 2), Unpooled.wrappedBuffer("content".getBytes()), publishContext);
+        ByteBuf payload = Unpooled.wrappedBuffer("content".getBytes());
+        try {
+            topic.publishTxnMessage(new TxnID(1, 2), payload, publishContext);
+        } finally {
+            payload.release();
+        }
 
         // The failure must not complete the publish context a second time.
         verify(publishContext, times(1)).completed(any(), anyLong(), anyLong());
         verify(publishContext).completed(null, 1, 2);
+        assertThat(topic.getPendingWriteOps().get()).isZero();
     }
 
     @Test

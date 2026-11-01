@@ -121,7 +121,7 @@ public interface PulsarClient extends Closeable {
     ConsumerBuilder<byte[]> newConsumer();
 
     /**
-     * Create a consumer builder with a specific schema for subscribing on a specific topic
+     * Create a consumer builder with a specific schema for subscribing on a specific topic.
      *
      * <p>Since 2.2, if you are creating a consumer with non-bytes schema on a non-existence topic, it will
      * automatically create the topic with the provided schema.
