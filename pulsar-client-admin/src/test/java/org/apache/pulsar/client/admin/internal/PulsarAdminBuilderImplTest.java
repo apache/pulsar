@@ -266,6 +266,25 @@ public class PulsarAdminBuilderImplTest {
     }
 
     @Test
+    public void testClonedBuilderKeepsSharedResources() throws PulsarClientException {
+        PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder().build();
+        PulsarAdminBuilder builder = PulsarAdmin.builder()
+                .serviceHttpUrl("http://localhost:8080")
+                .sharedResources(sharedResources);
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl1 = (PulsarAdminImpl) builder.build();
+        @Cleanup
+        PulsarAdminImpl pulsarAdminImpl2 = (PulsarAdminImpl) builder.clone().build();
+
+        EventLoopGroup eventLoopGroup1 =
+                pulsarAdminImpl1.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        EventLoopGroup eventLoopGroup2 =
+                pulsarAdminImpl2.getAsyncHttpConnector().getHttpClient().getConfig().getEventLoopGroup();
+        assertThat(eventLoopGroup2).isSameAs(eventLoopGroup1);
+        sharedResources.close();
+    }
+
+    @Test
     public void testClientBuildWithSharedDnsResolverOnly() throws PulsarClientException {
         PulsarClientSharedResources sharedResources = PulsarClientSharedResources.builder()
                 .shareConfigured()

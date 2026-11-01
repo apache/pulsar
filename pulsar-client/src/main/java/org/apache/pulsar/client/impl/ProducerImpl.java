@@ -172,6 +172,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     private Optional<byte[]> schemaVersion = Optional.empty();
 
+    private volatile boolean registeredWithoutSchemaForAutoProduceBytes;
+
     private final ConnectionHandler connectionHandler;
 
     // A batch flush task is scheduled when one of the following is true:
@@ -931,7 +933,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @VisibleForTesting
     boolean populateMessageSchema(MessageImpl<?> msg, SendCallback callback) {
         MessageMetadata msgMetadataBuilder = msg.getMessageBuilder();
-        if (msg.getSchemaInternal() == schema) {
+        if (msg.getSchemaInternal() == schema && !registeredWithoutSchemaForAutoProduceBytes) {
             schemaVersion.ifPresent(v -> msgMetadataBuilder.setSchemaVersion(v));
             msg.setSchemaState(MessageImpl.SchemaState.Ready);
             return true;
@@ -2202,8 +2204,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         PRODUCER_DEADLINE_UPDATER
                 .compareAndSet(this, 0, System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs());
 
+        boolean shouldRegisterWithoutSchemaForAutoProduceBytes =
+                schema != null
+                && schema instanceof AutoProduceBytesSchema<?> autoProduceBytesSchema
+                && !autoProduceBytesSchema.hasUserProvidedSchema()
+                && cnx.isSupportsAutoProduceBytesWithoutSchema();
         SchemaInfo schemaInfo = null;
-        if (schema != null) {
+        if (schema != null && !shouldRegisterWithoutSchemaForAutoProduceBytes) {
             if (schema.getSchemaInfo() != null) {
                 if (schema.getSchemaInfo().getType() == SchemaType.JSON) {
                     // for backwards compatibility purposes
@@ -2235,7 +2242,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
                         schemaInfo, epoch, userProvidedProducerName,
                         conf.getAccessMode(), topicEpoch, client.conf.isEnableTransaction(),
-                        conf.getInitialSubscriptionName()),
+                        conf.getInitialSubscriptionName(), schema instanceof AutoProduceBytesSchema),
                 requestId).thenAccept(response -> {
             if (connectionHandler.isSupersededAttempt(cnx, epoch)) {
                 log.debug().attr("connection", cnx.channel())
@@ -2245,6 +2252,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             String producerName = response.getProducerName();
             long lastSequenceId = response.getLastSequenceId();
             schemaVersion = Optional.ofNullable(response.getSchemaVersion());
+            registeredWithoutSchemaForAutoProduceBytes = shouldRegisterWithoutSchemaForAutoProduceBytes;
             schemaVersion.ifPresent(v -> schemaCache.put(SchemaHash.of(schema), v));
 
             // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
@@ -2646,6 +2654,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // Track message count to fail so that newly added messages by synchronous retries
             // triggered by op.sendComplete(ex); don't get removed
             int pendingMessagesToFailCount = pendingMessages.size();
+            // Invalidate the failed queue's registration before callbacks can start one for a new message.
+            if (compareAndSetState(State.RegisteringSchema, State.Ready)) {
+                schemaRegistrationGeneration++;
+                cancelSchemaRegistrationRetry();
+                schemaRegistrationBackoff.reset();
+                schemaRegistrationFailed = false;
+            }
 
             for (int i = 0; i < pendingMessagesToFailCount; i++) {
                 OpSendMsg op = pendingMessages.remove();
