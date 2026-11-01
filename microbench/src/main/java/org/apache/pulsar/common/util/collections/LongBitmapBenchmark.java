@@ -39,7 +39,7 @@ import org.roaringbitmap.longlong.Roaring64Bitmap;
 
 /**
  * JMH benchmark for {@link LongBitmap} ({@link ConcurrentRoaringBitmap}), compared against
- * the pre-PR bitmap implementations it replaces:
+ * the pre-PR bitmap implementations it replaces.
  * <ul>
  *   <li>{@link Roaring64Bitmap} — previously used in {@code InMemoryDelayedDeliveryTracker}.</li>
  *   <li>{@link RoaringBitmap} — previously used in {@code ConsumerNameIndexTracker},

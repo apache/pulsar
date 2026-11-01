@@ -52,6 +52,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.Request;
 import org.asynchttpclient.RequestBuilder;
 import org.asynchttpclient.Response;
+import org.asynchttpclient.config.AsyncHttpClientConfigHelper;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientRequest;
 import org.glassfish.jersey.client.ClientResponse;
@@ -464,5 +465,72 @@ public class AsyncHttpConnectorTest {
         int maxConcurrency = concurrencyTestTransformer.getMaxConcurrency();
         assertTrue(maxConcurrency > maxConnections / 2 && maxConcurrency <= maxConnections,
                 "concurrency didn't get limited as expected (max: " + maxConcurrency + ")");
+    }
+
+    @Test(timeOut = 60_000)
+    void testNoDeadlockWhenIdleConnectionIsClosedWhileEventLoopIsBusy() {
+        server.stubFor(get(urlEqualTo("/idle-close")).willReturn(aResponse().withStatus(200)));
+
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setServiceUrl("http://localhost:" + server.port());
+        conf.setConnectionsPerBroker(1);
+        conf.setNumIoThreads(1);
+        conf.setConnectionMaxIdleSeconds(1);
+
+        @Cleanup
+        AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000, 5000, 0, conf, false, null);
+
+        // The first request returns its connection to the pool. Its completion callback runs on the event loop and
+        // keeps it busy until the pool has closed the idle connection, then chains another request, like a caller
+        // that does some work before its next call. The close of the idle connection is waiting for the busy event
+        // loop, so the chained request needs a new connection while the only connection is still open.
+        CompletableFuture<Response> chained = connector.executeRequest(request("/idle-close"))
+                .thenCompose(response -> {
+                    try {
+                        Thread.sleep(2_500);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return connector.executeRequest(request("/idle-close"));
+                });
+
+        assertThat(chained).as("the chained request completes").succeedsWithin(10, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void testConnectionsPerBrokerNotLimitedByAsyncHttpClientDefaults() {
+        server.stubFor(get(urlEqualTo("/overlapping")).willReturn(aResponse().withFixedDelay(200)));
+
+        String property = "org.asynchttpclient.maxConnectionsPerHost";
+        String previous = System.getProperty(property);
+        // a JVM-wide AsyncHttpClient default that is smaller than the connections per broker
+        System.setProperty(property, "1");
+        AsyncHttpClientConfigHelper.reloadProperties();
+        try {
+            ClientConfigurationData conf = new ClientConfigurationData();
+            conf.setServiceUrl("http://localhost:" + server.port());
+            conf.setConnectionsPerBroker(2);
+
+            @Cleanup
+            AsyncHttpConnector connector = new AsyncHttpConnector(5000, 5000, 5000, 0, conf, false, null);
+
+            CompletableFuture<Response> first = connector.executeRequest(request("/overlapping"));
+            CompletableFuture<Response> second = connector.executeRequest(request("/overlapping"));
+
+            assertThat(CompletableFuture.allOf(first, second))
+                    .as("both requests, which the connections per broker allow, succeed")
+                    .succeedsWithin(10, TimeUnit.SECONDS);
+        } finally {
+            if (previous == null) {
+                System.clearProperty(property);
+            } else {
+                System.setProperty(property, previous);
+            }
+            AsyncHttpClientConfigHelper.reloadProperties();
+        }
+    }
+
+    private Request request(String path) {
+        return new RequestBuilder("GET").setUrl("http://localhost:" + server.port() + path).build();
     }
 }
