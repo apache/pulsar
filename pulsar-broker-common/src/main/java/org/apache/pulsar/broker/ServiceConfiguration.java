@@ -1954,9 +1954,34 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + " from the connection. The processing messages means messages are sends to broker"
             + " but broker have not send response to client, usually waiting to write to bookies.\n\n"
             + " It's shared across all the topics running in the same broker.\n\n"
+            + " For request-frame memory limiting, dynamic updates re-evaluate existing and new connections "
+            + "using the same broker-wide limit. The legacy payload-byte limiter captures this value when "
+            + "a connection is created.\n\n"
             + " Use -1 to disable the memory limitation. Default is 1/2 of direct memory.\n\n")
     private int maxMessagePublishBufferSizeInMB = Math.max(64,
         (int) (DirectMemoryUtils.jvmMaxDirectMemory() / 2 / (1024 * 1024)));
+
+    @FieldContext(
+        category = CATEGORY_SERVER,
+        doc = "Request-frame memory mode: DISABLED, TRACKING, AUTO (default), or ENABLED. DISABLED uses the "
+            + "standard frame decoder without request-frame memory tracking, limiting or metrics. TRACKING only "
+            + "tracks retained direct-memory root capacity and exposes metrics; it never applies this limiter, "
+            + "including under memory pressure. AUTO activates broker-local protection when direct-memory usage "
+            + "reaches 85% and retained "
+            + "frame memory exceeds 1.5 times maxMessagePublishBufferSizeInMB, and deactivates it below 65%. "
+            + "ENABLED applies the limiter regardless of direct-memory pressure. All modes except DISABLED expose the "
+            + "pulsar.broker.publish.in.progress.buffer.memory.usage metric. The "
+            + "pulsar.broker.publish.in.progress.buffer.memory.throttled gauge is 1 while request-frame memory "
+            + "throttling is active and 0 otherwise, independent of other throttling reasons. This limiter is "
+            + "independent of the existing payload-byte limiter. Limiting compares broker-wide retained frame "
+            + "capacity against the latest "
+            + "maxMessagePublishBufferSizeInMB for all connections and resumes at half that limit. A nonpositive "
+            + "limit disables request-frame throttling for all connections. The mode is set at broker startup; "
+            + "changing it requires a broker restart. Automatic activation follows "
+            + "the current numeric configuration and starts enforcing on the next inbound read. For compatibility, "
+            + "false maps to AUTO and true maps to ENABLED.")
+    private InProgressRequestFrameMemoryLimitMode inProgressRequestFrameMemoryLimitEnabled =
+            InProgressRequestFrameMemoryLimitMode.AUTO;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a "
             + "managed ledger backing a persistent topic. It can improve write availability of topics.\n"
