@@ -864,7 +864,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // Should flush the last potential duplicated since can't combine potential duplicated messages
                     // and non-duplicated messages into a batch.
                     if (isLastSequenceIdPotentialDuplicated) {
-                        doBatchSendAndAdd(msg, callback, payload);
+                        if (!doBatchSendAndAdd(msg, callback, payload)) {
+                            return;
+                        }
                     } else {
                         // handle boundary cases where message being added would exceed
                         // batch size and/or max message size
@@ -1222,7 +1224,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private void doBatchSendAndAdd(MessageImpl<?> msg, SendCallback callback, ByteBuf payload) {
+    private boolean doBatchSendAndAdd(MessageImpl<?> msg, SendCallback callback, ByteBuf payload) {
             log.debug()
                     .attr("messageSize", msg.getUncompressedSize())
                     .log("Closing out batch to accommodate large message");
@@ -1235,11 +1237,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback,
                         new PulsarClientException("Failed to flush the previous batch before adding a new message",
                                 msg.getSequenceId()));
-                return;
+                return false;
             }
             boolean isBatchFull = batchMessageContainer.add(msg, callback);
             triggerSendIfFullOrScheduleFlush(isBatchFull);
             lastSendFuture = callback.getFuture();
+            return true;
         } finally {
             payload.release();
         }

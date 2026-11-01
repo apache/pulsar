@@ -128,6 +128,63 @@ public class ProducerConsumerInternalTest extends SharedPulsarBaseTest {
     }
 
     @DataProvider
+    public Object[][] duplicateBatchBuilders() {
+        return new Object[][] {
+                {BatcherBuilder.DEFAULT},
+                {BatcherBuilder.KEY_BASED},
+                {new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000))}
+        };
+    }
+
+    @Test(dataProvider = "duplicateBatchBuilders", timeOut = 30000)
+    public void testFreshMessageAfterFailedDuplicateBatchFlushIsDelivered(BatcherBuilder builder) throws Exception {
+        String topic = newTopicName();
+        admin.namespaces().setDeduplicationStatus(getNamespace(), true);
+        AtomicInteger failures = new AtomicInteger();
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(getBrokerServiceUrl())
+                .memoryLimit(3700, SizeUnit.BYTES).build();
+             Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("sub").subscribe();
+             Producer<byte[]> producer = client.newProducer().topic(topic).batcherBuilder(builder)
+                     .batchingMaxPublishDelay(1, TimeUnit.DAYS).create()) {
+            CompletableFuture<MessageId> original = producer.newMessage().key("key-1").sequenceId(0L)
+                    .value(new byte[16]).sendAsync();
+            producer.flushAsync().get(10, TimeUnit.SECONDS);
+            original.get(10, TimeUnit.SECONDS);
+            Message<byte[]> persisted = consumer.receive(10, TimeUnit.SECONDS);
+            assertThat(persisted).isNotNull();
+            assertThat(persisted.getSequenceId()).isZero();
+            consumer.acknowledge(persisted);
+
+            PulsarClientImpl clientImpl = (PulsarClientImpl) client;
+            clientImpl.getMemoryLimitController().registerTrigger(() -> {
+                if (failures.getAndIncrement() == 0) {
+                    throw new OutOfMemoryError("injected duplicate batch growth failure");
+                }
+            });
+            CompletableFuture<MessageId> duplicate = producer.newMessage().key("key-1").sequenceId(0L)
+                    .value(new byte[1500]).sendAsync();
+            assertThat(failures).hasValue(0);
+            CompletableFuture<MessageId> rejected = producer.newMessage().key("key-1").sequenceId(1L)
+                    .value(new byte[32]).sendAsync();
+            assertThat(failures).hasValue(1);
+            assertThat(rejected).isCompletedExceptionally();
+            CompletableFuture<MessageId> fresh = producer.newMessage().key("key-1").sequenceId(2L)
+                    .value(new byte[32]).sendAsync();
+            producer.flushAsync().get(10, TimeUnit.SECONDS);
+            duplicate.get(10, TimeUnit.SECONDS);
+            fresh.get(10, TimeUnit.SECONDS);
+
+            Message<byte[]> delivered = consumer.receive(10, TimeUnit.SECONDS);
+            assertThat(delivered).as("an acknowledged fresh message must not be discarded with the duplicate")
+                    .isNotNull();
+            assertThat(delivered.getSequenceId()).isEqualTo(2L);
+            assertThat(delivered.getData()).hasSize(32);
+            assertThat(consumer.receive(100, TimeUnit.MILLISECONDS)).isNull();
+            assertThat(clientImpl.getMemoryLimitController().currentUsage()).isZero();
+        }
+    }
+
+    @DataProvider
     public Object[][] failedAddBuilders() {
         return new Object[][] {
                 {BatcherBuilder.KEY_BASED},

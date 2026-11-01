@@ -185,6 +185,73 @@ public class ProducerImplTest {
     }
 
     @DataProvider
+    public Object[][] duplicateBatchBuilders() {
+        return new Object[][] {
+                {BatcherBuilder.DEFAULT},
+                {BatcherBuilder.KEY_BASED},
+                {new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000))}
+        };
+    }
+
+    @Test(dataProvider = "duplicateBatchBuilders")
+    public void testFailedFlushKeepsDuplicateBatchSeparateFromLaterFreshMessage(BatcherBuilder builder) {
+        AtomicInteger failures = new AtomicInteger();
+        MemoryLimitController memory = new MemoryLimitController(0, 3000, () -> {
+            if (failures.getAndIncrement() == 0) {
+                throw new OutOfMemoryError("injected duplicate batch growth failure");
+            }
+        });
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatcherBuilder(builder);
+        conf.setInitialSequenceId(0L);
+        conf.setProducerName("duplicate-batch-boundary-test");
+        conf.setMaxPendingMessages(10);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(HandlerState.State.Ready);
+        MessageImpl<byte[]> duplicate = newMessage(new byte[1500]);
+        MessageImpl<byte[]> incoming = newMessage(new byte[32]);
+        MessageImpl<byte[]> later = newMessage(new byte[32]);
+        long sequenceId = 0;
+        for (MessageImpl<byte[]> message : List.of(duplicate, incoming, later)) {
+            message.getMessageBuilder().clearPublishTime();
+            message.getMessageBuilder().setPartitionKey("key-1").setSequenceId(sequenceId++);
+        }
+        try {
+            CompletableFuture<MessageId> duplicateSend = producer.internalSendAsync(duplicate);
+            assertThat(failures).hasValue(0);
+            CompletableFuture<MessageId> rejected = producer.internalSendAsync(incoming);
+            assertThat(failures).hasValue(1);
+            assertThat(rejected).isCompletedExceptionally();
+            assertThat(incoming.getDataBuffer().refCnt()).isZero();
+            assertThat(producer.pendingMessages).isEmpty();
+
+            // Send again before retrying the flush explicitly: rejecting sequence 1 must not let
+            // sequence 2 join the retained duplicate batch, which the broker will discard as a whole.
+            CompletableFuture<MessageId> laterSend = producer.internalSendAsync(later);
+            producer.flushAsync();
+            assertThat(producer.pendingMessages).hasSize(2);
+            OpSendMsg duplicateOp = producer.pendingMessages.peek();
+            assertThat(duplicateOp.msgs).containsExactly(duplicate);
+            assertThat(metadataOf(duplicateOp).getSequenceId()).isZero();
+            producer.ackReceived(null, duplicateOp.sequenceId, duplicateOp.highestSequenceId, 1L, 0L);
+            OpSendMsg freshOp = producer.pendingMessages.peek();
+            assertThat(freshOp.msgs).containsExactly(later);
+            assertThat(metadataOf(freshOp).getSequenceId()).isEqualTo(2L);
+            producer.ackReceived(null, freshOp.sequenceId, freshOp.highestSequenceId, 1L, 1L);
+            assertThat(duplicateSend).isCompleted();
+            assertThat(laterSend).isCompleted();
+            assertThat(producer.pendingMessages).isEmpty();
+            assertThat(memory.currentUsage()).isZero();
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(10);
+        } finally {
+            producer.failPendingMessages(null, new PulsarClientException("test cleanup"));
+        }
+    }
+
+    @DataProvider
     public Object[][] multiBatchBuilders() {
         return new Object[][] {
                 {BatcherBuilder.KEY_BASED, false},
