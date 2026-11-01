@@ -67,6 +67,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     @Getter
     private final MetadataStore store;
     private final MetadataStoreExtended storeExtended;
+    // Keep the registration owner even when a wrapper replaces the I/O store.
+    private final AbstractMetadataStore cacheOwner;
     private final MetadataSerde<T> serde;
     private final OrderedExecutor executor;
     private final ScheduledExecutorService schedulerExecutor;
@@ -91,6 +93,7 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
                              MetadataCacheConfig<T> cacheConfig, OrderedExecutor executor,
                              ScheduledExecutorService schedulerExecutor) {
         this.store = store;
+        this.cacheOwner = store instanceof AbstractMetadataStore metadataStore ? metadataStore : null;
         this.cacheName = cacheName;
         if (store instanceof MetadataStoreExtended) {
             this.storeExtended = (MetadataStoreExtended) store;
@@ -387,8 +390,8 @@ public class MetadataCacheImpl<T> implements MetadataCache<T>, Consumer<Notifica
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
-            if (store instanceof AbstractMetadataStore metadataStore) {
-                metadataStore.unregisterMetadataCache(this);
+            if (cacheOwner != null) {
+                cacheOwner.unregisterMetadataCache(this);
             }
             invalidateAll();
             CacheMetricsCollector.removeCache(cacheName, objCache);

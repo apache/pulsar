@@ -52,21 +52,27 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.tableview.impl.MetadataStoreTableViewImpl;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class LocalMemoryMetadataStoreTest {
 
     HashSet<CreateOption> emptySet = new HashSet<>();
 
-    @Test
-    public void testTableViewCloseUnregistersMetadataCache() throws Exception {
+    @DataProvider
+    public Object[][] cacheStoreWrappers() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "cacheStoreWrappers")
+    public void testTableViewCloseUnregistersMetadataCache(boolean useFaultInjectionStore) throws Exception {
         try (var store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build())) {
             int baseline = store.getMetadataCacheCount();
             for (int i = 0; i < 3; i++) {
                 var tableView = MetadataStoreTableViewImpl.<Integer>builder()
                         .name("cache-lifecycle")
                         .clazz(Integer.class)
-                        .store(store)
+                        .store(useFaultInjectionStore ? new FaultInjectionMetadataStore(store) : store)
                         .pathPrefix("/table-view")
                         .listenPathValidator(path -> path.startsWith("/table-view/"))
                         .conflictResolver((oldValue, newValue) -> true)
