@@ -832,6 +832,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         if (exception instanceof ManagedLedgerFencedException) {
+            brokerService.requireFreshOwnershipBeforeTopicReadmission(this);
             if (exception instanceof ManagedLedgerFencedByAnotherWriterException
                     && brokerService.getTopicReference(topic).orElse(null) == this
                     && ownershipTakeoverReported.compareAndSet(false, true)) {

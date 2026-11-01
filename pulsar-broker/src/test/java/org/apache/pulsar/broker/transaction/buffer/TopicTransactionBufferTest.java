@@ -180,11 +180,12 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
                 .newTopic(Mockito.eq(topic), Mockito.any(), Mockito.eq(brokerService),
                         Mockito.eq(PersistentTopic.class));
 
-        // createPersistentTopic0 runs after the ownership check of the topic's load, which this test skips: its
-        // check right before opening the managed ledger finds the topic's bundle owned
-        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(brokerService).checkTopicNsOwnership(topic);
-        brokerService.createPersistentTopic0(new TopicLoadingContext(TopicName.get(topic), true,
-                new CompletableFuture<>(), Mockito.mock(PulsarStats.class)));
+        // This direct fixture bypasses the load entry point. Ownership is not its target; allow the pre-open
+        // check explicitly so that the deduplication failure below still exercises transaction-buffer cleanup.
+        TopicLoadingContext context = new TopicLoadingContext(TopicName.get(topic), true,
+                new CompletableFuture<>(), Mockito.mock(PulsarStats.class));
+        context.setOwnershipChecker(() -> CompletableFuture.completedFuture(true));
+        brokerService.createPersistentTopic0(context);
 
         Awaitility.waitAtMost(1, TimeUnit.MINUTES).until(() -> reference.get() != null);
         PersistentTopic persistentTopic = reference.get();

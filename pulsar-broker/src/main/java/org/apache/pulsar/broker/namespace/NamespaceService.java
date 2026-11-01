@@ -306,6 +306,20 @@ public class NamespaceService implements AutoCloseable {
         });
     }
 
+    /** A loaded fenced topic must verify its legacy namespace lock before it can be loaded again. */
+    public void requireFreshOwnershipBeforeReadmission(TopicName topicName) {
+        if (!ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            ownershipCache.requireFreshOwnershipBeforeReadmission(topicName);
+        }
+    }
+
+    public Supplier<CompletableFuture<Boolean>> newTopicOwnershipChecker(TopicName topicName) {
+        if (ExtensibleLoadManagerImpl.isLoadManagerExtensionEnabled(pulsar)) {
+            return () -> checkTopicOwnership(topicName);
+        }
+        return ownershipCache.newTopicOwnershipChecker(topicName);
+    }
+
     public NamespaceBundle getBundle(TopicName topicName) {
         return bundleFactory.getBundles(topicName.getNamespaceObject()).findBundle(topicName);
     }
@@ -1388,7 +1402,7 @@ public class NamespaceService implements AutoCloseable {
             // TODO: Add unit tests cover it.
             return loadManager.get().checkOwnershipAsync(Optional.of(topicName), bundle);
         } else {
-            return ownershipCache.checkOwnershipAsync(bundle);
+            return ownershipCache.checkOwnershipAsync(topicName, bundle);
         }
     }
 
@@ -2024,6 +2038,7 @@ public class NamespaceService implements AutoCloseable {
 
     @Override
     public void close() {
+        ownershipCache.clearFencedTopicReadmissions();
         namespaceClients.forEach((cluster, client) -> {
             try {
                 client.shutdown();

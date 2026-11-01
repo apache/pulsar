@@ -98,6 +98,10 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
 
     @Override
     public synchronized CompletableFuture<Void> release() {
+        return sequencer.sequential(this::releaseAfterPendingOperations);
+    }
+
+    private synchronized CompletableFuture<Void> releaseAfterPendingOperations() {
         if (state == State.Released) {
             return CompletableFuture.completedFuture(null);
         }
@@ -207,6 +211,33 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
         silentRevalidateOnce();
     }
 
+    @Override
+    public synchronized CompletableFuture<Void> validate() {
+        return sequencer.sequential(this::validateOnce);
+    }
+
+    private synchronized CompletableFuture<Void> validateOnce() {
+        if (state != State.Valid) {
+            return CompletableFuture.failedFuture(
+                    new IllegalStateException("Lock was not in valid state: " + state));
+        }
+        return store.sync(path).thenCompose(__ -> revalidate(value)).whenComplete((__, error) -> {
+            if (error != null) {
+                Throwable cause = FutureUtil.unwrapCompletionException(error);
+                if (cause instanceof BadVersionException || cause instanceof LockBusyException) {
+                    synchronized (ResourceLockImpl.this) {
+                        // Expire before the sequencer hands the queue to an update, revalidation or release.
+                        // The normal expiry callbacks also remove this instance from the lock manager.
+                        log.warn().attr("path", path).exceptionMessage(cause)
+                                .log("Failed to revalidate the lock. Marked as expired.");
+                        state = State.Released;
+                        expiredFuture.complete(null);
+                    }
+                }
+            }
+        });
+    }
+
     synchronized CompletableFuture<Void> revalidateIfNeededAfterReconnection() {
         if (revalidateAfterReconnection) {
             revalidateAfterReconnection = false;
@@ -226,7 +257,7 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
             return CompletableFuture.completedFuture(null);
         }
 
-        return sequencer.sequential(() -> revalidate(value))
+        return validate()
                 .thenRun(() -> {
                     log.info().attr("path", path).log("Successfully revalidated the lock");
                     backoff.reset();
@@ -235,11 +266,9 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     synchronized (ResourceLockImpl.this) {
                         Throwable realCause = FutureUtil.unwrapCompletionException(ex);
                         if (realCause instanceof BadVersionException || realCause instanceof LockBusyException) {
-                            log.warn().attr("path", path).exceptionMessage(realCause)
-                                    .log("Failed to revalidate the lock. Marked as expired.");
-                            state = State.Released;
-                            expiredFuture.complete(null);
-                        } else {
+                            // validate() expired the lock before completing its sequenced operation.
+                            return null;
+                        } else if (state == State.Valid) {
                             // We failed to revalidate the lock due to connectivity issue
                             // Continue assuming we hold the lock, until we can revalidate it, either
                             // on Reconnected or SessionReestablished events.

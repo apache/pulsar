@@ -21,8 +21,10 @@ package org.apache.pulsar.broker.namespace;
 import com.github.benmanes.caffeine.cache.AsyncCacheLoader;
 import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.RemovalCause;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.MoreExecutors;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,7 @@ import java.util.function.Supplier;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException.MetadataSessionLostException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -100,6 +103,20 @@ public class OwnershipCache {
      * The loading cache of locally owned <code>NamespaceBundle</code> objects.
      */
     private final AsyncLoadingCache<NamespaceBundle, OwnedBundle> ownedBundlesCache;
+
+    // Markers retain no Topic and are removed with the captured ownership generation.
+    private final Map<String, FencedTopicReadmission> fencedTopicReadmissions = new ConcurrentHashMap<>();
+
+    private static final class FencedTopicReadmission {
+        private final NamespaceBundle bundle;
+        private final CompletableFuture<OwnedBundle> ownership;
+        private CompletableFuture<Boolean> verification;
+
+        private FencedTopicReadmission(NamespaceBundle bundle, CompletableFuture<OwnedBundle> ownership) {
+            this.bundle = bundle;
+            this.ownership = ownership;
+        }
+    }
 
     /**
      * The <code>NamespaceService</code> which using <code>OwnershipCache</code>.
@@ -202,6 +219,8 @@ public class OwnershipCache {
         this.ownedBundlesCache = Caffeine.newBuilder()
                 .executor(MoreExecutors.directExecutor())
                 .recordStats()
+                .removalListener((NamespaceBundle bundle, OwnedBundle ownedBundle, RemovalCause cause) ->
+                        discardFencedTopicReadmissions(ownedBundle))
                 .buildAsync(new OwnedServiceUnitCacheLoader());
         CacheMetricsCollector.CAFFEINE.addCache("owned-bundles", this.ownedBundlesCache);
     }
@@ -219,6 +238,152 @@ public class OwnershipCache {
         }
         return ownedBundleFuture.get()
                 .thenApply(bd -> bd != null && bd.isActive());
+    }
+
+    /** Bind every stage of a pending load to the ownership that existed before its topic future was published. */
+    Supplier<CompletableFuture<Boolean>> newTopicOwnershipChecker(TopicName topicName) {
+        for (Map.Entry<NamespaceBundle, CompletableFuture<OwnedBundle>> entry : ownedBundlesCache.asMap().entrySet()) {
+            NamespaceBundle bundle = entry.getKey();
+            if (bundle.includes(topicName)) {
+                CompletableFuture<OwnedBundle> ownership = entry.getValue();
+                FencedTopicReadmission readmission = fencedTopicReadmissions.get(topicName.toString());
+                return () -> {
+                    if (ownedBundlesCache.getIfPresent(bundle) != ownership
+                            || (readmission != null
+                                && fencedTopicReadmissions.get(topicName.toString()) != readmission)) {
+                        return CompletableFuture.completedFuture(false);
+                    }
+                    return ownership.thenCompose(ownedBundle -> {
+                        if (ownedBundle == null || !ownedBundle.isActive()
+                                || ownedBundlesCache.getIfPresent(bundle) != ownership) {
+                            return CompletableFuture.completedFuture(false);
+                        }
+                        return checkOwnershipAsync(topicName, bundle).thenApply(owned -> owned
+                                && ownedBundlesCache.getIfPresent(bundle) == ownership && ownedBundle.isActive()
+                                && (readmission == null
+                                    || fencedTopicReadmissions.get(topicName.toString()) == readmission));
+                    });
+                };
+            }
+        }
+        return () -> CompletableFuture.completedFuture(false);
+    }
+
+    /** Capture locally; the namespace bundle metadata cache may be cold during an outage. */
+    void requireFreshOwnershipBeforeReadmission(TopicName topicName) {
+        String topic = topicName.toString();
+        for (Map.Entry<NamespaceBundle, CompletableFuture<OwnedBundle>> entry : ownedBundlesCache.asMap().entrySet()) {
+            NamespaceBundle bundle = entry.getKey();
+            if (!bundle.includes(topicName)) {
+                continue;
+            }
+            CompletableFuture<OwnedBundle> ownership = entry.getValue();
+            ownedBundlesCache.asMap().computeIfPresent(bundle, (key, current) -> {
+                if (current == ownership && current.isDone() && !current.isCompletedExceptionally()
+                        && current.join().isActive()) {
+                    fencedTopicReadmissions.compute(topic, (name, previous) ->
+                            previous != null && previous.ownership == current
+                                    ? previous : new FencedTopicReadmission(bundle, current));
+                }
+                return current;
+            });
+            return;
+        }
+    }
+
+    CompletableFuture<Boolean> checkOwnershipAsync(TopicName topicName, NamespaceBundle bundle) {
+        String topic = topicName.toString();
+        FencedTopicReadmission check = fencedTopicReadmissions.get(topic);
+        if (check == null) {
+            return checkOwnershipAsync(bundle);
+        }
+        if (!bundle.equals(check.bundle) || ownedBundlesCache.getIfPresent(check.bundle) != check.ownership) {
+            fencedTopicReadmissions.remove(topic, check);
+            return CompletableFuture.completedFuture(false);
+        }
+        return verifyFencedTopicOwnership(topic, check);
+    }
+
+    private CompletableFuture<Boolean> verifyFencedTopicOwnership(String topic, FencedTopicReadmission check) {
+        final CompletableFuture<Boolean> result;
+        try {
+            synchronized (check) {
+                if (check.verification != null) {
+                    return check.verification;
+                }
+                result = FutureUtil.createFutureWithTimeout(
+                        Duration.ofSeconds(pulsar.getConfiguration().getMetadataStoreOperationTimeoutSeconds()),
+                        pulsar.getExecutor(), () -> new ServiceUnitNotReadyException(
+                                "Timed out verifying namespace ownership before reloading fenced topic " + topic));
+                check.verification = result;
+            }
+            // The lock serializes its authoritative read with in-place revalidation, updates and release.
+            // Foreign ownership expires it through the normal lock-manager and namespace expiry callbacks.
+            FutureUtil.supplySafely(() -> check.ownership.join().getResourceLock().validate())
+                    .whenComplete((__, error) -> {
+                        try {
+                            if (error != null) {
+                                result.completeExceptionally(new ServiceUnitNotReadyException(
+                                        "Cannot verify namespace ownership before reloading fenced topic " + topic,
+                                        FutureUtil.unwrapCompletionException(error)));
+                                return;
+                            }
+                            synchronized (check) {
+                                if (check.verification != result || result.isDone()) {
+                                    return;
+                                }
+                                if (fencedTopicReadmissions.get(topic) != check
+                                        || ownedBundlesCache.getIfPresent(check.bundle) != check.ownership) {
+                                    // This pending load cannot become a load of a later ownership generation.
+                                    result.complete(false);
+                                    return;
+                                }
+                                fencedTopicReadmissions.remove(topic, check);
+                                // The next attempt starts after this proof. Do not authorize a pending future that an
+                                // earlier unload may already have captured, even if this lock was restored in place.
+                                result.complete(false);
+                            }
+                        } finally {
+                            // A caller timeout does not cancel the lock's queued operation. Keep sharing that
+                            // timed-out future until the actual operation ends instead of adding more validations.
+                            synchronized (check) {
+                                if (check.verification == result) {
+                                    check.verification = null;
+                                }
+                            }
+                        }
+                    });
+            return result;
+        } catch (RuntimeException error) {
+            return FutureUtil.failedFuture(new ServiceUnitNotReadyException(
+                    "Cannot verify namespace ownership before reloading fenced topic " + topic, error));
+        }
+    }
+
+    private void discardFencedTopicReadmissions(OwnedBundle ownedBundle) {
+        fencedTopicReadmissions.forEach((topic, check) -> {
+            if (check.ownership.getNow(null) == ownedBundle && fencedTopicReadmissions.remove(topic, check)) {
+                completeObsoleteReadmission(check);
+            }
+        });
+    }
+
+    private static void completeObsoleteReadmission(FencedTopicReadmission check) {
+        CompletableFuture<Boolean> pending;
+        synchronized (check) {
+            pending = check.verification;
+        }
+        if (pending != null) {
+            pending.complete(false);
+        }
+    }
+
+    void clearFencedTopicReadmissions() {
+        fencedTopicReadmissions.forEach((topic, check) -> {
+            if (fencedTopicReadmissions.remove(topic, check)) {
+                completeObsoleteReadmission(check);
+            }
+        });
     }
 
     /**
