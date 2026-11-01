@@ -429,6 +429,40 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         assertEquals(0, schemaRegistryService.findSchemaVersion(schemaId1, schemaData1).get().longValue());
     }
 
+    @DataProvider
+    public Object[][] schemaRecoveryHistories() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "schemaRecoveryHistories")
+    public void testSchemaRecoveryDoesNotReuseDeletedVersions(boolean hasVersionAfterDeletion) throws Exception {
+        String topic = BrokerTestUtil.newUniqueName("persistent://public/default/schema-recovery");
+        String schemaId = TopicName.get(topic).getSchemaName();
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.schemas().createSchema(topic, schemaData1.toSchemaInfo());
+        admin.schemas().deleteSchema(topic);
+        admin.schemas().createSchema(topic, schemaData2.toSchemaInfo());
+        long missingLedgerId = admin.schemas().getSchemaMetadata(topic).info.getLedgerId();
+        if (hasVersionAfterDeletion) {
+            admin.schemas().createSchema(topic, schemaData1.toSchemaInfo());
+        }
+
+        // Keep the locator and deletion marker intact, but lose one schema data ledger.
+        PulsarMockBookKeeper bookKeeper = pulsarTestContext.getMockBookKeeper();
+        bookKeeper.deleteLedger(missingLedgerId);
+        long expectedVersion = hasVersionAfterDeletion ? 3 : SchemaRegistryService.NO_SCHEMA_VERSION;
+        assertThat(admin.schemas().getVersionBySchema(topic, schemaData1.toSchemaInfo()))
+                .as("Recovery must search only versions after the last deletion marker")
+                .isEqualTo(expectedVersion);
+        assertThat(pulsar.getLocalMetadataStore().exists("/schemas/" + schemaId).get(10, TimeUnit.SECONDS))
+                .isFalse();
+        assertThat(schemaLedgers(bookKeeper, schemaId)).isEmpty();
+
+        admin.schemas().createSchema(topic, schemaData1.toSchemaInfo());
+        assertThat(admin.schemas().getSchemaInfoWithVersion(topic).getVersion()).isZero();
+        assertThat(admin.schemas().getSchemaInfo(topic).getSchema()).isEqualTo(schemaData1.getData());
+    }
+
     @Test
     public void deleteSchemaAndAddSchema() throws Exception {
         putSchema(schemaId1, schemaData1, version(0));
