@@ -114,6 +114,11 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                         }
                         scheduleRecheckTopics();
                     });
+                    // Continue discovering topics while the initial watcher is still being retried.
+                    // A completed watcher already schedules this in the callback above.
+                    if (!watcherFuture.isDone()) {
+                        scheduleRecheckTopics();
+                    }
                 }
             });
         } else {

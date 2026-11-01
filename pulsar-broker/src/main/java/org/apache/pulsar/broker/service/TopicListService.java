@@ -435,6 +435,25 @@ public class TopicListService {
         }
     }
 
+    record WatchTopicListRequest(long watcherId, CompletableFuture<TopicListWatcher> watcherFuture,
+                                 boolean created) {
+    }
+
+    // Reserve before asynchronous authorization. CLOSE can then invalidate the same future that an authorized
+    // request will use, without holding a lock while compiling patterns, listing topics or sending responses.
+    WatchTopicListRequest beginWatchTopicListRequest(long watcherId) {
+        CompletableFuture<TopicListWatcher> future = new CompletableFuture<>();
+        CompletableFuture<TopicListWatcher> existing = watchers.putIfAbsent(watcherId, future);
+        return new WatchTopicListRequest(watcherId, existing == null ? future : existing, existing == null);
+    }
+
+    void failWatchTopicListRequest(WatchTopicListRequest request, Throwable error) {
+        if (request != null && request.created()) {
+            watchers.remove(request.watcherId(), request.watcherFuture());
+            request.watcherFuture().completeExceptionally(error);
+        }
+    }
+
     /***
      * @param topicsPatternString The regexp for the topic name
      */
@@ -443,6 +462,14 @@ public class TopicListService {
                                      TopicsPattern.RegexImplementation topicsPatternRegexImplementation,
                                      String topicsHash,
                                      Semaphore lookupSemaphore) {
+        handleWatchTopicList(namespaceName, watcherId, requestId, topicsPatternString,
+                topicsPatternRegexImplementation, topicsHash, lookupSemaphore, null);
+    }
+
+    void handleWatchTopicList(NamespaceName namespaceName, long watcherId, long requestId,
+                             String topicsPatternString,
+                             TopicsPattern.RegexImplementation topicsPatternRegexImplementation,
+                             String topicsHash, Semaphore lookupSemaphore, WatchTopicListRequest request) {
         // remove the domain scheme from the topic pattern
         topicsPatternString = TopicList.removeTopicDomainScheme(topicsPatternString);
 
@@ -458,6 +485,7 @@ public class TopicListService {
                     .attr("maxSubscriptionPatternLength", maxSubscriptionPatternLength)
                     .attr("namespace", namespaceName)
                     .log(msg);
+            failWatchTopicListRequest(request, new IllegalArgumentException(msg));
             connection.getCommandSender().sendErrorResponse(requestId, ServerError.NotAllowedError, msg);
             lookupSemaphore.release();
             return;
@@ -472,14 +500,28 @@ public class TopicListService {
                     .attr("topicsPatternString", topicsPatternString)
                     .attr("namespace", namespaceName)
                     .log("Unable to create topic list watcher: Invalid pattern");
+            failWatchTopicListRequest(request, e);
             connection.getCommandSender().sendErrorResponse(requestId, ServerError.InvalidTopicName,
                     "Invalid topics pattern: " + e.getMessage());
             lookupSemaphore.release();
             return;
         }
 
-        CompletableFuture<TopicListWatcher> watcherFuture = new CompletableFuture<>();
-        CompletableFuture<TopicListWatcher> existingWatcherFuture = watchers.putIfAbsent(watcherId, watcherFuture);
+        WatchTopicListRequest admitted = request == null ? beginWatchTopicListRequest(watcherId) : request;
+        CompletableFuture<TopicListWatcher> watcherFuture = admitted.watcherFuture();
+        if (!connection.isActive() || watchers.get(watcherId) != watcherFuture
+                || watcherFuture.isCompletedExceptionally()) {
+            IllegalStateException closed =
+                    new IllegalStateException("Watcher was closed before authorization completed");
+            failWatchTopicListRequest(admitted, closed);
+            if (connection.isActive()) {
+                connection.getCommandSender().sendErrorResponse(requestId, ServerError.ServiceNotReady,
+                        closed.getMessage());
+            }
+            lookupSemaphore.release();
+            return;
+        }
+        CompletableFuture<TopicListWatcher> existingWatcherFuture = admitted.created() ? null : watcherFuture;
 
         // the watcher and the snapshot of its matching topics to respond with
         CompletableFuture<WatcherTopics> watcherTopicsFuture;
@@ -532,9 +574,9 @@ public class TopicListService {
                     watcher.successResponseSendingStarted();
                     sendTopicListSuccessWithPermitAcquiringRetries(watcherId, requestId, topicList, hash,
                             watcher::successResponseSendingCompleted, failure -> {
-                                if (!isCancellation(failure)) {
-                                    // the watcher can't be used without the success response
-                                    deleteTopicListWatcher(watcherId);
+                                if (!isCancellation(failure) && watchers.remove(watcherId, watcherFuture)) {
+                                    // An old response must not close a newer generation using the same watcher id.
+                                    closeTopicListWatcher(watcherId, watcherFuture);
                                 }
                                 watcher.successResponseSendingCompleted();
                                 // the request is waiting for a response unless the connection was closed
@@ -635,6 +677,13 @@ public class TopicListService {
      */
     public void initializeTopicsListWatcher(CompletableFuture<TopicListWatcher> watcherFuture,
             NamespaceName namespace, long watcherId, TopicsPattern topicsPattern) {
+        if (watcherFuture.isDone()) {
+            return;
+        }
+        if (!connection.isActive() || watchers.get(watcherId) != watcherFuture) {
+            watcherFuture.completeExceptionally(newWatcherClosedException(watcherId));
+            return;
+        }
         AtomicReference<TopicListWatcher> watcherRef = new AtomicReference<>();
         Consumer<List<String>> afterListing = topics -> {
             // register watcher immediately so that we don't lose events
@@ -644,7 +693,9 @@ public class TopicListService {
             watcherRef.set(watcher);
             topicResources.registerPersistentTopicListener(watcher);
         };
-        getTopics(namespace, watcherId, afterListing).whenComplete((topics, exception) -> {
+        BooleanSupplier cancelled = () -> !connection.isActive() || watcherFuture.isDone()
+                || watchers.get(watcherId) != watcherFuture;
+        getTopics(namespace, afterListing, cancelled).whenComplete((topics, exception) -> {
             TopicListWatcher w = watcherRef.get();
             if (exception != null) {
                 if (w != null) {
@@ -652,7 +703,8 @@ public class TopicListService {
                     topicResources.deregisterPersistentTopicListener(w);
                 }
                 Throwable unwrappedException = FutureUtil.unwrapCompletionException(exception);
-                if (connection.isActive() && (unwrappedException instanceof AsyncSemaphore.PermitAcquireTimeoutException
+                if (connection.isActive() && !watcherFuture.isDone() && watchers.get(watcherId) == watcherFuture
+                        && (unwrappedException instanceof AsyncSemaphore.PermitAcquireTimeoutException
                         || unwrappedException instanceof AsyncSemaphore.PermitAcquireQueueFullException)) {
                     // retry with backoff if permit acquisition fails due to timeout or queue full
                     long retryAfterMillis = this.retryBackoff.next().toMillis();
@@ -828,7 +880,10 @@ public class TopicListService {
     }
 
     public void deleteTopicListWatcher(Long watcherId) {
-        CompletableFuture<TopicListWatcher> watcherFuture = watchers.remove(watcherId);
+        closeTopicListWatcher(watcherId, watchers.remove(watcherId));
+    }
+
+    private void closeTopicListWatcher(Long watcherId, CompletableFuture<TopicListWatcher> watcherFuture) {
         if (watcherFuture == null) {
             log.info()
                     .attr("watcherId", watcherId)
