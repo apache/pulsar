@@ -163,25 +163,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
     @DataProvider(name = "variationsBackoff")
     public static Object[][] variationsBackoff() {
         return new Object[][] {
-                // batching / partitions / subscription-type / min-nack-time-ms/ max-nack-time-ms / ack-timeout
-                { false, false, SubscriptionType.Shared, 100, 1000 },
-                { false, false, SubscriptionType.Failover, 100, 1000 },
-                { false, true, SubscriptionType.Shared, 100, 1000 },
-                { false, true, SubscriptionType.Failover, 100, 1000 },
-                { true, false, SubscriptionType.Shared, 100, 1000 },
-                { true, false, SubscriptionType.Failover, 100, 1000 },
-                { true, true, SubscriptionType.Shared, 100, 1000 },
-                { true, true, SubscriptionType.Failover, 100, 1000 },
-
-                { false, false, SubscriptionType.Shared, 0, 1000 },
-                { false, false, SubscriptionType.Failover, 0, 1000 },
-                { false, true, SubscriptionType.Shared, 0, 1000 },
-                { false, true, SubscriptionType.Failover, 0, 1000 },
-                { true, false, SubscriptionType.Shared, 0, 1000 },
-                { true, false, SubscriptionType.Failover, 0, 1000 },
-                { true, true, SubscriptionType.Shared, 0, 1000 },
-                { true, true, SubscriptionType.Failover, 0, 1000 },
-
+                // batching / partitions / subscription-type / min-nack-time-ms/ max-nack-time-ms
                 { false, false, SubscriptionType.Shared, 100, 1000 },
                 { false, false, SubscriptionType.Failover, 100, 1000 },
                 { false, true, SubscriptionType.Shared, 100, 1000 },
@@ -476,7 +458,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
         consumerLatch.await();
         Thread.sleep(500);
         count = 0;
-        while (true) {
+        while (!datas.isEmpty()) {
             Message<Integer> msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
@@ -487,6 +469,8 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
             log.info().attr("msg", msg.getMessageId()).log("received msg");
             count++;
         }
+        // The batch is a single entry: once its last message is received, the consumer has the whole entry
+        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
         Assert.assertEquals(count, 9);
         Assert.assertEquals(0, datas.size());
     }
@@ -528,7 +512,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
         internalPinnedExecutor.submit(() -> {}).get();
 
         Set<Integer> receivedMsgs = new HashSet<>();
-        for (;;){
+        while (receivedMsgs.size() < receiverQueueSize) {
             Message<Integer> msg = consumer.receive(2, TimeUnit.SECONDS);
             if (msg == null){
                 break;
