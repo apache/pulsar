@@ -74,6 +74,12 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     private InternalState internalState;
 
+    // Counts the deletions of the lock this election was notified of. A deletion can be notified before the result of
+    // a read or a write of the lock that came before it (Oxia delivers them on different threads), so an election
+    // cycle that sees the count change while it reads or writes the lock reads it again instead of settling on what
+    // may be gone.
+    private long lockDeletions;
+
     private static final int LEADER_ELECTION_RETRY_DELAY_SECONDS = 5;
 
     // Upper bound for getLeaderValue() waiting on an election that never settles, aligned with the
@@ -150,20 +156,28 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
         // First check if there's already a leader elected
         internalState = InternalState.ElectionInProgress;
+        long lockDeletionsBeforeRead = lockDeletions;
         return store.get(path).thenCompose(optLock -> {
             if (optLock.isPresent()) {
-                return handleExistingLeaderValue(optLock.get());
+                return handleExistingLeaderValue(optLock.get(), lockDeletionsBeforeRead);
             } else {
                 return tryToBecomeLeader();
             }
         });
     }
 
-    private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res) {
+    private synchronized CompletableFuture<LeaderElectionState> handleExistingLeaderValue(GetResult res,
+            long lockDeletionsBeforeRead) {
         if (internalState == InternalState.Closed) {
             // Closed while the lock was being read: the value read must not bring the election back, nor make it
             // delete the lock
             return FutureUtil.failedFuture(new AlreadyClosedException("The leader election was already closed"));
+        }
+        if (lockDeletions != lockDeletionsBeforeRead) {
+            // The lock may have been deleted after it was read: the leader it names may be gone
+            log.debug().attr("path", path)
+                    .log("A deletion of the lock was notified while reading it. Reading it again.");
+            return elect();
         }
         T existingValue;
         try {
@@ -236,10 +250,17 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
         }
 
         CompletableFuture<LeaderElectionState> result = new CompletableFuture<>();
+        long lockDeletionsBeforeWrite = lockDeletions;
         store.put(path, payload, Optional.of(-1L), EnumSet.of(CreateOption.Ephemeral))
                 .thenAccept(stat -> {
                     synchronized (LeaderElectionImpl.this) {
-                        if (internalState == InternalState.ElectionInProgress) {
+                        if (internalState == InternalState.ElectionInProgress
+                                && lockDeletions != lockDeletionsBeforeWrite) {
+                            // The lock may have been deleted once written: read it again rather than lead without it
+                            log.debug().attr("path", path).attr("value", value)
+                                    .log("A deletion of the lock was notified while taking it. Reading it again.");
+                            FutureUtil.completeAfter(result, elect());
+                        } else if (internalState == InternalState.ElectionInProgress) {
                             log.info().attr("path", path).attr("value", value)
                                     .log("Acquired leadership");
                             internalState = InternalState.LeaderIsPresent;
@@ -448,8 +469,12 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     // Called for the notifications on the path of this election
     void handlePathNotification(Notification notification) {
         synchronized (this) {
+            if (notification.getType() == NotificationType.Deleted) {
+                lockDeletions++;
+            }
             if (internalState != InternalState.LeaderIsPresent) {
-                // Ignoring notification since we're not trying to become leader
+                // Not taking part in the election, or an election cycle is in progress: it checks the deletions once
+                // it has read or written the lock
                 return;
             }
 

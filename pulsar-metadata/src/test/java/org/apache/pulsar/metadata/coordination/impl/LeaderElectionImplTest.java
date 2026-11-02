@@ -50,6 +50,7 @@ import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Option;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LeaderElection;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -231,5 +232,110 @@ public class LeaderElectionImplTest extends BaseMetadataStoreTest {
         assertThat(stateChanges).as("state changes after close()").isEmpty();
         assertThat(le.getState()).isEqualTo(LeaderElectionState.NoLeader);
         assertThat(le.getLeaderValue().join()).isEmpty();
+    }
+
+    @Test(dataProvider = "distributedImpl", timeOut = 30000)
+    public void candidateDoesNotFollowALeaderGoneWhileReadingTheLock(String provider, Supplier<String> urlSupplier)
+            throws Exception {
+        String path = newKey();
+        @Cleanup
+        MetadataStoreExtended leaderStore = MetadataStoreExtended.create(urlSupplier.get(),
+                MetadataStoreConfig.builder().build());
+        @Cleanup
+        CoordinationService leaderCs = new CoordinationServiceImpl(leaderStore);
+        LeaderElection<String> leader = leaderCs.getLeaderElection(String.class, path, __ -> {
+        });
+        assertThat(leader.elect("leader").join()).isEqualTo(LeaderElectionState.Leading);
+
+        AtomicBoolean holdNextRead = new AtomicBoolean();
+        CompletableFuture<Optional<GetResult>> heldRead = new CompletableFuture<>();
+        CompletableFuture<Void> heldReadReleased = new CompletableFuture<>();
+        @Cleanup
+        FaultInjectionMetadataStore candidateStore = new FaultInjectionMetadataStore(
+                MetadataStoreExtended.create(urlSupplier.get(), MetadataStoreConfig.builder().build())) {
+            @Override
+            public CompletableFuture<Optional<GetResult>> get(String p, Set<Option> opts) {
+                CompletableFuture<Optional<GetResult>> result = super.get(p, opts);
+                if (p.equals(path) && holdNextRead.compareAndSet(true, false)) {
+                    // The store answers, and the election gets the answer once the test releases it
+                    FutureUtil.completeAfter(heldRead, result);
+                    return result.thenCombine(heldReadReleased, (r, __) -> r);
+                }
+                return result;
+            }
+        };
+        @Cleanup
+        CoordinationService candidateCs = new CoordinationServiceImpl(candidateStore);
+        BlockingQueue<LeaderElectionState> stateChanges = new LinkedBlockingQueue<>();
+        LeaderElection<String> candidate = candidateCs.getLeaderElection(String.class, path, stateChanges::add);
+        CompletableFuture<Void> deletionDispatched = deletionDispatched(candidateStore, path);
+
+        holdNextRead.set(true);
+        CompletableFuture<LeaderElectionState> election = candidate.elect("candidate");
+        assertThat(heldRead.get(10, TimeUnit.SECONDS)).as("lock of the leader").isPresent();
+        // The leader goes away, and the candidate's election is notified of it before it gets the lock it read
+        leader.close();
+        deletionDispatched.get(10, TimeUnit.SECONDS);
+        heldReadReleased.complete(null);
+
+        // The candidate doesn't follow the leader that went away: it takes the leadership
+        assertThat(election.get(10, TimeUnit.SECONDS)).isEqualTo(LeaderElectionState.Leading);
+        assertThat(stateChanges).containsExactly(LeaderElectionState.Leading);
+        assertThat(candidate.getLeaderValue().join()).contains("candidate");
+    }
+
+    @Test(timeOut = 20000)
+    public void electionDoesNotLeadWithALockDeletedWhileTakingIt() throws Exception {
+        String path = "/electionDoesNotLeadWithALockDeletedWhileTakingIt";
+        AtomicBoolean holdNextWrite = new AtomicBoolean();
+        CompletableFuture<Stat> heldWrite = new CompletableFuture<>();
+        CompletableFuture<Void> heldWriteReleased = new CompletableFuture<>();
+        @Cleanup
+        FaultInjectionMetadataStore store = new FaultInjectionMetadataStore(
+                new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build())) {
+            @Override
+            public CompletableFuture<Stat> put(String p, byte[] value, Optional<Long> expectedVersion,
+                                               Set<Option> opts) {
+                CompletableFuture<Stat> result = super.put(p, value, expectedVersion, opts);
+                if (p.equals(path) && holdNextWrite.compareAndSet(true, false)) {
+                    // The store writes the lock, and the election learns it once the test releases it
+                    FutureUtil.completeAfter(heldWrite, result);
+                    return result.thenCombine(heldWriteReleased, (r, __) -> r);
+                }
+                return result;
+            }
+        };
+        @Cleanup
+        CoordinationServiceImpl cs = new CoordinationServiceImpl(store);
+        BlockingQueue<LeaderElectionState> stateChanges = new LinkedBlockingQueue<>();
+        LeaderElection<String> le = cs.getLeaderElection(String.class, path, stateChanges::add);
+        CompletableFuture<Void> deletionDispatched = deletionDispatched(store, path);
+
+        holdNextWrite.set(true);
+        CompletableFuture<LeaderElectionState> election = le.elect("test-1");
+        heldWrite.get(5, TimeUnit.SECONDS);
+        // The lock is deleted, and the election is notified of it before it learns that it wrote the lock
+        store.delete(path, Optional.empty()).join();
+        deletionDispatched.get(5, TimeUnit.SECONDS);
+        heldWriteReleased.complete(null);
+
+        // The election doesn't lead without the lock: it takes it again
+        assertThat(election.get(5, TimeUnit.SECONDS)).isEqualTo(LeaderElectionState.Leading);
+        assertThat(stateChanges).containsExactly(LeaderElectionState.Leading);
+        assertThat(store.get(path).join()).as("lock of the leader").isPresent();
+    }
+
+    /**
+     * Completes once the store has called the listeners registered before this one, such as the one of the leader
+     * elections, with the deletion of the path.
+     */
+    private static CompletableFuture<Void> deletionDispatched(MetadataStoreExtended store, String path) {
+        CompletableFuture<Void> dispatched = new CompletableFuture<>();
+        store.registerCancellableListener(n -> {
+            if (n.getType() == NotificationType.Deleted && n.getPath().equals(path)) {
+                dispatched.complete(null);
+            }
+        });
+        return dispatched;
     }
 }
