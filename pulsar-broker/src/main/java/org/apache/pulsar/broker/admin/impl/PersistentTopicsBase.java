@@ -83,6 +83,7 @@ import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.AnalyzeBacklogResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionAlreadyExistsException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.GetStatsOptions;
@@ -2728,7 +2729,9 @@ public class PersistentTopicsBase extends AdminResource {
                 throw new RestException(Status.CONFLICT, "Subscription already exists for topic");
             }
 
-            return topic.createSubscription(subscriptionName, InitialPosition.Latest, replicated, properties);
+            // Overlapping requests can all pass the check above: only the one that creates the subscription resets it
+            return ((PersistentTopic) topic).createNewSubscription(subscriptionName, InitialPosition.Latest,
+                    replicated, properties);
         }).thenCompose(subscription -> {
             // Mark the cursor as "inactive" as it was created without a real consumer connected
             ((PersistentSubscription) subscription).deactivateCursor();
@@ -2743,6 +2746,10 @@ public class PersistentTopicsBase extends AdminResource {
             asyncResponse.resume(Response.noContent().build());
         }).exceptionally(ex -> {
             Throwable t = (ex instanceof CompletionException ? ex.getCause() : ex);
+            if (t instanceof SubscriptionAlreadyExistsException) {
+                asyncResponse.resume(new RestException(Status.CONFLICT, "Subscription already exists for topic"));
+                return null;
+            }
             if (!(t instanceof WebApplicationException)) {
                 log.warn()
                         .attr("topic", topicName)
