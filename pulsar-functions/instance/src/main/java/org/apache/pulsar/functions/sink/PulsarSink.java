@@ -291,7 +291,15 @@ public class PulsarSink<T> implements Sink<T> {
     @Override
     public void write(Record<T> record) {
         AbstractSinkRecord<T> sinkRecord = (AbstractSinkRecord<T>) record;
+        Optional<Long> deliverAtTime = record.getDeliverAtTime();
+        if (deliverAtTime.isPresent() && deliverAtTime.get() < 0) {
+            stats.incrSinkExceptions(new IllegalArgumentException("Record delivery time must be non-negative"));
+            // Throwing a validation exception from write would terminate the instance loop.
+            sinkRecord.fail();
+            return;
+        }
         TypedMessageBuilder<T> msg = pulsarSinkProcessor.newMessage(sinkRecord);
+        deliverAtTime.ifPresent(msg::deliverAt);
 
         if (record.getKey().isPresent() && !(record.getSchema() instanceof KeyValueSchema
                 && ((KeyValueSchema) record.getSchema()).getKeyValueEncodingType() == KeyValueEncodingType.SEPARATED)) {

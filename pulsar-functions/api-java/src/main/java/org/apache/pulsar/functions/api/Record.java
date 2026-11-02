@@ -68,6 +68,22 @@ public interface Record<T> {
     }
 
     /**
+     * Requests scheduled delivery when this record is published by the Java runtime.
+     *
+     * <p>The timestamp is non-negative Unix epoch milliseconds, as in
+     * {@link org.apache.pulsar.client.api.TypedMessageBuilder#deliverAt(long)}. An empty value leaves
+     * delivery unchanged. Past timestamps are passed through without restarting a relative delay.
+     * Negative values fail the source record without publishing the output. This does not change event
+     * time or guarantee an exact delivery time: broker policies and subscription support still apply.
+     * Publishing is acknowledged when the send completes, not when the scheduled message is consumed.
+     *
+     * @return the requested delivery timestamp, or empty; never null
+     */
+    default Optional<Long> getDeliverAtTime() {
+        return Optional.empty();
+    }
+
+    /**
      * Retrieves the partition information if any of the record.
      *
      * @return The partition id where the

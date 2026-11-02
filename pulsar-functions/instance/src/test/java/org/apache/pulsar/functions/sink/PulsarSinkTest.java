@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,7 +37,10 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
@@ -73,6 +77,7 @@ import org.apache.pulsar.io.core.SinkContext;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -162,6 +167,114 @@ public class PulsarSinkTest {
         pulsarConfig.setSerdeClassName(TopicSchema.DEFAULT_SERDE);
         pulsarConfig.setTypeClassName(String.class.getName());
         return pulsarConfig;
+    }
+
+    @DataProvider
+    public Object[][] deliveryTimes() {
+        List<Object[]> cases = new ArrayList<>();
+        for (ProcessingGuarantees guarantee : ProcessingGuarantees.values()) {
+            for (Long timestamp : new Long[]{null, 1893456000000L, 0L, 1L, Long.MAX_VALUE}) {
+                cases.add(new Object[]{timestamp, false, guarantee});
+                cases.add(new Object[]{timestamp, true, guarantee});
+            }
+        }
+        return cases.toArray(new Object[0][]);
+    }
+
+    @Test(dataProvider = "deliveryTimes")
+    @SuppressWarnings("unchecked")
+    public void testDeliverAtTime(Long timestamp, boolean forwardProperties, ProcessingGuarantees guarantee)
+            throws Exception {
+        PulsarClient pulsarClient = getPulsarClient();
+        PulsarSinkConfig config = getPulsarConfigs();
+        config.setForwardSourceMessageProperty(forwardProperties);
+        config.setProcessingGuarantees(guarantee);
+        PulsarSink<String> sink = new PulsarSink<>(pulsarClient, config, Map.of(),
+                mock(ComponentStatsManager.class), getClass().getClassLoader(), producerCache);
+        sink.open(Map.of(), mock(SinkContext.class));
+        Record<String> source = mock(Record.class);
+        when(source.getDeliverAtTime()).thenReturn(Optional.ofNullable(timestamp));
+        // A similarly named user property remains ordinary data.
+        Map<String, String> properties = Map.of("pulsar.deliver_at", "not-a-timestamp");
+        when(source.getProperties()).thenReturn(properties);
+        when(source.getDestinationTopic()).thenReturn(Optional.of("routed-topic"));
+        when(source.getEventTime()).thenReturn(Optional.of(123L));
+        when(source.getPartitionId()).thenReturn(Optional.of("partition-1"));
+        when(source.getRecordSequence()).thenReturn(Optional.of(7L));
+        TypedMessageBuilder<?> builder = pulsarClient.newProducer().create().newMessage();
+        CompletableFuture<MessageId> sent = new CompletableFuture<>();
+        when(builder.sendAsync()).thenReturn(sent);
+
+        sink.write(new SinkRecord<>(source, "value"));
+
+        if (timestamp == null) {
+            verify(builder, never()).deliverAt(anyLong());
+        } else {
+            verify(builder).deliverAt(timestamp);
+        }
+        verify(builder).eventTime(123L);
+        verify(builder, times(forwardProperties ? 1 : 0)).properties(properties);
+        verify(pulsarClient.newProducer()).topic("routed-topic");
+        verify(builder).sendAsync();
+        verify(source, never()).ack();
+        sent.complete(MessageId.earliest);
+        boolean autoAck = guarantee == ProcessingGuarantees.ATLEAST_ONCE
+                || guarantee == ProcessingGuarantees.EFFECTIVELY_ONCE;
+        verify(source, times(autoAck ? 1 : 0)).ack();
+        if (guarantee == ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            verify(builder).sequenceId(7L);
+        }
+        verify(source, never()).fail();
+        sink.close();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testInvalidDeliveryTimeFailsRecordAndContinues() throws Exception {
+        PulsarClient pulsarClient = getPulsarClient();
+        ComponentStatsManager stats = mock(ComponentStatsManager.class);
+        PulsarSink<String> sink = new PulsarSink<>(pulsarClient, getPulsarConfigs(), Map.of(),
+                stats, getClass().getClassLoader(), producerCache);
+        sink.open(Map.of(), mock(SinkContext.class));
+        Record<String> source = mock(Record.class);
+        when(source.getDeliverAtTime()).thenReturn(Optional.of(-1L));
+        TypedMessageBuilder<?> builder = pulsarClient.newProducer().create().newMessage();
+
+        sink.write(new SinkRecord<>(source, "value"));
+
+        verify(builder, never()).sendAsync();
+        verify(source, never()).ack();
+        verify(source).fail();
+        verify(stats).incrSinkExceptions(any(IllegalArgumentException.class));
+        Record<String> nextSource = mock(Record.class);
+        when(nextSource.getDeliverAtTime()).thenReturn(Optional.of(1893456000000L));
+        sink.write(new SinkRecord<>(nextSource, "next"));
+        verify(builder).deliverAt(1893456000000L);
+        verify(builder).sendAsync();
+        verify(nextSource).ack();
+        sink.close();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testDelayedPublishFailureFailsSource() throws Exception {
+        PulsarClient pulsarClient = getPulsarClient();
+        ComponentStatsManager stats = mock(ComponentStatsManager.class);
+        PulsarSink<String> sink = new PulsarSink<>(pulsarClient, getPulsarConfigs(), Map.of(),
+                stats, getClass().getClassLoader(), producerCache);
+        sink.open(Map.of(), mock(SinkContext.class));
+        Record<String> source = mock(Record.class);
+        when(source.getDeliverAtTime()).thenReturn(Optional.of(1893456000000L));
+        TypedMessageBuilder<?> builder = pulsarClient.newProducer().create().newMessage();
+        when(builder.sendAsync()).thenReturn(CompletableFuture.failedFuture(new IOException("Publish failed")));
+
+        sink.write(new SinkRecord<>(source, "value"));
+
+        verify(builder).deliverAt(1893456000000L);
+        verify(source).fail();
+        verify(source, never()).ack();
+        verify(stats).incrSinkExceptions(any(Exception.class));
+        sink.close();
     }
 
     @Getter
