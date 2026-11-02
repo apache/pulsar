@@ -473,7 +473,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
             log.info().attr("msg", msg.getMessageId()).log("received msg");
             count++;
         }
-        // The batch is a single entry: once its last message is received, the consumer has the whole entry
+        // The redelivered batch is a single entry, so a message delivered again would already be queued
         assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
         Assert.assertEquals(count, 9);
         Assert.assertEquals(0, datas.size());

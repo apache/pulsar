@@ -610,11 +610,12 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
     }
 
     /**
-     * Waits until the consumer dropped a message sent with a previous epoch: it counts the permit of a dropped message
-     * as available right away, and the permit of a queued message only once the application receives the message.
+     * Waits until the consumer handled the message the broker sent with a previous epoch: it counts the permit of a
+     * dropped message as available right away, while a message it keeps stays in its queue until it is received.
      */
     private static void waitForDroppedMessage(ConsumerImpl<?> consumer, int availablePermits) {
-        Awaitility.await().until(() -> consumer.getAvailablePermits() > availablePermits);
+        Awaitility.await().until(() -> consumer.getAvailablePermits() > availablePermits
+                || consumer.numMessagesInQueue() > 0);
     }
 
     /**
