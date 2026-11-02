@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -40,15 +41,20 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.resolver.AddressResolver;
 import io.netty.resolver.dns.DefaultDnsServerAddressStreamProvider;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.lang.reflect.Field;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,6 +62,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -80,6 +87,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
+import org.awaitility.Awaitility;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.DataProvider;
@@ -113,6 +121,119 @@ public class PulsarClientImplTest {
         assertFalse(client.isClosed());
         client.close();
         assertTrue(client.isClosed());
+    }
+
+    @Test(timeOut = 30_000)
+    public void testCloseDoesNotWaitForEventLoopQuietPeriod() throws Exception {
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .build();
+        EventLoopGroup clientEventLoopGroup = client.eventLoopGroup();
+
+        long startNanos = System.nanoTime();
+        client.close();
+        long closeMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos);
+
+        assertThat(clientEventLoopGroup.isTerminated()).as("event loop terminated").isTrue();
+        // Netty's default quiet period would hold close() for at least 2 s
+        assertThat(closeMillis).as("close() time in ms").isLessThan(1000);
+    }
+
+    @Test(timeOut = 60_000)
+    public void testCloseClosesConnectionWhenShutdownStartsDuringEventLoopTask() throws Exception {
+        // A peer that accepts the connection but never answers the Pulsar handshake
+        @Cleanup
+        ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+        server.setSoTimeout(10_000);
+        PulsarClientImpl client = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://" + InetAddress.getLoopbackAddress().getHostAddress() + ":"
+                        + server.getLocalPort())
+                .ioThreads(1)
+                .build();
+        client.getPartitionsForTopic("persistent://public/default/test", false);
+        @Cleanup
+        Socket connection = server.accept();
+
+        // Keep the client's only event loop running a task until the client has started shutting the loop down
+        CountDownLatch taskStarted = new CountDownLatch(1);
+        CountDownLatch releaseTask = new CountDownLatch(1);
+        client.eventLoopGroup().execute(() -> {
+            taskStarted.countDown();
+            try {
+                releaseTask.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        taskStarted.await();
+        CompletableFuture<Void> closeFuture = client.closeAsync();
+        Awaitility.await().until(() -> client.eventLoopGroup().isShuttingDown());
+        releaseTask.countDown();
+        closeFuture.get(30, TimeUnit.SECONDS);
+
+        // Reaches the end of the stream only if the client closed its end of the connection
+        connection.setSoTimeout(10_000);
+        connection.getInputStream().readAllBytes();
+    }
+
+    @Test(timeOut = 60_000)
+    public void testPoolCloseClosesChannelRegisteredAfterIt() throws Exception {
+        // Pauses the connection attempt right after it has queued the registration of its channel
+        CompletableFuture<Channel> registeringChannel = new CompletableFuture<>();
+        CountDownLatch resumeConnectionAttempt = new CountDownLatch(1);
+        @Cleanup("shutdownGracefully")
+        EventLoopGroup group = new MultiThreadIoEventLoopGroup(1, new DefaultThreadFactory("pool-close-test"),
+                NioIoHandler.newFactory()) {
+            @Override
+            public ChannelFuture register(Channel channel) {
+                ChannelFuture registerFuture = super.register(channel);
+                registeringChannel.complete(channel);
+                try {
+                    resumeConnectionAttempt.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                return registerFuture;
+            }
+        };
+        // Resolves on the calling thread, so that the connection attempt registers its channel from outside the loop
+        @SuppressWarnings("unchecked")
+        AddressResolver<InetSocketAddress> resolver = mock(AddressResolver.class);
+        when(resolver.resolveAll(any())).thenAnswer(invocation -> ImmediateEventExecutor.INSTANCE
+                .newSucceededFuture(List.of((InetSocketAddress) invocation.getArgument(0))));
+        ConnectionPool pool = ConnectionPool.builder()
+                .instrumentProvider(InstrumentProvider.NOOP)
+                .conf(new ClientConfigurationData())
+                .eventLoopGroup(group)
+                .addressResolverSupplier(Optional.of(() -> resolver))
+                .build();
+
+        // Keep the only event loop running a task until it has been asked to shut down, so that it registers the
+        // channel after the pool has been closed
+        CountDownLatch taskStarted = new CountDownLatch(1);
+        CountDownLatch releaseTask = new CountDownLatch(1);
+        group.execute(() -> {
+            taskStarted.countDown();
+            try {
+                releaseTask.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        taskStarted.await();
+        CompletableFuture<Void> connectionAttempt = CompletableFuture.runAsync(
+                () -> pool.getConnection(new InetSocketAddress(InetAddress.getLoopbackAddress(), 6650)));
+        Channel channel = registeringChannel.get(10, TimeUnit.SECONDS);
+
+        pool.close();
+        group.shutdownGracefully(0, 10, TimeUnit.SECONDS);
+        releaseTask.countDown();
+        assertTrue(group.awaitTermination(10, TimeUnit.SECONDS));
+        // The connection attempt only goes on once the event loop has terminated
+        resumeConnectionAttempt.countDown();
+        connectionAttempt.get(10, TimeUnit.SECONDS);
+
+        assertThat(channel.isOpen()).as("channel open").isFalse();
     }
 
     @DataProvider
