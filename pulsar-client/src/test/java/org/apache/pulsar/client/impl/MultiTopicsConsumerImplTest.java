@@ -25,11 +25,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import com.google.common.collect.Sets;
@@ -49,6 +52,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -59,6 +63,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -369,6 +374,433 @@ public class MultiTopicsConsumerImplTest {
         pendingAck.complete(null);
 
         assertEquals(impl.getUnAckedMessageTracker().size(), 1);
+    }
+
+    // -------------------------------------------------------------------------
+    // Tests for shared retry / dead-letter producer provider wiring.
+    // -------------------------------------------------------------------------
+
+    private static DeadLetterPolicy sampleDeadLetterPolicy() {
+        return DeadLetterPolicy.builder()
+                .maxRedeliverCount(3)
+                .retryLetterTopic("persistent://public/default/my-topic-RETRY")
+                .deadLetterTopic("persistent://public/default/my-topic-DLQ")
+                .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private ConsumerImpl<byte[]> mockPartitionConsumer(String partitionName) {
+        ConsumerImpl<byte[]> c = (ConsumerImpl<byte[]>) mock(ConsumerImpl.class);
+        when(c.getTopic()).thenReturn(partitionName);
+        return c;
+    }
+
+    @Test
+    public void testSharedRetryProviderNotInstalledWhenNoDeadLetterPolicy() {
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        // No DeadLetterPolicy set (default: null).
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ConsumerImpl<byte[]> partition0 =
+                mockPartitionConsumer("persistent://public/default/my-topic-partition-0");
+
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition0, conf);
+
+        assertTrue(impl.getSharedRetryOrDlqProducerProvidersForTesting().isEmpty(),
+                "No shared provider should be created when deadLetterPolicy is null");
+        verify(partition0, never()).setRetryOrDlqProducerProvider(any());
+    }
+
+    @Test
+    public void testSharedRetryProviderNotInstalledWhenOptedOut() {
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setDeadLetterPolicy(sampleDeadLetterPolicy());
+        // Opt out of the sharing optimisation.
+        conf.setShareRetryAndDeadLetterProducers(false);
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ConsumerImpl<byte[]> partition0 =
+                mockPartitionConsumer("persistent://public/default/my-topic-partition-0");
+
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition0, conf);
+
+        assertTrue(impl.getSharedRetryOrDlqProducerProvidersForTesting().isEmpty(),
+                "Opting out of sharing should prevent any provider from being installed");
+        verify(partition0, never()).setRetryOrDlqProducerProvider(any());
+    }
+
+    @Test
+    public void testSharedRetryProviderInstalledForPartitionedTopicAndReusedAcrossPartitions() {
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setDeadLetterPolicy(sampleDeadLetterPolicy());
+        // Default: shareRetryAndDeadLetterProducers = true
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ConsumerImpl<byte[]> partition0 =
+                mockPartitionConsumer("persistent://public/default/my-topic-partition-0");
+        ConsumerImpl<byte[]> partition1 =
+                mockPartitionConsumer("persistent://public/default/my-topic-partition-1");
+
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition0, conf);
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition1, conf);
+
+        // Exactly one shared provider for the single subscription-level topic.
+        assertEquals(impl.getSharedRetryOrDlqProducerProvidersForTesting().size(), 1);
+        SharedRetryOrDlqProducerProvider provider = impl.getSharedRetryOrDlqProducerProvidersForTesting()
+                .get("persistent://public/default/my-topic");
+        assertNotNull(provider, "Provider should be keyed by the subscription-level (non-partitioned) topic name");
+
+        // Both partition sub-consumers must receive the exact same provider instance.
+        ArgumentCaptor<RetryOrDlqProducerProvider> captor0 = ArgumentCaptor.forClass(RetryOrDlqProducerProvider.class);
+        ArgumentCaptor<RetryOrDlqProducerProvider> captor1 = ArgumentCaptor.forClass(RetryOrDlqProducerProvider.class);
+        verify(partition0, times(1)).setRetryOrDlqProducerProvider(captor0.capture());
+        verify(partition1, times(1)).setRetryOrDlqProducerProvider(captor1.capture());
+        assertSame(captor0.getValue(), provider);
+        assertSame(captor1.getValue(), provider,
+                "All partition sub-consumers of the same subscription must share the same provider instance");
+    }
+
+    @Test
+    public void testSharedRetryProviderIsolatedPerSubscriptionTopic() {
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setDeadLetterPolicy(sampleDeadLetterPolicy());
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ConsumerImpl<byte[]> topicAPart0 =
+                mockPartitionConsumer("persistent://public/default/topic-a-partition-0");
+        ConsumerImpl<byte[]> topicAPart1 =
+                mockPartitionConsumer("persistent://public/default/topic-a-partition-1");
+        ConsumerImpl<byte[]> topicBPart0 =
+                mockPartitionConsumer("persistent://public/default/topic-b-partition-0");
+        ConsumerImpl<byte[]> topicBPart1 =
+                mockPartitionConsumer("persistent://public/default/topic-b-partition-1");
+
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(topicAPart0, conf);
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(topicAPart1, conf);
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(topicBPart0, conf);
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(topicBPart1, conf);
+
+        // One provider per subscription-level topic, independent of partition count.
+        assertEquals(impl.getSharedRetryOrDlqProducerProvidersForTesting().size(), 2);
+        SharedRetryOrDlqProducerProvider providerA =
+                impl.getSharedRetryOrDlqProducerProvidersForTesting()
+                        .get("persistent://public/default/topic-a");
+        SharedRetryOrDlqProducerProvider providerB =
+                impl.getSharedRetryOrDlqProducerProvidersForTesting()
+                        .get("persistent://public/default/topic-b");
+        assertNotNull(providerA);
+        assertNotNull(providerB);
+        assertFalse(providerA == providerB,
+                "Different subscription-level topics must get isolated provider instances");
+
+        // Capture every setRetryOrDlqProducerProvider call per consumer and verify grouping.
+        ArgumentCaptor<RetryOrDlqProducerProvider> aPart0Captor =
+                ArgumentCaptor.forClass(RetryOrDlqProducerProvider.class);
+        ArgumentCaptor<RetryOrDlqProducerProvider> aPart1Captor =
+                ArgumentCaptor.forClass(RetryOrDlqProducerProvider.class);
+        ArgumentCaptor<RetryOrDlqProducerProvider> bPart0Captor =
+                ArgumentCaptor.forClass(RetryOrDlqProducerProvider.class);
+        ArgumentCaptor<RetryOrDlqProducerProvider> bPart1Captor =
+                ArgumentCaptor.forClass(RetryOrDlqProducerProvider.class);
+        verify(topicAPart0).setRetryOrDlqProducerProvider(aPart0Captor.capture());
+        verify(topicAPart1).setRetryOrDlqProducerProvider(aPart1Captor.capture());
+        verify(topicBPart0).setRetryOrDlqProducerProvider(bPart0Captor.capture());
+        verify(topicBPart1).setRetryOrDlqProducerProvider(bPart1Captor.capture());
+        assertSame(aPart0Captor.getValue(), providerA);
+        assertSame(aPart1Captor.getValue(), providerA);
+        assertSame(bPart0Captor.getValue(), providerB);
+        assertSame(bPart1Captor.getValue(), providerB);
+    }
+
+    @Test
+    public void testSharedRetryProviderUsesSubscriptionLevelTopicNameForDefaultDlqTopics() {
+        // Build a DeadLetterPolicy without explicit retry/DLQ topic names, so the provider
+        // must synthesise defaults based on the subscription-level topic name.
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("mySub");
+        conf.setDeadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(5).build());
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ConsumerImpl<byte[]> partition0 =
+                mockPartitionConsumer("persistent://public/default/orders-partition-0");
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition0, conf);
+
+        SharedRetryOrDlqProducerProvider provider = impl.getSharedRetryOrDlqProducerProvidersForTesting()
+                .get("persistent://public/default/orders");
+        assertNotNull(provider);
+        assertEquals(provider.getSubscriptionTopicNameForTesting(),
+                "persistent://public/default/orders");
+
+        DeadLetterPolicy effective = provider.getDeadLetterPolicyForTesting();
+        assertNotNull(effective);
+        // Defaults must be based on the subscription-level topic name, NOT the partition name.
+        assertEquals(effective.getRetryLetterTopic(),
+                "persistent://public/default/orders-mySub-RETRY");
+        assertEquals(effective.getDeadLetterTopic(),
+                "persistent://public/default/orders-mySub-DLQ");
+        assertEquals(effective.getMaxRedeliverCount(), 5);
+    }
+
+    @Test
+    public void testSharedRetryProviderCloseIsNoopWhenNoProducerCreated() throws Exception {
+        // Even if a provider was installed, if no retry/DLQ producer has actually been
+        // created yet (no reconsumeLater triggered), close() must complete immediately
+        // and must not blow up.
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setDeadLetterPolicy(sampleDeadLetterPolicy());
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        ConsumerImpl<byte[]> partition0 =
+                mockPartitionConsumer("persistent://public/default/my-topic-partition-0");
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition0, conf);
+
+        SharedRetryOrDlqProducerProvider provider = impl.getSharedRetryOrDlqProducerProvidersForTesting()
+                .get("persistent://public/default/my-topic");
+        assertNotNull(provider);
+
+        CompletableFuture<Void> closeFuture = provider.close();
+        closeFuture.get(5, TimeUnit.SECONDS);
+        assertTrue(closeFuture.isDone());
+        assertFalse(closeFuture.isCompletedExceptionally());
+
+        // Idempotent: calling close() a second time must also be fine.
+        provider.close().get(5, TimeUnit.SECONDS);
+    }
+
+    // -------------------------------------------------------------------------
+    // Tests covering regressions guarded by the Oct-2026 hardening pass:
+    //   * close()-vs-getOrCreate* race (problem B)
+    //   * dynamic partition expansion updating the partition hint (problem C)
+    //   * cleanup of shared providers on topic unsubscribe (problem E)
+    //   * close() idempotency via CAS
+    // -------------------------------------------------------------------------
+
+    @Test
+    public void testSharedRetryProviderGetOrCreateAfterCloseFailsFast() throws Exception {
+        // Problem B: once close() has been called, any subsequent getOrCreate* call must
+        // return an AlreadyClosedException instead of handing out a brand-new producer
+        // that would never be closed (resource leak) or a snapshotted stale producer
+        // that was about to be closed (use-after-close).
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setDeadLetterPolicy(sampleDeadLetterPolicy());
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        ConsumerImpl<byte[]> partition0 =
+                mockPartitionConsumer("persistent://public/default/my-topic-partition-0");
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition0, conf);
+
+        SharedRetryOrDlqProducerProvider provider = impl.getSharedRetryOrDlqProducerProvidersForTesting()
+                .get("persistent://public/default/my-topic");
+        assertNotNull(provider);
+        assertFalse(provider.isClosed());
+
+        provider.close().get(5, TimeUnit.SECONDS);
+        assertTrue(provider.isClosed());
+
+        // Retry producer: must fail with AlreadyClosedException without creating a producer.
+        CompletableFuture<org.apache.pulsar.client.api.Producer<byte[]>> retryFuture =
+                provider.getOrCreateRetryLetterProducer(Schema.BYTES);
+        assertTrue(retryFuture.isCompletedExceptionally());
+        Throwable retryCause = expectThrows(CompletionException.class, retryFuture::join).getCause();
+        assertTrue(retryCause instanceof PulsarClientException.AlreadyClosedException,
+                "Expected AlreadyClosedException but got " + retryCause);
+
+        // Dead-letter producer: same contract.
+        CompletableFuture<org.apache.pulsar.client.api.Producer<byte[]>> dlqFuture =
+                provider.getOrCreateDeadLetterProducer(Schema.BYTES);
+        assertTrue(dlqFuture.isCompletedExceptionally());
+        Throwable dlqCause = expectThrows(CompletionException.class, dlqFuture::join).getCause();
+        assertTrue(dlqCause instanceof PulsarClientException.AlreadyClosedException,
+                "Expected AlreadyClosedException but got " + dlqCause);
+    }
+
+    @Test
+    public void testSharedRetryProviderCloseIsIdempotent() throws Exception {
+        // The close() path uses a CAS-based `closed` flag so that only the first invocation
+        // actually drives the underlying producer teardown. Subsequent calls must return
+        // immediately-completed futures and must not throw or NPE.
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setDeadLetterPolicy(sampleDeadLetterPolicy());
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        ConsumerImpl<byte[]> partition0 =
+                mockPartitionConsumer("persistent://public/default/my-topic-partition-0");
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition0, conf);
+
+        SharedRetryOrDlqProducerProvider provider = impl.getSharedRetryOrDlqProducerProvidersForTesting()
+                .get("persistent://public/default/my-topic");
+        assertNotNull(provider);
+
+        // Call close() concurrently from multiple threads -- all must observe success and
+        // the `closed` state must flip exactly once.
+        int threadCount = 8;
+        java.util.concurrent.CountDownLatch startGate = new java.util.concurrent.CountDownLatch(1);
+        java.util.List<CompletableFuture<Void>> results = new java.util.ArrayList<>();
+        java.util.List<Thread> workers = new java.util.ArrayList<>();
+        for (int i = 0; i < threadCount; i++) {
+            CompletableFuture<Void> slot = new CompletableFuture<>();
+            results.add(slot);
+            Thread t = new Thread(() -> {
+                try {
+                    startGate.await();
+                    provider.close().get(5, TimeUnit.SECONDS);
+                    slot.complete(null);
+                } catch (Throwable ex) {
+                    slot.completeExceptionally(ex);
+                }
+            }, "close-racer-" + i);
+            t.setDaemon(true);
+            workers.add(t);
+            t.start();
+        }
+        startGate.countDown();
+        for (Thread t : workers) {
+            t.join(10_000);
+        }
+        for (CompletableFuture<Void> r : results) {
+            r.get(5, TimeUnit.SECONDS); // throws if any invocation failed
+        }
+        assertTrue(provider.isClosed());
+    }
+
+    @Test
+    public void testSharedRetryProviderUpdatePartitionHint() {
+        // Problem C: partition expansion must propagate the new partition count to the shared
+        // provider so that future producer creations size their maxPendingMessages against the
+        // new partition count. Already-created producers keep their existing size.
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setDeadLetterPolicy(sampleDeadLetterPolicy());
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        // Seed the subscription-level topic with a known initial partition count.
+        String subscriptionTopic = "persistent://public/default/my-topic";
+        impl.partitionedTopics.put(subscriptionTopic, 2);
+
+        ConsumerImpl<byte[]> partition0 =
+                mockPartitionConsumer(subscriptionTopic + "-partition-0");
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition0, conf);
+
+        SharedRetryOrDlqProducerProvider provider = impl.getSharedRetryOrDlqProducerProvidersForTesting()
+                .get(subscriptionTopic);
+        assertNotNull(provider);
+        assertEquals(provider.getPartitionHintForTesting(), 2);
+
+        // Simulate a partition expansion.
+        provider.updatePartitionHint(8);
+        assertEquals(provider.getPartitionHintForTesting(), 8);
+
+        // Non-positive values must be ignored (no-op) to protect against buggy callers.
+        provider.updatePartitionHint(0);
+        provider.updatePartitionHint(-1);
+        assertEquals(provider.getPartitionHintForTesting(), 8);
+
+        // Updating with the same value must be a no-op but must not throw.
+        provider.updatePartitionHint(8);
+        assertEquals(provider.getPartitionHintForTesting(), 8);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testSharedRetryProviderClearedWhenTopicDeletedViaPartitionChangedListener() {
+        // Problem E (one of its paths): when the subscription-level topic is deleted on the
+        // broker and the partitions-changed listener tears down all per-partition consumers,
+        // the shared provider for that topic MUST be released -- otherwise long-lived Pattern
+        // subscriptions would leak providers (and the underlying retry/DLQ producers) over time.
+        String topicName = "persistent://public/default/deleted-shared-topic";
+        String topicPartition0 = topicName + "-partition-0";
+        String topicPartition1 = topicName + "-partition-1";
+
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setDeadLetterPolicy(sampleDeadLetterPolicy());
+        conf.setAutoUpdatePartitions(true);
+        conf.setAutoUpdatePartitionsIntervalSeconds(60);
+        conf.setAckTimeoutMillis(1000);
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        impl.partitionedTopics.put(topicName, 2);
+        impl.allTopicPartitionsNumber.set(2);
+
+        ConsumerImpl<byte[]> partition0 = (ConsumerImpl<byte[]>) mock(ConsumerImpl.class);
+        ConsumerImpl<byte[]> partition1 = (ConsumerImpl<byte[]>) mock(ConsumerImpl.class);
+        when(partition0.getTopic()).thenReturn(topicPartition0);
+        when(partition1.getTopic()).thenReturn(topicPartition1);
+        when(partition0.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        when(partition1.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        impl.consumers.put(topicPartition0, partition0);
+        impl.consumers.put(topicPartition1, partition1);
+
+        // Install the shared provider the same way createInternalConsumer would.
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition0, conf);
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition1, conf);
+        SharedRetryOrDlqProducerProvider providerBeforeDeletion =
+                impl.getSharedRetryOrDlqProducerProvidersForTesting().get(topicName);
+        assertNotNull(providerBeforeDeletion, "Provider must have been installed for the partitioned topic");
+
+        // Simulate the broker reporting that the topic has been deleted (no partitions returned).
+        when(impl.client.getPartitionsForTopic(topicName, false))
+                .thenReturn(CompletableFuture.completedFuture(Collections.emptyList()));
+
+        PartitionsChangedListener listener = impl.topicsPartitionChangedListener;
+        listener.onTopicsExtended(Collections.singleton(topicName)).join();
+
+        // Sub-consumers should be gone, and -- critically -- the shared provider must be gone too.
+        assertTrue(impl.getConsumers().isEmpty());
+        assertFalse(impl.getSharedRetryOrDlqProducerProvidersForTesting().containsKey(topicName),
+                "Shared retry/DLQ provider must be released after the topic has been fully removed");
+        assertTrue(providerBeforeDeletion.isClosed(),
+                "The removed provider instance must have been closed to release underlying producers");
+    }
+
+    @Test
+    public void testSharedRetryProviderClearedOnUnsubscribeAsync() throws Exception {
+        // Problem E (second path): an explicit unsubscribeAsync(topicName) call must also drop
+        // the shared provider cached under that subscription-level topic. We exercise this
+        // path indirectly by invoking the private helper via its package-private surface so the
+        // test can run without a real broker.
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setDeadLetterPolicy(sampleDeadLetterPolicy());
+
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+        String subscriptionTopic = "persistent://public/default/to-be-unsubscribed";
+        ConsumerImpl<byte[]> partition0 =
+                mockPartitionConsumer(subscriptionTopic + "-partition-0");
+        impl.installSharedRetryOrDlqProducerProviderIfNeeded(partition0, conf);
+
+        SharedRetryOrDlqProducerProvider provider = impl.getSharedRetryOrDlqProducerProvidersForTesting()
+                .get(subscriptionTopic);
+        assertNotNull(provider);
+        assertFalse(provider.isClosed());
+
+        // Reflectively invoke the package-private helper that unsubscribeAsync() uses on the
+        // success branch to release the shared provider. Doing it this way keeps the test
+        // self-contained (no broker, no partition metadata plumbing).
+        java.lang.reflect.Method remove = MultiTopicsConsumerImpl.class
+                .getDeclaredMethod("removeSharedRetryOrDlqProducerProvider", String.class);
+        remove.setAccessible(true);
+        remove.invoke(impl, subscriptionTopic);
+
+        assertFalse(impl.getSharedRetryOrDlqProducerProvidersForTesting().containsKey(subscriptionTopic),
+                "Shared provider must be removed from the map on unsubscribe");
+        // Give the close future a short window to resolve.
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).until(provider::isClosed);
+
+        // Calling the helper again for a missing key must be a no-op (defensive contract).
+        remove.invoke(impl, subscriptionTopic);
+        remove.invoke(impl, "persistent://public/default/does-not-exist");
     }
 
 }
