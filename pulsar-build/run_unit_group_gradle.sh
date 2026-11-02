@@ -127,6 +127,9 @@ function test_group_broker_flaky() {
 function test_group_other() {
   # Run tests in all modules except the ones that have dedicated CI groups.
   # Uses Gradle's -x flag to exclude tasks by path.
+  # Gradle starts the test tasks in the order they are requested, and `test` requests them by project path.
+  # tiered-storage-jcloud's tests are requested first: they take 2-4 minutes, mostly in one test class on one
+  # fork, and when they started last they ran alone at the end of the build.
   gradle_test \
     --exclude-task :pulsar-broker:test \
     --exclude-task :pulsar-proxy:test \
@@ -145,6 +148,7 @@ function test_group_other() {
     -x :tests:pulsar-client-shade-test:test \
     -x :tests:pulsar-client-native-image:test \
     -x :tests:pulsar-client-java-compatibility:test \
+    :tiered-storage:tiered-storage-jcloud:test \
     test
 
   # Run DnsResolverTest separately since it relies on static field values
