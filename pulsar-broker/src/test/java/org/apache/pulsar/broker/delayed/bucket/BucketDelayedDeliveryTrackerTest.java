@@ -21,11 +21,10 @@ package org.apache.pulsar.broker.delayed.bucket;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
@@ -1976,7 +1975,17 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         AtomicLong testClockTime = new AtomicLong();
         when(testClock.millis()).then(x -> testClockTime.get());
 
-        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
+        // Snapshot segment reads wait for the test, so that the first dispatch round finds the load pending
+        CompletableFuture<Void> segmentReads = new CompletableFuture<>();
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage() {
+            @Override
+            public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId,
+                                                                                     long firstSegmentEntryId,
+                                                                                     long lastSegmentEntryId) {
+                return segmentReads.thenCompose(__ -> super.getBucketSnapshotSegment(bucketId, firstSegmentEntryId,
+                        lastSegmentEntryId));
+            }
+        };
         storage.start();
 
         ManagedCursor cursor = new MockManagedCursor("test_load_trigger_cursor");
@@ -2002,8 +2011,20 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
             // All messages are due. Reaching the end of the first segment starts loading the second one, and the
             // loaded segment's messages must be dispatched without waiting for the timer.
             testClockTime.set(1000);
-            tracker.getScheduledMessages(10);
-            verify(testDispatcher, timeout(10000).atLeastOnce()).readMoreEntriesAsync();
+            // A triggered dispatch round can run at once: run the first one right away, and keep what it gets
+            AtomicBoolean roundTriggered = new AtomicBoolean();
+            CompletableFuture<NavigableSet<Position>> firstRound = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                if (roundTriggered.compareAndSet(false, true)) {
+                    firstRound.complete(tracker.getScheduledMessages(10));
+                }
+                return null;
+            }).when(testDispatcher).readMoreEntriesAsync();
+            // The first segment's message is its last one: it waits for the second segment to load
+            assertTrue(tracker.getScheduledMessages(10).isEmpty());
+            segmentReads.complete(null);
+            // The round that the load triggers gets it
+            assertThat(firstRound.get(10, TimeUnit.SECONDS)).contains(PositionFactory.create(1, 1));
 
             tracker.close();
         } finally {

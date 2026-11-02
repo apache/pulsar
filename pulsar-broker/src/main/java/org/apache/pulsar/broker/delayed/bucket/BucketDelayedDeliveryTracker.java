@@ -808,8 +808,6 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                 .log("Failed to load bucket snapshot segment");
 
                         stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.load);
-                        // Retry the load at the timer's next tick
-                        rescheduleTimer(0);
                     } else {
                         log.info()
                                 .attr("bucketKey", bucket.bucketKey())
@@ -820,8 +818,15 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.load,
                                 System.currentTimeMillis() - loadStartTime);
-                        // The loaded messages can already be due: dispatch them now, the timer would only run at its
-                        // next tick
+                    }
+                });
+                // Once the load is done, start the next dispatch round: the loaded messages can already be due, and the
+                // timer would only run at its next tick. Not from the callback above, as the round could then run
+                // before the load completes, and skip. A failed load is retried at the timer's next tick.
+                loadFuture.whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        rescheduleTimer(0);
+                    } else {
                         context.triggerReadMoreEntries();
                     }
                 });
