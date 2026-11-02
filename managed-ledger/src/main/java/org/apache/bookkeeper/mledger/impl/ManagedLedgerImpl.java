@@ -192,6 +192,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     .expectedItems(16) // initial capacity
                     .concurrencyLevel(1) // number of sections
                     .build();
+    // Set when closing this managed ledger releases the cached read handles, after which none can be cached
+    private volatile boolean readHandlesReleased = false;
     protected final NavigableMap<Long, LedgerInfo> ledgers = new ConcurrentSkipListMap<>();
     protected volatile Stat ledgersStat;
 
@@ -1872,6 +1874,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (state.isFenced()) {
             cancelScheduledTasks();
             factory.close(this);
+            invalidateAllReadHandles();
             callback.closeFailed(new ManagedLedgerFencedException(), ctx);
             return;
         } else if (state == State.Closed) {
@@ -1891,6 +1894,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         if (lh == null) {
             // No ledger to close, proceed with next step
+            invalidateAllReadHandles();
             closeAllCursors(callback, ctx);
             return;
         }
@@ -1901,14 +1905,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         lh.asyncClose((rc, lh1, ctx1) -> {
             log.debug().attr("ledgerId", lh.getId()).attr("rc", rc).log("Close complete for ledger");
             mbean.endDataLedgerCloseOp();
+            // Release the read handles even if the current ledger failed to close, as nothing would release them later
+            invalidateAllReadHandles();
             if (rc != BKException.Code.OK) {
                 callback.closeFailed(createManagedLedgerException(rc), ctx);
                 return;
             }
-
-            ledgerCache.forEach((ledgerId, readHandle) -> {
-                invalidateReadHandle(ledgerId);
-            });
 
             closeAllCursors(callback, ctx);
         }, null);
@@ -2728,6 +2730,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
+        if (readHandlesReleased) {
+            return FutureUtil.failedFuture(
+                    new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
+        }
         CompletableFuture<ReadHandle> ledgerHandle = ledgerCache.get(ledgerId);
         if (ledgerHandle != null) {
             return ledgerHandle;
@@ -2785,6 +2791,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (ex != null) {
                     ledgerCache.remove(ledgerId, promise);
                     promise.completeExceptionally(createManagedLedgerException(ex));
+                } else if (readHandlesReleased && ledgerCache.remove(ledgerId, promise)) {
+                    // This managed ledger was closed after this open started and its cached handles were released, so
+                    // nothing would release this one. A handle cached before that is released by the close.
+                    res.closeAsync().exceptionally(closeEx -> {
+                        log.warn().attr("ledgerId", ledgerId).exception(closeEx)
+                                .log("Failed to close a Ledger ReadHandle opened while closing");
+                        return null;
+                    });
+                    promise.completeExceptionally(
+                            new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
                 } else {
                     log.debug().attr("ledgerId", ledgerId).log("Successfully opened ledger for reading");
                     promise.complete(res);
@@ -2851,14 +2867,50 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    private void invalidateAllReadHandles() {
+        // Set before releasing them, so that a handle cached after this is released by its open instead
+        readHandlesReleased = true;
+        ledgerCache.forEach((ledgerId, readHandle) -> invalidateReadHandle(ledgerId));
+    }
+
+    /**
+     * Releases a handle that a read failed on, like {@link #invalidateLedgerHandle(ReadHandle)}, and opens the ledger
+     * again with its current metadata, which the reads that failed on the same handle share.
+     *
+     * @return the handle opened again when its ensembles differ from the failed one's, e.g. after the ledger was
+     *         re-replicated off a decommissioned bookie, so that the read can be retried on the new bookies; null when
+     *         a retry would read from the same bookies, the handle reads offloaded data, which re-replication doesn't
+     *         move, the ledger no longer belongs to the managed ledger, or it can't be opened again
+     */
+    public CompletableFuture<ReadHandle> reopenLedgerHandleIfReplicated(ReadHandle ledgerHandle) {
+        invalidateLedgerHandle(ledgerHandle);
+        long ledgerId = ledgerHandle.getId();
+        LedgerHandle currentLedger = this.currentLedger;
+        if (ledgerHandle == currentLedger || ledgerHandle instanceof OffloadedLedgerHandle
+                || !ledgers.containsKey(ledgerId)) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return getLedgerHandle(ledgerId).handle((reopened, ex) -> {
+            if (ex != null || reopened.getLedgerMetadata().getAllEnsembles()
+                    .equals(ledgerHandle.getLedgerMetadata().getAllEnsembles())) {
+                return null;
+            }
+            return reopened;
+        });
+    }
+
     public void invalidateLedgerHandle(ReadHandle ledgerHandle) {
         long ledgerId = ledgerHandle.getId();
         LedgerHandle currentLedger = this.currentLedger;
 
-        if (currentLedger != null && ledgerHandle != currentLedger) {
-            // remove handle from ledger cache since we got a (read) error
-            ledgerCache.remove(ledgerId);
-            log.debug().attr("ledgerId", ledgerId).log("Removed ledger read handle from cache");
+        if (ledgerHandle != currentLedger) {
+            // remove handle from ledger cache since we got a (read) error, unless another read already replaced it:
+            // that handle would never be closed
+            CompletableFuture<ReadHandle> cachedHandle = ledgerCache.get(ledgerId);
+            if (cachedHandle != null && cachedHandle.getNow(null) == ledgerHandle) {
+                ledgerCache.remove(ledgerId, cachedHandle);
+                log.debug().attr("ledgerId", ledgerId).log("Removed ledger read handle from cache");
+            }
             ledgerHandle.closeAsync()
                     .exceptionally(ex -> {
                         log.warn().exception(ex).log("Failed to close a Ledger ReadHandle");
