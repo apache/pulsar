@@ -67,6 +67,11 @@ public class PulsarFunctionRecord<T> implements Record<T> {
     }
 
     @Override
+    public Optional<Long> getDeliverAtTime() {
+        return record.getDeliverAtTime();
+    }
+
+    @Override
     public Optional<String> getPartitionId() {
         return record.getPartitionId();
     }

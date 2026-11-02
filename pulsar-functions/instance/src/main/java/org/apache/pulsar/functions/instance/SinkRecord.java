@@ -85,6 +85,11 @@ public class SinkRecord<T> extends AbstractSinkRecord<T> {
     }
 
     @Override
+    public Optional<Long> getDeliverAtTime() {
+        return sourceRecord.getDeliverAtTime();
+    }
+
+    @Override
     public Optional<Message<T>> getMessage() {
         return sourceRecord.getMessage();
     }
