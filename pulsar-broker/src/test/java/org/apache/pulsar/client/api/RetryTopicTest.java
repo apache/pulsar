@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
@@ -258,6 +259,35 @@ public class RetryTopicTest extends ProducerConsumerBase {
         long delay = System.currentTimeMillis() - timestamp;
         assertTrue(delay >= 2000);
         consumer.close();
+    }
+
+    @Test(timeOut = 30000)
+    public void testRetryTopicCumulativeKeepsCustomProperties() throws Exception {
+        final String topic = newTopicName();
+
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("my-subscription")
+                .subscriptionType(SubscriptionType.Exclusive)
+                .enableRetry(true)
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                .subscribe();
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES)
+                .topic(topic)
+                .create();
+        producer.send("Hello Pulsar".getBytes());
+
+        Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(message);
+        consumer.reconsumeLaterCumulativeAsync(message, Map.of("custom_key", "custom_value"), 1, TimeUnit.SECONDS)
+                .get();
+
+        Message<byte[]> retried = consumer.receive(10, TimeUnit.SECONDS);
+        assertNotNull(retried);
+        assertEquals(retried.getProperty("custom_key"), "custom_value");
     }
 
     @Test(timeOut = 30000)
