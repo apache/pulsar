@@ -24,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.doAnswer;
@@ -53,6 +54,8 @@ import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
+import org.apache.pulsar.metadata.impl.DualMetadataStore;
+import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.testng.annotations.Test;
 
 /** Tests the explicit validation contract against the embedded ZooKeeper's actual session ownership. */
@@ -216,19 +219,23 @@ public class ResourceLockValidationTest extends BaseMetadataStoreTest {
     }
 
     @Test(timeOut = 30000)
-    public void validateWaitsForSyncAndSkipsReadWhenSyncFails() throws Exception {
+    public void validateWaitsForUnderlyingSyncThroughDualStoreAndSkipsReadWhenSyncFails() throws Exception {
         @Cleanup
-        MetadataStoreExtended store = newStore();
-        MetadataStoreExtended observed = mock(MetadataStoreExtended.class, delegatesTo(store));
+        ZKMetadataStore source = new ZKMetadataStore(zks.getConnectionString(),
+                MetadataStoreConfig.builder().build(), true);
+        MetadataStoreExtended observed = mock(MetadataStoreExtended.class, delegatesTo(source));
+        // The production ZooKeeper provider installs this wrapper; inject the gate below it, not above it.
         @Cleanup
-        CoordinationService coordinationService = new CoordinationServiceImpl(observed);
+        DualMetadataStore store = new DualMetadataStore(observed, MetadataStoreConfig.builder().build());
+        @Cleanup
+        CoordinationService coordinationService = new CoordinationServiceImpl(store);
         ResourceLock<String> lock = coordinationService.getLockManager(String.class)
                 .acquireLock(newKey(), "owner-a").get(5, TimeUnit.SECONDS);
         String path = lock.getPath();
-        GetResult original = read(store, path);
+        GetResult original = read(source, path);
         CompletableFuture<Void> actualSyncCompleted = new CompletableFuture<>();
         CompletableFuture<Void> allowSyncCompletion = new CompletableFuture<>();
-        doAnswer(invocation -> store.sync(path).thenCompose(__ -> {
+        doAnswer(invocation -> source.sync(path).thenCompose(__ -> {
             actualSyncCompleted.complete(null);
             return allowSyncCompletion;
         })).when(observed).sync(path);
@@ -236,22 +243,22 @@ public class ResourceLockValidationTest extends BaseMetadataStoreTest {
             CompletableFuture<Void> validation = lock.validate();
             actualSyncCompleted.get(5, TimeUnit.SECONDS);
             assertThat(validation).isNotDone();
-            verify(observed, never()).get(path);
+            verify(observed, never()).get(eq(path), anySet());
 
             allowSyncCompletion.complete(null);
             validation.get(5, TimeUnit.SECONDS);
-            verify(observed).get(path);
+            verify(observed).get(eq(path), anySet());
             assertThat(lock.getLockExpiredFuture()).isNotDone();
-            assertUnchanged(store, path, original);
+            assertUnchanged(source, path, original);
 
             MetadataStoreException failure = new MetadataStoreException("metadata sync unavailable");
             doReturn(CompletableFuture.failedFuture(failure)).when(observed).sync(path);
             CompletableFuture<Void> failedValidation = lock.validate();
             assertThatThrownBy(() -> failedValidation.get(5, TimeUnit.SECONDS)).hasCause(failure);
             // Exactly the first validation read; the failed sync must not start another read.
-            verify(observed).get(path);
+            verify(observed).get(eq(path), anySet());
             assertThat(lock.getLockExpiredFuture()).isNotDone();
-            assertUnchanged(store, path, original);
+            assertUnchanged(source, path, original);
         } finally {
             allowSyncCompletion.complete(null);
         }

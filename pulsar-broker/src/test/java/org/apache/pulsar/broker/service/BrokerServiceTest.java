@@ -382,6 +382,85 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testPendingTopicLoadCanRetryAfterBundleSplit() throws Exception {
+        BrokerService brokerService = pulsar.getBrokerService();
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        String namespace = "prop/queued-split-" + UUID.randomUUID();
+        TopicName topicName = TopicName.get("persistent://" + namespace + "/topic");
+        String followingTopic = "persistent://prop/ns-abc/following-load-" + UUID.randomUUID();
+        String triggeringTopic = "persistent://prop/ns-abc/triggering-load-" + UUID.randomUUID();
+        admin.namespaces().createNamespace(namespace, 1);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"), false);
+        admin.lookups().lookupTopic(topicName.toString());
+        admin.lookups().lookupTopic(followingTopic);
+        admin.lookups().lookupTopic(triggeringTopic);
+        NamespaceBundle parentBundle = namespaceService.getBundle(topicName);
+        Semaphore semaphore = brokerService.topicLoadRequestSemaphore.get();
+        int permits = semaphore.availablePermits();
+        assertThat(permits).isPositive();
+        assertTrue(semaphore.tryAcquire(permits, 10, TimeUnit.SECONDS));
+        boolean permitsHeld = true;
+        Throwable testFailure = null;
+        try {
+            // Use the normal cache insertion and ownership checks, then wait until both loads really are queued.
+            CompletableFuture<Optional<Topic>> queuedFuture = brokerService.getTopic(topicName, true, null);
+            Awaitility.await().untilAsserted(() -> assertEquals(brokerService.getPendingTopicLoadCount(), 1));
+            CompletableFuture<Optional<Topic>> followingFuture = brokerService.getTopic(followingTopic, true);
+            Awaitility.await().untilAsserted(() -> assertEquals(brokerService.getPendingTopicLoadCount(), 2));
+
+            // Splitting without unload leaves the child on this broker, but invalidates the queued parent's check.
+            admin.namespaces().splitNamespaceBundle(namespace, parentBundle.getBundleRange(), false, null);
+            NamespaceBundle childBundle = namespaceService.getBundle(topicName);
+            assertThat(childBundle).isNotEqualTo(parentBundle);
+            assertTrue(namespaceService.newTopicOwnershipChecker(topicName).get().get(10, TimeUnit.SECONDS));
+            assertFalse(queuedFuture.isDone());
+
+            semaphore.release(permits);
+            permitsHeld = false;
+            // Completion of a normal load drains the pending queue.
+            brokerService.getTopic(triggeringTopic, true).get(10, TimeUnit.SECONDS);
+            assertThatThrownBy(() -> queuedFuture.get(10, TimeUnit.SECONDS))
+                    .hasCauseInstanceOf(BrokerServiceException.ServiceUnitNotReadyException.class);
+            assertTrue(followingFuture.get(10, TimeUnit.SECONDS).isPresent());
+            Awaitility.await().untilAsserted(() -> {
+                assertNull(brokerService.getTopics().get(topicName.toString()));
+                assertEquals(brokerService.getPendingTopicLoadCount(), 0);
+                assertEquals(semaphore.availablePermits(), permits);
+            });
+            assertFalse(pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
+                    .containsKey(topicName.getPersistenceNamingEncoding()));
+
+            CompletableFuture<Optional<Topic>> retryFuture = brokerService.getTopic(topicName, true, null);
+            assertNotSame(retryFuture, queuedFuture);
+            assertTrue(retryFuture.get(10, TimeUnit.SECONDS).isPresent());
+        } catch (Exception | AssertionError e) {
+            testFailure = e;
+            throw e;
+        } finally {
+            try {
+                if (permitsHeld) {
+                    semaphore.release(permits);
+                    brokerService.getTopic(triggeringTopic, true).get(10, TimeUnit.SECONDS);
+                }
+                for (String topic : List.of(topicName.toString(), followingTopic, triggeringTopic)) {
+                    if (brokerService.getTopicReference(topic).isPresent()
+                            || pulsar.getDefaultManagedLedgerFactory().getManagedLedgers()
+                            .containsKey(TopicName.get(topic).getPersistenceNamingEncoding())) {
+                        admin.topics().delete(topic, true);
+                    }
+                }
+                admin.namespaces().deleteNamespace(namespace);
+            } catch (Exception | AssertionError cleanupFailure) {
+                if (testFailure != null) {
+                    testFailure.addSuppressed(cleanupFailure);
+                } else {
+                    throw cleanupFailure;
+                }
+            }
+        }
+    }
+
+    @Test
     public void testPendingTopicLoadsFailWhenTheBrokerShutsDown() throws Exception {
         BrokerService brokerService = spy(pulsar.getBrokerService());
         Semaphore topicLoadSemaphore = brokerService.topicLoadRequestSemaphore.get();
