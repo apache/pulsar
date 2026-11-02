@@ -99,7 +99,8 @@ public class ExtensibleLoadManagerCloseTest {
         config.setTopicLevelPoliciesEnabled(topicPoliciesEnabled);
         config.setLoadManagerClassName(ExtensibleLoadManagerImpl.class.getName());
         config.setLoadBalancerDebugModeEnabled(true);
-        config.setBrokerShutdownTimeoutMs(100);
+        // Match the close-duration assertions instead of racing normal executor termination at 100 ms.
+        config.setBrokerShutdownTimeoutMs(5000);
 
         // Reduce these timeout configs to avoid failed tests being blocked too long
         config.setMetadataStoreOperationTimeoutSeconds(5);
