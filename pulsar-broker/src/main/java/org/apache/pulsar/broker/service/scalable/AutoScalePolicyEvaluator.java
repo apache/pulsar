@@ -144,7 +144,7 @@ public final class AutoScalePolicyEvaluator {
 
     /**
      * Serve surplus consumers (a subscription with more consumers than active segments) by
-     * adding capacity on one of two axes:
+     * adding capacity on one of two axes.
      * <ul>
      *   <li><b>Split</b> when traffic justifies a physical segment: the busiest segment's
      *       inbound rate is at or above {@code splitVsRebucketMinMsgRateIn} and the topic is

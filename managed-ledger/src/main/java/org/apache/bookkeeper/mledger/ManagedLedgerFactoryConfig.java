@@ -89,8 +89,9 @@ public class ManagedLedgerFactoryConfig {
      * TLS handler or the frame decoder allocated, and it can be much larger than the entry.
      * The cache size limit counts only the entry's own size, so size-based eviction doesn't bound that memory, and
      * cacheEvictionExtendTTLOfEntriesWithRemainingExpectedReadsMaxTimes extends how long it stays allocated.
+     * Updates apply to subsequent cache insertions; existing entries retain their original buffers.
      */
-    private boolean copyEntriesInCache = false;
+    private volatile boolean copyEntriesInCache = false;
 
     /**
      * Maximum number of (estimated) data in-flight reading from storage and the cache.

@@ -423,6 +423,21 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+    @Test
+    public void testCloseDoesNotWaitForInternalAdminClientConnections() throws Exception {
+        setup();
+        // a request through the broker's own admin client leaves its connection to the web service open
+        pulsar.getAdminClient().clusters().getClusters();
+
+        long startNanos = System.nanoTime();
+        pulsar.close();
+
+        // the graceful web service stop would wait until that connection had been idle for 1 s
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos))
+                .as("broker close time in ms")
+                .isLessThan(500);
+    }
+
     @DataProvider
     public Object[][] loadManagers() {
         return new Object[][] {{ModularLoadManagerImpl.class.getName()}, {ExtensibleLoadManagerImpl.class.getName()}};

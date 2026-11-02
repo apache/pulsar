@@ -119,8 +119,10 @@ final class ConsumeV5 {
                 }
             }
         } catch (Exception e) {
-            LOG.error("Error while consuming messages");
-            LOG.error(e.getMessage(), e);
+            if (!AbstractCmd.isInterruption(e)) {
+                LOG.error("Error while consuming messages");
+                LOG.error(e.getMessage(), e);
+            }
             returnCode = -1;
         } finally {
             LOG.info("{} messages successfully consumed", numMessagesConsumed);

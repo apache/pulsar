@@ -398,6 +398,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
         log.info().attr("brokerServiceUrl", pulsar.getBrokerServiceUrl())
                 .attr("webServiceAddress", pulsar.getWebServiceAddress())
                 .log("Stopping Pulsar broker");
+        // Close the admin client first: the broker's graceful web service stop would wait for its idle connections
+        // to time out (1 s). startBroker() creates a new one.
+        closeAdmin();
         pulsar.close();
         pulsar = null;
         // Simulate cleanup of ephemeral nodes
@@ -735,7 +738,9 @@ public abstract class MockedPulsarServiceBaseTest extends TestRetrySupport {
     public static void deleteNamespaceWithRetry(String ns, boolean force, PulsarAdmin admin) throws Exception {
         Awaitility.await()
                 .atMost(20, TimeUnit.SECONDS)
-                .pollDelay(500, TimeUnit.MILLISECONDS)
+                // Try the first delete right away: the poll delay is a wait before the first attempt, not between
+                // retries
+                .pollDelay(0, TimeUnit.MILLISECONDS)
                 .until(() -> {
             try {
                 // Maybe fail by race-condition with create topics, just retry.

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
@@ -44,6 +45,7 @@ import org.apache.avro.Schema.Parser;
 import org.apache.avro.reflect.ReflectData;
 import org.apache.pulsar.TestNGInstanceOrder;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClientException.IncompatibleSchemaException;
@@ -285,6 +287,119 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             p.send("junkdata".getBytes(UTF_8));
         } catch (PulsarClientException e) {
             assertTrue(e.getCause() instanceof SchemaSerializationException);
+        }
+    }
+
+    @Test
+    public void autoProduceBytesRequiresSchemaVersionWhenSchemaValidationIsEnforced() throws Exception {
+        if (!schemaValidationEnforced) {
+            return;
+        }
+
+        String topic = NAMESPACE + "/auto-produce-schema-version-" + UUID.randomUUID();
+        assertAutoProduceBytesRequiresSchemaVersion(topic);
+    }
+
+    @Test
+    public void autoProduceBytesRequiresSchemaVersionWhenTopicSchemaValidationIsEnforced() throws Exception {
+        if (schemaValidationEnforced) {
+            return;
+        }
+
+        String topic = NAMESPACE + "/auto-produce-schema-version-topic-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        admin.topics().setSchemaValidationEnforced(topic, true);
+        assertAutoProduceBytesRequiresSchemaVersion(topic);
+    }
+
+    @Test
+    public void autoProduceBytesWithSchemaVersionCanUseBatchingWhenSchemaValidationIsEnforced() throws Exception {
+        if (!schemaValidationEnforced) {
+            return;
+        }
+
+        String topic = NAMESPACE + "/auto-produce-schema-version-batch-" + UUID.randomUUID();
+        try (Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                .topic(topic)
+                .batchingMaxMessages(2)
+                .create()) {
+            CompletableFuture<MessageId> first = producer.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.STRING))
+                    .value("first".getBytes(UTF_8))
+                    .sendAsync();
+            producer.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.STRING))
+                    .value("second".getBytes(UTF_8))
+                    .sendAsync()
+                    .get();
+            first.get();
+        }
+    }
+
+    @Test
+    public void autoProduceBytesCanSendToSchemaTopicWhenSchemaValidationIsEnforced() throws Exception {
+        if (!schemaValidationEnforced) {
+            return;
+        }
+
+        String topic = NAMESPACE + "/auto-produce-existing-schema-" + UUID.randomUUID();
+        try (Producer<String> ignored = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+                Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                        .topic(topic)
+                        .enableBatching(false)
+                        .create()) {
+            producer.send("with-topic-schema".getBytes(UTF_8));
+        }
+    }
+
+    @Test(dataProvider = "batchingModes")
+    public void autoProduceBytesCanSendToSchemaLessTopicWhenSchemaValidationIsEnforced(boolean batching)
+            throws Exception {
+        String topic = NAMESPACE + "/auto-produce-without-topic-schema-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(topic);
+        if (!schemaValidationEnforced) {
+            admin.topics().setSchemaValidationEnforced(topic, true);
+        }
+
+        try (Consumer<byte[]> consumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic)
+                .subscriptionName("schema-less")
+                .subscribe();
+                Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
+                        .topic(topic)
+                        .enableBatching(batching)
+                        .create()) {
+            Topic brokerTopic = pulsar.getBrokerService().getTopicReference(TopicName.get(topic).toString())
+                    .orElseThrow();
+            if (!schemaValidationEnforced) {
+                Awaitility.await().until(brokerTopic::getSchemaValidationEnforced);
+            }
+
+            byte[] value = "without-schema".getBytes(UTF_8);
+            producer.send(value);
+            Message<byte[]> message = consumer.receive(10, TimeUnit.SECONDS);
+            assertThat(message).isNotNull();
+            assertThat(message.getValue()).isEqualTo(value);
+            assertThat(message.getSchemaVersion()).isNull();
+            assertThat(brokerTopic.hasSchema().get(10, TimeUnit.SECONDS)).isFalse();
+        }
+    }
+
+    private void assertAutoProduceBytesRequiresSchemaVersion(String topic) throws Exception {
+        try (Producer<String> ignored = pulsarClient.newProducer(Schema.STRING).topic(topic).create();
+                Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES(Schema.BYTES))
+                        .topic(topic)
+                        .enableBatching(false)
+                        .create()) {
+            if (!schemaValidationEnforced) {
+                Topic brokerTopic = pulsar.getBrokerService().getTopicReference(TopicName.get(topic).toString())
+                        .orElseThrow();
+                Awaitility.await().until(brokerTopic::getSchemaValidationEnforced);
+            }
+            Assert.expectThrows(PulsarClientException.class,
+                    () -> producer.send("without-schema".getBytes(UTF_8)));
+
+            producer.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.STRING))
+                    .value("with-schema".getBytes(UTF_8))
+                    .send();
         }
     }
 

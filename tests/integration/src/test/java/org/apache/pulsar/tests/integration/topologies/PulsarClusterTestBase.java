@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 import lombok.CustomLog;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.testng.annotations.DataProvider;
@@ -116,9 +117,15 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
     }
 
     public void setupCluster(String namePrefix) throws Exception {
-        String clusterName = Stream.of(this.getClass().getSimpleName(), namePrefix, randomName(5))
+        String suffix = Stream.of(namePrefix, randomName(5))
                 .filter(s -> s != null && !s.isEmpty())
                 .collect(joining("-"));
+        // A container's name is "<cluster>-<hostname>", the longest "<cluster>-configuration-store". Docker's DNS
+        // gives no reverse lookup answer for a name longer than a DNS label (63 characters), and the ZooKeeper client
+        // in every container looks up the server's name from its address before it connects: it would wait 5 s
+        String classNamePart = StringUtils.left(this.getClass().getSimpleName(),
+                63 - "-configuration-store".length() - "-".length() - suffix.length());
+        String clusterName = classNamePart + "-" + suffix;
 
         PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder = PulsarClusterSpec.builder()
                 .clusterName(clusterName)
