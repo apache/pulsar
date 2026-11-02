@@ -85,6 +85,8 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                     "[{}] Replicator was stopped while creating the producer."
                             + " Closing it. Replicator state: {}",
                     replicatorId, STATE_UPDATER.get(this));
+            // Do not keep the producer set above: the replicator was stopped.
+            this.producer = null;
             doCloseProducerAsync(producer, () -> {});
             return;
         }
