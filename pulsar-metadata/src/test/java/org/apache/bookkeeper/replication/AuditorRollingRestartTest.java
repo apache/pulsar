@@ -20,6 +20,7 @@ package org.apache.bookkeeper.replication;
 
 import static org.apache.bookkeeper.meta.MetadataDrivers.runFunctionWithLedgerManagerFactory;
 import static org.testng.AssertJUnit.assertEquals;
+import static org.testng.AssertJUnit.assertNull;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
@@ -105,6 +106,10 @@ public class AuditorRollingRestartTest extends BookKeeperClusterTestCase {
         Thread.sleep(2000);
         startAndAddBookie(conf);
         Thread.sleep(2000); // give it time to run
+        // A replication worker that fails to replicate a ledger keeps it locked for a while, which hides the ledger
+        // from pollLedgerToRereplicate()
+        assertNull("shouldn't be anything under replicated",
+                underReplicationManager.getLedgerUnreplicationInfo(lh.getId()));
         assertEquals("shouldn't be anything under replicated", -1,
                 underReplicationManager.pollLedgerToRereplicate());
 
