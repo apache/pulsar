@@ -228,7 +228,6 @@ public class ClientCnx extends PulsarHandler {
     @Getter(AccessLevel.PACKAGE)
     private final Semaphore pendingLookupRequestSemaphore;
     private final Semaphore maxLookupRequestSemaphore;
-    private final EventLoopGroup eventLoopGroup;
 
     private static final AtomicIntegerFieldUpdater<ClientCnx> NUMBER_OF_REJECTED_REQUESTS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(ClientCnx.class, "numberOfRejectRequests");
@@ -292,6 +291,8 @@ public class ClientCnx extends PulsarHandler {
     private boolean supportsScalableTopics;
     @Getter
     private boolean supportsTcMetadataDiscovery;
+    @Getter
+    private boolean supportsAutoProduceBytesWithoutSchema;
     @Getter
     private boolean supportsConsumerInstanceId;
 
@@ -361,7 +362,6 @@ public class ClientCnx extends PulsarHandler {
                 new Semaphore(conf.getMaxLookupRequest() - conf.getConcurrentLookupRequest(), false);
         this.waitingLookupRequests = Queues.newConcurrentLinkedQueue();
         this.authDriver = resolveAuthDriver(conf);
-        this.eventLoopGroup = eventLoopGroup;
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
@@ -387,7 +387,9 @@ public class ClientCnx extends PulsarHandler {
         this.remoteAddress = ctx.channel().remoteAddress();
         this.log = LOG.with().attr("channel", ctx.channel()).build();
 
-        this.timeoutTask = this.eventLoopGroup
+        // On the connection's own event loop, which also cancels it in channelInactive(): while the client shuts
+        // down, the other loops of the group can terminate before this one is done with the connection
+        this.timeoutTask = ctx.executor()
                 .scheduleAtFixedRate(catchingAndLoggingThrowables(this::checkRequestTimeout), operationTimeoutMs,
                         operationTimeoutMs, TimeUnit.MILLISECONDS);
 
@@ -648,6 +650,8 @@ public class ClientCnx extends PulsarHandler {
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsScalableTopics();
         supportsTcMetadataDiscovery =
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTcMetadataDiscovery();
+        supportsAutoProduceBytesWithoutSchema = connected.hasFeatureFlags()
+                && connected.getFeatureFlags().isSupportsAutoProduceBytesWithoutSchema();
         supportsConsumerInstanceId =
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsConsumerInstanceId();
 
@@ -1183,7 +1187,7 @@ public class ClientCnx extends PulsarHandler {
         if (firstOneWaiting != null) {
             maxLookupRequestSemaphore.release();
             // schedule a new lookup in.
-            eventLoopGroup.execute(() -> {
+            ctx.executor().execute(() -> {
                 long newId = firstOneWaiting.getLeft();
                 TimedCompletableFuture<LookupDataResult> newFuture = firstOneWaiting.getRight().getRight();
                 addPendingLookupRequests(newId, newFuture);
@@ -1989,7 +1993,7 @@ public class ClientCnx extends PulsarHandler {
         long rejectedRequests = NUMBER_OF_REJECTED_REQUESTS_UPDATER.getAndIncrement(this);
         if (rejectedRequests == 0) {
             // schedule timer
-            eventLoopGroup.schedule(() -> NUMBER_OF_REJECTED_REQUESTS_UPDATER.set(ClientCnx.this, 0),
+            ctx.executor().schedule(() -> NUMBER_OF_REJECTED_REQUESTS_UPDATER.set(ClientCnx.this, 0),
                                     rejectedRequestResetTimeSec, TimeUnit.SECONDS);
         } else if (rejectedRequests >= maxNumberOfRejectedRequestPerConnection) {
             log.error().attr("received", NUMBER_OF_REJECTED_REQUESTS_UPDATER.get(ClientCnx.this))

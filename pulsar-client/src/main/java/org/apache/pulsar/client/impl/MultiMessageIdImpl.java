@@ -25,7 +25,7 @@ import lombok.Getter;
 import org.apache.pulsar.client.api.MessageId;
 
 /**
- * A MessageId implementation that contains a map of <partitionName, MessageId>.
+ * A MessageId implementation that contains a map of {@code <partitionName, MessageId>}.
  * This is useful when MessageId is need for partition/multi-topics/pattern consumer.
  * e.g. seek(), ackCumulative(), getLastMessageId().
  */

@@ -152,7 +152,7 @@ public class ClientErrorsTest {
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channel.set(ctx);
             ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), Commands.DEFAULT_MAX_MESSAGE_SIZE,
-                    false, false, false, supportsInstanceId.get()));
+                    false, false, false, true, supportsInstanceId.get()));
         });
         mockBrokerService.setHandlePartitionLookup((ctx, request) ->
                 ctx.writeAndFlush(Commands.newPartitionMetadataResponse(2, request.getRequestId())));

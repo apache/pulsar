@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.tests.integration.cli;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.fail;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.tests.integration.containers.ChaosContainer;
 import org.apache.pulsar.tests.integration.containers.PulsarContainer;
 import org.apache.pulsar.tests.integration.containers.ZKContainer;
@@ -135,22 +137,30 @@ public class PerfToolTest extends TopicMessagingBase {
 
     private ContainerExecResult consumeWithPerfTool(ChaosContainer<?> container, String[] clientArgs, String url,
                                                     String topic) throws Exception {
-        CompletableFuture<ContainerExecResult> resultFuture = container.execCmdAsync(perfCommand("consume",
-                clientArgs, "-u", url, "-m", String.valueOf(MESSAGE_COUNT), topic));
-        produceWithPerfTool(container, clientArgs, url, topic, MESSAGE_COUNT);
-
-        ContainerExecResult result = resultFuture.get(5, TimeUnit.SECONDS);
+        produceMessages(topic);
+        ContainerExecResult result = container.execCmdAsync(perfCommand("consume", clientArgs, "-u", url,
+                "-sp", "Earliest", "-m", String.valueOf(MESSAGE_COUNT), topic)).get(30, TimeUnit.SECONDS);
         return failOnError("Performance consumer", result);
     }
 
     private ContainerExecResult readWithPerfTool(ChaosContainer<?> container, String[] clientArgs, String url,
                                                  String topic) throws Exception {
-        CompletableFuture<ContainerExecResult> resultFuture = container.execCmdAsync(perfCommand("read",
-                clientArgs, "-u", url, "-n", String.valueOf(MESSAGE_COUNT), topic));
-        produceWithPerfTool(container, clientArgs, url, topic, MESSAGE_COUNT);
-
-        ContainerExecResult result = resultFuture.get(5, TimeUnit.SECONDS);
+        // The reader starts from the earliest message
+        produceMessages(topic);
+        ContainerExecResult result = container.execCmdAsync(perfCommand("read", clientArgs, "-u", url, "-n",
+                String.valueOf(MESSAGE_COUNT), topic)).get(30, TimeUnit.SECONDS);
         return failOnError("Performance consumer", result);
+    }
+
+    // The messages for the consumer and the reader are produced with the client, before they start: pulsar-perf
+    // produce runs for at least 10 s, however few messages it sends
+    private void produceMessages(String topic) throws Exception {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(pulsarCluster.getPlainTextServiceUrl()).build();
+             Producer<byte[]> producer = client.newProducer().topic(topic).create()) {
+            for (int i = 0; i < MESSAGE_COUNT; i++) {
+                producer.send(("message-" + i).getBytes(UTF_8));
+            }
+        }
     }
 
     private static String[] perfCommand(String command, String[] clientArgs, String... args) {

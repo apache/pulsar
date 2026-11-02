@@ -98,6 +98,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
+import org.apache.bookkeeper.mledger.impl.cache.RangeEntryCacheManagerImpl;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -3770,6 +3771,12 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("managedLedgerCacheSizeMB", (managedLedgerCacheSizeMB) -> {
             defaultManagedLedgerFactory.getEntryCacheManager()
                     .updateCacheSizeAndThreshold(((int) managedLedgerCacheSizeMB) * 1024L * 1024L);
+        });
+
+        registerConfigurationListener("managedLedgerCacheCopyEntries", copyEntries -> {
+            if (defaultManagedLedgerFactory.getEntryCacheManager() instanceof RangeEntryCacheManagerImpl manager) {
+                manager.updateCopyEntriesInCache((boolean) copyEntries);
+            }
         });
 
         //  add listener to notify broker managedLedgerCacheEvictionWatermark dynamic config

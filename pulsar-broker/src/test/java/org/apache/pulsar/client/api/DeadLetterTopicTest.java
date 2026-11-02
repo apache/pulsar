@@ -789,7 +789,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
     }
 
     /**
-     * The test is disabled {@link https://github.com/apache/pulsar/issues/2647}.
+     * The test is disabled <a href="https://github.com/apache/pulsar/issues/2647">#2647</a>.
      * @throws Exception
      */
     @Test(enabled = false)
@@ -1819,7 +1819,10 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
             messages.add(consumer.receive(5, TimeUnit.SECONDS));
         }
         ConsumerImpl<byte[]> consumerImpl = (ConsumerImpl<byte[]>) consumer;
-        assertThat(consumerImpl.getPossibleSendToDeadLetterTopicMessages()).hasSize(1);
+        // The batch messages are handed to the application before the entry is registered as a DLQ candidate,
+        // so receive() may return before the registration is visible
+        Awaitility.await().untilAsserted(() -> assertThat(consumerImpl.getPossibleSendToDeadLetterTopicMessages())
+                .hasSize(1));
 
         // Redeliver a single message id that still carries its batch index
         MessageId batchMessageId = messages.get(0).getMessageId();

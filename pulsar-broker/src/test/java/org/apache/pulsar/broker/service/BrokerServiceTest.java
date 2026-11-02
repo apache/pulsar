@@ -49,6 +49,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.BufferedReader;
@@ -85,6 +86,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorTestUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
@@ -120,6 +122,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
@@ -458,35 +462,62 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Test
     public void testShutDownWithMaxConcurrentUnload() throws Exception {
         int bundleNum = 3;
+        int partitionCount = 12;
         cleanup();
         conf.setDefaultNumberOfNamespaceBundles(bundleNum);
         setup();
         final String topic = "persistent://prop/ns-abc/successTopic";
-        admin.topics().createPartitionedTopic(topic, 12);
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
-
-        BundlesData bundlesData = admin.namespaces().getBundles("prop/ns-abc");
-        assertEquals(bundlesData.getNumBundles(), bundleNum);
-        List<String> list = admin.brokers().getActiveBrokers("test");
-        assertEquals(list.size(), 1);
-        BrokerService brokerService = pulsar.getBrokerService();
-        admin.brokers().shutDownBrokerGracefully(1, false);
-        //We can only unload one bundle per second, so it takes at least 2 seconds.
-        Awaitility.await().atLeast(bundleNum - 1, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertEquals(brokerService.getTopics().size(), 0);
-        });
-        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertNull(pulsar.getBrokerService());
-            assertEquals(pulsar.getState(), PulsarService.State.Closed);
-        });
-        try {
-            producer.send("1".getBytes(StandardCharsets.UTF_8));
-            fail("sending msg should timeout, because broker is down and there is only one broker");
-        } catch (Exception e) {
-            assertTrue(e instanceof PulsarClientException.TimeoutException);
+        admin.topics().createPartitionedTopic(topic, partitionCount);
+        try (Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+             Producer<byte[]> timeoutProducer = pulsarClient.newProducer(Schema.BYTES).topic(topic)
+                     .sendTimeout(1, TimeUnit.SECONDS).create()) {
+            BundlesData bundlesData = admin.namespaces().getBundles("prop/ns-abc");
+            assertEquals(bundlesData.getNumBundles(), bundleNum);
+            List<String> list = admin.brokers().getActiveBrokers("test");
+            assertEquals(list.size(), 1);
+            BrokerService brokerService = pulsar.getBrokerService();
+            List<ProducerImpl<byte[]>> partitionProducers = new ArrayList<>();
+            for (Producer<byte[]> topicProducer : List.of(producer, timeoutProducer)) {
+                List<ProducerImpl<byte[]>> partitions =
+                        ((PartitionedProducerImpl<byte[]>) topicProducer).getProducers();
+                assertEquals(partitions.size(), partitionCount);
+                partitionProducers.addAll(partitions);
+            }
+            Set<Channel> producerChannels = new HashSet<>();
+            partitionProducers.forEach(partitionProducer -> {
+                assertTrue(partitionProducer.isConnected());
+                ClientCnx cnx = partitionProducer.getClientCnx();
+                assertNotNull(cnx);
+                producerChannels.add(cnx.ctx().channel());
+            });
+            List<Channel> listenChannels = List.copyOf(brokerService.getListenChannels());
+            assertFalse(listenChannels.isEmpty());
+            EventLoopGroup acceptorGroup = brokerService.getAcceptorGroup();
+            EventLoopGroup workerGroup = brokerService.executor();
+            admin.brokers().shutDownBrokerGracefully(1, false);
+            // We can only unload one bundle per second, so it takes at least 2 seconds.
+            Awaitility.await().atLeast(bundleNum - 1, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertEquals(brokerService.getTopics().size(), 0);
+            });
+            Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertNull(pulsar.getBrokerService());
+                assertEquals(pulsar.getState(), PulsarService.State.Closed);
+                partitionProducers.forEach(partitionProducer ->
+                        assertFalse(partitionProducer.isConnected(), "Every partition producer must be disconnected"));
+                producerChannels.forEach(channel ->
+                        assertTrue(channel.closeFuture().isDone(), "Every producer connection must be closed"));
+                listenChannels.forEach(channel ->
+                        assertFalse(channel.isOpen(), "Every broker listener must be closed"));
+                assertTrue(acceptorGroup.isTerminated(), "Broker acceptor threads must terminate");
+                assertTrue(workerGroup.isTerminated(), "Broker worker threads must terminate");
+            });
+            try {
+                timeoutProducer.send("1".getBytes(StandardCharsets.UTF_8));
+                fail("sending msg should timeout, because broker is down and there is only one broker");
+            } catch (Exception e) {
+                assertTrue(e instanceof PulsarClientException.TimeoutException);
+            }
         }
-
-        producer.close();
         resetState();
     }
 
@@ -1647,9 +1678,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) sub.getCursor();
 
         // make cursor last active time to very small to check if it will be deleted
-        Field cursorLastActiveField = ManagedCursorImpl.class.getDeclaredField("lastActive");
-        cursorLastActiveField.setAccessible(true);
-        cursorLastActiveField.set(cursor, 0);
+        ManagedCursorTestUtil.setLastActive(cursor, 0);
 
         // replace origin object. so we can check if subscription is deleted.
         PersistentSubscription spySubscription = Mockito.spy(sub);
@@ -2498,6 +2527,31 @@ public class BrokerServiceTest extends BrokerTestBase {
             } else {
                 Assert.assertEquals(managedLedgerConfig2.getLedgerOffloader(), NullLedgerOffloader.INSTANCE);
             }
+        }
+    }
+
+    @Test
+    public void testManagedLedgerCacheCopyEntriesDynamicUpdate() throws Exception {
+        String setting = "managedLedgerCacheCopyEntries";
+        var serviceConfiguration = pulsar.getConfiguration();
+        boolean originalCopyEntries = serviceConfiguration.isManagedLedgerCacheCopyEntries();
+        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
+        assertThat(pulsar.getBrokerService().isDynamicConfiguration(setting)).isTrue();
+        assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(setting);
+        try {
+            for (boolean copyEntries : new boolean[]{!originalCopyEntries, originalCopyEntries, !originalCopyEntries}) {
+                admin.brokers().updateDynamicConfiguration(setting, Boolean.toString(copyEntries));
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    assertThat(serviceConfiguration.isManagedLedgerCacheCopyEntries()).isEqualTo(copyEntries);
+                    assertThat(factory.getConfig().isCopyEntriesInCache()).isEqualTo(copyEntries);
+                });
+            }
+        } finally {
+            admin.brokers().deleteDynamicConfiguration(setting);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(serviceConfiguration.isManagedLedgerCacheCopyEntries()).isEqualTo(originalCopyEntries);
+                assertThat(factory.getConfig().isCopyEntriesInCache()).isEqualTo(originalCopyEntries);
+            });
         }
     }
 
