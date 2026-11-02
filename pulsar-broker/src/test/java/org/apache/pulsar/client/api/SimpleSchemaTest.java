@@ -394,8 +394,11 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                         .orElseThrow();
                 Awaitility.await().until(brokerTopic::getSchemaValidationEnforced);
             }
-            Assert.expectThrows(PulsarClientException.class,
+            // The broker fails the send at once, instead of the client resending it until the send timeout
+            PulsarClientException.NotAllowedException e = Assert.expectThrows(
+                    PulsarClientException.NotAllowedException.class,
                     () -> producer.send("without-schema".getBytes(UTF_8)));
+            assertThat(e).hasMessageContaining("must include a schema version");
 
             producer.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.STRING))
                     .value("with-schema".getBytes(UTF_8))
