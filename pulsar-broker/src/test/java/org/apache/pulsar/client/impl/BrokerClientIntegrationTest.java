@@ -307,7 +307,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies that consumer which doesn't support batch-message:
+     * It verifies that consumer which doesn't support batch-message.
      * <p>
      * 1. broker disconnects that consumer
      * <p>
@@ -517,7 +517,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies that broker throttles down configured concurrent topic loading requests
+     * It verifies that broker throttles down configured concurrent topic loading requests.
      *
      * <pre>
      * 1. Start broker with N maxConcurrentTopicLoadRequest

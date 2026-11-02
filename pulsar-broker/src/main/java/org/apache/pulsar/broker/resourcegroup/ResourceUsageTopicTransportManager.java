@@ -50,7 +50,7 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 
 /**
- * Resource Usage Transport Manager
+ * Resource Usage Transport Manager.
  *
  * <P>Module to exchange usage information with other brokers. Implements a task to periodically.
  * <P>publish the usage as well as handlers to process the usage info from other brokers.

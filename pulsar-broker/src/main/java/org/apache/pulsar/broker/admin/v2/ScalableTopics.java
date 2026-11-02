@@ -326,7 +326,7 @@ public class ScalableTopics extends AdminResource {
     }
 
     /**
-     * Orchestrate a regular-to-scalable migration:
+     * Orchestrate a regular-to-scalable migration.
      * <ol>
      *   <li>take the creation lock of the scalable topic, so no creation of the same topic, on any
      *       broker, can interleave with the steps up to the commit (see
