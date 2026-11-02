@@ -22,8 +22,14 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -476,21 +482,40 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         assertEquals(consumer.getUnAckedMessageTracker().size(), 0);
     }
 
-    @DataProvider(name = "variationsBackoff")
-    public static Object[][] variationsBackoff() {
+    private static Object[][] variationsBackoff() {
         return new Object[][]{
                 // ackTimeOutMillis / minDelayMs / maxDelayMs / multiplier
-                {1000, 500, 1000, 2, SubscriptionType.Shared},
-                {1500, 500, 1500, 3, SubscriptionType.Shared},
-                {1000, 500, 1000, 2, SubscriptionType.Exclusive},
-                {1500, 500, 1500, 3, SubscriptionType.Exclusive}
+                {2000, 1000, 2000, 2, SubscriptionType.Shared},
+                {3000, 1000, 3000, 3, SubscriptionType.Shared},
+                {2000, 1000, 2000, 2, SubscriptionType.Exclusive},
+                {3000, 1000, 3000, 3, SubscriptionType.Exclusive}
         };
     }
 
-    @Test(dataProvider = "variationsBackoff")
-    public void testCheckUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis, long minDelayMs,
-                                                              long maxDelayMs, int multiplier,
-                                                              SubscriptionType subscriptionType)
+    /**
+     * Each variation waits for five redeliveries, up to 28 s: check them at the same time, each on a topic of its own.
+     */
+    @Test
+    public void testCheckUnAcknowledgedMessageRedeliveryTimer() throws Exception {
+        Object[][] variations = variationsBackoff();
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newFixedThreadPool(variations.length);
+        List<Future<?>> checks = new ArrayList<>();
+        for (Object[] variation : variations) {
+            checks.add(executor.submit(() -> {
+                checkUnAcknowledgedMessageRedeliveryTimer((int) variation[0], (int) variation[1], (int) variation[2],
+                        (int) variation[3], (SubscriptionType) variation[4]);
+                return null;
+            }));
+        }
+        for (Future<?> check : checks) {
+            check.get();
+        }
+    }
+
+    private void checkUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis, long minDelayMs,
+                                                           long maxDelayMs, int multiplier,
+                                                           SubscriptionType subscriptionType)
             throws PulsarClientException, InterruptedException {
         final String topicName = newTopicName();
         final String subscriptionName = "my-ex-subscription";
