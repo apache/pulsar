@@ -766,9 +766,12 @@ public class BrokerBookieIsolationTest {
         assertEquals(bkPlacementPolicyToBkClientMap.size(), 1);
 
         // ns4 doesn't have secondary group so, the topic can't create a ledger and fails to load. Load it on the
-        // broker: a client retries the persistence error until its operation timeout.
+        // broker, once the lookup has assigned its bundle: a client retries the persistence error until its
+        // operation timeout.
+        final String topic4 = String.format("persistent://%s/topic1", ns4);
+        admin.lookups().lookupTopic(topic4);
         try {
-            pulsarService.getBrokerService().getOrCreateTopic(String.format("persistent://%s/topic1", ns4)).get();
+            pulsarService.getBrokerService().getOrCreateTopic(topic4).get();
             fail("should have failed due to not enough non-faulty bookie");
         } catch (ExecutionException e) {
             assertTrue(e.getCause() instanceof BrokerServiceException.PersistenceException, e.toString());
