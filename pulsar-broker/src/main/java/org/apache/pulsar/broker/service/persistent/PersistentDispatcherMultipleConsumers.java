@@ -973,7 +973,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 entries.set(i, entryAndMetadata);
             }
             if (metadata != null) {
-                remainingMessages += metadata.getNumMessagesInBatch();
+                remainingMessages += getNumMessagesInBatch(metadata, entry.getDataBuffer());
                 if (!hasChunk && metadata.hasUuid()) {
                     hasChunk = true;
                 }
