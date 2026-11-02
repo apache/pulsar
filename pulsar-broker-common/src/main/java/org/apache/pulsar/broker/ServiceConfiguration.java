@@ -1952,7 +1952,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_SERVER,
-        doc = "Request-frame memory mode: DISABLED, TRACKING, AUTO (default), or ENABLED. DISABLED uses the "
+        doc = "Request-frame memory mode: DISABLED (default), TRACKING, AUTO, or ENABLED. DISABLED uses the "
             + "standard frame decoder without request-frame memory tracking, limiting or metrics. TRACKING only "
             + "tracks retained direct-memory root capacity and exposes metrics; it never applies this limiter, "
             + "including under memory pressure. AUTO activates broker-local protection when direct-memory usage "
@@ -1970,7 +1970,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
             + "the current numeric configuration and starts enforcing on the next inbound read. For compatibility, "
             + "false maps to AUTO and true maps to ENABLED.")
     private InProgressRequestFrameMemoryLimitMode inProgressRequestFrameMemoryLimitEnabled =
-            InProgressRequestFrameMemoryLimitMode.AUTO;
+            InProgressRequestFrameMemoryLimitMode.DISABLED;
 
     @FieldContext(category = CATEGORY_SERVER, doc = "Whether to recover cursors lazily when trying to recover a "
             + "managed ledger backing a persistent topic. It can improve write availability of topics.\n"

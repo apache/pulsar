@@ -50,9 +50,9 @@ public class InProgressRequestFrameMemoryLimitModeTest {
     }
 
     @Test
-    public void shouldDefaultToAutomaticProtectionAndRejectInvalidModes() {
+    public void shouldDefaultToDisabledAndRejectInvalidModes() {
         assertThat(new ServiceConfiguration().getInProgressRequestFrameMemoryLimitEnabled())
-                .isEqualTo(InProgressRequestFrameMemoryLimitMode.AUTO);
+                .isEqualTo(InProgressRequestFrameMemoryLimitMode.DISABLED);
         Properties properties = new Properties();
         properties.setProperty("inProgressRequestFrameMemoryLimitEnabled", "invalid");
         assertThatThrownBy(() -> PulsarConfigurationLoader.create(properties, ServiceConfiguration.class))
