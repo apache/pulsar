@@ -167,6 +167,10 @@ public class KeySharedSubscriptionTest extends ProducerConsumerBase {
                 defaultConf.getKeySharedLookAheadMsgInReplayThresholdPerSubscription());
         conf.setKeySharedLookAheadMsgInReplayThresholdPerConsumer(
                 defaultConf.getKeySharedLookAheadMsgInReplayThresholdPerConsumer());
+        // reset the default message TTL that testContinueDispatchMessagesWhenMessageTTL sets: the topics of the tests
+        // that follow would get it, and the broker's periodic message expiry check would expire the unacked messages
+        // that they wait to have redelivered
+        conf.setTtlDurationDefaultInSeconds(defaultConf.getTtlDurationDefaultInSeconds());
     }
 
     // Use a fixed seed to make the tests using random values deterministic
