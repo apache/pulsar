@@ -30,7 +30,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
 
 /**
- * Resource Group Namespace Config Listener
+ * Resource Group Namespace Config Listener.
  *
  * <P>Meta data store listener of updates to namespace attachment to resource groups.
  * <P>Listens to namespace(policy) config changes and updates internal data structures.

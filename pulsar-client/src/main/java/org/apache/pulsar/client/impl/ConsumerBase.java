@@ -646,8 +646,9 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                 return FutureUtil.failedFuture(e);
             }
         }
-        messages.forEach(message -> reconsumeLaterAsync(message, delayTime, unit));
-        return CompletableFuture.completedFuture(null);
+        List<CompletableFuture<Void>> futures = new ArrayList<>(messages.size());
+        messages.forEach(message -> futures.add(reconsumeLaterAsync(message, delayTime, unit)));
+        return FutureUtil.waitForAll(futures);
     }
 
     @Override

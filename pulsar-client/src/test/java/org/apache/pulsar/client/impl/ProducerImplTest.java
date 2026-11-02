@@ -35,6 +35,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
@@ -65,8 +66,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.client.api.BatcherBuilder;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -78,6 +81,8 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
 import org.apache.pulsar.client.impl.metrics.LatencyHistogram;
+import org.apache.pulsar.client.impl.schema.AutoProduceBytesSchema;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.protocol.ByteBufPair;
 import org.apache.pulsar.common.protocol.Commands;
@@ -88,6 +93,236 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ProducerImplTest {
+    @DataProvider
+    public Object[][] failedBatchBoundaries() {
+        List<Object[]> cases = new ArrayList<>();
+        for (BatcherBuilder builder : List.of(BatcherBuilder.DEFAULT, BatcherBuilder.KEY_BASED,
+                new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000)))) {
+            for (String boundary : List.of("transaction-to-plain", "plain-to-transaction",
+                    "different-transactions", "size", "duplicate")) {
+                cases.add(new Object[] {builder, boundary});
+            }
+        }
+        return cases.toArray(Object[][]::new);
+    }
+
+    @Test(dataProvider = "failedBatchBoundaries")
+    public void testFailedFlushPreservesBatchBoundary(BatcherBuilder builder, String boundary) {
+        AtomicInteger failures = new AtomicInteger();
+        // The real memory controller invokes this trigger when serialization grows the 1024-byte batch
+        // buffer. Throw only once, after the reservation, so both recovery and accounting run normally.
+        MemoryLimitController memory = new MemoryLimitController(0, 2100, () -> {
+            if (failures.getAndIncrement() == 0) {
+                throw new OutOfMemoryError("injected batch growth failure");
+            }
+        });
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatcherBuilder(builder);
+        conf.setProducerName("batch-boundary-test");
+        conf.setMaxPendingMessages(10);
+        if (boundary.equals("size")) {
+            conf.setBatchingMaxBytes(1005);
+        }
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(HandlerState.State.Ready);
+        MessageImpl<byte[]> first = newMessage(new byte[500]);
+        MessageImpl<byte[]> second = newMessage(new byte[500]);
+        MessageImpl<byte[]> incoming = newMessage(new byte[32]);
+        for (MessageImpl<byte[]> message : List.of(first, second, incoming)) {
+            message.getMessageBuilder().clearPublishTime();
+            message.getMessageBuilder().setPartitionKey("key-1");
+        }
+        if (!boundary.equals("plain-to-transaction")) {
+            first.getMessageBuilder().setTxnidMostBits(7L).setTxnidLeastBits(13L);
+            second.getMessageBuilder().setTxnidMostBits(7L).setTxnidLeastBits(13L);
+        }
+        if (!boundary.equals("transaction-to-plain")) {
+            incoming.getMessageBuilder().setTxnidMostBits(7L)
+                    .setTxnidLeastBits(boundary.equals("different-transactions") ? 14L : 13L);
+        }
+        if (boundary.equals("duplicate")) {
+            incoming.getMessageBuilder().setSequenceId(0L);
+        }
+        try {
+            CompletableFuture<MessageId> firstSend = producer.internalSendAsync(first);
+            CompletableFuture<MessageId> secondSend = producer.internalSendAsync(second);
+            assertThat(failures).hasValue(0);
+            CompletableFuture<MessageId> rejected = producer.internalSendAsync(incoming);
+            assertThat(failures).as("the boundary flush failed while growing its payload").hasValue(1);
+            assertThat(producer.pendingMessages).isEmpty();
+
+            // Retry the retained batch through the real flush path and inspect its actual SEND metadata.
+            producer.flushAsync();
+            OpSendMsg op = producer.pendingMessages.peek();
+            assertThat(op).isNotNull();
+            assertThat(op.msgs).as("a failed flush must not admit the next batch's message")
+                    .containsExactly(first, second);
+            MessageMetadata metadata = metadataOf(op);
+            assertThat(metadata.getNumMessagesInBatch()).isEqualTo(2);
+            assertThat(metadata.hasTxnidMostBits()).isEqualTo(!boundary.equals("plain-to-transaction"));
+            if (metadata.hasTxnidMostBits()) {
+                assertThat(metadata.getTxnidLeastBits()).isEqualTo(13L);
+            }
+            assertThat(rejected).isCompletedExceptionally();
+            assertThat(incoming.getDataBuffer().refCnt()).isZero();
+            producer.ackReceived(null, op.sequenceId, op.highestSequenceId, 1L, 1L);
+            assertThat(firstSend).isCompleted();
+            assertThat(secondSend).isCompleted();
+            assertThat(memory.currentUsage()).isZero();
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(10);
+
+            CompletableFuture<MessageId> recovered = producer.newMessage().value(new byte[32]).sendAsync();
+            producer.flushAsync();
+            op = producer.pendingMessages.peek();
+            assertThat(metadataOf(op).hasTxnidMostBits()).isFalse();
+            producer.ackReceived(null, op.sequenceId, op.highestSequenceId, 1L, 2L);
+            assertThat(recovered).isCompleted();
+            assertThat(memory.currentUsage()).isZero();
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(10);
+        } finally {
+            producer.failPendingMessages(null, new PulsarClientException("test cleanup"));
+        }
+    }
+
+    @DataProvider
+    public Object[][] duplicateBatchBuilders() {
+        return new Object[][] {
+                {BatcherBuilder.DEFAULT},
+                {BatcherBuilder.KEY_BASED},
+                {new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000))}
+        };
+    }
+
+    @Test(dataProvider = "duplicateBatchBuilders")
+    public void testFailedFlushKeepsDuplicateBatchSeparateFromLaterFreshMessage(BatcherBuilder builder) {
+        AtomicInteger failures = new AtomicInteger();
+        MemoryLimitController memory = new MemoryLimitController(0, 3000, () -> {
+            if (failures.getAndIncrement() == 0) {
+                throw new OutOfMemoryError("injected duplicate batch growth failure");
+            }
+        });
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatcherBuilder(builder);
+        conf.setInitialSequenceId(0L);
+        conf.setProducerName("duplicate-batch-boundary-test");
+        conf.setMaxPendingMessages(10);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(HandlerState.State.Ready);
+        MessageImpl<byte[]> duplicate = newMessage(new byte[1500]);
+        MessageImpl<byte[]> incoming = newMessage(new byte[32]);
+        MessageImpl<byte[]> later = newMessage(new byte[32]);
+        long sequenceId = 0;
+        for (MessageImpl<byte[]> message : List.of(duplicate, incoming, later)) {
+            message.getMessageBuilder().clearPublishTime();
+            message.getMessageBuilder().setPartitionKey("key-1").setSequenceId(sequenceId++);
+        }
+        try {
+            CompletableFuture<MessageId> duplicateSend = producer.internalSendAsync(duplicate);
+            assertThat(failures).hasValue(0);
+            CompletableFuture<MessageId> rejected = producer.internalSendAsync(incoming);
+            assertThat(failures).hasValue(1);
+            assertThat(rejected).isCompletedExceptionally();
+            assertThat(incoming.getDataBuffer().refCnt()).isZero();
+            assertThat(producer.pendingMessages).isEmpty();
+
+            // Send again before retrying the flush explicitly: rejecting sequence 1 must not let
+            // sequence 2 join the retained duplicate batch, which the broker will discard as a whole.
+            CompletableFuture<MessageId> laterSend = producer.internalSendAsync(later);
+            producer.flushAsync();
+            assertThat(producer.pendingMessages).hasSize(2);
+            OpSendMsg duplicateOp = producer.pendingMessages.peek();
+            assertThat(duplicateOp.msgs).containsExactly(duplicate);
+            assertThat(metadataOf(duplicateOp).getSequenceId()).isZero();
+            producer.ackReceived(null, duplicateOp.sequenceId, duplicateOp.highestSequenceId, 1L, 0L);
+            OpSendMsg freshOp = producer.pendingMessages.peek();
+            assertThat(freshOp.msgs).containsExactly(later);
+            assertThat(metadataOf(freshOp).getSequenceId()).isEqualTo(2L);
+            producer.ackReceived(null, freshOp.sequenceId, freshOp.highestSequenceId, 1L, 1L);
+            assertThat(duplicateSend).isCompleted();
+            assertThat(laterSend).isCompleted();
+            assertThat(producer.pendingMessages).isEmpty();
+            assertThat(memory.currentUsage()).isZero();
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(10);
+        } finally {
+            producer.failPendingMessages(null, new PulsarClientException("test cleanup"));
+        }
+    }
+
+    @DataProvider
+    public Object[][] multiBatchBuilders() {
+        return new Object[][] {
+                {BatcherBuilder.KEY_BASED, false},
+                {BatcherBuilder.KEY_BASED, true},
+                {new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000)), false},
+                {new EntryBucketBatcherBuilder(List.of(0x4000, 0x8000, 0xC000)), true}
+        };
+    }
+
+    @Test(dataProvider = "multiBatchBuilders")
+    public void testFailedFirstAddDoesNotBlockAnotherBucket(BatcherBuilder builder, boolean retainAnotherBucket) {
+        AtomicInteger failures = new AtomicInteger();
+        MemoryLimitController memory = new MemoryLimitController(0, retainAnotherBucket ? 2000 : 1000, () -> {
+            if (failures.getAndIncrement() == 0) {
+                throw new OutOfMemoryError("injected first batch allocation failure");
+            }
+        });
+        BatchMessageContainerBase container = (BatchMessageContainerBase) builder.build();
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setBatcherBuilder(() -> container);
+        conf.setProducerName("failed-add-test");
+        conf.setMaxPendingMessages(10);
+        PulsarClientImpl client = mockedPulsarClient();
+        when(client.getMemoryLimitController()).thenReturn(memory);
+        when(client.getClientClock()).thenReturn(Clock.systemUTC());
+        ProducerImpl<byte[]> producer = constructProducer(client, conf);
+        producer.setState(HandlerState.State.Ready);
+        try {
+            CompletableFuture<MessageId> existing = retainAnotherBucket
+                    ? producer.newMessage().key("key-2").value(new byte[16]).sendAsync() : null;
+            CompletableFuture<MessageId> failed = producer.newMessage().key("key-1").value(new byte[16])
+                    .sendAsync();
+            assertThat(failed).isCompletedExceptionally();
+            assertThat(container.getNumMessagesInBatch()).isEqualTo(retainAnotherBucket ? 1 : 0);
+            assertThat(memory.currentUsage()).isEqualTo(retainAnotherBucket ? 1040L : 0L);
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(retainAnotherBucket ? 9 : 10);
+            boolean emptyAfterFailure = container.isEmpty();
+
+            // key-1 and key-2 belong to different entry buckets as well as different key-based batches.
+            CompletableFuture<MessageId> recovered = producer.newMessage().key("key-2").value(new byte[16])
+                    .sendAsync();
+            producer.flushAsync();
+            assertThat(producer.pendingMessages.size())
+                    .as("the empty failed bucket must not block another bucket's flush").isEqualTo(1);
+            OpSendMsg op = producer.pendingMessages.peek();
+            assertThat(op.msgs).allSatisfy(message -> assertThat(message.getKey()).isEqualTo("key-2"));
+            producer.ackReceived(null, op.sequenceId, op.highestSequenceId, 1L, 1L);
+            assertThat(recovered).isCompleted();
+            if (existing != null) {
+                assertThat(existing).isCompleted();
+            }
+            assertThat(emptyAfterFailure).as("only non-empty buckets should remain after a failed add")
+                    .isEqualTo(!retainAnotherBucket);
+            assertThat(container.isEmpty()).isTrue();
+            assertThat(memory.currentUsage()).isZero();
+            assertThat(producer.availableSendPermitsForTesting()).isEqualTo(10);
+        } finally {
+            producer.failPendingMessages(null, new PulsarClientException("test cleanup"));
+        }
+    }
+
+    private static MessageMetadata metadataOf(OpSendMsg op) {
+        ByteBuf header = op.cmd.getFirst().duplicate();
+        int commandSize = header.getInt(header.readerIndex() + 4);
+        header.skipBytes(8 + commandSize);
+        return Commands.parseMessageMetadata(header);
+    }
+
     @DataProvider
     public Object[][] completionErrors() {
         return new Object[][] {{null}, {new PulsarClientException.TimeoutException("send timed out", 41)}};
@@ -310,6 +545,50 @@ public class ProducerImplTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testAutoProduceBytesWithoutSchemaUsesFeatureFlag() throws IllegalAccessException {
+        PulsarClientImpl client = mockedPulsarClient();
+        FieldUtils.writeField(client, "conf", client.getConfiguration(), true);
+        AutoProduceBytesSchema autoSchema = (AutoProduceBytesSchema) Schema.AUTO_PRODUCE_BYTES();
+        autoSchema.setSchema(Schema.STRING);
+        ProducerImpl<byte[]> producer = constructProducer(client, new ProducerConfigurationData(), autoSchema, null);
+        ClientCnx cnx = mock(ClientCnx.class);
+        when(cnx.isSupportsAutoProduceBytesWithoutSchema()).thenReturn(true);
+        AtomicReference<BaseCommand> command = new AtomicReference<>();
+        doAnswer(invocation -> {
+            command.set(parseCommand(invocation.getArgument(0)));
+            return new CompletableFuture<ProducerResponse>();
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+
+        producer.connectionOpened(cnx);
+
+        assertTrue(command.get().getProducer().isAutoProduceBytes());
+        assertFalse(command.get().getProducer().hasSchema());
+        verify(client, never()).reloadSchemaForAutoProduceProducer(anyString(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testAutoProduceBytesWithOldBrokerRegistersSchema() throws IllegalAccessException {
+        PulsarClientImpl client = mockedPulsarClient();
+        FieldUtils.writeField(client, "conf", client.getConfiguration(), true);
+        AutoProduceBytesSchema autoSchema = (AutoProduceBytesSchema) Schema.AUTO_PRODUCE_BYTES();
+        autoSchema.setSchema(Schema.STRING);
+        ProducerImpl<byte[]> producer = constructProducer(client, new ProducerConfigurationData(), autoSchema, null);
+        ClientCnx cnx = mock(ClientCnx.class);
+        AtomicReference<BaseCommand> command = new AtomicReference<>();
+        doAnswer(invocation -> {
+            command.set(parseCommand(invocation.getArgument(0)));
+            return new CompletableFuture<ProducerResponse>();
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        producer.connectionOpened(cnx);
+
+        assertTrue(command.get().getProducer().isAutoProduceBytes());
+        assertTrue(command.get().getProducer().hasSchema());
+        verify(client, never()).reloadSchemaForAutoProduceProducer(anyString(), any());
+    }
+
+    @Test
     public void testCloseNotConnectedProducerClosesInterceptorsOnce() throws Exception {
         PulsarClientImpl client = mockedPulsarClient();
         when(client.getConnection(Mockito.anyString(), Mockito.anyInt())).thenReturn(new CompletableFuture<>());
@@ -428,16 +707,35 @@ public class ProducerImplTest {
      */
     private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
             ProducerConfigurationData conf) {
-        return constructProducer(client, conf, null);
+        return constructProducer(client, conf, Schema.BYTES, null);
     }
 
     @SuppressWarnings("unchecked")
     private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
             ProducerConfigurationData conf, ProducerInterceptors interceptors) {
+        return constructProducer(client, conf, Schema.BYTES, interceptors);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static ProducerImpl<byte[]> constructProducer(PulsarClientImpl client,
+            ProducerConfigurationData conf, Schema<byte[]> schema, ProducerInterceptors interceptors) {
         return mock(ProducerImpl.class, withSettings()
                 .useConstructor(client, "persistent://public/default/producer-impl-test", conf,
-                        new CompletableFuture<>(), 0, Schema.BYTES, interceptors, Optional.empty())
+                        new CompletableFuture<>(), 0, schema, interceptors, Optional.empty())
                 .defaultAnswer(CALLS_REAL_METHODS));
+    }
+
+    private static BaseCommand parseCommand(ByteBuf frame) {
+        try {
+            frame.skipBytes(4);
+            int commandSize = frame.readInt();
+            BaseCommand command = new BaseCommand();
+            command.parseFrom(frame, commandSize);
+            command.materialize();
+            return command;
+        } finally {
+            frame.release();
+        }
     }
 
     @Test
@@ -660,10 +958,49 @@ public class ProducerImplTest {
             fixture.requests.get(0).completeExceptionally(new PulsarClientException("registration failed"));
             producer.failPendingMessages(null, new PulsarClientException.TimeoutException("send timed out"));
             CompletableFuture<?> following = producer.newMessage().value(new byte[] {1}).sendAsync();
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(fixture.writes).hasValue(1);
+            verify(fixture.retryTasks.get(0)).cancel(false);
             fixture.retries.get(0).run();
             assertThat(expired).isCompletedExceptionally();
             assertThat(following).isNotDone();
             assertThat(producer.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(fixture.writes).hasValue(1);
+        }
+    }
+
+    @DataProvider
+    public Object[][] schemaTimeoutStates() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "schemaTimeoutStates")
+    public void testSchemaTimeoutCallbackCanStartNewRegistration(boolean waitingForRetry) throws Exception {
+        try (SchemaRetryFixture fixture = new SchemaRetryFixture(false)) {
+            ProducerImpl<byte[]> producer = fixture.producer;
+            CompletableFuture<?> expired = producer.newMessage(Schema.STRING).value("expired").sendAsync();
+            if (waitingForRetry) {
+                fixture.requests.get(0).completeExceptionally(new PulsarClientException("registration failed"));
+            }
+            CompletableFuture<?> following = expired.handle((id, error) ->
+                    producer.newMessage(Schema.BOOL).value(true).sendAsync()).thenCompose(future -> future);
+            producer.failPendingMessages(null, new PulsarClientException.TimeoutException("send timed out"));
+            assertThat(expired).isCompletedExceptionally();
+            assertThat(fixture.requests).hasSize(2);
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.RegisteringSchema);
+            if (waitingForRetry) {
+                verify(fixture.retryTasks.get(0)).cancel(false);
+                // Even a retry already dequeued by the event loop must not disturb the callback's registration.
+                fixture.retries.get(0).run();
+            } else {
+                fixture.requests.get(0).complete(new byte[] {1});
+            }
+            assertThat(fixture.requests).hasSize(2);
+            assertThat(producer.getState()).isEqualTo(HandlerState.State.RegisteringSchema);
+            assertThat(fixture.writes).hasValue(0);
+            fixture.requests.get(1).complete(new byte[] {2});
+            producer.ackReceived(fixture.cnx, 1, 1, 1, 1);
+            assertThat(following).isCompleted();
             assertThat(fixture.writes).hasValue(1);
         }
     }
@@ -1351,7 +1688,7 @@ public class ProducerImplTest {
     }
 
     /**
-     * Regression test for the send-timeout vs in-flight-write race (scenario B):
+     * Regression test for the send-timeout vs in-flight-write race (scenario B).
      *
      * <p>A batch frame is handed to a connection's event loop for writing, then the connection drops and the
      * producer enters the reconnect window ({@code cnx() == null}). If the send timeout fires in that window,

@@ -538,6 +538,7 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
                 watchUrLedgerNode(urLedgerZNode, latch));
 
         // creates new bkclient
+        bkc.close();
         bkc = new PulsarBookKeeperTestClient(baseClientConf);
         // starting the replication service, so that he will be able to act as
         // target bookie

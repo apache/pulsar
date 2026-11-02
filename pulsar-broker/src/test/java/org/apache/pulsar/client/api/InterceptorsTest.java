@@ -42,6 +42,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
 import org.apache.pulsar.client.impl.TopicMessageImpl;
 import org.apache.pulsar.common.api.proto.KeyValue;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
@@ -1140,6 +1141,30 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         producer.close();
         producer.close();
 
+        verify(interceptor).close();
+    }
+
+    @Test
+    public void testProducerInterceptorClosedOnceAfterPartitionsGrow() throws Exception {
+        String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+        org.apache.pulsar.client.api.interceptor.ProducerInterceptor interceptor =
+                mock(org.apache.pulsar.client.api.interceptor.ProducerInterceptor.class);
+        when(interceptor.eligible(any())).thenReturn(true);
+        when(interceptor.beforeSend(any(), any())).thenAnswer(invocation -> invocation.getArgument(1));
+        Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .intercept(interceptor)
+                .autoUpdatePartitionsInterval(1, TimeUnit.SECONDS)
+                .create();
+
+        admin.topics().updatePartitionedTopic(topic, 3);
+        Awaitility.await().untilAsserted(() ->
+                Assert.assertEquals(((PartitionedProducerImpl<String>) producer).getNumOfPartitions(), 3));
+        producer.send("msg");
+        producer.close();
+
+        // The producer of the added partition must not close the user's interceptor on its own
         verify(interceptor).close();
     }
 

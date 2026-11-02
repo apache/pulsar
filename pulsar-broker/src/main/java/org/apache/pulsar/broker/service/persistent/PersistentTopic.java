@@ -29,6 +29,8 @@ import static org.apache.pulsar.compaction.Compactor.COMPACTION_SUBSCRIPTION;
 import com.carrotsearch.hppc.ObjectObjectHashMap;
 import com.carrotsearch.hppc.cursors.ObjectObjectCursor;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Multimap;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.concurrent.FastThreadLocal;
@@ -97,6 +99,7 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
@@ -116,6 +119,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionAlreadyExistsException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionConflictUnloadException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
@@ -229,6 +233,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     // Subscriptions to this topic
     private final Map<String, PersistentSubscription> subscriptions = new ConcurrentHashMap<>();
+
+    // Guarded by ledger; each open owns its reservation until its callback publishes or fails.
+    private final Multimap<String, OpenCursorCallback> pendingDurableCursorOpens = HashMultimap.create();
 
     private final Map<String/*RemoteCluster*/, Replicator> replicators = new ConcurrentHashMap<>();
     private final Map<String/*ShadowTopic*/, Replicator> shadowReplicators = new ConcurrentHashMap<>();
@@ -1073,7 +1080,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             CompletableFuture<? extends Subscription> subscriptionFuture = isDurable
                     ? getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
-                    replicatedSubscriptionState, subscriptionProperties)
+                    replicatedSubscriptionState, subscriptionProperties, false)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
 
@@ -1208,7 +1215,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                                    InitialPosition initialPosition,
                                                                    long startMessageRollbackDurationSec,
                                                                    Boolean replicated,
-                                                                   Map<String, String> subscriptionProperties) {
+                                                                   Map<String, String> subscriptionProperties,
+                                                                   boolean failIfExists) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new NotAllowedException(
@@ -1220,35 +1228,53 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         OpenCursorCallback callback = new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
-                log.debug().attr("subscription", subscriptionName).log("Opened cursor");
+                try {
+                    log.debug().attr("subscription", subscriptionName).log("Opened cursor");
 
-                PersistentSubscription subscription = subscriptions.get(subscriptionName);
-                if (subscription == null) {
-                    subscription = subscriptions.computeIfAbsent(subscriptionName,
-                                  name -> createPersistentSubscription(subscriptionName, cursor,
-                                          replicated, subscriptionProperties));
-                } else {
-                    // if subscription exists, check if it's a non-durable subscription
-                    if (subscription.getCursor() != null && !subscription.getCursor().isDurable()) {
-                        subscriptionFuture.completeExceptionally(
-                                new NotAllowedException("NonDurable subscription with the same name already exists."));
+                    MutableBoolean created = new MutableBoolean();
+                    PersistentSubscription subscription = subscriptions.get(subscriptionName);
+                    if (subscription == null) {
+                        subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
+                            created.setTrue();
+                            return createPersistentSubscription(subscriptionName, cursor, replicated,
+                                    subscriptionProperties);
+                        });
+                    } else {
+                        // if subscription exists, check if it's a non-durable subscription
+                        if (subscription.getCursor() != null && !subscription.getCursor().isDurable()) {
+                            subscriptionFuture.completeExceptionally(new NotAllowedException(
+                                    "NonDurable subscription with the same name already exists."));
+                            return;
+                        }
+                    }
+                    if (failIfExists && created.isFalse()) {
+                        // The subscription existed, or an overlapping call added it while this one opened the cursor
+                        subscriptionFuture.completeExceptionally(new SubscriptionAlreadyExistsException(
+                                "Subscription " + subscriptionName + " already exists"));
                         return;
                     }
-                }
-                if (replicated != null && replicated && !subscription.isReplicated()) {
-                    // Flip the subscription state
-                    subscription.setReplicated(replicated);
-                }
+                    if (replicated != null && replicated && !subscription.isReplicated()) {
+                        // Flip the subscription state
+                        subscription.setReplicated(replicated);
+                    }
 
-                if (startMessageRollbackDurationSec > 0) {
-                    resetSubscriptionCursor(subscription, subscriptionFuture, startMessageRollbackDurationSec);
-                } else {
-                    subscriptionFuture.complete(subscription);
+                    if (startMessageRollbackDurationSec > 0) {
+                        resetSubscriptionCursor(subscription, subscriptionFuture, startMessageRollbackDurationSec);
+                    } else {
+                        subscriptionFuture.complete(subscription);
+                    }
+                } finally {
+                    synchronized (ledger) {
+                        pendingDurableCursorOpens.remove(subscriptionName, this);
+                    }
                 }
             }
 
             @Override
             public void openCursorFailed(ManagedLedgerException exception, Object ctx) {
+                synchronized (ledger) {
+                    pendingDurableCursorOpens.remove(subscriptionName, this);
+                }
                 log.warn()
                         .attr("subscription", subscriptionName)
                         .exceptionMessage(exception)
@@ -1263,19 +1289,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         };
 
         boolean nonDurableSubscriptionExists;
+        Throwable cursorOpenFailure = null;
         synchronized (ledger) {
             PersistentSubscription subscription = subscriptions.get(subscriptionName);
             nonDurableSubscriptionExists = subscription != null && subscription.getCursor() != null
                     && !subscription.getCursor().isDurable();
             if (!nonDurableSubscriptionExists) {
-                // Serialize durable cursor creation with non-durable subscription admission and retirement.
-                ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties,
-                        subscriptionProperties, callback, null);
+                // Keep the name reserved after asyncOpenCursor releases the ledger monitor.
+                pendingDurableCursorOpens.put(subscriptionName, callback);
+                try {
+                    ledger.asyncOpenCursor(Codec.encode(subscriptionName), initialPosition, properties,
+                            subscriptionProperties, callback, null);
+                } catch (Throwable error) {
+                    pendingDurableCursorOpens.remove(subscriptionName, callback);
+                    cursorOpenFailure = error;
+                }
             }
         }
         if (nonDurableSubscriptionExists) {
             subscriptionFuture.completeExceptionally(
                     new NotAllowedException("NonDurable subscription with the same name already exists."));
+        } else if (cursorOpenFailure != null) {
+            callback.openCursorFailed(ManagedLedgerException.getManagedLedgerException(cursorOpenFailure), null);
         }
         return subscriptionFuture;
     }
@@ -1297,6 +1332,10 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }
 
         synchronized (ledger) {
+            if (pendingDurableCursorOpens.containsKey(subscriptionName)) {
+                return FutureUtil.failedFuture(
+                        new NotAllowedException("Durable subscription with the same name is being created."));
+            }
             // Create a new non-durable cursor only for the first consumer that connects
             PersistentSubscription subscription = subscriptions.get(subscriptionName);
             CompletableFuture<Void> initPropertiesFuture = CompletableFuture.completedFuture(null);
@@ -1384,7 +1423,20 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                               boolean replicateSubscriptionState,
                                                               Map<String, String> subscriptionProperties) {
         return getDurableSubscription(subscriptionName, initialPosition,
-                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties);
+                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties, false);
+    }
+
+    /**
+     * Creates a durable subscription that doesn't exist yet. Unlike {@link #createSubscription}, which completes with
+     * the existing subscription, it fails with {@link SubscriptionAlreadyExistsException} when the subscription exists,
+     * also when an overlapping call creates it first: only the call that creates the subscription gets it.
+     */
+    public CompletableFuture<Subscription> createNewSubscription(String subscriptionName,
+                                                                 InitialPosition initialPosition,
+                                                                 boolean replicateSubscriptionState,
+                                                                 Map<String, String> subscriptionProperties) {
+        return getDurableSubscription(subscriptionName, initialPosition,
+                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties, true);
     }
 
     /**
@@ -2093,7 +2145,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         return closeFuture;
     }
 
-    private boolean isClosed() {
+    @VisibleForTesting
+    boolean isClosed() {
         if (closeFutures == null) {
             return false;
         }
@@ -2146,17 +2199,22 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         }).exceptionally(th -> {
             log.error()
                     .exceptionMessage(th)
-                    .attr("POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS", POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS)
+                    .attr("POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS", getPolicyUpdateFailureRetryDelaySeconds())
                     .log("Policies update failed, scheduled retry in seconds");
             if (!(th.getCause() instanceof TopicFencedException)) {
                 // retriable exception
                 brokerService.executor().schedule(this::checkReplicationAndRetryOnFailure,
-                        POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS, SECONDS);
+                        getPolicyUpdateFailureRetryDelaySeconds(), SECONDS);
             }
             result.completeExceptionally(th);
             return null;
         });
         return result;
+    }
+
+    @VisibleForTesting
+    long getPolicyUpdateFailureRetryDelaySeconds() {
+        return POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS;
     }
 
     public CompletableFuture<Void> checkDeduplicationStatus() {
@@ -5359,10 +5417,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                 addFailed(ManagedLedgerException.getManagedLedgerException(t), publishContext);
                                 return null;
                             }
-                            publishContext.completed(null, position.getLedgerId(),
-                                    position.getEntryId());
-
-                            decrementPendingWriteOpsAndCheck();
+                            try {
+                                publishContext.completed(null, position.getLedgerId(),
+                                        position.getEntryId());
+                            } finally {
+                                decrementPendingWriteOpsAndCheck();
+                            }
                             return null;
                         })
                         .exceptionally(throwable -> {
