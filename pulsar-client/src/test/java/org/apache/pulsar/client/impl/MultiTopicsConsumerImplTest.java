@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -50,6 +51,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -284,6 +286,47 @@ public class MultiTopicsConsumerImplTest {
         // The redelivery discarded the messages, so each must give its permit back to the consumer that received it
         assertEquals(listenedMessages.get(), 0);
         verify(partitionConsumer, times(numMessages)).increaseAvailablePermits(any(MessageImpl.class));
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testSkippedSeekGivesBackPermitsOfMessagesQueuedForListenerOnce() throws Exception {
+        String topic = "persistent://public/default/topic-partition-0";
+        int receiverQueueSize = 1;
+        AtomicInteger listenedMessages = new AtomicInteger();
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setMessageListenerExecutor((message, runnable) -> runnable.run());
+        conf.setMessageListener((consumer, message) -> listenedMessages.incrementAndGet());
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ClientCnx cnx = mock(ClientCnx.class);
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.cnx()).thenReturn(cnx);
+        ConsumerImpl<byte[]> partitionConsumer = mock(ConsumerImpl.class);
+        when(partitionConsumer.getConnectionHandler()).thenReturn(connectionHandler);
+        when(partitionConsumer.getCurrentReceiverQueueSize()).thenReturn(receiverQueueSize);
+        when(partitionConsumer.batchReceiveAsync()).thenReturn(new CompletableFuture<>());
+        // The seek function skips the partition, so its consumer neither seeks nor reconnects
+        when(partitionConsumer.seekAsync(any(Function.class))).thenReturn(CompletableFuture.completedFuture(null));
+        impl.consumers.put(topic, partitionConsumer);
+
+        impl.internalPinnedExecutor.submit(() -> {
+            // Queue a message for the listener, as receiving it from the partition consumer does
+            MessageImpl<byte[]> message = MessageImpl.create(topic, new MessageIdImpl(1, 0, 0),
+                    new MessageMetadata(), Unpooled.wrappedBuffer(new byte[1]), Optional.empty(), null,
+                    Schema.BYTES, 0, false, 0);
+            impl.enqueueMessageAndCheckBatchReceive(new TopicMessageImpl<>(topic, message, partitionConsumer));
+        }).get();
+        impl.seekAsync(topicName -> null).get();
+        // The receive task that the seek started runs on the pinned executor before this task
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+
+        // The seek discarded the message and refilled the receiver queue of the partition consumer, which kept its
+        // connection: the refill covers the message's permit, so giving it back too would credit the window twice
+        assertEquals(listenedMessages.get(), 0);
+        verify(partitionConsumer, never()).increaseAvailablePermits(any(MessageImpl.class));
+        verify(partitionConsumer).increaseAvailablePermits(cnx, receiverQueueSize);
     }
 
     @Test
