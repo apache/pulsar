@@ -1185,7 +1185,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                 .exception(ex)
                                 .log("Failed to close topics under bundle");
                         if (!disconnectClients) {
-                            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
+                            // The failed transfer leaves the bundle owned by this broker, so a topic whose close
+                            // failed keeps serving its clients until a later close of the bundle closes it.
+                            pulsar.getBrokerService().cleanFencedTopicsFromCache(bundle, topicFutures);
                         }
                     } else {
                         log.info().attr("bundle", bundle).attr("topicCount", unloadedTopics)
