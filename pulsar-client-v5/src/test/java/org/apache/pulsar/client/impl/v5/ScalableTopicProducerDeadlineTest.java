@@ -41,10 +41,12 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.v5.MessageId;
+import org.apache.pulsar.client.api.v5.PulsarClientException;
 import org.apache.pulsar.client.api.v5.PulsarClientException.AlreadyClosedException;
 import org.apache.pulsar.client.api.v5.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -56,22 +58,29 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.api.proto.ScalableTopicDAG;
 import org.apache.pulsar.common.api.proto.SegmentState;
 import org.apache.pulsar.common.naming.TopicName;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /** Payload cleanup when exclusive producer creation stays pending after the logical send ends. */
 public class ScalableTopicProducerDeadlineTest {
 
-    @Test
-    public void timeoutClearsTheQueuedPayloadWithoutCancellingSharedProducerCreation() throws Exception {
+    @DataProvider(name = "sendModes")
+    public Object[][] sendModes() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "sendModes")
+    public void timeoutClearsTheQueuedPayloadWithoutCancellingSharedProducerCreation(boolean synchronous)
+            throws Exception {
         try (var harness = new Harness()) {
-            var send = harness.send();
+            var send = harness.send(synchronous);
             assertThat(harness.queued).hasSize(1);
             assertThat(harness.queued.get(0).get()).isNotNull();
             assertThat(harness.producer.queuedDispatchCount()).isEqualTo(1);
             assertThat(harness.memory.currentUsage()).isGreaterThan(ScalableTopicProducer.PER_MESSAGE_OVERHEAD_BYTES);
 
             harness.tasks.get(0).run(harness.timeouts.get(0));
-            assertThat(send).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+            assertThat(send).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
                     .isInstanceOf(TimeoutException.class);
             assertThat(harness.queued.get(0).get()).isNull();
             assertThat(harness.producer.queuedDispatchCount()).isZero();
@@ -88,15 +97,15 @@ public class ScalableTopicProducerDeadlineTest {
         }
     }
 
-    @Test
-    public void closeClearsQueuedPayloadsAndLeavesSharedProducerCreationPending() {
+    @Test(dataProvider = "sendModes")
+    public void closeClearsQueuedPayloadsAndLeavesSharedProducerCreationPending(boolean synchronous) throws Exception {
         try (var harness = new Harness()) {
-            var first = harness.send();
+            var first = harness.send(synchronous);
             var second = harness.send();
             assertThat(harness.queued).hasSize(2).allSatisfy(ref -> assertThat(ref.get()).isNotNull());
 
             assertThat(harness.producer.closeAsync()).isCompleted();
-            assertThat(first).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+            assertThat(first).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
                     .isInstanceOf(AlreadyClosedException.class);
             assertThat(second).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
                     .isInstanceOf(AlreadyClosedException.class);
@@ -110,6 +119,25 @@ public class ScalableTopicProducerDeadlineTest {
 
             var segment = harness.completeCreation();
             verify(segment, never()).newMessage();
+        }
+    }
+
+    @Test
+    public void interruptingASynchronousSendRemovesItsWaiterBeforeProducerCreationFinishes() throws Exception {
+        try (var harness = new Harness()) {
+            var send = harness.send(true);
+            assertThat(harness.producer.queuedDispatchCount()).isEqualTo(1);
+            harness.callingThread.get().interrupt();
+            assertThat(send).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                    .isInstanceOf(PulsarClientException.class);
+            assertThat(harness.interruptedAtReturn).isTrue();
+            assertThat(harness.producer.queuedDispatchCount()).isZero();
+            assertThat(harness.queued).allSatisfy(ref -> assertThat(ref.get()).isNull());
+            assertThat(harness.memory.currentUsage()).isZero();
+            assertThat(harness.creation).isNotDone();
+            Producer<byte[]> createdAfterInterruption = harness.completeCreation();
+            verify(createdAfterInterruption, never()).newMessage();
+            assertThat(harness.producer.inFlightSendCount()).isZero();
         }
     }
 
@@ -227,6 +255,10 @@ public class ScalableTopicProducerDeadlineTest {
         final List<Timeout> timeouts = new ArrayList<>();
         final ExecutorService dispatch = MoreExecutors.newDirectExecutorService();
         final ExecutorService completion = MoreExecutors.newDirectExecutorService();
+        final ExecutorService caller = Executors.newSingleThreadExecutor(new DefaultThreadFactory("deadline-sync"));
+        final CountDownLatch creationRequested = new CountDownLatch(1);
+        final AtomicReference<Thread> callingThread = new AtomicReference<>();
+        final AtomicBoolean interruptedAtReturn = new AtomicBoolean();
         final ScalableTopicProducer<byte[]> producer;
         final PulsarClientImpl v4;
 
@@ -244,7 +276,10 @@ public class ScalableTopicProducerDeadlineTest {
             ExecutorProvider external = mock(ExecutorProvider.class);
             when(external.getExecutor()).thenReturn(completion);
             when(v4.externalExecutorProvider()).thenReturn(external);
-            doAnswer(__ -> creation).when(v4).createSegmentProducerAsync(any(), any());
+            doAnswer(__ -> {
+                creationRequested.countDown();
+                return creation;
+            }).when(v4).createSegmentProducerAsync(any(), any());
             Timer timer = mock(Timer.class);
             when(v4.timer()).thenReturn(timer);
             when(timer.newTimeout(any(), anyLong(), any())).thenAnswer(invocation -> {
@@ -275,6 +310,27 @@ public class ScalableTopicProducerDeadlineTest {
                     null, null, null, null, null, null, null);
         }
 
+        CompletableFuture<MessageId> send(boolean synchronous) throws InterruptedException {
+            if (!synchronous) {
+                return send();
+            }
+            CompletableFuture<MessageId> result = new CompletableFuture<>();
+            caller.execute(() -> {
+                callingThread.set(Thread.currentThread());
+                try {
+                    MessageId id = producer.sendInternal("key", new byte[128 * 1024],
+                            null, null, null, null, null, null, null);
+                    interruptedAtReturn.set(Thread.currentThread().isInterrupted());
+                    result.complete(id);
+                } catch (Throwable failure) {
+                    interruptedAtReturn.set(Thread.currentThread().isInterrupted());
+                    result.completeExceptionally(failure);
+                }
+            });
+            assertThat(creationRequested.await(10, TimeUnit.SECONDS)).isTrue();
+            return result;
+        }
+
         @SuppressWarnings("unchecked")
         Producer<byte[]> completeCreation() {
             Producer<byte[]> segment = mock(Producer.class);
@@ -286,6 +342,7 @@ public class ScalableTopicProducerDeadlineTest {
         @Override
         public void close() {
             producer.closeAsync().join();
+            caller.shutdownNow();
             dispatch.shutdownNow();
             completion.shutdownNow();
         }

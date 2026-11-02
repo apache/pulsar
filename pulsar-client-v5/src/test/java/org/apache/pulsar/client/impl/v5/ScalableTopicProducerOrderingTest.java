@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -192,26 +191,29 @@ public class ScalableTopicProducerOrderingTest {
     }
 
     @Test
-    public void waitsForTheConfiguredTimeoutWhenTheLayoutTakesLongerThanTheOldRetryBudget() {
+    public void retirementRetriesStayBoundedWhenTheConfiguredSendTimeoutIsLonger() {
         create(L0, 120_000);
         var a1 = send(KEY_A, "a1");
-        complete(0, new TopicTerminatedException("sealed"));
-        var a2 = send(KEY_A, "a2");
+        var terminated = new TopicTerminatedException("sealed");
+        complete(0, terminated);
 
-        // The old retirement checks gave up after about four seconds, although the application
-        // configured two minutes. Use only existing hooks so this test also runs on that baseline.
-        await().pollDelay(4500, TimeUnit.MILLISECONDS).atMost(6, TimeUnit.SECONDS).untilAsserted(() -> {
+        // A send timeout is an additional bound, not permission to retry indefinitely. Drive the
+        // original retirement checks explicitly; no scheduler timing is needed for this contract.
+        for (int check = 1; check < 10; check++) {
+            producer.checkRetirement(0, check);
+            dispatchExecutor.runAll();
             assertThat(a1).isNotDone();
-            assertThat(a2).isNotDone();
-            assertThat(producer.waitingSendCount()).isEqualTo(2);
-        });
-        var a3 = send(KEY_A, "a3");
+            assertThat(producer.waitingSendCount()).isEqualTo(1);
+        }
+        producer.checkRetirement(0, 10);
+        dispatchExecutor.runAll();
+        assertThat(a1).isCompletedExceptionally();
+        assertThat(producer.waitingSendCount()).isZero();
+        assertThat(sendTimeouts).hasSize(1).allMatch(TestTimeout::isCancelled);
+
+        // A layout arriving after exhaustion must not send the failed message again.
         applyLayout(L1, L0);
-        assertThat(values(1)).containsExactly("a1", "a2", "a3");
-        complete(1, null);
-        assertThat(segmentOf(a1)).isEqualTo(1);
-        assertThat(segmentOf(a2)).isEqualTo(1);
-        assertThat(segmentOf(a3)).isEqualTo(1);
+        assertThat(values(1)).isEmpty();
         assertThat(memory.currentUsage()).isZero();
     }
 

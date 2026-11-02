@@ -161,7 +161,7 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
             Awaitility.await().until(() -> sends.segmentsAcked.contains(segmentId));
             // Terminate the segment topic underneath the layout: the state a split leaves the
             // producer in until the DAG watch delivers the new layout, held here until the sends'
-            // send timeout expires. Terminated while quiet, so that no write fails on the closing
+            // retry budget or deadline expires. Terminated while quiet, so no write fails on the closing
             // ledger and fences the topic instead; then the sends flow again, and on past the first
             // failure.
             sends.pause.set(true);
@@ -176,7 +176,7 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
         }
         allSettled(sends).get(60, TimeUnit.SECONDS);
 
-        // Sends that found the segment gone timed out on their one producer: none created another.
+        // Sends that found the segment gone failed on their one producer: none created another.
         assertEquals(producer.segmentProducersCreated.get(), 1);
     }
 
