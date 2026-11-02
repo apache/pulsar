@@ -109,7 +109,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final ConsumerConfigurationData<T> internalConfig;
 
     private final MessageIdAdv startMessageId;
-    private volatile boolean duringSeek = false;
+    // The topics whose consumer is seeking: receiving from it pauses, and the messages it hands over are dropped
+    private final Set<String> seekingTopics = ConcurrentHashMap.newKeySet();
     private final long startMessageRollbackDurationInSec;
     private final ConsumerInterceptors<T> internalConsumerInterceptors;
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
@@ -264,8 +265,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
-        if (duringSeek) {
+    @VisibleForTesting
+    void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
+        if (seekingTopics.contains(consumer.getTopic())) {
             log.info().attr("topic", consumer.getTopic())
                     .log("Pause receiving messages for topic due to seek");
             return;
@@ -285,7 +287,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
-                final boolean skipDueToSeek = duringSeek;
+                final boolean skipDueToSeek = seekingTopics.contains(consumer.getTopic());
                 MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
                 ClientCnx cnx = msgImpl.getCnx();
                 boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
@@ -825,7 +827,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public CompletableFuture<Void> seekAsync(Function<String, Object> function) {
-        return seekAllAsync(consumer -> consumer.seekAsync(function));
+        if (function == null) {
+            return FutureUtil.failedFuture(new PulsarClientException("Function must be set"));
+        }
+        // A consumer seeks only if the function gives a position for its topic, see ConsumerImpl#seekAsync(Function).
+        // Apply the function here, once per topic, to know which consumers seek.
+        Map<ConsumerImpl<T>, Object> positions = new HashMap<>();
+        consumers.values().forEach(consumer -> {
+            Object position = function.apply(consumer.getTopic());
+            if (position != null) {
+                positions.put(consumer, position);
+            }
+        });
+        return seekAsyncInternal(positions.keySet(), consumer -> consumer.seekAsync(topic -> positions.get(consumer)));
     }
 
     @Override
@@ -864,30 +878,51 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         return seekAllAsync(consumer -> consumer.seekAsync(timestamp));
     }
 
-    private CompletableFuture<Void> seekAsyncInternal(Collection<ConsumerImpl<T>> consumers,
+    private CompletableFuture<Void> seekAsyncInternal(Set<ConsumerImpl<T>> consumers,
                                                       Function<ConsumerImpl<T>, CompletableFuture<Void>> seekFunc) {
-        beforeSeek();
+        beforeSeek(consumers);
         final CompletableFuture<Void> future = new CompletableFuture<>();
         FutureUtil.waitForAll(consumers.stream().map(seekFunc).collect(Collectors.toList()))
-                .whenComplete((__, e) -> afterSeek(future, e));
+                .whenComplete((__, e) -> afterSeek(consumers, future, e));
         return future;
     }
 
     private CompletableFuture<Void> seekAllAsync(Function<ConsumerImpl<T>, CompletableFuture<Void>> seekFunc) {
-        return seekAsyncInternal(consumers.values(), seekFunc);
+        return seekAsyncInternal(new HashSet<>(consumers.values()), seekFunc);
     }
 
-    private void beforeSeek() {
-        duringSeek = true;
-        unAckedMessageTracker.clear();
-        clearIncomingMessages();
+    // A seek invalidates only the queued and unacknowledged messages of the consumers that seek. The others keep their
+    // connection, so the broker would not deliver their messages again if they were dropped here.
+    private void beforeSeek(Set<ConsumerImpl<T>> soughtConsumers) {
+        Set<String> soughtTopics = soughtConsumers.stream().map(ConsumerImpl::getTopic).collect(Collectors.toSet());
+        seekingTopics.addAll(soughtTopics);
+        Predicate<TopicMessageId> sought = messageId -> soughtTopics.contains(messageId.getOwnerTopic());
+        removeTopicMessagesFromUnackedTracker(sought);
+        List<Message<T>> discarded = new ArrayList<>();
+        incomingMessages.removeIf(message -> {
+            if (sought.test((TopicMessageId) message.getMessageId())) {
+                discarded.add(message);
+                return true;
+            }
+            return false;
+        });
+        discarded.forEach(this::discardIncomingMessage);
+        // afterSeek() resumes receiving from the consumers that seek. The others may resume now, if dropping the
+        // messages made room for them.
+        pausedConsumers.removeAll(soughtConsumers);
+        resumeReceivingFromPausedConsumersIfNeeded();
     }
 
-    private void afterSeek(CompletableFuture<Void> seekFuture, @Nullable Throwable throwable) {
-        duringSeek = false;
-        log.info().attr("keySet", consumers.keySet())
+    private void afterSeek(Set<ConsumerImpl<T>> soughtConsumers, CompletableFuture<Void> seekFuture,
+                           @Nullable Throwable throwable) {
+        List<String> soughtTopics = soughtConsumers.stream().map(ConsumerImpl::getTopic).collect(Collectors.toList());
+        seekingTopics.removeAll(soughtTopics);
+        log.info().attr("topics", soughtTopics)
                 .log("Resume receiving messages for since seek is done");
-        startReceivingMessages(new ArrayList<>(consumers.values()), true);
+        // Refill only the consumers that sought, whose seek dropped their queued messages without giving back their
+        // permits. A seek disconnects a consumer of a persistent topic, whose reconnection resets its permits, but not
+        // one of a non-persistent topic.
+        startReceivingMessages(new ArrayList<>(soughtConsumers), true);
         if (throwable == null) {
             seekFuture.complete(null);
         } else {
@@ -1003,10 +1038,14 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     protected void removeTopicMessagesFromUnackedTracker(String topicName) {
+        removeTopicMessagesFromUnackedTracker(messageId -> messageId.hasSameBasePartitionedTopic(topicName));
+    }
+
+    private void removeTopicMessagesFromUnackedTracker(Predicate<TopicMessageId> filter) {
         if (unAckedMessageTracker instanceof UnAckedTopicMessageTracker tracker) {
-            tracker.removeTopicMessages(topicName);
+            tracker.removeTopicMessages(filter);
         } else if (unAckedMessageTracker instanceof UnAckedTopicMessageRedeliveryTracker tracker) {
-            tracker.removeTopicMessages(topicName);
+            tracker.removeTopicMessages(filter);
         }
     }
 
