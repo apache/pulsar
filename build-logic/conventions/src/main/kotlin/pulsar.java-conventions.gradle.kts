@@ -419,12 +419,16 @@ if (testShardCount > 0) {
         }
     } else {
         // FailFastNotifier creates this file when a test fails and, with testFailFast, skips the remaining
-        // tests while it exists, so that a failure stops the other shards too.
+        // tests while it exists, so that a failure stops the other shards too. The shards share it, so it is
+        // neither an output nor local state of theirs: Gradle doesn't run tasks whose outputs or local state
+        // overlap at the same time.
         val failFastFile = layout.buildDirectory.file("test-shards/fail-fast")
         val resetFailFast = tasks.register<Delete>("testShardsResetFailFast") {
             delete(failFastFile)
         }
         val testSourceSet = project.the<SourceSetContainer>()["test"]
+        // The `withType<Test>` blocks, in this plugin and in the modules, configure the shards like `test`, with
+        // the same system properties, JVM arguments, TestNG options and task dependencies.
         val shards = (0 until shardCount).map { shard ->
             tasks.register<Test>("testShard${shard + 1}") {
                 description = "Runs shard ${shard + 1} of $shardCount of the tests, in one fork."
