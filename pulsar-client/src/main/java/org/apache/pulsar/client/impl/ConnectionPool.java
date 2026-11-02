@@ -24,10 +24,15 @@ import com.google.common.annotations.VisibleForTesting;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.group.ChannelGroup;
+import io.netty.channel.group.DefaultChannelGroup;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.resolver.AddressResolver;
 import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GlobalEventExecutor;
 import io.netty.util.concurrent.ScheduledFuture;
 import io.opentelemetry.api.common.Attributes;
 import java.net.InetSocketAddress;
@@ -71,6 +76,11 @@ public class ConnectionPool implements AutoCloseable {
     public static final int IDLE_DETECTION_INTERVAL_SECONDS_MIN = 15;
 
     protected final ConcurrentMap<Key, CompletableFuture<ClientCnx>> pool;
+
+    // Every channel the pool has opened, including connections still being established or in the Pulsar handshake,
+    // which the pool only holds as pending futures. Closed channels leave the group, and a channel added after close()
+    // is closed right away.
+    private final ChannelGroup channels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE, true);
 
     private final Bootstrap bootstrap;
     private final PulsarChannelInitializer channelInitializerHandler;
@@ -150,7 +160,16 @@ public class ConnectionPool implements AutoCloseable {
         try {
             channelInitializerHandler = new PulsarChannelInitializer(conf, clientCnxSupplier,
                     scheduledExecutorService);
-            bootstrap.handler(channelInitializerHandler);
+            bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+                @Override
+                protected void initChannel(SocketChannel ch) {
+                    ch.pipeline().addLast(channelInitializerHandler);
+                    // Added on the channel's event loop as it registers the channel, so that a channel added after
+                    // close() is closed while the loop still runs. The caller of bootstrap.register() can resume
+                    // after the loop has terminated, when the loop would reject the close.
+                    channels.add(ch);
+                }
+            });
         } catch (Exception e) {
             log.error("Failed to create channel initializer");
             throw new PulsarClientException(e);
@@ -488,6 +507,8 @@ public class ConnectionPool implements AutoCloseable {
     @Override
     public void close() throws Exception {
         closeAllConnections();
+        // Also closes the connections that closeAllConnections() can only close once they are established
+        channels.close();
         if (shouldCloseDnsResolver) {
             addressResolver.close();
         }
