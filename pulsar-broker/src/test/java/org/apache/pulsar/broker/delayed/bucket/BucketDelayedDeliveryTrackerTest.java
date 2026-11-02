@@ -48,6 +48,8 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -61,6 +63,7 @@ import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.apache.commons.lang3.mutable.MutableLong;
 import org.apache.pulsar.broker.delayed.AbstractDeliveryTrackerTest;
+import org.apache.pulsar.broker.delayed.DispatcherDelayedDeliveryContext;
 import org.apache.pulsar.broker.delayed.MockBucketSnapshotStorage;
 import org.apache.pulsar.broker.delayed.MockManagedCursor;
 import org.apache.pulsar.broker.delayed.proto.SnapshotMetadata;
@@ -570,6 +573,76 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
       tracker.close();
     }
 
+    @Test
+    public void testSkipRecoveryWhileSnapshotReadIsPending() throws Exception {
+        GatedRecoveryLengthStorage storage = new GatedRecoveryLengthStorage();
+        ScheduledExecutorService timeoutExecutor = Executors.newSingleThreadScheduledExecutor();
+        storage.start();
+        try {
+            ManagedCursor cursor = new MockManagedCursor("skip-recovery-cursor");
+            AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                    mock(AbstractPersistentDispatcherMultipleConsumers.class);
+            doReturn(cursor).when(testDispatcher).getCursor();
+            doReturn("skip-recovery / " + cursor.getName()).when(testDispatcher).getName();
+            Clock testClock = mock(Clock.class);
+            when(testClock.millis()).thenReturn(0L);
+            Timer testTimer = mock(Timer.class);
+            try (BucketDelayedDeliveryTracker producer = new BucketDelayedDeliveryTracker(
+                    testDispatcher, testTimer, 100000, testClock, true, storage, 5, 10, -1, 50)) {
+                for (int i = 1; i <= 6; i++) {
+                    assertThat(producer.addMessage(i, i, i * 100)).isTrue();
+                }
+                Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
+                    assertThat(cursor.getCursorProperties()).hasSize(1);
+                    assertThat(producer.getImmutableBuckets().get(1L).getSnapshotCreateFuture().orElseThrow().isDone())
+                            .isTrue();
+                });
+            }
+
+            Map<String, String> properties = Map.copyOf(cursor.getCursorProperties());
+            storage.gateLength = true;
+            try (BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    new DispatcherDelayedDeliveryContext(testDispatcher), testTimer, 100000, testClock,
+                    true, storage, 5, 10, -1, 50, false)) {
+                try {
+                    CompletableFuture<Void> skipRecovery = new CompletableFuture<>();
+                    CompletableFuture<BucketDelayedDeliveryTracker> recovery =
+                            tracker.recoverBucketSnapshotAsync(timeoutExecutor, skipRecovery);
+                    // Metadata and segment reads have finished, but the final storage result is held back.
+                    long snapshotLength = storage.lengthRead.get(10, TimeUnit.SECONDS);
+                    assertThat(snapshotLength).isPositive();
+                    assertThat(recovery).isNotDone();
+                    skipRecovery.complete(null);
+                    assertThat(recovery.get(3, TimeUnit.SECONDS)).isSameAs(tracker);
+                    assertThat(tracker.getImmutableBuckets().asMapOfRanges()).isEmpty();
+                    assertThat(tracker.getNumberOfDelayedMessages()).isZero();
+                    assertThat(tracker.getSharedBucketPriorityQueue().size()).isZero();
+                    assertThat(tracker.containsMessage(1, 1)).isFalse();
+                    assertThat(storage.deleteCalls).as("Recovery must retain snapshots until clear()").hasValue(0);
+                    assertThat(cursor.getCursorProperties()).isEqualTo(properties);
+
+                    // Complete the last read inline so all recovery continuations settle before checking again.
+                    storage.releaseLength.complete(snapshotLength);
+                    assertThat(tracker.getNumberOfDelayedMessages()).isZero();
+                    assertThat(tracker.getSharedBucketPriorityQueue().size()).isZero();
+                    assertThat(tracker.containsMessage(1, 1)).isFalse();
+                    assertThat(storage.deleteCalls).as("Late recovery must not start snapshot cleanup").hasValue(0);
+                    assertThat(cursor.getCursorProperties()).isEqualTo(properties);
+
+                    // The bucket is detached from recovery, but retained for clear() to delete.
+                    tracker.clear().get(3, TimeUnit.SECONDS);
+                    assertThat(storage.deleteCalls).as("clear() must delete the detached snapshot").hasValue(1);
+                    assertThat(cursor.getCursorProperties()).isEmpty();
+                } finally {
+                    storage.releaseLength.complete(0L);
+                }
+            }
+        } finally {
+            timeoutExecutor.shutdownNow();
+            storage.close();
+        }
+    }
+
     private static class TrackerWithStorage {
         final BucketDelayedDeliveryTracker tracker;
         final MockBucketSnapshotStorage storage;
@@ -608,6 +681,29 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         public CompletableFuture<Void> deleteBucketSnapshot(long bucketId) {
             deleteCalls.incrementAndGet();
             return super.deleteBucketSnapshot(bucketId);
+        }
+    }
+
+    private static class GatedRecoveryLengthStorage extends RecordingDeleteStorage {
+        final CompletableFuture<Long> lengthRead = new CompletableFuture<>();
+        final CompletableFuture<Long> releaseLength = new CompletableFuture<>();
+        volatile boolean gateLength;
+
+        @Override
+        public CompletableFuture<Long> getBucketSnapshotLength(long bucketId) {
+            CompletableFuture<Long> read = super.getBucketSnapshotLength(bucketId);
+            if (!gateLength) {
+                return read;
+            }
+            read.whenComplete((length, ex) -> {
+                if (ex == null) {
+                    lengthRead.complete(length);
+                } else {
+                    lengthRead.completeExceptionally(ex);
+                    releaseLength.completeExceptionally(ex);
+                }
+            });
+            return releaseLength;
         }
     }
 

@@ -1746,6 +1746,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
                 return CompletableFuture.completedFuture(null);
             }
             // Register the clear before releasing recovery, so the ready tracker is cleared before reads resume.
+            // A creation failure keeps clears failed until a tracker is installed. Dispatcher retries do not
+            // restart a failed clear: the caller must retry it to delete snapshots retained by skipped recovery.
             clearFuture = delayedDeliveryTrackerCreateFuture == null ? clearDelayedMessages()
                     : delayedDeliveryTrackerCreateFuture
                             .applyToEither(delayedDeliveryTrackerCreateFailureFuture, result -> result)
