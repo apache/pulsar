@@ -537,8 +537,7 @@ public class ProxyConnection extends PulsarHandler {
                     connected.hasFeatureFlags()
                             && connected.getFeatureFlags().isSupportsTcMetadataDiscovery(),
                     connected.hasFeatureFlags()
-                            && connected.getFeatureFlags().isSupportsAutoProduceBytesWithoutSchema(),
-                    connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsConsumerInstanceId());
+                            && connected.getFeatureFlags().isSupportsAutoProduceBytesWithoutSchema());
             writeAndFlush(msg);
             // Start auth refresh task only if we are not forwarding authorization credentials
             if (!service.getConfiguration().isForwardAuthorizationCredentials()) {

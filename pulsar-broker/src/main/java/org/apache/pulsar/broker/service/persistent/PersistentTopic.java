@@ -975,7 +975,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 option.getInitialPosition(), option.getStartMessageRollbackDurationSec(),
                 option.getReplicatedSubscriptionStateArg(), option.getKeySharedMeta(),
                 option.getSubscriptionProperties().orElse(Collections.emptyMap()),
-                option.getConsumerEpoch(), option.getSchemaType());
+                option.getConsumerEpoch(), option.getSchemaType(), option.getConsumerInstanceId());
     }
 
     @SuppressWarnings("deprecation")
@@ -990,7 +990,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                           KeySharedMeta keySharedMeta,
                                                           Map<String, String> subscriptionProperties,
                                                           long consumerEpoch,
-                                                          SchemaType schemaType) {
+                                                          SchemaType schemaType, String consumerInstanceId) {
         if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
             return FutureUtil.failedFuture(new NotAllowedException(
                     "readCompacted only allowed on failover or exclusive subscriptions"));
@@ -1087,7 +1087,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             CompletableFuture<Consumer> future = subscriptionFuture.thenCompose(subscription -> {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel,
                         consumerName, isDurable, cnx, cnx.getAuthRole(), metadata,
-                        readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaType);
+                        readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaType,
+                        consumerInstanceId);
 
                 return addConsumerToSubscription(subscription, consumer).thenCompose(v -> {
                     if (subscription instanceof PersistentSubscription persistentSubscription) {
@@ -1208,7 +1209,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                  KeySharedMeta keySharedMeta) {
         return internalSubscribe(cnx, subscriptionName, consumerId, subType, priorityLevel, consumerName,
                 isDurable, startMessageId, metadata, readCompacted, initialPosition, startMessageRollbackDurationSec,
-                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, null);
+                replicatedSubscriptionStateArg, keySharedMeta, null, DEFAULT_CONSUMER_EPOCH, null, null);
     }
 
     private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName,

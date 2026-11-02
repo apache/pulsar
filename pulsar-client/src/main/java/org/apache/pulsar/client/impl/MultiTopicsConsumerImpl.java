@@ -75,7 +75,6 @@ import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
-import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.CompletableFutureCancellationHandler;
 import org.apache.pulsar.common.util.ExceptionHandler;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -734,9 +733,6 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             ConsumerConfigurationData<T> internalConsumerConfig) {
         internalConsumerConfig.setSubscriptionName(subscription);
         internalConsumerConfig.setConsumerName(consumerName);
-        if (consumerInstanceId != null) {
-            internalConsumerConfig.getProperties().put(Commands.CONSUMER_INSTANCE_ID, consumerInstanceId);
-        }
         internalConsumerConfig.setMessageListener(null);
         internalConsumerConfig.setDecryptFailListener(null);
         if (internalConsumerConfig.getCryptoFailureAction() == null) {
@@ -1252,7 +1248,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 configurationData, client.externalExecutorProvider(),
                 partitionIndex, true, listener != null, subFuture,
                 startMessageId, schema, this.internalConsumerInterceptors,
-                createIfDoesNotExist, startMessageRollbackDurationInSec);
+                createIfDoesNotExist, startMessageRollbackDurationInSec, consumerInstanceId);
     }
 
     // The child must already be published. Sharing the parent transition lock ensures that either

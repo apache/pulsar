@@ -137,9 +137,7 @@ public class Commands {
     // so client don't need to think about consumerEpoch feature
     public static final long DEFAULT_CONSUMER_EPOCH = -1L;
 
-    // Internal subscribe metadata shared by the partition consumers of one logical Failover consumer.
-    public static final String CONSUMER_INSTANCE_ID = "__pulsar_consumer_instance_id";
-    // Bound the internal identity separately from application metadata to the length of a UUID.
+    // Bound the optional CommandSubscribe consumer instance identity.
     public static final int MAX_CONSUMER_INSTANCE_ID_LENGTH = 36;
 
     @SuppressWarnings("checkstyle:ConstantName")
@@ -350,15 +348,6 @@ public class Commands {
                                                   boolean supportsTopicWatchers, boolean supportsScalableTopics,
                                                   boolean supportsTcMetadataDiscovery,
                                                   boolean supportsAutoProduceBytesWithoutSchema) {
-        return newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
-                supportsScalableTopics, supportsTcMetadataDiscovery, supportsAutoProduceBytesWithoutSchema, false);
-    }
-
-    public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
-                                                  boolean supportsTopicWatchers, boolean supportsScalableTopics,
-                                                  boolean supportsTcMetadataDiscovery,
-                                                  boolean supportsAutoProduceBytesWithoutSchema,
-                                                  boolean supportsConsumerInstanceId) {
         BaseCommand cmd = localCmd(Type.CONNECTED);
         CommandConnected connected = cmd.setConnected()
                 .setServerVersion("Pulsar Server" + PulsarVersion.getVersion());
@@ -381,7 +370,6 @@ public class Commands {
         connected.setFeatureFlags().setSupportsScalableTopics(supportsScalableTopics);
         connected.setFeatureFlags().setSupportsTcMetadataDiscovery(supportsTcMetadataDiscovery);
         connected.setFeatureFlags().setSupportsAutoProduceBytesWithoutSchema(supportsAutoProduceBytesWithoutSchema);
-        connected.setFeatureFlags().setSupportsConsumerInstanceId(supportsConsumerInstanceId);
         return cmd;
     }
 
@@ -402,14 +390,6 @@ public class Commands {
                                        boolean supportsAutoProduceBytesWithoutSchema) {
         return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
                 supportsScalableTopics, supportsTcMetadataDiscovery, supportsAutoProduceBytesWithoutSchema));
-    }
-
-    public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
-                                       boolean supportsScalableTopics, boolean supportsTcMetadataDiscovery,
-                                       boolean supportsAutoProduceBytesWithoutSchema, boolean supportsConsumerInstanceId) {
-        return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
-                supportsScalableTopics, supportsTcMetadataDiscovery, supportsAutoProduceBytesWithoutSchema,
-                supportsConsumerInstanceId));
     }
 
     public static ByteBuf newAuthChallenge(String authMethod, AuthData brokerData, int clientProtocolVersion) {
@@ -718,6 +698,19 @@ public class Commands {
                InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
                SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
                Map<String, String> subscriptionProperties, long consumerEpoch, boolean entryBucketDispatch) {
+        return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
+                isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
+                startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, keySharedPolicy,
+                subscriptionProperties, consumerEpoch, entryBucketDispatch, null);
+    }
+
+    public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
+               SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
+               Map<String, String> metadata, boolean readCompacted, Boolean isReplicated,
+               InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
+               SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
+               Map<String, String> subscriptionProperties, long consumerEpoch, boolean entryBucketDispatch,
+               String consumerInstanceId) {
         BaseCommand cmd = localCmd(Type.SUBSCRIBE);
         CommandSubscribe subscribe = cmd.setSubscribe()
                 .setTopic(topic)
@@ -732,6 +725,9 @@ public class Commands {
                 .setInitialPosition(subscriptionInitialPosition)
                 .setForceTopicCreation(createTopicIfDoesNotExist)
                 .setConsumerEpoch(consumerEpoch);
+        if (consumerInstanceId != null) {
+            subscribe.setConsumerInstanceId(consumerInstanceId);
+        }
         if (isReplicated != null) {
             subscribe.setReplicateSubscriptionState(isReplicated);
         }

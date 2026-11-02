@@ -1817,7 +1817,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         writeAndFlush(Commands.newConnected(clientProtoVersion, maxMessageSize, enableTopicListWatcher,
                 scalableTopicsEnabled,
                 scalableTopicsEnabled
-                        && service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled(), true, true));
+                        && service.getPulsar().getConfig().isTransactionCoordinatorScalableTopicsEnabled()));
         state = State.Connected;
         service.getPulsarStats().recordConnectionCreateSuccess();
         log.debug()
@@ -2243,6 +2243,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
         final boolean readCompacted = subscribe.hasReadCompacted() && subscribe.isReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
+        final String consumerInstanceId = subscribe.hasConsumerInstanceId() ? subscribe.getConsumerInstanceId() : null;
         final InitialPosition initialPosition = subscribe.getInitialPosition();
         final long startMessageRollbackDurationSec = subscribe.hasStartMessageRollbackDurationSec()
                 ? subscribe.getStartMessageRollbackDurationSec()
@@ -2290,16 +2291,12 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                         .attr("principal", getPrincipal())
                         .log("Subscribing on topic");
                 try {
-                    Map<String, String> applicationMetadata = metadata;
-                    if (subType == SubType.Failover && metadata.containsKey(Commands.CONSUMER_INSTANCE_ID)) {
-                        String instanceId = metadata.get(Commands.CONSUMER_INSTANCE_ID);
-                        checkArgument(instanceId.length() <= Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH,
+                    if (consumerInstanceId != null) {
+                        checkArgument(consumerInstanceId.length() <= Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH,
                                 "Consumer instance ID has a max size of %s characters",
                                 Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH);
-                        applicationMetadata = new HashMap<>(metadata);
-                        applicationMetadata.remove(Commands.CONSUMER_INSTANCE_ID);
                     }
-                    Metadata.validateMetadata(applicationMetadata,
+                    Metadata.validateMetadata(metadata,
                             service.getPulsar().getConfiguration().getMaxConsumerMetadataSize());
                 } catch (IllegalArgumentException iae) {
                     final String msg = iae.getMessage();
@@ -2423,7 +2420,8 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                 .subscriptionName(subscriptionName)
                                                 .consumerId(consumerId).subType(subType)
                                                 .priorityLevel(priorityLevel)
-                                                .consumerName(consumerName).isDurable(isDurable)
+                                                .consumerName(consumerName).consumerInstanceId(consumerInstanceId)
+                                                .isDurable(isDurable)
                                                 .startMessageId(startMessageId).metadata(metadata)
                                                 .readCompacted(readCompacted)
                                                 .initialPosition(initialPosition)

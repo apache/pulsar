@@ -39,6 +39,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -85,6 +86,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
     @Getter
     protected final ConsumerConfigurationData<T> conf;
     protected final String consumerName;
+    private static final AtomicLong LAST_INSTANCE_TIMESTAMP = new AtomicLong();
     protected final String consumerInstanceId;
     protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener<T> listener;
@@ -138,6 +140,13 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
 
     protected final AtomicBoolean scaleReceiverQueueHint = new AtomicBoolean(false);
 
+    static String newConsumerInstanceId() {
+        // Monotonic within this JVM, including consumers created in the same millisecond or after a clock rollback.
+        long timestamp = LAST_INSTANCE_TIMESTAMP.updateAndGet(previous -> Math.max(previous + 1,
+                System.currentTimeMillis()));
+        return String.format("%016x%s", timestamp, UUID.randomUUID().toString().replace("-", "").substring(0, 20));
+    }
+
     protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
                            int receiverQueueSize, ExecutorProvider executorProvider,
                            CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema,
@@ -158,7 +167,7 @@ public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T
                         : conf.getConsumerName();
         if (conf.getSubscriptionType() == SubscriptionType.Failover) {
             this.consumerInstanceId = parentConsumerInstanceId == null
-                    ? UUID.randomUUID().toString() : parentConsumerInstanceId;
+                    ? newConsumerInstanceId() : parentConsumerInstanceId;
         } else {
             this.consumerInstanceId = null;
         }

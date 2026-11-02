@@ -307,17 +307,36 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                ConsumerInterceptors<T> interceptors,
                                                boolean createTopicIfDoesNotExist,
                                                long startMessageRollbackDurationInSec) {
+        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
+                parentConsumerHasListener, subscribeFuture, startMessageId, schema, interceptors,
+                createTopicIfDoesNotExist, startMessageRollbackDurationInSec, null);
+    }
+
+    static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
+                                               String topic,
+                                               ConsumerConfigurationData<T> conf,
+                                               ExecutorProvider executorProvider,
+                                               int partitionIndex,
+                                               boolean hasParentConsumer,
+                                               boolean parentConsumerHasListener,
+                                               CompletableFuture<Consumer<T>> subscribeFuture,
+                                               MessageId startMessageId,
+                                               Schema<T> schema,
+                                               ConsumerInterceptors<T> interceptors,
+                                               boolean createTopicIfDoesNotExist,
+                                               long startMessageRollbackDurationInSec,
+                                               String parentConsumerInstanceId) {
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
                     subscribeFuture,
                     startMessageId, schema, interceptors,
-                    createTopicIfDoesNotExist);
+                    createTopicIfDoesNotExist, parentConsumerInstanceId);
         } else {
             return new ConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
                     parentConsumerHasListener,
                     subscribeFuture, startMessageId,
                     startMessageRollbackDurationInSec /* rollback time in sec to start msgId */,
-                    schema, interceptors, createTopicIfDoesNotExist);
+                    schema, interceptors, createTopicIfDoesNotExist, parentConsumerInstanceId);
         }
     }
 
@@ -328,8 +347,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                            long startMessageRollbackDurationInSec, Schema<T> schema,
                            ConsumerInterceptors<T> interceptors,
                            boolean createTopicIfDoesNotExist) {
+        this(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, parentConsumerHasListener,
+                subscribeFuture, startMessageId, startMessageRollbackDurationInSec, schema, interceptors,
+                createTopicIfDoesNotExist, null);
+    }
+
+    protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+                           ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
+                           boolean parentConsumerHasListener, CompletableFuture<Consumer<T>> subscribeFuture,
+                           MessageId startMessageId,
+                           long startMessageRollbackDurationInSec, Schema<T> schema,
+                           ConsumerInterceptors<T> interceptors,
+                           boolean createTopicIfDoesNotExist, String parentConsumerInstanceId) {
         super(client, topic, conf, conf.getReceiverQueueSize(), executorProvider, subscribeFuture, schema,
-                interceptors, hasParentConsumer ? conf.getProperties().get(Commands.CONSUMER_INSTANCE_ID) : null);
+                interceptors, parentConsumerInstanceId);
         this.consumerId = client.newConsumerId();
         this.log = LOG.with()
                 .attr("topic", topic)
@@ -413,9 +444,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             metadata = Collections.emptyMap();
         } else {
             Map<String, String> consumerMetadata = new HashMap<>(conf.getProperties());
-            if (consumerInstanceId != null) {
-                consumerMetadata.remove(Commands.CONSUMER_INSTANCE_ID);
-            }
             metadata = Collections.unmodifiableMap(consumerMetadata);
         }
 
@@ -1055,23 +1083,17 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 && startMessageId != null
                 && startMessageId.equals(initialStartMessageId)) ? startMessageRollbackDurationInSec : 0;
 
-        Map<String, String> subscribeMetadata = metadata;
-        if (consumerInstanceId != null && cnx.isSupportsConsumerInstanceId()) {
-            subscribeMetadata = new HashMap<>(metadata);
-            subscribeMetadata.put(Commands.CONSUMER_INSTANCE_ID, consumerInstanceId);
-        }
-
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
         final CompletableFuture<Void> future = new CompletableFuture<>();
         synchronized (this) {
             // Use the current epoch to subscribe.
             long subscribeEpoch = CONSUMER_EPOCH.get(this);
             ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(),
-                    priorityLevel, consumerName, isDurable, startMessageIdData, subscribeMetadata, readCompacted,
+                    priorityLevel, consumerName, isDurable, startMessageIdData, metadata, readCompacted,
                     conf.getReplicateSubscriptionState(),
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
-                    conf.getSubscriptionProperties(), subscribeEpoch, conf.isEntryBucketDispatch());
+                    conf.getSubscriptionProperties(), subscribeEpoch, conf.isEntryBucketDispatch(), consumerInstanceId);
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {

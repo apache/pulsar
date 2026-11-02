@@ -293,8 +293,6 @@ public class ClientCnx extends PulsarHandler {
     private boolean supportsTcMetadataDiscovery;
     @Getter
     private boolean supportsAutoProduceBytesWithoutSchema;
-    @Getter
-    private boolean supportsConsumerInstanceId;
 
     /** Idle stat. **/
     @Getter
@@ -652,8 +650,6 @@ public class ClientCnx extends PulsarHandler {
             connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsTcMetadataDiscovery();
         supportsAutoProduceBytesWithoutSchema = connected.hasFeatureFlags()
                 && connected.getFeatureFlags().isSupportsAutoProduceBytesWithoutSchema();
-        supportsConsumerInstanceId =
-            connected.hasFeatureFlags() && connected.getFeatureFlags().isSupportsConsumerInstanceId();
 
         // set remote protocol version to the correct version before we complete the connection future
         setRemoteEndpointProtocolVersion(connected.getProtocolVersion());

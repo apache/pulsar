@@ -24,7 +24,6 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.channel.ChannelHandlerContext;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -143,28 +142,32 @@ public class ClientErrorsTest {
     }
 
     @Test
-    public void testFailoverInstanceMetadataTracksBrokerSupportOnReconnect() throws Exception {
-        Map<String, String> properties = Map.of("k", "x".repeat(1023));
+    public void testFailoverInstanceIdSurvivesLegacyBrokerReconnect() throws Exception {
+        String applicationKey = "__pulsar_consumer_instance_id";
+        Map<String, String> properties = Map.of(applicationKey, "x".repeat(1024 - applicationKey.length()));
         Map<String, Map<String, String>> receivedMetadata = new ConcurrentHashMap<>();
-        AtomicBoolean supportsInstanceId = new AtomicBoolean(true);
+        Map<String, String> instanceIds = new ConcurrentHashMap<>();
+        AtomicBoolean hasFeatureFlags = new AtomicBoolean(true);
         AtomicReference<ChannelHandlerContext> channel = new AtomicReference<>();
         AtomicInteger subscriptions = new AtomicInteger();
         mockBrokerService.setHandleConnect((ctx, connect) -> {
             channel.set(ctx);
-            ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion(), Commands.DEFAULT_MAX_MESSAGE_SIZE,
-                    false, false, false, true, supportsInstanceId.get()));
+            BaseCommand response = new BaseCommand().setType(BaseCommand.Type.CONNECTED);
+            response.setConnected().setServerVersion("legacy").setProtocolVersion(connect.getProtocolVersion());
+            if (hasFeatureFlags.get()) {
+                response.getConnected().setFeatureFlags().setSupportsTopicWatchers(true);
+            }
+            ctx.writeAndFlush(Commands.serializeWithSize(response));
         });
         mockBrokerService.setHandlePartitionLookup((ctx, request) ->
                 ctx.writeAndFlush(Commands.newPartitionMetadataResponse(2, request.getRequestId())));
         mockBrokerService.setHandleSubscribe((ctx, subscribe) -> {
             Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
             receivedMetadata.put(subscribe.getTopic(), metadata);
-            Map<String, String> applicationMetadata = new HashMap<>(metadata);
-            if (supportsInstanceId.get()) {
-                applicationMetadata.remove(Commands.CONSUMER_INSTANCE_ID);
-            }
+            instanceIds.put(subscribe.getTopic(), subscribe.getConsumerInstanceId());
             try {
-                Metadata.validateMetadata(applicationMetadata, 1024);
+                // Legacy brokers ignore the optional identity field and validate the unchanged metadata map.
+                Metadata.validateMetadata(metadata, 1024);
                 ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
                 subscriptions.incrementAndGet();
             } catch (IllegalArgumentException e) {
@@ -177,29 +180,22 @@ public class ClientErrorsTest {
             try (Consumer<byte[]> consumer = client.newConsumer().topic("persistent://prop/ns/failover-reconnect")
                     .subscriptionName("sub1").subscriptionType(SubscriptionType.Failover)
                     .properties(properties).subscribe()) {
-                assertThat(receivedMetadata).hasSize(2);
-                String instanceId = receivedMetadata.values().iterator().next().get(Commands.CONSUMER_INSTANCE_ID);
+                assertThat(instanceIds).hasSize(2);
+                String instanceId = instanceIds.values().iterator().next();
                 assertThat(instanceId).hasSize(Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH);
-                assertThat(receivedMetadata.values()).allSatisfy(metadata ->
-                        assertThat(metadata).containsEntry(Commands.CONSUMER_INSTANCE_ID, instanceId));
-
-                supportsInstanceId.set(false);
-                channel.get().close().sync();
-                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-                    assertThat(subscriptions.get()).isGreaterThanOrEqualTo(4);
-                    assertThat(consumer.isConnected()).isTrue();
-                    assertThat(receivedMetadata.values()).allSatisfy(metadata ->
-                            assertThat(metadata).isEqualTo(properties));
-                });
-
-                supportsInstanceId.set(true);
-                channel.get().close().sync();
-                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
-                    assertThat(subscriptions.get()).isGreaterThanOrEqualTo(6);
-                    assertThat(consumer.isConnected()).isTrue();
-                    assertThat(receivedMetadata.values()).allSatisfy(metadata ->
-                            assertThat(metadata).containsEntry(Commands.CONSUMER_INSTANCE_ID, instanceId));
-                });
+                assertThat(instanceIds.values()).containsOnly(instanceId);
+                for (int phase = 0; phase < 2; phase++) {
+                    hasFeatureFlags.set(phase != 0);
+                    channel.get().close().sync();
+                    int expectedSubscriptions = (phase + 2) * 2;
+                    Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                        assertThat(subscriptions.get()).isGreaterThanOrEqualTo(expectedSubscriptions);
+                        assertThat(consumer.isConnected()).isTrue();
+                        assertThat(instanceIds.values()).containsOnly(instanceId);
+                        assertThat(receivedMetadata.values()).allSatisfy(metadata ->
+                                assertThat(metadata).isEqualTo(properties));
+                    });
+                }
             }
         } finally {
             mockBrokerService.resetHandleConnect();

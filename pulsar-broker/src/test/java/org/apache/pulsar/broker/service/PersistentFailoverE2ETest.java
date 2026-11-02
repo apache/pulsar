@@ -588,7 +588,9 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         int originalLimit = conf.getMaxConsumerMetadataSize();
         String topicName = BrokerTestUtil.newUniqueName("persistent://prop/ns-abc/failover-metadata-budget");
         String subName = "sub1";
-        Map<String, String> properties = applicationSize == 0 ? Map.of() : Map.of("k", "x".repeat(applicationSize - 1));
+        String applicationKey = "__pulsar_consumer_instance_id";
+        Map<String, String> properties = applicationSize == 0 ? Map.of()
+                : Map.of(applicationKey, "x".repeat(applicationSize - applicationKey.length()));
         admin.topics().createPartitionedTopic(topicName, 2);
         conf.setMaxConsumerMetadataSize(limit);
         try {
@@ -609,6 +611,38 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
             }
         } finally {
             conf.setMaxConsumerMetadataSize(originalLimit);
+            admin.topics().deletePartitionedTopic(topicName, true);
+        }
+    }
+
+    @DataProvider(name = "failoverTopicDomains")
+    public Object[][] failoverTopicDomains() {
+        return new Object[][]{{"persistent"}, {"non-persistent"}};
+    }
+
+    @Test(dataProvider = "failoverTopicDomains")
+    public void testSameNameJoinerKeepsEarlierConsumerActive(String domain) throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName(domain + "://prop/ns-abc/failover-creation-order");
+        String subName = "sub1";
+        admin.topics().createPartitionedTopic(topicName, 1);
+        ConsumerBuilder<byte[]> builder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Failover).consumerName("worker");
+        try (Consumer<byte[]> first = builder.subscribe()) {
+            var dispatcher = failoverDispatcher(topicName, subName, 0);
+            var incumbent = dispatcher.getActiveConsumer();
+            assertThat(incumbent.consumerInstanceId()).matches("[0-9a-f]{36}");
+            try (Consumer<byte[]> second = builder.subscribe()) {
+                assertThat(first.isConnected()).isTrue();
+                assertThat(second.isConnected()).isTrue();
+                synchronized (dispatcher) {
+                    assertThat(dispatcher.getConsumers()).hasSize(2);
+                    assertThat(dispatcher.getActiveConsumer()).isSameAs(incumbent);
+                    assertThat(dispatcher.getConsumers().get(0)).isSameAs(incumbent);
+                    assertThat(dispatcher.getConsumers().get(1).consumerInstanceId())
+                            .isGreaterThan(incumbent.consumerInstanceId());
+                }
+            }
+        } finally {
             admin.topics().deletePartitionedTopic(topicName, true);
         }
     }

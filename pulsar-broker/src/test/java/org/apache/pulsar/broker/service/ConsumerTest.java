@@ -43,7 +43,6 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.KeySharedMeta;
 import org.apache.pulsar.common.policies.data.HierarchyTopicPolicies;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
-import org.apache.pulsar.common.protocol.Commands;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -237,23 +236,20 @@ public class ConsumerTest {
     }
 
     @Test
-    public void testConsumerInstanceMetadataIsInternalOnlyForFailover() {
+    public void testConsumerInstanceIdDoesNotChangeApplicationMetadata() {
+        Map<String, String> metadata = Map.of("application", "value",
+                "__pulsar_consumer_instance_id", "an application property longer than an internal identity");
         for (SubType type : SubType.values()) {
             for (boolean includeInstanceId : new boolean[]{false, true}) {
-                Map<String, String> metadata = includeInstanceId
-                        ? Map.of("application", "value", Commands.CONSUMER_INSTANCE_ID, "instance")
-                        : Map.of("application", "value");
-                Consumer receiver = new Consumer(subscription, type, "topic", 2, 0, "worker", true, cnx,
-                        "role", metadata, false, null, latest, DEFAULT_CONSUMER_EPOCH);
-                if (type == SubType.Failover && includeInstanceId) {
-                    assertThat(receiver.consumerInstanceId()).isEqualTo("instance");
-                    assertThat(receiver.getMetadata()).isEqualTo(Map.of("application", "value"));
-                } else {
-                    assertThat(receiver.consumerInstanceId()).isNull();
-                    assertThat(receiver.getMetadata()).isEqualTo(metadata);
-                }
-                assertThat(receiver.getStats().getMetadata()).isEqualTo(receiver.getMetadata());
-                assertThat(metadata).hasSize(includeInstanceId ? 2 : 1);
+                Consumer receiver = includeInstanceId
+                        ? new Consumer(subscription, type, "topic", 2, 0, "worker", true, cnx,
+                                "role", metadata, false, null, latest, DEFAULT_CONSUMER_EPOCH, null, "instance")
+                        : new Consumer(subscription, type, "topic", 2, 0, "worker", true, cnx,
+                                "role", metadata, false, null, latest, DEFAULT_CONSUMER_EPOCH);
+                assertThat(receiver.consumerInstanceId())
+                        .isEqualTo(type == SubType.Failover && includeInstanceId ? "instance" : null);
+                assertThat(receiver.getMetadata()).isEqualTo(metadata);
+                assertThat(receiver.getStats().getMetadata()).isEqualTo(metadata);
             }
         }
     }

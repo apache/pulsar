@@ -31,7 +31,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -442,25 +441,24 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     public void testFailoverInstanceMetadataThroughProxy(int mode) throws Exception {
         MockBrokerService broker = new MockBrokerService();
         String originalBrokerUrl = proxyConfig.getBrokerServiceURL();
-        Map<String, String> properties = Map.of("k", "x".repeat(1023));
+        String applicationKey = "__pulsar_consumer_instance_id";
+        Map<String, String> properties = Map.of(applicationKey, "x".repeat(1024 - applicationKey.length()));
         AtomicReference<Map<String, String>> receivedMetadata = new AtomicReference<>();
+        AtomicReference<String> receivedInstanceId = new AtomicReference<>();
         broker.setHandleConnect((ctx, connect) -> {
             BaseCommand response = new BaseCommand().setType(BaseCommand.Type.CONNECTED);
             response.setConnected().setServerVersion("test").setProtocolVersion(connect.getProtocolVersion());
             if (mode > 0) {
-                response.getConnected().setFeatureFlags().setSupportsConsumerInstanceId(mode == 2);
+                response.getConnected().setFeatureFlags().setSupportsAutoProduceBytesWithoutSchema(mode == 2);
             }
             ctx.writeAndFlush(Commands.serializeWithSize(response));
         });
         broker.setHandleSubscribe((ctx, subscribe) -> {
             Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
             receivedMetadata.set(metadata);
-            Map<String, String> applicationMetadata = new HashMap<>(metadata);
-            if (mode == 2) {
-                applicationMetadata.remove(Commands.CONSUMER_INSTANCE_ID);
-            }
+            receivedInstanceId.set(subscribe.getConsumerInstanceId());
             try {
-                Metadata.validateMetadata(applicationMetadata, 1024);
+                Metadata.validateMetadata(metadata, 1024);
                 ctx.writeAndFlush(Commands.newSuccess(subscribe.getRequestId()));
             } catch (IllegalArgumentException e) {
                 ctx.writeAndFlush(Commands.newError(subscribe.getRequestId(), ServerError.MetadataError,
@@ -475,12 +473,8 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
                     .subscriptionName("sub1").subscriptionType(SubscriptionType.Failover)
                     .properties(properties).subscribe()) {
                 assertThat(consumer.isConnected()).isTrue();
-                Map<String, String> metadata = new HashMap<>(receivedMetadata.get());
-                if (mode == 2) {
-                    assertThat(metadata.remove(Commands.CONSUMER_INSTANCE_ID))
-                            .hasSize(Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH);
-                }
-                assertThat(metadata).isEqualTo(properties);
+                assertThat(receivedInstanceId.get()).hasSize(Commands.MAX_CONSUMER_INSTANCE_ID_LENGTH);
+                assertThat(receivedMetadata.get()).isEqualTo(properties);
             }
         } finally {
             proxyConfig.setBrokerServiceURL(originalBrokerUrl);

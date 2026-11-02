@@ -183,8 +183,17 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     private NavigableMap<Integer, Integer> makeHashRing(int consumerSize) {
         NavigableMap<Integer, Integer> hashRing = new TreeMap<>();
         for (int i = 0; i < consumerSize; i++) {
+            Consumer consumer = consumers.get(i);
+            String consumerName = consumer.consumerName();
+            boolean duplicateName = (i > 0 && consumers.get(i - 1).consumerName().equals(consumerName))
+                    || (i + 1 < consumerSize && consumers.get(i + 1).consumerName().equals(consumerName));
+            String keyPrefix = consumerName;
+            if (partitionIndex >= 0 && duplicateName && consumer.consumerInstanceId() != null) {
+                // Keep each logical consumer on its own ring points, including during metadata-cache misses.
+                keyPrefix += '\0' + consumer.consumerInstanceId() + '\0';
+            }
             for (int j = 0; j < CONSUMER_CONSISTENT_HASH_REPLICAS; j++) {
-                String key = consumers.get(i).consumerName() + j;
+                String key = keyPrefix + j;
                 int hash = Murmur3_32Hash.getInstance().makeHash(key.getBytes());
                 hashRing.put(hash, i);
             }
