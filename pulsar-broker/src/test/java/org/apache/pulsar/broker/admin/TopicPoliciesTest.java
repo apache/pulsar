@@ -54,6 +54,7 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorTestUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.ConfigHelper;
@@ -2355,14 +2356,12 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(topic).get().get();
         ManagedCursorImpl cursor = (ManagedCursorImpl) persistentTopic.getSubscription(subName).getCursor();
-        Field cursorLastActiveField = ManagedCursorImpl.class.getDeclaredField("lastActive");
-        cursorLastActiveField.setAccessible(true);
 
         admin.namespaces().setSubscriptionExpirationTime(myNamespace, 1);
         waitTopicPoliciesApplied(topic, 0, hierarchyTopicPolicies -> assertEquals(
                 hierarchyTopicPolicies.getSubscriptionExpirationTimeInMinutes().get(), Integer.valueOf(1)));
 
-        cursorLastActiveField.set(cursor, 0L);
+        ManagedCursorTestUtil.setLastActive(cursor, 0L);
         persistentTopic.checkInactiveSubscriptions();
         Awaitility.await().untilAsserted(() -> assertEquals(admin.topics().getSubscriptions(topic).size(), 0));
 
@@ -2375,7 +2374,7 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topic).get().get();
         cursor = (ManagedCursorImpl) persistentTopic.getSubscription(subName).getCursor();
-        cursorLastActiveField.set(cursor, 0L);
+        ManagedCursorTestUtil.setLastActive(cursor, 0L);
         persistentTopic.checkInactiveSubscriptions();
         Awaitility.await().during(2, TimeUnit.SECONDS).atMost(5, TimeUnit.SECONDS)
                 .untilAsserted(() -> assertEquals(admin.topics().getSubscriptions(topic).size(), 1));

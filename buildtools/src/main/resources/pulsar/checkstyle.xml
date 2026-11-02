@@ -217,9 +217,9 @@ page at http://checkstyle.sourceforge.net/config.html -->
             <property name="allowMissingParamTags" value="true"/>
         </module>
 
-        <module name="JavadocStyle">
+        <!-- Replaces JavadocStyle, which Checkstyle 13.9.0 removed in favor of SummaryJavadoc. -->
+        <module name="SummaryJavadoc">
             <property name="severity" value="error"/>
-            <property name="checkHtml" value="true"/>
         </module>
 
         <!--

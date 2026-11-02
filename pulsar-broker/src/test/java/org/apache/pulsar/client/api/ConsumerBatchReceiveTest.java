@@ -18,21 +18,49 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.api.PulsarClientSharedResources.SharedResource;
 import org.apache.pulsar.client.impl.ConsumerBase;
+import org.apache.pulsar.client.impl.PulsarClientSharedResourcesImpl;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test
 @CustomLog
 public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
+
+    private PulsarClientSharedResources asyncBatchReceiveSharedResources;
+
+    @BeforeClass(alwaysRun = true)
+    public void setupAsyncBatchReceiveSharedResources() {
+        // Keep each async test's client isolated while paying the event loop shutdown quiet period once.
+        asyncBatchReceiveSharedResources = PulsarClientSharedResources.builder()
+                .resourceTypes(SharedResource.EventLoopGroup)
+                .configureEventLoop(config -> config.numberOfThreads(10))
+                .build();
+    }
+
+    @AfterClass(alwaysRun = true)
+    public void cleanupAsyncBatchReceiveSharedResources() throws Exception {
+        if (asyncBatchReceiveSharedResources != null) {
+            asyncBatchReceiveSharedResources.close();
+            ((PulsarClientSharedResourcesImpl) asyncBatchReceiveSharedResources)
+                    .getIoEventLoopGroup().terminationFuture().get(60, TimeUnit.SECONDS);
+        }
+    }
 
     @DataProvider(name = "partitioned")
     public Object[][] partitionedTopicProvider() {
@@ -438,7 +466,9 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
                 .batchReceivePolicy(BatchReceivePolicy.builder()
                         .maxNumBytes(1024 * 1024)
                         .maxNumMessages(1)
-                        .timeout(5, TimeUnit.SECONDS)
+                        // The checks after the loop wait for this timeout: the empty batch receive, and the timeout
+                        // task that a batch receive in the loop may have left scheduled
+                        .timeout(1, TimeUnit.SECONDS)
                         .build())
                 .subscribe();
         Assert.assertFalse(((ConsumerBase<?>) consumer).hasBatchReceiveTimeout());
@@ -502,7 +532,11 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
         }
 
         @Cleanup
-        PulsarClient pulsarClient = PulsarClient.builder().ioThreads(10).serviceUrl(getBrokerServiceUrl()).build();
+        PulsarClient pulsarClient = PulsarClient.builder()
+                .ioThreads(10)
+                .serviceUrl(getBrokerServiceUrl())
+                .sharedResources(asyncBatchReceiveSharedResources)
+                .build();
         ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING).topic(topic);
         if (!batchProduce) {
             producerBuilder.enableBatching(false);
@@ -546,6 +580,8 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
                 .isAckReceiptEnabled(isEnableAckReceipt)
                 .enableBatchIndexAcknowledgment(isEnableAckReceipt)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                // With the default 1 s tick, the unacked messages come back ~2 s after they were received
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .subscribe();
         sendMessagesAsyncAndWait(producer, 100);
         batchReceiveAndRedelivery(consumer, 100);
@@ -588,6 +624,9 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
     private void batchReceiveAndCheck(Consumer<String> consumer, int expected) throws Exception {
         Messages<String> messages;
         int messageReceived = 0;
+        // With ack receipts, an acknowledgment completes at the next grouped flush (every 100 ms):
+        // acknowledge each batch asynchronously and wait for all of them at the end
+        List<CompletableFuture<Void>> acks = new ArrayList<>();
         do {
             messages = consumer.batchReceive();
             if (messages != null) {
@@ -597,10 +636,11 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
                     Assert.assertNotNull(message.getValue());
                     log.info().attr("getMessage", message.getValue()).log("Get message from batch");
                 }
-                consumer.acknowledge(messages);
+                acks.add(consumer.acknowledgeAsync(messages));
             }
         } while (messageReceived < expected);
         Assert.assertEquals(expected, messageReceived);
+        FutureUtil.waitForAll(acks).get();
     }
 
     private void batchReceiveAndRedelivery(Consumer<String> consumer, int expected) throws Exception {
@@ -620,6 +660,7 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
         } while (messageReceived < expected);
         Assert.assertEquals(expected, messageReceived);
 
+        List<CompletableFuture<Void>> acks = new ArrayList<>();
         do {
             messages = consumer.batchReceive();
             if (messages != null) {
@@ -629,11 +670,12 @@ public class ConsumerBatchReceiveTest extends SharedPulsarBaseTest {
                     Assert.assertNotNull(message.getValue());
                     log.info().attr("getMessage", message.getValue()).log("Get message from batch");
                 }
-                consumer.acknowledge(messages);
+                acks.add(consumer.acknowledgeAsync(messages));
             }
         } while (messageReceived < expected * 2);
         Assert.assertTrue(messageReceived >= expected * 2,
                 "Expected at least " + (expected * 2) + " messages but received " + messageReceived);
+        FutureUtil.waitForAll(acks).get();
     }
 
     @Test(timeOut = 30000)

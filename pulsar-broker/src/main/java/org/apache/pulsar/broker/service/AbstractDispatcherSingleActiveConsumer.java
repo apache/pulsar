@@ -506,4 +506,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer extends AbstractBas
     public boolean isConsumerConnected() {
         return activeConsumer != null;
     }
+
+    @Override
+    protected int getAvgMessagesPerEntry() {
+        Consumer active = getActiveConsumer();
+        return active != null ? active.getAvgMessagesPerEntry() : 0;
+    }
 }

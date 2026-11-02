@@ -302,7 +302,7 @@ public class ProcessRuntimeTest {
         String extraDepsEnv;
         int portArg;
         int metricsPortArg;
-        int totalArgCount = 56;
+        int totalArgCount = 55;
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             totalArgCount += 3;
         }
@@ -310,13 +310,13 @@ public class ProcessRuntimeTest {
             assertEquals(args.size(), totalArgCount);
             extraDepsEnv = " -Dpulsar.functions.extra.dependencies.dir=" + depsDir;
             classpath = classpath + ":" + depsDir + "/*";
-            portArg = 39;
-            metricsPortArg = 41;
+            portArg = 38;
+            metricsPortArg = 40;
         } else {
             assertEquals(args.size(), totalArgCount - 1);
             extraDepsEnv = "";
-            portArg = 38;
-            metricsPortArg = 40;
+            portArg = 37;
+            metricsPortArg = 39;
         }
         if (webServiceUrl != null && config.isExposePulsarAdminClientEnabled()) {
             portArg += 3;
@@ -337,7 +337,6 @@ public class ProcessRuntimeTest {
                 + " -Dpulsar.function.log.file=" + config.getFunctionDetails().getName() + "-" + config.getInstanceId()
                 + " -Dio.netty.tryReflectionSetAccessible=true"
                 + " -Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true"
-                + " -Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true"
                 + " --add-opens java.base/java.nio=ALL-UNNAMED"
                 + " --add-opens java.base/jdk.internal.misc=ALL-UNNAMED"
                 + " --add-opens java.base/java.util.zip=ALL-UNNAMED"

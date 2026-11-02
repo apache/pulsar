@@ -118,6 +118,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected boolean shouldRewindBeforeReadingOrReplaying = false;
     protected final String name;
     private boolean sendInProgress = false;
+    // Normal and replay reads can both complete while the subscription thread is busy. Guarded by this.
+    private int pendingDispatches;
     protected static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers>
             TOTAL_AVAILABLE_PERMITS_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class,
@@ -208,8 +210,8 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             return CompletableFuture.completedFuture(null);
         }
         if (consumerList.isEmpty()) {
-            if (havePendingRead || havePendingReplayRead) {
-                // There is a pending read from previous run. We must wait for it to complete and then rewind
+            if (havePendingRead || havePendingReplayRead || isSendInProgress()) {
+                // Wait for reads and queued dispatches from the previous run to be discarded before rewinding.
                 shouldRewindBeforeReadingOrReplaying = true;
             } else {
                 cursor.rewind();
@@ -607,6 +609,11 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     protected void onDispatchQueued(ReadType readType) {
     }
 
+    /** Called under the dispatcher monitor when a queued dispatch is discarded before it starts. */
+    protected void onDispatchDiscarded(ReadType readType) {
+        onReadEnded(readType);
+    }
+
     /**
      * Called under the dispatcher's monitor when a read ends without its entries being dispatched: it failed, was
      * cancelled, read only deleted entries, or completed after every consumer disconnected.
@@ -854,6 +861,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
             // in a separate thread, and we want to prevent more reads
             acquireSendInProgress();
             onDispatchQueued(readType);
+            pendingDispatches++;
             dispatchMessagesThread.execute(() -> {
                 handleSendingMessagesAndReadingMore(readType, entries, false, totalBytesSize);
             });
@@ -865,9 +873,25 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     private synchronized void handleSendingMessagesAndReadingMore(ReadType readType, List<Entry> entries,
                                                                   boolean needAcquireSendInProgress,
                                                                   long totalBytesSize) {
-        boolean triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
+        boolean triggerReadingMore;
+        try {
+            if (shouldRewindBeforeReadingOrReplaying) {
+                // All consumers disconnected after this read queued its dispatch. The rewind will read its entries
+                // again, so don't send them to the replacement consumer as well.
+                entries.forEach(Entry::release);
+                onDispatchDiscarded(readType);
+                releaseSendInProgress();
+                readMoreEntriesAsync();
+                return;
+            }
+            triggerReadingMore = sendMessagesToConsumers(readType, entries, needAcquireSendInProgress);
+        } finally {
+            if (!needAcquireSendInProgress) {
+                pendingDispatches--;
+            }
+            updatePendingBytesToDispatch(-totalBytesSize);
+        }
         int entriesProcessed = lastNumberOfEntriesProcessed;
-        updatePendingBytesToDispatch(-totalBytesSize);
         boolean canReadMoreImmediately = false;
         if (entriesProcessed > 0 || skipNextBackoff) {
             // Reset the backoff when messages were processed
@@ -901,7 +925,7 @@ public class PersistentDispatcherMultipleConsumers extends AbstractPersistentDis
     }
 
     protected synchronized boolean isSendInProgress() {
-        return sendInProgress;
+        return sendInProgress || pendingDispatches > 0;
     }
 
     protected final synchronized boolean sendMessagesToConsumers(ReadType readType, List<Entry> entries,

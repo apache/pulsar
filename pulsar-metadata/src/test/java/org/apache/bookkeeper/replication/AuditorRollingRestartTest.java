@@ -103,7 +103,7 @@ public class AuditorRollingRestartTest extends BookKeeperClusterTestCase {
         BookieId auditor = lam.getCurrentAuditor();
         ServerConfiguration conf = killBookie(auditor);
         Thread.sleep(2000);
-        startBookie(conf);
+        startAndAddBookie(conf);
         Thread.sleep(2000); // give it time to run
         assertEquals("shouldn't be anything under replicated", -1,
                 underReplicationManager.pollLedgerToRereplicate());

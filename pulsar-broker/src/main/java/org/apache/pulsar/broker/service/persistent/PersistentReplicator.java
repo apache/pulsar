@@ -170,20 +170,22 @@ public abstract class PersistentReplicator extends AbstractReplicator
     @Override
     protected void setProducerAndTriggerReadEntries(Producer<byte[]> producer) {
         /**
-         * 1. Try change state to {@link Started}.
-         * 2. Atoms modify multiple properties if change state success, to avoid another thread get a null value
-         *    producer when the state is {@link Started}.
+         * 1. Set the producer before changing the state to {@link Started}: {@link #terminate()} and
+         *    {@link #closeProducerAsync(boolean)} change the state from {@link Started} and then close the producer
+         *    they read, so another thread must not get a null value producer when the state is {@link Started}.
+         * 2. Try change state to {@link Started}. Clear the producer and close it if change the state fail.
          */
+        ProducerImpl producerImpl = producer instanceof ProducerImpl ? (ProducerImpl) producer : null;
+        this.producer = producerImpl;
         Pair<Boolean, State> changeStateRes;
         changeStateRes = compareSetAndGetState(Starting, Started);
         if (changeStateRes.getLeft()) {
-            if (!(producer instanceof ProducerImpl)) {
+            if (producerImpl == null) {
                 log.error("The partitions count between two clusters is not the same, "
                         + "the replicator can not be created successfully");
                 doCloseProducerAsync(producer, () -> {});
                 throw new ClassCastException(producer.getClass().getName() + " can not be cast to ProducerImpl");
             }
-            this.producer = (ProducerImpl) producer;
             // Trigger a new read.
             log.info("Created replicator producer");
             backOff.reset();
@@ -203,7 +205,8 @@ public abstract class PersistentReplicator extends AbstractReplicator
             } else {
                 log.error("Replicator state is not expected, closing the producer");
             }
-            // Close the producer if change the state fail.
+            // Clear the producer set above and close it if change the state fail.
+            this.producer = null;
             doCloseProducerAsync(producer, () -> {});
         }
     }

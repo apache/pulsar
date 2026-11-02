@@ -716,6 +716,26 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationFailed(MetaStoreException e) {
                 handleBadVersion(e);
+                if (e instanceof BadVersionException) {
+                    // BadVersion proves this ledger was never published. Fenced close skips write handles,
+                    // so close this handle before deleting the orphan. Other failures can have committed the write.
+                    LedgerHandle unpublishedLedger = currentLedger;
+                    unpublishedLedger.closeAsync().whenComplete((__, error) -> {
+                        if (error != null) {
+                            log.debug().exception(error)
+                                    .log("Failed to close an unpublished ledger after initialization");
+                        }
+                        mbean.startDataLedgerDeleteOp();
+                        asyncDeleteLedgerWithConcurrencyLimit(unpublishedLedger.getId(), (rc, ctx) -> {
+                            mbean.endDataLedgerDeleteOp();
+                            if (rc != BKException.Code.OK) {
+                                log.debug().attr("ledgerId", unpublishedLedger.getId())
+                                        .attr("rc", BKException.getMessage(rc))
+                                        .log("Failed to delete an unpublished ledger after initialization");
+                            }
+                        }, null);
+                    });
+                }
                 callback.initializeFailed(new ManagedLedgerException(e));
             }
         };
@@ -3365,6 +3385,32 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void updateActiveCursor(ManagedCursorImpl cursor, Position newPosition) {
+        // The cursor publishes its position before notifying us. An active cursor has already been registered,
+        // and any later activation will snapshot that published position, so ordinary reads need no monitor.
+        if (cursor.isActive()) {
+            updateActiveCursorPosition(cursor, newPosition);
+            return;
+        }
+        // Activation snapshots the position and adds the cursor before publishing its active flag. Serialize
+        // an inactive cursor's notification with those steps so it cannot be lost before the insertion.
+        synchronized (activeCursors) {
+            // Waiting can make the notification's argument stale. Reconcile with the published position,
+            // and retry if an active update overtakes this snapshot before it reaches the container.
+            Position currentPosition;
+            do {
+                currentPosition = getCursorPositionForCacheEviction(cursor);
+                updateActiveCursorPosition(cursor, currentPosition);
+            } while (!currentPosition.equals(getCursorPositionForCacheEviction(cursor)));
+        }
+    }
+
+    private Position getCursorPositionForCacheEviction(ManagedCursor cursor) {
+        Position position = config.isCacheEvictionByMarkDeletedPosition()
+                ? cursor.getMarkDeletedPosition() : cursor.getReadPosition();
+        return position != null ? position : PositionFactory.EARLIEST;
+    }
+
+    private void updateActiveCursorPosition(ManagedCursorImpl cursor, Position newPosition) {
         if (config.isCacheEvictionByExpectedReadCount()) {
             activeCursors.updateCursor(cursor, newPosition);
         } else {
@@ -5165,13 +5211,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public void activateCursor(ManagedCursor cursor) {
         synchronized (activeCursors) {
             if (!isCursorActive(cursor)) {
-                Position positionForOrdering = config.isCacheEvictionByMarkDeletedPosition()
-                        ? cursor.getMarkDeletedPosition()
-                        : cursor.getReadPosition();
-                if (positionForOrdering == null) {
-                    positionForOrdering = PositionFactory.EARLIEST;
-                }
-                activeCursors.add(cursor, positionForOrdering);
+                activeCursors.add(cursor, getCursorPositionForCacheEviction(cursor));
             }
         }
     }
