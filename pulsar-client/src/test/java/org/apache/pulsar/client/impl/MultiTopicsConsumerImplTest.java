@@ -51,7 +51,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -290,8 +289,9 @@ public class MultiTopicsConsumerImplTest {
 
     @Test(timeOut = 10000)
     @SuppressWarnings("unchecked")
-    public void testSkippedSeekGivesBackPermitsOfMessagesQueuedForListenerOnce() throws Exception {
-        String topic = "persistent://public/default/topic-partition-0";
+    public void testSelectiveSeekGivesBackPermitsOfSkippedPartitionOnce() throws Exception {
+        String soughtTopic = "persistent://public/default/topic-partition-0";
+        String skippedTopic = "persistent://public/default/topic-partition-1";
         int receiverQueueSize = 1;
         AtomicInteger listenedMessages = new AtomicInteger();
         ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
@@ -303,30 +303,35 @@ public class MultiTopicsConsumerImplTest {
         ClientCnx cnx = mock(ClientCnx.class);
         ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
         when(connectionHandler.cnx()).thenReturn(cnx);
-        ConsumerImpl<byte[]> partitionConsumer = mock(ConsumerImpl.class);
-        when(partitionConsumer.getConnectionHandler()).thenReturn(connectionHandler);
-        when(partitionConsumer.getCurrentReceiverQueueSize()).thenReturn(receiverQueueSize);
-        when(partitionConsumer.batchReceiveAsync()).thenReturn(new CompletableFuture<>());
-        // The seek function skips the partition, so its consumer neither seeks nor reconnects
-        when(partitionConsumer.seekAsync(any(Function.class))).thenReturn(CompletableFuture.completedFuture(null));
-        impl.consumers.put(topic, partitionConsumer);
+        for (String topic : Arrays.asList(soughtTopic, skippedTopic)) {
+            ConsumerImpl<byte[]> partitionConsumer = mock(ConsumerImpl.class);
+            when(partitionConsumer.getConnectionHandler()).thenReturn(connectionHandler);
+            when(partitionConsumer.getCurrentReceiverQueueSize()).thenReturn(receiverQueueSize);
+            when(partitionConsumer.batchReceiveAsync()).thenReturn(new CompletableFuture<>());
+            impl.consumers.put(topic, partitionConsumer);
+        }
+        // Seeking a message of one partition skips the other, whose consumer neither seeks nor reconnects
+        TopicMessageIdImpl seekMessageId = new TopicMessageIdImpl(soughtTopic, new MessageIdImpl(1, 0, 0));
+        when(impl.consumers.get(soughtTopic).seekAsync(seekMessageId))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        ConsumerImpl<byte[]> skippedConsumer = impl.consumers.get(skippedTopic);
 
         impl.internalPinnedExecutor.submit(() -> {
-            // Queue a message for the listener, as receiving it from the partition consumer does
-            MessageImpl<byte[]> message = MessageImpl.create(topic, new MessageIdImpl(1, 0, 0),
+            // Queue a message of the skipped partition for the listener, as receiving it from its consumer does
+            MessageImpl<byte[]> message = MessageImpl.create(skippedTopic, new MessageIdImpl(2, 0, 0),
                     new MessageMetadata(), Unpooled.wrappedBuffer(new byte[1]), Optional.empty(), null,
                     Schema.BYTES, 0, false, 0);
-            impl.enqueueMessageAndCheckBatchReceive(new TopicMessageImpl<>(topic, message, partitionConsumer));
+            impl.enqueueMessageAndCheckBatchReceive(new TopicMessageImpl<>(skippedTopic, message, skippedConsumer));
         }).get();
-        impl.seekAsync(topicName -> null).get();
-        // The receive task that the seek started runs on the pinned executor before this task
+        impl.seekAsync(seekMessageId).get();
+        // The receive tasks that the seek started run on the pinned executor before this task
         impl.internalPinnedExecutor.submit(() -> { }).get();
 
-        // The seek discarded the message and refilled the receiver queue of the partition consumer, which kept its
-        // connection: the refill covers the message's permit, so giving it back too would credit the window twice
+        // The seek discarded the message and refilled the receiver queue of the skipped partition's consumer, which
+        // kept its connection: the refill covers the message's permit, so giving it back too would credit it twice
         assertEquals(listenedMessages.get(), 0);
-        verify(partitionConsumer, never()).increaseAvailablePermits(any(MessageImpl.class));
-        verify(partitionConsumer).increaseAvailablePermits(cnx, receiverQueueSize);
+        verify(skippedConsumer, never()).increaseAvailablePermits(any(MessageImpl.class));
+        verify(skippedConsumer).increaseAvailablePermits(cnx, receiverQueueSize);
     }
 
     @Test
