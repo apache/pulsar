@@ -97,7 +97,9 @@ final class ProduceV5 {
                 }
             }
         } catch (Exception e) {
-            cmd.log.error().exception(e).log("Error while producing messages");
+            if (!AbstractCmd.isInterruption(e)) {
+                cmd.log.error().exception(e).log("Error while producing messages");
+            }
             returnCode = -1;
         } finally {
             cmd.log.infof("%d messages successfully produced", numMessagesSent);

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
@@ -35,6 +36,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import lombok.Cleanup;
 import lombok.SneakyThrows;
@@ -132,6 +134,23 @@ public class ProxyServiceStarterTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testKeepAliveIntervalSecondsIsConfigured() throws Exception {
         assertEquals(serviceStarter.getConfig().getKeepAliveIntervalSeconds(), 25);
+    }
+
+    @Test
+    public void testCloseDoesNotWaitOutEventLoopQuietPeriods() throws Exception {
+        ProxyServiceStarter proxyStarter = new ProxyServiceStarter(getArgs(), null, true);
+        proxyStarter.getConfig().setBrokerServiceURL(pulsar.getBrokerServiceUrl());
+        proxyStarter.getConfig().setBrokerWebServiceURL(pulsar.getWebServiceAddress());
+        proxyStarter.getConfig().setWebServicePort(Optional.of(0));
+        proxyStarter.getConfig().setServicePort(Optional.of(0));
+        proxyStarter.getConfig().setClusterName(configClusterName);
+        proxyStarter.start();
+
+        long startNs = System.nanoTime();
+        proxyStarter.close();
+        long closeTimeMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
+        // Netty's default 2 s quiet period, waited out by the acceptor and then the worker event loops, took 4 s
+        assertThat(closeTimeMs).as("proxy close time in ms").isLessThan(2000);
     }
 
     @Test

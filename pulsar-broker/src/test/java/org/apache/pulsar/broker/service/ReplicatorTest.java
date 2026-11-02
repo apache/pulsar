@@ -511,7 +511,12 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 previousSourcePosition = currentSourcePosition;
                 consumer.acknowledge(message);
             }
-            assertNull(consumer.receive(1, TimeUnit.SECONDS), "deduplication must not leave duplicate messages");
+            // Once the replication has finished, a duplicate on the remote cluster would stay in the backlog.
+            waitReplicateFinish(TopicName.get(topicName), admin1);
+            Awaitility.await().untilAsserted(() -> assertEquals(admin2.topics().getStats(topicName, true)
+                    .getSubscriptions().get(subscriptionName).getMsgBacklog(), 0,
+                    "deduplication must not leave duplicate messages"));
+            assertNull(consumer.receive(200, TimeUnit.MILLISECONDS), "deduplication must not leave duplicate messages");
         } finally {
             pulsar1.getConfiguration().setDispatcherMaxReadBatchSize(originalReadBatchSize);
             pulsar1.getConfiguration().setReplicationProducerQueueSize(originalProducerQueueSize);
@@ -939,7 +944,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
     }
 
-    @SuppressWarnings("unchecked")
     @Test(priority = 5, timeOut = 30000)
     public void testReplicatorProducerClosing() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
@@ -950,17 +954,16 @@ public class ReplicatorTest extends ReplicatorTestBase {
         MessageProducer producer1 = new MessageProducer(url1, dest);
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName).get();
         final String replicatorClusterName = topic.getReplicators().keySet().stream().toList().get(0);
-        Replicator replicator = topic.getPersistentReplicator(replicatorClusterName);
+        AbstractReplicator replicator = (AbstractReplicator) topic.getPersistentReplicator(replicatorClusterName);
+        // Terminate a replicator that has a producer to close
+        Awaitility.await().until(replicator::isConnected);
         pulsar2.close();
         pulsar2 = null;
         pulsar3.close();
         pulsar3 = null;
-        replicator.terminate();
-        Thread.sleep(100);
-        Field field = AbstractReplicator.class.getDeclaredField("producer");
-        field.setAccessible(true);
-        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) field.get(replicator);
-        assertNull(producer);
+        // The replicator clears its producer when the close of the producer completes
+        replicator.terminate().get();
+        assertNull(replicator.getProducer());
     }
 
     @Test(priority = 5, timeOut = 30000)
@@ -1134,7 +1137,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .build());
 
         Awaitility.await().atMost(TIME_TO_CHECK_BACKLOG_QUOTA * 6L, TimeUnit.SECONDS)
-                .pollInterval(1, TimeUnit.SECONDS)
                 .ignoreExceptions()
                 .untilAsserted(() -> {
                     admin2.brokers().backlogQuotaCheck();
@@ -1161,7 +1163,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Otherwise the next producer-create attempt can race with stale backlog accounting and consume
         // another reconnect backoff window.
         Awaitility.await().atMost(TIME_TO_CHECK_BACKLOG_QUOTA * 6L, TimeUnit.SECONDS)
-                .pollInterval(1, TimeUnit.SECONDS)
                 .ignoreExceptions()
                 .untilAsserted(() -> {
                     admin2.brokers().backlogQuotaCheck();
@@ -1173,7 +1174,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // for the next scheduled retry. Once the backlog is zero, the second message has been persisted
         // on r2 and can be consumed normally.
         Awaitility.await().atMost(TIME_TO_CHECK_BACKLOG_QUOTA * 8L, TimeUnit.SECONDS)
-                .pollInterval(1, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
                     replicator.startProducer();
                     assertEquals(replicator.computeStats().replicationBacklog, 0);
@@ -1664,7 +1664,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
         checkListContainExpectedTopic(admin3, namespace, expectedTopicList);
     }
 
-    @Test
+    /**
+     * Runs after all the other tests (the priority 5 tests stop clusters), since it restarts the clusters with the
+     * transaction coordinator enabled and leaves them so instead of restarting them again.
+     */
+    @Test(priority = 6)
     public void testDoNotReplicateSystemTopic() throws Exception {
         cleanup();
         config1.setTransactionCoordinatorEnabled(true);
@@ -1702,13 +1706,23 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .enableBatching(false).create();
         producer.newMessage(abortTransaction).value("aborted".getBytes(StandardCharsets.UTF_8)).send();
         abortTransaction.abort().get();
-        assertNull(consumerFromR2.receive(5, TimeUnit.SECONDS));
+        // The replicators skip the aborted message and the abort marker. Once they have acknowledged both, r2 can
+        // not get a message any more.
+        waitReplicateFinish(TopicName.get(topic), admin1);
+        assertEquals(admin2.topics().getStats(topic, true).getSubscriptions().get("sub-rep").getMsgBacklog(), 0);
+        assertNull(consumerFromR2.receive(200, TimeUnit.MILLISECONDS));
 
         TransactionImpl transaction = (TransactionImpl) client.newTransaction()
                 .withTransactionTimeout(60, TimeUnit.SECONDS).build().get();
 
-        producer.newMessage(transaction).value("1".getBytes(StandardCharsets.UTF_8)).send();
-        assertNull(consumerFromR2.receive(5, TimeUnit.SECONDS));
+        MessageIdImpl messageId = (MessageIdImpl) producer.newMessage(transaction)
+                .value("1".getBytes(StandardCharsets.UTF_8)).send();
+        // The replicators read only up to the max read position, which the open transaction keeps before its message.
+        PersistentTopic sourceTopic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topic, false).join().get();
+        assertTrue(sourceTopic.getMaxReadPosition()
+                .compareTo(PositionFactory.create(messageId.getLedgerId(), messageId.getEntryId())) < 0);
+        assertEquals(admin2.topics().getStats(topic, true).getSubscriptions().get("sub-rep").getMsgBacklog(), 0);
+        assertNull(consumerFromR2.receive(200, TimeUnit.MILLISECONDS));
         transaction.commit();
 
         Assert.assertEquals(consumerFromR2.receive(5, TimeUnit.SECONDS).getValue(),
@@ -1720,9 +1734,6 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertEquals(admin1.topics().getStats(systemTopic).getReplication().size(), 0);
         Assert.assertEquals(admin2.topics().getStats(systemTopic).getReplication().size(), 0);
         Assert.assertEquals(admin3.topics().getStats(systemTopic).getReplication().size(), 0);
-
-        cleanup();
-        setup();
     }
 
     private void initTransaction(int coordinatorSize, PulsarAdmin admin, String serviceUrlLocal,
@@ -1821,7 +1832,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         MessageIdImpl lastMessageId = (MessageIdImpl) topic.getLastMessageId().get();
         Position lastPosition = PositionFactory.create(lastMessageId.getLedgerId(), lastMessageId.getEntryId());
 
-        Awaitility.await().pollInterval(1, TimeUnit.SECONDS).timeout(30, TimeUnit.SECONDS)
+        Awaitility.await().timeout(30, TimeUnit.SECONDS)
                 .ignoreExceptions()
                 .untilAsserted(() -> {
                     final var replicators = topic.getReplicators();
@@ -1948,10 +1959,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Send V2 and V3 messages, then let them expire. These messages will not be replicated to the remote cluster.
         persistentProducer1.send("V2".getBytes());
         persistentProducer1.send("V3".getBytes());
-        Thread.sleep(2000);
         GeoPersistentReplicator persistentReplicator =
                 (GeoPersistentReplicator) persistentTopic.getReplicators().values().iterator().next();
-        persistentReplicator.expireMessages(1);
+        // The messages expire once they are older than the 1 second TTL.
+        Awaitility.await().untilAsserted(() -> {
+            persistentReplicator.expireMessages(1);
+            assertEquals(persistentReplicator.computeStats().getReplicationBacklog(), 0);
+        });
         waitReplicateFinish(topic, admin1);
 
         // Start replicator
@@ -1983,14 +1997,17 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Consumer<byte[]> consumer = client2.newConsumer().topic(topic.toString())
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscriptionName("sub").subscribe();
 
+        // The replication has finished: receive until the subscription has no backlog left.
         List<String> result = new ArrayList<>();
-        while (true) {
-            Message<byte[]> receive = consumer.receive(2, TimeUnit.SECONDS);
-            if (receive == null) {
-                break;
+        Awaitility.await().untilAsserted(() -> {
+            Message<byte[]> receive;
+            while ((receive = consumer.receive(100, TimeUnit.MILLISECONDS)) != null) {
+                result.add(new String(receive.getValue()));
+                consumer.acknowledge(receive);
             }
-            result.add(new String(receive.getValue()));
-        }
+            assertEquals(admin2.topics().getStats(topic.toString(), true).getSubscriptions().get("sub")
+                    .getMsgBacklog(), 0);
+        });
 
         assertEquals(result, Lists.newArrayList("V1", "V4"));
     }

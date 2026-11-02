@@ -106,7 +106,8 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     // The checks read the function state through this admin client: every pulsar-admin command starts a JVM in a
-    // container, which takes seconds. testFunctionNegAck runs the read commands through the CLI to cover them.
+    // container, which takes seconds. The Java run of testFunctionNegAck runs the read commands through the CLI to
+    // cover them.
     private PulsarAdmin workerAdmin;
 
     public PulsarFunctionsTest(FunctionRuntimeType functionRuntimeType) {
@@ -416,8 +417,9 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
 
         // The function fails every 10th message, which it negatively acknowledges. The timeout sets the delay
         // before such a message is redelivered (1 minute by default); in Java and Python it also sets the ack timeout,
-        // which the Python client requires to be at least 10 s.
-        java.util.function.Consumer<CommandGenerator> setTimeout = generator -> generator.setTimeoutMs(10000L);
+        // which the Python client requires to be at least 10 s. Go has no ack timeout.
+        long timeoutMs = runtime == Runtime.GO ? 1000L : 10000L;
+        java.util.function.Consumer<CommandGenerator> setTimeout = generator -> generator.setTimeoutMs(timeoutMs);
         if (runtime == Runtime.PYTHON) {
             submitFunction(
                     runtime, inputTopicName, outputTopicName, functionName, EXCEPTION_FUNCTION_PYTHON_FILE,
@@ -432,8 +434,16 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
                     setTimeout);
         }
 
+        // The CLI's read commands work the same whatever the runtime, so the Java run covers them; the other runtimes
+        // read through the admin client, which is faster.
+        boolean withCli = runtime == Runtime.JAVA;
+
         // get function info
-        getFunctionInfoSuccessWithCli(functionName);
+        if (withCli) {
+            getFunctionInfoSuccessWithCli(functionName);
+        } else {
+            getFunctionInfoSuccess(functionName);
+        }
 
         // get function stats
         getFunctionStatsEmpty(functionName);
@@ -507,16 +517,24 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
 
         // get function status
-        ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "status",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
-        );
+        FunctionStatus functionStatus;
+        if (withCli) {
+            ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "functions",
+                    "status",
+                    "--tenant", "public",
+                    "--namespace", "default",
+                    "--name", functionName
+            );
 
-        FunctionStatus functionStatus = FunctionStatusUtil.decode(result.getStdout());
+            functionStatus = FunctionStatusUtil.decode(result.getStdout());
+        } else {
+            // the instance counts a message as processed once the function has published its result
+            functionStatus = Awaitility.await().ignoreExceptions().until(
+                    () -> workerAdmin().functions().getFunctionStatus("public", "default", functionName),
+                    status -> status.getInstances().get(0).getStatus().getNumSuccessfullyProcessed() == numMessages);
+        }
 
         assertEquals(functionStatus.getNumInstances(), 1);
         assertEquals(functionStatus.getNumRunning(), 1);
@@ -534,18 +552,24 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         assertEquals(functionStatus.getInstances().get(0).getStatus().getLatestSystemExceptions().size(), 0);
 
         // get function stats
-        result = pulsarCluster.getAnyWorker().execCmd(
-                PulsarCluster.ADMIN_SCRIPT,
-                "functions",
-                "stats",
-                "--tenant", "public",
-                "--namespace", "default",
-                "--name", functionName
-        );
+        FunctionStatsImpl functionStats;
+        if (withCli) {
+            ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
+                    PulsarCluster.ADMIN_SCRIPT,
+                    "functions",
+                    "stats",
+                    "--tenant", "public",
+                    "--namespace", "default",
+                    "--name", functionName
+            );
 
-        log.info().attr("stats", result.getStdout()).log("FUNCTION STATS");
+            log.info().attr("stats", result.getStdout()).log("FUNCTION STATS");
 
-        FunctionStatsImpl functionStats = FunctionStatsImpl.decode(result.getStdout());
+            functionStats = FunctionStatsImpl.decode(result.getStdout());
+        } else {
+            functionStats = (FunctionStatsImpl) workerAdmin().functions()
+                    .getFunctionStats("public", "default", functionName);
+        }
         assertEquals(functionStats.getReceivedTotal(), numMessages + 2);
         assertEquals(functionStats.getProcessedSuccessfullyTotal(), numMessages);
         assertEquals(functionStats.getSystemExceptionsTotal(), 0);
@@ -564,11 +588,14 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // delete function
         deleteFunction(functionName);
 
-        // get function info
-        getFunctionInfoNotFoundWithCli(functionName);
-
-        // make sure subscriptions are cleanup
-        checkSubscriptionsCleanupWithCli(inputTopicName);
+        // get function info, and make sure subscriptions are cleanup
+        if (withCli) {
+            getFunctionInfoNotFoundWithCli(functionName);
+            checkSubscriptionsCleanupWithCli(inputTopicName);
+        } else {
+            getFunctionInfoNotFound(functionName);
+            checkSubscriptionsCleanup(inputTopicName);
+        }
     }
 
     public void testGoPublishFunction() throws Exception {

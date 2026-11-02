@@ -16,13 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.functions.go;
+package org.apache.bookkeeper.mledger.impl;
 
-import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 
-public class PulsarFunctionsGoThreadTest extends PulsarFunctionsGoTest {
-
-    PulsarFunctionsGoThreadTest() {
-        super(FunctionRuntimeType.THREAD);
+public class ManagedCursorTestUtil {
+    /**
+     * Sets the last active time of a cursor, e.g. to make its subscription look inactive for longer than the broker's
+     * check for expired subscriptions allows, without waiting for that.
+     *
+     * @param cursor     the cursor, a {@link ManagedCursorImpl}
+     * @param lastActive the last active time (Unix time, milliseconds)
+     */
+    public static void setLastActive(ManagedCursor cursor, long lastActive) {
+        ((ManagedCursorImpl) cursor).setLastActive(lastActive);
     }
 }

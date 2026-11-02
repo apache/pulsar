@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.cli.tenant;
 
+import static org.awaitility.Awaitility.await;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -32,6 +33,10 @@ import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.testng.annotations.Test;
 
+// The tests check what a command did with the admin client: pulsar-admin in a broker container would start a JVM for
+// every check. testGetTenantCmd checks the output of "tenants get". The admin client can reach another broker than the
+// command did, which serves an updated or deleted tenant from its cache until the change's notification reaches it, so
+// the checks after an update or a delete wait for it.
 public class TenantTest extends PulsarTestSuite {
     @Test
     public void testListTenantCmd() throws Exception {
@@ -41,7 +46,9 @@ public class TenantTest extends PulsarTestSuite {
 
     @Test
     public void testGetTenantCmd() throws Exception {
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", "public");
+        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", "public");
+        TenantInfo tenantInfo = jsonMapper().readValue(result.getStdout(), TenantInfo.class);
+        assertTrue(tenantInfo.getAllowedClusters().contains(pulsarCluster.getClusterName()));
     }
 
     @Test
@@ -57,13 +64,13 @@ public class TenantTest extends PulsarTestSuite {
         String tenantName = randomName();
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "create", tenantName);
 
-        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", tenantName);
-        TenantInfo tenantInfo = jsonMapper().readValue(result.getStdout(), TenantInfo.class);
+        TenantInfo tenantInfo = pulsarAdmin.tenants().getTenantInfo(tenantName);
         assertNotNull(tenantInfo);
         assertTrue(tenantInfo.getAdminRoles().isEmpty());
         assertFalse(tenantInfo.getAllowedClusters().isEmpty());
 
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "delete", tenantName);
+        await().untilAsserted(() -> assertFalse(pulsarAdmin.tenants().getTenants().contains(tenantName)));
     }
 
     @Test
@@ -74,14 +81,13 @@ public class TenantTest extends PulsarTestSuite {
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "create", tenantName, "--admin-roles",
                 String.join(",", adminRoles), "--allowed-clusters", String.join(",", allowedClusters));
 
-        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", tenantName);
-        TenantInfo tenantInfo = jsonMapper().readValue(result.getStdout(), TenantInfo.class);
+        TenantInfo tenantInfo = pulsarAdmin.tenants().getTenantInfo(tenantName);
         assertNotNull(tenantInfo);
         assertNotNull(tenantInfo.getAdminRoles());
         assertEquals(tenantInfo.getAdminRoles().stream().sorted().toArray(), adminRoles.stream().sorted().toArray());
         assertEquals(tenantInfo.getAllowedClusters(), allowedClusters);
 
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants", "delete", tenantName);
+        pulsarAdmin.tenants().deleteTenant(tenantName);
     }
 
     @Test
@@ -98,24 +104,25 @@ public class TenantTest extends PulsarTestSuite {
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "create", tenantName, "--admin-roles",
                 String.join(",", adminRoles));
 
-        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", tenantName);
-        TenantInfo tenantInfo = jsonMapper().readValue(result.getStdout(), TenantInfo.class);
+        TenantInfo tenantInfo = pulsarAdmin.tenants().getTenantInfo(tenantName);
         assertNotNull(tenantInfo);
         assertNotNull(tenantInfo.getAdminRoles());
         assertEquals(tenantInfo.getAdminRoles().stream().sorted().toArray(), adminRoles.stream().sorted().toArray());
         assertFalse(tenantInfo.getAllowedClusters().isEmpty());
 
-        adminRoles = Arrays.asList("role3", "role4");
+        List<String> updatedAdminRoles = Arrays.asList("role3", "role4");
         List<String> allowedClusters = Collections.singletonList(pulsarCluster.getClusterName());
         pulsarCluster.runAdminCommandOnAnyBroker("tenants", "update", tenantName, "--admin-roles",
-                String.join(",", adminRoles), "--allowed-clusters", String.join(",", allowedClusters));
+                String.join(",", updatedAdminRoles), "--allowed-clusters", String.join(",", allowedClusters));
 
-        result = pulsarCluster.runAdminCommandOnAnyBroker("tenants", "get", tenantName);
-        tenantInfo = jsonMapper().readValue(result.getStdout(), TenantInfo.class);
-        assertNotNull(tenantInfo);
-        assertEquals(tenantInfo.getAdminRoles().stream().sorted().toArray(), adminRoles.stream().sorted().toArray());
-        assertEquals(tenantInfo.getAllowedClusters(), allowedClusters);
+        await().untilAsserted(() -> {
+            TenantInfo updatedTenantInfo = pulsarAdmin.tenants().getTenantInfo(tenantName);
+            assertNotNull(updatedTenantInfo);
+            assertEquals(updatedTenantInfo.getAdminRoles().stream().sorted().toArray(),
+                    updatedAdminRoles.stream().sorted().toArray());
+            assertEquals(updatedTenantInfo.getAllowedClusters(), allowedClusters);
+        });
 
-        pulsarCluster.runAdminCommandOnAnyBroker("tenants", "delete", tenantName);
+        pulsarAdmin.tenants().deleteTenant(tenantName);
     }
 }

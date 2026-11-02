@@ -510,6 +510,14 @@ public class ProxyService implements Closeable {
             Thread.currentThread().interrupt();
         }
 
+        // No listener accepts connections any more, the extensions' included (they are on the acceptor group too).
+        // Close the extensions before what they may still use while closing: the open connections, the discovery
+        // provider, the metadata stores and the event loops.
+        if (proxyExtensions != null) {
+            proxyExtensions.close();
+            proxyExtensions = null;
+        }
+
         closeAllConnections();
 
         dnsAddressResolverGroup.close();
@@ -759,12 +767,15 @@ public class ProxyService implements Closeable {
     }
 
     // Shutdown the event loop.
-    // If graceful is true, will wait for the current requests to be completed, up to 15 seconds.
+    // If graceful is true, will wait for the current requests to be completed, up to 15 seconds. As in the broker,
+    // the quiet period is 1 ms, not Netty's default 2 s that every close would wait out: the listen channels and the
+    // connections are already closed by then. Not 0, which can end an event loop that is running tasks without the
+    // pass that closes its channels.
     // Graceful shutdown can be disabled by setting the gracefulShutdown flag to false. This is used in tests
     // to speed up the shutdown process.
     private Future<?> shutdownEventLoop(EventLoopGroup eventLoop) {
         if (gracefulShutdown) {
-            return eventLoop.shutdownGracefully();
+            return eventLoop.shutdownGracefully(1, 15_000, TimeUnit.MILLISECONDS);
         } else {
             return eventLoop.shutdownGracefully(0, 0, TimeUnit.SECONDS);
         }

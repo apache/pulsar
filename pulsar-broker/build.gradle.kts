@@ -173,6 +173,10 @@ dependencies {
 
 tasks.withType<Test> {
     dependsOn(testNars, testExamplesJar)
+    // Use ZooKeeper's Netty client socket. The default NIO one sleeps 100 ms whenever it closes its
+    // connection (ZOOKEEPER-4184), so every ZooKeeper client close in the tests that start a real
+    // ZooKeeper takes 100 ms longer.
+    systemProperty("zookeeper.clientCnxnSocket", "org.apache.zookeeper.ClientCnxnSocketNetty")
     val narFiles = testNars.incoming.artifacts.resolvedArtifacts
     val jarFiles = testExamplesJar.incoming.artifacts.resolvedArtifacts
     doFirst {
