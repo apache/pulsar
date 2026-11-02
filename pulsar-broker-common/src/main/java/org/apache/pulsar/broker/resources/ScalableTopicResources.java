@@ -552,9 +552,41 @@ public class ScalableTopicResources extends BaseResources<ScalableTopicMetadata>
      * children — a missing child is ignored.
      */
     public CompletableFuture<Void> deleteSubscriptionAsync(TopicName tn, String subscription) {
-        // Recursive: the consumer registrations are under a consumers record, a child of the
-        // subscription record, and ZooKeeper and Oxia refuse to delete a record that has children.
-        return getStore().deleteRecursive(subscriptionPath(tn, subscription));
+        String subPath = subscriptionPath(tn, subscription);
+        String consumersPath = joinPath(subPath, CONSUMERS_SEGMENT);
+        // Delete all consumer children first, then the consumers dir, then the subscription:
+        // ZooKeeper and Oxia refuse to delete a record that has children. Not recursive: the
+        // records of a subscription named "<subscription>/<name>" are under this one's.
+        return subscriptionCache.getChildren(consumersPath)
+                .thenCompose(children -> {
+                    if (children == null || children.isEmpty()) {
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    CompletableFuture<?>[] futs = children.stream()
+                            .map(c -> consumerRegistrationCache
+                                    .delete(joinPath(consumersPath, c))
+                                    .exceptionally(ignoreMissing()))
+                            .toArray(CompletableFuture[]::new);
+                    return CompletableFuture.allOf(futs);
+                })
+                .thenCompose(__ -> deleteConsumersDirAsync(consumersPath))
+                .thenCompose(__ -> subscriptionCache.delete(subPath)
+                        .exceptionally(ignoreMissing()));
+    }
+
+    /**
+     * Delete the consumers dir of a subscription: the empty record that ZooKeeper and Oxia create
+     * as the parent of its first consumer registration. A record with data at that path is the
+     * subscription named "<subscription>/consumers", which stays.
+     */
+    private CompletableFuture<Void> deleteConsumersDirAsync(String consumersPath) {
+        return getStore().get(consumersPath).thenCompose(dir -> {
+            if (dir.isEmpty() || dir.get().getValue().length > 0) {
+                return CompletableFuture.completedFuture(null);
+            }
+            return getStore().delete(consumersPath, Optional.of(dir.get().getStat().getVersion()))
+                    .exceptionally(ignoreMissing());
+        });
     }
 
     public CompletableFuture<List<String>> listSubscriptionsAsync(TopicName tn) {
