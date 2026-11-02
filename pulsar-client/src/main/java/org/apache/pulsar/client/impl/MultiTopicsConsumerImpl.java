@@ -504,7 +504,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
         }
         if (ackType == AckType.Cumulative) {
-            return consumer.acknowledgeCumulativeAsync(messageId);
+            return consumer.acknowledgeCumulativeAsync(messageId, txnImpl);
         } else {
             return consumer.doAcknowledgeWithTxn(messageId, ackType, properties, txnImpl)
                 .thenRun(() -> unAckedMessageTracker.remove(messageId));
