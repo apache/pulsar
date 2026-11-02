@@ -21,9 +21,12 @@ package org.apache.pulsar.broker.stats;
 import static io.opentelemetry.sdk.testing.assertj.OpenTelemetryAssertions.assertThat;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricHistogramValue;
 import static org.apache.pulsar.broker.stats.BrokerOpenTelemetryTestUtil.assertMetricLongSumValue;
+import static org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient.parseMetrics;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.sdk.metrics.data.MetricData;
+import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -32,6 +35,7 @@ import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.ImmutablePositionImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
@@ -43,8 +47,10 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes.ConnectionCreateStatus;
+import org.assertj.core.api.Assertions;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -126,6 +132,32 @@ public class OpenTelemetryBrokerOperabilityStatsTest extends BrokerTestBase {
                 actual -> assertThat(actual).isGreaterThanOrEqualTo(1));
         assertMetricLongSumValue(metrics, BrokerOperabilityMetrics.CONNECTION_CREATE_COUNTER_METRIC_NAME,
                 ConnectionCreateStatus.FAILURE.attributes, 1);
+    }
+
+    @Test
+    public void testProducerCreationFailureMetrics() throws Exception {
+        var topicName = BrokerTestUtil.newUniqueName("persistent://my-property/my-ns/producer-creation-metrics");
+        var attributes = Attributes.builder().put("pulsar.producer.create.error", "IncompatibleSchema").build();
+        var metricName = "pulsar.broker.producer.create.failure.count";
+        @Cleanup
+        var producer = pulsarClient.newProducer(Schema.STRING).topic(topicName).create();
+        assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
+                metricName, attributes, 0);
+
+        assertThatThrownBy(() -> pulsarClient.newProducer(Schema.INT32).topic(topicName).create())
+                .isInstanceOf(PulsarClientException.IncompatibleSchemaException.class);
+        assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
+                metricName, attributes, 1);
+        assertMetricLongSumValue(pulsarTestContext.getOpenTelemetryMetricReader().collectAllMetrics(),
+                metricName, attributes, 1);
+
+        var out = new ByteArrayOutputStream();
+        PrometheusMetricsTestUtil.generate(pulsar, false, false, false, out);
+        Assertions.assertThat(parseMetrics(out.toString(StandardCharsets.UTF_8))
+                .get("pulsar_producer_create_fail_count")).anySatisfy(metric -> {
+                    Assertions.assertThat(metric.tags).containsEntry("error", "IncompatibleSchema");
+                    Assertions.assertThat(metric.value).isEqualTo(1);
+                });
     }
 
     @Test
