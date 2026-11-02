@@ -257,6 +257,7 @@ jobs:
       THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/build/thread-leak-dumps
       NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
       NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/build/netty-leak-dumps
+      TEST_DURATIONS_DIR: ${{ github.workspace }}/build/test-durations
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -335,6 +336,15 @@ jobs:
           tar xf gradle-build-outputs.tar
           rm -f -- gradle-build-outputs.tar
 
+      # the test class durations of the latest earlier run of this group, which
+      # run_unit_group_gradle.sh uses to balance the group's test shards
+      - name: Restore test class durations
+        uses: actions/cache/restore@v6
+        with:
+          path: build/test-durations
+          key: unit-test-durations-${{ matrix.group }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: unit-test-durations-${{ matrix.group }}-
+
       - name: Run setup commands
         if: ${{ matrix.setup }}
         run: |
@@ -343,6 +353,14 @@ jobs:
       - name: Run unit test group '${{ matrix.group }}'
         run: |
           ./pulsar-build/run_unit_group_gradle.sh ${{ matrix.group }}
+
+      - name: Save test class durations
+        if: ${{ success() && hashFiles(format('build/test-durations/{0}.txt', matrix.group)) != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: build/test-durations
+          key: unit-test-durations-${{ matrix.group }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
