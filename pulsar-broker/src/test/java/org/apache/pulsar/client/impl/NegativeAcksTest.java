@@ -508,9 +508,9 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
 
         Awaitility.await().until(() -> consumer.incomingMessages.size() == receiverQueueSize);
 
-        // For testing the race condition of issue #18491
-        // We need to inject a delay for the pinned internal thread
-        Thread.sleep(1000L);
+        // For testing the race condition of issue #18491: redeliver from the pinned internal thread once the full
+        // queue made the consumer stop receiving from its partitions
+        Awaitility.await().until(() -> !consumer.pausedConsumers.isEmpty());
         internalPinnedExecutor.submit(() -> consumer.redeliverUnacknowledgedMessages()).get();
         // Make sure the message redelivery is completed. The incoming queue will be cleaned up during the redelivery.
         internalPinnedExecutor.submit(() -> {}).get();
