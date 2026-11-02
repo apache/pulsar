@@ -654,6 +654,25 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationFailed(MetaStoreException e) {
                 handleBadVersion(e);
+                if (e instanceof BadVersionException) {
+                    // BadVersion proves this ledger was never published. Fenced close skips write handles,
+                    // so close this handle before deleting the orphan. Other failures can have committed the write.
+                    LedgerHandle unpublishedLedger = currentLedger;
+                    unpublishedLedger.closeAsync().whenComplete((__, error) -> {
+                        if (error != null && log.isDebugEnabled()) {
+                            log.debug("[{}] Failed to close an unpublished ledger after initialization", name,
+                                    error);
+                        }
+                        mbean.startDataLedgerDeleteOp();
+                        asyncDeleteLedgerWithConcurrencyLimit(unpublishedLedger.getId(), (rc, ctx) -> {
+                            mbean.endDataLedgerDeleteOp();
+                            if (rc != BKException.Code.OK && log.isDebugEnabled()) {
+                                log.debug("[{}] Failed to delete an unpublished ledger {} after initialization: {}",
+                                        name, unpublishedLedger.getId(), BKException.getMessage(rc));
+                            }
+                        }, null);
+                    });
+                }
                 callback.initializeFailed(new ManagedLedgerException(e));
             }
         };
