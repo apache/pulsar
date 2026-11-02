@@ -388,6 +388,9 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
                 Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES(Schema.BYTES))
                         .topic(topic)
                         .enableBatching(false)
+                        // The broker rejects the message without a schema version each time the producer
+                        // resends it, so its send fails at the send timeout
+                        .sendTimeout(2, TimeUnit.SECONDS)
                         .create()) {
             if (!schemaValidationEnforced) {
                 Topic brokerTopic = pulsar.getBrokerService().getTopicReference(TopicName.get(topic).toString())
@@ -400,6 +403,8 @@ public class SimpleSchemaTest extends ProducerConsumerBase {
             producer.newMessage(Schema.AUTO_PRODUCE_BYTES(Schema.STRING))
                     .value("with-schema".getBytes(UTF_8))
                     .send();
+            // The topic holds only the message with a schema version: the broker didn't store the other one
+            assertEquals(admin.topics().getInternalStats(topic).numberOfEntries, 1);
         }
     }
 
