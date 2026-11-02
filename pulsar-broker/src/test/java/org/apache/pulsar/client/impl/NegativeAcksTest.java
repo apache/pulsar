@@ -22,8 +22,11 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +40,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
@@ -525,26 +529,27 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
         consumer.close();
     }
 
-    @DataProvider(name = "negativeAckPrecisionBitCnt")
-    public Object[][] negativeAckPrecisionBitCnt() {
-        return new Object[][]{
-                {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}
-        };
-    }
-
     /**
      * When negativeAckPrecisionBitCnt is greater than 0, the lower bits of the redelivery time will be truncated
      * to reduce the memory occupation. If set to k, the redelivery time will be bucketed by 2^k ms, resulting in
      * the redelivery time could be earlier(no later) than the expected time no more than 2^k ms.
+     * Each precision gets a consumer of its own, so that their redelivery delays run at the same time.
      * @throws Exception if an error occurs
      */
-    @Test(dataProvider = "negativeAckPrecisionBitCnt")
-    public void testConfigureNegativeAckPrecisionBitCnt(int negativeAckPrecisionBitCnt) throws Exception {
+    @Test
+    public void testConfigureNegativeAckPrecisionBitCnt() throws Exception {
+        List<CompletableFuture<Void>> checks = new ArrayList<>();
+        for (int negativeAckPrecisionBitCnt = 1; negativeAckPrecisionBitCnt <= 12; negativeAckPrecisionBitCnt++) {
+            checks.add(checkNegativeAckPrecisionBitCnt(negativeAckPrecisionBitCnt));
+        }
+        FutureUtil.waitForAll(checks).get();
+    }
+
+    private CompletableFuture<Void> checkNegativeAckPrecisionBitCnt(int negativeAckPrecisionBitCnt) throws Exception {
         String topic = newTopicName();
         long timeDeviation = 1L << negativeAckPrecisionBitCnt;
         long delayInMs = 2000;
 
-        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub1")
@@ -567,8 +572,10 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
 
         // receive the redelivered message and calculate the time deviation
         // assert that the redelivery time is no earlier than the `expected time - timeDeviation`
-        Message<String> msg1 = consumer.receive();
-        assertTrue(System.currentTimeMillis() >= expectedTime - timeDeviation);
-        assertNotNull(msg1);
+        return consumer.receiveAsync().thenAccept(msg1 -> {
+            assertTrue(System.currentTimeMillis() >= expectedTime - timeDeviation,
+                    "negativeAckPrecisionBitCnt=" + negativeAckPrecisionBitCnt);
+            assertNotNull(msg1);
+        }).whenComplete((v, e) -> consumer.closeAsync());
     }
 }
