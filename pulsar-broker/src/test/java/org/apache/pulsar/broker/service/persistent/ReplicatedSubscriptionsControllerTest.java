@@ -156,6 +156,10 @@ public class ReplicatedSubscriptionsControllerTest {
         ManagedCursor cursor = mock(ManagedCursor.class);
         when(cursor.getMarkDeletedPosition()).thenReturn(markDeletePosition);
         when(subscription.getCursor()).thenReturn(cursor);
+        when(subscription.getLastCursorResetFuture()).thenReturn(null);
+        when(subscription.acknowledgeReplicatedSubscriptionMessage(any(), any(), any(), anyBoolean()))
+                .thenAnswer(invocation -> subscription.acknowledgeMessageAsync(
+                        List.of(invocation.getArgument(0, Position.class)), AckType.Cumulative, Map.of()));
         when(subscription.acknowledgeMessageAsync(any(), eq(AckType.Cumulative), any()))
                 .thenReturn(CompletableFuture.failedFuture(ackFailure));
         return subscription;

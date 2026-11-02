@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -30,6 +31,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -44,9 +46,13 @@ import java.util.function.IntFunction;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
@@ -56,6 +62,7 @@ import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.Markers;
+import org.apache.pulsar.utils.TestLogAppender;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -311,6 +318,72 @@ public class ReceivedReplicatedSubscriptionUpdateRetryConcurrencyTest {
     }
 
     @Test
+    public void testCursorRewindRetiresPendingUpdate() throws Exception {
+        try (Fixture fixture = new Fixture(true)) {
+            fixture.original.markDelete.set(position(2));
+            fixture.original.ackBehavior = (target, attempt) -> failed("transient cursor error");
+            fixture.receive(9);
+            fixture.original.markDelete.set(position(0));
+            fixture.tick(5);
+            assertThat(fixture.original.ackTargets).containsExactly(position(9));
+        }
+    }
+
+    @Test
+    public void testNewMarkerAfterRewindDoesNotReuseStaleHigherTarget() throws Exception {
+        try (Fixture fixture = new Fixture(true)) {
+            fixture.original.markDelete.set(position(2));
+            fixture.original.ackBehavior = (target, attempt) -> attempt == 1 ? failed("transient cursor error")
+                    : CompletableFuture.completedFuture(null);
+            fixture.receive(9);
+            fixture.original.markDelete.set(position(0));
+            fixture.receive(5);
+            fixture.tick(5);
+            assertThat(fixture.original.ackTargets).containsExactly(position(9), position(5));
+            assertThat(fixture.original.markDelete.get()).isEqualTo(position(5));
+        }
+    }
+
+    @Test(dataProvider = "completionOutcomes")
+    public void testSubscriptionPolicyRejectionIsNotRetried(boolean wrapped) throws Exception {
+        try (Fixture fixture = new Fixture(false)) {
+            Throwable rejection = new NotAllowedException("Maximum number of subscriptions reached");
+            fixture.createBehavior = attempt -> CompletableFuture.failedFuture(
+                    wrapped ? new CompletionException(rejection) : rejection);
+            fixture.receive(5);
+            fixture.tick(5);
+            assertThat(fixture.createAttempts.get()).isEqualTo(1);
+            assertThat(fixture.original.ackTargets).isEmpty();
+
+            // A later remote UPDATE may try again after the operator changes the policy.
+            fixture.createBehavior = attempt -> CompletableFuture.completedFuture(fixture.original.subscription);
+            fixture.receive(9);
+            assertThat(fixture.createAttempts.get()).isEqualTo(2);
+            assertThat(fixture.original.ackTargets).containsExactly(position(9));
+        }
+    }
+
+    @Test
+    public void testSubscriptionAutoCreationLogsFirstAttemptAtInfoAndRetriesAtDebug() throws Exception {
+        var logger = LogManager.getLogger(ReplicatedSubscriptionsController.class);
+        Level previousLevel = logger.getLevel();
+        Configurator.setLevel(logger.getName(), Level.DEBUG);
+        try (Fixture fixture = new Fixture(false);
+                TestLogAppender appender = TestLogAppender.create(ReplicatedSubscriptionsController.class)) {
+            fixture.createBehavior = attempt -> failed("transient metadata error");
+            fixture.receive(5);
+            fixture.tick(3);
+            assertThat(appender.getEvents().stream()
+                    .filter(event -> event.getMessage().getFormattedMessage()
+                            .contains("Creating subscription for received replicated subscription update"))
+                    .map(event -> event.getLevel()).toList())
+                    .containsExactly(Level.INFO, Level.DEBUG, Level.DEBUG, Level.DEBUG);
+        } finally {
+            Configurator.setLevel(logger.getName(), previousLevel);
+        }
+    }
+
+    @Test
     public void testDelayedCreationRetainsNameAndTargetAfterParserReuse() throws Exception {
         try (Fixture fixture = new Fixture(false)) {
             CompletableFuture<Subscription> pending = new CompletableFuture<>();
@@ -409,6 +482,11 @@ public class ReceivedReplicatedSubscriptionUpdateRetryConcurrencyTest {
         private SubscriptionState(boolean replicated) {
             ManagedCursor cursor = mock(ManagedCursor.class);
             when(subscription.getCursor()).thenReturn(cursor);
+            // No reset has been admitted. Mockito otherwise supplies a fresh empty future per call.
+            when(subscription.getLastCursorResetFuture()).thenReturn(null);
+            when(subscription.acknowledgeReplicatedSubscriptionMessage(any(), any(), any(), anyBoolean()))
+                    .thenAnswer(invocation -> subscription.acknowledgeMessageAsync(
+                            List.of(invocation.getArgument(0, Position.class)), AckType.Cumulative, Map.of()));
             when(subscription.isReplicated()).thenReturn(replicated);
             when(cursor.getMarkDeletedPosition()).thenAnswer(invocation -> markDelete.get());
             when(subscription.acknowledgeMessageAsync(any(), eq(AckType.Cumulative), any()))

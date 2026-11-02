@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -153,6 +154,11 @@ public class ReceivedReplicatedSubscriptionUpdateRetryTest {
                         return timer;
                     });
             when(subscription.getCursor()).thenReturn(cursor);
+            // No reset has been admitted. Mockito otherwise supplies a fresh empty future per call.
+            when(subscription.getLastCursorResetFuture()).thenReturn(null);
+            when(subscription.acknowledgeReplicatedSubscriptionMessage(any(), any(), any(), anyBoolean()))
+                    .thenAnswer(invocation -> subscription.acknowledgeMessageAsync(
+                            List.of(invocation.getArgument(0, Position.class)), AckType.Cumulative, Map.of()));
             when(subscription.isReplicated()).thenReturn(true);
             when(cursor.getMarkDeletedPosition()).thenAnswer(invocation -> markDelete.get());
             when(topic.getSubscription("sub")).thenAnswer(invocation -> currentSubscription.get());

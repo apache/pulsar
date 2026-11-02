@@ -44,13 +44,13 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionSnapshotCache.ClusterEntry;
 import org.apache.pulsar.broker.service.persistent.ReplicatedSubscriptionSnapshotCache.SnapshotResult;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
 import org.apache.pulsar.common.api.proto.ClusterMessageId;
-import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.MarkerType;
 import org.apache.pulsar.common.api.proto.MarkersMessageIdData;
@@ -92,14 +92,39 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
     private final AtomicBoolean closed = new AtomicBoolean();
 
     private static final class PendingReceivedSubscriptionUpdate {
-        private final AtomicReference<PersistentSubscription> subscription;
+        private final AtomicReference<ReceivedSubscriptionState> subscriptionState;
         private final Position position;
         private final AtomicBoolean inFlight = new AtomicBoolean();
         private final AtomicBoolean attempted = new AtomicBoolean();
 
         private PendingReceivedSubscriptionUpdate(PersistentSubscription subscription, Position position) {
-            this.subscription = new AtomicReference<>(subscription);
+            this.subscriptionState = new AtomicReference<>(
+                    subscription == null ? null : new ReceivedSubscriptionState(subscription));
             this.position = position;
+        }
+    }
+
+    private static final class ReceivedSubscriptionState {
+        private final PersistentSubscription subscription;
+        private final Position markDeletePosition;
+        private final CompletableFuture<Void> resetFuture;
+        private final boolean resetInProgress;
+
+        private ReceivedSubscriptionState(PersistentSubscription subscription) {
+            this.subscription = subscription;
+            resetFuture = subscription.getLastCursorResetFuture();
+            resetInProgress = resetFuture != null && !resetFuture.isDone();
+            markDeletePosition = subscription.getCursor().getMarkDeletedPosition();
+        }
+
+        private boolean shouldDiscard() {
+            return resetInProgress || subscription.getLastCursorResetFuture() != resetFuture
+                    || subscription.getCursor().getMarkDeletedPosition().compareTo(markDeletePosition) < 0;
+        }
+
+        private CompletableFuture<Void> acknowledge(Position position) {
+            return subscription.acknowledgeReplicatedSubscriptionMessage(position, markDeletePosition,
+                    resetFuture, resetInProgress);
         }
     }
 
@@ -346,8 +371,10 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             PersistentSubscription subscription = topic.getSubscription(subscriptionName);
             pendingUpdate = pendingReceivedSubscriptionUpdates.compute(subscriptionName, (name, pending) -> {
                 if (pending != null) {
-                    PersistentSubscription bound = pending.subscription.get();
-                    if ((bound == null || bound == subscription) && pending.position.compareTo(target) >= 0) {
+                    ReceivedSubscriptionState state = pending.subscriptionState.get();
+                    PersistentSubscription bound = state == null ? null : state.subscription;
+                    if ((bound == null || bound == subscription) && (state == null || !state.shouldDiscard())
+                            && pending.position.compareTo(target) >= 0) {
                         // An initially missing subscription may have been created while its retry
                         // was pending. Preserve the higher target, but bind its current identity.
                         return bound == subscription ? pending
@@ -365,11 +392,12 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         if (closed.get() || pendingReceivedSubscriptionUpdates.get(subscriptionName) != update) {
             return false;
         }
-        PersistentSubscription subscription = update.subscription.get();
+        ReceivedSubscriptionState state = update.subscriptionState.get();
+        PersistentSubscription subscription = state == null ? null : state.subscription;
         PersistentSubscription current = topic.getSubscription(subscriptionName);
         if (subscription == null && current != null) {
-            update.subscription.compareAndSet(null, current);
-            subscription = update.subscription.get();
+            update.subscriptionState.compareAndSet(null, new ReceivedSubscriptionState(current));
+            subscription = update.subscriptionState.get().subscription;
         }
         if (subscription != current) {
             // A retry bound to an existing subscription must not recreate or update its replacement.
@@ -389,7 +417,15 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             return;
         }
         boolean firstAttempt = update.attempted.compareAndSet(false, true);
-        PersistentSubscription subscription = update.subscription.get();
+        ReceivedSubscriptionState state = update.subscriptionState.get();
+        PersistentSubscription subscription = state == null ? null : state.subscription;
+        if (state != null && state.shouldDiscard()) {
+            // A local seek takes precedence, including a reset to the same position or a rewind
+            // followed by local acknowledgements back to the admission position between timer ticks.
+            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+            update.inFlight.set(false);
+            return;
+        }
         if (!firstAttempt && subscription != null
                 && subscription.getCursor().getMarkDeletedPosition().compareTo(update.position) >= 0) {
             // Preserve the initial ACK call, but do not repeatedly ACK an already-applied target.
@@ -397,7 +433,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
             update.inFlight.set(false);
             return;
         }
-        applyReceivedSubscriptionUpdate(subscriptionName, update).whenComplete((ignored, error) -> {
+        applyReceivedSubscriptionUpdate(subscriptionName, update, firstAttempt).whenComplete((ignored, error) -> {
             try {
                 if (error == null) {
                     pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
@@ -416,8 +452,31 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         if (!isCurrentReceivedSubscriptionUpdate(subscriptionName, update)) {
             return;
         }
-        PersistentSubscription subscription = update.subscription.get();
+        ReceivedSubscriptionState state = update.subscriptionState.get();
+        PersistentSubscription subscription = state == null ? null : state.subscription;
         Position markDeletePosition = subscription == null ? null : subscription.getCursor().getMarkDeletedPosition();
+        Throwable cause = FutureUtil.unwrapCompletionException(error);
+        if (state != null && state.shouldDiscard()) {
+            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+            log.debug()
+                    .attr("subscriptionName", subscriptionName)
+                    .attr("pos", update.position)
+                    .exceptionMessage(cause)
+                    .log("Discarding replicated subscription update superseded by a local cursor reset");
+            return;
+        }
+        if (cause instanceof NotAllowedException) {
+            // Retrying cannot fix policy rejection, such as exceeding the subscription limit.
+            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+            if (firstAttempt) {
+                log.warn()
+                        .attr("subscriptionName", subscriptionName)
+                        .attr("pos", update.position)
+                        .exceptionMessage(cause)
+                        .log("Replicated subscription update rejected; not retrying");
+            }
+            return;
+        }
         if (markDeletePosition != null && update.position.compareTo(markDeletePosition) <= 0) {
             // A failed ACK future can still have applied, or a local consumer can have advanced farther.
             pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
@@ -431,14 +490,14 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 log.warn()
                         .attr("subscriptionName", subscriptionName)
                         .attr("pos", update.position)
-                        .exceptionMessage(FutureUtil.unwrapCompletionException(error))
+                        .exceptionMessage(cause)
                         .log("Failed to create replicated subscription");
             } else {
                 log.warn()
                         .attr("subscriptionName", subscriptionName)
                         .attr("pos", update.position)
                         .attr("markDeletePosition", markDeletePosition)
-                        .exceptionMessage(FutureUtil.unwrapCompletionException(error))
+                        .exceptionMessage(cause)
                         .log("Failed to update replicated subscription");
             }
         } else {
@@ -446,24 +505,29 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                     .attr("subscriptionName", subscriptionName)
                     .attr("pos", update.position)
                     .attr("markDeletePosition", markDeletePosition)
-                    .exceptionMessage(FutureUtil.unwrapCompletionException(error))
+                    .exceptionMessage(cause)
                     .log("Failed to apply replicated subscription update; retaining it for retry");
         }
     }
 
     private CompletableFuture<Void> applyReceivedSubscriptionUpdate(String subscriptionName,
-                                                                    PendingReceivedSubscriptionUpdate update) {
+                                                                    PendingReceivedSubscriptionUpdate update,
+                                                                    boolean firstAttempt) {
         return FutureUtil.supplySafely(() -> {
             if (!isCurrentReceivedSubscriptionUpdate(subscriptionName, update)) {
                 return CompletableFuture.completedFuture(null);
             }
-            PersistentSubscription subscription = update.subscription.get();
+            ReceivedSubscriptionState state = update.subscriptionState.get();
+            PersistentSubscription subscription = state == null ? null : state.subscription;
+            if (state != null && state.shouldDiscard()) {
+                pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+                return CompletableFuture.completedFuture(null);
+            }
             if (subscription != null) {
                 // Received updates historically apply to existing non-replicated subscriptions too.
-                return subscription.acknowledgeMessageAsync(Collections.singletonList(update.position),
-                        AckType.Cumulative, Collections.emptyMap());
+                return state.acknowledge(update.position);
             }
-            log.debug()
+            (firstAttempt ? log.info() : log.debug())
                     .attr("subscription", subscriptionName)
                     .attr("position", update.position)
                     .log("Creating subscription for received replicated subscription update");
@@ -478,17 +542,21 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                             pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
                             return CompletableFuture.completedFuture(null);
                         }
-                        if (!update.subscription.compareAndSet(null, createdSubscription)
-                                && update.subscription.get() != createdSubscription) {
+                        if (!update.subscriptionState.compareAndSet(null,
+                                new ReceivedSubscriptionState(createdSubscription))
+                                && update.subscriptionState.get().subscription != createdSubscription) {
                             pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
                             return CompletableFuture.completedFuture(null);
                         }
                         if (!isCurrentReceivedSubscriptionUpdate(subscriptionName, update)) {
                             return CompletableFuture.completedFuture(null);
                         }
-                        return FutureUtil.supplySafely(() -> createdSubscription.acknowledgeMessageAsync(
-                                Collections.singletonList(update.position), AckType.Cumulative,
-                                Collections.emptyMap()));
+                        if (update.subscriptionState.get().shouldDiscard()) {
+                            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+                            return CompletableFuture.completedFuture(null);
+                        }
+                        return FutureUtil.supplySafely(() ->
+                                update.subscriptionState.get().acknowledge(update.position));
                     });
         });
     }
