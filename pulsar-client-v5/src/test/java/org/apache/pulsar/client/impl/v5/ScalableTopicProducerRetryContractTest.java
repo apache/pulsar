@@ -51,12 +51,15 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageCrypto;
@@ -98,6 +101,11 @@ public class ScalableTopicProducerRetryContractTest {
     @DataProvider(name = "sendModesAndTimeouts")
     public Object[][] sendModesAndTimeouts() {
         return new Object[][] {{false, 0L}, {true, 0L}, {false, 120_000L}, {true, 120_000L}};
+    }
+
+    @DataProvider(name = "closeModes")
+    public Object[][] closeModes() {
+        return new Object[][] {{false}, {true}};
     }
 
     @Test(dataProvider = "sendModesAndTimeouts")
@@ -257,6 +265,400 @@ public class ScalableTopicProducerRetryContractTest {
         }
     }
 
+    @Test(dataProvider = "closeModes")
+    public void closeDrainsAcceptedAsynchronousTimeoutCompletions(boolean closeClient) throws Exception {
+        var completion = new DiscardingExecutor();
+        try (var harness = new Harness(1000, completion)) {
+            CompletableFuture<Producer<String>> creation = new CompletableFuture<>();
+            doReturn(creation).when(harness.v4).createSegmentProducerAsync(any(), any());
+            when(harness.v4.closeAsync()).thenAnswer(__ -> {
+                completion.shutdownNow();
+                return CompletableFuture.completedFuture(null);
+            });
+            var send = harness.send(false);
+            var flushing = harness.producer.flushAsync();
+            assertThat(harness.producer.queuedDispatchCount()).isEqualTo(1);
+            assertThat(flushing).isNotDone();
+
+            harness.timeouts.get(0).fire();
+            assertThat(completion.pendingCount()).isEqualTo(1);
+            assertThat(send).isNotDone();
+            assertThat(flushing).isNotDone();
+            assertThat(harness.producer.queuedDispatchCount()).isZero();
+            assertThat(harness.memory.currentUsage()).isZero();
+
+            var closed = closeClient ? harness.client.closeAsync() : harness.producer.closeAsync();
+            assertThat(closed).succeedsWithin(10, TimeUnit.SECONDS);
+            // A client close drops the accepted completion rather than running it. A standalone
+            // producer close must also have delivered the terminal result before that can happen.
+            completion.shutdownNow();
+            assertThat(completion.pendingCount()).isZero();
+            assertThat(send).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                    .isInstanceOf(TimeoutException.class);
+            assertThat(flushing).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                    .isInstanceOf(TimeoutException.class);
+            assertThat(harness.producer.flushAsync()).isCompleted();
+            assertThat(creation).isNotDone();
+        }
+    }
+
+    @Test
+    public void closeDrainsATimeoutWhileItsAcceptedExecutorSubmissionHasNotReturned() throws Exception {
+        var completion = new GatedSubmissionExecutor();
+        try (var harness = new Harness(1000, completion);
+                var timerThread = Executors.newSingleThreadExecutor(new DefaultThreadFactory("completion-timer"))) {
+            CompletableFuture<Producer<String>> creation = new CompletableFuture<>();
+            doReturn(creation).when(harness.v4).createSegmentProducerAsync(any(), any());
+            var send = harness.send(false);
+            var flushing = harness.producer.flushAsync();
+            var timerReturned = timerThread.submit(() -> {
+                harness.timeouts.get(0).fire();
+                return null;
+            });
+            try {
+                assertThat(completion.accepted.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(send).isNotDone();
+                assertThat(flushing).isNotDone();
+                assertThat(harness.memory.currentUsage()).isZero();
+                assertThat(harness.producer.closeAsync()).succeedsWithin(10, TimeUnit.SECONDS);
+                assertThat(completion.shutdownNow()).hasSize(1);
+                assertThat(send).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                        .isInstanceOf(TimeoutException.class);
+                assertThat(flushing).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                        .isInstanceOf(TimeoutException.class);
+                assertThat(creation).isNotDone();
+            } finally {
+                completion.returnFromSubmission.countDown();
+            }
+            timerReturned.get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test(dataProvider = "closeModes")
+    public void closeDrainedTimeoutCallbackCanSynchronouslyCloseTheProducerOrClient(boolean closeClient)
+            throws Exception {
+        var completion = new DiscardingExecutor();
+        try (var harness = new Harness(1000, completion);
+                var externalCloser = Executors.newSingleThreadExecutor(new DefaultThreadFactory("reentrant-close"))) {
+            CompletableFuture<Producer<String>> creation = new CompletableFuture<>();
+            doReturn(creation).when(harness.v4).createSegmentProducerAsync(any(), any());
+            var send = harness.send(false);
+            var flushing = harness.producer.flushAsync();
+            CountDownLatch callbackEntered = new CountDownLatch(1);
+            CountDownLatch allowCallbackClose = new CountDownLatch(1);
+            CompletableFuture<Void> callbackClosed = new CompletableFuture<>();
+            send.whenComplete((__, failure) -> {
+                callbackEntered.countDown();
+                try {
+                    assertThat(allowCallbackClose.await(10, TimeUnit.SECONDS)).isTrue();
+                    if (closeClient) {
+                        harness.client.close();
+                    } else {
+                        harness.producer.close();
+                    }
+                    callbackClosed.complete(null);
+                } catch (Throwable closeFailure) {
+                    callbackClosed.completeExceptionally(closeFailure);
+                }
+            });
+            harness.timeouts.get(0).fire();
+            assertThat(completion.pendingCount()).isEqualTo(1);
+            assertThat(send).isNotDone();
+            assertThat(flushing).isNotDone();
+            var closed = externalCloser.submit(() -> {
+                if (closeClient) {
+                    harness.client.close();
+                } else {
+                    harness.producer.close();
+                }
+                return null;
+            });
+            try {
+                assertThat(callbackEntered.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(callbackClosed).isNotDone();
+                assertThat(closed.isDone()).isFalse();
+                // The outer close is delivering this callback. Its synchronous nested close
+                // must not wait for a close future whose owner is paused inside the callback.
+                allowCallbackClose.countDown();
+                assertThat(callbackClosed).succeedsWithin(10, TimeUnit.SECONDS);
+                closed.get(10, TimeUnit.SECONDS);
+                assertThat(completion.shutdownNow()).hasSize(1);
+                assertThat(send).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                        .isInstanceOf(TimeoutException.class);
+                assertThat(flushing).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                        .isInstanceOf(TimeoutException.class);
+                assertThat(harness.memory.currentUsage()).isZero();
+                assertThat(creation).isNotDone();
+            } finally {
+                allowCallbackClose.countDown();
+                // An incorrect close implementation can leave the worker in its nested get().
+                // Interrupt that wait before the executor's AutoCloseable cleanup joins it.
+                externalCloser.shutdownNow();
+            }
+        }
+    }
+
+    @Test
+    public void aBlockedWarmDispatchCannotDelayAColdSegmentsLogicalTimeout() throws Exception {
+        ExecutorService dispatch = Executors.newSingleThreadExecutor(new DefaultThreadFactory("warm-crypto-dispatch"));
+        try (var harness = new Harness(120_000, MoreExecutors.newDirectExecutorService(), dispatch);
+                var warmCaller = Executors.newSingleThreadExecutor(new DefaultThreadFactory("warm-crypto-caller"));
+                var followingCaller = Executors.newSingleThreadExecutor(new DefaultThreadFactory("warm-next-caller"));
+                var timerThread = Executors.newSingleThreadExecutor(new DefaultThreadFactory("cold-logical-timer"))) {
+            ScalableTopicDAG dag = new ScalableTopicDAG().setEpoch(1);
+            dag.addSegment().setSegmentId(0).setHashStart(0).setHashEnd(0x7fff)
+                    .setState(SegmentState.ACTIVE).setCreatedAtEpoch(0);
+            dag.addSegment().setSegmentId(1).setHashStart(0x8000).setHashEnd(0xffff)
+                    .setState(SegmentState.ACTIVE).setCreatedAtEpoch(1);
+            harness.applyLayout(ClientSegmentLayout.fromProto(dag, TOPIC));
+            String warmKey = keyForSegment(harness.current, 0);
+            String coldKey = keyForSegment(harness.current, 1);
+            CompletableFuture<EncryptionKey> publicKey = new CompletableFuture<>();
+            CompletableFuture<Producer<String>> coldCreation = new CompletableFuture<>();
+            CountDownLatch keyRequested = new CountDownLatch(1);
+            AtomicInteger requests = new AtomicInteger();
+            ProducerImpl<String> physical = remoteKeyProducer(harness, name -> {
+                assertThat(name).isEqualTo("remote-key");
+                if (requests.incrementAndGet() == 2) {
+                    keyRequested.countDown();
+                    return publicKey;
+                }
+                return CompletableFuture.completedFuture(EncryptionKey.of(new byte[0]));
+            });
+            doAnswer(invocation -> {
+                ProducerConfigurationData conf = invocation.getArgument(0);
+                return harness.segmentIds.get(conf.getTopicName()) == 0
+                        ? CompletableFuture.completedFuture(physical) : coldCreation;
+            }).when(harness.v4).createSegmentProducerAsync(any(), any());
+            try {
+                // The first real encryption attempt fails immediately, but leaves a completed
+                // chain head. The executor barrier also waits for the head's final completion.
+                var warmup = harness.send(warmKey);
+                assertThat(warmup).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                        .isInstanceOf(PulsarClientException.CryptoException.class);
+                dispatch.submit(() -> { }).get(10, TimeUnit.SECONDS);
+                assertThat(requests).hasValue(1);
+                assertThat(harness.memory.currentUsage()).isZero();
+
+                List<AtomicReference<?>> queued = new CopyOnWriteArrayList<>();
+                CountDownLatch followingQueued = new CountDownLatch(1);
+                harness.producer.queuedDispatchHook = ref -> {
+                    queued.add(ref);
+                    if (queued.size() == 3) {
+                        followingQueued.countDown();
+                    }
+                };
+                var cold = harness.send(coldKey);
+                assertThat(harness.timeouts).hasSize(2);
+                assertThat(harness.producer.queuedDispatchCount()).isEqualTo(1);
+                assertThat(queued.get(0).get()).isNotNull();
+                long coldReservation = harness.memory.currentUsage();
+                assertThat(coldReservation).isPositive();
+                var blockedSubmission = warmCaller.submit(() -> harness.send(warmKey));
+                assertThat(keyRequested.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(publicKey).isNotDone();
+                var followingSubmission = followingCaller.submit(() -> harness.send(warmKey));
+                assertThat(followingQueued.await(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(requests).hasValue(2);
+                long beforeTimeout = harness.memory.currentUsage();
+
+                var timerReturned = timerThread.submit(() -> {
+                    harness.timeouts.get(1).fire();
+                    return null;
+                });
+                timerReturned.get(10, TimeUnit.SECONDS);
+                assertThat(cold).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                        .isInstanceOf(TimeoutException.class);
+                assertThat(queued.get(0).get()).isNull();
+                var following = followingSubmission.get(10, TimeUnit.SECONDS);
+                assertThat(harness.producer.queuedDispatchCount()).isEqualTo(1);
+                assertThat(harness.memory.currentUsage()).isEqualTo(beforeTimeout - coldReservation);
+                assertThat(timerThread.submit(() -> true).get(10, TimeUnit.SECONDS)).isTrue();
+                assertThat(publicKey).isNotDone();
+                assertThat(coldCreation).isNotDone();
+                assertThat(requests).hasValue(2);
+
+                // Neither the timeout nor the queued successor recalls the already claimed V4
+                // handoff. Releasing its actual key lookup lets both warm sends finish in order.
+                publicKey.complete(EncryptionKey.of(new byte[0]));
+                assertThat(blockedSubmission.get(10, TimeUnit.SECONDS))
+                        .failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                        .isInstanceOf(PulsarClientException.CryptoException.class);
+                assertThat(following)
+                        .failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                        .isInstanceOf(PulsarClientException.CryptoException.class);
+                assertThat(requests).hasValue(3);
+                assertThat(harness.memory.currentUsage()).isZero();
+                assertThat(harness.producer.closeAsync()).succeedsWithin(10, TimeUnit.SECONDS);
+                assertThat(coldCreation).isNotDone();
+            } finally {
+                publicKey.complete(EncryptionKey.of(new byte[0]));
+                warmCaller.submit(() -> { }).get(10, TimeUnit.SECONDS);
+                followingCaller.submit(() -> { }).get(10, TimeUnit.SECONDS);
+                dispatch.submit(() -> { }).get(10, TimeUnit.SECONDS);
+                physical.closeAsync().get(10, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    @Test
+    public void timedOutWarmWaitersAreRemovedWhileThePhysicalHandoffRemainsBlocked() throws Exception {
+        try (var fixture = new BlockedWarmDispatch();
+                var followers = Executors.newSingleThreadExecutor(new DefaultThreadFactory("warm-timeout-followers"));
+                var timer = Executors.newSingleThreadExecutor(new DefaultThreadFactory("warm-timeout-timer"))) {
+            try {
+                var blocked = fixture.block();
+                long baseline = fixture.harness.memory.currentUsage();
+                assertThat(baseline).isPositive();
+                List<AtomicReference<?>> retained = new CopyOnWriteArrayList<>();
+                fixture.harness.producer.queuedDispatchHook = retained::add;
+                for (int wave = 0; wave < 3; wave++) {
+                    int firstTimeout = fixture.harness.timeouts.size();
+                    int sequence = 2 + wave * 64;
+                    var queued = followers.submit(() -> {
+                        List<CompletableFuture<org.apache.pulsar.client.api.v5.MessageId>> sends = new ArrayList<>();
+                        for (int i = 0; i < 64; i++) {
+                            sends.add(fixture.send(sequence + i));
+                        }
+                        return sends;
+                    }).get(10, TimeUnit.SECONDS);
+                    assertThat(fixture.harness.producer.queuedDispatchCount()).isEqualTo(64);
+                    assertThat(fixture.harness.memory.currentUsage()).isGreaterThan(baseline);
+                    timer.submit(() -> {
+                        for (int i = firstTimeout; i < firstTimeout + 64; i++) {
+                            fixture.harness.timeouts.get(i).fire();
+                        }
+                        return null;
+                    }).get(10, TimeUnit.SECONDS);
+                    for (var send : queued) {
+                        assertThat(send).failsWithin(0, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                                .isInstanceOf(TimeoutException.class);
+                    }
+                    assertThat(fixture.harness.producer.queuedDispatchCount()).isZero();
+                    assertThat(retained).allSatisfy(reference -> assertThat(reference.get()).isNull());
+                    assertThat(fixture.harness.memory.currentUsage()).isEqualTo(baseline);
+                    assertThat(fixture.requests).hasValue(2);
+                    assertThat(fixture.publicKey).isNotDone();
+                }
+                fixture.release();
+                assertThat(blocked.get(10, TimeUnit.SECONDS)).failsWithin(10, TimeUnit.SECONDS)
+                        .withThrowableThat().havingCause().isInstanceOf(PulsarClientException.CryptoException.class);
+                assertThat(fixture.requests).hasValue(2);
+                assertThat(fixture.harness.memory.currentUsage()).isZero();
+            } finally {
+                // A baseline sender may be waiting for dispatchLock; release the actual crypto
+                // handoff before AutoCloseable joins either application/timer executor.
+                fixture.release();
+            }
+        }
+    }
+
+    @Test
+    public void aLargeWarmBacklogDrainsIterativelyInCallOrder() throws Exception {
+        try (var fixture = new BlockedWarmDispatch();
+                var followers = Executors.newSingleThreadExecutor(new DefaultThreadFactory("warm-backlog-followers"))) {
+            try {
+                var blocked = fixture.block();
+                int backlog = 4096;
+                var queued = followers.submit(() -> {
+                    List<CompletableFuture<org.apache.pulsar.client.api.v5.MessageId>> sends = new ArrayList<>();
+                    for (int i = 0; i < backlog; i++) {
+                        sends.add(fixture.send(2L + i));
+                    }
+                    return sends;
+                }).get(10, TimeUnit.SECONDS);
+                assertThat(queued).hasSize(backlog).allSatisfy(send -> assertThat(send).isNotDone());
+                assertThat(fixture.requests).hasValue(2);
+                fixture.release();
+                assertThat(blocked.get(10, TimeUnit.SECONDS)).failsWithin(10, TimeUnit.SECONDS)
+                        .withThrowableThat().havingCause().isInstanceOf(PulsarClientException.CryptoException.class);
+                for (var send : queued) {
+                    assertThat(send).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                            .isInstanceOf(PulsarClientException.CryptoException.class);
+                }
+                List<Long> expected = new ArrayList<>();
+                for (long sequence = 0; sequence < backlog + 2; sequence++) {
+                    expected.add(sequence);
+                }
+                assertThat(fixture.dispatched).containsExactlyElementsOf(expected);
+                assertThat(fixture.requests).hasValue(backlog + 2);
+                assertThat(fixture.harness.producer.queuedDispatchCount()).isZero();
+                assertThat(fixture.harness.memory.currentUsage()).isZero();
+            } finally {
+                fixture.release();
+            }
+        }
+    }
+
+    /** One completed warm dispatch followed by a real crypto handoff blocked on its remote key. */
+    private static final class BlockedWarmDispatch implements AutoCloseable {
+        final ExecutorService dispatch = Executors.newSingleThreadExecutor(new DefaultThreadFactory("warm-dispatch"));
+        final ExecutorService caller = Executors.newSingleThreadExecutor(new DefaultThreadFactory("warm-caller"));
+        final Harness harness = new Harness(120_000, MoreExecutors.newDirectExecutorService(), dispatch);
+        final CompletableFuture<EncryptionKey> publicKey = new CompletableFuture<>();
+        final CountDownLatch keyRequested = new CountDownLatch(1);
+        final AtomicInteger requests = new AtomicInteger();
+        final List<Long> dispatched = new CopyOnWriteArrayList<>();
+        final ProducerImpl<String> physical;
+
+        BlockedWarmDispatch() {
+            physical = remoteKeyProducer(harness, name -> {
+                assertThat(name).isEqualTo("remote-key");
+                if (requests.incrementAndGet() == 2) {
+                    keyRequested.countDown();
+                    return publicKey;
+                }
+                return CompletableFuture.completedFuture(EncryptionKey.of(new byte[0]));
+            }, metadata -> dispatched.add(metadata.getSequenceId()));
+            doReturn(CompletableFuture.completedFuture(physical)).when(harness.v4)
+                    .createSegmentProducerAsync(any(), any());
+        }
+
+        Future<CompletableFuture<org.apache.pulsar.client.api.v5.MessageId>> block() throws Exception {
+            assertThat(send(0)).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().havingCause()
+                    .isInstanceOf(PulsarClientException.CryptoException.class);
+            dispatch.submit(() -> { }).get(10, TimeUnit.SECONDS);
+            var blocked = caller.submit(() -> send(1));
+            assertThat(keyRequested.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(requests).hasValue(2);
+            return blocked;
+        }
+
+        CompletableFuture<org.apache.pulsar.client.api.v5.MessageId> send(long sequence) {
+            return harness.producer.sendInternalAsync("key", "value", null, null, sequence,
+                    null, null, null, null);
+        }
+
+        void release() {
+            publicKey.complete(EncryptionKey.of(new byte[0]));
+        }
+
+        @Override
+        public void close() throws Exception {
+            release();
+            try {
+                caller.submit(() -> { }).get(10, TimeUnit.SECONDS);
+                dispatch.submit(() -> { }).get(10, TimeUnit.SECONDS);
+                physical.closeAsync().get(10, TimeUnit.SECONDS);
+                harness.close();
+            } finally {
+                caller.shutdownNow();
+                dispatch.shutdownNow();
+            }
+        }
+    }
+
+    private static String keyForSegment(ClientSegmentLayout layout, long segmentId) {
+        SegmentRouter router = new SegmentRouter();
+        for (int i = 0; i < 1000; i++) {
+            String key = "key-" + i;
+            if (router.route(key, layout.activeSegments()) == segmentId) {
+                return key;
+            }
+        }
+        throw new AssertionError("No key found for segment " + segmentId);
+    }
+
     @Test
     public void aPendingRemoteKeyProviderCannotBlockTheLogicalDeadlineTimer() throws Exception {
         ExecutorService dispatch = Executors.newSingleThreadExecutor(new DefaultThreadFactory("crypto-dispatch"));
@@ -269,28 +671,7 @@ public class ScalableTopicProducerRetryContractTest {
                 keyRequested.countDown();
                 return publicKey;
             };
-            ClientConfigurationData clientConf = new ClientConfigurationData();
-            clientConf.setStatsIntervalSeconds(0);
-            ConnectionPool connections = mock(ConnectionPool.class);
-            EventLoopGroup eventLoops = harness.v4.eventLoopGroup();
-            ScheduledFuture<?> keyRotation = mock(ScheduledFuture.class);
-            when(harness.v4.getConfiguration()).thenReturn(clientConf);
-            when(harness.v4.getCnxPool()).thenReturn(connections);
-            when(harness.v4.getClientClock()).thenReturn(Clock.systemUTC());
-            when(harness.v4.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
-            when(harness.v4.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
-            doReturn(keyRotation).when(eventLoops)
-                    .scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
-            ProducerConfigurationData encrypted = new ProducerConfigurationData();
-            encrypted.setTopicName(harness.current.activeSegments().get(0).attachTopicName());
-            encrypted.setProducerName("remote-key-fixture");
-            encrypted.setBatchingEnabled(false);
-            encrypted.setSendTimeoutMs(0);
-            encrypted.setMemoryLimitAdmittedUpstream(true);
-            encrypted.setEncryptionKeys(Set.of("remote-key"));
-            encrypted.setCryptoKeyReader(CryptoKeyReaderAdapter.forProducer(provider));
-            encrypted.setMessageCrypto(new RemoteKeyCrypto());
-            ProducerImpl<String> physical = new ConnectingCryptoProducer(harness.v4, encrypted);
+            ProducerImpl<String> physical = remoteKeyProducer(harness, provider);
             doReturn(CompletableFuture.completedFuture(physical)).when(harness.v4)
                     .createSegmentProducerAsync(any(), any());
             try {
@@ -317,6 +698,36 @@ public class ScalableTopicProducerRetryContractTest {
             // after it releases its own payload reservation can the whole memory account be zero.
             assertThat(harness.memory.currentUsage()).isZero();
         }
+    }
+
+    private static ProducerImpl<String> remoteKeyProducer(Harness harness, PublicKeyProvider provider) {
+        return remoteKeyProducer(harness, provider, __ -> { });
+    }
+
+    private static ProducerImpl<String> remoteKeyProducer(Harness harness, PublicKeyProvider provider,
+                                                         Consumer<MessageMetadata> onEncrypt) {
+        ClientConfigurationData clientConf = new ClientConfigurationData();
+        clientConf.setStatsIntervalSeconds(0);
+        ConnectionPool connections = mock(ConnectionPool.class);
+        EventLoopGroup eventLoops = harness.v4.eventLoopGroup();
+        ScheduledFuture<?> keyRotation = mock(ScheduledFuture.class);
+        when(harness.v4.getConfiguration()).thenReturn(clientConf);
+        when(harness.v4.getCnxPool()).thenReturn(connections);
+        when(harness.v4.getClientClock()).thenReturn(Clock.systemUTC());
+        when(harness.v4.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        when(harness.v4.getConnection(anyString(), anyInt())).thenReturn(new CompletableFuture<>());
+        doReturn(keyRotation).when(eventLoops)
+                .scheduleWithFixedDelay(any(Runnable.class), anyLong(), anyLong(), any());
+        ProducerConfigurationData encrypted = new ProducerConfigurationData();
+        encrypted.setTopicName(harness.current.activeSegments().get(0).attachTopicName());
+        encrypted.setProducerName("remote-key-fixture");
+        encrypted.setBatchingEnabled(false);
+        encrypted.setSendTimeoutMs(0);
+        encrypted.setMemoryLimitAdmittedUpstream(true);
+        encrypted.setEncryptionKeys(Set.of("remote-key"));
+        encrypted.setCryptoKeyReader(CryptoKeyReaderAdapter.forProducer(provider));
+        encrypted.setMessageCrypto(new RemoteKeyCrypto(onEncrypt));
+        return new ConnectingCryptoProducer(harness.v4, encrypted);
     }
 
     private static void assertRetryExhausted(CompletableFuture<?> send, Throwable terminated) {
@@ -363,6 +774,7 @@ public class ScalableTopicProducerRetryContractTest {
         final ExecutorService caller = Executors.newSingleThreadExecutor(new DefaultThreadFactory("sync-contract"));
         final ExecutorService completion;
         final PulsarClientImpl v4;
+        final PulsarClientV5 client;
         final AtomicReference<Thread> synchronousCaller = new AtomicReference<>();
         final Map<String, Long> segmentIds = new ConcurrentHashMap<>();
         final AtomicReference<DagWatchClient.LayoutChangeListener> listener = new AtomicReference<>();
@@ -414,17 +826,23 @@ public class ScalableTopicProducerRetryContractTest {
             conf.setSendTimeoutMs(timeoutMs);
             conf.setBatchingEnabled(true);
             conf.setBatchingMaxPublishDelayMicros(1, TimeUnit.DAYS);
-            producer = new ScalableTopicProducer<>(new PulsarClientV5(v4, "test", null), Schema.string(),
+            client = new PulsarClientV5(v4, "test", null);
+            producer = new ScalableTopicProducer<>(client, Schema.string(),
                     conf, watch, current);
+            client.registerProducer(producer);
         }
 
         CompletableFuture<org.apache.pulsar.client.api.v5.MessageId> send(boolean synchronous) {
             if (!synchronous) {
-                return producer.sendInternalAsync("key", "value", null, null, null, null, null, null, null);
+                return send("key");
             }
             CompletableFuture<org.apache.pulsar.client.api.v5.MessageId> result = new CompletableFuture<>();
             caller.execute(() -> completeSynchronousSend(result));
             return result;
+        }
+
+        CompletableFuture<org.apache.pulsar.client.api.v5.MessageId> send(String key) {
+            return producer.sendInternalAsync(key, "value", null, null, null, null, null, null, null);
         }
 
         void completeSynchronousSend(CompletableFuture<org.apache.pulsar.client.api.v5.MessageId> result) {
@@ -443,7 +861,10 @@ public class ScalableTopicProducerRetryContractTest {
         }
 
         void applyLayout(int epoch) {
-            ClientSegmentLayout next = layout(epoch);
+            applyLayout(layout(epoch));
+        }
+
+        void applyLayout(ClientSegmentLayout next) {
             recordSegment(next);
             listener.get().onLayoutChange(next, current);
             current = next;
@@ -497,7 +918,7 @@ public class ScalableTopicProducerRetryContractTest {
     }
 
     /** Queue completions without running them, then model shutdownNow dropping the whole queue. */
-    private static final class DiscardingExecutor extends AbstractExecutorService {
+    private static class DiscardingExecutor extends AbstractExecutorService {
         private final List<Runnable> pending = new ArrayList<>();
         private boolean shutdown;
 
@@ -507,6 +928,10 @@ public class ScalableTopicProducerRetryContractTest {
                 throw new RejectedExecutionException("completion executor shut down");
             }
             pending.add(command);
+        }
+
+        synchronized int pendingCount() {
+            return pending.size();
         }
 
         @Override
@@ -538,8 +963,32 @@ public class ScalableTopicProducerRetryContractTest {
         }
     }
 
+    /** Accept the task before allowing the submitting timer callback to return. */
+    private static final class GatedSubmissionExecutor extends DiscardingExecutor {
+        final CountDownLatch accepted = new CountDownLatch(1);
+        final CountDownLatch returnFromSubmission = new CountDownLatch(1);
+
+        @Override
+        public void execute(Runnable command) {
+            super.execute(command);
+            accepted.countDown();
+            try {
+                assertThat(returnFromSubmission.await(10, TimeUnit.SECONDS)).isTrue();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new AssertionError(e);
+            }
+        }
+    }
+
     /** A supported crypto extension consulting the actual asynchronous public-key adapter. */
     private static final class RemoteKeyCrypto implements MessageCrypto<MessageMetadata, MessageMetadata> {
+        private final Consumer<MessageMetadata> onEncrypt;
+
+        RemoteKeyCrypto(Consumer<MessageMetadata> onEncrypt) {
+            this.onEncrypt = onEncrypt;
+        }
+
         @Override
         public void addPublicKeyCipher(Set<String> names, CryptoKeyReader reader) {
             // Let the first send load its key, as a newly added/rotated key can do in MessageCryptoBc.
@@ -558,6 +1007,7 @@ public class ScalableTopicProducerRetryContractTest {
         @Override
         public void encrypt(Set<String> names, CryptoKeyReader reader, Supplier<MessageMetadata> metadata,
                             ByteBuffer payload, ByteBuffer output) throws CryptoException {
+            onEncrypt.accept(metadata.get());
             reader.getPublicKey(names.iterator().next(), Map.of());
             throw new CryptoException("The fixture never publishes encrypted data");
         }

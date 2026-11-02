@@ -182,21 +182,21 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private final ConcurrentHashMap<Long, SegmentProducerFuture<T>> segmentProducers = new ConcurrentHashMap<>();
 
     /**
-     * Per-segment dispatch chain. Each async send appends a link whose sole job
-     * is to call {@code v4Producer.sendAsync(...)} (fast, synchronous queue insert)
-     * once the previous link completes. This serializes the v4-side dispatch in
+     * Per-segment dispatch chain. Each head drains a removable ordered queue whose sole job
+     * is to call {@code v4Producer.sendAsync(...)} (normally a fast, synchronous queue insert).
+     * This serializes the v4-side dispatch in
      * user-call order, side-stepping JDK CompletableFuture's undefined dependent
      * fire-order — which would otherwise let send N enter the v4 queue before
      * send N-1 when both are dependents of the same not-yet-ready producer
-     * future. While creation is pending, sends wait in a removable ordered queue. The chain
-     * head completes after that queue is dispatched; subsequent links complete as soon as their
-     * {@code sendAsync} call has returned (they
+     * future. Sends remain removable while creation or an earlier physical handoff is pending, so
+     * expired sends do not leave uncharged links behind a blocked head. The chain
+     * head completes after its queue is dispatched and every {@code sendAsync} call has returned (they
      * do not wait for broker ack — that's the user-visible future).
      */
     private final ConcurrentHashMap<Long, CompletableFuture<org.apache.pulsar.client.api.Producer<T>>>
             dispatchChains = new ConcurrentHashMap<>();
     private final Object dispatchLock = new Object();
-    /** One removable waiter queue per segment whose producer-creation head is still pending. */
+    /** One removable waiter queue per segment whose dispatch head is still pending or running. */
     private final Map<Long, PendingDispatch<T>> pendingDispatches = new HashMap<>();
 
     /**
@@ -227,6 +227,13 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      */
     private final Set<CompletableFuture<MessageId>> inFlightSends =
             ConcurrentHashMap.newKeySet();
+
+    /**
+     * Terminal results awaiting caller-visible completion. An executor can accept a task and then
+     * discard it on client shutdown, so close also delivers these results. Retain only the result,
+     * never the finished send and its released payload, until the future has been completed.
+     */
+    private final Set<SendCompletion> pendingCompletions = ConcurrentHashMap.newKeySet();
 
     /**
      * Guards the per-key ordering state of async sends: the segment each one is routed to, the
@@ -481,7 +488,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                                      Consumer<Throwable> failure) {
     }
 
-    /** Guarded by dispatchLock. The head has one creation continuation, regardless of waiter count. */
+    private record SendCompletion(CompletableFuture<MessageId> future, MessageId messageId, Throwable failure) {
+    }
+
+    /** Guarded by dispatchLock. The head has one dispatch continuation, regardless of waiter count. */
     private static final class PendingDispatch<V> {
         final CompletableFuture<org.apache.pulsar.client.api.Producer<V>> head = new CompletableFuture<>();
         final Set<DispatchWaiter<V>> waiters = new LinkedHashSet<>();
@@ -1326,7 +1336,9 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * inside the dispatch link, whether a failure raised in {@code sendAsync} or an acknowledgement
      * that beat the callback registration, is on the dispatch thread. Those complete on
      * {@link #completionExecutor}, unless this producer or the client is closing: then they complete
-     * in place, as nothing may be left queued on an executor the client is about to shut down.
+     * in place, as nothing may be left queued on an executor the client is about to shut down. An
+     * accepted task retains a separate completion owner so close can deliver its original result if
+     * client shutdown discards the task, without repeating this send's cleanup.
      *
      * <p>A synchronous caller waits on a separate, private result, completed in place after cleanup.
      * It must not depend on a completion executor whose thread may itself be that blocking caller.
@@ -1369,11 +1381,30 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             complete(result, messageId, failure);
             return;
         }
+        SendCompletion completion = new SendCompletion(result, messageId, failure);
+        // Register before submission: execute() may accept a task just as close starts, and even
+        // before execute() returns. Recheck closing after registration so close's snapshot cannot
+        // miss a result that we then leave dependent on the executor.
+        pendingCompletions.add(completion);
+        if (isShuttingDown()) {
+            deliverCompletion(completion);
+            return;
+        }
         try {
-            completionExecutor.execute(() -> complete(result, messageId, failure));
+            completionExecutor.execute(() -> deliverCompletion(completion));
         } catch (RejectedExecutionException e) {
             // The client is shutting down and its executors are gone: complete in place.
-            complete(result, messageId, failure);
+            deliverCompletion(completion);
+        }
+    }
+
+    private void deliverCompletion(SendCompletion completion) {
+        try {
+            // CompletableFuture publishes the result exactly once. Do not claim/remove our owner
+            // before publication: close must be able to help a task paused immediately before it.
+            complete(completion.future(), completion.messageId(), completion.failure());
+        } finally {
+            pendingCompletions.remove(completion);
         }
     }
 
@@ -1401,10 +1432,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     }
 
     /**
-     * Append a dispatch step to the per-segment chain. The chain head is the
-     * segment-producer-creation future; subsequent links complete as soon as
-     * their {@code dispatchOp} returns (which calls v4 {@code sendAsync} — a
-     * fast queue insert), so dispatch order strictly mirrors call order.
+     * Append a dispatch step to the per-segment removable queue. The head first waits for the
+     * segment producer, then invokes each {@code dispatchOp} outside the queue lock, in call order.
+     * A physical send can invoke user/crypto code, so pending steps remain removable even after
+     * producer creation, without retaining a future link per expired send behind a blocked handoff.
      * If the chain itself fails (e.g., segment producer creation failed),
      * {@code onCreateFailure} is invoked so the caller can retry (when the segment
      * is merely gone) or fail the user-visible future.
@@ -1413,14 +1444,23 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                                        Consumer<org.apache.pulsar.client.api.Producer<T>> dispatchOp,
                                        Consumer<Throwable> onCreateFailure) {
         PendingDispatch<T> start = null;
+        CompletableFuture<org.apache.pulsar.client.api.Producer<T>> failedPrevious = null;
+        boolean warmStart = false;
         boolean closing = false;
         synchronized (dispatchLock) {
             if (!closed) {
-                var prev = dispatchChains.get(segmentId);
                 PendingDispatch<T> pending = pendingDispatches.get(segmentId);
-                if (prev == null) {
+                if (pending == null) {
+                    var previous = dispatchChains.get(segmentId);
+                    if (previous != null && previous.isCompletedExceptionally()) {
+                        failedPrevious = previous;
+                    }
+                    warmStart = previous != null;
                     pending = new PendingDispatch<>();
                     pendingDispatches.put(segmentId, pending);
+                    // Reserve the head before releasing the lock, so close snapshots all dispatch
+                    // work. A previous head leaves pendingDispatches only after its final physical
+                    // handoff returned; a new head needs no dependency on that head's completion.
                     dispatchChains.put(segmentId, pending.head);
                     pendingChainHeads.add(pending);
                     PendingDispatch<T> created = pending;
@@ -1432,28 +1472,14 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                     });
                     start = pending;
                 }
-                if (pending != null) {
-                    DispatchWaiter<T> waiter = new DispatchWaiter<>(dispatchOp, onCreateFailure);
-                    pending.waiters.add(waiter);
-                    PendingDispatch<T> waiting = pending;
-                    queued.removeOnCancellation(() -> {
-                        synchronized (dispatchLock) {
-                            waiting.waiters.remove(waiter);
-                        }
-                    });
-                } else {
-                    // The creation head is executing or ready: these links can no longer accumulate
-                    // behind a producer waiting indefinitely for exclusive access.
-                    var next = prev.thenApply(producer -> {
-                        dispatchOp.accept(producer);
-                        return producer;
-                    });
-                    next.exceptionally(ex -> {
-                        onCreateFailure.accept(ex);
-                        return null;
-                    });
-                    dispatchChains.put(segmentId, next);
-                }
+                DispatchWaiter<T> waiter = new DispatchWaiter<>(dispatchOp, onCreateFailure);
+                pending.waiters.add(waiter);
+                PendingDispatch<T> waiting = pending;
+                queued.removeOnCancellation(() -> {
+                    synchronized (dispatchLock) {
+                        waiting.waiters.remove(waiter);
+                    }
+                });
             } else {
                 closing = true;
             }
@@ -1462,55 +1488,76 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             onCreateFailure.accept(new PulsarClientException.AlreadyClosedException("Producer already closed"));
         }
         if (start != null) {
-            startPendingDispatch(segmentId, start);
+            if (failedPrevious != null) {
+                // Keep a failed chain failed, including unexpected errors from a dispatch plugin.
+                // This already-completed head invokes the callback outside dispatchLock.
+                var next = start;
+                failedPrevious.whenComplete((__, failure) -> next.head.completeExceptionally(failure));
+            } else {
+                startPendingDispatch(segmentId, start, warmStart);
+            }
         }
     }
 
-    private void startPendingDispatch(long segmentId, PendingDispatch<T> pending) {
+    private void startPendingDispatch(long segmentId, PendingDispatch<T> pending, boolean warmStart) {
         synchronized (dispatchLock) {
             if (pending.stopped || pending.head.isDone() || isShuttingDown()) {
                 return;
             }
         }
-        // One hop and one creation continuation per segment. Waiting sends live in the removable
-        // queue instead of a chain of future dependents that would retain expired, uncharged nodes.
-        getOrCreateSegmentProducerAsync(segmentId).thenAcceptAsync(producer -> {
-            List<DispatchWaiter<T>> waiters;
+        // Waiting sends live in the removable queue instead of a chain of future dependents that
+        // would retain expired, uncharged nodes behind a blocked handoff.
+        Consumer<org.apache.pulsar.client.api.Producer<T>> drain = producer -> {
             synchronized (dispatchLock) {
-                if (pending.stopped || isShuttingDown()) {
-                    waiters = null;
-                } else {
+                if (!pending.stopped && !isShuttingDown()) {
                     // Close may fail an unstarted head, but must await a batch once it owns sends.
                     pending.running = true;
-                    pendingDispatches.remove(segmentId, pending);
-                    waiters = new ArrayList<>(pending.waiters);
-                    pending.waiters.clear();
                 }
             }
-            if (waiters == null) {
-                pending.head.completeExceptionally(
-                        new PulsarClientException.AlreadyClosedException("Producer already closed"));
-                return;
-            }
-            for (int i = 0; i < waiters.size(); i++) {
-                DispatchWaiter<T> waiter = waiters.get(i);
+            while (true) {
+                DispatchWaiter<T> waiter = null;
+                boolean closing;
+                synchronized (dispatchLock) {
+                    closing = pending.stopped || isShuttingDown() || pending.head.isCompletedExceptionally();
+                    if (!closing) {
+                        var iterator = pending.waiters.iterator();
+                        if (iterator.hasNext()) {
+                            waiter = iterator.next();
+                            iterator.remove();
+                        } else {
+                            // The previous dispatch returned before publishing an idle queue. A new
+                            // head may start now without running ahead of any physical handoff here.
+                            pendingDispatches.remove(segmentId, pending);
+                        }
+                    }
+                }
+                if (closing) {
+                    pending.head.completeExceptionally(
+                            new PulsarClientException.AlreadyClosedException("Producer already closed"));
+                    return;
+                }
+                if (waiter == null) {
+                    pending.head.complete(producer);
+                    return;
+                }
                 try {
-                    if (isShuttingDown() || pending.head.isCompletedExceptionally()) {
-                        waiter.failure().accept(
-                                new PulsarClientException.AlreadyClosedException("Producer already closed"));
-                    } else {
-                        waiter.dispatch().accept(producer);
-                    }
+                    waiter.dispatch().accept(producer);
                 } catch (Throwable failure) {
-                    for (int j = i; j < waiters.size(); j++) {
-                        waiters.get(j).failure().accept(failure);
+                    try {
+                        waiter.failure().accept(failure);
+                    } finally {
+                        pending.head.completeExceptionally(failure);
                     }
-                    pending.head.completeExceptionally(failure);
                     return;
                 }
             }
-            pending.head.complete(producer);
-        }, dispatchExecutor).exceptionally(failure -> {
+        };
+        var creation = getOrCreateSegmentProducerAsync(segmentId);
+        // Preserve warm dispatch on its caller while keeping a cold creation's burst off the IO
+        // thread completing it. Both paths invoke physical/user/crypto code outside dispatchLock.
+        var dispatched = warmStart && creation.isDone()
+                ? creation.thenAccept(drain) : creation.thenAcceptAsync(drain, dispatchExecutor);
+        dispatched.exceptionally(failure -> {
             pending.head.completeExceptionally(failure);
             return null;
         });
@@ -1594,9 +1641,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     }
 
     /**
-     * Close the producer: fail the sends waiting for a layout and those behind a dispatch chain head
-     * that is still pending, close the segment producers, and wait for the sends on the dispatch
-     * chains to be handed to them, which fails them as the segment producers are closed.
+     * Close the producer: deliver terminal results still queued on the completion executor, fail the
+     * sends waiting for a layout and those behind a dispatch chain head that is still pending, close
+     * the segment producers, and wait for the sends on the dispatch chains to be handed to them,
+     * which fails them as the segment producers are closed.
      *
      * <p>Nothing this waits for depends on the client's executors or on a segment producer still
      * being created: the client closes its producers first and then shuts its executors down, which
@@ -1606,11 +1654,22 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * this completes, so that closing the client waits for it too. Idempotent.
      */
     CompletableFuture<Void> closeAsync() {
+        CompletableFuture<Void> existing = closeFuture.get();
+        if (existing != null) {
+            return existing;
+        }
+        closed = true;
+        // Complete accepted tasks before claiming the close future. A terminal-result callback can
+        // itself close this producer: it must be able to start that close instead of awaiting the
+        // same future whose owner is still running its callback here. Concurrent drainers can help
+        // publish a result; CompletableFuture.complete makes their deliveries exactly once.
+        for (var completion : pendingCompletions.toArray(SendCompletion[]::new)) {
+            deliverCompletion(completion);
+        }
         CompletableFuture<Void> result = new CompletableFuture<>();
         if (!closeFuture.compareAndSet(null, result)) {
             return closeFuture.get();
         }
-        closed = true;
         dagWatch.close();
 
         // No new layout is coming: fail the sends waiting for one. The sends in flight fail as their
