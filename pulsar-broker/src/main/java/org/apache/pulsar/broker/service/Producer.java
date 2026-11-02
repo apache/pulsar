@@ -299,8 +299,12 @@ public class Producer {
             MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
             headersAndPayload.resetReaderIndex();
             if (!msgMetadata.hasSchemaVersion() || msgMetadata.getSchemaVersion().length == 0) {
+                // NotAllowedError fails just this send, while clients resend a message rejected with
+                // MetadataError until the send timeout expires. Replicators keep MetadataError: they have no
+                // send timeout and would read and resend a failed message again at once, in a busy loop.
+                ServerError error = isRemoteOrShadow ? ServerError.MetadataError : ServerError.NotAllowedError;
                 cnx.execute(() -> {
-                    cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.MetadataError,
+                    cnx.getCommandSender().sendSendError(producerId, sequenceId, error,
                             "Messages from AUTO_PRODUCE_BYTES producers must include a schema version "
                                     + "when schema validation is enforced");
                     cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());
