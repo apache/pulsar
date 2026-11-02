@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.bootstrap.ServerBootstrap;
@@ -246,17 +247,9 @@ public class ProxyService implements Closeable {
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
-        statsExecutor.scheduleAtFixedRate(() -> {
-            this.clientCnxs.forEach(cnx -> {
-                if (cnx.getDirectProxyHandler() != null
-                        && cnx.getDirectProxyHandler().getInboundChannelRequestsRate() != null) {
-                    cnx.getDirectProxyHandler().getInboundChannelRequestsRate().calculateRate();
-                }
-            });
-            this.topicStats.forEach((topic, stats) -> {
-                stats.calculate();
-            });
-        }, statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
+        // scheduleAtFixedRate cancels all later runs if a run throws, so the task must not propagate exceptions
+        statsExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::updateStats),
+                statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
         this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
         this.proxyClientAuthentication = proxyClientAuthentication;
         this.connectionController = new ConnectionController.DefaultConnectionController(
@@ -477,6 +470,19 @@ public class ProxyService implements Closeable {
                 .attr("extensionName", extensionName)
                 .attr("address", address)
                 .log("Successfully bound extension");
+    }
+
+    private void updateStats() {
+        this.clientCnxs.forEach(cnx -> {
+            // read once: the connection's event loop may clear the handler concurrently
+            DirectProxyHandler directProxyHandler = cnx.getDirectProxyHandler();
+            if (directProxyHandler != null) {
+                directProxyHandler.getInboundChannelRequestsRate().calculateRate();
+            }
+        });
+        this.topicStats.forEach((topic, stats) -> {
+            stats.calculate();
+        });
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {
