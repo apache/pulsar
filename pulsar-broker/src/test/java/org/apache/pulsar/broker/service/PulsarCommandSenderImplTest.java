@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -33,6 +34,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
@@ -161,6 +163,89 @@ public class PulsarCommandSenderImplTest {
         }
     }
 
+    @Test(dataProvider = "serializationFailureIndexes")
+    public void testInterceptorErrorReleasesUnwrittenHeader(int failureIndex) throws Exception {
+        AtomicBoolean intercepted = new AtomicBoolean();
+        OutOfMemoryError failure = new OutOfMemoryError("Interceptor failed after serialization");
+        createDispatchCommandSender(createFailingMessageInterceptor(failureIndex, failure, intercepted));
+        List<EntryImpl> entries = createDispatchEntries();
+        List<ByteBuf> buffers = entries.stream().map(EntryImpl::getDataBuffer).toList();
+        AtomicReference<ByteBuf> failedHeader = new AtomicReference<>();
+        try (MockedStatic<ByteBufPair> ignored = recordMessageHeader(buffers.get(failureIndex), failedHeader)) {
+            ChannelPromise writePromise = dispatch(entries);
+            channel.runPendingTasks();
+
+            assertThat(intercepted).isTrue();
+            assertThat(failedHeader.get()).as("message was serialized before the interceptor failed").isNotNull();
+            assertThat(writePromise.isDone()).isTrue();
+            assertThat(writePromise.isSuccess()).isFalse();
+            assertThat(channel.isActive()).isFalse();
+            assertThat(entries).allSatisfy(entry -> assertThat(entry.refCnt()).isZero());
+            channel.finishAndReleaseAll();
+            assertThat(buffers).allSatisfy(buffer -> assertThat(buffer.refCnt()).isZero());
+            assertThat(failedHeader.get().refCnt()).as("unwritten header is released").isZero();
+        } finally {
+            releaseDispatchEntries(entries, buffers);
+            releaseRecordedHeader(failedHeader);
+        }
+    }
+
+    @Test
+    public void testInterceptorErrorKeepsPayloadWithEntry() throws Exception {
+        AtomicBoolean intercepted = new AtomicBoolean();
+        OutOfMemoryError failure = new OutOfMemoryError("Interceptor failed after serialization");
+        createDispatchCommandSender(createFailingMessageInterceptor(0, failure, intercepted));
+        List<EntryImpl> entries = createDispatchEntries();
+        List<ByteBuf> buffers = entries.stream().map(EntryImpl::getDataBuffer).toList();
+        ByteBuf payload = buffers.get(0);
+        AtomicReference<ByteBuf> failedHeader = new AtomicReference<>();
+        try (MockedStatic<ByteBufPair> ignored = recordMessageHeader(payload, failedHeader)) {
+            assertThatThrownBy(() -> cnx.newMessageAndIntercept(1, 1, 0, 0, 0, payload, null,
+                    "persistent://tenant/namespace/topic", 0)).isSameAs(failure);
+
+            assertThat(intercepted).isTrue();
+            assertThat(entries.get(0).refCnt()).isOne();
+            assertThat(payload.refCnt()).as("entry still owns its payload after the failure").isOne();
+            assertThat(failedHeader.get()).isNotNull();
+            assertThat(failedHeader.get().refCnt()).as("unwritten header is released").isZero();
+        } finally {
+            releaseDispatchEntries(entries, buffers);
+            releaseRecordedHeader(failedHeader);
+        }
+    }
+
+    private static BrokerInterceptor createFailingMessageInterceptor(long entryId, Error failure,
+                                                                     AtomicBoolean intercepted) {
+        return new CounterBrokerInterceptor() {
+            @Override
+            public void onPulsarCommand(BaseCommand command, ServerCnx cnx) {
+                if (command.getType() == BaseCommand.Type.MESSAGE
+                        && command.getMessage().getMessageId().getEntryId() == entryId) {
+                    intercepted.set(true);
+                    throw failure;
+                }
+            }
+        };
+    }
+
+    private static MockedStatic<ByteBufPair> recordMessageHeader(ByteBuf payload, AtomicReference<ByteBuf> header) {
+        // Record the otherwise inaccessible header; allocation and all other static calls use the real code.
+        return mockStatic(ByteBufPair.class, invocation -> {
+            Object result = invocation.callRealMethod();
+            if (invocation.getMethod().getName().equals("get") && invocation.getArgument(1) == payload) {
+                header.set(invocation.getArgument(0));
+            }
+            return result;
+        });
+    }
+
+    private static void releaseRecordedHeader(AtomicReference<ByteBuf> recordedHeader) {
+        ByteBuf header = recordedHeader.get();
+        if (header != null && header.refCnt() > 0) {
+            header.release();
+        }
+    }
+
     @DataProvider
     public Object[][] closedChannel() {
         return new Object[][] {{false}, {true}};
@@ -209,8 +294,14 @@ public class PulsarCommandSenderImplTest {
     }
 
     private void createDispatchCommandSender() throws Exception {
+        createDispatchCommandSender(null);
+    }
+
+    private void createDispatchCommandSender(BrokerInterceptor interceptor) throws Exception {
         channel.finishAndReleaseAll();
-        testContext = PulsarTestContext.builderForNonStartableContext().build();
+        testContext = PulsarTestContext.builderForNonStartableContext().brokerInterceptor(interceptor).build();
+        // A non-started context skips PulsarService.start(), which installs the interceptor on BrokerService.
+        testContext.getBrokerService().setInterceptor(interceptor);
         cnx = new ServerCnx(testContext.getPulsarService());
         cnx.setRemoteEndpointProtocolVersion(ProtocolVersion.v21.getValue());
         channel = new EmbeddedChannel(ByteBufPair.getEncoder(false), cnx);

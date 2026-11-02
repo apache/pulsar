@@ -5060,7 +5060,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
                 ackSet, epoch);
         ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
-        interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
+        try {
+            interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
+        } catch (Throwable t) {
+            // The caller still owns the payload until this method returns.
+            res.getFirst().release();
+            throw t;
+        }
         return res;
     }
 
