@@ -120,6 +120,11 @@ public abstract class PulsarStateTest extends PulsarStandaloneTestSuite {
         // get function info
         getFunctionInfoSuccess(admin, functionName);
 
+        // The instance subscribes with the input schema of the function, STRING for Java, once its JVM has started.
+        // The broker refuses that consumer for good once the topic holds messages without a schema: wait for it
+        // before producing.
+        waitForConsumer(admin, inputTopicName, String.format("public/default/%s", functionName));
+
         // publish and consume result
         publishAndConsumeMessages(inputTopicName, outputTopicName, numMessages);
 

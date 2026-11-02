@@ -19,6 +19,7 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -37,6 +38,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.common.migration.MigrationPhase;
@@ -502,6 +504,45 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     /**
+     * Applies the migration phase handling of {@link #put} and {@link #delete} to a write made through a
+     * {@link DualMetadataCache}, whose inner cache writes to its own store directly. The write fails during
+     * PREPARATION and COPYING, and after the completion until the cache has switched to the target store. In
+     * NOT_STARTED and FAILED, it's counted as a pending source write, which the preparation waits for, and an
+     * ephemeral put is tracked to be recreated in the target store.
+     */
+    <T> CompletableFuture<T> cacheWrite(DualMetadataCache<?> cache, String path, Set<Option> opts,
+                                        Supplier<CompletableFuture<T>> write) {
+        MigrationPhase phase;
+        // Check the phase and count the write under the lock that the phase changes take, so that a preparation
+        // started after the check waits for the write
+        synchronized (migrationLock) {
+            phase = migrationState.getPhase();
+            if (phase == MigrationPhase.NOT_STARTED || phase == MigrationPhase.FAILED) {
+                if (OptionsHelper.isEphemeral(opts)) {
+                    localEphemeralPaths.add(path);
+                }
+                pendingSourceWrites.incrementAndGet();
+            }
+        }
+        return switch (phase) {
+            case NOT_STARTED, FAILED -> {
+                CompletableFuture<T> future = FutureUtil.supplySafely(write);
+                future.whenComplete((result, e) -> pendingSourceWrites.decrementAndGet());
+                // Return a copy: a caller completing it, e.g. with orTimeout(), must not end the count before the
+                // write completes
+                CompletableFuture<T> copy = new CompletableFuture<>();
+                FutureUtil.completeAfter(copy, future);
+                yield copy;
+            }
+            case PREPARATION, COPYING -> CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
+            // The completion switches the caches after changing the phase. Until then, the cache would write to the
+            // source store, which has already been copied.
+            case COMPLETED -> cache.isOnTargetStore() ? FutureUtil.supplySafely(write)
+                    : CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
+        };
+    }
+
+    /**
      * Deletes an ephemeral acquisition, including its owned target-store copy after a failed migration.
      * The caller must supply the acquisition's value and, if the source is still owned, its current version.
      * An empty source version cleans only the target copy, preserving any replacement in the source.
@@ -595,31 +636,31 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
     @Override
     public Runnable registerCancellableListener(Consumer<Notification> listener) {
-        return switch (migrationState.getPhase()) {
-            case NOT_STARTED, PREPARATION, COPYING, FAILED -> {
-                ListenerRegistration<Notification> registration = new ListenerRegistration<>(listener, listeners);
-                listeners.add(registration);
-                registration.registerWithSource(sourceStore::registerCancellableListener);
-                yield registration::cancel;
-            }
-
-            case COMPLETED -> targetStore.registerCancellableListener(listener);
-        };
+        return registerCancellableListener(listener, listeners, sourceStore::registerCancellableListener,
+                targetListener -> targetStore.registerCancellableListener(targetListener));
     }
 
     @Override
     public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
-        return switch (migrationState.getPhase()) {
-            case NOT_STARTED, PREPARATION, COPYING, FAILED -> {
-                ListenerRegistration<SessionEvent> registration =
-                        new ListenerRegistration<>(listener, sessionListeners);
-                sessionListeners.add(registration);
-                registration.registerWithSource(sourceStore::registerCancellableSessionListener);
-                yield registration::cancel;
-            }
+        return registerCancellableListener(listener, sessionListeners, sourceStore::registerCancellableSessionListener,
+                targetListener -> targetStore.registerCancellableSessionListener(targetListener));
+    }
 
-            case COMPLETED -> targetStore.registerCancellableSessionListener(listener);
-        };
+    private <T> Runnable registerCancellableListener(Consumer<T> listener, Set<ListenerRegistration<T>> registrations,
+                                                   Function<Consumer<T>, Runnable> registerWithSource,
+                                                   Function<Consumer<T>, Runnable> registerWithTarget) {
+        MigrationPhase phase = getMigrationPhase();
+        ListenerRegistration<T> registration = new ListenerRegistration<>(listener, registrations);
+        registrations.add(registration);
+        if (phase != MigrationPhase.COMPLETED) {
+            registration.registerWithSource(registerWithSource);
+        }
+        // Completion may have traversed the registry before this registration was added. Recheck after publishing
+        // it. If the target is not initialized yet, the completion handler will find it after initialization.
+        if (getMigrationPhase() == MigrationPhase.COMPLETED && targetStore != null) {
+            registration.registerWithTarget(registerWithTarget);
+        }
+        return registration::cancel;
     }
 
     @Override
@@ -647,6 +688,15 @@ public class DualMetadataStore implements MetadataStoreExtended {
             cache.handleSwitchToTargetStore();
         }
         return cache;
+    }
+
+    void unregisterMetadataCache(DualMetadataCache<?> cache) {
+        caches.remove(cache);
+    }
+
+    @VisibleForTesting
+    int getMetadataCacheCount() {
+        return caches.size();
     }
 
     @Override

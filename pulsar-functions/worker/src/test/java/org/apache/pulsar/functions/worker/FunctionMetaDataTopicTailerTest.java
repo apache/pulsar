@@ -18,23 +18,21 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.functions.proto.FunctionMetaData;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
+import org.awaitility.Awaitility;
+import org.mockito.InOrder;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -46,6 +44,7 @@ import org.testng.annotations.Test;
 public class FunctionMetaDataTopicTailerTest {
 
     private Reader reader;
+    private ReaderStub readerStub;
     private ReaderBuilder readerBuilder;
     private FunctionMetaDataManager fsm;
     private FunctionMetaDataTopicTailer fsc;
@@ -54,6 +53,7 @@ public class FunctionMetaDataTopicTailerTest {
     @SuppressWarnings("unchecked")
     public void before() throws Exception {
         this.reader = mock(Reader.class);
+        this.readerStub = new ReaderStub(reader);
         this.readerBuilder = mock(ReaderBuilder.class);
         when(readerBuilder.topic(anyString())).thenReturn(readerBuilder);
         when(readerBuilder.startMessageId(any(MessageId.class))).thenReturn(readerBuilder);
@@ -72,32 +72,50 @@ public class FunctionMetaDataTopicTailerTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
     public void testUpdate() throws Exception {
 
         FunctionMetaData request = new FunctionMetaData();
 
         Message msg = mock(Message.class);
         when(msg.getData()).thenReturn(request.toByteArray());
-        CountDownLatch readLatch = new CountDownLatch(1);
-        CountDownLatch processLatch = new CountDownLatch(1);
-        when(reader.readNext(anyInt(), any(TimeUnit.class))).thenReturn(msg).then(new Answer<Message>() {
-            @SuppressWarnings("unchecked")
-            public Message answer(InvocationOnMock invocation) {
-                try {
-                    readLatch.countDown();
-                    processLatch.await();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-                return null;
-            }
-        });
+        readerStub.add(msg);
 
         fsc.start();
 
-        readLatch.await();
-
-        verify(reader, times(2)).readNext(anyInt(), any(TimeUnit.class));
+        // After processing the message, the tailer waits for the next one
+        Awaitility.await().untilAsserted(() -> verify(reader, times(2)).readNextAsync());
         verify(fsm, times(1)).processMetaDataTopicMessage(any());
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testStopWhenNoMoreMessages() throws Exception {
+        Message msg1 = mock(Message.class);
+        Message msg2 = mock(Message.class);
+        readerStub.add(msg1);
+        readerStub.add(msg2);
+
+        fsc.start();
+
+        // The tailer processes the messages left on the topic, then stops without waiting for another one
+        fsc.stopWhenNoMoreMessages().get();
+        InOrder inOrder = inOrder(fsm);
+        inOrder.verify(fsm).processMetaDataTopicMessage(msg1);
+        inOrder.verify(fsm).processMetaDataTopicMessage(msg2);
+        verify(fsm, times(2)).processMetaDataTopicMessage(any());
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testStopWhenNoMoreMessagesProcessesTheLastReceivedMessage() throws Exception {
+        fsc.start();
+        Awaitility.await().untilAsserted(() -> verify(reader).readNextAsync());
+
+        // The reader takes the last message off the topic right before the tailer finds no more messages available
+        Message msg = mock(Message.class);
+        readerStub.receiveBeforeClose(msg);
+        fsc.stopWhenNoMoreMessages().get();
+        verify(fsm).processMetaDataTopicMessage(msg);
     }
 }
