@@ -22,6 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
@@ -387,19 +388,7 @@ public class MessageImpl<T> implements Message<T> {
         if (msgMetadata.isNullValue()) {
             return null;
         }
-        if (payload.isDirect()) {
-            byte[] data = new byte[payload.readableBytes()];
-            payload.getBytes(payload.readerIndex(), data);
-            return data;
-        }
-        if (payload.arrayOffset() == 0 && payload.capacity() == payload.array().length) {
-            return payload.array();
-        } else {
-            // Need to copy into a smaller byte array
-            byte[] data = new byte[payload.readableBytes()];
-            payload.getBytes(payload.readerIndex(), data);
-            return data;
-        }
+        return ByteBufUtil.getBytes(payload, payload.readerIndex(), payload.readableBytes(), false);
     }
 
     @Override
