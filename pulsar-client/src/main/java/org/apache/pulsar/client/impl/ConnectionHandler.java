@@ -79,6 +79,14 @@ public class ConnectionHandler {
         default boolean connectionFailed(PulsarClientException e) {
             return true;
         }
+
+        /**
+         * @return the longest the connection handler may wait, in milliseconds, before it tries again to get a
+         * connection after a failed attempt: it caps the backoff delay.
+         */
+        default long maxReconnectDelayMs() {
+            return Long.MAX_VALUE;
+        }
     }
 
     protected Connection connection;
@@ -198,7 +206,7 @@ public class ConnectionHandler {
             log.info("Ignoring reconnection request");
             return;
         }
-        long delayMs = backoff.next().toMillis();
+        long delayMs = Math.min(backoff.next().toMillis(), connection.maxReconnectDelayMs());
         log.warn().exceptionMessage(exception)
                 .attr("delaySec", delayMs / 1000.0)
                 .log("Could not get connection to broker - Will try again");

@@ -39,6 +39,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -666,6 +669,83 @@ public class ConsumerImplTest {
                 BaseCommand.Type.SUBSCRIBE);
         assertThat(registered).as("the newer attempt's registration").containsExactly(subscriber.consumerId);
         assertThat(subscriber.isConnected()).isTrue();
+    }
+
+    /**
+     * A subscribe that keeps failing with a retriable error fails at its timeout (the lookup timeout, which is the
+     * operation timeout by default), and not at the first retry after it, which the backoff alone can schedule up to
+     * the max backoff interval later: here, the first retry is due 5 s after the first attempt, for a 1 s timeout.
+     */
+    @Test(timeOut = 30000)
+    public void testRetriedSubscribeFailsAtItsTimeout() {
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ConsumerImplTest-timer", true), 1,
+                TimeUnit.MILLISECONDS);
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return CompletableFuture.failedFuture(
+                    new PulsarClientException.BrokerPersistenceException("Not enough non-faulty bookies available"));
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
+
+        long start = System.nanoTime();
+        ConsumerImpl.newConsumerImpl(mockClientWithSlowRetries(timer, cnx), PERSISTENT_TOPIC, consumerConf,
+                executorProvider, -1, false, subscribeFuture, null, Schema.BYTES, null, true);
+
+        assertThatThrownBy(subscribeFuture::join)
+                .hasCauseInstanceOf(PulsarClientException.BrokerPersistenceException.class);
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start)).isBetween(900L, 3000L);
+    }
+
+    /**
+     * Once subscribed, the consumer reconnects on the backoff alone: its subscribe timeout no longer caps the delay.
+     */
+    @Test
+    public void testReconnectAfterSubscribeKeepsTheBackoff() {
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ConsumerImplTest-timer", true), 1,
+                TimeUnit.MILLISECONDS);
+        List<Long> delaysMs = new CopyOnWriteArrayList<>();
+        Timer recordingTimer = mock(Timer.class);
+        doAnswer(invocation -> {
+            delaysMs.add(invocation.<TimeUnit>getArgument(2).toMillis(invocation.getArgument(1)));
+            return timer.newTimeout(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2));
+        }).when(recordingTimer).newTimeout(any(), anyLong(), any());
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        AtomicBoolean failSubscribes = new AtomicBoolean();
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return failSubscribes.get()
+                    ? CompletableFuture.failedFuture(new PulsarClientException.BrokerPersistenceException("failed"))
+                    : CompletableFuture.completedFuture(null);
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
+        ConsumerImpl<byte[]> subscriber = ConsumerImpl.newConsumerImpl(mockClientWithSlowRetries(recordingTimer, cnx),
+                PERSISTENT_TOPIC, consumerConf, executorProvider, -1, false, subscribeFuture, null, Schema.BYTES, null,
+                true);
+        subscribeFuture.join();
+
+        // The broker closes the consumer, and the subscribe fails when the consumer reconnects at once
+        failSubscribes.set(true);
+        subscriber.connectionClosed(cnx, Optional.of(0L), Optional.empty());
+
+        Awaitility.await().until(() -> delaysMs.size() == 2);
+        // The backoff's initial 5 s, give or take its 5 % jitter, and not the time left before the 1 s timeout
+        assertThat(delaysMs.get(1)).isGreaterThanOrEqualTo(4750L);
+    }
+
+    /**
+     * A client mock whose consumers time out subscribing after 1 s, and back off 5 s before their first retry.
+     */
+    private PulsarClientImpl mockClientWithSlowRetries(Timer timer, ClientCnx cnx) {
+        PulsarClientImpl client = ClientTestFixtures.createPulsarClientMock(executorProvider, internalExecutor);
+        ClientConfigurationData clientConf = client.getConfiguration();
+        clientConf.setOperationTimeoutMs(1000);
+        clientConf.setInitialBackoffIntervalNanos(TimeUnit.SECONDS.toNanos(5));
+        clientConf.setStatsIntervalSeconds(0);
+        when(client.timer()).thenReturn(timer);
+        return ClientTestFixtures.clientMockWithClientCnxMock(client, cnx);
     }
 
     @Test
