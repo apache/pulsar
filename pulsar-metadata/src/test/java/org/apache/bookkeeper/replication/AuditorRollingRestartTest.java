@@ -107,5 +107,8 @@ public class AuditorRollingRestartTest extends BookKeeperClusterTestCase {
         Thread.sleep(2000); // give it time to run
         assertEquals("shouldn't be anything under replicated", -1,
                 underReplicationManager.pollLedgerToRereplicate());
+
+        // An auditor waiting for the replication to be enabled would wait 30 seconds to stop
+        underReplicationManager.enableLedgerReplication();
     }
 }
