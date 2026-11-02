@@ -219,7 +219,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
 
     private void stopAuditorElectors() throws Exception {
         for (AuditorElector auditorElector : auditorElectors.values()) {
-            auditorElector.shutdown();
+            shutdownAuditorElector(auditorElector);
             log.debug("Stopping Auditor Elector!");
         }
         // The same test instance is reused across test methods, so drop references to the
@@ -258,7 +258,7 @@ public class AuditorBookieTest extends BookKeeperClusterTestCase {
         ServerConfiguration conf = killBookie(index);
 
         // stopping corresponding auditor elector
-        auditorElectors.get(addr).shutdown();
+        shutdownAuditorElector(auditorElectors.get(addr));
         return conf;
     }
 
