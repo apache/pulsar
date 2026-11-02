@@ -24,6 +24,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.timeout;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotSame;
@@ -1959,6 +1961,49 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
             Awaitility.await().untilAsserted(() ->
                     assertCountersConsistent(tracker));
+
+            tracker.close();
+        } finally {
+            storage.clean();
+        }
+    }
+
+    @Test
+    public void testSegmentLoadTriggersDispatchWithoutWaitingForTimerTick() throws Exception {
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage();
+        storage.start();
+
+        ManagedCursor cursor = new MockManagedCursor("test_load_trigger_cursor");
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testLoadTrigger / " + cursor.getName())
+                .when(testDispatcher).getName();
+
+        try {
+            // The timer never runs its tasks, as if its next tick were far away
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, mock(Timer.class), 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+
+            // Ledgers 1-5 make a bucket of one-message segments once ledger 6 starts. The first segment stays in
+            // memory, the next ones are loaded from the snapshot one at a time.
+            for (int i = 1; i <= 6; i++) {
+                tracker.addMessage(i, i, i * 10);
+            }
+            assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 1);
+            Awaitility.await().untilAsserted(() -> assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values()
+                    .stream().allMatch(bucket -> bucket.getSnapshotCreateFuture().get().isDone())));
+
+            // All messages are due. Reaching the end of the first segment starts loading the second one, and the
+            // loaded segment's messages must be dispatched without waiting for the timer.
+            testClockTime.set(1000);
+            tracker.getScheduledMessages(10);
+            verify(testDispatcher, timeout(10000).atLeastOnce()).readMoreEntriesAsync();
 
             tracker.close();
         } finally {

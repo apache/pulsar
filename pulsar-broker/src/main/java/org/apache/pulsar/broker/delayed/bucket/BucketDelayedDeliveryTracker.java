@@ -808,6 +808,8 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                                 .log("Failed to load bucket snapshot segment");
 
                         stats.recordFailEvent(BucketDelayedMessageIndexStats.Type.load);
+                        // Retry the load at the timer's next tick
+                        rescheduleTimer(0);
                     } else {
                         log.info()
                                 .attr("bucketKey", bucket.bucketKey())
@@ -818,8 +820,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
 
                         stats.recordSuccessEvent(BucketDelayedMessageIndexStats.Type.load,
                                 System.currentTimeMillis() - loadStartTime);
+                        // The loaded messages can already be due: dispatch them now, the timer would only run at its
+                        // next tick
+                        context.triggerReadMoreEntries();
                     }
-                    rescheduleTimer(0);
                 });
 
                 if (!checkPendingLoadDone() || loadFuture.isCompletedExceptionally()) {
