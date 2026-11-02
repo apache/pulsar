@@ -296,7 +296,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         clockTime.set(1 * 10);
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1)).untilAsserted(() -> {
             Assert.assertTrue(
                     tracker.getImmutableBuckets().asMapOfRanges().values().stream().noneMatch(x -> x.merging
                             || !x.getSnapshotCreateFuture().get().isDone()));
@@ -304,7 +304,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertTrue(tracker.hasMessageAvailable());
         Set<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().untilAsserted(() -> {
+        // Each call starts loading at most one snapshot segment, so poll without delay
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1)).untilAsserted(() -> {
             scheduledMessages.addAll(tracker.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), 1);
         });
@@ -326,7 +327,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertTrue(tracker2.hasMessageAvailable());
         Set<Position> scheduledMessages2 = new TreeSet<>();
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1)).untilAsserted(() -> {
             scheduledMessages2.addAll(tracker2.getScheduledMessages(70));
             assertEquals(scheduledMessages2.size(), 70);
         });
@@ -411,7 +412,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         clockTime.set(110 * 10);
 
         NavigableSet<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+        // Each call starts loading at most one snapshot segment, so poll without delay
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1))
+                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(110));
             assertEquals(scheduledMessages.size(), 110);
         });
@@ -488,7 +491,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(tracker2.getScheduledMessages(100).size(), 0);
 
         Set<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+        // Each call starts loading at most one snapshot segment, so poll without delay
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1))
+                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), delayedMessagesInSnapshotValue);
         });
