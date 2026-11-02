@@ -301,12 +301,13 @@ public class PulsarFunctionE2ETest extends AbstractPulsarE2ETest {
         consumerConfig.setConsumerProperties(consumerProperties);
         inputSpecs.put(sourceTopic, consumerConfig);
         functionConfig.setInputSpecs(inputSpecs);
+        // Subscribe before the function starts: it publishes its results as soon as it reads the input
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic)
+                .subscriptionName("sink-sub").subscribe();
         String jarFilePathUrl = getPulsarApiExamplesJar().toURI().toString();
         admin.functions().createFunctionWithUrl(functionConfig, jarFilePathUrl);
 
         // 5 Function should only read compacted value, so we will only receive compacted messages
-        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING).topic(sinkTopic)
-                .subscriptionName("sink-sub").subscribe();
         int count = 0;
         while (true) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
