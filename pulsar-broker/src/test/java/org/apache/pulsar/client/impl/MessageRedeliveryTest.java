@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -240,6 +241,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .subscribe();
 
         @Cleanup
@@ -289,8 +291,10 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         String test3 = "Pulsar3";
 
         consumer.setConsumerEpoch(1);
+        int permits = consumer.getAvailablePermits();
         producer.send(test1);
-        Message<String> message = consumer.receive(3, TimeUnit.SECONDS);
+        waitForDroppedMessage(consumer, permits);
+        Message<String> message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
         consumer.redeliverUnacknowledgedMessages();
         message = consumer.receive(3, TimeUnit.SECONDS);
@@ -300,8 +304,10 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         consumer.setConsumerEpoch(3);
 
+        permits = consumer.getAvailablePermits();
         producer.send(test2);
-        message = consumer.receive(3, TimeUnit.SECONDS);
+        waitForDroppedMessage(consumer, permits);
+        message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
 
         consumer.redeliverUnacknowledgedMessages();
@@ -312,8 +318,10 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         assertEquals(message.getValue(), test2);
 
         consumer.setConsumerEpoch(6);
+        permits = consumer.getAvailablePermits();
         producer.send(test3);
-        message = consumer.receive(3, TimeUnit.SECONDS);
+        waitForDroppedMessage(consumer, permits);
+        message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
 
         ConnectionHandler connectionHandler = consumer.getConnectionHandler();
@@ -416,7 +424,10 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         ConsumerImpl<String> consumer = ((ConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName(subName)
-                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(1000, TimeUnit.MILLISECONDS).build())
+                .batchReceivePolicy(BatchReceivePolicy.builder()
+                        .maxNumMessages(1)
+                        .timeout(1000, TimeUnit.MILLISECONDS)
+                        .build())
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe());
 
@@ -515,7 +526,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         }
 
         // can't receive message again
-        message = consumer.receive(5, TimeUnit.SECONDS);
+        waitForDispatched(topic, subName, 2);
+        message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
 
         // redeliverUnacknowledgedMessages twice
@@ -528,7 +540,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         }
 
         // can't receive message again
-        message = consumer.receive(5, TimeUnit.SECONDS);
+        waitForDispatched(topic, subName, 3);
+        message = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(message);
     }
 
@@ -543,7 +556,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
-                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(2, TimeUnit.SECONDS).build())
+                .batchReceivePolicy(BatchReceivePolicy.builder().timeout(200, TimeUnit.MILLISECONDS).build())
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Failover)
                 .subscribe();
@@ -576,6 +589,7 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         }
 
         // can't receive message again
+        waitForDispatched(topic, subName, 2);
         assertEquals(consumer.batchReceive().size(), 0);
 
         // redeliverUnacknowledgedMessages twice
@@ -591,7 +605,29 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
         }
 
         // can't receive message again
+        waitForDispatched(topic, subName, 3);
         assertEquals(consumer.batchReceive().size(), 0);
+    }
+
+    /**
+     * Waits until the consumer handled the message the broker sent with a previous epoch: it counts the permit of a
+     * dropped message as available right away, while a message it keeps stays in its queue until it is received.
+     */
+    private static void waitForDroppedMessage(ConsumerImpl<?> consumer, int availablePermits) {
+        Awaitility.await().until(() -> consumer.getAvailablePermits() > availablePermits
+                || consumer.numMessagesInQueue() > 0);
+    }
+
+    /**
+     * Waits until the broker dispatched every message of the partitioned topic {@code deliveries} times: until the
+     * next redelivery, it has nothing more to dispatch.
+     */
+    private void waitForDispatched(String topic, String subName, int deliveries) {
+        Awaitility.await().untilAsserted(() -> {
+            PartitionedTopicStats stats = admin.topics().getPartitionedStats(topic, false);
+            assertEquals(stats.getSubscriptions().get(subName).getMsgOutCounter(),
+                    deliveries * stats.getMsgInCounter());
+        });
     }
 
     /**
@@ -635,10 +671,8 @@ public class MessageRedeliveryTest extends ProducerConsumerBase {
 
         // make sure listener has not received any messages until
         // we call redelivery with correct epoch
-        for (int i = 0; i < 2; i++) {
-            assertTrue(ids.isEmpty());
-            Thread.sleep(1000);
-        }
+        waitForDispatched(topic, subName, 1);
+        assertTrue(ids.isEmpty());
         // make epoch valid to consume redelivery message again
         consumer.setConsumerEpoch(epoch - 1);
         consumer.redeliverUnacknowledgedMessages();
