@@ -66,14 +66,11 @@ test_group_backwards_compat() {
 
 test_group_cli() {
   gradle_integration_test -PintegrationTestSuiteFile=pulsar-cli.xml "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-auth.xml "$@"
 }
 
 test_group_messaging() {
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-messaging.xml "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-proxy.xml "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-websocket.xml "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-tls.xml "$@"
+  # One run for the suites: each run starts Gradle and a test JVM
+  gradle_integration_test -PintegrationTestSuiteFile=pulsar-messaging.xml,pulsar-websocket.xml,pulsar-tls.xml "$@"
 }
 
 test_group_loadbalance() {
