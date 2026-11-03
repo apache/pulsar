@@ -19,10 +19,13 @@
 package org.apache.pulsar.broker.service;
 
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.util.HashedWheelTimer;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -31,11 +34,14 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerFencedException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
@@ -343,15 +349,24 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void topicDeleted(String ignored, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
-        @Cleanup
-        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+        ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
-                .accessMode(ProducerAccessMode.Exclusive)
-                .create();
+                .accessMode(ProducerAccessMode.Exclusive);
+        if (partitioned) {
+            // The send after the deletion can only time out, see below
+            producerBuilder.sendTimeout(2, TimeUnit.SECONDS);
+        }
+        @Cleanup
+        Producer<String> p1 = producerBuilder.create();
 
         p1.send("msg-1");
 
+        // Each connection attempt of a partition's producer increments its epoch
+        Map<ProducerImpl<String>, Long> epochs = new HashMap<>();
         if (partitioned) {
+            for (ProducerImpl<String> producer : ((PartitionedProducerImpl<String>) p1).getProducers()) {
+                epochs.put(producer, producer.getConnectionHandler().getEpoch());
+            }
             admin.topics().deletePartitionedTopic(topic, true);
         } else {
             admin.topics().delete(topic, true);
@@ -362,7 +377,13 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
             p1.send("msg-2");
         } else {
             // The partitioned topic is deleted, the producer should not be able to publish again on the topic.
-            // Partitioned metadata is required to publish messages to the topic.
+            // Partitioned metadata is required to publish messages to the topic: once the broker has refused to
+            // reconnect each partition's producer, a send can only time out.
+            epochs.forEach((producer, epochBeforeDeletion) -> Awaitility.await().untilAsserted(() -> {
+                // A reconnection was attempted, and failed: it left the producer without a cnx
+                assertTrue(producer.getConnectionHandler().getEpoch() > epochBeforeDeletion);
+                assertNull(producer.getClientCnx());
+            }));
             assertThrows(TimeoutException.class, () -> p1.send("msg-2"));
         }
     }

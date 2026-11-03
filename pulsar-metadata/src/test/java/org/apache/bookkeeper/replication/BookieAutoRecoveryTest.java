@@ -81,6 +81,9 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
                 "org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory");
         baseConf.setOpenLedgerRereplicationGracePeriod(openLedgerRereplicationGracePeriod);
         baseConf.setRwRereplicateBackoffMs(500);
+        // A worker that fails to replicate a ledger, because the test hasn't started the replacement bookie yet,
+        // holds on to its lock for 1/32 of this period (9.4 s by default), and twice as long on each further failure
+        baseConf.setLockReleaseOfFailedLedgerGracePeriod("64");
         baseClientConf.setLedgerManagerFactoryClassName(
                 "org.apache.pulsar.metadata.bookkeeper.PulsarLedgerManagerFactory");
         this.digestType = DigestType.MAC;
@@ -115,6 +118,12 @@ public class BookieAutoRecoveryTest extends BookKeeperClusterTestCase {
         mFactory = metadataClientDriver.getLedgerManagerFactory();
         underReplicationManager = mFactory.newLedgerUnderreplicationManager();
         ledgerManager = mFactory.newLedgerManager();
+    }
+
+    @Override
+    protected void startBKCluster(String metadataServiceUri) throws Exception {
+        // Run the auto recovery of the bookies on the Pulsar metadata drivers, like those started by the tests
+        super.startBKCluster(metadataServiceUri.replaceAll("zk://", "metadata-store:").replaceAll("/ledgers", ""));
     }
 
     @AfterMethod

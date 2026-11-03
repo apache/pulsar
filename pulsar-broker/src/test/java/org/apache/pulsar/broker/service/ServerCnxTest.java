@@ -129,6 +129,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
 import org.apache.pulsar.broker.service.scalable.ConsumerSession;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -3431,6 +3432,45 @@ public class ServerCnxTest {
         channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
         clientCommand.release();
         assertTrue(getResponse() instanceof CommandSendError);
+        channel.finish();
+    }
+
+    @DataProvider
+    public Object[][] autoProduceBytesSendErrors() {
+        return new Object[][]{
+                // Clients fail just this send
+                {"auto-produce-bytes-producer", ServerError.NotAllowedError},
+                // Replicators resend a failed message at once, so they keep retrying at the reconnection pace
+                {"pulsar.repl.remote-cluster", ServerError.MetadataError},
+        };
+    }
+
+    @Test(timeOut = 30000, dataProvider = "autoProduceBytesSendErrors")
+    public void testSendWithoutSchemaVersionFromAutoProduceBytesProducer(String producerName,
+                                                                        ServerError expectedError) throws Exception {
+        svcConfig.setSchemaValidationEnforced(true);
+        SchemaRegistryService schemaRegistryService = pulsar.getSchemaRegistryService();
+        SchemaRegistry.SchemaAndMetadata topicSchema = mock(SchemaRegistry.SchemaAndMetadata.class);
+        doReturn(CompletableFuture.completedFuture(topicSchema)).when(schemaRegistryService).getSchema(anyString());
+        resetChannel();
+        setChannelConnected();
+
+        ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                producerName, false, Collections.emptyMap(), null /* schema */, 0, true, ProducerAccessMode.Shared,
+                Optional.empty(), false, null, true /* auto produce bytes */);
+        channel.writeInbound(clientCommand);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setPublishTime(System.currentTimeMillis())
+                .setProducerName(producerName)
+                .setSequenceId(0);
+        clientCommand = ByteBufPair.coalesce(Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata,
+                Unpooled.buffer(1024)));
+        channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
+        clientCommand.release();
+        CommandSendError sendError = (CommandSendError) getResponse();
+        assertEquals(sendError.getError(), expectedError);
         channel.finish();
     }
 

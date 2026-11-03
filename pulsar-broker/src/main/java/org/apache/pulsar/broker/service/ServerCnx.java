@@ -1712,6 +1712,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     ServerError error = ServerError.ServiceNotReady;
                     if (actEx instanceof MetadataStoreException) {
                         error = ServerError.MetadataError;
+                    } else if (actEx instanceof IllegalArgumentException) {
+                        // The settings forbid the topic that auto-creation would create, as with a default number of
+                        // partitions over maxNumPartitionsPerPartitionedTopic: a retry would get the same answer
+                        error = ServerError.NotAllowedError;
                     } else if (actEx instanceof RestException restException) {
                         int responseCode = restException.getResponse().getStatus();
                         if (responseCode == NOT_FOUND.getStatusCode()) {
