@@ -2578,40 +2578,59 @@ public class ManagedCursorImpl implements ManagedCursor {
 
         log.debug().attr("position", position).log("Mark delete");
 
+        // Snapshot all positions into local variables to avoid race condition.
         Position newPosition = ackBatchPosition(position);
+        Position moveForwardPosition = newPosition;
         Position markDeletePos = markDeletePosition;
         Position lastConfirmedEntry = ledger.getLastConfirmedEntry();
-        if (lastConfirmedEntry.compareTo(newPosition) < 0) {
-            boolean shouldCursorMoveForward = false;
-            try {
-                long ledgerEntries = ledger.getLedgerInfo(markDeletePos.getLedgerId()).get().getEntries();
-                Long nextValidLedger = ledger.getNextValidLedger(lastConfirmedEntry.getLedgerId());
-                shouldCursorMoveForward = nextValidLedger != null
-                        && (markDeletePos.getEntryId() + 1 >= ledgerEntries)
-                        && (newPosition.getLedgerId() == nextValidLedger);
-            } catch (Exception e) {
-                log.warn().exception(e).log("Failed to get ledger entries while setting mark-delete-position");
-            }
-
-            if (shouldCursorMoveForward) {
-                log.info()
-                        .attr("markDeletePosition", markDeletePos)
-                        .attr("position", newPosition)
-                        .log("Moving mark-delete position since all entries have been consumed");
+        boolean shouldCursorMoveForward = false;
+        try {
+            if (lastConfirmedEntry.getLedgerId() >= newPosition.getLedgerId()) {
+                // Read the next ledger before the ledger info: while a ledger is open, its info has entries == 0,
+                // and the closed info is stored before the next ledger is added. Reading in the other order could
+                // pair the open ledger's info with the next ledger of a concurrent rollover and skip its entries.
+                Long nextValidLedger = ledger.getNextValidLedger(newPosition.getLedgerId());
+                LedgerInfo curMarkDeleteLedgerInfo = ledger.getLedgerInfo(newPosition.getLedgerId()).get();
+                shouldCursorMoveForward = (nextValidLedger != null)
+                        && (curMarkDeleteLedgerInfo != null
+                        && newPosition.getEntryId() + 1 >= curMarkDeleteLedgerInfo.getEntries());
+                if (shouldCursorMoveForward) {
+                    moveForwardPosition = PositionFactory.create(nextValidLedger, -1);
+                }
             } else {
-                log.debug()
-                        .attr("position", position)
-                        .attr("lastConfirmedEntry", lastConfirmedEntry)
-                        .log("Failed mark delete: position is ahead of last confirmed entry");
-                callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
-                return;
+                Long nextValidLedger = ledger.getNextValidLedger(lastConfirmedEntry.getLedgerId());
+                shouldCursorMoveForward = (nextValidLedger != null)
+                        && (newPosition.getLedgerId() == nextValidLedger)
+                        && (newPosition.getEntryId() == -1);
             }
+        } catch (Exception e) {
+            log.warn().exception(e).log("Failed to get ledger entries while setting mark-delete-position");
+        }
+
+        if (shouldCursorMoveForward) {
+            log.info()
+                    .attr("markDeletePosition", markDeletePos)
+                    .attr("position", moveForwardPosition)
+                    .attr("lastConfirmedEntry", lastConfirmedEntry)
+                    .attr("requestedPosition", position)
+                    .attr("ackBatchPosition", newPosition)
+                    .log("Moving mark-delete position since all entries have been consumed");
+        } else if (lastConfirmedEntry.compareTo(newPosition) < 0) {
+            // If newPosition>lastConfirmedEntry and current ledger entries are not fully consumed,
+            // in which case the newPosition is an invalid mark delete position.
+            log.debug()
+                    .attr("position", newPosition)
+                    .attr("requestedPosition", position)
+                    .attr("lastConfirmedEntry", lastConfirmedEntry)
+                    .log("Failed mark delete: position is ahead of last confirmed entry");
+            callback.markDeleteFailed(new ManagedLedgerException("Invalid mark deleted position"), ctx);
+            return;
         }
 
         IllegalArgumentException markDeleteFailure = null;
         lock.writeLock().lock();
         try {
-            newPosition = setAcknowledgedPosition(newPosition);
+            moveForwardPosition = setAcknowledgedPosition(moveForwardPosition);
         } catch (IllegalArgumentException e) {
             // A concurrent mark-delete may have already advanced past the requested position. The skip/clear
             // wrappers treat that failure as completion, so this callback can reenter the dispatcher.
@@ -2630,11 +2649,11 @@ public class ManagedCursorImpl implements ManagedCursor {
         // Apply rate limiting to mark-delete operations
         if (markDeleteLimiter != null && !markDeleteLimiter.tryAcquire()) {
             isDirty = true;
-            updateLastMarkDeleteEntryToLatest(newPosition, properties);
+            updateLastMarkDeleteEntryToLatest(moveForwardPosition, properties);
             callback.markDeleteComplete(ctx);
             return;
         }
-        internalAsyncMarkDelete(newPosition, properties, callback, ctx, null);
+        internalAsyncMarkDelete(moveForwardPosition, properties, callback, ctx, null);
     }
 
     private Position ackBatchPosition(Position position) {

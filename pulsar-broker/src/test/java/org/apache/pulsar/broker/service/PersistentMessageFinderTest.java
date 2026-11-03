@@ -764,7 +764,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertEquals(lastLedgerInfo.getEntries(), 0);
         assertEquals(ledgers.size(), totalEntries / entriesPerLedger + 1);
 
-        // this will make sure that all entries should be deleted
+        // This will make sure that all entries should be deleted, and move markDeletePosition to nextLedgerId:-1.
         Thread.sleep(TimeUnit.SECONDS.toMillis(ttlSeconds));
 
         bkc.deleteLedger(ledgers.get(0).getLedgerId());
@@ -777,9 +777,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertTrue(monitor.expireMessages(ttlSeconds));
         Awaitility.await().untilAsserted(() -> {
             Position markDeletePosition = c1.getMarkDeletedPosition();
-            // The markDeletePosition points to the last entry of the previous ledger in lastLedgerInfo.
-            assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId() - 1);
-            assertEquals(markDeletePosition.getEntryId(), entriesPerLedger - 1);
+            // The markDeletePosition already moved to nextLedgerId:-1
+            assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId());
+            assertEquals(markDeletePosition.getEntryId(), -1);
         });
 
         c1.close();
@@ -820,7 +820,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertEquals(lastLedgerInfo.getEntries(), 0);
         assertEquals(ledgers.size(), totalEntries / entriesPerLedger + 1);
 
-        // this will make sure that all entries should be deleted
+        // This will make sure that all entries should be deleted, and move markDeletePosition to nextLedgerId:-1.
         Thread.sleep(TimeUnit.SECONDS.toMillis(ttlSeconds));
 
         bkc.deleteLedger(ledgers.get(0).getLedgerId());
@@ -833,9 +833,9 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         assertTrue(monitor.expireMessagesAsync(ttlSeconds).get());
         Awaitility.await().untilAsserted(() -> {
             Position markDeletePosition = c1.getMarkDeletedPosition();
-            // The markDeletePosition points to the last entry of the previous ledger in lastLedgerInfo.
-            assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId() - 1);
-            assertEquals(markDeletePosition.getEntryId(), entriesPerLedger - 1);
+            // The markDeletePosition already moved to nextLedgerId:-1
+            assertEquals(markDeletePosition.getLedgerId(), lastLedgerInfo.getLedgerId());
+            assertEquals(markDeletePosition.getEntryId(), -1);
         });
 
         c1.close();
