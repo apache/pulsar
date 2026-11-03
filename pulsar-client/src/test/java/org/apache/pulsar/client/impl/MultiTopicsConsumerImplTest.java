@@ -25,6 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -33,6 +34,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import com.google.common.collect.Sets;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
@@ -40,6 +42,7 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
@@ -47,15 +50,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Messages;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
@@ -240,6 +246,89 @@ public class MultiTopicsConsumerImplTest {
         verify(message).release();
         assertEquals(consumer.getTotalIncomingMessages(), 0);
         assertEquals(consumer.getIncomingMessageSize(), 0);
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testRedeliverGivesBackPermitsOfMessagesQueuedForListener() throws Exception {
+        String topic = "persistent://public/default/topic-partition-0";
+        int numMessages = 3;
+        AtomicInteger listenedMessages = new AtomicInteger();
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setSubscriptionType(SubscriptionType.Failover);
+        conf.setMessageListenerExecutor((message, runnable) -> runnable.run());
+        conf.setMessageListener((consumer, message) -> listenedMessages.incrementAndGet());
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ConsumerImpl<byte[]> partitionConsumer = mock(ConsumerImpl.class);
+        when(partitionConsumer.isValidConsumerEpoch(any())).thenReturn(true);
+
+        impl.internalPinnedExecutor.submit(() -> {
+            // Queue messages for the listener, as receiving them from a partition consumer does...
+            for (int i = 0; i < numMessages; i++) {
+                MessageImpl<byte[]> message = MessageImpl.create(topic, new MessageIdImpl(1, i, 0),
+                        new MessageMetadata(), Unpooled.wrappedBuffer(new byte[1]), Optional.empty(), null,
+                        Schema.BYTES, 0, false, 0);
+                impl.enqueueMessageAndCheckBatchReceive(new TopicMessageImpl<>(topic, message, partitionConsumer));
+            }
+            // ...while another thread requests a redelivery, whose task is queued before the listener drain
+            impl.redeliverUnacknowledgedMessages();
+            impl.tryTriggerListener();
+        }).get();
+        // The redelivery and the listener drain run on the pinned executor before this task
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+
+        // The redelivery discarded the messages, so each must give its permit back to the consumer that received it
+        assertEquals(listenedMessages.get(), 0);
+        verify(partitionConsumer, times(numMessages)).increaseAvailablePermits(any(MessageImpl.class));
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testSelectiveSeekGivesBackPermitsOfSkippedPartitionOnce() throws Exception {
+        String soughtTopic = "persistent://public/default/topic-partition-0";
+        String skippedTopic = "persistent://public/default/topic-partition-1";
+        int receiverQueueSize = 1;
+        AtomicInteger listenedMessages = new AtomicInteger();
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setMessageListenerExecutor((message, runnable) -> runnable.run());
+        conf.setMessageListener((consumer, message) -> listenedMessages.incrementAndGet());
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ClientCnx cnx = mock(ClientCnx.class);
+        ConnectionHandler connectionHandler = mock(ConnectionHandler.class);
+        when(connectionHandler.cnx()).thenReturn(cnx);
+        for (String topic : Arrays.asList(soughtTopic, skippedTopic)) {
+            ConsumerImpl<byte[]> partitionConsumer = mock(ConsumerImpl.class);
+            when(partitionConsumer.getConnectionHandler()).thenReturn(connectionHandler);
+            when(partitionConsumer.getCurrentReceiverQueueSize()).thenReturn(receiverQueueSize);
+            when(partitionConsumer.batchReceiveAsync()).thenReturn(new CompletableFuture<>());
+            impl.consumers.put(topic, partitionConsumer);
+        }
+        // Seeking a message of one partition skips the other, whose consumer neither seeks nor reconnects
+        TopicMessageIdImpl seekMessageId = new TopicMessageIdImpl(soughtTopic, new MessageIdImpl(1, 0, 0));
+        when(impl.consumers.get(soughtTopic).seekAsync(seekMessageId))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        ConsumerImpl<byte[]> skippedConsumer = impl.consumers.get(skippedTopic);
+
+        impl.internalPinnedExecutor.submit(() -> {
+            // Queue a message of the skipped partition for the listener, as receiving it from its consumer does
+            MessageImpl<byte[]> message = MessageImpl.create(skippedTopic, new MessageIdImpl(2, 0, 0),
+                    new MessageMetadata(), Unpooled.wrappedBuffer(new byte[1]), Optional.empty(), null,
+                    Schema.BYTES, 0, false, 0);
+            impl.enqueueMessageAndCheckBatchReceive(new TopicMessageImpl<>(skippedTopic, message, skippedConsumer));
+        }).get();
+        impl.seekAsync(seekMessageId).get();
+        // The receive tasks that the seek started run on the pinned executor before this task
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+
+        // The seek discarded the message and refilled the receiver queue of the skipped partition's consumer, which
+        // kept its connection: the refill covers the message's permit, so giving it back too would credit it twice
+        assertEquals(listenedMessages.get(), 0);
+        verify(skippedConsumer, never()).increaseAvailablePermits(any(MessageImpl.class));
+        verify(skippedConsumer).increaseAvailablePermits(cnx, receiverQueueSize);
     }
 
     @Test
