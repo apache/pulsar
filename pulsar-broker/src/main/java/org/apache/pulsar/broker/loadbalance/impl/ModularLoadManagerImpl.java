@@ -657,7 +657,6 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             Set<String> ownedNsBundles = pulsar.getNamespaceService().getOwnedServiceUnits()
                     .stream().map(NamespaceBundle::toString).collect(Collectors.toSet());
             synchronized (preallocatedBundleData) {
-                preallocatedBundleToBroker.keySet().removeAll(preallocatedBundleData.keySet());
                 final Iterator<Map.Entry<String, BundleData>> preallocatedIterator =
                         preallocatedBundleData.entrySet().iterator();
                 while (preallocatedIterator.hasNext()) {
@@ -678,6 +677,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             brokerToNamespaceToBundleRange.reloadFromBundles(broker,
                     Stream.of(statsMap.keySet(), preallocatedBundleData.keySet()).flatMap(Collection::stream));
         }
+
+        // A bundle stays preallocated until its broker reports it as loaded, or the broker is gone: until then, the
+        // broker may still be acquiring it, and another lookup of the bundle must not select a different broker.
+        preallocatedBundleToBroker.entrySet().removeIf(preallocation -> {
+            final BrokerData brokerData = loadData.getBrokerData().get(preallocation.getValue());
+            return brokerData == null || brokerData.getLocalData().getBundles().contains(preallocation.getKey());
+        });
 
         // Remove not active bundle from loadData
         for (String bundle : bundleData.keySet()) {
@@ -992,9 +998,11 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                             .attr("broker", affinityBroker)
                             .log("Ignoring bundle affinity to unavailable broker");
                 }
-                if (preallocatedBundleToBroker.containsKey(bundle)) {
+                // Read once: preallocations are removed without holding this lock.
+                final String preallocatedBroker = preallocatedBundleToBroker.get(bundle);
+                if (preallocatedBroker != null) {
                     // If the given bundle is already in preallocated, return the selected broker.
-                    return Optional.of(preallocatedBundleToBroker.get(bundle));
+                    return Optional.of(preallocatedBroker);
                 }
 
                 Optional<String> broker = selectBroker(serviceUnit);
