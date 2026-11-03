@@ -2469,6 +2469,20 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         return true;
     }
 
+    @Override
+    public long maxReconnectDelayMs() {
+        // connectionFailed() fails the creation on the first attempt that fails after the lookup deadline, and
+        // connectionOpened() on the first create request that fails after the producer deadline: make the last retry
+        // right after the earlier of them, instead of up to a max backoff interval after it. Past the producer
+        // deadline, an attempt whose lookup or connection fails is still retried until the lookup deadline. Once
+        // created, the producer reconnects on the backoff alone.
+        long now = System.currentTimeMillis();
+        long producerDeadline = PRODUCER_DEADLINE_UPDATER.get(this);
+        long deadline = producerDeadline > now ? Math.min(producerDeadline, lookupDeadline) : lookupDeadline;
+        long untilPastDeadline = deadline + 1 - now;
+        return producerCreatedFuture.isDone() || untilPastDeadline <= 0 ? Long.MAX_VALUE : untilPastDeadline;
+    }
+
     private synchronized void closeProducerTasks() {
         schemaRegistrationGeneration++;
         cancelSchemaRegistrationRetry();
