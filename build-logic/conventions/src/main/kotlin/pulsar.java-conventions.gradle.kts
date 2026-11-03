@@ -382,6 +382,82 @@ tasks.withType<Test>().configureEach {
     }
 }
 
+// CI runs the unit test groups as `testShards` (see pulsar-build/run_unit_group_gradle.sh). A test task
+// deals its classes to its forks round-robin, in class name order, before any of them runs, so a few slow
+// classes that sort close together can share a fork while the other forks finish early. With
+// `-PtestShards=N` and the durations in `-PtestShardDurations` (lines of "<seconds> <class name>", which CI
+// records from its previous run of the group), `testShards` runs N test tasks with one fork each, which
+// Gradle runs in parallel when the configuration cache is on, with the classes packed longest-first. A
+// class missing from that file goes by a hash of its name. Every test class goes to exactly one shard, so
+// the shards run the same tests as `test`. Without recorded durations, `testShards` runs `test`.
+val testShardCount = providers.gradleProperty("testShards").map { it.toInt() }.getOrElse(0)
+if (testShardCount > 0) {
+    // Locals, so that the exclude spec below doesn't capture the script object (configuration cache).
+    val shardCount = testShardCount
+    val shardOfClass = mutableMapOf<String, Int>()
+    val shardSeconds = DoubleArray(shardCount)
+    providers.gradleProperty("testShardDurations")
+        .flatMap { providers.fileContents(rootProject.layout.projectDirectory.file(it)).asText }
+        .getOrElse("")
+        .lines()
+        .mapNotNull { line ->
+            val fields = line.trim().split(Regex("\\s+"))
+            val seconds = fields[0].toDoubleOrNull()
+            if (seconds != null && fields.size == 2) fields[1] to seconds else null
+        }
+        .sortedWith(compareByDescending<Pair<String, Double>> { it.second }.thenBy { it.first })
+        .forEach { (className, seconds) ->
+            val shard = shardSeconds.indices.minBy { shardSeconds[it] }
+            shardOfClass[className] = shard
+            shardSeconds[shard] += seconds
+        }
+    if (shardOfClass.isEmpty()) {
+        tasks.register("testShards") {
+            description = "Runs the tests with `test`, as there are no recorded durations to balance shards by."
+            group = "verification"
+            dependsOn("test")
+        }
+    } else {
+        // FailFastNotifier creates this file when a test fails and, with testFailFast, skips the remaining
+        // tests while it exists, so that a failure stops the other shards too. The shards share it, so it is
+        // neither an output nor local state of theirs: Gradle doesn't run tasks whose outputs or local state
+        // overlap at the same time.
+        val failFastFile = layout.buildDirectory.file("test-shards/fail-fast")
+        val resetFailFast = tasks.register<Delete>("testShardsResetFailFast") {
+            delete(failFastFile)
+        }
+        val testSourceSet = project.the<SourceSetContainer>()["test"]
+        // The `withType<Test>` blocks, in this plugin and in the modules, configure the shards like `test`, with
+        // the same system properties, JVM arguments, TestNG options and task dependencies.
+        val shards = (0 until shardCount).map { shard ->
+            tasks.register<Test>("testShard${shard + 1}") {
+                description = "Runs shard ${shard + 1} of $shardCount of the tests, in one fork."
+                group = "verification"
+                testClassesDirs = testSourceSet.output.classesDirs
+                classpath = testSourceSet.runtimeClasspath
+                maxParallelForks = 1
+                exclude { element ->
+                    val path = element.relativePath.pathString
+                    if (element.isDirectory || !path.endsWith(".class")) {
+                        false
+                    } else {
+                        // A nested class goes with its top-level class.
+                        val className = path.removeSuffix(".class").substringBefore('$').replace('/', '.')
+                        (shardOfClass[className] ?: Math.floorMod(className.hashCode(), shardCount)) != shard
+                    }
+                }
+                systemProperty("testFailFastFile", failFastFile.get().asFile.absolutePath)
+                dependsOn(resetFailFast)
+            }
+        }
+        tasks.register("testShards") {
+            description = "Runs the tests as $shardCount test tasks with one fork each, balanced by recorded durations."
+            group = "verification"
+            dependsOn(shards)
+        }
+    }
+}
+
 // Run tests under async-profiler, enabled with the single property `-PtestAsyncProfiler`
 // (see CONTRIBUTING.md). The `test.asyncprofiler.*` properties below only tune the defaults and keep
 // the names of the `testAsyncProfiler` Maven profile that the 4.x branches use. This is a second

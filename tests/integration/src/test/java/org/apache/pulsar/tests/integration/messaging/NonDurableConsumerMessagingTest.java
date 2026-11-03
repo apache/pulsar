@@ -35,7 +35,8 @@ public class NonDurableConsumerMessagingTest extends MessagingBase {
 
     @Test(dataProvider = "ServiceUrls")
     public void testNonDurableConsumer(Supplier<String> serviceUrl) throws Exception {
-        final String topicName = getNonPartitionedTopic("test-non-durable-consumer", false);
+        // Persistent: the non-durable subscription starts from the earliest of the messages published before it
+        final String topicName = getNonPartitionedTopic("test-non-durable-consumer", true);
         @Cleanup
         final PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl.get()).build();
 
