@@ -80,6 +80,11 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
     // may be gone.
     private long lockDeletions;
 
+    // Whether the election may hold the lock although it doesn't lead: an election cycle took the lock, but a
+    // deletion of the lock was notified meanwhile, which may be of an older lock, so the cycle reads the lock again.
+    // Until a cycle settles the election, closing it releases the lock if it's still the election's, as when it leads.
+    private boolean holdsLockProvisionally;
+
     private static final int LEADER_ELECTION_RETRY_DELAY_SECONDS = 5;
 
     // Upper bound for getLeaderValue() waiting on an election that never settles, aligned with the
@@ -225,6 +230,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
 
     private synchronized void changeState(LeaderElectionState les) {
         internalState = InternalState.LeaderIsPresent;
+        holdsLockProvisionally = false;
         if (this.leaderElectionState != les) {
             this.leaderElectionState = les;
             try {
@@ -256,7 +262,9 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                     synchronized (LeaderElectionImpl.this) {
                         if (internalState == InternalState.ElectionInProgress
                                 && lockDeletions != lockDeletionsBeforeWrite) {
-                            // The lock may have been deleted once written: read it again rather than lead without it
+                            // The lock may have been deleted once written: read it again rather than lead without it.
+                            // The lock may also still be there, if the deletion notified was of an older lock.
+                            holdsLockProvisionally = true;
                             log.debug().attr("path", path).attr("value", value)
                                     .log("A deletion of the lock was notified while taking it. Reading it again.");
                             FutureUtil.completeAfter(result, elect());
@@ -264,6 +272,7 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
                             log.info().attr("path", path).attr("value", value)
                                     .log("Acquired leadership");
                             internalState = InternalState.LeaderIsPresent;
+                            holdsLockProvisionally = false;
                             leaderKnown(Optional.of(value));
                             if (leaderElectionState != LeaderElectionState.Leading) {
                                 leaderElectionState = LeaderElectionState.Leading;
@@ -334,9 +343,10 @@ class LeaderElectionImpl<T> implements LeaderElection<T> {
             currentLeaderFuture.complete(Optional.empty());
         }
 
-        if (leaderElectionState != LeaderElectionState.Leading) {
+        if (leaderElectionState != LeaderElectionState.Leading && !holdsLockProvisionally) {
             return CompletableFuture.completedFuture(null);
         }
+        holdsLockProvisionally = false;
 
         // Only delete the leader node if it is still ours: if our session expired, the node we
         // created is already gone and the node at the path, if any, belongs to the participant

@@ -325,6 +325,70 @@ public class LeaderElectionImplTest extends BaseMetadataStoreTest {
         assertThat(store.get(path).join()).as("lock of the leader").isPresent();
     }
 
+    @Test(timeOut = 20000)
+    public void electionClosedWhileReadingTheLockItTookReleasesIt() throws Exception {
+        String path = "/electionClosedWhileReadingTheLockItTookReleasesIt";
+        AtomicBoolean holdNextWrite = new AtomicBoolean();
+        CompletableFuture<Stat> heldWrite = new CompletableFuture<>();
+        CompletableFuture<Void> heldWriteReleased = new CompletableFuture<>();
+        AtomicBoolean holdNextRead = new AtomicBoolean();
+        CompletableFuture<Optional<GetResult>> heldRead = new CompletableFuture<>();
+        CompletableFuture<Void> heldReadReleased = new CompletableFuture<>();
+        @Cleanup
+        FaultInjectionMetadataStore store = new FaultInjectionMetadataStore(
+                new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build())) {
+            @Override
+            public CompletableFuture<Stat> put(String p, byte[] value, Optional<Long> expectedVersion,
+                                               Set<Option> opts) {
+                CompletableFuture<Stat> result = super.put(p, value, expectedVersion, opts);
+                if (p.equals(path) && holdNextWrite.compareAndSet(true, false)) {
+                    // The store writes the lock, and the election learns it once the test releases it
+                    FutureUtil.completeAfter(heldWrite, result);
+                    return result.thenCombine(heldWriteReleased, (r, __) -> r);
+                }
+                return result;
+            }
+
+            @Override
+            public CompletableFuture<Optional<GetResult>> get(String p, Set<Option> opts) {
+                CompletableFuture<Optional<GetResult>> result = super.get(p, opts);
+                if (p.equals(path) && holdNextRead.compareAndSet(true, false)) {
+                    // The store answers, and the election gets the answer once the test releases it
+                    FutureUtil.completeAfter(heldRead, result);
+                    return result.thenCombine(heldReadReleased, (r, __) -> r);
+                }
+                return result;
+            }
+        };
+        @Cleanup
+        CoordinationServiceImpl cs = new CoordinationServiceImpl(store);
+        @Cleanup("shutdownNow")
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        BlockingQueue<LeaderElectionState> stateChanges = new LinkedBlockingQueue<>();
+        LeaderElectionImpl<String> le = new LeaderElectionImpl<>(cs, store, String.class, path, stateChanges::add,
+                executor);
+
+        holdNextWrite.set(true);
+        CompletableFuture<LeaderElectionState> election = le.elect("test-1");
+        heldWrite.get(5, TimeUnit.SECONDS);
+        // The election is notified of an older deletion of the lock before it learns that it wrote the lock, so it
+        // reads the lock again, and it's closed before it gets the answer
+        le.handlePathNotification(new Notification(NotificationType.Deleted, path));
+        holdNextRead.set(true);
+        heldWriteReleased.complete(null);
+        assertThat(heldRead.get(5, TimeUnit.SECONDS)).as("lock read again").isPresent();
+        le.close();
+
+        // close() released the lock the election took, although the election didn't lead
+        assertThat(store.get(path).join()).as("lock of the closed election").isEmpty();
+        heldReadReleased.complete(null);
+        assertThatThrownBy(() -> election.get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(AlreadyClosedException.class);
+        assertThat(stateChanges).as("state changes").isEmpty();
+        assertThat(le.getState()).isEqualTo(LeaderElectionState.NoLeader);
+        assertThat(store.get(path).join()).as("lock of the closed election").isEmpty();
+    }
+
     /**
      * Completes once the store has called the listeners registered before this one, such as the one of the leader
      * elections, with the deletion of the path.
