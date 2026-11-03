@@ -423,6 +423,122 @@ public class PatternMultiTopicsConsumerImplTest {
         }
     }
 
+    @Test
+    public void testPartitionLookupFailureRollsBackCountBeforeRecheckRetries() throws Exception {
+        String base = "persistent://tenant/namespace/partition-lookup";
+        String healthyTopic = "persistent://tenant/namespace/healthy";
+        List<String> partitionTopics = List.of(base + "-partition-0", base + "-partition-1");
+        List<String> fullSnapshot = new ArrayList<>(partitionTopics);
+        fullSnapshot.add(healthyTopic);
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
+                TopicsPattern.RegexImplementation.JDK);
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAutoUpdatePartitions(false);
+        conf.setPatternAutoDiscoveryPeriod(3600);
+        conf.setReceiverQueueSize(1);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(conf, pattern);
+        doReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(partitionTopics.size())))
+                .when(clientMock).getPartitionedTopicMetadata(base, true, false);
+        LookupService lookup = clientMock.getLookup();
+        doReturn(CompletableFuture.completedFuture(new GetTopicsResult(fullSnapshot,
+                TopicList.calculateHash(fullSnapshot), true, true)))
+                .when(lookup).getTopicsUnderNamespace(any(), any(), any(), any(), any());
+        AtomicReference<CompletableFuture<GetTopicsResult>> partitionLookupResponse = new AtomicReference<>();
+        doAnswer(invocation -> partitionLookupResponse.get())
+                .when(lookup).getTopicsUnderNamespace(any(), any(), any(), any());
+        try {
+            consumer.topicsChangeListener.onTopicsAdded(Collections.singleton(healthyTopic)).get(5, TimeUnit.SECONDS);
+            ConsumerImpl<byte[]> healthyChild = consumer.consumers.get(healthyTopic);
+            assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(1);
+            int initialQueueSize = consumer.getCurrentReceiverQueueSize();
+
+            for (int attempt = 0; attempt < 2; attempt++) {
+                CompletableFuture<GetTopicsResult> partitionLookup = new CompletableFuture<>();
+                partitionLookupResponse.set(partitionLookup);
+                CompletableFuture<Void> recheck = consumer.recheckTopicsChange();
+                assertThat(consumer.partitionedTopics).containsEntry(base, partitionTopics.size());
+                assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(fullSnapshot.size());
+                assertThat(consumer.getPartitions()).containsExactly(healthyTopic);
+
+                partitionLookup.completeExceptionally(
+                        new PulsarClientException.TimeoutException("Partition lookup failed"));
+                recheck.get(5, TimeUnit.SECONDS);
+
+                assertThat(consumer.partitionedTopics).doesNotContainKey(base);
+                assertThat(consumer.getPartitions()).containsExactly(healthyTopic);
+                assertThat(consumer.consumers.get(healthyTopic)).isSameAs(healthyChild);
+                assertThat(consumer.allTopicPartitionsNumber.get())
+                        .as("failed lookup must roll back only its reserved partitions, attempt %s", attempt)
+                        .isEqualTo(1);
+                assertThat(consumer.getCurrentReceiverQueueSize()).isEqualTo(initialQueueSize);
+            }
+
+            partitionLookupResponse.set(CompletableFuture.completedFuture(new GetTopicsResult(partitionTopics,
+                    TopicList.calculateHash(partitionTopics), true, true)));
+            consumer.recheckTopicsChange().get(5, TimeUnit.SECONDS);
+
+            assertThat(consumer.getPartitions()).containsExactlyInAnyOrderElementsOf(fullSnapshot);
+            assertThat(consumer.consumers.get(healthyTopic)).isSameAs(healthyChild);
+            assertThat(consumer.getConsumers()).allSatisfy(child -> {
+                assertThat(child.getState()).isEqualTo(HandlerState.State.Ready);
+                assertThat(child.isConnected()).isTrue();
+            });
+            assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(fullSnapshot.size());
+            assertThat(consumer.getCurrentReceiverQueueSize()).isEqualTo(fullSnapshot.size());
+        } finally {
+            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testPartitionSubscribeFailureDoesNotRollBackHealthySiblingCount() throws Exception {
+        String base = "persistent://tenant/namespace/partition-subscribe";
+        List<String> partitionTopics = List.of(base + "-partition-0", base + "-partition-1");
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
+                TopicsPattern.RegexImplementation.JDK);
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAutoUpdatePartitions(false);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(conf, pattern);
+        doReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(partitionTopics.size())))
+                .when(clientMock).getPartitionedTopicMetadata(base, true, false);
+        LookupService lookup = clientMock.getLookup();
+        doReturn(CompletableFuture.completedFuture(new GetTopicsResult(partitionTopics,
+                TopicList.calculateHash(partitionTopics), true, true)))
+                .when(lookup).getTopicsUnderNamespace(any(), any(), any(), any());
+        CompletableFuture<ProducerResponse> firstSubscribe = new CompletableFuture<>();
+        AtomicBoolean firstRequest = new AtomicBoolean(true);
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return firstRequest.compareAndSet(true, false)
+                    ? firstSubscribe : CompletableFuture.completedFuture(mock(ProducerResponse.class));
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        clientMock.getConfiguration().setOperationTimeoutMs(0);
+        try {
+            CompletableFuture<Void> adding = consumer.topicsChangeListener.onTopicsAdded(partitionTopics);
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(consumer.getConsumers()).hasSize(2);
+                assertThat(consumer.getConsumers().stream().filter(child -> !child.subscribeFuture().isDone()))
+                        .hasSize(1);
+                assertThat(consumer.getConsumers().stream().filter(child -> child.isConnected())).hasSize(1);
+            });
+            ConsumerImpl<byte[]> healthyChild = consumer.getConsumers().stream()
+                    .filter(child -> child.subscribeFuture().isDone()).findFirst().orElseThrow();
+            assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(2);
+
+            firstSubscribe.completeExceptionally(
+                    new PulsarClientException.TimeoutException("Initial partition subscribe failed"));
+
+            assertThat(adding).failsWithin(Duration.ofSeconds(5));
+            assertThat(consumer.getConsumers()).containsExactly(healthyChild);
+            assertThat(healthyChild.getState()).isEqualTo(HandlerState.State.Ready);
+            assertThat(consumer.partitionedTopics).containsEntry(base, partitionTopics.size());
+            assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(1);
+        } finally {
+            firstSubscribe.complete(mock(ProducerResponse.class));
+            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
     @DataProvider
     public Object[][] listenerThreadCounts() {
         return new Object[][] {{1}, {3}};

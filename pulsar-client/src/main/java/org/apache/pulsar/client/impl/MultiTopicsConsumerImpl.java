@@ -1163,7 +1163,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 partitionsFuture = getExistsPartitions(topicName.toString());
             }
-            subscribeAllPartitionsFuture = partitionsFuture.thenCompose(partitions -> {
+            subscribeAllPartitionsFuture = partitionsFuture.whenComplete((partitions, error) -> {
+                if (error != null) {
+                    // No children were created, so child cleanup cannot release this reservation.
+                    allTopicPartitionsNumber.addAndGet(-numPartitions);
+                }
+            }).thenCompose(partitions -> {
                 if (partitions.isEmpty()) {
                     partitionedTopics.remove(topicName, numPartitions);
                     return CompletableFuture.completedFuture(null);
