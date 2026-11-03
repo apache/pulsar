@@ -100,6 +100,7 @@ public class PulsarMockBookKeeper extends BookKeeper {
 
     final Queue<Long> addEntryDelaysMillis = new ConcurrentLinkedQueue<>();
     final Queue<Long> addEntryResponseDelaysMillis = new ConcurrentLinkedQueue<>();
+    final Queue<CompletableFuture<Void>> addEntryResponseGates = new ConcurrentLinkedQueue<>();
     final List<CompletableFuture<Void>> failures = new ArrayList<>();
     final List<CompletableFuture<Void>> addEntryFailures = new ArrayList<>();
     @Setter
@@ -401,6 +402,16 @@ public class PulsarMockBookKeeper extends BookKeeper {
         addEntryResponseDelaysMillis.add(unit.toMillis(delay));
     }
 
+    /**
+     * Holds the response of the next successful add until the returned future completes, without blocking any thread:
+     * the entry is stored, and the ledger can be closed, while its add is still in flight.
+     */
+    public CompletableFuture<Void> addEntryResponseGate() {
+        CompletableFuture<Void> gate = new CompletableFuture<>();
+        addEntryResponseGates.add(gate);
+        return gate;
+    }
+
     static int getExceptionCode(Throwable t) {
         if (t instanceof BKException) {
             return ((BKException) t).getCode();
@@ -506,6 +517,10 @@ public class PulsarMockBookKeeper extends BookKeeper {
             return delay;
         }
         return defaultAddEntryDelayMillis;
+    }
+
+    CompletableFuture<Void> getNextAddEntryResponseGate() {
+        return addEntryResponseGates.poll();
     }
 
     public long getNextAddEntryResponseDelayMillis() {
