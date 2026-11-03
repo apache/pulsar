@@ -22,8 +22,14 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -34,6 +40,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -71,13 +78,15 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         if (isRedeliveryTracker) {
             consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                     .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                     .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                             .minDelayMs(1000)
                             .maxDelayMs(20000).build())
                     .subscribe();
         } else {
             consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                    .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).subscribe();
+                    .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS).subscribe();
         }
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 2; i++) {
@@ -236,8 +245,8 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         assertEquals(messageCount1 + messageCount2, totalMessages);
 
         // 5. Check if Messages redelivered again
-        // Since receive is a blocking call hoping that timeout will kick in
-        Thread.sleep((int) (ackTimeOutMillis * 1.1));
+        // Since receive is a blocking call, wait for the timeout to ask for the redelivery
+        waitForAckTimeout(consumer1);
         log.info(" Timeout should be triggered now");
         messageCount1 = receiveAllMessage(consumer1, true);
         messageCount2 += receiveAllMessage(consumer2, false);
@@ -251,9 +260,8 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         assertEquals(messageCount1 + messageCount2, totalMessages);
         assertEquals(ackCount1 + messageCount2, totalMessages);
 
-        Thread.sleep((int) (ackTimeOutMillis * 2));
-
-        // Since receive is a blocking call hoping that timeout will kick in
+        // Since receive is a blocking call, wait for the timeout to ask for the redelivery
+        waitForAckTimeout(consumer2);
         log.info(" Timeout should be triggered again");
         ackCount1 += receiveAllMessage(consumer1, true);
         ackCount2 += receiveAllMessage(consumer2, true);
@@ -277,6 +285,15 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         }
 
         return messagesReceived;
+    }
+
+    /**
+     * Waits until the ack timeout of every message the consumer left unacknowledged has fired: the tracker drops a
+     * message when it asks for its redelivery.
+     */
+    private static void waitForAckTimeout(Consumer<?> consumer) {
+        Awaitility.await().untilAsserted(
+                () -> assertEquals(((ConsumerBase<?>) consumer).getUnAckedMessageTracker().size(), 0));
     }
 
     @Test(dataProvider = "variationsRedeliveryTracker")
@@ -305,6 +322,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
                     .receiverQueueSize(7)
                     .subscriptionType(SubscriptionType.Shared)
                     .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                     .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                             .minDelayMs(1000)
                             .maxDelayMs(20000).build())
@@ -317,6 +335,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
                     .receiverQueueSize(7)
                     .subscriptionType(SubscriptionType.Shared)
                     .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                     .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                             .minDelayMs(1000)
                             .maxDelayMs(20000).build())
@@ -330,6 +349,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
                     .receiverQueueSize(7)
                     .subscriptionType(SubscriptionType.Shared)
                     .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                     .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                     .consumerName("Consumer-1")
                     .subscribe();
@@ -339,6 +359,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
                     .receiverQueueSize(7)
                     .subscriptionType(SubscriptionType.Shared)
                     .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                    .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                     .acknowledgmentGroupTime(0, TimeUnit.SECONDS)
                     .consumerName("Consumer-2")
                     .subscribe();
@@ -376,7 +397,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         assertEquals(messagesReceived, totalMessages);
 
         // 5. Check if Messages redelivered again
-        Thread.sleep(ackTimeOutMillis * 2);
+        waitForAckTimeout(consumer1);
         log.info(" Timeout should be triggered now");
         messagesReceived = 0;
         while (true) {
@@ -433,7 +454,8 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         // 2. Create consumer
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
-                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).subscribe();
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS).subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -460,8 +482,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         assertEquals(consumer.getUnAckedMessageTracker().size(), 0);
     }
 
-    @DataProvider(name = "variationsBackoff")
-    public static Object[][] variationsBackoff() {
+    private static Object[][] variationsBackoff() {
         return new Object[][]{
                 // ackTimeOutMillis / minDelayMs / maxDelayMs / multiplier
                 {2000, 1000, 2000, 2, SubscriptionType.Shared},
@@ -471,10 +492,30 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
         };
     }
 
-    @Test(dataProvider = "variationsBackoff")
-    public void testCheckUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis, long minDelayMs,
-                                                              long maxDelayMs, int multiplier,
-                                                              SubscriptionType subscriptionType)
+    /**
+     * Each variation waits for five redeliveries, up to 28 s: check them at the same time, each on a topic of its own.
+     */
+    @Test
+    public void testCheckUnAcknowledgedMessageRedeliveryTimer() throws Exception {
+        Object[][] variations = variationsBackoff();
+        @Cleanup("shutdownNow")
+        ExecutorService executor = Executors.newFixedThreadPool(variations.length);
+        List<Future<?>> checks = new ArrayList<>();
+        for (Object[] variation : variations) {
+            checks.add(executor.submit(() -> {
+                checkUnAcknowledgedMessageRedeliveryTimer((int) variation[0], (int) variation[1], (int) variation[2],
+                        (int) variation[3], (SubscriptionType) variation[4]);
+                return null;
+            }));
+        }
+        for (Future<?> check : checks) {
+            check.get();
+        }
+    }
+
+    private void checkUnAcknowledgedMessageRedeliveryTimer(long ackTimeOutMillis, long minDelayMs,
+                                                           long maxDelayMs, int multiplier,
+                                                           SubscriptionType subscriptionType)
             throws PulsarClientException, InterruptedException {
         final String topicName = newTopicName();
         final String subscriptionName = "my-ex-subscription";
@@ -488,9 +529,11 @@ public class UnAcknowledgedMessagesTimeoutTest extends SharedPulsarBaseTest {
                 .create();
 
         // 2. Create consumer
+        // With the default 1 s tick, the timeout and the backoff each fire up to 1 s late
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(subscriptionType)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .ackTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder()
                         .minDelayMs(minDelayMs)
                         .maxDelayMs(maxDelayMs)
