@@ -81,10 +81,12 @@ public class ConnectionHandler {
         }
 
         /**
-         * @return the longest the connection handler may wait, in milliseconds, before it tries again to get a
-         * connection after a failed attempt: it caps the backoff delay.
+         * @return the latest time, in milliseconds since the epoch, at which the connection handler may try again to
+         * get a connection after a failed attempt: it caps the backoff delay. The connection handler reads it before
+         * {@link #connectionFailed} decides on the attempt, so a retry decided before a deadline comes right after
+         * the deadline at the latest, even if the deadline passes before the retry is scheduled.
          */
-        default long maxReconnectDelayMs() {
+        default long latestReconnectTimeMs() {
             return Long.MAX_VALUE;
         }
     }
@@ -179,6 +181,8 @@ public class ConnectionHandler {
 
     private Void handleConnectionError(Throwable exception) {
         boolean toRetry = true;
+        // Before connectionFailed() decides on the attempt: see Connection.latestReconnectTimeMs()
+        long latestReconnectTimeMs = connection.latestReconnectTimeMs();
         try {
             log.warn().exceptionMessage(exception)
                     .log("Error connecting to broker");
@@ -194,19 +198,24 @@ public class ConnectionHandler {
                     .log("Unexpected exception after the connection");
         }
         if (toRetry) {
-            reconnectLater(exception);
+            reconnectLater(exception, latestReconnectTimeMs);
         }
         return null;
     }
 
     void reconnectLater(Throwable exception) {
+        reconnectLater(exception, connection.latestReconnectTimeMs());
+    }
+
+    private void reconnectLater(Throwable exception, long latestReconnectTimeMs) {
         CLIENT_CNX_UPDATER.set(this, null);
         duringConnect.set(false);
         if (!isValidStateForReconnection()) {
             log.info("Ignoring reconnection request");
             return;
         }
-        long delayMs = Math.min(backoff.next().toMillis(), connection.maxReconnectDelayMs());
+        long delayMs = Math.min(backoff.next().toMillis(),
+                Math.max(latestReconnectTimeMs - System.currentTimeMillis(), 0));
         log.warn().exceptionMessage(exception)
                 .attr("delaySec", delayMs / 1000.0)
                 .log("Could not get connection to broker - Will try again");

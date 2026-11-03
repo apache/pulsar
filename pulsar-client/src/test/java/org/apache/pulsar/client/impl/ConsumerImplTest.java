@@ -21,7 +21,9 @@ package org.apache.pulsar.client.impl;
 import static org.apache.pulsar.common.protocol.Commands.DEFAULT_CONSUMER_EPOCH;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeast;
 import static org.mockito.Mockito.doAnswer;
@@ -35,6 +37,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 import static org.testng.Assert.assertTrue;
+import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -681,17 +684,11 @@ public class ConsumerImplTest {
         @Cleanup("stop")
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ConsumerImplTest-timer", true), 1,
                 TimeUnit.MILLISECONDS);
-        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
-        doAnswer(invocation -> {
-            invocation.<ByteBuf>getArgument(0).release();
-            return CompletableFuture.failedFuture(
-                    new PulsarClientException.BrokerPersistenceException("Not enough non-faulty bookies available"));
-        }).when(cnx).sendRequestWithId(any(), anyLong());
         CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
 
         long start = System.nanoTime();
-        ConsumerImpl.newConsumerImpl(mockClientWithSlowRetries(timer, cnx), PERSISTENT_TOPIC, consumerConf,
-                executorProvider, -1, false, subscribeFuture, null, Schema.BYTES, null, true);
+        ConsumerImpl.newConsumerImpl(mockClientWithSlowRetries(timer, failingSubscribesCnx()), PERSISTENT_TOPIC,
+                consumerConf, executorProvider, -1, false, subscribeFuture, null, Schema.BYTES, null, true);
 
         assertThatThrownBy(subscribeFuture::join)
                 .hasCauseInstanceOf(PulsarClientException.BrokerPersistenceException.class);
@@ -707,11 +704,6 @@ public class ConsumerImplTest {
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ConsumerImplTest-timer", true), 1,
                 TimeUnit.MILLISECONDS);
         List<Long> delaysMs = new CopyOnWriteArrayList<>();
-        Timer recordingTimer = mock(Timer.class);
-        doAnswer(invocation -> {
-            delaysMs.add(invocation.<TimeUnit>getArgument(2).toMillis(invocation.getArgument(1)));
-            return timer.newTimeout(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2));
-        }).when(recordingTimer).newTimeout(any(), anyLong(), any());
         ClientCnx cnx = ClientTestFixtures.mockClientCnx();
         AtomicBoolean failSubscribes = new AtomicBoolean();
         doAnswer(invocation -> {
@@ -721,9 +713,9 @@ public class ConsumerImplTest {
                     : CompletableFuture.completedFuture(null);
         }).when(cnx).sendRequestWithId(any(), anyLong());
         CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
-        ConsumerImpl<byte[]> subscriber = ConsumerImpl.newConsumerImpl(mockClientWithSlowRetries(recordingTimer, cnx),
-                PERSISTENT_TOPIC, consumerConf, executorProvider, -1, false, subscribeFuture, null, Schema.BYTES, null,
-                true);
+        ConsumerImpl<byte[]> subscriber = ConsumerImpl.newConsumerImpl(
+                mockClientWithSlowRetries(ClientTestFixtures.recordingTimer(timer, delaysMs), cnx), PERSISTENT_TOPIC,
+                consumerConf, executorProvider, -1, false, subscribeFuture, null, Schema.BYTES, null, true);
         subscribeFuture.join();
 
         // The broker closes the consumer, and the subscribe fails when the consumer reconnects at once
@@ -733,6 +725,78 @@ public class ConsumerImplTest {
         Awaitility.await().until(() -> delaysMs.size() == 2);
         // The backoff's initial 5 s, give or take its 5 % jitter, and not the time left before the 1 s timeout
         assertThat(delaysMs.get(1)).isGreaterThanOrEqualTo(4750L);
+    }
+
+    /**
+     * The subscribe timeout can pass after connectionFailed() has decided to retry a failed subscribe, and before the
+     * retry is scheduled: the retry then comes at once, and its failure fails the subscribe, instead of the backoff's
+     * 5 s later.
+     */
+    @Test(timeOut = 30000)
+    public void testRetryScheduledPastTheTimeoutComesAtOnce() {
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ConsumerImplTest-timer", true), 1,
+                TimeUnit.MILLISECONDS);
+        List<Long> delaysMs = new CopyOnWriteArrayList<>();
+        CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
+        AtomicBoolean stalled = new AtomicBoolean();
+
+        new ConsumerImpl<>(mockClientWithSlowRetries(ClientTestFixtures.recordingTimer(timer, delaysMs),
+                failingSubscribesCnx()), PERSISTENT_TOPIC, consumerConf, executorProvider, -1, false, false,
+                subscribeFuture, null, 0, Schema.BYTES, null, true) {
+            @Override
+            public boolean connectionFailed(PulsarClientException exception) {
+                boolean retry = super.connectionFailed(exception);
+                if (retry && stalled.compareAndSet(false, true)) {
+                    // The thread pauses until the 1 s timeout has passed
+                    Uninterruptibles.sleepUninterruptibly(1100, TimeUnit.MILLISECONDS);
+                }
+                return retry;
+            }
+        };
+
+        assertThatThrownBy(subscribeFuture::join)
+                .hasCauseInstanceOf(PulsarClientException.BrokerPersistenceException.class);
+        assertThat(delaysMs).containsExactly(0L);
+    }
+
+    /**
+     * Past the subscribe timeout, an attempt that fails without connectionFailed(), on an exception thrown while
+     * getting a connection, keeps the backoff instead of being retried at once, in a loop: nothing fails the subscribe
+     * then.
+     */
+    @Test
+    public void testExceptionGettingAConnectionPastTheTimeoutKeepsTheBackoff() {
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ConsumerImplTest-timer", true), 1,
+                TimeUnit.MILLISECONDS);
+        List<Long> delaysMs = new CopyOnWriteArrayList<>();
+        PulsarClientImpl client = mockClientWithSlowRetries(ClientTestFixtures.recordingTimer(timer, delaysMs),
+                ClientTestFixtures.mockClientCnx());
+        when(client.getConnection(anyString(), anyInt())).thenThrow(new IllegalStateException("injected"));
+        CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
+        ConsumerImpl.newConsumerImpl(client, PERSISTENT_TOPIC, consumerConf, executorProvider, -1, false,
+                subscribeFuture, null, Schema.BYTES, null, true);
+
+        Awaitility.await().until(() -> delaysMs.size() >= 2);
+        // The first retry right after the 1 s timeout, and the next one after the backoff's 10 s, give or take its 5 %
+        // jitter
+        assertThat(delaysMs.get(0)).isLessThanOrEqualTo(1001L);
+        assertThat(delaysMs.get(1)).isGreaterThanOrEqualTo(9500L);
+        assertThat(subscribeFuture).isNotDone();
+    }
+
+    /**
+     * A connection mock on which every subscribe fails with a retriable error.
+     */
+    private static ClientCnx failingSubscribesCnx() {
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return CompletableFuture.failedFuture(
+                    new PulsarClientException.BrokerPersistenceException("Not enough non-faulty bookies available"));
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        return cnx;
     }
 
     /**

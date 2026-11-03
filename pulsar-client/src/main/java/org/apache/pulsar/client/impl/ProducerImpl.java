@@ -135,6 +135,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             .newUpdater(ProducerImpl.class, "producerDeadline");
     @SuppressWarnings("unused")
     private volatile long producerDeadline = 0; // gets set on first successful connection
+    // Set when connectionOpened() retries a failed create request, until connectionFailed() decides on the retry: see
+    // latestReconnectTimeMs()
+    private volatile boolean retryingFailedCreate;
 
     private final BatchMessageContainerBase batchMessageContainer;
     private CompletableFuture<MessageId> lastSendFuture = CompletableFuture.completedFuture(null);
@@ -2394,6 +2397,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             )) {
                 // Either we had already created the producer once (producerCreatedFuture.isDone()) or we are
                 // still within the initial timeout budget and we are dealing with a retriable error
+                retryingFailedCreate = true;
                 future.completeExceptionally(cause);
             } else {
                 setState(State.Failed);
@@ -2439,6 +2443,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     public boolean connectionFailed(PulsarClientException exception) {
+        // The connection handler has read latestReconnectTimeMs() for this attempt
+        retryingFailedCreate = false;
         boolean nonRetriableError = !PulsarClientException.isRetriableError(exception);
         boolean timeout = System.currentTimeMillis() > lookupDeadline;
         if (nonRetriableError || timeout) {
@@ -2470,17 +2476,23 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     }
 
     @Override
-    public long maxReconnectDelayMs() {
+    public long latestReconnectTimeMs() {
         // connectionFailed() fails the creation on the first attempt that fails after the lookup deadline, and
         // connectionOpened() on the first create request that fails after the producer deadline: make the last retry
-        // right after the earlier of them, instead of up to a max backoff interval after it. Past the producer
-        // deadline, an attempt whose lookup or connection fails is still retried until the lookup deadline. Once
-        // created, the producer reconnects on the backoff alone.
+        // right after the earlier of them, instead of up to a max backoff interval after it. A create request that
+        // failed before the producer deadline is retried right after it, even if it has passed since, but past it, an
+        // attempt whose lookup or connection fails is still retried until the lookup deadline. Once created, or past
+        // the lookup deadline, where only an attempt that fails without connectionFailed() is still retried, the
+        // producer reconnects on the backoff alone.
+        if (producerCreatedFuture.isDone()) {
+            return Long.MAX_VALUE;
+        }
         long now = System.currentTimeMillis();
         long producerDeadline = PRODUCER_DEADLINE_UPDATER.get(this);
-        long deadline = producerDeadline > now ? Math.min(producerDeadline, lookupDeadline) : lookupDeadline;
-        long untilPastDeadline = deadline + 1 - now;
-        return producerCreatedFuture.isDone() || untilPastDeadline <= 0 ? Long.MAX_VALUE : untilPastDeadline;
+        if (retryingFailedCreate || producerDeadline > now) {
+            return Math.min(producerDeadline, lookupDeadline) + 1;
+        }
+        return now > lookupDeadline ? Long.MAX_VALUE : lookupDeadline + 1;
     }
 
     private synchronized void closeProducerTasks() {

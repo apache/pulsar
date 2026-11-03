@@ -41,6 +41,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import com.google.common.util.concurrent.Uninterruptibles;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
@@ -713,13 +714,7 @@ public class ProducerImplTest {
         @Cleanup("stop")
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ProducerImplTest-timer", true), 1,
                 TimeUnit.MILLISECONDS);
-        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
-        doAnswer(invocation -> {
-            invocation.<ByteBuf>getArgument(0).release();
-            return CompletableFuture.failedFuture(
-                    new PulsarClientException.BrokerPersistenceException("Not enough non-faulty bookies available"));
-        }).when(cnx).sendRequestWithId(any(), anyLong());
-        PulsarClientImpl client = mockClientWithRetries(timer, cnx, initialBackoffMs);
+        PulsarClientImpl client = mockClientWithRetries(timer, failingCreatesCnx(), initialBackoffMs);
         client.getConfiguration().setLookupTimeoutMs(lookupTimeoutMs);
         ProducerConfigurationData conf = new ProducerConfigurationData();
         conf.setSendTimeoutMs(sendTimeoutMs);
@@ -743,11 +738,6 @@ public class ProducerImplTest {
         Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ProducerImplTest-timer", true), 1,
                 TimeUnit.MILLISECONDS);
         List<Long> delaysMs = new CopyOnWriteArrayList<>();
-        Timer recordingTimer = mock(Timer.class);
-        doAnswer(invocation -> {
-            delaysMs.add(invocation.<TimeUnit>getArgument(2).toMillis(invocation.getArgument(1)));
-            return timer.newTimeout(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2));
-        }).when(recordingTimer).newTimeout(any(), anyLong(), any());
         ClientCnx cnx = ClientTestFixtures.mockClientCnx();
         // A created producer resends its pending messages on the connection's event loop
         EventLoop eventLoop = mock(EventLoop.class);
@@ -767,7 +757,8 @@ public class ProducerImplTest {
         conf.setSendTimeoutMs(0);
         conf.setBatchingEnabled(false);
         CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
-        ProducerImpl<byte[]> producer = new ProducerImpl<>(mockClientWithRetries(recordingTimer, cnx, 5000),
+        ProducerImpl<byte[]> producer = new ProducerImpl<>(
+                mockClientWithRetries(ClientTestFixtures.recordingTimer(timer, delaysMs), cnx, 5000),
                 "persistent://public/default/reconnected", conf, created, -1, Schema.BYTES, null, Optional.empty());
         created.join();
 
@@ -778,6 +769,124 @@ public class ProducerImplTest {
         Awaitility.await().until(() -> delaysMs.size() == 2);
         // The backoff's initial 5 s, give or take its 5 % jitter, and not the time left before the 1 s timeout
         assertThat(delaysMs.get(1)).isGreaterThanOrEqualTo(4750L);
+    }
+
+    /**
+     * The creation timeout can pass after connectionFailed() has decided to retry a failed creation, and before the
+     * retry is scheduled: the retry then comes at once, and its failure fails the creation, instead of the backoff's
+     * 5 s later.
+     */
+    @Test(timeOut = 30000)
+    public void testRetryScheduledPastTheTimeoutComesAtOnce() throws Exception {
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ProducerImplTest-timer", true), 1,
+                TimeUnit.MILLISECONDS);
+        List<Long> delaysMs = new CopyOnWriteArrayList<>();
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setSendTimeoutMs(0);
+        CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+        AtomicBoolean stalled = new AtomicBoolean();
+
+        new ProducerImpl<>(mockClientWithRetries(ClientTestFixtures.recordingTimer(timer, delaysMs),
+                failingCreatesCnx(), 5000), "persistent://public/default/retried-creation", conf, created, -1,
+                Schema.BYTES, null, Optional.empty()) {
+            @Override
+            public boolean connectionFailed(PulsarClientException exception) {
+                boolean retry = super.connectionFailed(exception);
+                if (retry && stalled.compareAndSet(false, true)) {
+                    // The thread pauses until the 1 s timeout has passed
+                    Uninterruptibles.sleepUninterruptibly(1100, TimeUnit.MILLISECONDS);
+                }
+                return retry;
+            }
+        };
+
+        assertThatThrownBy(created::join)
+                .hasCauseInstanceOf(PulsarClientException.BrokerPersistenceException.class);
+        assertThat(delaysMs).containsExactly(0L);
+    }
+
+    /**
+     * With a lookup timeout longer than the operation timeout, the operation timeout can pass after connectionOpened()
+     * has decided to retry a failed create request, and before the retry is scheduled: the retry then comes at once,
+     * and its failure fails the creation, instead of the backoff's 5 s later.
+     */
+    @Test(timeOut = 30000)
+    public void testCreateRetryScheduledPastTheOperationTimeoutComesAtOnce() throws Exception {
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ProducerImplTest-timer", true), 1,
+                TimeUnit.MILLISECONDS);
+        List<Long> delaysMs = new CopyOnWriteArrayList<>();
+        PulsarClientImpl client = mockClientWithRetries(ClientTestFixtures.recordingTimer(timer, delaysMs),
+                failingCreatesCnx(), 5000);
+        client.getConfiguration().setLookupTimeoutMs(10000);
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setSendTimeoutMs(0);
+        CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+        AtomicBoolean stalled = new AtomicBoolean();
+
+        new ProducerImpl<>(client, "persistent://public/default/retried-creation", conf, created, -1, Schema.BYTES,
+                null, Optional.empty()) {
+            @Override
+            public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
+                return super.connectionOpened(cnx).whenComplete((__, e) -> {
+                    if (e != null && stalled.compareAndSet(false, true)) {
+                        // The thread pauses until the 1 s operation timeout has passed
+                        Uninterruptibles.sleepUninterruptibly(1100, TimeUnit.MILLISECONDS);
+                    }
+                });
+            }
+        };
+
+        assertThatThrownBy(created::join)
+                .hasCauseInstanceOf(PulsarClientException.BrokerPersistenceException.class);
+        assertThat(delaysMs).containsExactly(0L);
+    }
+
+    /**
+     * With a lookup timeout longer than the operation timeout, an attempt whose lookup fails after the operation
+     * timeout is retried until the lookup timeout: its retry keeps the backoff, capped at the lookup timeout, instead
+     * of coming at once, in a loop.
+     */
+    @Test
+    public void testLookupFailurePastTheOperationTimeoutKeepsTheBackoff() throws Exception {
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ProducerImplTest-timer", true), 1,
+                TimeUnit.MILLISECONDS);
+        List<Long> delaysMs = new CopyOnWriteArrayList<>();
+        ClientCnx cnx = failingCreatesCnx();
+        PulsarClientImpl client = mockClientWithRetries(ClientTestFixtures.recordingTimer(timer, delaysMs), cnx, 5000);
+        client.getConfiguration().setLookupTimeoutMs(10000);
+        // The first attempt's create request fails, and then the lookups
+        when(client.getConnection(anyString(), anyInt()))
+                .thenReturn(CompletableFuture.completedFuture(Pair.of(cnx, false)))
+                .thenReturn(CompletableFuture.failedFuture(
+                        new PulsarClientException.ServiceNotReadyException("failed")));
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setSendTimeoutMs(0);
+        CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+        new ProducerImpl<>(client, "persistent://public/default/retried-creation", conf, created, -1, Schema.BYTES,
+                null, Optional.empty());
+
+        Awaitility.await().until(() -> delaysMs.size() >= 2);
+        // The first retry right after the 1 s operation timeout, and the next one after the backoff's 10 s, capped at
+        // the 10 s lookup timeout
+        assertThat(delaysMs.get(0)).isLessThanOrEqualTo(1001L);
+        assertThat(delaysMs.get(1)).isGreaterThan(8000L);
+        assertThat(created).isNotDone();
+    }
+
+    /**
+     * A connection mock on which every create request fails with a retriable error.
+     */
+    private static ClientCnx failingCreatesCnx() {
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            return CompletableFuture.failedFuture(
+                    new PulsarClientException.BrokerPersistenceException("Not enough non-faulty bookies available"));
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        return cnx;
     }
 
     /**

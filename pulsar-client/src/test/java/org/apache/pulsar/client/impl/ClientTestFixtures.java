@@ -40,6 +40,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 import io.netty.util.concurrent.SucceededFuture;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -110,6 +111,18 @@ class ClientTestFixtures {
         when(connectionPoolMock.getConnection(any(), any(), anyInt()))
                 .thenReturn(CompletableFuture.completedFuture(clientCnxMock));
         return clientMock;
+    }
+
+    /**
+     * A timer that schedules its tasks on {@code timer}, and adds their delays, in milliseconds, to {@code delaysMs}.
+     */
+    static Timer recordingTimer(Timer timer, List<Long> delaysMs) {
+        Timer recordingTimer = mock(Timer.class);
+        doAnswer(invocation -> {
+            delaysMs.add(invocation.<TimeUnit>getArgument(2).toMillis(invocation.getArgument(1)));
+            return timer.newTimeout(invocation.getArgument(0), invocation.getArgument(1), invocation.getArgument(2));
+        }).when(recordingTimer).newTimeout(any(), anyLong(), any());
+        return recordingTimer;
     }
 
     public static ClientCnx mockClientCnx() {
