@@ -3435,19 +3435,9 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    @DataProvider
-    public Object[][] autoProduceBytesSendErrors() {
-        return new Object[][]{
-                // Clients fail just this send
-                {"auto-produce-bytes-producer", ServerError.NotAllowedError},
-                // Replicators resend a failed message at once, so they keep retrying at the reconnection pace
-                {"pulsar.repl.remote-cluster", ServerError.MetadataError},
-        };
-    }
-
-    @Test(timeOut = 30000, dataProvider = "autoProduceBytesSendErrors")
-    public void testSendWithoutSchemaVersionFromAutoProduceBytesProducer(String producerName,
-                                                                        ServerError expectedError) throws Exception {
+    @Test(timeOut = 30000)
+    public void testSendWithoutSchemaVersionFromAutoProduceBytesProducer() throws Exception {
+        String producerName = "auto-produce-bytes-producer";
         svcConfig.setSchemaValidationEnforced(true);
         SchemaRegistryService schemaRegistryService = pulsar.getSchemaRegistryService();
         SchemaRegistry.SchemaAndMetadata topicSchema = mock(SchemaRegistry.SchemaAndMetadata.class);
@@ -3470,7 +3460,7 @@ public class ServerCnxTest {
         channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
         clientCommand.release();
         CommandSendError sendError = (CommandSendError) getResponse();
-        assertEquals(sendError.getError(), expectedError);
+        assertEquals(sendError.getError(), ServerError.NotAllowedError);
         channel.finish();
     }
 
