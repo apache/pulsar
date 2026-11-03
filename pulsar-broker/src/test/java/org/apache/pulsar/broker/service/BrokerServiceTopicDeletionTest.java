@@ -56,6 +56,8 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
@@ -495,6 +497,62 @@ public class BrokerServiceTopicDeletionTest {
                 .hasCauseInstanceOf(ServiceUnitNotReadyException.class);
         assertThat(metadataDeletes.get()).isEqualTo(1);
         assertThat(broker.getTopics()).doesNotContainKey(name);
+    }
+
+    @DataProvider
+    public Object[][] metadataDeletionFailure() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "metadataDeletionFailure")
+    public void testReplicationClientCleanupOverlappingMetadataDeletion(boolean deletionFails) throws Exception {
+        String name = "persistent://public/default/delete-during-replication-client-cleanup";
+        String cluster = "remote";
+        CompletableFuture<Void> deleting = new CompletableFuture<>();
+        metadataDeletion.set(deleting);
+        PulsarClient client = mock(PulsarClient.class);
+        when(client.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+        broker.getReplicationClients().put(cluster, client);
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        broker.getClusterAdmins().put(cluster, admin);
+
+        Topic loaded = mock(Topic.class);
+        Replicator replicator = mock(Replicator.class);
+        doReturn(Map.of(cluster, replicator)).when(loaded).getReplicators();
+        when(replicator.isConnected()).thenReturn(true);
+        CompletableFuture<Void> terminating = new CompletableFuture<>();
+        when(replicator.terminate()).thenReturn(terminating);
+        broker.getTopics().put(name + "-loaded", CompletableFuture.completedFuture(Optional.of(loaded)));
+
+        CompletableFuture<Void> deletion = broker.deleteTopic(name, true);
+        CompletableFuture<Optional<Topic>> reservation = broker.getTopics().get(name);
+        assertThat(reservation).isNotNull().isNotDone();
+        assertThat(metadataDeletes.get()).isEqualTo(1);
+        CompletableFuture<Void> cleanup = broker.closeAndRemoveReplicationClient(cluster);
+        verify(replicator).terminate();
+        assertThat(cleanup).isNotDone();
+        verify(client, never()).closeAsync();
+        verify(admin, never()).close();
+
+        if (deletionFails) {
+            deleting.completeExceptionally(new IllegalStateException("Metadata unavailable"));
+            assertThatThrownBy(() -> deletion.get(5, TimeUnit.SECONDS)).hasRootCauseMessage("Metadata unavailable");
+        } else {
+            deleting.complete(null);
+            deletion.get(5, TimeUnit.SECONDS);
+        }
+        assertThat(reservation).isCompletedExceptionally();
+        assertThat(broker.getTopics()).doesNotContainKey(name);
+        assertThat(cleanup).as("cleanup must still wait for the loaded topic's replicator").isNotDone();
+        verify(client, never()).closeAsync();
+        verify(admin, never()).close();
+
+        terminating.complete(null);
+        cleanup.get(5, TimeUnit.SECONDS);
+        verify(client).closeAsync();
+        verify(admin).close();
+        assertThat(broker.getReplicationClients()).doesNotContainKey(cluster);
+        assertThat(broker.getClusterAdmins()).doesNotContainKey(cluster);
     }
 
     @Test
