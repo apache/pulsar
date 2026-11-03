@@ -819,6 +819,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             log.info("Loaded the service unit state data. serviceUnit: {}, data: {}", serviceUnit, data);
         }
         ServiceUnitState state = state(data);
+        if (state.equals(Owned)) {
+            // The table view is refilled with the existing items after the metadata store session is reestablished.
+            // A lookup waiting for an owner misses the event that set it if it came while the session was lost:
+            // answer the lookup now, instead of when it times out.
+            var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
+            if (getOwnerRequest != null) {
+                getOwnerRequest.complete(data.dstBroker());
+            }
+        }
         if (state.equals(Owned) && isTargetBroker(data.dstBroker())) {
             pulsar.getNamespaceService()
                     .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
