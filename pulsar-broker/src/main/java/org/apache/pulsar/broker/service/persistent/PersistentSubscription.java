@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.persistent;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.service.AbstractBaseDispatcher.checkAndApplyReachedEndOfTopicOrTopicMigration;
 import static org.apache.pulsar.common.naming.SystemTopicNames.isEventSystemTopic;
 import com.google.common.annotations.VisibleForTesting;
@@ -132,6 +133,9 @@ public class PersistentSubscription extends AbstractSubscription {
     private final PendingAckHandle pendingAckHandle;
     private volatile CompletableFuture<Void> fenceFuture;
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
+    // Keep the last admitted reset identity after completion, including failed resets. A local seek
+    // supersedes a previously received remote target even when the mark-delete position is unchanged.
+    private volatile CompletableFuture<Void> lastCursorResetFuture;
     private volatile Boolean replicatedControlled;
     private final ServiceConfiguration config;
 
@@ -429,6 +433,64 @@ public class PersistentSubscription extends AbstractSubscription {
 
     @Override
     public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties) {
+        acknowledgeMessage(positions, ackType, properties, markDeleteCallback);
+    }
+
+    /**
+     * Atomically admit a received remote ACK against local seek admission. The controller calls this
+     * outside its lifecycle lock; getters used while holding that lock must remain non-blocking.
+     */
+    CompletableFuture<Void> acknowledgeReplicatedSubscriptionMessage(Position position, Position admittedMarkDelete,
+            CompletableFuture<Void> admittedReset, boolean admittedDuringReset) {
+        return FutureUtil.supplySafely(() -> {
+            synchronized (this) {
+                if (admittedDuringReset || lastCursorResetFuture != admittedReset
+                        || admittedReset != null && !admittedReset.isDone()
+                        || cursor.getMarkDeletedPosition().compareTo(admittedMarkDelete) < 0) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                // resetCursor uses the same monitor for admission. Start the ACK before a later
+                // reset can be admitted, without waiting for asynchronous persistence to complete.
+                return acknowledgeMessageAsync(Collections.singletonList(position), AckType.Cumulative,
+                        Collections.emptyMap());
+            }
+        });
+    }
+
+    /**
+     * Cumulative ACK that completes with the mark-delete result, so received replicated subscription
+     * updates can retry failures. Individual ACKs are not supported.
+     */
+    CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
+                                                    Map<String, Long> properties) {
+        checkArgument(ackType == AckType.Cumulative && positions.size() == 1,
+                "Only a cumulative ack of a single position is supported");
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        MarkDeleteCallback callback = new MarkDeleteCallback() {
+            @Override
+            public void markDeleteComplete(Object ctx) {
+                markDeleteCallback.markDeleteComplete(ctx);
+                future.complete(null);
+            }
+
+            @Override
+            public void markDeleteFailed(ManagedLedgerException exception, Object ctx) {
+                markDeleteCallback.markDeleteFailed(exception, ctx);
+                future.completeExceptionally(exception);
+            }
+        };
+        if (!acknowledgeMessage(positions, ackType, properties, callback)) {
+            // Ignored without a cursor update, like a compacted read outside the managed ledger.
+            future.complete(null);
+        }
+        return future;
+    }
+
+    /**
+     * @return false if a cumulative ACK was ignored without calling the cursor
+     */
+    private boolean acknowledgeMessage(List<Position> positions, AckType ackType, Map<String, Long> properties,
+                                       MarkDeleteCallback cumulativeAckCallback) {
         cursor.updateLastActive();
         Position previousMarkDeletePosition = cursor.getMarkDeletedPosition();
 
@@ -436,7 +498,7 @@ public class PersistentSubscription extends AbstractSubscription {
 
             if (positions.size() != 1) {
                 log.warn("[{}][{}] Invalid cumulative ack received with multiple message ids.", topicName, subName);
-                return;
+                return false;
             }
 
             Position position = positions.get(0);
@@ -457,11 +519,11 @@ public class PersistentSubscription extends AbstractSubscription {
                         log.warn("Received an ACK whose position is " + position + ", valid ledgers: "
                                 + ml.getLedgersInfo().keySet());
                     }
-                    return;
+                    return false;
                 }
             }
             cursor.asyncMarkDelete(position, mergeCursorProperties(properties),
-                    markDeleteCallback, previousMarkDeletePosition);
+                    cumulativeAckCallback, previousMarkDeletePosition);
 
         } else {
             if (log.isDebugEnabled()) {
@@ -487,6 +549,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 checkAndApplyReachedEndOfTopicOrTopicMigration(topic, dispatcher.getConsumers());
             }
         }
+        return true;
     }
 
     public CompletableFuture<Void> transactionIndividualAcknowledge(
@@ -839,14 +902,21 @@ public class PersistentSubscription extends AbstractSubscription {
         return future;
     }
 
+    CompletableFuture<Void> getLastCursorResetFuture() {
+        return lastCursorResetFuture;
+    }
+
     @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
-        if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
-            return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
-        }
-
         final CompletableFuture<Void> future = new CompletableFuture<>();
-        inProgressResetCursorFuture = future;
+        // Admit the reset under the monitor used by acknowledgeReplicatedSubscriptionMessage.
+        synchronized (this) {
+            if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+                return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
+            }
+            inProgressResetCursorFuture = future;
+            lastCursorResetFuture = future;
+        }
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
                 config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis());
 
@@ -908,16 +978,17 @@ public class PersistentSubscription extends AbstractSubscription {
 
     private CompletableFuture<Void> resetCursorInternal(Position finalPosition, CompletableFuture<Void> future,
                                                         boolean alreadyFenced) {
-        if (!alreadyFenced
-                && !IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
-            return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
-        }
-
-        inProgressResetCursorFuture = future;
         final CompletableFuture<Void> disconnectFuture;
 
-        // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks
+        // Lock the Subscription object before locking the Dispatcher object to avoid deadlocks.
+        // Admit the reset under the monitor used by acknowledgeReplicatedSubscriptionMessage.
         synchronized (this) {
+            if (!alreadyFenced
+                    && !IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+                return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
+            }
+            inProgressResetCursorFuture = future;
+            lastCursorResetFuture = future;
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 disconnectFuture = dispatcher.disconnectActiveConsumers(true);
             } else {
