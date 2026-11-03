@@ -72,7 +72,10 @@ public class TopicGCTest extends ProducerConsumerBase {
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
         conf.setBrokerDeleteInactiveTopicsMode(
                 InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(10);
+        // The tests run the topic GC themselves, once a topic is in the state they check: the periodic GC doesn't
+        // run during the tests, and the GC deletes an inactive topic at once.
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(3600);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(0);
     }
 
     private enum SubscribeTopicType {
@@ -124,11 +127,11 @@ public class TopicGCTest extends ProducerConsumerBase {
         producer1.send("2");
         admin.topics().skipAllMessages(partition0, subscription);
 
-        // Wait for topic GC.
-        // Partition 0 will be deleted about 20s later, left 2min to avoid flaky.
+        // Run the topic GC: partition 0 has no backlog and no producers, so it's deleted. Partition 1 has a backlog.
         producer0.close();
         consumer1.close();
-        Awaitility.await().atMost(2, TimeUnit.MINUTES).untilAsserted(() -> {
+        Awaitility.await().untilAsserted(() -> {
+            pulsar.getBrokerService().checkGC();
             CompletableFuture<Optional<Topic>> tp1 = pulsar.getBrokerService().getTopic(partition0, false);
             CompletableFuture<Optional<Topic>> tp2 = pulsar.getBrokerService().getTopic(partition1, false);
             assertTrue(tp1 == null || !tp1.get().isPresent());
@@ -185,11 +188,11 @@ public class TopicGCTest extends ProducerConsumerBase {
         producer1.send("partition-1-4");
         admin.topics().skipAllMessages(partition0, subscription);
 
-        // Wait for topic GC.
-        // Partition 0 will be deleted about 20s later, left 2min to avoid flaky.
+        // Run the topic GC: partition 0 has no backlog and no producers, so it's deleted. Partition 1 has a backlog.
         producer0.close();
         if (!subscribeTopicType.equals(SubscribeTopicType.MULTI_PARTITIONED_TOPIC)) {
-            Awaitility.await().atMost(2, TimeUnit.MINUTES).untilAsserted(() -> {
+            Awaitility.await().untilAsserted(() -> {
+                pulsar.getBrokerService().checkGC();
                 CompletableFuture<Optional<Topic>> tp1 = pulsar.getBrokerService().getTopic(partition0, false);
                 CompletableFuture<Optional<Topic>> tp2 = pulsar.getBrokerService().getTopic(partition1, false);
                 assertTrue(tp1 == null || !tp1.get().isPresent());
