@@ -36,12 +36,14 @@ import sys
 import xml.etree.ElementTree as ET
 
 DATA_PROVIDER_INDEX = re.compile(r"\[\d+\]")
+# buildtools' own tests of the retry support (RetryAnalyzerTest, DefaultTestRetriesTest, ...) fail on purpose
+RETRY_SUPPORT_TESTS = re.compile(r"^org\.apache\.pulsar\.tests\.[A-Z]")
 
 
 def retried_tests(report):
     pending = {}
     for _, element in ET.iterparse(report):
-        if element.tag != "testcase":
+        if element.tag != "testcase" or RETRY_SUPPORT_TESTS.match(element.get("classname") or ""):
             continue
         name = element.get("name")
         key = (element.get("classname"), DATA_PROVIDER_INDEX.sub("", name, count=1))
