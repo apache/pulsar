@@ -19,7 +19,7 @@
 package org.apache.pulsar.metrics.prometheus.zookeeper;
 
 import static org.testng.AssertJUnit.assertEquals;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.Properties;
 import org.testng.annotations.Test;
 
@@ -40,7 +40,7 @@ public class ExportJvmInfoTest {
     }
 
     private void runTest(boolean exportJvmInfo) throws Exception {
-        CollectorRegistry.defaultRegistry.clear();
+        PrometheusRegistry.defaultRegistry.clear();
         PrometheusMetricsProvider provider = new PrometheusMetricsProvider();
         try {
             Properties configuration = new Properties();
