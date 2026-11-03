@@ -57,8 +57,12 @@ public class TestScalableTopicMigration extends PulsarTestSuite {
             String clusterName,
             PulsarClusterSpec.PulsarClusterSpecBuilder specBuilder) {
         specBuilder.numBrokers(numBrokers);
-        specBuilder.enableContainerLog(true);
         return specBuilder;
+    }
+
+    @Override
+    protected boolean isClusterShared() {
+        return true;
     }
 
     @Test(dataProvider = "ServiceUrls", timeOut = 300_000)

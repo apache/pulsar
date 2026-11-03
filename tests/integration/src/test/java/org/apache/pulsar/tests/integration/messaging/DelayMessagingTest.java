@@ -40,6 +40,11 @@ import org.testng.annotations.Test;
 @CustomLog
 public class DelayMessagingTest extends PulsarTestSuite {
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test(dataProvider = "ServiceUrls")
     public void delayMsgBlockTest(Supplier<String> serviceUrl) throws Exception {
         // With the admin client: pulsar-admin in a broker container would start a JVM for every command

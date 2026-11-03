@@ -199,7 +199,8 @@ val integrationTest = tasks.register<Test>("integrationTest") {
 
     if (!ideaActive && (!hasCliTestsFilter || integrationTestSuiteFileExplicit)) {
         useTestNG {
-            suites("src/test/resources/${integrationTestSuiteFile}")
+            // A comma-separated list runs the suites one after the other in one test JVM
+            suites(*integrationTestSuiteFile.split(",").map { "src/test/resources/${it.trim()}" }.toTypedArray())
             if (!integrationTestGroups.isNullOrEmpty()) {
                 includeGroups(integrationTestGroups)
             }

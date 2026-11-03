@@ -29,10 +29,19 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.naming.TopicDomain;
+import org.testng.IExecutionListener;
+import org.testng.IInvokedMethod;
+import org.testng.IInvokedMethodListener;
+import org.testng.ITestResult;
 import org.testng.annotations.DataProvider;
+import org.testng.annotations.Listeners;
 
 @CustomLog
+@Listeners(PulsarClusterTestBase.SharedClusterListener.class)
 public abstract class PulsarClusterTestBase extends PulsarTestBase {
+    // The cluster that the last class which shares its cluster left running for the next one
+    private static PulsarCluster idleSharedCluster;
+
     protected final Map<String, String> brokerEnvs = new HashMap<>();
     protected final Map<String, String> bookkeeperEnvs = new HashMap<>();
     protected final Map<String, String> proxyEnvs = new HashMap<>();
@@ -104,6 +113,10 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     protected PulsarCluster pulsarCluster;
 
+    // Whether tearDownCluster leaves the cluster running for the next class: this class shares its cluster, the cluster
+    // has started, and no test has failed on it
+    private boolean clusterReusable;
+
     public PulsarCluster getPulsarCluster() {
         return pulsarCluster;
     }
@@ -150,29 +163,101 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         setupCluster(spec, true);
     }
 
+    /**
+     * Whether this class runs on the cluster that the class before it left running, when that class shares its
+     * cluster too and asked for the same spec, and leaves its own cluster running for the class after it, rather than
+     * each starting and stopping a cluster of its own: about half a minute a class on CI. The cluster is stopped once
+     * a class asks for another spec or doesn't share its cluster, a test fails on it, or the tests end.
+     *
+     * <p>A class that shares its cluster leaves it as the next class expects to find it: it stops, pauses and
+     * reconfigures none of the containers, changes no broker or cluster-wide setting, and gives its tenants,
+     * namespaces and topics names that no other class uses. Classes that share a cluster run one after the other in
+     * the suite, as only the last one's cluster is kept.
+     */
+    protected boolean isClusterShared() {
+        return false;
+    }
+
     protected void setupCluster(PulsarClusterSpec spec, boolean doInit) throws Exception {
         incrementSetupNumber();
-        log.info()
-                .attr("cluster", spec.clusterName())
-                .attr("with", spec.numBookies())
-                .attr("bookies", spec.numBrokers())
-                .log("Setting up cluster with bookies, brokers");
+        boolean shareCluster = doInit && isClusterShared();
+        pulsarCluster = shareCluster ? takeIdleSharedCluster(spec) : null;
+        if (pulsarCluster != null) {
+            log.info()
+                    .attr("cluster", pulsarCluster.getClusterName())
+                    .log("Running on the cluster that the previous test class left running");
+        } else {
+            log.info()
+                    .attr("cluster", spec.clusterName())
+                    .attr("with", spec.numBookies())
+                    .attr("bookies", spec.numBrokers())
+                    .log("Setting up cluster with bookies, brokers");
 
-        pulsarCluster = PulsarCluster.forSpec(spec);
+            pulsarCluster = PulsarCluster.forSpec(spec);
 
-        beforeStartCluster();
+            beforeStartCluster();
 
-        pulsarCluster.start(doInit);
+            pulsarCluster.start(doInit);
+        }
 
         pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
+        clusterReusable = shareCluster;
 
-        log.info().attr("cluster", spec.clusterName()).log("Cluster is setup");
+        log.info().attr("cluster", pulsarCluster.getClusterName()).log("Cluster is setup");
     }
 
     public void tearDownCluster() throws Exception {
         markCurrentSetupNumberCleaned();
         if (null != pulsarCluster) {
-            pulsarCluster.stop();
+            if (clusterReusable && !isCurrentSetupFailed()) {
+                leaveSharedClusterRunning(pulsarCluster);
+            } else {
+                pulsarCluster.stop();
+            }
+        }
+        clusterReusable = false;
+    }
+
+    // The cluster that the previous class left running, if it has this spec, whatever its name; else that cluster is
+    // stopped
+    private static synchronized PulsarCluster takeIdleSharedCluster(PulsarClusterSpec spec) {
+        PulsarCluster cluster = idleSharedCluster;
+        idleSharedCluster = null;
+        if (cluster != null && !cluster.getSpec().equals(spec)) {
+            cluster.stop();
+            return null;
+        }
+        return cluster;
+    }
+
+    private static synchronized void leaveSharedClusterRunning(PulsarCluster cluster) {
+        stopIdleSharedCluster();
+        idleSharedCluster = cluster;
+    }
+
+    private static synchronized void stopIdleSharedCluster() {
+        if (idleSharedCluster != null) {
+            idleSharedCluster.stop();
+            idleSharedCluster = null;
+        }
+    }
+
+    /**
+     * Stops the cluster that a class left running for the next one ({@link PulsarClusterTestBase#isClusterShared()})
+     * before a class that doesn't share its cluster runs a method, as that class may start a cluster of its own, and
+     * once the tests end.
+     */
+    public static class SharedClusterListener implements IInvokedMethodListener, IExecutionListener {
+        @Override
+        public void beforeInvocation(IInvokedMethod method, ITestResult testResult) {
+            if (!(testResult.getInstance() instanceof PulsarClusterTestBase test && test.isClusterShared())) {
+                stopIdleSharedCluster();
+            }
+        }
+
+        @Override
+        public void onExecutionFinish() {
+            stopIdleSharedCluster();
         }
     }
 }
