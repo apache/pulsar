@@ -25,7 +25,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -64,6 +63,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -132,10 +132,18 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class PersistentTopicTest extends BrokerTestBase {
 
+    private Function<BrokerService, BrokerService> brokerServiceCustomizer = Function.identity();
+
     @BeforeMethod(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
+        brokerServiceCustomizer = Function.identity();
         super.baseSetup();
+    }
+
+    @Override
+    protected BrokerService customizeNewBrokerService(BrokerService brokerService) {
+        return brokerServiceCustomizer.apply(brokerService);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -793,23 +801,36 @@ public class PersistentTopicTest extends BrokerTestBase {
         String topicName = "persistent://prop/ns-abc/delete-cleanup-failure-" + UUID.randomUUID();
         TopicName parsedTopic = TopicName.get(topicName);
         conf.setDispatchThrottlingRatePerTopicInMsg(1);
-        BrokerService brokerService = spy(pulsar.getBrokerService());
-        doReturn(brokerService).when(pulsar).getBrokerService();
         DispatchRateLimiter limiter = mock(DispatchRateLimiter.class);
-        DispatchRateLimiterFactory factory = spy(brokerService.getDispatchRateLimiterFactory());
-        doReturn(limiter).when(factory).createTopicDispatchRateLimiter(any(PersistentTopic.class));
-        doReturn(factory).when(brokerService).getDispatchRateLimiterFactory();
+        brokerServiceCustomizer = service -> {
+            BrokerService brokerService = spy(service);
+            DispatchRateLimiterFactory factory = spy(brokerService.getDispatchRateLimiterFactory());
+            doAnswer(invocation -> {
+                PersistentTopic topic = invocation.getArgument(0);
+                return topic.getName().equals(topicName) ? limiter : invocation.callRealMethod();
+            }).when(factory).createTopicDispatchRateLimiter(any(PersistentTopic.class));
+            doReturn(factory).when(brokerService).getDispatchRateLimiterFactory();
+            return brokerService;
+        };
+        restartBroker();
+        BrokerService brokerService = pulsar.getBrokerService();
+        assertThat(brokerService).isSameAs(pulsarTestContext.getBrokerService());
         TopicPoliciesService policiesService = spy(pulsar.getTopicPoliciesService());
-        doReturn(policiesService).when(pulsar).getTopicPoliciesService();
+        RuntimeException failure = new RuntimeException("Injected deleted-topic cleanup failure");
+        AtomicBoolean failPolicyCleanup = new AtomicBoolean(!failDispatchCleanup);
+        doAnswer(invocation -> {
+            if (failPolicyCleanup.get()) {
+                throw failure;
+            }
+            return invocation.callRealMethod();
+        }).when(policiesService).unregisterListener(eq(parsedTopic), any(TopicPolicyListener.class));
+        pulsar.setTopicPoliciesService(policiesService);
+        if (failDispatchCleanup) {
+            doThrow(failure).when(limiter).close();
+        }
         PersistentTopic topic = (PersistentTopic) brokerService.getTopic(topicName, true)
                 .get(10, TimeUnit.SECONDS).orElseThrow();
         assertThat(topic.getDispatchRateLimiter()).contains(limiter);
-        RuntimeException failure = new RuntimeException("Injected deleted-topic cleanup failure");
-        if (failDispatchCleanup) {
-            doThrow(failure).when(limiter).close();
-        } else {
-            doThrow(failure).when(policiesService).unregisterListener(eq(parsedTopic), any(TopicPolicyListener.class));
-        }
         try {
             CompletableFuture<Void> deletion = brokerService.deleteTopic(topicName, false);
             assertThatThrownBy(() -> deletion.get(10, TimeUnit.SECONDS)).hasRootCause(failure);
@@ -825,8 +846,7 @@ public class PersistentTopicTest extends BrokerTestBase {
                 doThrow(new IllegalStateException("The successfully closed limiter must not be closed again"))
                         .when(limiter).close();
             }
-            doCallRealMethod().when(policiesService)
-                    .unregisterListener(eq(parsedTopic), any(TopicPolicyListener.class));
+            failPolicyCleanup.set(false);
         }
         if (!failDispatchCleanup) {
             doThrow(new IllegalStateException("The closed limiter must not be updated by a late policy event"))
@@ -851,12 +871,13 @@ public class PersistentTopicTest extends BrokerTestBase {
 
     @Test(dataProvider = "deletedTopicCacheRemoval", timeOut = 60000)
     public void testDeleteWaitsForCacheRemovalAndRetriesAfterFailure(boolean failRemoval) throws Exception {
+        brokerServiceCustomizer = service -> spy(service);
         restartBroker(configuration -> configuration.setTopicFactoryClassName(
                 InitializationTopicFactory.class.getName()));
         String topicName = "persistent://prop/ns-abc/delete-cache-removal-" + UUID.randomUUID();
         TopicName parsedTopic = TopicName.get(topicName);
-        BrokerService brokerService = spy(pulsar.getBrokerService());
-        doReturn(brokerService).when(pulsar).getBrokerService();
+        BrokerService brokerService = pulsar.getBrokerService();
+        assertThat(brokerService).isSameAs(pulsarTestContext.getBrokerService());
         CompletableFuture<Void> reconnectAdmission = new CompletableFuture<>();
         AtomicReference<PersistentTopic> observedTargetTopic = new AtomicReference<>();
         BrokerTestInterceptor.INSTANCE.setPersistentTopicDecorator(loadedTopic -> {
