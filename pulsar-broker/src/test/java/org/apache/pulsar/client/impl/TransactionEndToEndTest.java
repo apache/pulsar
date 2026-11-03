@@ -51,9 +51,7 @@ import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.TransactionMetadataStoreService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.TransactionTestBase;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.DeadLetterPolicy;
@@ -904,31 +902,6 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
         assertNoMoreMessages(consumer);
         return messages;
-    }
-
-    /**
-     * Asserts that the consumer receives no more messages. A message can only reach the consumer while the broker
-     * has one left to dispatch: one waiting to be redelivered, or an entry that the subscription's cursor has not read
-     * yet, up to the position the transaction buffer lets it read. This waits until the broker has none left on any
-     * topic of the consumer, so a short receive is enough to check that none is still on its way.
-     */
-    private void assertNoMoreMessages(Consumer<?> consumer) throws Exception {
-        List<String> topics = consumer instanceof MultiTopicsConsumerImpl<?> multiTopicsConsumer
-                ? multiTopicsConsumer.getConsumers().stream().map(ConsumerImpl::getTopic).toList()
-                : List.of(consumer.getTopic());
-        Awaitility.await().untilAsserted(() -> {
-            for (String topic : topics) {
-                PersistentTopic persistentTopic = (PersistentTopic) getPulsarServiceList().get(0).getBrokerService()
-                        .getTopicReference(TopicName.get(topic).toString()).orElseThrow();
-                PersistentSubscription subscription = persistentTopic.getSubscription(consumer.getSubscription());
-                if (subscription.getDispatcher() instanceof AbstractPersistentDispatcherMultipleConsumers dispatcher) {
-                    assertEquals(dispatcher.getNumberOfMessagesInReplay(), 0, topic);
-                }
-                assertTrue(subscription.getCursor().getReadPosition()
-                        .compareTo(persistentTopic.getMaxReadPosition()) > 0, topic);
-            }
-        });
-        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
     }
 
     private void txnCumulativeAckTest(boolean batchEnable, int maxBatchSize, SubscriptionType subscriptionType)
