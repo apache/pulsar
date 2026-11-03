@@ -374,6 +374,192 @@ public class TopicListServiceTest {
         assertThat(lookupSemaphore.availablePermits()).isEqualTo(1);
     }
 
+    @DataProvider
+    public Object[][] updateTimeoutBeforeClose() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "updateTimeoutBeforeClose")
+    public void testOldUpdatePermitRetryCannotUseNewWatcherGeneration(boolean timeoutFirst) throws Exception {
+        List<Runnable> retries = new ArrayList<>();
+        doAnswer(invocation -> {
+            retries.add(invocation.getArgument(0));
+            return mock(ScheduledFuture.class);
+        }).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
+        String staleTopic = "persistent://tenant/ns/topic2";
+        List<String> staleNewTopics = List.of(staleTopic);
+        CompletableFuture<Void> oldUpdate = new CompletableFuture<>();
+        AtomicReference<BooleanSupplier> oldCancelled = new AtomicReference<>();
+        AtomicReference<Function<Throwable, CompletableFuture<Void>>> oldPermitErrorHandler = new AtomicReference<>();
+        doAnswer(invocation -> {
+            if (oldCancelled.get() == null) {
+                oldCancelled.set(invocation.getArgument(5));
+                oldPermitErrorHandler.set(invocation.getArgument(4));
+                return oldUpdate;
+            }
+            return CompletableFuture.completedFuture(null);
+        }).when(pulsarCommandSender).sendWatchTopicListUpdate(eq(13L), eq(staleNewTopics), any(), anyString(),
+                any(), any());
+        List<String> topics = List.of("persistent://tenant/ns/topic1");
+        TopicListService.TopicListWatcher old = createWatcher(topics, 7, "tenant/ns/topic.*");
+        old.onTopicEvent(staleTopic, NotificationType.Created);
+        assertThat(oldCancelled.get().getAsBoolean()).isFalse();
+        if (timeoutFirst) {
+            FutureUtil.completeAfter(oldUpdate, oldPermitErrorHandler.get().apply(
+                    new AsyncSemaphore.PermitAcquireTimeoutException("Direct memory wait timed out")));
+            assertThat(retries).hasSize(1);
+        }
+
+        topicListService.handleWatchTopicListClose(new CommandWatchTopicListClose()
+                .setRequestId(8).setWatcherId(13));
+        lookupSemaphore.acquire();
+        TopicListService.TopicListWatcher replacement = createWatcher(topics, 9, "tenant/ns/topic.*");
+        CompletableFuture<TopicListService.TopicListWatcher> replacementFuture = topicListService.getWatcherFuture(13);
+        assertThat(replacement).isNotSameAs(old);
+
+        if (timeoutFirst) {
+            retries.remove(0).run();
+        } else {
+            FutureUtil.completeAfter(oldUpdate, oldPermitErrorHandler.get().apply(
+                    new AsyncSemaphore.PermitAcquireTimeoutException("Late direct memory timeout")));
+        }
+
+        assertThat(oldUpdate).succeedsWithin(Duration.ofSeconds(2));
+        assertThat(retries).isEmpty();
+        verify(pulsarCommandSender, times(1)).sendWatchTopicListUpdate(eq(13L), eq(staleNewTopics), any(), anyString(),
+                any(), any());
+        assertThat(oldCancelled.get().getAsBoolean()).isTrue();
+        notificationConsumer.accept(
+                new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic3"));
+        List<String> freshTopics = List.of("persistent://tenant/ns/topic3");
+        verify(pulsarCommandSender).sendWatchTopicListUpdate(eq(13L), eq(freshTopics), eq(List.of()),
+                eq(TopicList.calculateHash(List.of(topics.get(0), freshTopics.get(0)))), any(), any());
+        assertThat(replacement.getMatchingTopics()).containsExactlyInAnyOrder(topics.get(0), freshTopics.get(0));
+        assertThat(topicListService.getWatcherFuture(13)).isSameAs(replacementFuture);
+        verify(topicResources).registerPersistentTopicListener(old);
+        verify(topicResources).deregisterPersistentTopicListener(old);
+        verify(topicResources).registerPersistentTopicListener(replacement);
+        verify(topicResources, never()).deregisterPersistentTopicListener(replacement);
+        assertThat(lookupSemaphore.availablePermits()).isEqualTo(1);
+        assertThat(memoryLimiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getAcquiredPermits())
+                .isZero();
+        assertThat(memoryLimiter.getLimiter(AsyncDualMemoryLimiter.LimitType.DIRECT_MEMORY).getAcquiredPermits())
+                .isZero();
+    }
+
+    @Test
+    public void testOldUpdateIsCancelledBeforeWatcherCloseCompletes() throws Exception {
+        List<Runnable> retries = new ArrayList<>();
+        doAnswer(invocation -> {
+            retries.add(invocation.getArgument(0));
+            return mock(ScheduledFuture.class);
+        }).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
+        String staleTopic = "persistent://tenant/ns/topic2";
+        List<String> staleNewTopics = List.of(staleTopic);
+        CompletableFuture<Void> oldUpdate = new CompletableFuture<>();
+        AtomicReference<BooleanSupplier> oldCancelled = new AtomicReference<>();
+        AtomicReference<Function<Throwable, CompletableFuture<Void>>> oldPermitErrorHandler = new AtomicReference<>();
+        doAnswer(invocation -> {
+            oldCancelled.set(invocation.getArgument(5));
+            oldPermitErrorHandler.set(invocation.getArgument(4));
+            return oldUpdate;
+        }).when(pulsarCommandSender).sendWatchTopicListUpdate(eq(13L), eq(staleNewTopics), any(), anyString(),
+                any(), any());
+        List<String> topics = List.of("persistent://tenant/ns/topic1");
+        TopicListService.TopicListWatcher old = createWatcher(topics, 7, "tenant/ns/topic.*");
+        old.onTopicEvent(staleTopic, NotificationType.Created);
+        assertThat(oldCancelled.get().getAsBoolean()).isFalse();
+        AtomicReference<TopicListService.TopicListWatcher> replacementRef = new AtomicReference<>();
+        AtomicReference<Boolean> cancelledDuringClose = new AtomicReference<>();
+        AtomicReference<Throwable> closeHookFailure = new AtomicReference<>();
+        doAnswer(invocation -> {
+            try {
+                // The old slot is removed, but close() has not set the old watcher's closed flag yet.
+                lookupSemaphore.acquire();
+                replacementRef.set(createWatcher(topics, 9, "tenant/ns/topic.*"));
+                cancelledDuringClose.set(oldCancelled.get().getAsBoolean());
+                FutureUtil.completeAfter(oldUpdate, oldPermitErrorHandler.get().apply(
+                        new AsyncSemaphore.PermitAcquireTimeoutException("Timeout during watcher close")));
+            } catch (Throwable failure) {
+                closeHookFailure.set(failure);
+            } finally {
+                invocation.callRealMethod();
+            }
+            return null;
+        }).when(topicResources).deregisterPersistentTopicListener(old);
+
+        topicListService.handleWatchTopicListClose(new CommandWatchTopicListClose()
+                .setRequestId(8).setWatcherId(13));
+
+        assertThat(closeHookFailure.get()).isNull();
+        TopicListService.TopicListWatcher replacement = replacementRef.get();
+        assertThat(replacement).isNotNull().isNotSameAs(old);
+        assertThat(oldUpdate).succeedsWithin(Duration.ofSeconds(2));
+        assertThat(retries).isEmpty();
+        assertThat(cancelledDuringClose.get()).isTrue();
+        verify(pulsarCommandSender, times(1)).sendWatchTopicListUpdate(eq(13L), eq(staleNewTopics), any(), anyString(),
+                any(), any());
+        notificationConsumer.accept(
+                new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic3"));
+        verify(pulsarCommandSender).sendWatchTopicListUpdate(eq(13L),
+                eq(List.of("persistent://tenant/ns/topic3")), eq(List.of()), anyString(), any(), any());
+        assertThat(replacement.getMatchingTopics())
+                .containsExactlyInAnyOrder("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic3");
+        assertThat(topicListService.getWatcherFuture(13)).isCompletedWithValue(replacement);
+        verify(topicResources).registerPersistentTopicListener(replacement);
+        verify(topicResources).deregisterPersistentTopicListener(old);
+        verify(topicResources, never()).deregisterPersistentTopicListener(replacement);
+        assertThat(lookupSemaphore.availablePermits()).isEqualTo(1);
+        assertThat(memoryLimiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY).getAcquiredPermits())
+                .isZero();
+        assertThat(memoryLimiter.getLimiter(AsyncDualMemoryLimiter.LimitType.DIRECT_MEMORY).getAcquiredPermits())
+                .isZero();
+    }
+
+    @Test
+    public void testQueuedUpdateCannotUseNewWatcherGeneration() throws Exception {
+        List<String> topics = List.of("persistent://tenant/ns/topic1");
+        TopicListService.TopicListWatcher old = createWatcher(topics, 7, "tenant/ns/topic.*");
+        List<Runnable> updates = new ArrayList<>();
+        EventExecutor executor = connection.ctx().executor();
+        doAnswer(invocation -> {
+            updates.add(invocation.getArgument(0));
+            return null;
+        }).when(executor).execute(any(Runnable.class));
+        old.onTopicEvent("persistent://tenant/ns/topic2", NotificationType.Created);
+        assertThat(updates).hasSize(1);
+        verify(pulsarCommandSender, never())
+                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
+        doAnswer(invocation -> {
+            invocation.<Runnable>getArgument(0).run();
+            return null;
+        }).when(executor).execute(any(Runnable.class));
+
+        topicListService.handleWatchTopicListClose(new CommandWatchTopicListClose()
+                .setRequestId(8).setWatcherId(13));
+        lookupSemaphore.acquire();
+        TopicListService.TopicListWatcher replacement = createWatcher(topics, 9, "tenant/ns/topic.*");
+        CompletableFuture<TopicListService.TopicListWatcher> replacementFuture = topicListService.getWatcherFuture(13);
+        assertThat(replacement).isNotSameAs(old);
+
+        updates.remove(0).run();
+
+        verify(pulsarCommandSender, never())
+                .sendWatchTopicListUpdate(anyLong(), any(), any(), anyString(), any(), any());
+        notificationConsumer.accept(
+                new Notification(NotificationType.Created, "/managed-ledgers/tenant/ns/persistent/topic3"));
+        verify(pulsarCommandSender).sendWatchTopicListUpdate(eq(13L),
+                eq(List.of("persistent://tenant/ns/topic3")), eq(List.of()), anyString(), any(), any());
+        assertThat(replacement.getMatchingTopics())
+                .containsExactlyInAnyOrder("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic3");
+        assertThat(topicListService.getWatcherFuture(13)).isSameAs(replacementFuture);
+        verify(topicResources).registerPersistentTopicListener(old);
+        verify(topicResources).deregisterPersistentTopicListener(old);
+        verify(topicResources).registerPersistentTopicListener(replacement);
+        verify(topicResources, never()).deregisterPersistentTopicListener(replacement);
+        assertThat(lookupSemaphore.availablePermits()).isEqualTo(1);
+    }
+
     @Test
     public void testCommandWatchSuccessResponse() {
 
@@ -941,11 +1127,16 @@ public class TopicListServiceTest {
     }
 
     private TopicListService.TopicListWatcher createWatcher(List<String> topics) throws Exception {
+        return createWatcher(topics, 7, "persistent://tenant/ns/topic\\d");
+    }
+
+    private TopicListService.TopicListWatcher createWatcher(List<String> topics, long requestId, String pattern)
+            throws Exception {
         topicListService.handleWatchTopicList(
                 NamespaceName.get("tenant/ns"),
                 13,
-                7,
-                "persistent://tenant/ns/topic\\d",
+                requestId,
+                pattern,
                 topicsPatternImplementation, null,
                 lookupSemaphore);
         topicListFuture.complete(topics);

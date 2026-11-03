@@ -148,8 +148,9 @@ public class TopicListService {
             if (closed) {
                 return;
             }
+            // Capture this watcher's lifecycle before the task is submitted to the executor.
             Runnable task = () -> topicListService.sendTopicListUpdate(id, hash, deletedTopics, newTopics,
-                    this::sendingCompleted);
+                    () -> closed || !topicListService.isCurrentWatcher(this), this::sendingCompleted);
             if (!sendingInProgress) {
                 sendingInProgress = true;
                 executor.execute(task);
@@ -924,13 +925,25 @@ public class TopicListService {
         });
     }
 
+    private boolean isCurrentWatcher(TopicListWatcher watcher) {
+        CompletableFuture<TopicListWatcher> watcherFuture = watchers.get(watcher.id);
+        return watcherFuture != null && watcherFuture.isDone() && !watcherFuture.isCompletedExceptionally()
+                && watcherFuture.getNow(null) == watcher;
+    }
+
     /**
      * @param deletedTopics topic names deleted(contains the partition suffix).
      * @param newTopics topics names added(contains the partition suffix).
      */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
                                     List<String> newTopics, Runnable completionCallback) {
-        BooleanSupplier isCancelled = () -> !watchers.containsKey(watcherId);
+        CompletableFuture<TopicListWatcher> watcherFuture = watchers.get(watcherId);
+        sendTopicListUpdate(watcherId, topicsHash, deletedTopics, newTopics,
+                () -> watcherFuture == null || watchers.get(watcherId) != watcherFuture, completionCallback);
+    }
+
+    void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
+                             List<String> newTopics, BooleanSupplier isCancelled, Runnable completionCallback) {
         performOperationWithPermitAcquiringRetries(watcherId, "topic list update", false, isCancelled,
                 permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
