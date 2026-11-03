@@ -280,11 +280,15 @@ public class PersistentTopicTest extends BrokerTestBase {
                 + batchingEnabled + "-" + UUID.randomUUID();
         final String subName = "sub";
 
+        // Each acknowledgment is sent at once and returns when the broker has applied it, so the backlog state is
+        // checked after every one of them
         @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName(subName)
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                .isAckReceiptEnabled(true)
                 .subscribe();
 
         ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING)
@@ -317,12 +321,14 @@ public class PersistentTopicTest extends BrokerTestBase {
             messages.add(message);
         }
 
-        Awaitility.await().untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, true));
+        Awaitility.await().pollDelay(Duration.ZERO)
+                .untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, true));
 
         for (int i = 0; i < ackOrder.length; i++) {
             consumer.acknowledge(messages.get(ackOrder[i]));
             boolean hasBacklog = i < ackOrder.length - 1;
-            Awaitility.await().untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, hasBacklog));
+            Awaitility.await().pollDelay(Duration.ZERO)
+                    .untilAsserted(() -> assertBacklogStateMatchesCounts(subscription, hasBacklog));
         }
     }
 
@@ -581,7 +587,6 @@ public class PersistentTopicTest extends BrokerTestBase {
         admin.namespaces().createNamespace(namespace);
 
         final int messages = 100;
-        CountDownLatch latch = new CountDownLatch(messages);
 
         @Cleanup
         Producer<String> producer = client.newProducer(Schema.STRING).topic(topic).enableBatching(false).create();
@@ -593,7 +598,6 @@ public class PersistentTopicTest extends BrokerTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .messageListener((MessageListener<String>) (consumer1, msg) -> {
                     try {
-                        latch.countDown();
                         consumer1.acknowledge(msg);
                     } catch (PulsarClientException e) {
                         e.printStackTrace();
@@ -608,7 +612,9 @@ public class PersistentTopicTest extends BrokerTestBase {
         }
         producer.flush();
 
-        latch.await(10, TimeUnit.SECONDS);
+        // the dispatcher has read every message and holds it in the delayed delivery tracker's index
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                admin.topics().getStats(topic).getSubscriptions().get(subName).getMsgDelayed(), messages));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
         PrometheusMetricsTestUtil.generate(pulsar, exposeTopicLevelMetrics, true, true, output);
         String metricsStr = output.toString(StandardCharsets.UTF_8);
@@ -1557,30 +1563,32 @@ public class PersistentTopicTest extends BrokerTestBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName("sub-2").subscribe();
-        int count = 0;
-        while (true) {
-            final Message<String> msg = consumer.receive(3, TimeUnit.SECONDS);
-            if (msg != null) {
-                consumer.acknowledge(msg);
-                count++;
-            } else {
-                break;
-            }
-        }
-        Assert.assertEquals(count, 100);
-        Thread.sleep(3_000);
+        final PersistentTopic persistentTopic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName).get();
+        final ManagedLedgerImpl ledger = (ManagedLedgerImpl) persistentTopic.getManagedLedger();
+        receiveAndAcknowledge(consumer, 100);
+        // the non-durable cursor has read every entry, and waits for new ones
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.getWaitingCursorsCount(), 1));
+        assertEquals(persistentTopic.getStats(false, false, false).getSubscriptions().get("sub-2")
+                .getMsgOutCounter(), 100);
+        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
+
         for (int i = 0; i < 100; i++) {
             producer.sendAsync("test-" + i);
         }
-        while (true) {
+        receiveAndAcknowledge(consumer, 100);
+        // everything was dispatched once, nothing more comes
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.getWaitingCursorsCount(), 1));
+        assertEquals(persistentTopic.getStats(false, false, false).getSubscriptions().get("sub-2")
+                .getMsgOutCounter(), 200);
+        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
+    }
+
+    private static void receiveAndAcknowledge(Consumer<String> consumer, int count) throws Exception {
+        for (int i = 0; i < count; i++) {
             final Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
-            if (msg != null) {
-                consumer.acknowledge(msg);
-                count++;
-            } else {
-                break;
-            }
+            assertNotNull(msg);
+            consumer.acknowledge(msg);
         }
-        Assert.assertEquals(count, 200);
     }
 }

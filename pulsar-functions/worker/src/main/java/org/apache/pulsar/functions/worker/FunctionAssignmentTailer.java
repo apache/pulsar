@@ -49,7 +49,9 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     private final ErrorNotifier errorNotifier;
     private Reader<byte[]> reader;
     private volatile boolean isRunning = false;
-    private volatile boolean exitOnEndOfTopic = false;
+    // Completed by triggerReadToTheEndAndExit(), so that a tailer waiting for the next message checks for the end of
+    // the topic right away
+    private volatile CompletableFuture<Void> exitOnEndOfTopic = new CompletableFuture<>();
     private CompletableFuture<Void> exitFuture;
     private Thread tailerThread;
 
@@ -69,7 +71,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
     }
 
     public synchronized CompletableFuture<Void> triggerReadToTheEndAndExit() {
-        exitOnEndOfTopic = true;
+        exitOnEndOfTopic.complete(null);
         return this.exitFuture;
     }
 
@@ -125,7 +127,7 @@ public class FunctionAssignmentTailer implements AutoCloseable {
                 reader = null;
             }
 
-            exitOnEndOfTopic = false;
+            exitOnEndOfTopic = new CompletableFuture<>();
         } catch (IOException e) {
             log.error().exception(e).log("Failed to stop function assignment tailer");
         }
@@ -146,15 +148,19 @@ public class FunctionAssignmentTailer implements AutoCloseable {
         Thread t = new Thread(() -> {
             while (isRunning) {
                 try {
-                    Message<byte[]> msg = reader.readNext(1, TimeUnit.SECONDS);
-                    if (msg == null) {
-                        if (exitOnEndOfTopic && !reader.hasMessageAvailableAsync().get(10, TimeUnit.SECONDS)) {
-                            break;
-                        }
+                    CompletableFuture<Message<byte[]>> nextMessage = reader.readNextAsync();
+                    CompletableFuture.anyOf(nextMessage, exitOnEndOfTopic).get();
+                    if (nextMessage.isDone() || reader.hasMessageAvailableAsync().get(10, TimeUnit.SECONDS)) {
+                        processAssignmentMessage(nextMessage.get());
                     } else {
-                        functionRuntimeManager.processAssignmentMessage(msg);
-                        // keep track of last message id
-                        lastMessageId = msg.getMessageId();
+                        // Reached the end of the topic. Closing the reader completes the pending read: with the last
+                        // message, if the reader had already received it, or else with an error.
+                        reader.closeAsync();
+                        Message<byte[]> lastMessage = nextMessage.exceptionally(e -> null).get();
+                        if (lastMessage != null) {
+                            processAssignmentMessage(lastMessage);
+                        }
+                        break;
                     }
                 } catch (Throwable th) {
                     if (isRunning) {
@@ -174,6 +180,12 @@ public class FunctionAssignmentTailer implements AutoCloseable {
         });
         t.setName("assignment-tailer-thread");
         return t;
+    }
+
+    private void processAssignmentMessage(Message<byte[]> msg) {
+        functionRuntimeManager.processAssignmentMessage(msg);
+        // keep track of last message id
+        lastMessageId = msg.getMessageId();
     }
 
     Thread getThread() {

@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +55,7 @@ import lombok.CustomLog;
 import lombok.Data;
 import org.apache.avro.reflect.Nullable;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.schema.GenericRecord;
 import org.apache.pulsar.client.impl.ConsumerBuilderImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl;
@@ -84,6 +86,30 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         return str.toString();
     }
 
+    /**
+     * Waits until the subscription has no unacknowledged message left.
+     */
+    private void waitForEmptyBacklog(String topic, String subscription) {
+        Awaitility.await().untilAsserted(() -> assertEquals(getMsgBacklog(topic, subscription), 0));
+    }
+
+    /**
+     * Waits until no message can go to the DLQ anymore: the subscription has no unacknowledged message left, and none
+     * of the consumers holds a DLQ candidate, which a consumer drops once the candidate is in the DLQ or acknowledged.
+     */
+    private void waitForNoMoreDeadLetters(String topic, String subscription, List<? extends Consumer<?>> consumers) {
+        Awaitility.await().untilAsserted(() -> {
+            for (Consumer<?> consumer : consumers) {
+                assertThat(((ConsumerImpl<?>) consumer).getPossibleSendToDeadLetterTopicMessages()).isEmpty();
+            }
+            assertEquals(getMsgBacklog(topic, subscription), 0);
+        });
+    }
+
+    private long getMsgBacklog(String topic, String subscription) throws PulsarAdminException {
+        return admin.topics().getStats(topic, true).getSubscriptions().get(subscription).getMsgBacklog();
+    }
+
     @Test
     public void testDeadLetterTopicWithMessageKey() throws Exception {
         final String topic = newTopicName();
@@ -97,6 +123,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -158,6 +185,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -220,6 +248,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -282,6 +311,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -354,6 +384,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .consumerName(consumerName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -410,7 +441,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         final int consumerCount = 3;
 
         //1 start 3 parallel consumers
-        List<Consumer<String>> consumers = new ArrayList<>();
+        List<Consumer<String>> consumers = new CopyOnWriteArrayList<>();
         final AtomicInteger totalReceived = new AtomicInteger(0);
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(consumerCount);
@@ -423,6 +454,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                             .subscriptionType(SubscriptionType.Shared)
                             .consumerName("my-consumer")
                             .ackTimeout(1001, TimeUnit.MILLISECONDS)
+                            .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                             .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount)
                                     .deadLetterTopic(topic + "-DLQ").build())
                             .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
@@ -452,21 +484,18 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName("my-subscription-DuplicatedMessage-DLQ")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        int totalInDeadLetter = 0;
-        while (true) {
+        for (int i = 0; i < messageCount; i++) {
             Message<String> message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
+            assertNotNull(message);
             deadLetterConsumer.acknowledge(message);
-            totalInDeadLetter++;
         }
+        waitForNoMoreDeadLetters(topic, "my-subscription-DuplicatedMessage", consumers);
 
         //4 The number of messages that consumers can consume should be equal to messageCount * (maxRedeliveryCount + 1)
         assertEquals(totalReceived.get(), messageCount * (maxRedeliveryCount + 1));
 
         //5 The message in DLQ should be equal to messageCount
-        assertEquals(totalInDeadLetter, messageCount);
+        assertNull(deadLetterConsumer.receive(200, TimeUnit.MILLISECONDS));
 
         //6 clean up
         producer.close();
@@ -494,6 +523,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName("my-subscription")
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
@@ -551,6 +581,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         deadLetterConsumer.close();
         consumer.close();
 
+        // Every message was acknowledged once it was in the DLQ
+        waitForEmptyBacklog(topic, "my-subscription");
         Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
@@ -558,7 +590,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
+        Message<byte[]> checkMessage = checkConsumer.receive(200, TimeUnit.MILLISECONDS);
         if (checkMessage != null) {
             log.info().attr("receivedMessage", checkMessage.getMessageId())
                     .attr("value", new String(checkMessage.getData())).log("check consumer received message");
@@ -582,6 +614,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
@@ -684,6 +717,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName(subName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
@@ -723,7 +757,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         final int messageCount = 10;
         final int consumerCount = 3;
         //1 start 3 parallel consumers
-        List<Consumer<String>> consumers = new ArrayList<>();
+        List<Consumer<String>> consumers = new CopyOnWriteArrayList<>();
         final AtomicInteger totalReceived = new AtomicInteger(0);
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(consumerCount);
@@ -735,6 +769,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                             .subscriptionName("my-subscription-DuplicatedMessage")
                             .subscriptionType(SubscriptionType.Shared)
                             .ackTimeout(1001, TimeUnit.MILLISECONDS)
+                            .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                             .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount)
                                     .deadLetterTopic(topic + "-DLQ").build())
                             .negativeAckRedeliveryDelay(1001, TimeUnit.MILLISECONDS)
@@ -764,21 +799,18 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName("my-subscription-DuplicatedMessage-DLQ")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
-        int totalInDeadLetter = 0;
-        while (true) {
+        for (int i = 0; i < messageCount; i++) {
             Message<String> message = deadLetterConsumer.receive(10, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
+            assertNotNull(message);
             deadLetterConsumer.acknowledge(message);
-            totalInDeadLetter++;
         }
+        waitForNoMoreDeadLetters(topic, "my-subscription-DuplicatedMessage", consumers);
 
         //4 The number of messages that consumers can consume should be equal to messageCount * (maxRedeliveryCount + 1)
         assertEquals(totalReceived.get(), messageCount * (maxRedeliveryCount + 1));
 
         //5 The message in DLQ should be equal to messageCount
-        assertEquals(totalInDeadLetter, messageCount);
+        assertNull(deadLetterConsumer.receive(200, TimeUnit.MILLISECONDS));
 
         //6 clean up
         producer.close();
@@ -990,19 +1022,15 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionType(SubscriptionType.Key_Shared)
                 .keySharedPolicy(KeySharedPolicy.autoSplitHashRange())
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .receiverQueueSize(100)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Consumer<byte[]> deadLetterConsumer0 = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic + "-partition-0-my-subscription-DLQ")
-                .subscriptionName("my-subscription")
-                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                .subscribe();
-
-        Consumer<byte[]> deadLetterConsumer1 = pulsarClient.newConsumer(Schema.BYTES)
-                .topic(topic + "-partition-1-my-subscription-DLQ")
+        // The message goes to the DLQ of the partition it was published to
+        Consumer<byte[]> deadLetterConsumer = pulsarClient.newConsumer(Schema.BYTES)
+                .topic(topic + "-partition-0-my-subscription-DLQ", topic + "-partition-1-my-subscription-DLQ")
                 .subscriptionName("my-subscription")
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
@@ -1027,23 +1055,11 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         int totalInDeadLetter = 0;
         do {
-            Message message = deadLetterConsumer0.receive(3, TimeUnit.SECONDS);
+            Message message = deadLetterConsumer.receive(3, TimeUnit.SECONDS);
             if (message != null) {
                 log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
                         .log("dead letter consumer received message");
-                deadLetterConsumer0.acknowledge(message);
-                totalInDeadLetter++;
-            } else {
-                break;
-            }
-        } while (totalInDeadLetter < sendMessages);
-
-        do {
-            Message message = deadLetterConsumer1.receive(3, TimeUnit.SECONDS);
-            if (message != null) {
-                log.info().attr("receivedMessage", message.getMessageId()).attr("value", new String(message.getData()))
-                        .log("dead letter consumer received message");
-                deadLetterConsumer1.acknowledge(message);
+                deadLetterConsumer.acknowledge(message);
                 totalInDeadLetter++;
             } else {
                 break;
@@ -1051,9 +1067,14 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalInDeadLetter < sendMessages);
 
         assertEquals(totalInDeadLetter, sendMessages);
-        deadLetterConsumer0.close();
-        deadLetterConsumer1.close();
         consumer.close();
+
+        // Every message was acknowledged once it was in the DLQ, so none can go there again
+        for (int i = 0; i < partitionCount; i++) {
+            waitForEmptyBacklog(topic + "-partition-" + i, "my-subscription");
+        }
+        assertNull(deadLetterConsumer.receive(200, TimeUnit.MILLISECONDS));
+        deadLetterConsumer.close();
 
         Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
@@ -1062,7 +1083,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
+        Message<byte[]> checkMessage = checkConsumer.receive(200, TimeUnit.MILLISECONDS);
         if (checkMessage != null) {
             log.info().attr("receivedMessage", checkMessage.getMessageId())
                     .attr("value", new String(checkMessage.getData())).log("check consumer received message");
@@ -1088,6 +1109,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                         .maxRedeliverCount(maxRedeliveryCount)
                         .initialSubscriptionName(dlqInitialSub)
@@ -1121,8 +1143,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         } while (totalReceived < sendMessages * (maxRedeliveryCount + 1));
 
         String deadLetterTopic = topic + "-my-subscription-DLQ";
-        Awaitility.await().atMost(Duration.ofSeconds(10))
-                .pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
             assertTrue(admin.namespaces().getTopics(getNamespace()).contains(deadLetterTopic));
             assertTrue(admin.topics().getSubscriptions(deadLetterTopic).contains(dlqInitialSub));
         });
@@ -1236,6 +1257,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         deadLetterConsumer.close();
         consumer.close();
 
+        // Every message was acknowledged once it was in the DLQ
+        waitForEmptyBacklog(topic, "my-subscription");
         Consumer<byte[]> checkConsumer = this.pulsarClient.newConsumer(Schema.BYTES)
                 .topic(topic)
                 .subscriptionName("my-subscription")
@@ -1243,7 +1266,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe();
 
-        Message<byte[]> checkMessage = checkConsumer.receive(3, TimeUnit.SECONDS);
+        Message<byte[]> checkMessage = checkConsumer.receive(200, TimeUnit.MILLISECONDS);
         if (checkMessage != null) {
             log.info().attr("receivedMessage", checkMessage.getMessageId())
                     .attr("value", new String(checkMessage.getData())).log("check consumer received message");
@@ -1293,6 +1316,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                         .maxRedeliverCount(maxRedeliveryCount)
                         .initialSubscriptionName(dlqInitialSub)
@@ -1306,6 +1330,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .deadLetterPolicy(DeadLetterPolicy.builder()
                         .maxRedeliverCount(maxRedeliveryCount)
                         .initialSubscriptionName(dlqInitialSub)
@@ -1333,8 +1358,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .get(10, TimeUnit.SECONDS);
 
         String deadLetterTopic = topic + "-my-subscription-DLQ";
-        Awaitility.await().atMost(Duration.ofSeconds(10))
-                .pollInterval(Duration.ofSeconds(1)).untilAsserted(() -> {
+        Awaitility.await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
             assertTrue(admin.namespaces().getTopics(getNamespace()).contains(deadLetterTopic));
             assertTrue(admin.topics().getSubscriptions(deadLetterTopic).contains(dlqInitialSub));
             // Each consumer creates its DLQ producer asynchronously after its final redelivery.
@@ -1585,7 +1609,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                         .retryLetterTopic(retryTopic)
                         .maxRedeliverCount(maxRedeliverCount)
                         .build())
-                .negativeAckRedeliveryDelay(1, TimeUnit.SECONDS)
+                .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
                 .messageListener(Consumer::negativeAcknowledge)
                 .subscribe();
 
@@ -1597,18 +1621,17 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
         Producer<Long> producer = pulsarClient.newProducer(Schema.AVRO(Long.class)).topic(topic).create();
         producer.send(deadLetterMessageValue);
 
-        Thread.sleep(3000L);
+        // The consumer acknowledges the message once it is in the DLQ, so it isn't redelivered after that
+        Message<GenericRecord> deadLetterMessage = deadLetterConsumer.receive(3, TimeUnit.SECONDS);
+        assertNotNull(deadLetterMessage);
+        assertTrue(deadLetterMessage.getValue().getNativeObject() instanceof Long);
+        assertEquals(deadLetterMessage.getValue().getNativeObject(), deadLetterMessageValue);
 
         assertThat(getTopicReference(topic).get()
                 .getSubscription(subscriptionName).getConsumers().get(0).getMessageRedeliverCounter())
                 .describedAs("redeliver count of topic %s should be less than or equal to 2 because of mismatch schema",
                         topic)
                 .isLessThanOrEqualTo(maxRedeliverCount + 1);
-
-        Message<GenericRecord> deadLetterMessage = deadLetterConsumer.receive(3, TimeUnit.SECONDS);
-        assertNotNull(deadLetterMessage);
-        assertTrue(deadLetterMessage.getValue().getNativeObject() instanceof Long);
-        assertEquals(deadLetterMessage.getValue().getNativeObject(), deadLetterMessageValue);
 
         producer.close();
         consumer.close();
@@ -1706,6 +1729,7 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
                 .enableBatchIndexAcknowledgment(true)
                 .deadLetterPolicy(DeadLetterPolicy.builder().maxRedeliverCount(maxRedeliveryCount).build())
                 .ackTimeout(1, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .receiverQueueSize(100)
                 .subscribe();
 
@@ -1755,7 +1779,8 @@ public class DeadLetterTopicTest extends SharedPulsarBaseTest {
 
         // No message should ever be routed to the DLQ, since every message was explicitly acked at or
         // before its final allowed redelivery round.
-        Message<byte[]> deadLetterMessage = deadLetterConsumer.receive(5, TimeUnit.SECONDS);
+        waitForNoMoreDeadLetters(topic, subscriptionName, List.of(consumer));
+        Message<byte[]> deadLetterMessage = deadLetterConsumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(deadLetterMessage, "no message should have been routed to the DLQ, "
                 + "but received: " + deadLetterMessage);
 

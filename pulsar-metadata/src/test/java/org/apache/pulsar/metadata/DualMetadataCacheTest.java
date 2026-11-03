@@ -27,11 +27,15 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -46,6 +50,8 @@ import org.apache.pulsar.metadata.api.MetadataCacheConfig;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.impl.DualMetadataStore;
@@ -54,6 +60,7 @@ import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -325,6 +332,287 @@ public class DualMetadataCacheTest extends BaseMetadataStoreTest {
         // Delete
         cache.delete(path).join();
         assertFalse(cache.exists(path).join());
+    }
+
+    @Test
+    public void testCacheWritesFailWhileSourceStoreIsReadOnly() throws Exception {
+        String prefix = newKey();
+        String path = prefix + "/test-obj";
+        String newPath = prefix + "/new-obj";
+        @Cleanup
+        MetadataStore sourceStore =
+                new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true);
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+
+        MetadataCache<TestObject> cache = dualStore.getMetadataCache(TestObject.class);
+        TestObject value = new TestObject("source", 1);
+        putObject(sourceStore, path, value);
+
+        String targetUrl = "memory:" + UUID.randomUUID();
+        for (MigrationPhase phase : EnumSet.of(MigrationPhase.PREPARATION, MigrationPhase.COPYING)) {
+            setMigrationState(sourceStore, phase, targetUrl);
+            Awaitility.await().until(() -> dualStore.getMigrationPhase() == phase);
+
+            TestObject newValue = new TestObject("new", 2);
+            assertReadOnly("create", cache.create(newPath, newValue));
+            assertReadOnly("put", cache.put(newPath, newValue, EnumSet.noneOf(CreateOption.class)));
+            assertReadOnly("readModifyUpdateOrCreate", cache.readModifyUpdateOrCreate(newPath, __ -> newValue));
+            assertReadOnly("readModifyUpdate", cache.readModifyUpdate(path, __ -> newValue));
+            assertReadOnly("delete", cache.delete(path));
+
+            assertFalse(sourceStore.exists(newPath).join());
+            byte[] stored = sourceStore.get(path).join().orElseThrow().getValue();
+            assertEquals(ObjectMapperFactory.getMapper().reader().readValue(stored, TestObject.class), value);
+        }
+    }
+
+    private static void assertReadOnly(String operation, CompletableFuture<?> write) {
+        Throwable error = write.handle((result, e) -> e).join();
+        assertNotNull(error, operation + " succeeded while the source store is read-only");
+        assertTrue(error instanceof IllegalStateException, operation + " failed with " + error);
+        assertEquals(error.getMessage(), "Write operations not allowed during migrations");
+    }
+
+    @Test
+    public void testPreparationWaitsForPendingCacheWrite() throws Exception {
+        String path = newKey() + "/test-obj";
+        CompletableFuture<Void> releaseWrite = new CompletableFuture<>();
+        @Cleanup
+        MetadataStore sourceStore = newSourceStoreHoldingWrites(path, releaseWrite);
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+        CountDownLatch sessionLost = new CountDownLatch(1);
+        dualStore.registerCancellableSessionListener(event -> {
+            if (event == SessionEvent.SessionLost) {
+                sessionLost.countDown();
+            }
+        });
+
+        MetadataCache<TestObject> cache = dualStore.getMetadataCache(TestObject.class);
+        CompletableFuture<Void> write = cache.create(path, new TestObject("test", 1));
+
+        setMigrationState(sourceStore, MigrationPhase.PREPARATION, "memory:" + UUID.randomUUID());
+        Awaitility.await().until(() -> dualStore.getMigrationPhase() == MigrationPhase.PREPARATION);
+        // The preparation marks the session as lost after the pending source writes have completed
+        assertFalse(sessionLost.await(1, TimeUnit.SECONDS), "The preparation didn't wait for the pending write");
+        assertFalse(write.isDone());
+
+        releaseWrite.complete(null);
+        write.get(10, TimeUnit.SECONDS);
+        assertTrue(sessionLost.await(10, TimeUnit.SECONDS));
+        assertTrue(sourceStore.exists(path).join());
+    }
+
+    @Test
+    public void testPreparationWaitsForCacheWriteAfterCallerTimeout() throws Exception {
+        String path = newKey() + "/test-obj";
+        CompletableFuture<Void> releaseWrite = new CompletableFuture<>();
+        @Cleanup
+        MetadataStore sourceStore = newSourceStoreHoldingWrites(path, releaseWrite);
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+        CountDownLatch sessionLost = new CountDownLatch(1);
+        dualStore.registerCancellableSessionListener(event -> {
+            if (event == SessionEvent.SessionLost) {
+                sessionLost.countDown();
+            }
+        });
+
+        // Like the broker registration, the caller stops waiting for the ephemeral put, which carries on
+        MetadataCache<TestObject> cache = dualStore.getMetadataCache(TestObject.class);
+        CompletableFuture<Void> write = cache.put(path, new TestObject("test", 1), EnumSet.of(CreateOption.Ephemeral))
+                .orTimeout(100, TimeUnit.MILLISECONDS);
+        Throwable error = write.handle((result, e) -> e).get(10, TimeUnit.SECONDS);
+        assertTrue(error instanceof TimeoutException, "The caller didn't time out: " + error);
+
+        setMigrationState(sourceStore, MigrationPhase.PREPARATION, "memory:" + UUID.randomUUID());
+        Awaitility.await().until(() -> dualStore.getMigrationPhase() == MigrationPhase.PREPARATION);
+        assertFalse(sessionLost.await(1, TimeUnit.SECONDS),
+                "The preparation didn't wait for the write after its caller timed out");
+
+        releaseWrite.complete(null);
+        assertTrue(sessionLost.await(10, TimeUnit.SECONDS));
+        assertTrue(sourceStore.exists(path).join());
+    }
+
+    // A source store that holds the writes to the path until they're released
+    private MetadataStore newSourceStoreHoldingWrites(String path, CompletableFuture<Void> releaseWrites)
+            throws Exception {
+        return new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true) {
+            @Override
+            protected CompletableFuture<Stat> storePut(String putPath, byte[] data, Optional<Long> expectedVersion,
+                                                       Set<Option> opts) {
+                if (!putPath.equals(path)) {
+                    return super.storePut(putPath, data, expectedVersion, opts);
+                }
+                return releaseWrites.thenCompose(__ -> super.storePut(putPath, data, expectedVersion, opts));
+            }
+        };
+    }
+
+    @Test
+    public void testPreparationWaitsForCacheWriteAdmittedBeforeIt() throws Exception {
+        String path = newKey() + "/test-obj";
+        @Cleanup
+        MetadataStore sourceStore =
+                new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true);
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+        CountDownLatch sessionLost = new CountDownLatch(1);
+        dualStore.registerCancellableSessionListener(event -> {
+            if (event == SessionEvent.SessionLost) {
+                sessionLost.countDown();
+            }
+        });
+        MetadataCache<TestObject> cache = dualStore.getMetadataCache(TestObject.class);
+
+        // The write checks its options on the caller's thread, after reading the phase and before it's counted as a
+        // pending source write. Pause it there, and not on a store thread that would check them later.
+        CountDownLatch writePaused = new CountDownLatch(1);
+        CompletableFuture<Void> resumeWrite = new CompletableFuture<>();
+        AtomicReference<Thread> writer = new AtomicReference<>();
+        Set<Option> opts = spy(new HashSet<>());
+        doAnswer(invocation -> {
+            if (Thread.currentThread() == writer.get()) {
+                writePaused.countDown();
+                resumeWrite.join();
+            }
+            return invocation.callRealMethod();
+        }).when(opts).contains(any());
+        CompletableFuture<Void> write = CompletableFuture.supplyAsync(() -> {
+            writer.set(Thread.currentThread());
+            return cache.put(path, new TestObject("test", 1), opts);
+        }).thenCompose(future -> future);
+        assertTrue(writePaused.await(10, TimeUnit.SECONDS),
+                "The write didn't check its options on the caller's thread");
+
+        // The preparation marks the session as lost after the pending source writes have completed
+        setMigrationState(sourceStore, MigrationPhase.PREPARATION, "memory:" + UUID.randomUUID());
+        boolean preparedBeforeWrite = sessionLost.await(1, TimeUnit.SECONDS);
+        resumeWrite.complete(null);
+        assertFalse(preparedBeforeWrite, "The preparation didn't wait for the admitted write");
+
+        write.get(10, TimeUnit.SECONDS);
+        assertTrue(sessionLost.await(10, TimeUnit.SECONDS));
+        assertTrue(sourceStore.exists(path).join());
+    }
+
+    @Test
+    public void testEphemeralCachePutIsRecreatedInTargetStore() throws Exception {
+        String path = newKey() + "/test-obj";
+        @Cleanup
+        MetadataStore sourceStore =
+                new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true);
+
+        String targetUrl = "memory:" + UUID.randomUUID();
+        @Cleanup
+        MetadataStore targetStore = MetadataStoreFactory.create(targetUrl,
+                MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+
+        MetadataCache<TestObject> cache = dualStore.getMetadataCache(TestObject.class);
+        cache.put(path, new TestObject("test", 1), EnumSet.of(CreateOption.Ephemeral)).join();
+
+        setMigrationState(sourceStore, MigrationPhase.PREPARATION, targetUrl);
+        // The store acknowledges the preparation after recreating its ephemeral nodes in the target store
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join().isEmpty()));
+        assertTrue(targetStore.exists(path).join(), "The ephemeral node wasn't recreated in the target store");
+    }
+
+    @DataProvider
+    public Object[][] migrationOutcomes() {
+        return new Object[][] {{MigrationPhase.FAILED}, {MigrationPhase.COMPLETED}};
+    }
+
+    @Test(dataProvider = "migrationOutcomes")
+    public void testCacheWriteAfterMigrationEnds(MigrationPhase outcome) throws Exception {
+        String path = newKey() + "/test-obj";
+        @Cleanup
+        MetadataStore sourceStore =
+                new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true);
+
+        String targetUrl = "memory:" + UUID.randomUUID();
+        @Cleanup
+        MetadataStore targetStore = MetadataStoreFactory.create(targetUrl,
+                MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+        CountDownLatch sessionReestablished = new CountDownLatch(1);
+        dualStore.registerCancellableSessionListener(event -> {
+            if (event == SessionEvent.SessionReestablished) {
+                sessionReestablished.countDown();
+            }
+        });
+        MetadataCache<TestObject> cache = dualStore.getMetadataCache(TestObject.class);
+
+        setMigrationState(sourceStore, MigrationPhase.PREPARATION, targetUrl);
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join().isEmpty()));
+        // The session is reestablished when the migration ends, after the caches have been switched on completion
+        setMigrationState(sourceStore, outcome, targetUrl);
+        assertTrue(sessionReestablished.await(10, TimeUnit.SECONDS));
+
+        cache.create(path, new TestObject("test", 1)).join();
+        boolean completed = outcome == MigrationPhase.COMPLETED;
+        assertTrue((completed ? targetStore : sourceStore).exists(path).join());
+        assertFalse((completed ? sourceStore : targetStore).exists(path).join());
+    }
+
+    @Test
+    public void testCacheWriteFailsUntilCacheSwitchesToTargetStore() throws Exception {
+        String path = newKey() + "/test-obj";
+        @Cleanup
+        MetadataStore sourceStore =
+                new ZKMetadataStore(zks.getConnectionString(), MetadataStoreConfig.builder().build(), true);
+
+        String targetUrl = "memory:" + UUID.randomUUID();
+        @Cleanup
+        MetadataStore targetStore = MetadataStoreFactory.create(targetUrl,
+                MetadataStoreConfig.builder().build());
+
+        @Cleanup
+        DualMetadataStore dualStore = new DualMetadataStore(sourceStore,
+                MetadataStoreConfig.builder().build());
+        CountDownLatch sessionReestablished = new CountDownLatch(1);
+        dualStore.registerCancellableSessionListener(event -> {
+            if (event == SessionEvent.SessionReestablished) {
+                sessionReestablished.countDown();
+            }
+        });
+        MetadataCache<TestObject> cache = dualStore.getMetadataCache(TestObject.class);
+
+        setMigrationState(sourceStore, MigrationPhase.PREPARATION, targetUrl);
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(sourceStore.getChildren(MigrationState.PARTICIPANTS_PATH).join().isEmpty()));
+
+        // The completion switches a cache while holding its lock, so holding it pauses the switch of this cache
+        // after the phase has changed
+        synchronized (cache) {
+            setMigrationState(sourceStore, MigrationPhase.COMPLETED, targetUrl);
+            Awaitility.await().until(() -> dualStore.getMigrationPhase() == MigrationPhase.COMPLETED);
+            assertReadOnly("create", cache.create(path, new TestObject("test", 1)));
+        }
+        assertTrue(sessionReestablished.await(10, TimeUnit.SECONDS));
+        assertFalse(sourceStore.exists(path).join());
+
+        cache.create(path, new TestObject("test", 1)).join();
+        assertTrue(targetStore.exists(path).join());
+        assertFalse(sourceStore.exists(path).join());
     }
 
     @Test
