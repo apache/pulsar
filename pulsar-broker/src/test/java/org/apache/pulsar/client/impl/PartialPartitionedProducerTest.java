@@ -23,25 +23,33 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -67,6 +75,150 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
             producerImpl.newMessage().value("msg".getBytes()).send();
         }
         assertEquals(producerImpl.getProducers().size(), 1);
+    }
+
+    @Test(timeOut = 60000)
+    public void testLazyStartSendFromSendCallbackDoesNotBlock() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        // A single IO thread: a send completed on it must not block it
+        final PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .ioThreads(1)
+                .build();
+        try {
+            final Producer<byte[]> producer = client.newProducer()
+                    .topic(topic)
+                    .enableLazyStartPartitionedProducers(true)
+                    .enableBatching(false)
+                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                    .messageRouter(routeByKey())
+                    .create();
+
+            CompletableFuture<MessageId> sends = producer.newMessage().key("0").value("first".getBytes()).sendAsync()
+                    .thenCompose(id -> producer.newMessage().key("1").value("second".getBytes()).sendAsync());
+
+            assertNotNull(sends.get(10, TimeUnit.SECONDS));
+        } finally {
+            client.closeAsync();
+        }
+    }
+
+    @Test
+    public void testLazyStartKeepsTheOrderOfSendsWhileStarting() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
+                .topic(TopicName.get(topic).getPartition(1).toString())
+                .subscriptionName("sub")
+                .subscribe();
+        @Cleanup
+        final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(routeByKey())
+                .create();
+
+        // Every send is made before the producer of partition 1 is created
+        final List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            sends.add(producer.newMessage().key("1").value("msg-" + i).sendAsync());
+        }
+        FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
+
+        for (int i = 0; i < 20; i++) {
+            assertEquals(consumer.receive(10, TimeUnit.SECONDS).getValue(), "msg-" + i);
+        }
+    }
+
+    @Test
+    public void testFlushIncludesASendWaitingForItsProducer() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(routeByKey())
+                .create();
+
+        final CompletableFuture<MessageId> send = producer.newMessage().key("1").value("msg".getBytes()).sendAsync();
+        producer.flush();
+
+        assertTrue(send.isDone());
+        assertNotNull(send.get());
+    }
+
+    @Test
+    public void testCloseWhileStartingCompletesTheWaitingSend() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        final Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic)
+                .enableLazyStartPartitionedProducers(true)
+                .enableBatching(false)
+                .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                .messageRouter(routeByKey())
+                .create();
+
+        final CompletableFuture<MessageId> send = producer.newMessage().key("1").value("msg".getBytes()).sendAsync();
+        producer.close();
+
+        // A producer closed while it is created never completes its creation; the send must not wait for it
+        final Throwable failure = send.handle((id, e) -> e).get(10, TimeUnit.SECONDS);
+        if (failure != null) {
+            assertTrue(FutureUtil.unwrapCompletionException(failure)
+                    instanceof PulsarClientException.AlreadyClosedException, failure.toString());
+        }
+    }
+
+    @Test(timeOut = 60000)
+    public void testLazyStartWithBlockIfQueueFullDoesNotBlockTheIoThread() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        final PulsarClient client = PulsarClient.builder()
+                .serviceUrl(getBrokerServiceUrl())
+                .ioThreads(1)
+                .build();
+        try {
+            final Producer<byte[]> producer = client.newProducer()
+                    .topic(topic)
+                    .enableLazyStartPartitionedProducers(true)
+                    .enableBatching(false)
+                    .maxPendingMessages(1)
+                    .blockIfQueueFull(true)
+                    .messageRoutingMode(MessageRoutingMode.CustomPartition)
+                    .messageRouter(routeByKey())
+                    .create();
+
+            // The second send waits for the first one's receipt, which only the IO thread can read
+            final List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                sends.add(producer.newMessage().key("1").value(("msg-" + i).getBytes()).sendAsync());
+            }
+            FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
+        } finally {
+            client.closeAsync();
+        }
+    }
+
+    private static MessageRouter routeByKey() {
+        return new MessageRouter() {
+            @Override
+            public int choosePartition(Message<?> msg, TopicMetadata metadata) {
+                return msg.hasKey() ? Integer.parseInt(msg.getKey()) : 0;
+            }
+        };
     }
 
     @Test
@@ -128,9 +280,12 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
 
         assertThrows(PulsarClientException.AlreadyClosedException.class,
                 () -> producerImpl.newMessage().key("1").value("msg".getBytes()).send());
-        assertEquals(producerImpl.getProducers().size(), 1);
-        Awaitility.await().untilAsserted(() -> assertTrue(
-                admin.topics().getStats(TopicName.get(topic).getPartition(1).toString()).getPublishers().isEmpty()));
+        // The send fails when the close starts; the partition producer is closed once its creation completes
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(producerImpl.getProducers().size(), 1);
+            assertTrue(admin.topics().getStats(TopicName.get(topic).getPartition(1).toString())
+                    .getPublishers().isEmpty());
+        });
     }
 
     @Test

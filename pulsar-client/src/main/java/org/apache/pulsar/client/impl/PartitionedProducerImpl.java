@@ -61,6 +61,10 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     private final Logger log;
 
     private final Map<Integer, ProducerImpl<T>> producers = new ConcurrentHashMap<>();
+    // The last send of each partition that waits for its lazily started producer to be created.
+    // A later send to the partition waits for it, so that the sends reach the producer in order.
+    private final Map<Integer, CompletableFuture<Void>> lazyStartSends = new ConcurrentHashMap<>();
+    private final CompletableFuture<Void> closeStarted = new CompletableFuture<>();
     private final MessageRouter routerPolicy;
     private final PartitionedTopicProducerStatsRecorderImpl stats;
     private final ProducerInterceptors internalProducerInterceptors;
@@ -282,55 +286,102 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
                 return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
         }
 
+        CompletableFuture<?> started = null;
         if (conf.isLazyStartPartitionedProducers() && !producers.containsKey(partition)) {
-            final ProducerImpl<T> newProducer = createProducer(partition, Optional.ofNullable(overrideProducerName));
-            final State createState = newProducer.producerCreatedFuture().handle((prod, createException) -> {
-                if (createException != null) {
-                    log.error()
-                            .attr("partitionIndex", partition)
-                            .exception(createException)
-                            .log("Could not create internal producer");
-                    try {
-                        producers.remove(partition, newProducer);
-                        newProducer.close();
-                    } catch (PulsarClientException e) {
-                        log.error()
-                                .attr("partitionIndex", partition)
-                                .exception(e)
-                                .log("Could not close internal producer");
-                    }
-                    return State.Failed;
-                }
-                    log.debug()
-                            .attr("partitionIndex", partition)
-                            .log("Created internal producer");
-                return State.Ready;
-            }).join();
-            if (createState == State.Failed) {
-                return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
-            }
-            // close() may have iterated the producers before this one was added, and would leave it open
-            if (getState() == State.Closing || getState() == State.Closed) {
-                producers.remove(partition, newProducer);
-                newProducer.closeAsync().exceptionally(e -> {
-                    log.error()
-                            .attr("partitionIndex", partition)
-                            .exception(e)
-                            .log("Could not close internal producer");
-                    return null;
-                });
-                return FutureUtil.failedFuture(
-                        new PulsarClientException.AlreadyClosedException("Producer already closed"));
-            }
+            started = startLazyProducer(partition);
         }
 
-        return producers.get(partition).internalSendWithTxnAsync(message, txn);
+        final ProducerImpl<T> producer = producers.get(partition);
+        if (producer == null) {
+            return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+        }
+        if (conf.isLazyStartPartitionedProducers()) {
+            // The send that started the producer also waits until its creation was handled
+            return sendWhenCreated(partition, producer, started != null ? started : producer.producerCreatedFuture(),
+                    message, txn);
+        }
+        return producer.internalSendWithTxnAsync(message, txn);
+    }
+
+    private CompletableFuture<?> startLazyProducer(int partition) {
+        final ProducerImpl<T> newProducer = createProducer(partition, Optional.ofNullable(overrideProducerName));
+        return newProducer.producerCreatedFuture().whenComplete((prod, createException) -> {
+            if (createException != null) {
+                log.error()
+                        .attr("partitionIndex", partition)
+                        .exception(createException)
+                        .log("Could not create internal producer");
+                producers.remove(partition, newProducer);
+                closeLazyStartedProducer(partition, newProducer);
+            } else if (getState() == State.Closing || getState() == State.Closed) {
+                // close() may have iterated the producers before this one was added, and would leave it open
+                producers.remove(partition, newProducer);
+                closeLazyStartedProducer(partition, newProducer);
+            } else {
+                log.debug()
+                        .attr("partitionIndex", partition)
+                        .log("Created internal producer");
+            }
+        });
+    }
+
+    private CompletableFuture<MessageId> sendWhenCreated(int partition, ProducerImpl<T> producer,
+                                                         CompletableFuture<?> created, Message<?> message,
+                                                         Transaction txn) {
+        // Waiting for the creation here would block the IO thread when a send callback sends again
+        if (created.isDone() && !lazyStartSends.containsKey(partition)) {
+            return sendToCreatedProducer(producer, message, txn);
+        }
+        final CompletableFuture<Void> dispatched = new CompletableFuture<>();
+        final CompletableFuture<Void> previous = lazyStartSends.put(partition, dispatched);
+        final CompletableFuture<?> turn = previous == null ? created : CompletableFuture.allOf(previous, created);
+        // A producer closed while it is created never completes its creation, so close() also releases the sends
+        return CompletableFuture.anyOf(turn, closeStarted)
+                .handle((ignored, ignoredException) -> null)
+                // Off the IO thread, where a send blocking on a full queue (blockIfQueueFull) would stop the acks
+                .thenCompose(ignored -> FutureUtil.composeAsync(() -> {
+                    try {
+                        return sendToCreatedProducer(producer, message, txn);
+                    } finally {
+                        releaseNextLazyStartSend(partition, dispatched);
+                    }
+                }, client.getInternalExecutorService()))
+                .whenComplete((sent, e) -> releaseNextLazyStartSend(partition, dispatched));
+    }
+
+    private void releaseNextLazyStartSend(int partition, CompletableFuture<Void> dispatched) {
+        lazyStartSends.remove(partition, dispatched);
+        dispatched.complete(null);
+    }
+
+    private CompletableFuture<MessageId> sendToCreatedProducer(ProducerImpl<T> producer, Message<?> message,
+                                                               Transaction txn) {
+        if (getState() == State.Closing || getState() == State.Closed) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.AlreadyClosedException("Producer already closed"));
+        }
+        if (producer.producerCreatedFuture().isCompletedExceptionally()) {
+            return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
+        }
+        return producer.internalSendWithTxnAsync(message, txn);
+    }
+
+    private void closeLazyStartedProducer(int partition, ProducerImpl<T> producer) {
+        producer.closeAsync().exceptionally(e -> {
+            log.error()
+                    .attr("partitionIndex", partition)
+                    .exception(e)
+                    .log("Could not close internal producer");
+            return null;
+        });
     }
 
     @Override
     public CompletableFuture<Void> flushAsync() {
-        return CompletableFuture.allOf(
-                producers.values().stream().map(ProducerImpl::flushAsync).toArray(CompletableFuture[]::new));
+        // A send that waits for its lazily started producer is handed to it before the producers are flushed
+        return CompletableFuture.allOf(lazyStartSends.values().toArray(new CompletableFuture[0]))
+                .thenCompose(ignored -> CompletableFuture.allOf(
+                        producers.values().stream().map(ProducerImpl::flushAsync).toArray(CompletableFuture[]::new)));
     }
 
     @Override
@@ -361,6 +412,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             return CompletableFuture.completedFuture(null);
         }
         setState(State.Closing);
+        closeStarted.complete(null);
 
         if (partitionsAutoUpdateTimeout != null) {
             partitionsAutoUpdateTimeout.cancel();
