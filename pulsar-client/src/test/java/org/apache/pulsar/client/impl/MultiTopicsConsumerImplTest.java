@@ -24,6 +24,7 @@ import static org.apache.pulsar.client.impl.ClientTestFixtures.createPulsarClien
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -47,6 +48,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -70,6 +72,7 @@ import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
@@ -545,6 +548,92 @@ public class MultiTopicsConsumerImplTest {
             messages.add(newMessage(topic, partitionIndex, i, partitionIndex));
         }
         assertTrue(((CompletableFuture<Messages<byte[]>>) receive).complete(messages));
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testListenerDrainGivesBackPermitsAfterRedeliver() throws Exception {
+        String topic = "persistent://public/default/topic-partition-0";
+        int numMessages = 3;
+        AtomicInteger queuedAtRedeliver = new AtomicInteger(-1);
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setSubscriptionType(SubscriptionType.Failover);
+        // Run the listener inside the listener drain, so that it requests the redelivery while the drain still has
+        // queued messages
+        conf.setMessageListenerExecutor((message, runnable) -> runnable.run());
+        conf.setMessageListener((consumer, message) -> {
+            if (queuedAtRedeliver.get() < 0) {
+                queuedAtRedeliver.set(((ConsumerBase<byte[]>) consumer).getTotalIncomingMessages());
+                consumer.redeliverUnacknowledgedMessages();
+            }
+        });
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ConsumerImpl<byte[]> partitionConsumer = mock(ConsumerImpl.class);
+        when(partitionConsumer.isValidConsumerEpoch(any())).thenReturn(true);
+
+        // Queue messages received before the redelivery, then start the listener drain
+        impl.internalPinnedExecutor.submit(() -> {
+            for (int i = 0; i < numMessages; i++) {
+                MessageImpl<byte[]> message = MessageImpl.create(topic, new MessageIdImpl(1, i, 0),
+                        new MessageMetadata(), Unpooled.wrappedBuffer(new byte[1]), Optional.empty(), null,
+                        Schema.BYTES, 0, false, 0);
+                impl.enqueueMessageAndCheckBatchReceive(new TopicMessageImpl<>(topic, message, partitionConsumer));
+            }
+            impl.tryTriggerListener();
+        }).get();
+        // The drain runs on the pinned executor before this task
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+
+        assertEquals(queuedAtRedeliver.get(), numMessages - 1);
+        // Each drained message gave its permit back to the consumer that received it
+        verify(partitionConsumer, times(numMessages)).increaseAvailablePermits(any(MessageImpl.class));
+    }
+
+    @DataProvider
+    public static Object[][] hasListener() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(timeOut = 10000, dataProvider = "hasListener")
+    @SuppressWarnings("unchecked")
+    public void testOldEpochMessageFromSubConsumerGivesBackPermitOnce(boolean hasListener) throws Exception {
+        String topic = "persistent://public/default/topic-partition-0";
+        ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionName("subscriptionName");
+        conf.setSubscriptionType(SubscriptionType.Failover);
+        if (hasListener) {
+            conf.setMessageListener((consumer, message) -> { });
+        }
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer(conf);
+
+        ConsumerImpl<byte[]> partitionConsumer = mock(ConsumerImpl.class);
+        CompletableFuture<Messages<byte[]>> handedOver = new CompletableFuture<>();
+        when(partitionConsumer.batchReceiveAsync()).thenReturn(handedOver, new CompletableFuture<>());
+
+        // Hold the pinned executor, so that the hand-over of a message received before the redelivery is queued
+        // ahead of the redelivery task and runs after the epoch bump
+        CountDownLatch release = new CountDownLatch(1);
+        impl.internalPinnedExecutor.execute(() -> {
+            try {
+                release.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+        impl.receiveMessageFromConsumer(partitionConsumer, true);
+        MessagesImpl<byte[]> messages = new MessagesImpl<>(-1, -1);
+        messages.add(MessageImpl.create(topic, new MessageIdImpl(1, 0, 0), new MessageMetadata(),
+                Unpooled.wrappedBuffer(new byte[1]), Optional.empty(), null, Schema.BYTES, 0, false, 0));
+        handedOver.complete(messages);
+        impl.redeliverUnacknowledgedMessages();
+        release.countDown();
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+
+        // The hand-over dropped the message. Without a listener, the partition consumer already gave its permit back
+        // when it handed the message over.
+        verify(partitionConsumer, times(hasListener ? 1 : 0)).increaseAvailablePermits(nullable(ClientCnx.class));
     }
 
 }
