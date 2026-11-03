@@ -4071,12 +4071,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         boolean topicExists2 = pulsar.getBrokerService().getTopic(partition0.toString(), false).join().isPresent();
         assertFalse(topicExists2);
         // Verify: respond 404.
-        try {
-            admin.topics().getStats(partition0.toString());
-            fail("Should respond 404 after the partition was deleted");
-        } catch (Exception ex) {
-            assertTrue(ex.getMessage().contains("Topic partitions were not yet created"));
-        }
+        PulsarAdminException.NotFoundException exception = expectThrows(PulsarAdminException.NotFoundException.class,
+                () -> admin.topics().getStats(partition0.toString()));
+        assertEquals(exception.getMessage(), "Topic " + partition0 + " not found");
 
         // cleanup.
         admin.topics().deletePartitionedTopic(partitionedTp);

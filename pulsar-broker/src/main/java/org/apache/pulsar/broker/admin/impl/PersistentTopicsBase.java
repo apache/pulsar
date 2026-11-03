@@ -4980,7 +4980,8 @@ public class PersistentTopicsBase extends AdminResource {
                 .thenCompose(__ -> internalGetListAsync(Optional.empty(), null))
                 .thenApply(topics -> {
                     if (!topics.contains(topicName.toString())) {
-                        throw new RestException(Status.NOT_FOUND, "Topic partitions were not yet created");
+                        throw new RestException(Status.NOT_FOUND,
+                                getTopicNotFoundErrorMessage(topicName.toString()));
                     }
                     throw new RestException(Status.NOT_FOUND,
                         getPartitionedTopicNotFoundErrorMessage(topicName.toString()));
