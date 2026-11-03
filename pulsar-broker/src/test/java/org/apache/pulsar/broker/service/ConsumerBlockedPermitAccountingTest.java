@@ -472,7 +472,7 @@ public class ConsumerBlockedPermitAccountingTest {
     }
 
     @Test
-    public void testTransactionalBatchIndexAckUnblocksAtHalfLimit() {
+    public void testTransactionalBatchIndexAckWaitsForCommit() {
         Consumer consumer = newConsumer(Shared, 1);
         assertThat(consumer.getPendingAcks()
                 .addPendingAckIfAllowed(LEDGER_ID, ENTRY_ID, MAX_UNACKED_MESSAGES, 0)).isTrue();
@@ -491,12 +491,12 @@ public class ConsumerBlockedPermitAccountingTest {
                 .addAckSet(0b1_1111L);
         assertThat(consumer.messageAcked(ack, true)).isCompletedWithValue(null);
 
-        assertThat(consumer.getUnackedMessages()).isEqualTo(MAX_UNACKED_MESSAGES / 2);
-        assertThat(consumer.isBlocked()).isFalse();
-        assertThat(consumer.getAvailablePermits()).isEqualTo(FLOW_PERMITS);
-        assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isEqualTo(FLOW_PERMITS);
-        assertThat(dispatcherFlowPermits).hasValue(FLOW_PERMITS);
-        assertThat(positiveDispatcherFlowCalls).hasValue(1);
+        assertThat(consumer.getUnackedMessages()).isEqualTo(MAX_UNACKED_MESSAGES);
+        assertThat(consumer.isBlocked()).isTrue();
+        assertThat(consumer.getAvailablePermits()).isZero();
+        assertThat(consumer.getAvailablePermitsForDispatcherRemoval()).isZero();
+        assertThat(dispatcherFlowPermits).isZero();
+        assertThat(positiveDispatcherFlowCalls).hasValue(0);
     }
 
     @Test
