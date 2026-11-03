@@ -311,6 +311,69 @@ public class TopicListServiceTest {
         assertThat(lookupSemaphore.availablePermits()).isEqualTo(1);
     }
 
+    @DataProvider
+    public Object[][] successResponseTimeoutBeforeClose() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "successResponseTimeoutBeforeClose")
+    public void testOldSuccessResponsePermitRetryCannotUseNewWatcherGeneration(boolean timeoutFirst) throws Exception {
+        List<Runnable> retries = new ArrayList<>();
+        doAnswer(invocation -> {
+            retries.add(invocation.getArgument(0));
+            return mock(ScheduledFuture.class);
+        }).when(eventLoop).schedule(any(Runnable.class), anyLong(), any());
+        CompletableFuture<Void> oldResponse = new CompletableFuture<>();
+        AtomicReference<BooleanSupplier> oldCancelled = new AtomicReference<>();
+        AtomicReference<Function<Throwable, CompletableFuture<Void>>> oldPermitErrorHandler = new AtomicReference<>();
+        doAnswer(invocation -> {
+            if (oldCancelled.get() == null) {
+                oldCancelled.set(invocation.getArgument(5));
+                oldPermitErrorHandler.set(invocation.getArgument(4));
+                return oldResponse;
+            }
+            return CompletableFuture.completedFuture(null);
+        }).when(pulsarCommandSender).sendWatchTopicListSuccess(eq(7L), eq(13L), anyString(), any(), any(), any());
+        List<String> topics = List.of("persistent://tenant/ns/topic1");
+        TopicListService.TopicListWatcher old = createWatcher(topics);
+        assertThat(oldCancelled.get().getAsBoolean()).isFalse();
+        if (timeoutFirst) {
+            FutureUtil.completeAfter(oldResponse, oldPermitErrorHandler.get().apply(
+                    new AsyncSemaphore.PermitAcquireTimeoutException("Direct memory wait timed out")));
+            assertThat(retries).hasSize(1);
+        }
+
+        topicListService.handleWatchTopicListClose(new CommandWatchTopicListClose()
+                .setRequestId(8).setWatcherId(13));
+        lookupSemaphore.acquire();
+        topicListService.handleWatchTopicList(NamespaceName.get("tenant/ns"), 13, 9,
+                "persistent://tenant/ns/topic.*", topicsPatternImplementation, null, lookupSemaphore);
+        CompletableFuture<TopicListService.TopicListWatcher> replacementFuture = topicListService.getWatcherFuture(13);
+        assertThat(replacementFuture).succeedsWithin(Duration.ofSeconds(2)).isNotSameAs(old);
+        clearInvocations(topicResources);
+
+        if (timeoutFirst) {
+            retries.remove(0).run();
+        } else {
+            FutureUtil.completeAfter(oldResponse, oldPermitErrorHandler.get().apply(
+                    new AsyncSemaphore.PermitAcquireTimeoutException("Late direct memory timeout")));
+        }
+
+        assertThat(oldResponse).failsWithin(Duration.ofSeconds(2))
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(AsyncSemaphore.PermitAcquireCancelledException.class);
+        assertThat(oldCancelled.get().getAsBoolean()).isTrue();
+        assertThat(retries).isEmpty();
+        verify(pulsarCommandSender, times(1))
+                .sendWatchTopicListSuccess(eq(7L), eq(13L), anyString(), any(), any(), any());
+        verify(pulsarCommandSender)
+                .sendWatchTopicListSuccess(eq(9L), eq(13L), anyString(), eq(topics), any(), any());
+        verify(pulsarCommandSender).sendErrorResponse(eq(7L), any(ServerError.class), anyString());
+        assertThat(topicListService.getWatcherFuture(13)).isSameAs(replacementFuture);
+        verify(topicResources, never()).deregisterPersistentTopicListener(replacementFuture.join());
+        assertThat(lookupSemaphore.availablePermits()).isEqualTo(1);
+    }
+
     @Test
     public void testCommandWatchSuccessResponse() {
 

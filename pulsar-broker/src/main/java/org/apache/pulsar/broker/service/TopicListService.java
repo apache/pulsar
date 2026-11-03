@@ -572,7 +572,7 @@ public class TopicListService {
                             .attr("requestId", requestId)
                             .log("Received WatchTopicList");
                     watcher.successResponseSendingStarted();
-                    sendTopicListSuccessWithPermitAcquiringRetries(watcherId, requestId, topicList, hash,
+                    sendTopicListSuccessWithPermitAcquiringRetries(watcherId, watcherFuture, requestId, topicList, hash,
                             watcher::successResponseSendingCompleted, failure -> {
                                 if (!isCancellation(failure) && watchers.remove(watcherId, watcherFuture)) {
                                     // An old response must not close a newer generation using the same watcher id.
@@ -636,17 +636,19 @@ public class TopicListService {
         };
     }
 
-    private void sendTopicListSuccessWithPermitAcquiringRetries(long watcherId, long requestId,
-                                                                Collection<String> topicList,
-                                                                String hash,
-                                                                Runnable successfulCompletionCallback,
-                                                                Consumer<Throwable> failedCompletionCallback) {
+    private void sendTopicListSuccessWithPermitAcquiringRetries(
+            long watcherId, CompletableFuture<TopicListWatcher> watcherFuture, long requestId,
+            Collection<String> topicList, String hash, Runnable successfulCompletionCallback,
+            Consumer<Throwable> failedCompletionCallback) {
         // the success response is the response to the watch request, so a cancelled success response is reported
         // as a failure, so that the request can be completed with an error response
-        performOperationWithPermitAcquiringRetries(watcherId, "topic list success", true, permitAcquireErrorHandler ->
+        // A replacement with the same watcher id must not revive an older response or its pending retries.
+        BooleanSupplier isCancelled = () -> watchers.get(watcherId) != watcherFuture;
+        performOperationWithPermitAcquiringRetries(watcherId, "topic list success", true, isCancelled,
+                permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListSuccess(requestId, watcherId, hash, topicList, permitAcquireErrorHandler,
-                                () -> !watchers.containsKey(watcherId)))
+                                isCancelled))
                 // handled on the future of the whole operation, which also completes when the watcher was removed
                 // before the first attempt and after retries
                 .whenComplete((__, t) -> {
@@ -928,11 +930,12 @@ public class TopicListService {
      */
     public void sendTopicListUpdate(long watcherId, String topicsHash, List<String> deletedTopics,
                                     List<String> newTopics, Runnable completionCallback) {
-        performOperationWithPermitAcquiringRetries(watcherId, "topic list update", false,
+        BooleanSupplier isCancelled = () -> !watchers.containsKey(watcherId);
+        performOperationWithPermitAcquiringRetries(watcherId, "topic list update", false, isCancelled,
                 permitAcquireErrorHandler ->
                 () -> connection.getCommandSender()
                         .sendWatchTopicListUpdate(watcherId, newTopics, deletedTopics, topicsHash,
-                                permitAcquireErrorHandler, () -> !watchers.containsKey(watcherId)))
+                                permitAcquireErrorHandler, isCancelled))
                 // handled on the future of the whole operation, so that the callback runs once also after retries
                 .whenComplete((__, t) -> {
                     if (t != null) {
@@ -950,10 +953,11 @@ public class TopicListService {
     // performs an operation with infinite permit acquiring retries.
     // If acquiring permits fails, it will retry after a backoff period.
     // When failOnCancellation is true, an operation that is skipped because the connection was closed or the
-    // watcher was removed completes exceptionally with PermitAcquireCancelledException instead of successfully.
+    // operation was cancelled completes exceptionally with PermitAcquireCancelledException instead of successfully.
     // The returned future completes when the operation has completed, including the retries.
     private CompletableFuture<Void> performOperationWithPermitAcquiringRetries(long watcherId, String operationName,
                                                             boolean failOnCancellation,
+                                                            BooleanSupplier isCancelled,
                                                             Function<Function<Throwable, CompletableFuture<Void>>,
                                                                     Supplier<CompletableFuture<Void>>>
                                                                     asyncOperationFactory) {
@@ -962,14 +966,14 @@ public class TopicListService {
         AtomicReference<Supplier<CompletableFuture<Void>>> operationRef = new AtomicReference<>();
         // create the error handler for the operation
         Function<Throwable, CompletableFuture<Void>> permitAcquireErrorHandler =
-                createPermitAcquireErrorHandler(watcherId, operationName, failOnCancellation,
+                createPermitAcquireErrorHandler(watcherId, operationName, failOnCancellation, isCancelled,
                         () -> operationRef.get().get());
         // create the async operation using the factory function. Pass the error handler to the factory function.
         Supplier<CompletableFuture<Void>> asyncOperation = asyncOperationFactory.apply(permitAcquireErrorHandler);
         // set the operation to run into the operation reference
         operationRef.set(() -> {
-            if (!connection.isActive() || !watchers.containsKey(watcherId)) {
-                // do nothing if the connection has already been closed or the watcher has been removed
+            if (!connection.isActive() || isCancelled.getAsBoolean()) {
+                // do nothing if the connection has already been closed or the operation was cancelled
                 return failOnCancellation ? CompletableFuture.failedFuture(newWatcherClosedException(watcherId))
                         : CompletableFuture.completedFuture(null);
             }
@@ -979,10 +983,11 @@ public class TopicListService {
         return operationRef.get().get();
     }
 
-    // retries acquiring permits until the connection is closed or the watcher is removed
+    // retries acquiring permits until the connection is closed or the operation is cancelled
     private Function<Throwable, CompletableFuture<Void>> createPermitAcquireErrorHandler(long watcherId,
                                                                                          String operationName,
                                                                                          boolean failOnCancellation,
+                                                                                         BooleanSupplier isCancelled,
                                                                                          Supplier<CompletableFuture
                                                                                                  <Void>> operationRef) {
         ScheduledExecutorService scheduledExecutor = connection.ctx().channel().eventLoop();
@@ -991,7 +996,7 @@ public class TopicListService {
             Throwable unwrappedException = FutureUtil.unwrapCompletionException(t);
             if (isCancellation(unwrappedException)
                     || !connection.isActive()
-                    || !watchers.containsKey(watcherId)) {
+                    || isCancelled.getAsBoolean()) {
                 // stop retrying
                 return failOnCancellation ? CompletableFuture.failedFuture(newWatcherClosedException(watcherId))
                         : CompletableFuture.completedFuture(null);
