@@ -97,9 +97,8 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         private final AtomicBoolean inFlight = new AtomicBoolean();
         private final AtomicBoolean attempted = new AtomicBoolean();
 
-        private PendingReceivedSubscriptionUpdate(PersistentSubscription subscription, Position position) {
-            this.subscriptionState = new AtomicReference<>(
-                    subscription == null ? null : new ReceivedSubscriptionState(subscription));
+        private PendingReceivedSubscriptionUpdate(ReceivedSubscriptionState subscriptionState, Position position) {
+            this.subscriptionState = new AtomicReference<>(subscriptionState);
             this.position = position;
         }
     }
@@ -369,19 +368,22 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                 return;
             }
             PersistentSubscription subscription = topic.getSubscription(subscriptionName);
+            ReceivedSubscriptionState currentState = subscription == null ? null
+                    : new ReceivedSubscriptionState(subscription);
             pendingUpdate = pendingReceivedSubscriptionUpdates.compute(subscriptionName, (name, pending) -> {
                 if (pending != null) {
                     ReceivedSubscriptionState state = pending.subscriptionState.get();
                     PersistentSubscription bound = state == null ? null : state.subscription;
                     if ((bound == null || bound == subscription) && (state == null || !state.shouldDiscard())
+                            && (bound != null || currentState == null || currentState.resetFuture == null)
                             && pending.position.compareTo(target) >= 0) {
                         // An initially missing subscription may have been created while its retry
-                        // was pending. Preserve the higher target, but bind its current identity.
+                        // was pending. Preserve the higher target only if no local reset intervened.
                         return bound == subscription ? pending
-                                : new PendingReceivedSubscriptionUpdate(subscription, pending.position);
+                                : new PendingReceivedSubscriptionUpdate(currentState, pending.position);
                     }
                 }
-                return new PendingReceivedSubscriptionUpdate(subscription, target);
+                return new PendingReceivedSubscriptionUpdate(currentState, target);
             });
         }
         tryApplyReceivedSubscriptionUpdate(subscriptionName, pendingUpdate);
@@ -396,11 +398,34 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
         PersistentSubscription subscription = state == null ? null : state.subscription;
         PersistentSubscription current = topic.getSubscription(subscriptionName);
         if (subscription == null && current != null) {
-            update.subscriptionState.compareAndSet(null, new ReceivedSubscriptionState(current));
+            if (!bindReceivedSubscriptionUpdate(subscriptionName, update, current)) {
+                return false;
+            }
             subscription = update.subscriptionState.get().subscription;
         }
         if (subscription != current) {
             // A retry bound to an existing subscription must not recreate or update its replacement.
+            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean bindReceivedSubscriptionUpdate(String subscriptionName, PendingReceivedSubscriptionUpdate update,
+                                                    PersistentSubscription subscription) {
+        ReceivedSubscriptionState state = update.subscriptionState.get();
+        if (state == null) {
+            ReceivedSubscriptionState newState = new ReceivedSubscriptionState(subscription);
+            if (newState.resetFuture != null) {
+                // This target arrived before the subscription was available. A seek already admitted
+                // on that subscription takes precedence; it must not become the old target's baseline.
+                pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+                return false;
+            }
+            update.subscriptionState.compareAndSet(null, newState);
+            state = update.subscriptionState.get();
+        }
+        if (state.subscription != subscription) {
             pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
             return false;
         }
@@ -542,10 +567,7 @@ public class ReplicatedSubscriptionsController implements AutoCloseable, Topic.P
                             pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
                             return CompletableFuture.completedFuture(null);
                         }
-                        if (!update.subscriptionState.compareAndSet(null,
-                                new ReceivedSubscriptionState(createdSubscription))
-                                && update.subscriptionState.get().subscription != createdSubscription) {
-                            pendingReceivedSubscriptionUpdates.remove(subscriptionName, update);
+                        if (!bindReceivedSubscriptionUpdate(subscriptionName, update, createdSubscription)) {
                             return CompletableFuture.completedFuture(null);
                         }
                         if (!isCurrentReceivedSubscriptionUpdate(subscriptionName, update)) {

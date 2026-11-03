@@ -40,6 +40,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntConsumer;
+import java.util.function.IntFunction;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.common.util.OrderedExecutor;
@@ -52,6 +53,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.stats.OpenTelemetryReplicatedSubscriptionStats;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
@@ -232,6 +234,121 @@ public class ReceivedReplicatedSubscriptionUpdateResetTest {
         }
     }
 
+    @Test(dataProvider = "resetScenarios")
+    public void testTimerLateBindingRetiresTargetReceivedBeforeLocalReset(boolean resetBackwards) throws Exception {
+        try (Fixture fixture = new Fixture(false)) {
+            fixture.createBehavior = attempt -> CompletableFuture.failedFuture(
+                    new ManagedLedgerException.MetaStoreException("Injected transient subscription creation failure"));
+            fixture.receive(5);
+            assertThat(fixture.createAttempts.get()).isEqualTo(1);
+            assertThat(fixture.ackAttempts.get()).isZero();
+
+            fixture.currentSubscription.set(fixture.subscription);
+            int resetReadPosition = resetBackwards ? 1 : 3;
+            assertThat(fixture.subscription.resetCursor(fixture.positions.get(resetReadPosition)))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+            fixture.tick();
+            assertThat(fixture.createAttempts.get()).isEqualTo(1);
+            assertThat(fixture.ackAttempts.get()).isZero();
+            assertThat(fixture.cursor.getMarkDeletedPosition())
+                    .isEqualTo(fixture.positions.get(resetReadPosition - 1));
+
+            fixture.receive(4);
+            assertThat(fixture.lastAcknowledgement.get()).succeedsWithin(5, TimeUnit.SECONDS);
+            assertThat(fixture.ackAttempts.get()).isEqualTo(1);
+            assertThat(fixture.cursor.getMarkDeletedPosition()).isEqualTo(fixture.positions.get(4));
+        }
+    }
+
+    @Test(dataProvider = "resetScenarios")
+    public void testCreationCompletionRetiresTargetReceivedBeforeLocalReset(boolean resetBackwards) throws Exception {
+        try (Fixture fixture = new Fixture(false)) {
+            CompletableFuture<Subscription> creation = new CompletableFuture<>();
+            fixture.createBehavior = attempt -> creation;
+            fixture.receive(5);
+            assertThat(fixture.createAttempts.get()).isEqualTo(1);
+            assertThat(fixture.ackAttempts.get()).isZero();
+
+            fixture.currentSubscription.set(fixture.subscription);
+            int resetReadPosition = resetBackwards ? 1 : 3;
+            assertThat(fixture.subscription.resetCursor(fixture.positions.get(resetReadPosition)))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+            creation.complete(fixture.subscription);
+            fixture.tick();
+            assertThat(fixture.createAttempts.get()).isEqualTo(1);
+            assertThat(fixture.ackAttempts.get()).isZero();
+            assertThat(fixture.cursor.getMarkDeletedPosition())
+                    .isEqualTo(fixture.positions.get(resetReadPosition - 1));
+
+            fixture.receive(4);
+            assertThat(fixture.lastAcknowledgement.get()).succeedsWithin(5, TimeUnit.SECONDS);
+            assertThat(fixture.ackAttempts.get()).isEqualTo(1);
+            assertThat(fixture.cursor.getMarkDeletedPosition()).isEqualTo(fixture.positions.get(4));
+        }
+    }
+
+    @Test(dataProvider = "resetScenarios")
+    public void testFreshUpdateAfterLocalResetDoesNotRetainHigherUnboundTarget(boolean resetBackwards)
+            throws Exception {
+        try (Fixture fixture = new Fixture(false)) {
+            fixture.createBehavior = attempt -> CompletableFuture.failedFuture(
+                    new ManagedLedgerException.MetaStoreException("Injected transient subscription creation failure"));
+            fixture.receive(5);
+            assertThat(fixture.createAttempts.get()).isEqualTo(1);
+
+            fixture.currentSubscription.set(fixture.subscription);
+            int resetReadPosition = resetBackwards ? 1 : 3;
+            assertThat(fixture.subscription.resetCursor(fixture.positions.get(resetReadPosition)))
+                    .succeedsWithin(5, TimeUnit.SECONDS);
+            // The fresh marker reaches admission before the timer has discovered the local subscription.
+            fixture.receive(4);
+            assertThat(fixture.lastAcknowledgement.get()).succeedsWithin(5, TimeUnit.SECONDS);
+            fixture.tick();
+            assertThat(fixture.ackAttempts.get()).isEqualTo(1);
+            assertThat(fixture.cursor.getMarkDeletedPosition()).isEqualTo(fixture.positions.get(4));
+        }
+    }
+
+    @Test(dataProvider = "resetScenarios")
+    public void testLateBindingWithoutLocalResetStillAppliesPendingTarget(boolean creationCompletes) throws Exception {
+        try (Fixture fixture = new Fixture(false)) {
+            CompletableFuture<Subscription> creation = new CompletableFuture<>();
+            fixture.createBehavior = attempt -> creation;
+            fixture.receive(5);
+            assertThat(fixture.createAttempts.get()).isEqualTo(1);
+
+            fixture.currentSubscription.set(fixture.subscription);
+            if (creationCompletes) {
+                creation.complete(fixture.subscription);
+            } else {
+                creation.completeExceptionally(new ManagedLedgerException.MetaStoreException(
+                        "Injected transient subscription creation failure"));
+                fixture.tick();
+            }
+            assertThat(fixture.lastAcknowledgement.get()).succeedsWithin(5, TimeUnit.SECONDS);
+            assertThat(fixture.ackAttempts.get()).isEqualTo(1);
+            assertThat(fixture.cursor.getMarkDeletedPosition()).isEqualTo(fixture.positions.get(5));
+        }
+    }
+
+    @Test
+    public void testFreshLowerUpdateWithoutLocalResetPreservesHigherUnboundTarget() throws Exception {
+        try (Fixture fixture = new Fixture(false)) {
+            fixture.createBehavior = attempt -> CompletableFuture.failedFuture(
+                    new ManagedLedgerException.MetaStoreException("Injected transient subscription creation failure"));
+            fixture.receive(5);
+            assertThat(fixture.createAttempts.get()).isEqualTo(1);
+            assertThat(fixture.ackAttempts.get()).isZero();
+
+            fixture.currentSubscription.set(fixture.subscription);
+            fixture.receive(4);
+            assertThat(fixture.lastAcknowledgement.get()).succeedsWithin(5, TimeUnit.SECONDS);
+            fixture.tick();
+            assertThat(fixture.ackAttempts.get()).isEqualTo(1);
+            assertThat(fixture.cursor.getMarkDeletedPosition()).isEqualTo(fixture.positions.get(5));
+        }
+    }
+
     private static final class Fixture implements AutoCloseable {
         private final OrderedExecutor bookkeeperExecutor = OrderedExecutor.newBuilder()
                 .name("received-update-reset-bk").numThreads(1).build();
@@ -242,6 +359,9 @@ public class ReceivedReplicatedSubscriptionUpdateResetTest {
         private final ManagedCursorImpl cursor;
         private final List<Position> positions = new ArrayList<>();
         private final PersistentSubscription subscription;
+        private final AtomicReference<PersistentSubscription> currentSubscription = new AtomicReference<>();
+        private final AtomicInteger createAttempts = new AtomicInteger();
+        private IntFunction<CompletableFuture<Subscription>> createBehavior;
         private final ReplicatedSubscriptionsController controller;
         private final AtomicInteger ackAttempts = new AtomicInteger();
         private final AtomicInteger subscriptionLookups = new AtomicInteger();
@@ -251,8 +371,12 @@ public class ReceivedReplicatedSubscriptionUpdateResetTest {
         private final AtomicReference<CompletableFuture<Void>> nextAcknowledgement = new AtomicReference<>();
         private final AtomicReference<Runnable> timerTask = new AtomicReference<>();
 
-        @SuppressWarnings({"rawtypes", "unchecked"})
         private Fixture() throws Exception {
+            this(true);
+        }
+
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        private Fixture(boolean exists) throws Exception {
             metadataStore = new FaultInjectionMetadataStore(MetadataStoreExtended.create(
                     "memory:received-update-reset-" + UUID.randomUUID(), MetadataStoreConfig.builder().build()));
             bookkeeper = new PulsarMockBookKeeper(bookkeeperExecutor);
@@ -287,10 +411,14 @@ public class ReceivedReplicatedSubscriptionUpdateResetTest {
                         return mock(ScheduledFuture.class);
                     });
             subscription = spy(new PersistentSubscription(topic, "sub", cursor, null));
+            currentSubscription.set(exists ? subscription : null);
+            createBehavior = attempt -> CompletableFuture.completedFuture(subscription);
             when(topic.getSubscription("sub")).thenAnswer(ignored -> {
                 beforeSubscriptionLookup.accept(subscriptionLookups.incrementAndGet());
-                return subscription;
+                return currentSubscription.get();
             });
+            when(topic.createSubscription(eq("sub"), eq(InitialPosition.Earliest), eq(true), any()))
+                    .thenAnswer(ignored -> createBehavior.apply(createAttempts.incrementAndGet()));
             doAnswer(invocation -> {
                 ackAttempts.incrementAndGet();
                 CompletableFuture<Void> result = nextAcknowledgement.getAndSet(null);
