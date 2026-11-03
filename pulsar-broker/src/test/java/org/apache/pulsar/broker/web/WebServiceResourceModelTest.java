@@ -19,9 +19,11 @@
 package org.apache.pulsar.broker.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.fail;
 import java.util.List;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.broker.web.invalidmodel.AmbiguousResource;
 import org.glassfish.jersey.server.ApplicationHandler;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.server.ServerProperties;
@@ -41,14 +43,32 @@ public class WebServiceResourceModelTest extends SharedPulsarBaseTest {
         List<ResourceConfig> resourceConfigs = getPulsar().getWebService().getResourceConfigs();
         assertThat(resourceConfigs).isNotEmpty();
         for (ResourceConfig resourceConfig : resourceConfigs) {
-            ResourceConfig validatedConfig = new ResourceConfig(resourceConfig)
-                    .property(ServerProperties.RESOURCE_VALIDATION_DISABLE, false);
             try {
-                new ApplicationHandler(validatedConfig);
+                validate(resourceConfig);
             } catch (ModelValidationException e) {
                 fail("Invalid resource model of " + resourceConfig.getClasses() + ": " + e.getIssues().stream()
                         .map(issue -> issue.getSeverity() + " " + issue.getMessage()).toList(), e);
             }
         }
+    }
+
+    @Test
+    public void testPackageScannedResourcesAreValidated() {
+        ResourceConfig resourceConfig = new ResourceConfig()
+                .packages(false, AmbiguousResource.class.getPackageName())
+                .property(ServerProperties.RESOURCE_VALIDATION_DISABLE, true);
+        // Initialize it like the broker's start, which goes through the package scanner
+        new ApplicationHandler(resourceConfig);
+        assertThatThrownBy(() -> validate(resourceConfig)).isInstanceOf(ModelValidationException.class);
+    }
+
+    private static void validate(ResourceConfig resourceConfig) {
+        // A copy keeps the package scanners, which the initialization has gone through already, but not the classes
+        // that they found: register those again
+        ResourceConfig validatedConfig = new ResourceConfig(resourceConfig)
+                .registerClasses(resourceConfig.getClasses())
+                .property(ServerProperties.RESOURCE_VALIDATION_DISABLE, false);
+        ApplicationHandler applicationHandler = new ApplicationHandler(validatedConfig);
+        assertThat(applicationHandler.getConfiguration().getClasses()).containsAll(resourceConfig.getClasses());
     }
 }
