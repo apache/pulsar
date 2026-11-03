@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.delayed.bucket;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -299,7 +300,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         clockTime.set(1 * 10);
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1)).untilAsserted(() -> {
             Assert.assertTrue(
                     tracker.getImmutableBuckets().asMapOfRanges().values().stream().noneMatch(x -> x.merging
                             || !x.getSnapshotCreateFuture().get().isDone()));
@@ -307,7 +308,8 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
         assertTrue(tracker.hasMessageAvailable());
         Set<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().untilAsserted(() -> {
+        // Each call starts loading at most one snapshot segment, so poll without delay
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1)).untilAsserted(() -> {
             scheduledMessages.addAll(tracker.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), 1);
         });
@@ -329,7 +331,7 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertTrue(tracker2.hasMessageAvailable());
         Set<Position> scheduledMessages2 = new TreeSet<>();
 
-        Awaitility.await().untilAsserted(() -> {
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1)).untilAsserted(() -> {
             scheduledMessages2.addAll(tracker2.getScheduledMessages(70));
             assertEquals(scheduledMessages2.size(), 70);
         });
@@ -414,7 +416,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         clockTime.set(110 * 10);
 
         NavigableSet<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+        // Each call starts loading at most one snapshot segment, so poll without delay
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1))
+                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(110));
             assertEquals(scheduledMessages.size(), 110);
         });
@@ -491,7 +495,9 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
         assertEquals(tracker2.getScheduledMessages(100).size(), 0);
 
         Set<Position> scheduledMessages = new TreeSet<>();
-        Awaitility.await().atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
+        // Each call starts loading at most one snapshot segment, so poll without delay
+        Awaitility.await().pollDelay(Duration.ZERO).pollInterval(Duration.ofMillis(1))
+                .atMost(30, TimeUnit.SECONDS).untilAsserted(() -> {
             scheduledMessages.addAll(tracker2.getScheduledMessages(100));
             assertEquals(scheduledMessages.size(), delayedMessagesInSnapshotValue);
         });
@@ -2055,6 +2061,71 @@ public class BucketDelayedDeliveryTrackerTest extends AbstractDeliveryTrackerTes
 
             Awaitility.await().untilAsserted(() ->
                     assertCountersConsistent(tracker));
+
+            tracker.close();
+        } finally {
+            storage.clean();
+        }
+    }
+
+    @Test
+    public void testSegmentLoadTriggersDispatchWithoutWaitingForTimerTick() throws Exception {
+        AbstractPersistentDispatcherMultipleConsumers testDispatcher =
+                mock(AbstractPersistentDispatcherMultipleConsumers.class);
+        Clock testClock = mock(Clock.class);
+        AtomicLong testClockTime = new AtomicLong();
+        when(testClock.millis()).then(x -> testClockTime.get());
+
+        // Snapshot segment reads wait for the test, so that the first dispatch round finds the load pending
+        CompletableFuture<Void> segmentReads = new CompletableFuture<>();
+        MockBucketSnapshotStorage storage = new MockBucketSnapshotStorage() {
+            @Override
+            public CompletableFuture<List<SnapshotSegment>> getBucketSnapshotSegment(long bucketId,
+                                                                                     long firstSegmentEntryId,
+                                                                                     long lastSegmentEntryId) {
+                return segmentReads.thenCompose(__ -> super.getBucketSnapshotSegment(bucketId, firstSegmentEntryId,
+                        lastSegmentEntryId));
+            }
+        };
+        storage.start();
+
+        ManagedCursor cursor = new MockManagedCursor("test_load_trigger_cursor");
+        doReturn(cursor).when(testDispatcher).getCursor();
+        doReturn("persistent://public/default/testLoadTrigger / " + cursor.getName())
+                .when(testDispatcher).getName();
+
+        try {
+            // The timer never runs its tasks, as if its next tick were far away
+            BucketDelayedDeliveryTracker tracker = new BucketDelayedDeliveryTracker(
+                    testDispatcher, mock(Timer.class), 100000, testClock, true, storage,
+                    5, TimeUnit.MILLISECONDS.toMillis(10), -1, 50);
+
+            // Ledgers 1-5 make a bucket of one-message segments once ledger 6 starts. The first segment stays in
+            // memory, the next ones are loaded from the snapshot one at a time.
+            for (int i = 1; i <= 6; i++) {
+                tracker.addMessage(i, i, i * 10);
+            }
+            assertEquals(tracker.getImmutableBuckets().asMapOfRanges().size(), 1);
+            Awaitility.await().untilAsserted(() -> assertTrue(tracker.getImmutableBuckets().asMapOfRanges().values()
+                    .stream().allMatch(bucket -> bucket.getSnapshotCreateFuture().get().isDone())));
+
+            // All messages are due. Reaching the end of the first segment starts loading the second one, and the
+            // loaded segment's messages must be dispatched without waiting for the timer.
+            testClockTime.set(1000);
+            // A triggered dispatch round can run at once: run the first one right away, and keep what it gets
+            AtomicBoolean roundTriggered = new AtomicBoolean();
+            CompletableFuture<NavigableSet<Position>> firstRound = new CompletableFuture<>();
+            doAnswer(invocation -> {
+                if (roundTriggered.compareAndSet(false, true)) {
+                    firstRound.complete(tracker.getScheduledMessages(10));
+                }
+                return null;
+            }).when(testDispatcher).readMoreEntriesAsync();
+            // The first segment's message is its last one: it waits for the second segment to load
+            assertTrue(tracker.getScheduledMessages(10).isEmpty());
+            segmentReads.complete(null);
+            // The round that the load triggers gets it
+            assertThat(firstRound.get(10, TimeUnit.SECONDS)).contains(PositionFactory.create(1, 1));
 
             tracker.close();
         } finally {

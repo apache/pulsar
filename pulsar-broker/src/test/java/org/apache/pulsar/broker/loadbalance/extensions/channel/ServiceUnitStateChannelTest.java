@@ -1248,6 +1248,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                     .atMost(140, TimeUnit.SECONDS)
                     .untilAsserted(() -> {
                         channel1.publishAssignEventAsync(bundle, brokerId1);
+                        // Check now instead of waiting for the brokers' compaction monitor (every 10 s). The check
+                        // calls the compactor before returning, so this stops after the first compaction.
+                        pulsar1.getBrokerService().checkCompaction();
+                        pulsar2.getBrokerService().checkCompaction();
                         verify(compactor, times(1))
                                 .compact(eq(TOPIC), any());
                     });
@@ -1409,6 +1413,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(Optional.empty(), channel2.getOwnerAsync(bundle).get());
 
         var tableview = getTableView(channel1);
+        var tableview2 = getTableView(channel2);
         var tableviewSpy = spy(tableview);
         var future = CompletableFuture.failedFuture(new RuntimeException());
         doReturn(future).when(tableviewSpy).put(any(), any());
@@ -1421,8 +1426,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .when(loadManager).selectAsync(any(), any(), any());
         channel1.publishAssignEventAsync(bundle, brokerId2);
         // channel1 is broken. the assign won't be complete.
-        waitUntilState(channel1, bundle);
-        waitUntilState(channel2, bundle);
+        waitUntilState(channel1, bundle, Assigning);
+        waitUntilState(channel2, bundle, Assigning);
         var owner1 = channel1.getOwnerAsync(bundle);
         var owner2 = channel2.getOwnerAsync(bundle);
 
@@ -1434,7 +1439,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> assertTrue(owner2.isCompletedExceptionally()));
 
         // recovered, check the monitor update state : Assigned -> Owned
-        setTableView(channel2, tableview);
+        setTableView(channel2, tableview2);
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1, true);
         FieldUtils.writeDeclaredField(channel2,
@@ -1851,6 +1856,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel2, ownedBundle, brokerId2);
         assertEquals(Optional.empty(), channel2.getOwnerAsync(freeBundle).get());
         assertTrue(channel2.getOwnerAsync(deletedBundle).isCompletedExceptionally());
+        // The split ends with the parent bundle Deleted, then removed
+        waitUntilState(channel2, splittingBundle, Init);
         assertTrue(channel2.getOwnerAsync(splittingBundle).get().isEmpty());
 
         // clean-up
@@ -1932,6 +1939,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         waitUntilNewOwner(channel2, releasingBundle1, brokerId2);
         waitUntilNewOwner(channel2, releasingBundle2, brokerId2);
+        // The split ends with the parent bundle Deleted, then removed
+        waitUntilState(channel2, splittingBundle, Init);
         assertTrue(channel2.getOwnerAsync(splittingBundle).get().isEmpty());
         waitUntilNewOwner(channel2, childBundle11, brokerId2);
         waitUntilNewOwner(channel2, childBundle12, brokerId2);
@@ -1996,18 +2005,13 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 "inFlightStateWaitingTimeInMillis", 1000, true);
         var delayedFuture = new CompletableFuture<Object>();
         doReturn(delayedFuture).when(registry).lookupAsync(eq(broker));
-        CompletableFuture.runAsync(() -> {
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            delayedFuture.complete(Optional.of(broker));
-        });
 
         // verify the owner eventually returns in inFlightStateWaitingTimeInMillis.
         long start = System.currentTimeMillis();
-        assertEquals(broker, channel1.getOwnerAsync(bundle).get().get());
+        var delayedOwner = channel1.getOwnerAsync(bundle);
+        assertFalse(delayedOwner.isDone());
+        delayedFuture.complete(Optional.of(broker));
+        assertEquals(broker, delayedOwner.get().get());
         long elapsed = System.currentTimeMillis() - start;
         assertTrue(elapsed < 1000);
 
@@ -2379,7 +2383,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("deprecation")
     private static void waitUntilNewChannelOwner(ServiceUnitStateChannel channel, String oldOwner) {
         Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .pollDelay(0, TimeUnit.MILLISECONDS)
+                .pollInterval(10, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .until(() -> { // wait until true
                     CompletableFuture<Optional<String>> owner = channel.getChannelOwnerAsync();
@@ -2394,7 +2399,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("deprecation")
     private static void waitUntilOwnerChanges(ServiceUnitStateChannel channel, String serviceUnit, String oldOwner) {
         Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .pollDelay(0, TimeUnit.MILLISECONDS)
+                .pollInterval(10, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .until(() -> { // wait until true
                     CompletableFuture<Optional<String>> owner = channel.getOwnerAsync(serviceUnit);
@@ -2408,7 +2414,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     @SuppressWarnings("deprecation")
     private static void waitUntilNewOwner(ServiceUnitStateChannel channel, String serviceUnit, String newOwner) {
         Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .pollDelay(0, TimeUnit.MILLISECONDS)
+                .pollInterval(10, TimeUnit.MILLISECONDS)
                 .atMost(15, TimeUnit.SECONDS)
                 .until(() -> { // wait until true
                     try {
@@ -2438,7 +2445,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             throws IllegalAccessException {
         var tv = getTableView(channel);
         Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .pollDelay(0, TimeUnit.MILLISECONDS)
+                .pollInterval(10, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .until(() -> { // wait until true
                     ServiceUnitStateData actual = tv.get(key);
@@ -2454,7 +2462,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             throws IllegalAccessException {
         var tv = getTableView(channel);
         Awaitility.await()
-                .pollInterval(200, TimeUnit.MILLISECONDS)
+                .pollDelay(0, TimeUnit.MILLISECONDS)
+                .pollInterval(10, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .until(() -> { // wait until true
                     ServiceUnitStateData data = tv.get(key);
