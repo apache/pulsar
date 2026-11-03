@@ -52,6 +52,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -104,12 +105,14 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.transaction.buffer.AbortedTxnProcessor;
 import org.apache.pulsar.broker.transaction.buffer.TransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBuffer;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferProvider;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferRecoverCallBack;
 import org.apache.pulsar.broker.transaction.buffer.impl.TopicTransactionBufferState;
+import org.apache.pulsar.broker.transaction.buffer.impl.TransactionBufferClientStatsImpl;
 import org.apache.pulsar.broker.transaction.buffer.metadata.TransactionBufferSnapshot;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
@@ -118,6 +121,7 @@ import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStore;
 import org.apache.pulsar.broker.transaction.pendingack.impl.MLPendingAckStoreProvider;
 import org.apache.pulsar.broker.transaction.pendingack.impl.PendingAckHandleImpl;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -131,6 +135,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.transaction.Transaction;
+import org.apache.pulsar.client.api.transaction.TransactionBufferClient;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConsumerBase;
@@ -144,9 +149,11 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.common.policies.data.ManagedLedgerInternalStats;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.util.Codec;
@@ -272,6 +279,49 @@ public class TransactionTest extends TransactionTestBase {
                         .put(OpenTelemetryAttributes.PULSAR_TRANSACTION_STATUS, "active")
                         .build(),
                 1);
+    }
+
+    @Test
+    public void testTransactionBufferClientMetricsPerBroker() throws Exception {
+        // A second broker with the transaction coordinator enabled, in the same JVM as this class's broker: its
+        // transaction buffer client must count the operations on its own topics and report its own pending count.
+        @Cleanup
+        PulsarTestContext otherContext = PulsarTestContext.builder()
+                .withMockZookeeper()
+                .configCustomizer(config -> {
+                    config.setAdvertisedAddress("localhost");
+                    config.setTransactionCoordinatorEnabled(true);
+                })
+                .enableOpenTelemetry(true)
+                .build();
+        PulsarService otherPulsar = otherContext.getPulsarService();
+        @Cleanup
+        PulsarAdmin otherAdmin = PulsarAdmin.builder().serviceHttpUrl(otherPulsar.getWebServiceAddress()).build();
+        otherAdmin.clusters().createCluster(CLUSTER_NAME, ClusterData.builder().build());
+        otherAdmin.tenants().createTenant(TENANT, new TenantInfoImpl(Set.of(), Set.of(CLUSTER_NAME)));
+        otherAdmin.namespaces().createNamespace(NAMESPACE1);
+        String topic = BrokerTestUtil.newUniqueName("persistent://" + NAMESPACE1 + "/tb-client-metrics");
+        otherAdmin.topics().createNonPartitionedTopic(topic);
+
+        TransactionBufferClient tbClient = otherPulsar.getTransactionBufferClient();
+        tbClient.commitTxnOnTopic(topic, 1L, 1L, -1L).get();
+        tbClient.abortTxnOnTopic(topic, 1L, 2L, -1L).get();
+
+        var attributes = Attributes.builder()
+                .put(OpenTelemetryAttributes.PULSAR_TENANT, TENANT)
+                .put(OpenTelemetryAttributes.PULSAR_NAMESPACE, NAMESPACE1)
+                .put(OpenTelemetryAttributes.PULSAR_TOPIC, topic)
+                .putAll(OpenTelemetryAttributes.TransactionBufferClientOperationStatus.SUCCESS.attributes)
+                .build();
+        var metrics = otherContext.getOpenTelemetryMetricReader().collectAllMetrics();
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER,
+                attributes.toBuilder().putAll(OpenTelemetryAttributes.TransactionStatus.COMMITTED.attributes).build(),
+                1);
+        assertMetricLongSumValue(metrics, OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER,
+                attributes.toBuilder().putAll(OpenTelemetryAttributes.TransactionStatus.ABORTED.attributes).build(),
+                1);
+        assertMetricLongSumValue(metrics, TransactionBufferClientStatsImpl.PENDING_TRANSACTION_COUNTER,
+                Attributes.empty(), 0);
     }
 
     @Test
