@@ -292,7 +292,9 @@ public class Producer {
             return false;
         }
 
-        if (isAutoProduceBytes && requiresSchemaVersion
+        // Replicators (geo and shadow) copy what the source topic already accepted, including messages without a
+        // schema version. Rejecting such a message would stop the topic's replication: they resend it forever.
+        if (isAutoProduceBytes && requiresSchemaVersion && !isRemoteOrShadow
                 && (cnx.getBrokerService().pulsar().getConfig().isSchemaValidationEnforced()
                 || topic.getSchemaValidationEnforced())) {
             headersAndPayload.markReaderIndex();
