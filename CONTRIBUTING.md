@@ -174,7 +174,9 @@ instead of having retries mask them.
 ### Netty buffer leak detection
 
 Tests enable Netty's `paranoid` leak detection by default, using `ExtendedNettyLeakDetector`
-to include test names in leak reports and write `netty_leak_*.txt` files. Set
+to include test names in leak reports and write `netty_leak_*.txt` files. Leaks are detected with a
+GC after the test methods of each test class and when the test JVM finishes, and a report names the
+test that was running when the leaked buffer was allocated. Set
 `NETTY_LEAK_DUMP_DIR` to choose the output directory (the default is the JVM's temporary directory).
 
 `NETTY_LEAK_DETECTION=report` (the default) reports leaks without failing tests.
