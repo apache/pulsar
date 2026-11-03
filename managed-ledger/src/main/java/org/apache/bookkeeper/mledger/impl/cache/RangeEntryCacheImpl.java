@@ -584,14 +584,27 @@ public class RangeEntryCacheImpl implements EntryCache {
                                 false));
             }
 
-            if (!(cause instanceof BKException
-                    && ((BKException) cause).getCode() == BKException.Code.TooManyRequestsException)) {
-                ml.invalidateLedgerHandle(lh);
-                pendingReadsManager.invalidateLedger(lh.getId());
+            if (cause instanceof BKException
+                    && ((BKException) cause).getCode() == BKException.Code.TooManyRequestsException) {
+                return CompletableFuture.<List<Entry>>failedFuture(cause);
             }
-
-            CompletableFuture<List<Entry>> failedFuture = CompletableFuture.failedFuture(cause);
-            return failedFuture;
+            pendingReadsManager.invalidateLedger(lh.getId());
+            if (!allowRetry) {
+                ml.invalidateLedgerHandle(lh);
+                return CompletableFuture.<List<Entry>>failedFuture(cause);
+            }
+            // The cached handle keeps the ensembles the ledger had when it was opened: read again once if the ledger
+            // was re-replicated since, instead of failing the read and making the cursor back off
+            return ml.reopenLedgerHandleIfReplicated(lh).thenCompose(reopened -> {
+                if (reopened == null) {
+                    return CompletableFuture.<List<Entry>>failedFuture(cause);
+                }
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Read failed on a handle of ledger {} with outdated ensembles, reading again with"
+                            + " the current ones", ml.getName(), lh.getId());
+                }
+                return readFromStorage(reopened, firstEntry, lastEntry, expectedReadCount, false);
+            });
         }).thenCompose(Function.identity());
     }
 
