@@ -1071,7 +1071,7 @@ public class ServerCnxTest {
         assertEquals(topicRef.getProducers().size(), 1);
 
         // Verify the second producer will be reject due to the previous one still is active.
-        // Every second try once, total 10 times, all requests should fail.
+        // Try 10 times, all requests should fail.
         ClientChannel channel2 = new ClientChannel();
         BackGroundExecutor backGroundExecutor1 = startBackgroundExecutorForEmbeddedChannel(channel);
         BackGroundExecutor autoResponseForHeartBeat = autoResponseForHeartBeat(channel, clientChannelHelper);
@@ -1087,13 +1087,18 @@ public class ServerCnxTest {
             assertTrue(response2 instanceof CommandError);
             assertEquals(topicRef.getProducers().size(), 1);
             assertTrue(channel.isActive());
-            Thread.sleep(500);
         }
 
-        // cleanup.
+        // The first connection answered every liveness check, so the checks' timeouts must not close it.
         autoResponseForHeartBeat.close();
         backGroundExecutor1.close();
         backGroundExecutor2.close();
+        channel.advanceTimeBy(svcConfig.getConnectionLivenessCheckTimeoutMillis(), TimeUnit.MILLISECONDS);
+        channel.runPendingTasks();
+        assertTrue(channel.isActive());
+        assertEquals(topicRef.getProducers().size(), 1);
+
+        // cleanup.
         channel.finish();
         channel2.close();
     }
@@ -1106,6 +1111,8 @@ public class ServerCnxTest {
         final MutableInt epoch = new MutableInt(1);
         final Map<String, String> metadata = Collections.emptyMap();
         final String pName = "p1";
+        // The first connection never answers the liveness check, so don't wait the default 5 s for its timeout
+        svcConfig.setConnectionLivenessCheckTimeoutMillis(100);
         resetChannel();
         setChannelConnected();
 
@@ -1151,6 +1158,8 @@ public class ServerCnxTest {
         final String sName = successSubName;
         final String cName1 = RandomStringUtils.randomAlphanumeric(5);
         final String cName2 = RandomStringUtils.randomAlphanumeric(5);
+        // The first connection never answers the liveness check, so don't wait the default 5 s for its timeout
+        svcConfig.setConnectionLivenessCheckTimeoutMillis(100);
         resetChannel();
         setChannelConnected();
 
@@ -1276,6 +1285,13 @@ public class ServerCnxTest {
                 scheduledFuture.cancel(true);
             }
             executor.shutdown();
+            try {
+                // Don't let a run that is still going overlap with what the test does next on the channel
+                executor.awaitTermination(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException(e);
+            }
         }
     }
 
@@ -3673,7 +3689,6 @@ public class ServerCnxTest {
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
         }).when(managedLedgerFactory)
@@ -3682,7 +3697,6 @@ public class ServerCnxTest {
 
         // call openLedgerFailed on ML factory asyncOpen
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             new Thread(() -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null)).start();
 
@@ -3703,7 +3717,6 @@ public class ServerCnxTest {
         doAnswer((Answer<Object>) invocationOnMock -> true).when(cursorMock).isDurable();
 
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
             return null;
         }).when(ledgerMock)
@@ -3711,7 +3724,6 @@ public class ServerCnxTest {
                         any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(cursorMock, null);
             return null;
         }).when(ledgerMock)
@@ -3719,7 +3731,6 @@ public class ServerCnxTest {
                         any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             ((OpenCursorCallback) invocationOnMock.getArguments()[3])
                     .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
@@ -3727,7 +3738,6 @@ public class ServerCnxTest {
                 .asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             ((OpenCursorCallback) invocationOnMock.getArguments()[3])
                     .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
