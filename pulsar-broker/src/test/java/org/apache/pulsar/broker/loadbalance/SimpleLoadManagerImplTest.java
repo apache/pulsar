@@ -80,6 +80,7 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUnitRanking;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.awaitility.Awaitility;
@@ -91,7 +92,7 @@ import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "broker")
-public class SimpleLoadManagerImplTest {
+public class SimpleLoadManagerImplTest extends TestRetrySupport {
 
     public static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
@@ -129,7 +130,9 @@ public class SimpleLoadManagerImplTest {
     private final List<SimpleLoadManagerImpl> loadManagersToStop = new ArrayList<>();
 
     @BeforeClass(alwaysRun = true)
-    void setup() throws Exception {
+    @Override
+    protected void setup() throws Exception {
+        incrementSetupNumber();
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
@@ -188,7 +191,9 @@ public class SimpleLoadManagerImplTest {
     }
 
     @AfterClass(alwaysRun = true)
-    void shutdown() throws Exception {
+    @Override
+    protected void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
         for (SimpleLoadManagerImpl loadManager : loadManagersToStop) {
             loadManager.stop();
