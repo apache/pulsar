@@ -18,7 +18,13 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
@@ -30,7 +36,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.LongAdder;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.commons.lang3.tuple.Pair;
@@ -64,6 +69,8 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         ServiceConfiguration configuration = getDefaultConf();
         configuration.setTransactionCoordinatorEnabled(true);
         super.baseSetup(configuration);
+        // Each new transaction and status change is an add to the coordinator's log: don't make every add sleep 1 ms
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
         admin.tenants().createTenant("pulsar", new TenantInfoImpl(Sets.newHashSet("appid1"), Sets.newHashSet("test")));
         admin.namespaces().createNamespace(NamespaceName.SYSTEM_NAMESPACE.toString());
         createTransactionCoordinatorAssign(16);
@@ -349,21 +356,24 @@ public class TransactionMetadataStoreServiceTest extends BrokerTestBase {
         Field field = TransactionMetadataStoreState.class.getDeclaredField("state");
         field.setAccessible(true);
         field.set(transactionMetadataStore, TransactionMetadataStoreState.State.None);
-        CompletableFuture<Void> completableFuture = null;
-        try {
-            completableFuture = pulsar.getTransactionMetadataStoreService().endTransaction(txnID,
-                    TxnAction.COMMIT.getValue(),
-                    false);
-            completableFuture.get(5, TimeUnit.SECONDS);
-            fail();
-        } catch (Exception e) {
-            if (txnStatus == TxnStatus.OPEN || txnStatus == TxnStatus.COMMITTING) {
-                assertTrue(e instanceof TimeoutException);
-            } else if (txnStatus == TxnStatus.ABORTING) {
-                assertTrue(e.getCause() instanceof CoordinatorException.InvalidTxnStatusException);
-            } else {
+        // The retries of an end op started on the spy run on the spy too, so it counts them
+        TransactionMetadataStoreService transactionMetadataStoreService =
+                spy(pulsar.getTransactionMetadataStoreService());
+        CompletableFuture<Void> completableFuture = transactionMetadataStoreService.endTransaction(txnID,
+                TxnAction.COMMIT.getValue(),
+                false);
+        if (txnStatus == TxnStatus.ABORTING) {
+            try {
+                completableFuture.get(5, TimeUnit.SECONDS);
                 fail();
+            } catch (ExecutionException e) {
+                assertTrue(e.getCause() instanceof CoordinatorException.InvalidTxnStatusException);
             }
+        } else {
+            // While the store isn't ready, the op is retried instead of failing
+            Awaitility.await().untilAsserted(() -> verify(transactionMetadataStoreService, atLeast(2))
+                    .endTransaction(eq(txnID), eq(TxnAction.COMMIT.getValue()), eq(false), any()));
+            assertFalse(completableFuture.isDone());
         }
 
         assertEquals(txnMeta.status(), txnStatus);
