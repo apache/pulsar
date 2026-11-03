@@ -213,8 +213,16 @@ public class ZeroQueueConsumerImpl<T> extends ConsumerImpl<T> {
                 log.error("[{}][{}] Message listener error in processing unqueued message: {}", topic, subscription,
                         message.getMessageId(), t);
             }
-            increaseAvailablePermits(cnx());
-            waitingOnListenerForZeroQueueSize = false;
+            synchronized (ZeroQueueConsumerImpl.this) {
+                waitingOnListenerForZeroQueueSize = false;
+                // A reconnect replaces old credits with its initial grant after flushing pending ACKs.
+                // A failed unsubscribe keeps the subscription and must return any deferred credit instead.
+                if (isConnected()) {
+                    increaseAvailablePermits(cnx());
+                } else {
+                    addAvailablePermits(1);
+                }
+            }
         });
     }
 
