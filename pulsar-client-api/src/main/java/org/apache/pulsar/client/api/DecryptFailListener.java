@@ -38,7 +38,7 @@ import org.apache.pulsar.common.classification.InterfaceStability;
 public interface DecryptFailListener<T> extends Serializable {
     /**
      * This method is called whenever a new encrypted message is received and cannot be decrypted successfully
-     * by {@link CryptoKeyReader}
+     * by {@link CryptoKeyReader}.
      * <p>Messages are guaranteed to be delivered in order and from the same thread for a single consumer
      *
      * <p>This method will only be called once for each encrypted message.

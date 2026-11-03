@@ -266,7 +266,7 @@ public interface ClientBuilder extends Serializable, Cloneable {
     ClientBuilder operationTimeout(int operationTimeout, TimeUnit unit);
 
     /**
-     * Set lookup timeout <i>(default: matches operation timeout)</i>
+     * Set lookup timeout <i>(default: matches operation timeout)</i>.
      *
      * <p>
      * Lookup operations have a different load pattern to other operations.

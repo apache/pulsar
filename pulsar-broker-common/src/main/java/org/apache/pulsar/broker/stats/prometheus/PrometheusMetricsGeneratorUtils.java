@@ -31,7 +31,7 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
  * Generate metrics in a text format suitable to be consumed by Prometheus.
- * Format specification can be found at {@link https://prometheus.io/docs/instrumenting/exposition_formats/}
+ * Format specification can be found at <a href="https://prometheus.io/docs/instrumenting/exposition_formats/">exposition formats</a>
  */
 public class PrometheusMetricsGeneratorUtils {
 

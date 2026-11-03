@@ -57,6 +57,8 @@ class NegativeAcksTracker implements Closeable {
     private final int negativeAckPrecisionBitCnt;
 
     private Timeout timeout;
+    // Time at which the pending timeout fires. Only meaningful while timeout is not null.
+    private long timeoutDeadlineMs;
 
     // Set a min delay to allow for grouping nacks within a single batch
     private static final long MIN_NACK_DELAY_MS = 100;
@@ -74,6 +76,10 @@ class NegativeAcksTracker implements Closeable {
     private void triggerRedelivery(Timeout t) {
         Set<MessageId> messagesToRedeliver = new HashSet<>();
         synchronized (this) {
+            if (t != this.timeout) {
+                // The timeout was replaced by an earlier one or the tracker was closed
+                return;
+            }
             if (nackedMessages.isEmpty()) {
                 this.timeout = null;
                 return;
@@ -124,9 +130,9 @@ class NegativeAcksTracker implements Closeable {
                 long nextTriggerTimestamp = nackedMessages.firstLongKey();
                 long delayMs = Math.max(nextTriggerTimestamp - currentTimestamp, 0);
                 if (delayMs > 0) {
-                    this.timeout = timer.newTimeout(this::triggerRedelivery, delayMs, TimeUnit.MILLISECONDS);
+                    scheduleRedelivery(delayMs);
                 } else {
-                    this.timeout = timer.newTimeout(this::triggerRedelivery, 0, TimeUnit.MILLISECONDS);
+                    scheduleRedelivery(0);
                 }
             } else {
                 this.timeout = null;
@@ -177,7 +183,8 @@ class NegativeAcksTracker implements Closeable {
             backoffMs = nackDelayMs;
         }
         MessageIdAdv messageIdAdv = (MessageIdAdv) messageId;
-        long timestamp = trimLowerBit(System.currentTimeMillis() + backoffMs, negativeAckPrecisionBitCnt);
+        long triggerTimestamp = System.currentTimeMillis() + backoffMs;
+        long timestamp = trimLowerBit(triggerTimestamp, negativeAckPrecisionBitCnt);
         nackedMessages.computeIfAbsent(timestamp, k -> new Long2ObjectOpenHashMap<>())
                 .computeIfAbsent(messageIdAdv.getLedgerId(), k -> new Roaring64Bitmap())
                 .add(messageIdAdv.getEntryId());
@@ -185,8 +192,19 @@ class NegativeAcksTracker implements Closeable {
         if (this.timeout == null) {
             // Schedule a task and group all the redeliveries for same period. Leave a small buffer to allow for
             // nack immediately following the current one will be batched into the same redeliver request.
-            this.timeout = timer.newTimeout(this::triggerRedelivery, backoffMs, TimeUnit.MILLISECONDS);
+            scheduleRedelivery(backoffMs);
+        } else if (triggerTimestamp < timeoutDeadlineMs) {
+            // With a redelivery backoff, this message can be due earlier than the pending timeout. Replace the
+            // timeout, otherwise the message would wait for the later one. triggerRedelivery schedules the
+            // timeout for the remaining messages once it has run.
+            this.timeout.cancel();
+            scheduleRedelivery(backoffMs);
         }
+    }
+
+    private void scheduleRedelivery(long delayMs) {
+        this.timeoutDeadlineMs = System.currentTimeMillis() + delayMs;
+        this.timeout = timer.newTimeout(this::triggerRedelivery, delayMs, TimeUnit.MILLISECONDS);
     }
 
     /**

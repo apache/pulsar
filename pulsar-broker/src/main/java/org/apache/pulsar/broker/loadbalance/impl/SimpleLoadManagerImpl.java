@@ -736,7 +736,7 @@ public class SimpleLoadManagerImpl implements LoadManager, Consumer<Notification
      * distribution: fill up one broker till its load reaches optimum level (defined by underload threshold) before pull
      * another idle broker in; 2) Even distribution: once all brokers' load are above optimum level, maintain all
      * brokers to have even load; 3) Set the underload threshold to small value (like 1) for pure even distribution, and
-     * high value (like 80) for pure optimum distribution;
+     * high value (like 80) for pure optimum distribution.
      * <p>
      * Strategy to select broker: 1) The first choice is the least loaded broker which is underload but not idle; 2) The
      * second choice is idle broker (if there is any); 3) Otherwise simply select the least loaded broker if it is NOT

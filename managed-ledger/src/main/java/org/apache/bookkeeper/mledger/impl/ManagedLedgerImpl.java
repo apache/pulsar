@@ -716,6 +716,26 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             @Override
             public void operationFailed(MetaStoreException e) {
                 handleBadVersion(e);
+                if (e instanceof BadVersionException) {
+                    // BadVersion proves this ledger was never published. Fenced close skips write handles,
+                    // so close this handle before deleting the orphan. Other failures can have committed the write.
+                    LedgerHandle unpublishedLedger = currentLedger;
+                    unpublishedLedger.closeAsync().whenComplete((__, error) -> {
+                        if (error != null) {
+                            log.debug().exception(error)
+                                    .log("Failed to close an unpublished ledger after initialization");
+                        }
+                        mbean.startDataLedgerDeleteOp();
+                        asyncDeleteLedgerWithConcurrencyLimit(unpublishedLedger.getId(), (rc, ctx) -> {
+                            mbean.endDataLedgerDeleteOp();
+                            if (rc != BKException.Code.OK) {
+                                log.debug().attr("ledgerId", unpublishedLedger.getId())
+                                        .attr("rc", BKException.getMessage(rc))
+                                        .log("Failed to delete an unpublished ledger after initialization");
+                            }
+                        }, null);
+                    });
+                }
                 callback.initializeFailed(new ManagedLedgerException(e));
             }
         };
@@ -3365,6 +3385,32 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void updateActiveCursor(ManagedCursorImpl cursor, Position newPosition) {
+        // The cursor publishes its position before notifying us. An active cursor has already been registered,
+        // and any later activation will snapshot that published position, so ordinary reads need no monitor.
+        if (cursor.isActive()) {
+            updateActiveCursorPosition(cursor, newPosition);
+            return;
+        }
+        // Activation snapshots the position and adds the cursor before publishing its active flag. Serialize
+        // an inactive cursor's notification with those steps so it cannot be lost before the insertion.
+        synchronized (activeCursors) {
+            // Waiting can make the notification's argument stale. Reconcile with the published position,
+            // and retry if an active update overtakes this snapshot before it reaches the container.
+            Position currentPosition;
+            do {
+                currentPosition = getCursorPositionForCacheEviction(cursor);
+                updateActiveCursorPosition(cursor, currentPosition);
+            } while (!currentPosition.equals(getCursorPositionForCacheEviction(cursor)));
+        }
+    }
+
+    private Position getCursorPositionForCacheEviction(ManagedCursor cursor) {
+        Position position = config.isCacheEvictionByMarkDeletedPosition()
+                ? cursor.getMarkDeletedPosition() : cursor.getReadPosition();
+        return position != null ? position : PositionFactory.EARLIEST;
+    }
+
+    private void updateActiveCursorPosition(ManagedCursorImpl cursor, Position newPosition) {
         if (config.isCacheEvictionByExpectedReadCount()) {
             activeCursors.updateCursor(cursor, newPosition);
         } else {
@@ -3525,27 +3571,47 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         automaticOffloadCompletion.whenComplete((res, ex) -> finishAutomaticOffload(ex));
         try {
             maybeOffloadInBackground(automaticOffloadCompletion, OffloadRequestSource.AUTOMATIC);
-        } catch (RuntimeException e) {
-            automaticOffloadCompletion.completeExceptionally(e);
+        } catch (Throwable t) {
+            failOffload(automaticOffloadCompletion, t);
         }
     }
 
     private void maybeOffloadInBackground(CompletableFuture<Position> promise, OffloadRequestSource source) {
-        Optional<OffloadThresholds> offloadThresholds = getOffloadThresholds();
-        if (offloadThresholds.isEmpty()) {
-            if (source == OffloadRequestSource.AUTOMATIC) {
-                promise.complete(PositionFactory.LATEST);
-            }
-            return;
-        }
-
-        OffloadThresholds thresholds = offloadThresholds.get();
         try {
-            executor.execute(() -> maybeOffload(thresholds.thresholdInBytes(), thresholds.thresholdInSeconds(),
-                    promise, source));
-        } catch (RuntimeException e) {
-            promise.completeExceptionally(e);
+            Optional<OffloadThresholds> offloadThresholds = getOffloadThresholds();
+            if (offloadThresholds.isEmpty()) {
+                if (source == OffloadRequestSource.AUTOMATIC) {
+                    promise.complete(PositionFactory.LATEST);
+                }
+                return;
+            }
+
+            OffloadThresholds thresholds = offloadThresholds.get();
+            executor.execute(() -> {
+                try {
+                    maybeOffload(thresholds.thresholdInBytes(), thresholds.thresholdInSeconds(), promise, source);
+                } catch (Throwable t) {
+                    // Complete the promise so that an automatic offload run is not left running forever.
+                    failOffload(promise, t);
+                }
+            });
+        } catch (Throwable t) {
+            failOffload(promise, t);
         }
+    }
+
+    /**
+     * Completes an offload promise with a failure that was thrown instead of being reported through the promise.
+     * Such a failure is unexpected, apart from executor rejection on shutdown, so it is logged at WARN level:
+     * the automatic offload completion handler logs the failures it receives only at DEBUG level.
+     */
+    private void failOffload(CompletableFuture<Position> promise, Throwable t) {
+        if (t instanceof RejectedExecutionException) {
+            log.debug().exception(t).log("Offload task was rejected");
+        } else {
+            log.warn().exception(t).log("Unexpected failure while offloading ledgers");
+        }
+        promise.completeExceptionally(t);
     }
 
     private Optional<OffloadThresholds> getOffloadThresholds() {
@@ -4493,6 +4559,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     void offloadLoop(CompletableFuture<Position> promise, Queue<LedgerInfo> ledgersToOffload,
             Position firstUnoffloaded, Optional<Throwable> firstError) {
+        // The loop continues from callbacks of the previous ledger's offload, where a synchronous throw would be
+        // lost. Complete the promise instead so that the offload mutex is released.
+        try {
+            offloadNextLedger(promise, ledgersToOffload, firstUnoffloaded, firstError);
+        } catch (Throwable t) {
+            failOffload(promise, t);
+        }
+    }
+
+    private void offloadNextLedger(CompletableFuture<Position> promise, Queue<LedgerInfo> ledgersToOffload,
+            Position firstUnoffloaded, Optional<Throwable> firstError) {
         State currentState = getState();
         if (currentState == State.Closed) {
             promise.completeExceptionally(new ManagedLedgerAlreadyClosedException(
@@ -5165,13 +5242,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     public void activateCursor(ManagedCursor cursor) {
         synchronized (activeCursors) {
             if (!isCursorActive(cursor)) {
-                Position positionForOrdering = config.isCacheEvictionByMarkDeletedPosition()
-                        ? cursor.getMarkDeletedPosition()
-                        : cursor.getReadPosition();
-                if (positionForOrdering == null) {
-                    positionForOrdering = PositionFactory.EARLIEST;
-                }
-                activeCursors.add(cursor, positionForOrdering);
+                activeCursors.add(cursor, getCursorPositionForCacheEviction(cursor));
             }
         }
     }

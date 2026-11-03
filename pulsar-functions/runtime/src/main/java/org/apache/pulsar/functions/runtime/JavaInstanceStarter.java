@@ -38,6 +38,7 @@ import net.bytebuddy.description.type.TypeDefinition;
 import net.bytebuddy.dynamic.ClassFileLocator;
 import net.bytebuddy.pool.TypePool;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.common.nar.NarClassLoader;
@@ -282,6 +283,10 @@ public class JavaInstanceStarter implements AutoCloseable {
                 close();
             } catch (Exception ex) {
                 System.err.println(ex);
+            } finally {
+                // Log4j2's own shutdown hook is disabled for the instance JVM (see RuntimeUtils), so flush and
+                // stop logging here, after the instance, including the user's Sink/Source/Function, is closed.
+                LogManager.shutdown();
             }
         }));
 

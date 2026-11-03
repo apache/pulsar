@@ -96,6 +96,7 @@ import org.apache.pulsar.broker.service.persistent.BrokerServicePersistInternalM
 import org.apache.pulsar.broker.service.persistent.GeoPersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.persistent.ShortPolicyRetryTopic;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsClient;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor.TestManagedLedgerStorage;
@@ -180,6 +181,7 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                                      LocalBookkeeperEnsemble bookkeeperEnsemble, ZookeeperServerTest brokerConfigZk) {
         super.setConfigDefaults(config, clusterName, bookkeeperEnsemble, brokerConfigZk);
         config.setManagedLedgerStorageClassName(TestManagedLedgerStorage.class.getName());
+        config.setTopicFactoryClassName(ShortPolicyRetryTopic.Factory.class.getName());
     }
 
     // Verifies the deprecated inbound msgRateIn/msgThroughputIn replicator stats, which are still reported.
@@ -289,14 +291,13 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                                                      boolean localProducerHasTraffic,
                                                      boolean hasRemoteProducerTraffic,
                                                      boolean hasRemoteProducerRegistered) throws Exception {
+        // Traffic is published every second, so a replicator with traffic never stays idle this long.
+        final int inactiveThresholdSeconds = 5;
         ScheduledExecutorService executor1 = Executors.newScheduledThreadPool(1);
         ScheduledExecutorService executor2 = Executors.newScheduledThreadPool(1);
-        ScheduledFuture<?> checkInactiveTopic = executor1.scheduleWithFixedDelay(() -> {
-            pulsar1.getBrokerService().checkInactiveReplication();
-        }, 10, 10, TimeUnit.SECONDS);
         // local cluster: let inactive replicator check faster.
         int replicationInactiveThresholdSeconds1 = pulsar1.getConfig().getBrokerReplicationInactiveThresholdSeconds();
-        pulsar1.getConfig().setBrokerReplicationInactiveThresholdSeconds(30);
+        pulsar1.getConfig().setBrokerReplicationInactiveThresholdSeconds(inactiveThresholdSeconds);
         // remote cluster: let inactive topic deletion never occur.
         int replicationInactiveThresholdSeconds2 = pulsar2.getConfig().getBrokerReplicationInactiveThresholdSeconds();
         pulsar2.getConfig().setBrokerReplicationInactiveThresholdSeconds(3600 * 24);
@@ -353,32 +354,38 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         }
 
         // Verify: all states match params.
-        Thread.sleep(3000);
-        // All states match: local producers.
-        if (!hasLocalProducerRegistered) {
-            assertFalse(persistentTopic1.getProducers().values().stream()
-                    .filter(p -> !p.isRemote()).findAny().isPresent());
-        } else {
-            Optional<org.apache.pulsar.broker.service.Producer> serviceProducer1 = persistentTopic1.getProducers()
-                    .values().stream().filter(p -> !p.isRemote()).findAny();
-            assertTrue(serviceProducer1.isPresent());
-        }
-        // All states match: remote producers.
-        if (binaryWayRepl) {
-            if (!hasRemoteProducerRegistered) {
+        Awaitility.await().untilAsserted(() -> {
+            // All states match: local producers.
+            if (!hasLocalProducerRegistered) {
                 assertFalse(persistentTopic1.getProducers().values().stream()
-                        .filter(p -> p.isRemote()).findAny().isPresent());
+                        .filter(p -> !p.isRemote()).findAny().isPresent());
             } else {
                 Optional<org.apache.pulsar.broker.service.Producer> serviceProducer1 = persistentTopic1.getProducers()
-                        .values().stream().filter(p -> p.isRemote()).findAny();
+                        .values().stream().filter(p -> !p.isRemote()).findAny();
                 assertTrue(serviceProducer1.isPresent());
             }
-        }
+            // All states match: remote producers.
+            if (binaryWayRepl) {
+                if (!hasRemoteProducerRegistered) {
+                    assertFalse(persistentTopic1.getProducers().values().stream()
+                            .filter(p -> p.isRemote()).findAny().isPresent());
+                } else {
+                    Optional<org.apache.pulsar.broker.service.Producer> serviceProducer1 =
+                            persistentTopic1.getProducers().values().stream().filter(p -> p.isRemote()).findAny();
+                    assertTrue(serviceProducer1.isPresent());
+                }
+            }
+        });
+
+        // Check every second, from the time a replicator without traffic has been idle past the threshold.
+        ScheduledFuture<?> checkInactiveTopic = executor1.scheduleWithFixedDelay(() -> {
+            pulsar1.getBrokerService().checkInactiveReplication();
+        }, inactiveThresholdSeconds, 1, TimeUnit.SECONDS);
 
         // Verify: replicator terminated or not.
         if (hasRemoteProducerTraffic || localProducerHasTraffic) {
             long verifyStartTime = System.currentTimeMillis();
-            while (System.currentTimeMillis() - verifyStartTime < 100_000) {
+            while (System.currentTimeMillis() - verifyStartTime < 3 * inactiveThresholdSeconds * 1000L) {
                 assertFalse(persistentTopic1.getReplicators().isEmpty());
                 PersistentReplicator persistentReplicator =
                         (PersistentReplicator) persistentTopic1.getReplicators().get(cluster2);
@@ -387,12 +394,13 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
                 Thread.sleep(1000);
             }
         } else {
-            Thread.sleep(100_000);
-            assertFalse(persistentTopic1.getReplicators().isEmpty());
-            PersistentReplicator persistentReplicatorA =
-                    (PersistentReplicator) persistentTopic1.getReplicators().get(cluster2);
-            assertFalse(persistentReplicatorA.isConnected());
-            assertEquals(persistentReplicatorA.getState(), AbstractReplicator.State.Disconnected);
+            Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() -> {
+                assertFalse(persistentTopic1.getReplicators().isEmpty());
+                PersistentReplicator persistentReplicatorA =
+                        (PersistentReplicator) persistentTopic1.getReplicators().get(cluster2);
+                assertFalse(persistentReplicatorA.isConnected());
+                assertEquals(persistentReplicatorA.getState(), AbstractReplicator.State.Disconnected);
+            });
 
             // Verify: resume.
             if (hasRemoteProducerRegistered && !hasRemoteProducerTraffic) {
@@ -2120,11 +2128,13 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         ConcurrentHashMap<String, TopicName> topicNameCache =
                 (ConcurrentHashMap<String, TopicName>) fieldTopicNameCache.get(null);
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + nonReplicatedNamespace + "/tp_");
-        // 1.Create topic, does not enable replication now.
+        // 1.Create topic, does not enable replication now. The topic retries a failed policy update after 1s
+        //   instead of "PersistentTopic.POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS" (60s).
+        ShortPolicyRetryTopic.Factory.register(topicName);
         admin1.topics().createNonPartitionedTopic(topicName);
         Producer<byte[]> producer1 = client1.newProducer().topic(topicName).create();
-        PersistentTopic persistentTopic =
-                (PersistentTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
+        ShortPolicyRetryTopic persistentTopic =
+                (ShortPolicyRetryTopic) pulsar1.getBrokerService().getTopic(topicName, false).join().get();
 
         // We inject an error to make "start replicator" to fail.
         DualMetadataStore dms = (DualMetadataStore) pulsar1.getConfigurationMetadataStore();
@@ -2133,24 +2143,27 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
         String path = "/admin/partitioned-topics/" + TopicName.get(topicName).getPersistenceNamingEncoding();
         existsCache.put(path, CompletableFuture.completedFuture(true));
 
-        // 2.Enable replication and unload topic after failed to start replicator.
+        // 2.Enable replication and unload topic after failed to start replicator. The error is still injected, so
+        //   the topic keeps retrying until it is closed, and a retry is pending when it is.
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1, cluster2));
-        Thread.sleep(3000);
+        Awaitility.await().until(() -> persistentTopic.getFailedReplicationChecks() > 0);
         producer1.close();
-        existsCache.synchronous().invalidate(path);
         admin1.topics().unload(topicName);
         // Verify: the "start replicator retry task" will be skipped after the topic is closed.
-        // - Retry delay is "PersistentTopic.POLICY_UPDATE_FAILURE_RETRY_TIME_SECONDS": 60s, so wait for 70s.
+        // - Wait for the pending retry to run on the closed topic: it must not start a replication check.
         // - Since the topic should not be touched anymore, we use "TopicName" to confirm whether it be used by
         //   Replication again.
-        Thread.sleep(10 * 1000);
         topicNameCache.remove(topicName);
-        Thread.sleep(60 * 1000);
+        Awaitility.await().until(() -> persistentTopic.getRetriesAfterClose() > 0);
+        assertThat(persistentTopic.getReplicationChecksAfterClose())
+                .as("replication checks started after the topic was closed").isZero();
         assertTrue(!topicNameCache.containsKey(topicName));
 
         // cleanup.
+        existsCache.synchronous().invalidate(path);
         admin1.topics().setReplicationClusters(topicName, Arrays.asList(cluster1));
         admin1.topics().delete(topicName, false);
+        ShortPolicyRetryTopic.Factory.unregister(topicName);
     }
 
     @DataProvider
@@ -2692,7 +2705,8 @@ public class OneWayReplicatorTest extends OneWayReplicatorTestBase {
     public void testReplicatorContinuesAfterRateLimiterHasNoPermits(int messageRate, long byteRate) throws Exception {
         final String topicName = BrokerTestUtil.newUniqueName("persistent://" + replicatedNamespace + "/tp_");
         final String subscriptionName = "sub";
-        final List<String> messages = Arrays.asList("msg-0", "msg-1", "msg-2");
+        // One-byte payloads use up a one-byte limit per message, without a debt that takes more periods to repay.
+        final List<String> messages = Arrays.asList("0", "1", "2");
         DispatchRate dispatchRate = DispatchRate.builder()
                 .dispatchThrottlingRateInMsg(messageRate)
                 .dispatchThrottlingRateInByte(byteRate)
