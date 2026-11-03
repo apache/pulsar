@@ -48,6 +48,7 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.DelayedDeliveryPolicies;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
@@ -62,10 +63,14 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
     @Override
     @BeforeClass
     public void setup() throws Exception {
-        conf.setDelayedDeliveryTickTimeMillis(1024);
+        // Delayed messages can be delivered up to a tick early: the messages delayed by 2 s stay back for 1.9 s
+        conf.setDelayedDeliveryTickTimeMillis(100);
         conf.setDispatcherReadFailureBackoffInitialTimeInMs(1000);
         super.internalSetup();
         super.producerBaseSetup();
+        // With the mock BookKeeper's default 1 ms per add, publishing 1000 messages would take about as long as the
+        // delays: the tests check that nothing is delivered once they are published
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
     }
 
     @Override
@@ -106,7 +111,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(2, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
@@ -169,7 +174,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
             producer.newMessage()
                     .value("delayed-msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(2, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
@@ -216,17 +221,20 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(2, TimeUnit.SECONDS)
                     .send();
         }
 
-        Thread.sleep(1000);
+        // The dispatcher has read the first batch and filtered all of it
+        Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(TopicName.get(topic).toString()).get()
+                .getSubscription("shared-sub").getDispatcher();
+        Awaitility.await().untilAsserted(() -> assertEquals(dispatcher.getNumberOfDelayedMessages(), 10));
 
         // Write a 2nd batch of messages
         for (int i = 10; i < 20; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(2, TimeUnit.SECONDS)
                     .send();
         }
 
@@ -288,7 +296,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < num; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(2, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
@@ -331,7 +339,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < num; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(2, TimeUnit.SECONDS)
                     .send();
         }
 
@@ -424,17 +432,17 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage()
                     .value("delayed-msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(4, TimeUnit.SECONDS)
                     .sendAsync();
         }
         producer.flush();
 
-        //4 There will be no message in the first 3 seconds
-        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+        //4 There will be no message in the first second
+        assertNull(consumer.receive(1, TimeUnit.SECONDS));
 
         Set<String> delayedMessages = new HashSet<>();
         for (int i = 0; i < 10; i++) {
-            Message<String> msg = consumer.receive(4, TimeUnit.SECONDS);
+            Message<String> msg = consumer.receive(5, TimeUnit.SECONDS);
             delayedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
         }
@@ -485,7 +493,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                 break;
             }
         }
-        producer.newMessage().value("long-tick-msg").deliverAfter(3, TimeUnit.SECONDS).send();
+        producer.newMessage().value("long-tick-msg").deliverAfter(2, TimeUnit.SECONDS).send();
         msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);
         msg = consumer.receive(4, TimeUnit.SECONDS);
@@ -538,7 +546,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
 
         producer.newMessage()
                     .value("msg")
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(2, TimeUnit.SECONDS)
                     .send();
 
         Dispatcher dispatcher = pulsar.getBrokerService().getTopicReference(topic)
@@ -591,12 +599,12 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
                     .value("immediate-msg-" + i)
                     .sendAsync();
 
-            int delayMillis = 1000 + random.nextInt(1000);
+            int delayMillis = 300 + random.nextInt(300);
             producer.newMessage()
                     .value("delayed-msg-" + i)
                     .deliverAfter(delayMillis, TimeUnit.MILLISECONDS)
                     .sendAsync();
-            Thread.sleep(1000);
+            Thread.sleep(300);
         }
 
         producer.flush();
@@ -629,7 +637,7 @@ public class DelayedDeliveryTest extends ProducerConsumerBase {
         for (int i = 0; i < 10; i++) {
             producer.newMessage()
                     .value("msg-" + i)
-                    .deliverAfter(5, TimeUnit.SECONDS)
+                    .deliverAfter(2, TimeUnit.SECONDS)
                     .sendAsync();
         }
 
