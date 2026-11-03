@@ -39,6 +39,11 @@ import org.testng.annotations.Test;
 @CustomLog
 public class DelayMessagingTest extends PulsarTestSuite {
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test(dataProvider = "ServiceUrls")
     public void delayMsgBlockTest(Supplier<String> serviceUrl) throws Exception {
         String nsName = generateNamespaceName();

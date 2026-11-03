@@ -33,6 +33,11 @@ import org.testng.annotations.Test;
 
 public class NonDurableConsumerMessagingTest extends MessagingBase {
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test(dataProvider = "ServiceUrls")
     public void testNonDurableConsumer(Supplier<String> serviceUrl) throws Exception {
         // Persistent: the non-durable subscription starts from the earliest of the messages published before it
