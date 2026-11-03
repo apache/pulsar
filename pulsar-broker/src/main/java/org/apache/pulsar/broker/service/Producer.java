@@ -292,7 +292,9 @@ public class Producer {
             return false;
         }
 
-        if (isAutoProduceBytes && requiresSchemaVersion
+        // Replicators (geo and shadow) copy what the source topic already accepted, including messages without a
+        // schema version. Rejecting such a message would stop the topic's replication: they resend it forever.
+        if (isAutoProduceBytes && requiresSchemaVersion && !isRemoteOrShadow
                 && (cnx.getBrokerService().pulsar().getConfig().isSchemaValidationEnforced()
                 || topic.getSchemaValidationEnforced())) {
             headersAndPayload.markReaderIndex();
@@ -300,11 +302,9 @@ public class Producer {
             headersAndPayload.resetReaderIndex();
             if (!msgMetadata.hasSchemaVersion() || msgMetadata.getSchemaVersion().length == 0) {
                 // NotAllowedError fails just this send, while clients resend a message rejected with
-                // MetadataError until the send timeout expires. Replicators keep MetadataError: they have no
-                // send timeout and would read and resend a failed message again at once, in a busy loop.
-                ServerError error = isRemoteOrShadow ? ServerError.MetadataError : ServerError.NotAllowedError;
+                // MetadataError until the send timeout expires.
                 cnx.execute(() -> {
-                    cnx.getCommandSender().sendSendError(producerId, sequenceId, error,
+                    cnx.getCommandSender().sendSendError(producerId, sequenceId, ServerError.NotAllowedError,
                             "Messages from AUTO_PRODUCE_BYTES producers must include a schema version "
                                     + "when schema validation is enforced");
                     cnx.completedSendOperation(isNonPersistentTopic, headersAndPayload.readableBytes());

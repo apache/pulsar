@@ -27,6 +27,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.INTEGER;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertEquals;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -561,19 +562,17 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 .subscriptionName(subName).subscriptionInitialPosition(
                         SubscriptionInitialPosition.Earliest).subscribe();
 
-        int counter = 0;
-        while (true) {
+        for (int i = 0; i < 40; i++) {
             Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
-            if (message != null) {
-                counter++;
-                assertNotEquals(message.getValue(), "producer2-message");
-                consumer.acknowledge(message);
-            } else {
-                break;
-            }
+            assertNotNull(message);
+            assertNotEquals(message.getValue(), "producer2-message");
+            consumer.acknowledge(message);
         }
-
-        assertEquals(40, counter);
+        // The filter reschedules producer2's message each time it reads it. Once it was read again, after the
+        // reschedule delay, nothing more comes.
+        Awaitility.await().untilAsserted(() -> assertThat(admin.topics().getStats(topic).getSubscriptions()
+                .get(subName).getFilterRescheduledMsgCount()).isGreaterThanOrEqualTo(2));
+        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
 
         ConsumerStats consumerStats =
                 admin.topics().getStats(topic).getSubscriptions().get(subName).getConsumers().get(0);
