@@ -61,6 +61,7 @@ import org.apache.pulsar.broker.loadbalance.ModularLoadManager;
 import org.apache.pulsar.broker.loadbalance.ModularLoadManagerStrategy;
 import org.apache.pulsar.broker.loadbalance.extensions.models.TopKBundles;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
+import org.apache.pulsar.broker.namespace.ServiceUnitUtils;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.stats.prometheus.metrics.Summary;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -78,6 +79,7 @@ import org.apache.pulsar.common.util.Reflections;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LockManager;
 import org.apache.pulsar.metadata.api.coordination.ResourceLock;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
@@ -103,6 +105,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
 
     // The number of effective samples to keep for observing short term data.
     public static final int NUM_SHORT_SAMPLES = 10;
+
+    // Prefix of the metadata store path of a bundle's ownership, followed by the bundle name.
+    private static final String BUNDLE_OWNERSHIP_PATH_PREFIX = ServiceUnitUtils.OWNER_INFO_ROOT + "/";
 
     // Set of broker candidates to reuse so that object creation is avoided.
     private final Set<String> brokerCandidateCache;
@@ -331,6 +336,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
             } catch (RejectedExecutionException e) {
                 // Executor is shutting down
             }
+        } else if (t.getType() == NotificationType.Deleted && t.getPath().startsWith(BUNDLE_OWNERSHIP_PATH_PREFIX)) {
+            // The bundle was released, e.g. unloaded to move it elsewhere: its next assignment selects a broker again.
+            preallocatedBundleToBroker.remove(t.getPath().substring(BUNDLE_OWNERSHIP_PATH_PREFIX.length()));
         }
     }
 
@@ -678,8 +686,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager {
                     Stream.of(statsMap.keySet(), preallocatedBundleData.keySet()).flatMap(Collection::stream));
         }
 
-        // A bundle stays preallocated until its broker reports it as loaded, or the broker is gone: until then, the
-        // broker may still be acquiring it, and another lookup of the bundle must not select a different broker.
+        // A bundle stays preallocated until its broker reports it as loaded, the bundle is released (see
+        // handleDataNotification()), or the broker is gone: until then, the broker may still be acquiring it, and
+        // another lookup of the bundle must not select a different broker.
         preallocatedBundleToBroker.entrySet().removeIf(preallocation -> {
             final BrokerData brokerData = loadData.getBrokerData().get(preallocation.getValue());
             return brokerData == null || brokerData.getLocalData().getBundles().contains(preallocation.getKey());

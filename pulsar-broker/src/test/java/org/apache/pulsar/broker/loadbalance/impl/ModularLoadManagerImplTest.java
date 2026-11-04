@@ -801,6 +801,27 @@ public class ModularLoadManagerImplTest {
     }
 
     @Test
+    public void testPreallocationIsRemovedOnceTheBundleIsUnloaded() throws Exception {
+        admin1.clusters().createCluster("use", ClusterData.builder()
+                .serviceUrl(pulsar1.getWebServiceAddress()).build());
+        admin1.tenants().createTenant("tenant-1", new TenantInfoImpl(Set.of(), Set.of("use")));
+        admin1.namespaces().createNamespace("tenant-1/ns-1", 1);
+        NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
+        primaryLoadManager.updateAll();
+        selectBrokersInOrder(bundle, secondaryBrokerId, primaryBrokerId);
+        assertEquals(primaryLoadManager.selectBrokerForAssignment(bundle), Optional.of(secondaryBrokerId));
+
+        // The selected broker loads the bundle, and unloads it before it reports it, e.g. because a namespace
+        // isolation policy change excludes the broker.
+        pulsar2.getNamespaceService().getOwnershipCache().tryAcquiringOwnership(bundle).get();
+        pulsar2.getNamespaceService().unloadNamespaceBundle(bundle).get();
+
+        // The next assignment of the bundle selects a broker again.
+        Awaitility.await().untilAsserted(() ->
+                assertEquals(primaryLoadManager.selectBrokerForAssignment(bundle), Optional.of(primaryBrokerId)));
+    }
+
+    @Test
     public void testPreallocationIsRemovedWhenTheBrokerIsGone() throws Exception {
         NamespaceBundle bundle = makeBundle("tenant-1", "ns-1");
         primaryLoadManager.updateAll();
