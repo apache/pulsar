@@ -57,6 +57,11 @@ import org.testng.annotations.Test;
  */
 public class CLITest extends PulsarTestSuite {
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test
     public void testDeprecatedCommands() throws Exception {
         String tenantName = "test-deprecated-commands";

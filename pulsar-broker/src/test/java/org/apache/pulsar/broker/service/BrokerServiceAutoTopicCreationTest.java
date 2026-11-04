@@ -39,6 +39,7 @@ import org.apache.pulsar.client.admin.ListNamespaceTopicsOptions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.SystemTopicNames;
@@ -412,7 +413,7 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     }
 
     @Test
-    public void testMaxNumPartitionsPerPartitionedTopicTopicCreation() {
+    public void testMaxNumPartitionsPerPartitionedTopicTopicCreation() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(true);
         pulsar.getConfiguration().setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         pulsar.getConfiguration().setDefaultNumPartitions(3);
@@ -421,11 +422,26 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
         final String topicString = "persistent://prop/ns-abc/partitioned-test-topic-11";
         final String subscriptionName = "test-topic-sub-11";
 
+        // A binary lookup: the broker refuses at once, not with an error that the client retries until its
+        // operation timeout
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();
         try {
-            pulsarClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
+            client.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
             fail("should throw exception when number of partitions exceed than max partitions");
         } catch (Exception e) {
-            assertTrue(e instanceof PulsarClientException);
+            assertTrue(e instanceof PulsarClientException.NotAllowedException, e.toString());
+        }
+
+        // An HTTP lookup: the client retries the broker's error until its lookup timeout
+        @Cleanup
+        PulsarClient httpClient = PulsarClient.builder().serviceUrl(pulsar.getWebServiceAddress())
+                .lookupTimeout(1, TimeUnit.SECONDS).build();
+        try {
+            httpClient.newConsumer().topic(topicString).subscriptionName(subscriptionName).subscribe();
+            fail("should throw exception when number of partitions exceed than max partitions");
+        } catch (Exception e) {
+            assertTrue(e instanceof PulsarClientException, e.toString());
         }
     }
 
