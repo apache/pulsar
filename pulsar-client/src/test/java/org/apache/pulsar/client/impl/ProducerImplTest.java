@@ -1210,14 +1210,11 @@ public class ProducerImplTest {
      * A client mock whose producers connect to {@code cnx}, time out creating after 1 s, and back off
      * {@code initialBackoffMs} before their first retry, which they schedule on {@code timer}.
      */
-    private static PulsarClientImpl mockClientWithRetries(Timer timer, ClientCnx cnx, long initialBackoffMs)
-            throws IllegalAccessException {
+    private static PulsarClientImpl mockClientWithRetries(Timer timer, ClientCnx cnx, long initialBackoffMs) {
         PulsarClientImpl client = mockedPulsarClient();
         ClientConfigurationData clientConf = client.getConfiguration();
         clientConf.setOperationTimeoutMs(1000);
         clientConf.setInitialBackoffIntervalNanos(TimeUnit.MILLISECONDS.toNanos(initialBackoffMs));
-        // connectionOpened() reads the field
-        FieldUtils.writeField(client, "conf", clientConf, true);
         when(client.timer()).thenReturn(timer);
         return ClientTestFixtures.clientMockWithClientCnxMock(client, cnx);
     }
