@@ -18,43 +18,49 @@
  */
 package org.apache.pulsar.metadata.impl.stats;
 
-import io.prometheus.client.Histogram;
+import io.prometheus.metrics.core.datapoints.DistributionDataPoint;
+import io.prometheus.metrics.core.metrics.Histogram;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class BatchMetadataStoreStats implements AutoCloseable {
     private static final double[] BUCKETS = new double[]{1, 5, 10, 20, 50, 100, 200, 500, 1000};
     private static final String NAME = "name";
 
-    private static final Histogram OPS_WAITING = Histogram
-            .build("pulsar_batch_metadata_store_queue_wait_time", "-")
-            .unit("ms")
+    // The names keep the unit suffix that simpleclient's unit("ms") used to append.
+    private static final Histogram OPS_WAITING = Histogram.builder()
+            .name("pulsar_batch_metadata_store_queue_wait_time_ms")
+            .help("-")
             .labelNames(NAME)
-            .buckets(BUCKETS)
+            .classicOnly()
+            .classicUpperBounds(BUCKETS)
             .register();
-    private static final Histogram BATCH_EXECUTE_TIME = Histogram
-            .build("pulsar_batch_metadata_store_batch_execute_time", "-")
-            .unit("ms")
+    private static final Histogram BATCH_EXECUTE_TIME = Histogram.builder()
+            .name("pulsar_batch_metadata_store_batch_execute_time_ms")
+            .help("-")
             .labelNames(NAME)
-            .buckets(BUCKETS)
+            .classicOnly()
+            .classicUpperBounds(BUCKETS)
             .register();
-    private static final Histogram OPS_PER_BATCH = Histogram
-            .build("pulsar_batch_metadata_store_batch_size", "-")
+    private static final Histogram OPS_PER_BATCH = Histogram.builder()
+            .name("pulsar_batch_metadata_store_batch_size")
+            .help("-")
             .labelNames(NAME)
-            .buckets(BUCKETS)
+            .classicOnly()
+            .classicUpperBounds(BUCKETS)
             .register();
 
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final String metadataStoreName;
 
-    private final Histogram.Child batchOpsWaitingChild;
-    private final Histogram.Child batchExecuteTimeChild;
-    private final Histogram.Child opsPerBatchChild;
+    private final DistributionDataPoint batchOpsWaitingChild;
+    private final DistributionDataPoint batchExecuteTimeChild;
+    private final DistributionDataPoint opsPerBatchChild;
 
     public BatchMetadataStoreStats(String metadataStoreName) {
         this.metadataStoreName = metadataStoreName;
-        this.batchOpsWaitingChild = OPS_WAITING.labels(metadataStoreName);
-        this.batchExecuteTimeChild = BATCH_EXECUTE_TIME.labels(metadataStoreName);
-        this.opsPerBatchChild = OPS_PER_BATCH.labels(metadataStoreName);
+        this.batchOpsWaitingChild = OPS_WAITING.labelValues(metadataStoreName);
+        this.batchExecuteTimeChild = BATCH_EXECUTE_TIME.labelValues(metadataStoreName);
+        this.opsPerBatchChild = OPS_PER_BATCH.labelValues(metadataStoreName);
     }
 
     public void recordOpWaiting(long millis) {

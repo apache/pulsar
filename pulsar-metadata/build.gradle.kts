@@ -31,7 +31,7 @@ dependencies {
     implementation(libs.oxia.client)
     api(libs.slog)
     implementation(libs.caffeine)
-    implementation(libs.simpleclient)
+    implementation(libs.prometheus.metrics.core)
     implementation(libs.prometheus.metrics.instrumentation.caffeine)
 
     testImplementation(project(":buildtools"))
