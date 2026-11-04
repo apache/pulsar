@@ -38,6 +38,11 @@ import org.testng.annotations.Test;
 @CustomLog
 public class AdminTest extends MessagingBase {
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test(dataProvider = "ServiceAndAdminUrls")
     public void testUnderReplicatedState(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
 

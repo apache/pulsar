@@ -107,6 +107,8 @@ public abstract class PulsarFunctionsJavaTest extends PulsarFunctionsTest {
             assertEquals(functionStatus.getNumInstances(), 1);
             assertEquals(functionStatus.getInstances().get(0).getStatus().isRunning(), true);
         });
+
+        deleteFunction(functionName);
     }
 
 

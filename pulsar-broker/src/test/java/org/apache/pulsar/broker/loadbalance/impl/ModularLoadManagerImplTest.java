@@ -254,8 +254,8 @@ public class ModularLoadManagerImplTest {
     void setup() throws Exception {
         executor = new ThreadPoolExecutor(1, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
-        // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
+        // Start local bookkeeper ensemble: the brokers write their ledgers to a single bookie
+        bkEnsemble = new LocalBookkeeperEnsemble(1, 0);
         bkEnsemble.start();
 
         // Start broker 1
@@ -272,6 +272,9 @@ public class ModularLoadManagerImplTest {
         config1.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config1.setBrokerServicePort(Optional.of(0));
         config1.setBrokerServicePortTls(Optional.of(0));
+        config1.setManagedLedgerDefaultEnsembleSize(1);
+        config1.setManagedLedgerDefaultWriteQuorum(1);
+        config1.setManagedLedgerDefaultAckQuorum(1);
         config1.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         config1.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         config1.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
@@ -295,6 +298,9 @@ public class ModularLoadManagerImplTest {
         config2.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config2.setBrokerServicePort(Optional.of(0));
         config2.setBrokerServicePortTls(Optional.of(0));
+        config2.setManagedLedgerDefaultEnsembleSize(1);
+        config2.setManagedLedgerDefaultWriteQuorum(1);
+        config2.setManagedLedgerDefaultAckQuorum(1);
         config2.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         config2.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         config2.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
@@ -313,6 +319,9 @@ public class ModularLoadManagerImplTest {
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setBrokerServicePort(Optional.of(0));
         config.setBrokerServicePortTls(Optional.of(0));
+        config.setManagedLedgerDefaultEnsembleSize(1);
+        config.setManagedLedgerDefaultWriteQuorum(1);
+        config.setManagedLedgerDefaultAckQuorum(1);
         config.setTlsTrustCertsFilePath(CA_CERT_FILE_PATH);
         config.setTlsCertificateFilePath(BROKER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(BROKER_KEY_FILE_PATH);
@@ -1339,6 +1348,9 @@ public class ModularLoadManagerImplTest {
             config.setBrokerShutdownTimeoutMs(0L);
             config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
             config.setBrokerServicePort(Optional.of(0));
+            config.setManagedLedgerDefaultEnsembleSize(1);
+            config.setManagedLedgerDefaultWriteQuorum(1);
+            config.setManagedLedgerDefaultAckQuorum(1);
             PulsarService pulsar = new PulsarService(config);
             // create znode using different zk-session
             final String brokerZnode = LoadManager.LOADBALANCE_BROKERS_ROOT + "/" + pulsar.getAdvertisedAddress() + ":"
