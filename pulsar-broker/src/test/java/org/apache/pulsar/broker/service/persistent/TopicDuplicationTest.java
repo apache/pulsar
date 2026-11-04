@@ -38,6 +38,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -303,12 +304,18 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         //remove topic-level policies, namespace-level should be used, interval becomes 2 seconds
         admin.topicPolicies().removeDeduplicationSnapshotInterval(topicName);
         waitForSnapshotInterval(persistentTopic, 2);
+        // The last time seen before the second snapshot: the broker-level interval starts after it
+        AtomicLong beforeSecondSnapshotMillis = new AtomicLong(System.currentTimeMillis());
         producer.newMessage().value("msg").send();
         //zk update time + 2 second interval time
-        Awaitility.await()
-                .until(() -> (persistentTopic.getMessageDeduplication().getManagedCursor()
-                        .getMarkDeletedPosition()).getEntryId() == msgNum);
-        long secondSnapshotSeenMillis = System.currentTimeMillis();
+        Awaitility.await().until(() -> {
+            long nowMillis = System.currentTimeMillis();
+            if (managedCursor.getMarkDeletedPosition().getEntryId() == msgNum) {
+                return true;
+            }
+            beforeSecondSnapshotMillis.set(nowMillis);
+            return false;
+        });
         markDeletedPosition = managedCursor.getMarkDeletedPosition();
         position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger()
                 .getLastConfirmedEntry();
@@ -334,8 +341,8 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         Awaitility.await()
                 .until(() -> (persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum + 1);
-        // The broker-level interval separates the last two snapshots (less the first wait's polling)
-        assertTrue(System.currentTimeMillis() - secondSnapshotSeenMillis >= 2500);
+        // The broker-level interval separates the last two snapshots
+        assertTrue(System.currentTimeMillis() - beforeSecondSnapshotMillis.get() >= 3000);
         markDeletedPosition = managedCursor.getMarkDeletedPosition();
         position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
