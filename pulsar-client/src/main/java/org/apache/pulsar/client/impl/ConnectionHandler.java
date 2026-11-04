@@ -82,9 +82,10 @@ public class ConnectionHandler {
 
         /**
          * @return the latest time, in milliseconds since the epoch, at which the connection handler may try again to
-         * get a connection after a failed attempt: it caps the backoff delay. The connection handler reads it before
-         * {@link #connectionFailed} decides on the attempt, so a retry decided before a deadline comes right after
-         * the deadline at the latest, even if the deadline passes before the retry is scheduled.
+         * get a connection after a failed attempt, or after the connection is closed: it caps the backoff delay.
+         * After a failed attempt, the connection handler reads it before {@link #connectionFailed} decides on the
+         * attempt, so a retry decided before a deadline comes right after the deadline at the latest, even if the
+         * deadline passes before the retry is scheduled.
          */
         default long latestReconnectTimeMs() {
             return Long.MAX_VALUE;
@@ -214,8 +215,7 @@ public class ConnectionHandler {
             log.info("Ignoring reconnection request");
             return;
         }
-        long delayMs = Math.min(backoff.next().toMillis(),
-                Math.max(latestReconnectTimeMs - System.currentTimeMillis(), 0));
+        long delayMs = nextReconnectDelayMs(latestReconnectTimeMs);
         log.warn().exceptionMessage(exception)
                 .attr("delaySec", delayMs / 1000.0)
                 .log("Could not get connection to broker - Will try again");
@@ -259,7 +259,8 @@ public class ConnectionHandler {
                 log.info("Ignoring reconnection request");
                 return;
             }
-            long delayMs = initialConnectionDelayMs.orElseGet(() -> backoff.next().toMillis());
+            long delayMs = initialConnectionDelayMs.orElseGet(
+                    () -> nextReconnectDelayMs(connection.latestReconnectTimeMs()));
             log.info().attr("connection", cnx.channel())
                     .attr("delaySec", delayMs / 1000.0)
                     .attr("hostUrl", hostUrl.orElse(null))
@@ -271,6 +272,11 @@ public class ConnectionHandler {
                 grabCnx(hostUrl);
             }, delayMs, TimeUnit.MILLISECONDS);
         }
+    }
+
+    // The backoff's next delay, cut short to try again by latestReconnectTimeMs at the latest
+    private long nextReconnectDelayMs(long latestReconnectTimeMs) {
+        return Math.min(backoff.next().toMillis(), Math.max(latestReconnectTimeMs - System.currentTimeMillis(), 0));
     }
 
     protected void resetBackoff() {

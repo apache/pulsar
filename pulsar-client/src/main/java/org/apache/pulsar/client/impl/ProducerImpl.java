@@ -2490,8 +2490,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         // right after the earlier of them, instead of up to a max backoff interval after it. A create request that
         // failed before the producer deadline is retried right after it, even if it has passed since, but past it, an
         // attempt whose lookup or connection fails is still retried until the lookup deadline. Once created, or past
-        // the lookup deadline, where only an attempt that fails without connectionFailed() is still retried, the
-        // producer reconnects on the backoff alone.
+        // the lookup deadline, where only an attempt that fails without connectionFailed(), or whose connection is
+        // closed, is still retried, the producer reconnects on the backoff alone.
         if (producerCreatedFuture.isDone()) {
             return Long.MAX_VALUE;
         }

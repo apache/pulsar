@@ -1156,6 +1156,44 @@ public class ProducerImplTest {
     }
 
     /**
+     * The broker can close the producer while its create request is pending, without a broker to reconnect to, as on
+     * a topic migration. The pending request then belongs to a superseded attempt, whose failure is ignored, so the
+     * reconnection alone retries the creation: it comes right after the 1 s timeout at the latest, and its failure
+     * fails the creation, instead of the backoff's 5 s later.
+     */
+    @Test(timeOut = 30000)
+    public void testBrokerClosingAPendingCreationRetriesItByTheTimeout() throws Exception {
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ProducerImplTest-timer", true), 1,
+                TimeUnit.MILLISECONDS);
+        List<Long> delaysMs = new CopyOnWriteArrayList<>();
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        AtomicInteger creates = new AtomicInteger();
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            // The first create request stays pending, and the next ones fail with a retriable error
+            return creates.getAndIncrement() == 0 ? new CompletableFuture<>() : CompletableFuture.failedFuture(
+                    new PulsarClientException.BrokerPersistenceException("Not enough non-faulty bookies available"));
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        ProducerConfigurationData conf = new ProducerConfigurationData();
+        conf.setSendTimeoutMs(0);
+        CompletableFuture<Producer<byte[]>> created = new CompletableFuture<>();
+        ProducerImpl<byte[]> producer = new ProducerImpl<>(
+                mockClientWithRetries(ClientTestFixtures.recordingTimer(timer, delaysMs), cnx, 5000),
+                "persistent://public/default/retried-creation", conf, created, -1, Schema.BYTES, null,
+                Optional.empty());
+        Awaitility.await().until(() -> creates.get() == 1);
+
+        // The broker closes the producer, without a broker to reconnect to
+        producer.connectionClosed(cnx, Optional.empty(), Optional.empty());
+
+        assertThatThrownBy(created::join)
+                .hasCauseInstanceOf(PulsarClientException.BrokerPersistenceException.class);
+        assertThat(delaysMs).hasSize(1);
+        assertThat(delaysMs.get(0)).isLessThanOrEqualTo(1001L);
+    }
+
+    /**
      * A connection mock on which every create request fails with a retriable error.
      */
     private static ClientCnx failingCreatesCnx() {

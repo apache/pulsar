@@ -787,6 +787,41 @@ public class ConsumerImplTest {
     }
 
     /**
+     * The broker can close the consumer while its subscribe is pending, without a broker to reconnect to, as on a
+     * topic migration. The pending subscribe then belongs to a superseded attempt, whose failure is ignored, so the
+     * reconnection alone retries the subscribe: it comes right after the 1 s timeout at the latest, and its failure
+     * fails the subscribe, instead of the backoff's 5 s later.
+     */
+    @Test(timeOut = 30000)
+    public void testBrokerClosingAPendingSubscribeRetriesItByTheTimeout() {
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(new DefaultThreadFactory("ConsumerImplTest-timer", true), 1,
+                TimeUnit.MILLISECONDS);
+        List<Long> delaysMs = new CopyOnWriteArrayList<>();
+        ClientCnx cnx = ClientTestFixtures.mockClientCnx();
+        AtomicInteger subscribes = new AtomicInteger();
+        doAnswer(invocation -> {
+            invocation.<ByteBuf>getArgument(0).release();
+            // The first subscribe stays pending, and the next ones fail with a retriable error
+            return subscribes.getAndIncrement() == 0 ? new CompletableFuture<>() : CompletableFuture.failedFuture(
+                    new PulsarClientException.BrokerPersistenceException("Not enough non-faulty bookies available"));
+        }).when(cnx).sendRequestWithId(any(), anyLong());
+        CompletableFuture<Consumer<byte[]>> subscribeFuture = new CompletableFuture<>();
+        ConsumerImpl<byte[]> subscriber = ConsumerImpl.newConsumerImpl(
+                mockClientWithSlowRetries(ClientTestFixtures.recordingTimer(timer, delaysMs), cnx), PERSISTENT_TOPIC,
+                consumerConf, executorProvider, -1, false, subscribeFuture, null, Schema.BYTES, null, true);
+        Awaitility.await().until(() -> subscribes.get() == 1);
+
+        // The broker closes the consumer, without a broker to reconnect to
+        subscriber.connectionClosed(cnx, Optional.empty(), Optional.empty());
+
+        assertThatThrownBy(subscribeFuture::join)
+                .hasCauseInstanceOf(PulsarClientException.BrokerPersistenceException.class);
+        assertThat(delaysMs).hasSize(1);
+        assertThat(delaysMs.get(0)).isLessThanOrEqualTo(1001L);
+    }
+
+    /**
      * A connection mock on which every subscribe fails with a retriable error.
      */
     private static ClientCnx failingSubscribesCnx() {
