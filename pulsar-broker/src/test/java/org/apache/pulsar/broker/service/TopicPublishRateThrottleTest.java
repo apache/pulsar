@@ -96,7 +96,7 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         // Verify: even through the producer was closed before the unblock, the state should be unblocked at the next
         // period of rate limiter.
         producer.close();
-        Awaitility.await().untilAsserted(() -> Assert.assertEquals(cnx.getThrottleTracker().throttledCount(), 0));
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(getThrottledCount(cnx), 0));
         org.apache.pulsar.client.api.Producer<byte[]> producer2 = pulsarClient.newProducer()
                 .topic(topic).create();
         producer2.sendAsync(new byte[2]).get(500, TimeUnit.MILLISECONDS);
@@ -190,6 +190,13 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         Assert.assertEquals(limiter.getTokenBucketOnMessage().getRate(), rateInMsg);
 
         producer.close();
+    }
+
+    // The throttle tracker belongs to the connection's I/O thread: read it there
+    private static int getThrottledCount(TransportCnx cnx) throws Exception {
+        CompletableFuture<Integer> throttledCount = new CompletableFuture<>();
+        cnx.execute(() -> throttledCount.complete(cnx.getThrottleTracker().throttledCount()));
+        return throttledCount.get(5, TimeUnit.SECONDS);
     }
 
     // A throttled connection reads the producers' close requests only once the pending messages' publish rate debt
