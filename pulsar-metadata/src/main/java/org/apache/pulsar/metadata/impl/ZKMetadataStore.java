@@ -239,6 +239,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     @Override
     protected void batchOperation(List<MetadataOp> ops) {
+        batchOperation(ops, false);
+    }
+
+    private void batchOperation(List<MetadataOp> ops, boolean splitFromRejectedBatch) {
         try {
             zkc.multi(ops.stream().map(this::convertOp).collect(Collectors.toList()), (rc, path, ctx, results) -> {
                 if (results == null) {
@@ -286,7 +290,7 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                     } else if (code == Code.BADARGUMENTS && ops.size() > 1 && ops.stream().allMatch(
                             op -> op.getType() == MetadataOp.Type.GET
                                     || op.getType() == MetadataOp.Type.GET_CHILDREN)) {
-                        retryRejectedReadBatch(ops);
+                        retryRejectedReadBatch(ops, splitFromRejectedBatch);
                     } else {
                         MetadataStoreException e = getException(code, path);
                         ops.forEach(o -> o.getFuture().completeExceptionally(e));
@@ -329,16 +333,22 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
      * multiRead.maxResponseBytes limit, which ZooKeeper reports as BADARGUMENTS for the whole batch. Batches are
      * formed from estimated response sizes, so a batch can exceed the limits even though each of its reads is valid.
      * Halving the batch ends in single reads, and a rejected single read fails its future instead of being retried,
-     * so a batch of n reads results in at most 2n - 1 requests.
+     * so a batch of n reads results in at most 2n - 1 requests. Only the rejection of the original batch is logged as
+     * a warning, because splitting a batch can result in up to n - 1 rejections.
      */
-    private void retryRejectedReadBatch(List<MetadataOp> ops) {
-        log.warn().attr("operations", ops.size())
-                .log("ZooKeeper rejected a read batch for exceeding its multiRead.maxOps or"
-                        + " multiRead.maxResponseBytes limit. Retrying it as two smaller batches.");
+    private void retryRejectedReadBatch(List<MetadataOp> ops, boolean splitFromRejectedBatch) {
+        if (splitFromRejectedBatch) {
+            log.trace().attr("operations", ops.size())
+                    .log("ZooKeeper rejected a part of a split read batch. Retrying it as two smaller batches.");
+        } else {
+            log.warn().attr("operations", ops.size())
+                    .log("ZooKeeper rejected a read batch for exceeding its multiRead.maxOps or"
+                            + " multiRead.maxResponseBytes limit. Retrying it as smaller batches.");
+        }
         int middle = ops.size() / 2;
         safeExecuteCallbacks(() -> {
-            batchOperation(ops.subList(0, middle));
-            batchOperation(ops.subList(middle, ops.size()));
+            batchOperation(ops.subList(0, middle), true);
+            batchOperation(ops.subList(middle, ops.size()), true);
         }, ops);
     }
 
