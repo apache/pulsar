@@ -19,14 +19,43 @@
 package org.apache.bookkeeper.mledger.offload.jcloud.provider;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotSame;
+import static org.testng.Assert.assertSame;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.Supplier;
+import org.jclouds.Constants;
 import org.jclouds.domain.Credentials;
 import org.testng.annotations.Test;
 
 public class TieredStorageConfigurationTest {
+
+    @Test
+    public void testStorageCheckUsesIndependentConfiguration() {
+        TieredStorageConfiguration config = new TieredStorageConfiguration(Map.of(
+                TieredStorageConfiguration.BLOB_STORE_PROVIDER_KEY, "aws-s3",
+                "managedLedgerOffloadBucket", "offload-bucket",
+                "managedLedgerOffloadRegion", "us-east-1"));
+        Supplier<Credentials> credentials = () -> new Credentials("identity", "credential");
+        config.setProviderCredentials(credentials);
+        Properties originalOverrides = config.getOverrides();
+
+        TieredStorageConfiguration checkConfig = config.forStorageCheck(Duration.ofSeconds(2));
+
+        assertNotSame(checkConfig.getConfigProperties(), config.getConfigProperties());
+        assertEquals(checkConfig.getConfigProperties(), config.getConfigProperties());
+        assertSame(checkConfig.getProvider(), config.getProvider());
+        assertSame(checkConfig.getProviderCredentials(), credentials);
+        Properties overrides = checkConfig.getOverrides();
+        assertEquals(overrides.getProperty(Constants.PROPERTY_MAX_RETRIES), "0");
+        assertEquals(overrides.getProperty(Constants.PROPERTY_CONNECTION_TIMEOUT), "2000");
+        assertEquals(overrides.getProperty(Constants.PROPERTY_SO_TIMEOUT), "2000");
+        assertEquals(overrides.getProperty(Constants.PROPERTY_REQUEST_TIMEOUT), "2000");
+        assertEquals(config.getOverrides(), originalOverrides);
+    }
 
     /*
      * Previous property names, for backwards-compatibility.
