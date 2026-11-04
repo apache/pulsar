@@ -1906,8 +1906,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         // so subscription should not be deleted.
         Thread.sleep(1000);
         persistentTopic.checkInactiveSubscriptions(1000);
+        // The check decides at once: a subscription it deletes is gone within milliseconds
         PersistentTopic finalPersistentTopic = persistentTopic;
-        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() ->
+        Awaitility.await().during(500, TimeUnit.MILLISECONDS).until(() ->
                 finalPersistentTopic.getSubscriptions().containsKey("sub1"));
         PersistentSubscription sub = persistentTopic.getSubscription("sub1");
 
@@ -1932,7 +1933,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // check if subscription is still present
         PersistentTopic finalPersistentTopic1 = persistentTopic;
-        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() ->
+        Awaitility.await().during(500, TimeUnit.MILLISECONDS).until(() ->
                 finalPersistentTopic1.getSubscriptions().containsKey("sub1"));
         sub = persistentTopic.getSubscription("sub1");
         assertNotNull(sub);

@@ -3979,7 +3979,15 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
 
         Map<NamespaceName, CompletableFuture<SystemTopicClient.Reader<PulsarEvent>>> readerCaches =
                 ((SystemTopicBasedTopicPoliciesService) topicPoliciesService).getReaderCaches();
+        // Close the dropped readers: an open one keeps reading into the caches, and once the next test's setup
+        // deletes its namespace, it reconnects to the re-created namespace in the background
+        List<CompletableFuture<Void>> readerCloseFutures = new ArrayList<>();
+        readerCaches.values().forEach(readerFuture -> readerCloseFutures.add(
+                readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync)
+                        // a reader that failed to be created has nothing to close
+                        .exceptionally(__ -> null)));
         readerCaches.clear();
+        FutureUtil.waitForAll(readerCloseFutures).join();
     }
 
     @DataProvider(name = "reloadPolicyTypes")
