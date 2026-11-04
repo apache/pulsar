@@ -280,12 +280,24 @@ public class OwnershipCache {
         // Doing a get() on the ownedBundlesCache will trigger an async metadata write to acquire the lock over the
         // service unit. Serialized against both removeOwnership(NamespaceBundle) and removeOwnership(OwnedBundle)
         // for the same bundle: see bundleOperationBarriers.
-        return serialize(bundle, () -> ownedBundlesCache.get(bundle)
-                .thenApply(namespaceBundle -> {
-                    LOG.info("Successfully acquired ownership of {}", namespaceBundle);
-                    namespaceService.onNamespaceBundleOwned(bundle);
-                    return selfOwnerInfo;
-                }));
+        return serialize(bundle, () -> {
+            // Concurrent lookups of the bundle with different options (e.g. an HTTP and a binary lookup) aren't
+            // merged, so another acquisition may already have published the generation that get() returns. Only the
+            // acquisition that publishes a generation notifies the listeners: the generation's single unload event
+            // matches only one owned event, and the topic-policies service, which counts the owned bundles of each
+            // namespace, would otherwise keep the namespace's state after its last bundle is unloaded.
+            OwnedBundle ownedBefore = getOwnedBundle(bundle);
+            return ownedBundlesCache.get(bundle)
+                    .thenApply(namespaceBundle -> {
+                        if (namespaceBundle != ownedBefore) {
+                            LOG.info("Successfully acquired ownership of {}", namespaceBundle);
+                            namespaceService.onNamespaceBundleOwned(bundle);
+                        } else {
+                            LOG.debug("Bundle {} already acquired", namespaceBundle);
+                        }
+                        return selfOwnerInfo;
+                    });
+        });
     }
 
     /**
