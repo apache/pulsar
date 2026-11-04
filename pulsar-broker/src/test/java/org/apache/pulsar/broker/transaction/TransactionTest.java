@@ -1141,7 +1141,8 @@ public class TransactionTest extends TransactionTestBase {
                 }));
         CompletableFuture<Void> completableFuture =  transaction.commit();
         try {
-            completableFuture.get(5, TimeUnit.SECONDS);
+            // The coordinator retries the end op every second while its store isn't ready
+            completableFuture.get(2, TimeUnit.SECONDS);
             fail();
         } catch (TimeoutException ignored) {
         }
@@ -1402,8 +1403,7 @@ public class TransactionTest extends TransactionTestBase {
         Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNotNull(message);
         Assert.assertFalse(messages.contains(message.getMessageId()));
-        message = consumer.receive(5, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNoMoreMessages(consumer);
         consumer.close();
     }
 
@@ -1478,8 +1478,7 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topic)
                 .subscriptionName(subName)
                 .subscribe();
-        Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNoMoreMessages(consumer);
         consumer.close();
     }
 
@@ -1898,8 +1897,8 @@ public class TransactionTest extends TransactionTestBase {
                 .topic(topic)
                 .sendTimeout(0, TimeUnit.SECONDS)
                 .createAsync();
-        getTopic("persistent://" + topic + "-partition-0");
-        Thread.sleep(3000);
+        // A loaded partition's transaction buffer holds the injected writer future
+        waitForPartitionsLoaded("persistent://" + topic, partitionCount);
 
         // The topic will be closed, because the transaction buffer snapshot writer future is failed,
         // the failed writer future will be removed, the producer will be reconnected and work well.
@@ -1918,15 +1917,17 @@ public class TransactionTest extends TransactionTestBase {
         checkSnapshotPublisherCount(namespace, 0);
     }
 
-    private void getTopic(String topicName) {
+    private void waitForPartitionsLoaded(String topicName, int partitionCount) {
         Awaitility.await().atMost(5, TimeUnit.SECONDS).pollInterval(100, TimeUnit.MILLISECONDS)
                 .until(() -> {
-                    for (PulsarService pulsarService : pulsarServiceList) {
-                        if (pulsarService.getBrokerService().getTopicReference(topicName).isPresent()) {
-                            return true;
+                    for (int i = 0; i < partitionCount; i++) {
+                        String partition = topicName + "-partition-" + i;
+                        if (pulsarServiceList.stream().noneMatch(pulsarService ->
+                                pulsarService.getBrokerService().getTopicReference(partition).isPresent())) {
+                            return false;
                         }
                     }
-                    return false;
+                    return true;
                 });
     }
 
@@ -1959,30 +1960,11 @@ public class TransactionTest extends TransactionTestBase {
         producer.newMessage(txn).key("K2").value("V2").send();
         producer.newMessage(txn).key("K3").value("V3").send();
 
-        List<String> messages = new ArrayList<>();
-        while (true) {
-            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            messages.add(message.getValue());
-        }
-
-        Assert.assertEquals(messages, List.of("V1"));
+        Assert.assertEquals(receiveAll(consumer, 1), List.of("V1"));
 
         txn.commit();
 
-        messages.clear();
-
-        while (true) {
-            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
-            if (message == null) {
-                break;
-            }
-            messages.add(message.getValue());
-        }
-
-        Assert.assertEquals(messages, List.of("V2", "V3"));
+        Assert.assertEquals(receiveAll(consumer, 2), List.of("V2", "V3"));
     }
 
     @Test
@@ -2030,17 +2012,21 @@ public class TransactionTest extends TransactionTestBase {
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .readCompacted(true)
                 .subscribe();
-        List<String> result = new ArrayList<>();
-        while (true) {
-            Message<String> receive = consumer.receive(2, TimeUnit.SECONDS);
-            if (receive == null) {
-                break;
-            }
+        Assert.assertEquals(receiveAll(consumer, 3), List.of("V4", "V5", "V6"));
+    }
 
-            result.add(receive.getValue());
+    /**
+     * Receives the given number of messages, then checks that no more arrive.
+     */
+    private List<String> receiveAll(Consumer<String> consumer, int messageCount) throws Exception {
+        List<String> messages = new ArrayList<>();
+        for (int i = 0; i < messageCount; i++) {
+            Message<String> message = consumer.receive(5, TimeUnit.SECONDS);
+            Assert.assertNotNull(message, "Received " + messages);
+            messages.add(message.getValue());
         }
-
-        Assert.assertEquals(result, List.of("V4", "V5", "V6"));
+        assertNoMoreMessages(consumer);
+        return messages;
     }
 
     @Test

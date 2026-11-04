@@ -309,10 +309,20 @@ public class OwnershipCache {
             if (pulsar.isMetadataSessionLost()) {
                 return FutureUtil.failedFuture(sessionLostException(bundle));
             }
+            // Concurrent lookups of the bundle with different options (e.g. an HTTP and a binary lookup) aren't
+            // merged, so another acquisition may already have published the generation that get() returns. Only the
+            // acquisition that publishes a generation notifies the listeners: the generation's single unload event
+            // matches only one owned event, and the topic-policies service, which counts the owned bundles of each
+            // namespace, would otherwise keep the namespace's state after its last bundle is unloaded.
+            OwnedBundle ownedBefore = getOwnedBundle(bundle);
             return ownedBundlesCache.get(bundle)
                     .thenApply(namespaceBundle -> {
-                        log.info().attr("bundle", namespaceBundle).log("Successfully acquired ownership");
-                        namespaceService.onNamespaceBundleOwned(bundle);
+                        if (namespaceBundle != ownedBefore) {
+                            log.info().attr("bundle", namespaceBundle).log("Successfully acquired ownership");
+                            namespaceService.onNamespaceBundleOwned(bundle);
+                        } else {
+                            log.debug().attr("bundle", namespaceBundle).log("Bundle already acquired");
+                        }
                         return selfOwnerInfo;
                     });
         });
