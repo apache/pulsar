@@ -1343,6 +1343,16 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
+    public long latestReconnectTimeMs() {
+        // connectionFailed() fails the subscribe on the first attempt that fails after the lookup deadline: make the
+        // last retry right after the deadline, instead of up to a max backoff interval after it. Once subscribed, or
+        // past the deadline, where only an attempt that fails without connectionFailed(), or whose connection is
+        // closed, is still retried, the consumer reconnects on the backoff alone.
+        return subscribeFuture.isDone() || System.currentTimeMillis() > lookupDeadline
+                ? Long.MAX_VALUE : lookupDeadline + 1;
+    }
+
+    @Override
     public synchronized CompletableFuture<Void> closeAsync() {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
