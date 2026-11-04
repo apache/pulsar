@@ -283,6 +283,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         // Retry with the individual operations
                         scheduleDelayedTask(100, TimeUnit.MILLISECONDS,
                             () -> ops.forEach(o -> batchOperation(Collections.singletonList(o))));
+                    } else if (code == Code.BADARGUMENTS && ops.size() > 1 && ops.stream().allMatch(
+                            op -> op.getType() == MetadataOp.Type.GET
+                                    || op.getType() == MetadataOp.Type.GET_CHILDREN)) {
+                        retryRejectedReadBatch(ops);
                     } else {
                         MetadataStoreException e = getException(code, path);
                         ops.forEach(o -> o.getFuture().completeExceptionally(e));
@@ -318,6 +322,24 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         } catch (Throwable t) {
             ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
         }
+    }
+
+    /**
+     * Retries a read batch that the server rejected for exceeding its multiRead.maxOps or
+     * multiRead.maxResponseBytes limit, which ZooKeeper reports as BADARGUMENTS for the whole batch. Batches are
+     * formed from estimated response sizes, so a batch can exceed the limits even though each of its reads is valid.
+     * Halving the batch ends in single reads, and a rejected single read fails its future instead of being retried,
+     * so a batch of n reads results in at most 2n - 1 requests.
+     */
+    private void retryRejectedReadBatch(List<MetadataOp> ops) {
+        log.warn().attr("operations", ops.size())
+                .log("ZooKeeper rejected a read batch for exceeding its multiRead.maxOps or"
+                        + " multiRead.maxResponseBytes limit. Retrying it as two smaller batches.");
+        int middle = ops.size() / 2;
+        safeExecuteCallbacks(() -> {
+            batchOperation(ops.subList(0, middle));
+            batchOperation(ops.subList(middle, ops.size()));
+        }, ops);
     }
 
     private void handlePutResult(OpPut op, OpResult opr) {
