@@ -22,10 +22,14 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Map;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.v5.Checkpoint;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class CheckpointV5Test {
@@ -111,5 +115,26 @@ public class CheckpointV5Test {
     public void testFromByteArrayRejectsUnknownType() {
         assertThrows(java.io.IOException.class,
                 () -> CheckpointV5.fromByteArray(new byte[]{127, 0, 0, 0, 0, 0, 0, 0, 0}));
+    }
+
+    @Test
+    public void testFromByteArrayRejectsTruncatedData() {
+        byte[] bytes = new CheckpointV5(Map.of(1L, v4(10, 20))).toByteArray();
+        for (int length = 1; length < bytes.length; length++) {
+            byte[] truncated = Arrays.copyOf(bytes, length);
+            assertThrows(IOException.class, () -> CheckpointV5.fromByteArray(truncated));
+        }
+    }
+
+    @DataProvider
+    public Object[][] badEntryCountAndLength() {
+        return new Object[][]{{-1, 0}, {1, -1}, {1, Integer.MAX_VALUE}};
+    }
+
+    @Test(dataProvider = "badEntryCountAndLength")
+    public void testFromByteArrayRejectsBadLengths(int entryCount, int messageIdLength) {
+        ByteBuffer buf = ByteBuffer.allocate(Byte.BYTES + Integer.BYTES + Long.BYTES + Integer.BYTES);
+        buf.put((byte) 0).putInt(entryCount).putLong(1L).putInt(messageIdLength);
+        assertThrows(IOException.class, () -> CheckpointV5.fromByteArray(buf.array()));
     }
 }
