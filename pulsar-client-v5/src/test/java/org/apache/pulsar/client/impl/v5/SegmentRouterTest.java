@@ -21,13 +21,22 @@ package org.apache.pulsar.client.impl.v5;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.MessageImpl;
+import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.v5.SegmentRouter.ActiveSegment;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.scalable.HashRange;
-import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.testng.annotations.Test;
 
 public class SegmentRouterTest {
@@ -135,10 +144,10 @@ public class SegmentRouterTest {
     // --- mod-N routing for synthetic layouts (all legacy segments) ---
 
     @Test
-    public void testAllLegacySegmentsRouteModN() {
+    public void testAllLegacySegmentsRouteLikeV4Producer() {
         // Synthetic layout for a 4-partition regular topic: 4 legacy segments
-        // with segment_id == partition_index. routing must match v4 partitioned-topic
-        // routing (signSafeMod(murmurHash3_32(key), N)).
+        // with segment_id == partition_index. routing must match the partition a v4
+        // producer with the default configuration picks for the same key.
         SegmentRouter router = new SegmentRouter();
         int n = 4;
         List<ActiveSegment> segments = List.of(
@@ -146,16 +155,24 @@ public class SegmentRouterTest {
                 legacySeg(1, 0x4000, 0x7FFF, "persistent://t/n/x-partition-1"),
                 legacySeg(2, 0x8000, 0xBFFF, "persistent://t/n/x-partition-2"),
                 legacySeg(3, 0xC000, 0xFFFF, "persistent://t/n/x-partition-3"));
+        ProducerConfigurationData v4Conf = new ProducerConfigurationData();
+        MessageRouter v4Router = new RoundRobinPartitionMessageRouterImpl(v4Conf.getHashingScheme(), 0,
+                v4Conf.isBatchingEnabled(),
+                TimeUnit.MICROSECONDS.toMillis(v4Conf.batchingPartitionSwitchFrequencyIntervalMicros()));
 
         // For a synthetic layout, the router must NOT use hash ranges — it must do
-        // mod-N over segment_id. Verify a handful of keys land on the expected
-        // partition computed exactly as v4 would.
-        for (String key : new String[]{"a", "customer-1", "customer-2", "order-99", ""}) {
-            int hash32 = Murmur3_32Hash.getInstance().makeHash(key.getBytes(StandardCharsets.UTF_8));
-            int mod = hash32 % n;
-            int expected = mod < 0 ? mod + n : mod;
+        // mod-N over segment_id, exactly as v4 does.
+        List<String> keys = new ArrayList<>(List.of("a", "customer-1", "customer-2", "order-99", "",
+                "cl\u00e9-\u00e9", "\u8ba2\u5355-1", "\uD83D\uDE00"));
+        for (int i = 0; i < 100; i++) {
+            keys.add("k-" + i);
+        }
+        for (String key : keys) {
+            Message<byte[]> v4Message = MessageImpl.create(new MessageMetadata().setPartitionKey(key),
+                    ByteBuffer.allocate(0), Schema.BYTES, "persistent://t/n/x");
+            int expected = v4Router.choosePartition(v4Message, () -> n);
             assertEquals(router.route(key, segments), expected,
-                    "key=" + key + " expected v4 mod-N partition " + expected);
+                    "key=" + key + " expected v4 partition " + expected);
         }
     }
 
