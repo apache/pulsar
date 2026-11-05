@@ -142,6 +142,12 @@ public class TestZKServer implements AutoCloseable {
                 .expire(sessionId);
     }
 
+    public void setMultiReadLimits(int maxOps, long maxResponseBytes) {
+        ZooKeeperServer zkServer = getZooKeeperServer(getZooKeeperServerMain(zooKeeperServerEmbedded));
+        zkServer.setMultiReadMaxOps(maxOps);
+        zkServer.setMultiReadMaxResponseBytes(maxResponseBytes);
+    }
+
     @Override
     public void close() throws Exception {
         stop();

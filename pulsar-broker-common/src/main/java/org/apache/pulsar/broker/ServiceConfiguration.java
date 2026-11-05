@@ -581,8 +581,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(
             category = CATEGORY_SERVER,
             doc = "Maximum number of operations to include in a singular batch. With ZooKeeper 3.9.7 or later, a read"
-                    + " batch fails as a whole when it's larger than the multiRead.maxOps setting of the ZooKeeper"
-                    + " server, which is 1000 by default. Raise that setting first when raising this value."
+                    + " batch larger than the multiRead.maxOps setting of the ZooKeeper server, which is 1000 by"
+                    + " default, is rejected, and the broker splits and retries it. To avoid these extra requests,"
+                    + " raise that setting first when raising this value."
     )
     private int metadataStoreBatchingMaxOperations = 1_000;
 
