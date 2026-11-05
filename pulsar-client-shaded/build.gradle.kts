@@ -43,8 +43,9 @@ dependencies {
     // Non-bundled dependencies. These are the ONLY entries in the dependency-reduced published
     // POM/Gradle Module Metadata. The bundled modules above and their relocated third-party deps
     // live inside the jar and must NOT appear as POM dependencies. pulsar-client-api,
-    // jackson-annotations, the BouncyCastle jars (signed, not relocatable), OpenTelemetry and
-    // jspecify are deliberately not bundled. Logging is slf4j + slog only — never log4j.
+    // pulsar-client-admin-api, jackson-annotations, the BouncyCastle jars (signed, not
+    // relocatable), OpenTelemetry and jspecify are deliberately not bundled. Logging is slf4j +
+    // slog only — never log4j.
     //
     // `shadowApi` -> compile scope, `shadow` -> runtime scope (see pulsar.client-shade-conventions).
     // The split follows what the SHADED artifact's public API exposes vs. what is only used
@@ -53,7 +54,8 @@ dependencies {
     //    pulsar-client-api and io.opentelemetry:opentelemetry-api (ClientBuilder.openTelemetry / *Stats).
     //  - runtime: only used internally by the bundled implementation (BouncyCastle crypto, relocated
     //    Jackson's unshaded annotations, the OpenTelemetry incubator, slog/slf4j logging, jspecify
-    //    CLASS-retention annotations) — never on a consumer's compile classpath.
+    //    CLASS-retention annotations, pulsar-client-admin-api types referenced by the bundled
+    //    pulsar-common) — never on a consumer's compile classpath.
     //
     // protobuf-java is intentionally NOT published (neither bundled nor declared as a dependency):
     // the generated protobuf classes reference unshaded com.google.protobuf at runtime, but Pulsar
@@ -71,6 +73,7 @@ dependencies {
     "shadowApi"(project(":pulsar-tls-factory-api"))
     "shadowApi"(project(":pulsar-http-client-api"))
     "shadowApi"(libs.opentelemetry.api)
+    "shadow"(project(":pulsar-client-admin-api"))
     "shadow"(libs.jackson.annotations)
     "shadow"(libs.bcprov.jdk18on)
     "shadow"(libs.bcpkix.jdk18on)
