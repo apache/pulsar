@@ -35,12 +35,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -50,8 +52,10 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
@@ -1402,10 +1406,54 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         return bookkeeperFactory.get();
     }
 
-    private record CursorBacklog(String cursorName, long ledgerId, long backlog, boolean requiresRecovery) {
+    private static final long UNKNOWN_CURSOR_BACKLOG = -1;
+
+    @VisibleForTesting
+    record CursorBacklog(String cursorName, long ledgerId, long backlog, boolean requiresRecovery) {
+        // The cursor ledger was opened but its position could not be read: report it, excluded from the total.
+        static CursorBacklog unreadable(String cursorName, long ledgerId) {
+            return new CursorBacklog(cursorName, ledgerId, UNKNOWN_CURSOR_BACKLOG, false);
+        }
     }
 
     private record OfflineTopicBacklog(NavigableMap<Long, LedgerInfo> ledgers, List<CursorBacklog> cursors) {
+    }
+
+    /**
+     * What a non-accurate estimate has collected so far, so a timeout can publish a partial result like the
+     * blocking implementation did instead of failing the whole estimate.
+     */
+    @VisibleForTesting
+    static final class OfflineBacklogProgress {
+        private final String managedLedgerName;
+        private volatile NavigableMap<Long, LedgerInfo> ledgers;
+        private final Queue<CursorBacklog> cursors = new ConcurrentLinkedQueue<>();
+
+        OfflineBacklogProgress(String managedLedgerName) {
+            this.managedLedgerName = managedLedgerName;
+        }
+
+        void cursorCompleted(CursorBacklog cursor) {
+            if (cursor != null) {
+                cursors.add(cursor);
+            }
+        }
+
+        <T> T resultOrPartialOnTimeout(T result, Throwable error,
+                                       Function<OfflineTopicBacklog, T> partialResult) {
+            if (error == null) {
+                return result;
+            }
+            NavigableMap<Long, LedgerInfo> knownLedgers = ledgers;
+            if (FutureUtil.unwrapCompletionException(error) instanceof TimeoutException && knownLedgers != null) {
+                List<CursorBacklog> completedCursors = List.copyOf(cursors);
+                log.warn().attr("managedLedger", managedLedgerName)
+                        .attr("completedCursors", completedCursors.size())
+                        .log("Timed out estimating offline backlog, returning the cursors read so far");
+                return partialResult.apply(new OfflineTopicBacklog(knownLedgers, completedCursors));
+            }
+            throw FutureUtil.wrapToCompletionException(error);
+        }
     }
 
     @Override
@@ -1418,9 +1466,11 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         if (!accurate) {
             computation.orTimeout(META_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         }
+        OfflineBacklogProgress progress = new OfflineBacklogProgress(topicName.getPersistenceNamingEncoding());
         FutureUtil.completeAfter(computation,
-                readOfflineTopicBacklogAsync(topicName, digestType, password, computation));
-        OfflineTopicBacklog result = computation.get();
+                readOfflineTopicBacklogAsync(topicName, digestType, password, computation, progress));
+        OfflineTopicBacklog result = computation.handle((backlog, error) ->
+                progress.resultOrPartialOnTimeout(backlog, error, Function.identity())).get();
         // A synchronous caller can perform the rare unconfirmed cursor reads on its own thread.
         List<CursorBacklog> cursors = accurate
                 ? recoverCursorBacklogs(result.cursors(), result.ledgers(), digestType, password) : result.cursors();
@@ -1449,8 +1499,9 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             if (!accurate) {
                 computation.orTimeout(timeout, timeoutUnit);
             }
-            FutureUtil.completeAfter(computation,
-                    readOfflineTopicBacklogAsync(topicName, digestType, password, computation).thenCompose(result -> {
+            OfflineBacklogProgress progress = new OfflineBacklogProgress(topicName.getPersistenceNamingEncoding());
+            FutureUtil.completeAfter(computation, readOfflineTopicBacklogAsync(topicName, digestType, password,
+                    computation, progress).thenCompose(result -> {
                         checkOfflineBacklogRequest(computation);
                         if (!accurate || result.cursors().stream().noneMatch(CursorBacklog::requiresRecovery)) {
                             return CompletableFuture.completedFuture(result);
@@ -1462,9 +1513,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                                     bk, result.cursors(), result.ledgers(), digestType, password));
                         }, blockingExecutor));
                     }));
-            // Only publish after timeout has been resolved. Late callbacks still release their resources.
-            CompletableFuture<Void> published = computation.thenAccept(result -> publishOfflineTopicBacklog(
-                    offlineTopicStats, result.ledgers(), result.cursors(), accurate));
+            // Only publish after timeout has been resolved: a timeout publishes the cursors completed by then,
+            // as the blocking implementation did. Late callbacks still release their resources.
+            CompletableFuture<Void> published = computation.handle((result, error) ->
+                            progress.resultOrPartialOnTimeout(result, error, Function.identity()))
+                    .thenAccept(result -> publishOfflineTopicBacklog(
+                            offlineTopicStats, result.ledgers(), result.cursors(), accurate));
             published.whenComplete((ignored, error) -> {
                 if (published.isCancelled()) {
                     computation.cancel(false);
@@ -1482,11 +1536,25 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         }
     }
 
+    /**
+     * Rethrows the cancellation of a completed (timed out or cancelled) request so that a best-effort fallback
+     * doesn't record it as a cursor failure.
+     */
+    private static void rethrowIfCancelled(Throwable error) {
+        if (FutureUtil.unwrapCompletionException(error) instanceof CancellationException) {
+            throw FutureUtil.wrapToCompletionException(error);
+        }
+    }
+
     private CompletableFuture<OfflineTopicBacklog> readOfflineTopicBacklogAsync(TopicName topicName,
-            BookKeeper.DigestType digestType, byte[] password, CompletableFuture<?> request) {
+            BookKeeper.DigestType digestType, byte[] password, CompletableFuture<?> request,
+            OfflineBacklogProgress progress) {
         return getManagedLedgersInfoAsync(topicName, digestType, password, request)
-                .thenCompose(ledgers -> readCursorBacklogsAsync(topicName, ledgers, digestType, password, request)
-                        .thenApply(cursors -> new OfflineTopicBacklog(ledgers, cursors)));
+                .thenCompose(ledgers -> {
+                    progress.ledgers = ledgers;
+                    return readCursorBacklogsAsync(topicName, ledgers, digestType, password, request, progress)
+                            .thenApply(cursors -> new OfflineTopicBacklog(ledgers, cursors));
+                });
     }
 
     private CompletableFuture<NavigableMap<Long, LedgerInfo>> getManagedLedgersInfoAsync(
@@ -1553,7 +1621,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                 } catch (Exception e) {
                     result = CompletableFuture.failedFuture(e);
                 }
-                return closeLedgerAfter(result, handle);
+                return closeLedgerAfter(result, handle, true);
             }).thenCompose(result -> result);
         });
     }
@@ -1569,9 +1637,12 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         if (!accurate) {
             computation.orTimeout(META_READ_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         }
+        OfflineBacklogProgress progress = new OfflineBacklogProgress(topicName.getPersistenceNamingEncoding());
+        progress.ledgers = ledgerSnapshot;
         FutureUtil.completeAfter(computation,
-                readCursorBacklogsAsync(topicName, ledgerSnapshot, digestType, password, computation));
-        List<CursorBacklog> cursors = computation.get();
+                readCursorBacklogsAsync(topicName, ledgerSnapshot, digestType, password, computation, progress));
+        List<CursorBacklog> cursors = computation.handle((result, error) ->
+                progress.resultOrPartialOnTimeout(result, error, OfflineTopicBacklog::cursors)).get();
         if (accurate) {
             cursors = recoverCursorBacklogs(cursors, ledgerSnapshot, digestType, password);
         }
@@ -1580,7 +1651,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private CompletableFuture<List<CursorBacklog>> readCursorBacklogsAsync(TopicName topicName,
             NavigableMap<Long, LedgerInfo> ledgers, BookKeeper.DigestType digestType, byte[] password,
-            CompletableFuture<?> request) {
+            CompletableFuture<?> request, OfflineBacklogProgress progress) {
         if (ledgers.isEmpty()) {
             return CompletableFuture.completedFuture(List.of());
         }
@@ -1602,7 +1673,13 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         } catch (Exception e) {
             cursorNames.completeExceptionally(e);
         }
-        return cursorNames.thenCompose(names -> {
+        return cursorNames.exceptionally(e -> {
+            rethrowIfCancelled(e);
+            // As before the async rewrite, a failure to list the cursors still reports the topic's ledgers.
+            log.warn().attr("managedLedger", topicName.getPersistenceNamingEncoding()).exception(e)
+                    .log("Failed to get the cursors list");
+            return List.of();
+        }).thenCompose(names -> {
             checkOfflineBacklogRequest(request);
             if (names.isEmpty()) {
                 return CompletableFuture.completedFuture(List.of());
@@ -1615,10 +1692,15 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                         break;
                     }
                     cursors.add(readCursorBacklogAsync(topicName.getPersistenceNamingEncoding(), cursor,
-                            ledgers, bk, digestType, password, request));
+                            ledgers, bk, digestType, password, request).thenApply(backlog -> {
+                                offlineCursorBacklogCompleted(progress, backlog);
+                                return backlog;
+                            }));
                 }
+                // A cursor whose metadata or ledger could not be read completes with null and is left out.
                 return CompletableFuture.allOf(cursors.toArray(CompletableFuture[]::new))
-                        .thenApply(__ -> cursors.stream().map(cursor -> cursor.getNow(null)).toList());
+                        .thenApply(__ -> cursors.stream().map(cursor -> cursor.getNow(null))
+                                .filter(Objects::nonNull).toList());
             });
         });
     }
@@ -1644,7 +1726,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
         } catch (Exception e) {
             metadata.completeExceptionally(e);
         }
-        return metadata.thenCompose(info -> {
+        return metadata.handle((info, error) -> {
+            if (error != null) {
+                rethrowIfCancelled(error);
+                // Skip the cursor, as the blocking implementation did: it may have been deleted after listing.
+                log.warn().attr("managedLedger", managedLedgerName).attr("cursor", cursorName).exception(error)
+                        .log("Unable to obtain cursor ledger for cursor");
+                return CompletableFuture.<CursorBacklog>completedFuture(null);
+            }
             checkOfflineBacklogRequest(request);
             long ledgerId = info.getCursorsLedgerId();
             if (ledgerId == -1) {
@@ -1657,35 +1746,61 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                     .withDigestType(digestType.toApiDigestType())
                     .withPassword(password)
                     .withLoggerContext(log.with().attr("managedLedger", managedLedgerName).build())
-                    .execute().thenCompose(handle -> {
-                        CompletableFuture<CursorBacklog> result;
-                        try {
-                            checkOfflineBacklogRequest(request);
-                            long entryId = handle.getLastAddConfirmed();
-                            if (entryId == LedgerHandle.INVALID_ENTRY_ID) {
-                                result = CompletableFuture.completedFuture(
-                                        new CursorBacklog(cursorName, ledgerId, -1, true));
-                            } else {
-                                result = handle.readAsync(entryId, entryId).thenApply(entries -> {
-                                    try (LedgerEntries ledgerEntries = entries) {
-                                        checkOfflineBacklogRequest(request);
-                                        PositionInfo positionInfo = new PositionInfo();
-                                        positionInfo.parseFrom(ledgerEntries.getEntry(entryId).getEntryBytes());
-                                        Position position = PositionFactory.create(
-                                                positionInfo.getLedgerId(), positionInfo.getEntryId());
-                                        return cursorBacklog(cursorName, ledgerId, position, ledgers);
-                                    }
-                                });
-                            }
-                        } catch (Exception e) {
-                            result = CompletableFuture.failedFuture(e);
+                    .execute().handle((handle, openError) -> {
+                        if (openError != null) {
+                            rethrowIfCancelled(openError);
+                            log.warn().attr("managedLedger", managedLedgerName).attr("cursor", cursorName)
+                                    .attr("ledgerId", ledgerId).exception(openError)
+                                    .log("Error opening metadata ledger for cursor, skipping cursor");
+                            return CompletableFuture.<CursorBacklog>completedFuture(null);
                         }
-                        return closeLedgerAfter(result, handle);
-                    });
-        });
+                        CompletableFuture<CursorBacklog> backlog = readCursorLedgerBacklogAsync(cursorName,
+                                ledgerId, handle, ledgers, request).exceptionally(readError -> {
+                                    rethrowIfCancelled(readError);
+                                    // Report the cursor with an unknown backlog, excluded from the total.
+                                    log.warn().attr("managedLedger", managedLedgerName)
+                                            .attr("cursor", cursorName).attr("ledgerId", ledgerId)
+                                            .exception(readError)
+                                            .log("Error reading from metadata ledger for cursor");
+                                    return CursorBacklog.unreadable(cursorName, ledgerId);
+                                });
+                        // The position has been read: failing to close the read-only handle doesn't change it.
+                        return closeLedgerAfter(backlog, handle, false);
+                    }).thenCompose(Function.identity());
+        }).thenCompose(Function.identity());
     }
 
-    private <T> CompletableFuture<T> closeLedgerAfter(CompletableFuture<T> operation, ReadHandle handle) {
+    private CompletableFuture<CursorBacklog> readCursorLedgerBacklogAsync(String cursorName, long ledgerId,
+            ReadHandle handle, NavigableMap<Long, LedgerInfo> ledgers, CompletableFuture<?> request) {
+        try {
+            checkOfflineBacklogRequest(request);
+            long entryId = handle.getLastAddConfirmed();
+            if (entryId == LedgerHandle.INVALID_ENTRY_ID) {
+                return CompletableFuture.completedFuture(
+                        new CursorBacklog(cursorName, ledgerId, UNKNOWN_CURSOR_BACKLOG, true));
+            }
+            return handle.readAsync(entryId, entryId).thenApply(entries -> {
+                try (LedgerEntries ledgerEntries = entries) {
+                    checkOfflineBacklogRequest(request);
+                    PositionInfo positionInfo = new PositionInfo();
+                    positionInfo.parseFrom(ledgerEntries.getEntry(entryId).getEntryBytes());
+                    Position position = PositionFactory.create(
+                            positionInfo.getLedgerId(), positionInfo.getEntryId());
+                    return cursorBacklog(cursorName, ledgerId, position, ledgers);
+                }
+            });
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
+    }
+
+    @VisibleForTesting
+    void offlineCursorBacklogCompleted(OfflineBacklogProgress progress, CursorBacklog cursor) {
+        progress.cursorCompleted(cursor);
+    }
+
+    private <T> CompletableFuture<T> closeLedgerAfter(CompletableFuture<T> operation, ReadHandle handle,
+                                                      boolean failOnCloseError) {
         return operation.handle((value, error) -> {
             CompletableFuture<Void> close;
             try {
@@ -1695,10 +1810,14 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             }
             return close.handle((ignored, closeError) -> {
                 if (error != null) {
-                    throw new CompletionException(error);
+                    throw FutureUtil.wrapToCompletionException(error);
                 }
                 if (closeError != null) {
-                    throw new CompletionException(closeError);
+                    if (failOnCloseError) {
+                        throw FutureUtil.wrapToCompletionException(closeError);
+                    }
+                    log.warn().attr("ledgerId", handle.getId()).exception(closeError)
+                            .log("Failed to close ledger handle");
                 }
                 return value;
             });
@@ -1733,8 +1852,10 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
             }
             Position position = tryGetMDPosition(bk, cursor.ledgerId(), cursor.cursorName(), digestType, password);
             if (position == null) {
-                throw new CompletionException(new ManagedLedgerException(
-                        "Unable to determine position for cursor " + cursor.cursorName()));
+                // Skip the cursor, as the blocking implementation did.
+                log.warn().attr("cursor", cursor.cursorName()).attr("ledgerId", cursor.ledgerId())
+                        .log("Unable to determine cursor position");
+                continue;
             }
             recovered.add(cursorBacklog(cursor.cursorName(), cursor.ledgerId(), position, ledgers));
         }
@@ -1762,7 +1883,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
 
     private void publishCursorBacklogs(PersistentOfflineTopicStats stats, List<CursorBacklog> cursors) {
         for (CursorBacklog cursor : cursors) {
-            if (!cursor.requiresRecovery()) {
+            if (cursor.backlog() != UNKNOWN_CURSOR_BACKLOG) {
                 stats.messageBacklog += cursor.backlog();
             }
             stats.addCursorDetails(cursor.cursorName(), cursor.backlog(), cursor.ledgerId());

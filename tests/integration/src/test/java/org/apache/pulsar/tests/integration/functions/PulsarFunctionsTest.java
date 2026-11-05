@@ -318,6 +318,18 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // one running instance, which has received nothing
         getFunctionStatus(functionName, 0, true);
 
+        // The instance reports running before its source has subscribed. Wait for the function's consumer before
+        // producing: it registers the STRING schema, which the broker rejects once the schemaless BYTES producer
+        // below has made the topic active.
+        Awaitility.await()
+                .ignoreExceptions()
+                .untilAsserted(() -> {
+                    SubscriptionStats subStats = pulsarAdmin.topics().getStats(inputTopicName)
+                            .getSubscriptions().get("public/default/" + functionName);
+                    assertNotNull(subStats);
+                    assertEquals(subStats.getConsumers().size(), 1);
+                });
+
         @Cleanup
         PulsarClient client = PulsarClient.builder()
                 .serviceUrl(pulsarCluster.getPlainTextServiceUrl())
@@ -1593,7 +1605,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         }
     }
 
-    private void deleteFunction(String functionName) throws Exception {
+    protected void deleteFunction(String functionName) throws Exception {
         ContainerExecResult result = pulsarCluster.getAnyWorker().execCmd(
                 PulsarCluster.ADMIN_SCRIPT,
                 "functions",

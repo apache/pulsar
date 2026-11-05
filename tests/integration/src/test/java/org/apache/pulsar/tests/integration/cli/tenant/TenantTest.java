@@ -38,6 +38,12 @@ import org.testng.annotations.Test;
 // command did, which serves an updated or deleted tenant from its cache until the change's notification reaches it, so
 // the checks after an update or a delete wait for it.
 public class TenantTest extends PulsarTestSuite {
+
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test
     public void testListTenantCmd() throws Exception {
         ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("tenants", "list");

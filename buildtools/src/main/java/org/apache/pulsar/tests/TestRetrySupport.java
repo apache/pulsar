@@ -92,6 +92,14 @@ public abstract class TestRetrySupport {
     }
 
     /**
+     * Whether a test method has failed since the last setup, which may have left the environment in a state that
+     * a later test doesn't expect: the next test method runs after a cleanup and a setup.
+     */
+    protected final boolean isCurrentSetupFailed() {
+        return failedSetupNumber == currentSetupNumber;
+    }
+
+    /**
      * This method should be called in the cleanup method of the concrete class.
      */
     protected final void markCurrentSetupNumberCleaned() {
