@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.topics.TopicsPatternFactory;
 
@@ -57,8 +58,18 @@ public class TopicsPatternCache {
         if (topicsPattern == null) {
             // compile outside of the cache, so that an invalid regex throws its own exception and isn't cached
             topicsPattern = TopicsPatternFactory.create(regex, implementation);
-            cache.put(key, topicsPattern);
+            // The factory returns one shared pattern for all the regexes that match all topics, for example
+            // persistent://.*://alias-1, and it's never collected, so its entries would never be removed.
+            if (topicsPattern != TopicsPatternFactory.matchAll()) {
+                cache.put(key, topicsPattern);
+            }
         }
         return topicsPattern;
+    }
+
+    @VisibleForTesting
+    long size() {
+        cache.cleanUp();
+        return cache.estimatedSize();
     }
 }

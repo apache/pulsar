@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.re2j.PatternSyntaxException;
 import java.lang.ref.WeakReference;
 import org.apache.pulsar.common.topics.TopicsPattern;
+import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
@@ -56,6 +57,17 @@ public class TopicsPatternCacheTest {
             System.gc();
             assertThat(topicsPattern.get()).as("pattern that only the cache references").isNull();
         });
+    }
+
+    @Test
+    public void testDoesNotCacheMatchAllPattern() {
+        // the regexes are distinct, but they all match all topics after removing the topic domain scheme
+        for (int i = 0; i < 100; i++) {
+            assertThat(topicsPatternCache.get("persistent://.*://alias-" + i,
+                    TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK))
+                    .isSameAs(TopicsPatternFactory.matchAll());
+        }
+        assertThat(topicsPatternCache.size()).isZero();
     }
 
     @Test
