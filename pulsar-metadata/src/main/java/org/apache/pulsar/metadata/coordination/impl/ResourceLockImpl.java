@@ -290,13 +290,20 @@ public class ResourceLockImpl<T> implements ResourceLock<T> {
                     }
 
                     synchronized (ResourceLockImpl.this) {
+                        if (state != State.Valid && state != State.Init) {
+                            // The metadata read may finish after release started. In particular,
+                            // recognizing our old session's value must not revive a released lock.
+                            return CompletableFuture.failedFuture(
+                                    new IllegalStateException("Lock was not in valid state: " + state));
+                        }
                         if (newValue.equals(existingValue)) {
                             // The lock value is still the same, that means that we're the
                             // logical "owners" of the lock.
 
                             if (res.getStat().isCreatedBySelf()) {
                                 // If the new lock belongs to the same session, there's no
-                                // need to recreate it.
+                                // need to recreate it. A fresh local handle still starts in Init.
+                                state = State.Valid;
                                 version = res.getStat().getVersion();
                                 value = newValue;
                                 return CompletableFuture.completedFuture(null);
