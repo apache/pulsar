@@ -726,39 +726,47 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
 
     @Test(timeOut = 60_000)
     public void testFailedInitClosesReaderWhenBrokerOwnsNoBundleOfNamespace() throws Exception {
-        SystemTopicBasedTopicPoliciesService service =
-                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+        final NamespaceName ownedNamespace = NamespaceName.get(NAMESPACE4);
+        final NamespaceName unownedNamespace = NamespaceName.get(NAMESPACE5);
+        admin.namespaces().createNamespace(NAMESPACE4);
+        admin.namespaces().createNamespace(NAMESPACE5);
 
-        // Control: NAMESPACE1 is served by this broker (prepareData looked topics up in it). A reader whose first
-        // read fails there is kept for the retry of the next topic load, and the bundle unload closes it at the
-        // latest.
-        final NamespaceName ownedNamespace = NamespaceName.get(NAMESPACE1);
-        Awaitility.await().untilAsserted(() -> Assertions.assertThat(service.getPoliciesCacheInit(ownedNamespace))
-                .describedAs("the bundle of %s has not been loaded yet, so the broker would not count as its owner",
-                        ownedNamespace)
-                .isNotNull()
-                .isCompleted());
-        service.cleanPoliciesCacheInitMap(ownedNamespace);
+        // In both namespaces the first read of __change_events fails, and no real reader is created, so only the
+        // lookup below can make this broker the owner of a bundle.
+        pulsar.getTopicPoliciesService().close();
+        SystemTopicBasedTopicPoliciesService spyService =
+                Mockito.spy(new SystemTopicBasedTopicPoliciesService(pulsar));
         SystemTopicClient.Reader<PulsarEvent> keptReader = readerWhoseFirstReadFails(ownedNamespace);
-        service.getReaderCaches().put(ownedNamespace, CompletableFuture.completedFuture(keptReader));
-        Assertions.assertThat(service.prepareInitPoliciesCacheAsync(ownedNamespace))
-                .failsWithin(30, TimeUnit.SECONDS);
-        Awaitility.await().untilAsserted(() -> assertNull(service.getPoliciesCacheInit(ownedNamespace)));
-        Assertions.assertThat(service.getReaderCaches())
+        SystemTopicClient.Reader<PulsarEvent> leakedReader = readerWhoseFirstReadFails(unownedNamespace);
+        Mockito.doReturn(CompletableFuture.completedFuture(keptReader))
+                .when(spyService).createSystemTopicClient(ownedNamespace);
+        Mockito.doReturn(CompletableFuture.completedFuture(leakedReader))
+                .when(spyService).createSystemTopicClient(unownedNamespace);
+        pulsar.setTopicPoliciesService(spyService);
+        spyService.start(pulsar);
+
+        // Control: the lookup makes this broker the owner of NAMESPACE4's bundle, and loading the bundle initializes
+        // the policy cache. A broker that serves the namespace keeps the reader of the failed initialization: the
+        // next topic load retries with it, and the bundle unload closes it at the latest.
+        admin.lookups().lookupTopic("persistent://" + NAMESPACE4 + "/topic");
+        Mockito.verify(keptReader, Mockito.timeout(30_000).atLeastOnce()).hasMoreEventsAsync();
+        Awaitility.await().untilAsserted(() -> Assertions.assertThat(spyService.getPoliciesCacheInit(ownedNamespace))
+                .describedAs("the failed initialization of %s must not stay registered", ownedNamespace)
+                .isNull());
+        Assertions.assertThat(spyService.getReaderCaches())
                 .describedAs("a broker that serves the namespace keeps the reader for the retry")
                 .containsKey(ownedNamespace);
         Mockito.verify(keptReader, Mockito.never()).closeAsync();
 
-        // NAMESPACE4 exists, but nothing looked a topic up in it, so this broker owns none of its bundles: a policy
-        // read reached it for a namespace it does not serve, for example during a bundle move. No topic load retries
-        // the initialization and no bundle unload follows, so nothing but the failure itself can close the reader.
-        admin.namespaces().createNamespace(NAMESPACE4);
-        final NamespaceName unownedNamespace = NamespaceName.get(NAMESPACE4);
-        SystemTopicClient.Reader<PulsarEvent> leakedReader = readerWhoseFirstReadFails(unownedNamespace);
-        service.getReaderCaches().put(unownedNamespace, CompletableFuture.completedFuture(leakedReader));
-        Assertions.assertThat(service.prepareInitPoliciesCacheAsync(unownedNamespace))
+        // Nothing looked a topic up in NAMESPACE5, so this broker owns none of its bundles, and a policy read
+        // reaches it all the same, as it can during a bundle move. No topic load retries the initialization and no
+        // bundle unload follows, so nothing but the failure itself can close the reader.
+        Assertions.assertThat(spyService.getTopicPoliciesAsync(
+                        TopicName.get("persistent://" + NAMESPACE5 + "/topic"),
+                        TopicPoliciesService.GetType.LOCAL_ONLY))
+                .describedAs("the policy read must report the failed initialization")
                 .failsWithin(30, TimeUnit.SECONDS);
-        Awaitility.await().untilAsserted(() -> Assertions.assertThat(service.getReaderCaches())
+        Awaitility.await().untilAsserted(() -> Assertions.assertThat(spyService.getReaderCaches())
                 .describedAs("the reader stays cached and subscribed, and nothing reads from it or closes it until"
                         + " the broker restarts")
                 .doesNotContainKey(unownedNamespace));
