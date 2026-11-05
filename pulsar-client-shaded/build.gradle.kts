@@ -60,6 +60,10 @@ dependencies {
     // does not force a protobuf version on consumers. Anyone using Schema.PROTOBUF / PROTOBUF_NATIVE
     // must add protobuf-java themselves — matching the `provided` scope of the pre-Gradle Maven build.
     "shadowApi"(project(":pulsar-client-api"))
+    // pulsar-common is bundled, but its public API exposes admin types (TopicName#getDomain
+    // returns TopicDomain) and pulsar-client-admin-api itself is not bundled. Publish it with
+    // compile scope so consumers depending only on pulsar-client can load those types.
+    "shadowApi"(project(":pulsar-client-admin-api"))
     // PIP-478: the bundled implementation classes reference these three API modules on their exported
     // ABI — ClientConfigurationData exposes PulsarTlsFactory / Map<TlsPurpose, TlsPolicy>, the built-in
     // v4 auth plugins implement V5AuthenticationProvider, and FrameworkHttpClientFactory implements
