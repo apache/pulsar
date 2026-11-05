@@ -157,7 +157,8 @@ public interface ConsumerInterceptor<T> extends AutoCloseable {
      *
      * <p>A Shared or Key_Shared consumer redelivers only the messages that timed out. An Exclusive or Failover
      * consumer cannot redeliver single messages, so it redelivers all of its unacknowledged messages, and
-     * {@code messageIds} holds all of them, including the ones that did not time out yet.
+     * {@code messageIds} holds all of them, including the ones that did not time out yet and, with an
+     * {@code ackTimeoutRedeliveryBackoff}, the ones whose backoff delay did not elapse yet.
      *
      * <p>Any exception thrown by this method will be ignored by the caller.
      *

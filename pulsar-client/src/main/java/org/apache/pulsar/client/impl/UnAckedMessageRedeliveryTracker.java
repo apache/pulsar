@@ -88,6 +88,12 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                     headPartition.clear();
                     redeliveryTimePartitions.addLast(headPartition);
                     collectMessagesToRedeliver(consumerBase, messageIds);
+                    if (redeliversAllOnAckTimeout && !messageIds.isEmpty()) {
+                        // The consumer redelivers all of its unacked messages and clears this tracker, also the
+                        // ones still waiting out their backoff and the ones that did not time out yet: report
+                        // them to onAckTimeoutSend as well
+                        removeAllMessagesToRedeliver(consumerBase, messageIds);
+                    }
                 } finally {
                     try {
                         timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
@@ -131,8 +137,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         long now = System.currentTimeMillis();
         ackTimeoutMessages.forEach((messageId, timestamp) -> {
             if (timestamp <= now) {
-                addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
-                messageIds.add(messageId);
+                addMessageToRedeliver(messageId, messageIds, consumerBase);
             }
         });
         if (!messageIds.isEmpty()) {
@@ -145,6 +150,25 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                 ackTimeoutMessages.remove(messageId);
             }
         }
+    }
+
+    private void removeAllMessagesToRedeliver(ConsumerBase<?> consumerBase, Set<MessageId> messageIds) {
+        ackTimeoutMessages.keySet().forEach(messageId -> addMessageToRedeliver(messageId, messageIds, consumerBase));
+        ackTimeoutMessages.clear();
+        redeliveryMessageIdPartitionMap.clear();
+        redeliveryTimePartitions.forEach(partition -> {
+            partition.forEach(unackMessageIdWrapper -> {
+                addMessageToRedeliver(unackMessageIdWrapper.getMessageId(), messageIds, consumerBase);
+                unackMessageIdWrapper.recycle();
+            });
+            partition.clear();
+        });
+    }
+
+    private static void addMessageToRedeliver(MessageId messageId, Set<MessageId> messageIds,
+                                              ConsumerBase<?> consumerBase) {
+        addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
+        messageIds.add(messageId);
     }
 
     @Override

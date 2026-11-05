@@ -57,7 +57,7 @@ public class UnAckedMessageTracker implements Closeable {
     protected final long tickDurationInMs;
     // An Exclusive or Failover consumer cannot redeliver single messages: when some of its messages time out, it
     // redelivers all of its unacked messages and clears this tracker.
-    private final boolean redeliversAllOnAckTimeout;
+    protected final boolean redeliversAllOnAckTimeout;
 
     private final Counter consumerAckTimeoutsCounter;
 
