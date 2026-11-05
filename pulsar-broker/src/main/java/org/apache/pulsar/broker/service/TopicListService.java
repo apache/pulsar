@@ -449,6 +449,10 @@ public class TopicListService {
             return state.compareAndSet(State.AUTHORIZING, State.INITIALIZING);
         }
 
+        boolean isAuthorizing() {
+            return state.get() == State.AUTHORIZING;
+        }
+
         boolean failBeforeInitialization() {
             return state.compareAndSet(State.AUTHORIZING, State.FAILED);
         }
@@ -510,22 +514,6 @@ public class TopicListService {
             return;
         }
 
-        TopicsPattern topicsPattern;
-        try {
-            topicsPattern = TopicsPatternFactory.create(topicsPatternString, topicsPatternRegexImplementation);
-        } catch (Exception e) {
-            log.warn()
-                    .attr("connection", connection)
-                    .attr("topicsPatternString", topicsPatternString)
-                    .attr("namespace", namespaceName)
-                    .log("Unable to create topic list watcher: Invalid pattern");
-            failWatchTopicListRequest(request, e);
-            connection.getCommandSender().sendErrorResponse(requestId, ServerError.InvalidTopicName,
-                    "Invalid topics pattern: " + e.getMessage());
-            lookupSemaphore.release();
-            return;
-        }
-
         WatchTopicListRequest admitted = request == null ? beginWatchTopicListRequest(watcherId) : request;
         CompletableFuture<TopicListWatcher> watcherFuture = admitted.watcherFuture();
         if (!connection.isActive() || watchers.get(watcherId) != watcherFuture
@@ -540,9 +528,29 @@ public class TopicListService {
             lookupSemaphore.release();
             return;
         }
+        // Only a request that can still initialize the watcher needs the compiled pattern. A request for a watcher
+        // that is already initializing or initialized refreshes it, and the watcher keeps its own pattern, so the
+        // watch requests that clients send periodically to reconcile their watchers don't compile the pattern.
+        TopicsPattern topicsPattern = null;
+        if (admitted.watcherFuture().isAuthorizing()) {
+            try {
+                topicsPattern = TopicsPatternFactory.create(topicsPatternString, topicsPatternRegexImplementation);
+            } catch (Exception e) {
+                log.warn()
+                        .attr("connection", connection)
+                        .attr("topicsPatternString", topicsPatternString)
+                        .attr("namespace", namespaceName)
+                        .log("Unable to create topic list watcher: Invalid pattern");
+                failWatchTopicListRequest(admitted, e);
+                connection.getCommandSender().sendErrorResponse(requestId, ServerError.InvalidTopicName,
+                        "Invalid topics pattern: " + e.getMessage());
+                lookupSemaphore.release();
+                return;
+            }
+        }
         // The first successfully authorized request initializes the reservation. An older request's authorization
         // may never finish, so reserving the id must not make later authorized retries depend on that request.
-        boolean initialize = admitted.watcherFuture().tryInitialize();
+        boolean initialize = topicsPattern != null && admitted.watcherFuture().tryInitialize();
 
         // the watcher and the snapshot of its matching topics to respond with
         CompletableFuture<WatcherTopics> watcherTopicsFuture;
