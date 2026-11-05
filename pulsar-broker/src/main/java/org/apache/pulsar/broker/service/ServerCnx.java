@@ -162,6 +162,8 @@ import org.apache.pulsar.common.api.proto.CommandTopicMigrated.ResourceType;
 import org.apache.pulsar.common.api.proto.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.CommandWatchScalableTopics;
 import org.apache.pulsar.common.api.proto.CommandWatchScalableTopicsClose;
+import org.apache.pulsar.common.api.proto.CommandWatchTcAssignments;
+import org.apache.pulsar.common.api.proto.CommandWatchTcAssignmentsClose;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicList;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListClose;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
@@ -1002,11 +1004,36 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
             scalableTopicsWatchers = new ConcurrentHashMap<>();
 
     // --- Transaction-coordinator assignment watchers ---
-    // watchId -> deregistration handle for the listener registered on TransactionCoordinatorV5.
-    private final ConcurrentHashMap<Long, AutoCloseable> tcAssignmentWatchers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, TcAssignmentWatchSession> tcAssignmentWatchers = new ConcurrentHashMap<>();
     // Delay before re-pushing a TC-assignment snapshot that was incomplete (a partition mid-election)
     // or that failed to build, so the client converges without waiting for an external trigger.
     private static final long TC_ASSIGNMENTS_REPUSH_DELAY_MS = 1000L;
+
+    /** Build and repush state is confined to this connection's event loop. */
+    private final class TcAssignmentWatchSession implements AutoCloseable {
+        private final long watchId;
+        private final TransactionCoordinatorV5 coordinator;
+        private AutoCloseable listener;
+        private boolean inFlight;
+        private boolean pending;
+        private boolean closed;
+        private ScheduledFuture<?> repush;
+
+        private TcAssignmentWatchSession(long watchId, TransactionCoordinatorV5 coordinator) {
+            this.watchId = watchId;
+            this.coordinator = coordinator;
+        }
+
+        @Override
+        public void close() {
+            closed = true;
+            if (repush != null) {
+                repush.cancel(false);
+                repush = null;
+            }
+            closeQuietly(listener);
+        }
+    }
 
     @Override
     protected void handleCommandWatchScalableTopics(
@@ -1137,8 +1164,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     // --- Transaction-coordinator assignment watch ---
 
     @Override
-    protected void handleCommandWatchTcAssignments(
-            org.apache.pulsar.common.api.proto.CommandWatchTcAssignments cmd) {
+    protected void handleCommandWatchTcAssignments(CommandWatchTcAssignments cmd) {
         checkArgument(state == State.Connected);
         final long watchId = cmd.getWatchId();
         log.debug().attr("watchId", watchId).log("Received WatchTcAssignments");
@@ -1158,45 +1184,68 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // Register a listener that re-pushes the full snapshot on any leadership change, then send
         // the initial snapshot. Authz: this is broker-internal coordination, not a per-topic op, so
         // an authenticated connection is sufficient (same trust model as TC_CLIENT_CONNECT).
-        AutoCloseable handle = tc.registerAssignmentChangeListener(
-                () -> ctx.executor().execute(() -> sendTcAssignmentsSnapshot(watchId, tc)));
-        AutoCloseable prev = tcAssignmentWatchers.put(watchId, handle);
+        TcAssignmentWatchSession session = new TcAssignmentWatchSession(watchId, tc);
+        session.listener = tc.registerAssignmentChangeListener(
+                () -> ctx.executor().execute(() -> sendTcAssignmentsSnapshot(session)));
+        TcAssignmentWatchSession prev = tcAssignmentWatchers.put(watchId, session);
         closeQuietly(prev);
-        sendTcAssignmentsSnapshot(watchId, tc);
+        sendTcAssignmentsSnapshot(session);
     }
 
-    private void sendTcAssignmentsSnapshot(long watchId, TransactionCoordinatorV5 tc) {
-        if (!tcAssignmentWatchers.containsKey(watchId)) {
+    private void sendTcAssignmentsSnapshot(TcAssignmentWatchSession session) {
+        if (session.closed || tcAssignmentWatchers.get(session.watchId) != session) {
             return;
         }
-        tc.buildAssignmentsSnapshot().thenAccept(snapshot -> ctx.executor().execute(() -> {
-            if (!tcAssignmentWatchers.containsKey(watchId)) {
+        session.pending = true;
+        if (session.inFlight) {
+            return;
+        }
+        if (session.repush != null) {
+            session.repush.cancel(false);
+            session.repush = null;
+        }
+        session.inFlight = true;
+        session.pending = false;
+        session.coordinator.buildAssignmentsSnapshot().whenComplete((snapshot, error) -> ctx.executor().execute(() -> {
+            if (session.closed || tcAssignmentWatchers.get(session.watchId) != session) {
                 return;
             }
-            java.util.Map<Integer, String[]> leaders = new java.util.HashMap<>();
+            session.inFlight = false;
+            if (session.pending) {
+                // A leadership change invalidated this in-flight read. Coalesce notifications
+                // into one fresh build instead of publishing an old full routing map last.
+                sendTcAssignmentsSnapshot(session);
+                return;
+            }
+            if (error != null) {
+                log.warn().attr("watchId", session.watchId).exception(error)
+                        .log("Failed to build TC-assignments snapshot; retrying shortly");
+                scheduleTcAssignmentsRepush(session);
+                return;
+            }
+            Map<Integer, String[]> leaders = new HashMap<>();
             snapshot.assignments().forEach((partition, leader) -> leaders.put(partition,
                     new String[] {leader.brokerServiceUrl(), leader.brokerServiceUrlTls()}));
             ctx.writeAndFlush(Commands.newWatchTcAssignmentsSnapshot(
-                    watchId, snapshot.partitionCount(), leaders));
+                    session.watchId, snapshot.partitionCount(), leaders));
             // If some partition is still mid-election, the snapshot is incomplete. Schedule a single
             // delayed re-push so the client doesn't stay parked on a missing partition waiting for a
             // leadership change that may never come (the cache repopulating fires no TC listener).
             if (!snapshot.isComplete()) {
-                ctx.executor().schedule(() -> sendTcAssignmentsSnapshot(watchId, tc),
-                        TC_ASSIGNMENTS_REPUSH_DELAY_MS, TimeUnit.MILLISECONDS);
+                scheduleTcAssignmentsRepush(session);
             }
-        })).exceptionally(ex -> {
-            log.warn().attr("watchId", watchId).exception(ex)
-                    .log("Failed to build TC-assignments snapshot; retrying shortly");
-            ctx.executor().schedule(() -> sendTcAssignmentsSnapshot(watchId, tc),
-                    TC_ASSIGNMENTS_REPUSH_DELAY_MS, TimeUnit.MILLISECONDS);
-            return null;
-        });
+        }));
+    }
+
+    private void scheduleTcAssignmentsRepush(TcAssignmentWatchSession session) {
+        session.repush = ctx.executor().schedule(() -> {
+            session.repush = null;
+            sendTcAssignmentsSnapshot(session);
+        }, TC_ASSIGNMENTS_REPUSH_DELAY_MS, TimeUnit.MILLISECONDS);
     }
 
     @Override
-    protected void handleCommandWatchTcAssignmentsClose(
-            org.apache.pulsar.common.api.proto.CommandWatchTcAssignmentsClose cmd) {
+    protected void handleCommandWatchTcAssignmentsClose(CommandWatchTcAssignmentsClose cmd) {
         checkArgument(state == State.Connected);
         long watchId = cmd.getWatchId();
         log.debug().attr("watchId", watchId).log("Received WatchTcAssignmentsClose");

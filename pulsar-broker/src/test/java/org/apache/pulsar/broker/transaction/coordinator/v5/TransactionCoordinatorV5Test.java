@@ -21,26 +21,43 @@ package org.apache.pulsar.broker.transaction.coordinator.v5;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.transaction.metadata.TcLeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.broker.transaction.metadata.TxnOp;
 import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
+import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
 import org.apache.pulsar.broker.transaction.metadata.TxnState;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.TxnAction;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.Notification;
+import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.CoordinationService;
+import org.apache.pulsar.metadata.api.coordination.LeaderElection;
+import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.pulsar.metadata.coordination.impl.CoordinationServiceImpl;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.exceptions.CoordinatorException;
@@ -389,6 +406,115 @@ public class TransactionCoordinatorV5Test {
                     .isEqualTo("pulsar://broker-test:6650");
             assertThat(snap.assignments().get(0).brokerId()).isEqualTo("broker-test:8080");
         });
+    }
+
+    @Test
+    public void assignmentWatchFollowsChangedLeaderValueWhileElectionRemainsFollowing() throws Exception {
+        TcLeader previous = tc.buildAssignmentsSnapshot().get(10, TimeUnit.SECONDS).assignments().get(0);
+        MetadataStoreExtended observingStore = spy(store);
+        AtomicInteger cancellations = new AtomicInteger();
+        AtomicReference<Consumer<Notification>> notifications = new AtomicReference<>();
+        AtomicReference<Consumer<SessionEvent>> sessions = new AtomicReference<>();
+        doAnswer(invocation -> {
+            Consumer<Notification> listener = invocation.getArgument(0);
+            notifications.set(listener);
+            return (Runnable) cancellations::incrementAndGet;
+        }).when(observingStore).registerCancellableListener(any());
+        doAnswer(invocation -> {
+            Consumer<SessionEvent> listener = invocation.getArgument(0);
+            sessions.set(listener);
+            return (Runnable) cancellations::incrementAndGet;
+        }).when(observingStore).registerCancellableSessionListener(any());
+        TransactionCoordinatorV5 follower = followingCoordinator(observingStore, previous);
+        AtomicInteger changes = new AtomicInteger();
+        try {
+            follower.registerAssignmentChangeListener(changes::incrementAndGet);
+            assertThat(follower.isLeaderFor(0)).isFalse();
+            assertThat(follower.buildAssignmentsSnapshot().get(10, TimeUnit.SECONDS).assignments().get(0))
+                    .isEqualTo(previous);
+            String path = TxnPaths.tcLeaderPath(0);
+            TcLeader current = new TcLeader("new-leader:8080", "pulsar://new-leader:6650", null,
+                    "http://new-leader:8080");
+            // A value update produces Modified, not a local Following -> Leading transition.
+            // The mocked election deliberately continues returning its old cached leader value.
+            store.put(path, TxnMetadataStore.toJson(current), Optional.empty()).get(10, TimeUnit.SECONDS);
+            if (notifications.get() != null) {
+                notifications.get().accept(new Notification(NotificationType.Modified, path));
+            }
+            assertThat(follower.buildAssignmentsSnapshot().get(10, TimeUnit.SECONDS).assignments().get(0))
+                    .as("a following coordinator must publish the persisted new leader, not its old election cache")
+                    .isEqualTo(current);
+            assertThat(notifications.get()).as("leader value updates must wake assignment watches").isNotNull();
+            assertThat(sessions.get()).as("metadata reconnects must refresh assignment watches").isNotNull();
+            assertThat(changes.get()).isEqualTo(1);
+            assertThat(follower.isLeaderFor(0)).isFalse();
+
+            int before = changes.get();
+            notifications.get().accept(new Notification(NotificationType.Modified, "/txn/id/0_1"));
+            notifications.get().accept(new Notification(NotificationType.Modified, TxnPaths.tcLeaderPath(4)));
+            notifications.get().accept(new Notification(NotificationType.Modified, path + "/child"));
+            notifications.get().accept(new Notification(NotificationType.ChildrenChanged, path));
+            assertThat(changes.get()).isEqualTo(before);
+            sessions.get().accept(SessionEvent.Reconnected);
+            assertThat(changes.get()).isEqualTo(before + 1);
+        } finally {
+            follower.close();
+        }
+        assertThat(cancellations.get()).as("metadata and session listener ownership").isEqualTo(2);
+        int afterClose = changes.get();
+        notifications.get().accept(new Notification(NotificationType.Modified, TxnPaths.tcLeaderPath(0)));
+        sessions.get().accept(SessionEvent.SessionReestablished);
+        assertThat(changes.get()).as("late callbacks after close").isEqualTo(afterClose);
+    }
+
+    @Test
+    public void assignmentSnapshotsShareAnOutstandingLeaderLoadAcrossWatchers() throws Exception {
+        TcLeader previous = tc.buildAssignmentsSnapshot().get(10, TimeUnit.SECONDS).assignments().get(0);
+        MetadataStoreExtended observingStore = spy(store);
+        String path = TxnPaths.tcLeaderPath(0);
+        CompletableFuture<Optional<GetResult>> pending = new CompletableFuture<>();
+        AtomicInteger reads = new AtomicInteger();
+        doAnswer(invocation -> {
+            reads.incrementAndGet();
+            return pending;
+        }).when(observingStore).get(path);
+        TransactionCoordinatorV5 follower = followingCoordinator(observingStore, previous);
+        try {
+            var first = follower.buildAssignmentsSnapshot();
+            var second = follower.buildAssignmentsSnapshot();
+            assertThat(first).isNotDone();
+            assertThat(second).isNotDone();
+            assertThat(reads.get()).as("concurrent assignment watchers share the same cached load").isEqualTo(1);
+            pending.complete(store.get(path).get(10, TimeUnit.SECONDS));
+            assertThat(first.get(10, TimeUnit.SECONDS).assignments().get(0)).isEqualTo(previous);
+            assertThat(second.get(10, TimeUnit.SECONDS).assignments().get(0)).isEqualTo(previous);
+        } finally {
+            pending.complete(Optional.empty());
+            follower.close();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private TransactionCoordinatorV5 followingCoordinator(MetadataStoreExtended observingStore,
+                                                         TcLeader cachedLeader) {
+        LeaderElection<TcLeader> election = mock(LeaderElection.class);
+        when(election.getState()).thenReturn(LeaderElectionState.Following);
+        when(election.elect(any())).thenReturn(CompletableFuture.completedFuture(LeaderElectionState.Following));
+        when(election.getLeaderValue()).thenReturn(CompletableFuture.completedFuture(Optional.of(cachedLeader)));
+        when(election.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
+        CoordinationService coordination = mock(CoordinationService.class);
+        when(coordination.getLeaderElection(eq(TcLeader.class), anyString(), any())).thenReturn(election);
+        PulsarService other = mock(PulsarService.class);
+        when(other.getLocalMetadataStore()).thenReturn(observingStore);
+        when(other.getCoordinationService()).thenReturn(coordination);
+        var configuration = pulsar.getConfiguration();
+        when(other.getConfiguration()).thenReturn(configuration);
+        when(other.getBrokerId()).thenReturn("follower:8080");
+        when(other.getBrokerServiceUrl()).thenReturn("pulsar://follower:6650");
+        when(other.getSafeWebServiceAddress()).thenReturn("http://follower:8080");
+        TransactionCoordinatorV5 follower = new TransactionCoordinatorV5(other);
+        follower.start();
+        return follower;
     }
 
     @Test
