@@ -20,10 +20,13 @@ package org.apache.pulsar.client.impl;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.ChannelHandlerContext;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
@@ -37,6 +40,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.util.BackoffBuilder;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,22 +48,19 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
 
     private static final Logger log = LoggerFactory.getLogger(TopicListWatcher.class);
 
-    private static final AtomicLongFieldUpdater<TopicListWatcher> CREATE_WATCHER_DEADLINE_UPDATER =
-            AtomicLongFieldUpdater
-                    .newUpdater(TopicListWatcher.class, "createWatcherDeadline");
-
     private final PatternConsumerUpdateQueue patternConsumerUpdateQueue;
     private final String name;
     private final ConnectionHandler connectionHandler;
     private final TopicsPattern topicsPattern;
     @Getter(value = AccessLevel.PROTECTED, onMethod_ = @VisibleForTesting)
     private final long watcherId;
-    private volatile long createWatcherDeadline = 0;
     private final NamespaceName namespace;
     // maintain the value based on updates from broker and allow external components to query it
     private final Supplier<String> localStateTopicsHashSupplier;
     private final CompletableFuture<TopicListWatcher> watcherFuture;
     private final IntSupplier nextRecheckPatternEpochSupplier;
+    private final Set<ClientCnx> timedOutWatchConnections = new HashSet<>();
+    private volatile boolean closing;
 
     private final AtomicInteger previousExceptionCount = new AtomicInteger();
     private final AtomicReference<ClientCnx> clientCnxUsedForWatcherRegistration = new AtomicReference<>();
@@ -114,6 +115,14 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
 
     @Override
     public CompletableFuture<Void> connectionOpened(ClientCnx cnx) {
+        State state = getState();
+        if (closing || state == State.Closing || state == State.Closed) {
+            setState(State.Closed);
+            deregisterFromClientCnx();
+            client.getCnxPool().releaseConnection(cnx);
+            return CompletableFuture.completedFuture(null);
+        }
+
         if (!cnx.isSupportsTopicWatchers()) {
             watcherFuture.completeExceptionally(new PulsarClientException.NotAllowedException(
                     "Broker does not allow broker side pattern evaluation."));
@@ -125,21 +134,10 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
 
         previousExceptionCount.set(0);
 
-        State state = getState();
-        if (state == State.Closing || state == State.Closed) {
-            setState(State.Closed);
-            deregisterFromClientCnx();
-            return CompletableFuture.completedFuture(null);
-        }
-
         log.info("[{}][{}] Creating topic list watcher on cnx {}, watcherId {}",
                 topic, getHandlerName(), cnx.ctx().channel(), watcherId);
 
         long requestId = client.newRequestId();
-
-        CREATE_WATCHER_DEADLINE_UPDATER
-                .compareAndSet(this, 0L, System.currentTimeMillis()
-                        + client.getConfiguration().getOperationTimeoutMs());
 
         final CompletableFuture<Void> future = new CompletableFuture<>();
         // synchronized this, because redeliverUnAckMessage eliminate the epoch inconsistency between them
@@ -151,14 +149,15 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                             localStateTopicsHash)
                     .thenAccept(response -> {
                         synchronized (TopicListWatcher.this) {
-                            if (!changeToReadyState()) {
-                                // Watcher was closed while reconnecting, close the connection to make sure the broker
-                                // drops the watcher on its side
+                            if (closing || !changeToReadyState()) {
+                                // Remove only this watcher; the connection may be shared by other handlers.
                                 setState(State.Closed);
                                 deregisterFromClientCnx();
-                                log.warn("[{}] Watcher was closed while reconnecting, closing the connection to {}.",
-                                        topic, cnx.channel().remoteAddress());
-                                cnx.channel().close();
+                                if (log.isDebugEnabled()) {
+                                    log.debug("[{}][{}] Watcher was closed while reconnecting, cleaning up its"
+                                            + " registration", topic, getHandlerName());
+                                }
+                                closeWatcherAndReleaseConnection(cnx);
                                 future.complete(null);
                                 return;
                             }
@@ -168,31 +167,36 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                         watcherFuture.complete(this);
                         future.complete(null);
                     }).exceptionally((e) -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(e);
+                        recordWatchTimeout(cnx, cause);
                         deregisterFromClientCnx();
-                        if (getState() == State.Closing || getState() == State.Closed) {
-                            // Watcher was closed while reconnecting, close the connection to make sure the broker
-                            // drops the watcher on its side
-                            cnx.channel().close();
+                        if (closing || getState() == State.Closing || getState() == State.Closed) {
+                            // The failed request may still have created a watcher on the broker.
+                            closeWatcherAndReleaseConnection(cnx);
                             future.complete(null);
                             return null;
                         }
                         log.warn("[{}][{}] Failed to create topic list watcher on {}",
                                 topic, getHandlerName(), cnx.channel().remoteAddress());
 
-                        if (e.getCause() instanceof PulsarClientException
-                                && PulsarClientException.isRetriableError(e.getCause())
-                                && System.currentTimeMillis()
-                                    < CREATE_WATCHER_DEADLINE_UPDATER.get(TopicListWatcher.this)) {
-                            future.completeExceptionally(e.getCause());
+                        if (cause instanceof PulsarClientException
+                                && PulsarClientException.isRetriableError(cause)) {
+                            // The pattern consumer has already subscribed before this watcher is created. Keep
+                            // retrying transient failures while it is open; a single request timeout must not
+                            // permanently switch the consumer to polling. ConnectionHandler applies backoff and
+                            // stops reconnecting when the watcher is closed.
+                            closeWatcherAndReleaseConnection(cnx);
+                            future.completeExceptionally(cause);
                         } else if (!watcherFuture.isDone()) {
                             // unable to create new watcher, fail operation
                             setState(State.Failed);
                             watcherFuture.completeExceptionally(
-                                    PulsarClientException.wrap(e, String.format("Failed to create topic list watcher %s"
-                                                    + "when connecting to the broker", getHandlerName())));
+                                    PulsarClientException.wrap(cause, String.format(
+                                            "Failed to create topic list watcher %s when connecting to the broker",
+                                            getHandlerName())));
                         } else {
                             // watcher was subscribed and connected, but we got some error, keep trying
-                            future.completeExceptionally(e.getCause());
+                            future.completeExceptionally(cause);
                         }
                         if (!future.isDone()) {
                             future.complete(null);
@@ -201,6 +205,71 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
                     });
         }
         return future;
+    }
+
+    private void recordWatchTimeout(ClientCnx cnx, Throwable error) {
+        if (!(error instanceof PulsarClientException.TimeoutException)) {
+            return;
+        }
+        boolean closeConnection;
+        synchronized (timedOutWatchConnections) {
+            timedOutWatchConnections.removeIf(connection -> !connection.channel().isActive());
+            closeConnection = closing;
+            if (!closeConnection && cnx.channel().isActive()) {
+                timedOutWatchConnections.add(cnx);
+            }
+        }
+        if (closeConnection && cnx.channel().isActive()) {
+            cnx.channel().close();
+        }
+    }
+
+    private void closeTimedOutWatchConnections() {
+        List<ClientCnx> connections;
+        synchronized (timedOutWatchConnections) {
+            closing = true;
+            connections = new ArrayList<>(timedOutWatchConnections);
+            timedOutWatchConnections.clear();
+        }
+        // Older brokers may acknowledge CLOSE before a timed-out WATCH finishes authorization and registers.
+        // Another successful request cannot prove that old authorization finished. Preserve shared connections
+        // while open, but reset these uncertain connections at close so old brokers cannot retain orphan watchers.
+        // Other handlers using a shared connection reconnect normally. Never close channels under the tracking lock.
+        for (ClientCnx cnx : connections) {
+            if (cnx.channel().isActive()) {
+                cnx.channel().close();
+            }
+        }
+    }
+
+    private void closeWatcherAndReleaseConnection(ClientCnx cnx) {
+        try {
+            if (!cnx.channel().isActive()) {
+                return;
+            }
+            // A failed request or a response received after close may have created a watcher on this connection.
+            // Queue its close before retrying or releasing the connection. Do not wait for the close receipt:
+            // the connection may be slow, and ClientCnx already bounds the close request with its operation timeout.
+            long requestId = client.newRequestId();
+            cnx.newWatchTopicListClose(Commands.newWatchTopicListClose(watcherId, requestId), requestId)
+                    .exceptionally(error -> {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] Failed to close abandoned topic list watcher", topic,
+                                    getHandlerName(), error);
+                        }
+                        return null;
+                    });
+        } catch (Exception error) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Failed to send abandoned topic list watcher close", topic, getHandlerName(),
+                        error);
+            }
+        } finally {
+            // ConnectionHandler does not release its reference after a failed or late watch response. Release
+            // dedicated connections when pooling
+            // is disabled; pooled connections remain available to their other handlers.
+            client.getCnxPool().releaseConnection(cnx);
+        }
     }
 
     @Override
@@ -217,6 +286,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
     }
 
     public CompletableFuture<Void> closeAsync() {
+        closeTimedOutWatchConnections();
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         // since we set closed flag in PatternMultiTopicsConsumerImpl, it is ok to directly cancel watcherFuture whether
         // it's completed or not to make sure watcherFuture is completed
@@ -309,7 +379,7 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
      */
     public CompletableFuture<CommandWatchTopicListSuccess> reconcile(String localStateTopicsHash) {
         ClientCnx c = cnx();
-        if (c == null || !isConnected()) {
+        if (closing || c == null || !isConnected()) {
             CompletableFuture<CommandWatchTopicListSuccess> f = new CompletableFuture<>();
             f.completeExceptionally(new IllegalStateException("Watcher is not connected"));
             return f;
@@ -317,7 +387,14 @@ public class TopicListWatcher extends HandlerState implements ConnectionHandler.
         long requestId = client.newRequestId();
         // Use the convenience ClientCnx overload that accepts a topicsHash
         return c.newWatchTopicList(requestId, watcherId, namespace.toString(),
-                topicsPattern.inputPattern(), localStateTopicsHash);
+                topicsPattern.inputPattern(), localStateTopicsHash).whenComplete((response, error) -> {
+                    if (error != null) {
+                        recordWatchTimeout(c, FutureUtil.unwrapCompletionException(error));
+                    }
+                    if (closing) {
+                        closeWatcherAndReleaseConnection(c);
+                    }
+                });
     }
 
     public boolean supportsReconcile() {
