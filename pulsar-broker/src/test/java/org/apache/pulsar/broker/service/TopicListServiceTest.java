@@ -142,6 +142,7 @@ public class TopicListServiceTest {
         when(pulsar.getBrokerService()).thenReturn(brokerService);
         TopicListSizeResultCache topicListSizeResultCache = mock(TopicListSizeResultCache.class);
         when(brokerService.getTopicListSizeResultCache()).thenReturn(topicListSizeResultCache);
+        when(brokerService.getTopicsPatternCache()).thenReturn(new TopicsPatternCache());
         resultHolder = mock(TopicListSizeResultCache.ResultHolder.class);
         doReturn(resultHolder).when(topicListSizeResultCache).getTopicListSize(anyString(), any());
         doReturn(CompletableFuture.completedFuture(1L)).when(resultHolder).getSizeAsync();
