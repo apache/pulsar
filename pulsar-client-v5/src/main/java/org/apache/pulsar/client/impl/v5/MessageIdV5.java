@@ -294,6 +294,9 @@ public final class MessageIdV5 implements org.apache.pulsar.client.api.v5.Messag
         String parentTopic = null;
         if (buf.hasRemaining()) {
             int parentLen = buf.getInt();
+            if (parentLen < -1) {
+                throw new IOException("Invalid MessageIdV5 data: bad parent-topic length");
+            }
             if (parentLen >= 0) {
                 if (parentLen > buf.remaining()) {
                     throw new IOException("Invalid MessageIdV5 data: bad parent-topic length");

@@ -22,6 +22,9 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -29,6 +32,7 @@ import java.util.Map;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.v5.Checkpoint;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -135,6 +139,18 @@ public class CheckpointV5Test {
     public void testFromByteArrayRejectsBadLengths(int entryCount, int messageIdLength) {
         ByteBuffer buf = ByteBuffer.allocate(Byte.BYTES + Integer.BYTES + Long.BYTES + Integer.BYTES);
         buf.put((byte) 0).putInt(entryCount).putLong(1L).putInt(messageIdLength);
+        assertThrows(IOException.class, () -> CheckpointV5.fromByteArray(buf.array()));
+    }
+
+    @Test
+    public void testFromByteArrayRejectsNegativeBatchSizeInMessageId() {
+        // The v4 encoder itself never writes a negative batch size
+        MessageIdData idData = new MessageIdData().setLedgerId(1).setEntryId(2).setBatchIndex(0).setBatchSize(-1);
+        ByteBuf idBuf = Unpooled.buffer(idData.getSerializedSize());
+        idData.writeTo(idBuf);
+        byte[] idBytes = ByteBufUtil.getBytes(idBuf);
+        ByteBuffer buf = ByteBuffer.allocate(Byte.BYTES + Integer.BYTES + Long.BYTES + Integer.BYTES + idBytes.length);
+        buf.put((byte) 0).putInt(1).putLong(1L).putInt(idBytes.length).put(idBytes);
         assertThrows(IOException.class, () -> CheckpointV5.fromByteArray(buf.array()));
     }
 }

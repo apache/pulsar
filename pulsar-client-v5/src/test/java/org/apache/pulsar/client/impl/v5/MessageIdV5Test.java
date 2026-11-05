@@ -23,6 +23,9 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -30,6 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.api.proto.MessageIdData;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -253,7 +257,10 @@ public class MessageIdV5Test {
                 {"negative cross-topic name length", idFollowedBy(0, -1, 1, -1)},
                 {"cross-topic name longer than the data", idFollowedBy(0, -1, 1, 100)},
                 {"negative cross-topic position count", idFollowedBy(0, -1, 1, 0, -1)},
-                {"truncated parent-topic length", withoutLastBytes(idFollowedBy(0, -1), 2)}
+                {"truncated parent-topic length", withoutLastBytes(idFollowedBy(0, -1), 2)},
+                {"parent-topic length below the null sentinel", idFollowedBy(0, -2, -1)},
+                {"parent-topic length of Integer.MIN_VALUE", idFollowedBy(0, Integer.MIN_VALUE, -1)},
+                {"negative batch size in the v4 id", idOf(v4BytesWithBatchSize(-1))}
         };
     }
 
@@ -283,7 +290,20 @@ public class MessageIdV5Test {
 
     /** A serialised id of segment 5 whose sections after the v4 id are the given ints. */
     private static byte[] idFollowedBy(int... ints) {
-        byte[] v4Bytes = v4(1, 2, 0).toByteArray();
+        return idOf(v4(1, 2, 0).toByteArray(), ints);
+    }
+
+    /** A serialised v4 id with the given batch size; the v4 encoder itself never writes a negative one. */
+    private static byte[] v4BytesWithBatchSize(int batchSize) {
+        MessageIdData idData = new MessageIdData()
+                .setLedgerId(1).setEntryId(2).setBatchIndex(0).setBatchSize(batchSize);
+        ByteBuf buf = Unpooled.buffer(idData.getSerializedSize());
+        idData.writeTo(buf);
+        return ByteBufUtil.getBytes(buf);
+    }
+
+    /** A serialised id of segment 5 made of the given v4 id bytes followed by the given ints. */
+    private static byte[] idOf(byte[] v4Bytes, int... ints) {
         ByteBuffer buf = ByteBuffer.allocate(Long.BYTES + Integer.BYTES + v4Bytes.length + Integer.BYTES * ints.length);
         buf.putLong(5L).putInt(v4Bytes.length).put(v4Bytes);
         for (int value : ints) {
