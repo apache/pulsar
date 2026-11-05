@@ -319,12 +319,44 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * This ensures that the write operation has been fully processed and the changes are effective.
      * @param namespaceObject the namespace object for which the message ID is being tracked
      * @param messageId the message ID to wait for being handled
-     * @return a CompletableFuture that completes when the message ID has been read by the reader
+     * @return a CompletableFuture that completes when the message ID has been read by the reader, or fails with a
+     *         {@link TimeoutException} when the reader does not read it within
+     *         {@code topicPoliciesCacheInitTimeoutSeconds}
      */
     private CompletableFuture<Void> untilMessageIdHasBeenRead(NamespaceName namespaceObject, MessageId messageId) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         getMessageHandlerTracker(namespaceObject).addPendingFuture((MessageIdAdv) messageId, future);
+        scheduleReadBackTimeout(namespaceObject, messageId, future);
         return future;
+    }
+
+    /**
+     * Bound the wait for the namespace's {@code __change_events} reader to read {@code messageId} back. A reader can
+     * stay connected and stop delivering (for example when its subscription on the owner broker is bound to a closed
+     * cursor), and nothing else completes {@code readBackFuture}: every later update of the same topic queues behind
+     * it in {@link #topicPolicyUpdateSequencer}, and a topic deletion waiting for it leaves the topic fenced (issue
+     * #27366). Failing the wait releases them.
+     */
+    private void scheduleReadBackTimeout(@NonNull NamespaceName namespace, @NonNull MessageId messageId,
+                                         @NonNull CompletableFuture<Void> readBackFuture) {
+        long timeoutSeconds = pulsarService.getConfiguration().getTopicPoliciesCacheInitTimeoutSeconds();
+        if (timeoutSeconds <= 0 || readBackFuture.isDone()) {
+            return;
+        }
+        final ScheduledFuture<?> timeoutTask = pulsarService.getExecutor().schedule(() -> {
+            TimeoutException timeoutException = new TimeoutException(String.format(
+                    "Timed out after %d seconds waiting for the __change_events reader of namespace %s to read back "
+                            + "the topic policy event %s", timeoutSeconds, namespace, messageId));
+            if (readBackFuture.completeExceptionally(timeoutException)) {
+                log.error()
+                        .attr("namespace", namespace)
+                        .attr("messageId", messageId)
+                        .attr("timeoutSeconds", timeoutSeconds)
+                        .log("Timed out waiting for the __change_events reader to read back a topic policy event");
+            }
+        }, timeoutSeconds, TimeUnit.SECONDS);
+        // Cancel the timeout once the event has been read back so we don't leak scheduled tasks.
+        readBackFuture.whenComplete((__, ex) -> timeoutTask.cancel(false));
     }
 
     private TopicPolicyMessageHandlerTracker getMessageHandlerTracker(NamespaceName namespaceObject) {
