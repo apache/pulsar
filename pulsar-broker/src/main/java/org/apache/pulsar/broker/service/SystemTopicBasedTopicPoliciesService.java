@@ -341,11 +341,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     /**
      * Bound the wait for the namespace's {@code __change_events} reader to read {@code messageId} back. A reader can
      * stay connected and stop delivering (for example when its subscription on the owner broker is bound to a closed
-     * cursor), and nothing else completes {@code readBackFuture}: every later update of the same topic queues behind
-     * it in {@link #topicPolicyUpdateSequencer}, and a topic deletion waiting for it leaves the topic fenced (issue
-     * #27366). Failing the wait releases them. The timeout also shows that the reader is stalled, so the reader that
-     * belongs to {@code initFuture} is closed: the next initialization then reads the topic with a fresh reader,
-     * instead of every later update in the namespace timing out as well.
+     * cursor), and then nothing short of a namespace unload completes {@code readBackFuture}: every later update of
+     * the same topic queues behind it in {@link #topicPolicyUpdateSequencer}, and a topic deletion waiting for it
+     * leaves the topic fenced (issue #27366). Failing the wait releases them. The timeout also shows that the reader
+     * is stalled, so the reader that belongs to {@code initFuture} is closed: the next initialization then reads the
+     * topic with a fresh reader, instead of every later update in the namespace timing out as well.
      *
      * @param initFuture the initialization whose reader was expected to read the event back, or {@code null} when
      *                   the namespace had none; only that initialization's reader is closed
@@ -383,7 +383,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 }
             }
         }, timeoutSeconds, TimeUnit.SECONDS);
-        // Cancel the timeout once the event has been read back so we don't leak scheduled tasks.
+        // Skip the timeout once the wait is over, whether the event was read back or not.
         readBackFuture.whenComplete((__, ex) -> timeoutTask.cancel(false));
     }
 
@@ -397,23 +397,32 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * policies from before the stall until its next policy update or reload.
      */
     private void replaceStalledReader(@NonNull NamespaceName namespace, @NonNull CompletableFuture<Void> initFuture) {
-        if (!ownedBundlesCountPerNamespace.containsKey(namespace)) {
-            // No topic of the namespace is loaded here; the next policy access initializes the namespace again.
-            cleanupFailedPolicyCacheInit(namespace, initFuture, true);
-            return;
-        }
         // Requested before the cleanup, so an initialization that a concurrent policy access starts right after the
         // cleanup cannot reach the end of the topic without it.
         listenerReplayPending.add(namespace);
         cleanupFailedPolicyCacheInit(namespace, initFuture, true);
-        prepareInitPoliciesCacheAsync(namespace).exceptionally(t -> {
-            log.warn()
-                    .attr("namespace", namespace)
-                    .exceptionMessage(t)
-                    .log("Failed to initialize the policies cache again after replacing the stalled "
-                            + "__change_events reader; the next topic policy access retries it");
-            return null;
+        // On the namespace's ordered executor, like the bundle ownership callbacks, so that a bundle unload cannot
+        // run between the ownership check and the start of the initialization.
+        pulsarService.getOrderedExecutor().executeOrdered(namespace, () -> {
+            if (!ownsBundleOf(namespace)) {
+                // No topic of the namespace is loaded here; the next policy access initializes the namespace again.
+                listenerReplayPending.remove(namespace);
+                return;
+            }
+            prepareInitPoliciesCacheAsync(namespace).exceptionally(t -> {
+                log.warn()
+                        .attr("namespace", namespace)
+                        .exceptionMessage(t)
+                        .log("Failed to initialize the policies cache again after replacing the stalled "
+                                + "__change_events reader; the next topic policy access retries it");
+                return null;
+            });
         });
+    }
+
+    /** Whether this broker owns a bundle of {@code namespace}, which is when it can have topics of it loaded. */
+    private boolean ownsBundleOf(@NonNull NamespaceName namespace) {
+        return ownedBundlesCountPerNamespace.containsKey(namespace);
     }
 
     private TopicPolicyMessageHandlerTracker getMessageHandlerTracker(NamespaceName namespaceObject) {
@@ -801,8 +810,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                             // so the reader would stay subscribed, with nothing reading from it,
                                             // until the broker restarts (issue #27366).
                                             cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture,
-                                                    isAlreadyClosedException(ex)
-                                                            || !ownedBundlesCountPerNamespace.containsKey(namespace));
+                                                    isAlreadyClosedException(ex) || !ownsBundleOf(namespace));
                                         }
                                     } catch (Throwable cleanupEx) {
                                         // Adding this catch to avoid break callback chain
