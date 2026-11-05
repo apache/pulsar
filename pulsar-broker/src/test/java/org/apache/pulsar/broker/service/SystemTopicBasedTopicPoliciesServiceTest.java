@@ -724,6 +724,62 @@ public class SystemTopicBasedTopicPoliciesServiceTest extends MockedPulsarServic
         Mockito.verify(stuckReader, Mockito.atLeastOnce()).closeAsync();
     }
 
+    @Test(timeOut = 60_000)
+    public void testFailedInitClosesReaderWhenBrokerOwnsNoBundleOfNamespace() throws Exception {
+        SystemTopicBasedTopicPoliciesService service =
+                (SystemTopicBasedTopicPoliciesService) pulsar.getTopicPoliciesService();
+
+        // Control: NAMESPACE1 is served by this broker (prepareData looked topics up in it). A reader whose first
+        // read fails there is kept for the retry of the next topic load, and the bundle unload closes it at the
+        // latest.
+        final NamespaceName ownedNamespace = NamespaceName.get(NAMESPACE1);
+        Awaitility.await().untilAsserted(() -> Assertions.assertThat(service.getPoliciesCacheInit(ownedNamespace))
+                .describedAs("the bundle of %s has not been loaded yet, so the broker would not count as its owner",
+                        ownedNamespace)
+                .isNotNull()
+                .isCompleted());
+        service.cleanPoliciesCacheInitMap(ownedNamespace);
+        SystemTopicClient.Reader<PulsarEvent> keptReader = readerWhoseFirstReadFails(ownedNamespace);
+        service.getReaderCaches().put(ownedNamespace, CompletableFuture.completedFuture(keptReader));
+        Assertions.assertThat(service.prepareInitPoliciesCacheAsync(ownedNamespace))
+                .failsWithin(30, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> assertNull(service.getPoliciesCacheInit(ownedNamespace)));
+        Assertions.assertThat(service.getReaderCaches())
+                .describedAs("a broker that serves the namespace keeps the reader for the retry")
+                .containsKey(ownedNamespace);
+        Mockito.verify(keptReader, Mockito.never()).closeAsync();
+
+        // NAMESPACE4 exists, but nothing looked a topic up in it, so this broker owns none of its bundles: a policy
+        // read reached it for a namespace it does not serve, for example during a bundle move. No topic load retries
+        // the initialization and no bundle unload follows, so nothing but the failure itself can close the reader.
+        admin.namespaces().createNamespace(NAMESPACE4);
+        final NamespaceName unownedNamespace = NamespaceName.get(NAMESPACE4);
+        SystemTopicClient.Reader<PulsarEvent> leakedReader = readerWhoseFirstReadFails(unownedNamespace);
+        service.getReaderCaches().put(unownedNamespace, CompletableFuture.completedFuture(leakedReader));
+        Assertions.assertThat(service.prepareInitPoliciesCacheAsync(unownedNamespace))
+                .failsWithin(30, TimeUnit.SECONDS);
+        Awaitility.await().untilAsserted(() -> Assertions.assertThat(service.getReaderCaches())
+                .describedAs("the reader stays cached and subscribed, and nothing reads from it or closes it until"
+                        + " the broker restarts")
+                .doesNotContainKey(unownedNamespace));
+        Mockito.verify(leakedReader).closeAsync();
+    }
+
+    /** A reader that fails the way a disconnect during {@code getLastMessageId} does: not with AlreadyClosed. */
+    @SuppressWarnings("unchecked")
+    private static SystemTopicClient.Reader<PulsarEvent> readerWhoseFirstReadFails(NamespaceName namespace) {
+        SystemTopicClient<PulsarEvent> systemTopic = Mockito.mock(SystemTopicClient.class);
+        Mockito.doReturn(TopicName.get("persistent", namespace, SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME))
+                .when(systemTopic).getTopicName();
+        SystemTopicClient.Reader<PulsarEvent> reader = Mockito.mock(SystemTopicClient.Reader.class);
+        Mockito.doReturn(systemTopic).when(reader).getSystemTopic();
+        Mockito.doReturn(CompletableFuture.failedFuture(
+                        new PulsarClientException("Disconnected while getting the last message id")))
+                .when(reader).hasMoreEventsAsync();
+        Mockito.doReturn(CompletableFuture.completedFuture(null)).when(reader).closeAsync();
+        return reader;
+    }
+
     @Test
     public void testCleanPoliciesCacheInitMapCompletesPendingInitFuture() {
         SystemTopicBasedTopicPoliciesService service =
