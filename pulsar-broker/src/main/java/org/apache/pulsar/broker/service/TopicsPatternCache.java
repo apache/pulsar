@@ -24,30 +24,30 @@ import org.apache.pulsar.common.topics.TopicsPattern;
 import org.apache.pulsar.common.topics.TopicsPatternFactory;
 
 /**
- * Caches the topics patterns that the broker compiles from the regexes of the topic list requests of pattern
+ * Shares the topics patterns that the broker compiles from the regexes of the topic list requests of pattern
  * consumers: the topic list watchers and CommandGetTopicsOfNamespace. Compiling a regex costs much more than matching
  * a topic name with it, and a broker gets the same regexes repeatedly, for example from the pattern consumers of all
- * instances of an application. The patterns are immutable, so the requests that use the same regex share one.
+ * instances of an application. The patterns are immutable, so the requests and watchers that use the same regex can
+ * share one.
+ *
+ * <p>The cache references the patterns weakly, so it doesn't keep a pattern alive after the watchers and the requests
+ * that use it are gone, and it doesn't retain any pattern that the broker wouldn't retain without it. The memory that
+ * a compiled pattern retains can't be bounded by the length of its regex: RE2J expands counted repetitions, so a
+ * pattern like {@code tenant/ns/topic-(abcdefghij){1000}} retains about 1 MB.
  */
 public class TopicsPatternCache {
-    // A compiled pattern retains about 60 to 80 bytes per character of its regex, so the cache keeps about 35 MB of
-    // patterns at most, for example the patterns of 10,000 regexes of the default maximum length of 50 characters.
-    // The regexes that the broker compiles are at most subscriptionPatternMaxLength characters long.
-    private static final long MAXIMUM_WEIGHT = 500_000;
-
     private record Key(String regex, TopicsPattern.RegexImplementation implementation) {
     }
 
     private final Cache<Key, TopicsPattern> cache = Caffeine.newBuilder()
-            .maximumWeight(MAXIMUM_WEIGHT)
-            .weigher((Key key, TopicsPattern topicsPattern) -> key.regex().length())
+            .weakValues()
             // run the maintenance, which is in-memory work, on the calling thread instead of scheduling it on
             // ForkJoinPool.commonPool() after every new pattern
             .executor(Runnable::run)
             .build();
 
     /**
-     * Returns the topics pattern of the regex. Unless a pattern of the same regex and implementation is cached, the
+     * Returns the topics pattern of the regex. Unless a pattern of the same regex and implementation is in use, the
      * regex is compiled with {@link TopicsPatternFactory#create(String, TopicsPattern.RegexImplementation)}, which
      * throws when the regex is invalid.
      */

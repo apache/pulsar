@@ -40,10 +40,10 @@ import org.openjdk.jmh.annotations.Warmup;
  * Compares compiling the topics pattern of a topic list request, which the broker did for the topic list watcher of
  * every pattern consumer and for every CommandGetTopicsOfNamespace with a pattern, with getting it from
  * {@link TopicsPatternCache}. Each operation gets the pattern of the next regex of a set of distinct regexes, one
- * per namespace, like the pattern consumers of an application with many namespaces: with 1,000 regexes the cache
- * holds the patterns of all of them, and with 100,000 regexes, more than the cache holds, most operations compile
- * the pattern. The 12 threads stand for the Netty IO threads of a broker with 6 CPUs, and each thread starts at a
- * different regex.
+ * per namespace, like the pattern consumers of an application with many namespaces. With {@code held}, the patterns
+ * stay referenced after the operation, like the topic list watchers reference their patterns; otherwise only the
+ * operation uses them, like a CommandGetTopicsOfNamespace, and the cache loses them in garbage collections. The 12
+ * threads stand for the Netty IO threads of a broker with 6 CPUs, and each thread starts at a different regex.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.AverageTime)
@@ -58,7 +58,11 @@ public class TopicsPatternCacheBenchmark {
     @Param({"1000", "100000"})
     public int regexCount;
 
+    @Param({"true", "false"})
+    public boolean held;
+
     private String[] regexes;
+    private TopicsPattern[] heldPatterns;
     private TopicsPatternCache topicsPatternCache;
 
     @Setup(Level.Trial)
@@ -67,6 +71,7 @@ public class TopicsPatternCacheBenchmark {
         for (int i = 0; i < regexCount; i++) {
             regexes[i] = "persistent://tenant/namespace-" + i + "/topic-" + i + "-.*";
         }
+        heldPatterns = new TopicsPattern[regexCount];
         topicsPatternCache = new TopicsPatternCache();
     }
 
@@ -79,36 +84,53 @@ public class TopicsPatternCacheBenchmark {
             next = ThreadLocalRandom.current().nextInt(benchmark.regexCount);
         }
 
-        String nextRegex(String[] regexes) {
-            String regex = regexes[next];
-            if (++next == regexes.length) {
+        int nextIndex(int count) {
+            int index = next;
+            if (++next == count) {
                 next = 0;
             }
-            return regex;
+            return index;
         }
     }
 
     @Benchmark
     @Threads(1)
     public TopicsPattern compile(ThreadState threadState) {
-        return TopicsPatternFactory.create(threadState.nextRegex(regexes), IMPLEMENTATION);
+        return compileNext(threadState);
     }
 
     @Benchmark
     @Threads(1)
     public TopicsPattern cached(ThreadState threadState) {
-        return topicsPatternCache.get(threadState.nextRegex(regexes), IMPLEMENTATION);
+        return getNext(threadState);
     }
 
     @Benchmark
     @Threads(12)
     public TopicsPattern compile12Threads(ThreadState threadState) {
-        return TopicsPatternFactory.create(threadState.nextRegex(regexes), IMPLEMENTATION);
+        return compileNext(threadState);
     }
 
     @Benchmark
     @Threads(12)
     public TopicsPattern cached12Threads(ThreadState threadState) {
-        return topicsPatternCache.get(threadState.nextRegex(regexes), IMPLEMENTATION);
+        return getNext(threadState);
+    }
+
+    private TopicsPattern compileNext(ThreadState threadState) {
+        int index = threadState.nextIndex(regexCount);
+        return hold(index, TopicsPatternFactory.create(regexes[index], IMPLEMENTATION));
+    }
+
+    private TopicsPattern getNext(ThreadState threadState) {
+        int index = threadState.nextIndex(regexCount);
+        return hold(index, topicsPatternCache.get(regexes[index], IMPLEMENTATION));
+    }
+
+    private TopicsPattern hold(int index, TopicsPattern topicsPattern) {
+        if (held) {
+            heldPatterns[index] = topicsPattern;
+        }
+        return topicsPattern;
     }
 }

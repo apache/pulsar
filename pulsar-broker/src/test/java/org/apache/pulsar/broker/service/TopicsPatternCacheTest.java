@@ -21,7 +21,9 @@ package org.apache.pulsar.broker.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.re2j.PatternSyntaxException;
+import java.lang.ref.WeakReference;
 import org.apache.pulsar.common.topics.TopicsPattern;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class TopicsPatternCacheTest {
@@ -44,6 +46,16 @@ public class TopicsPatternCacheTest {
                 TopicsPattern.RegexImplementation.RE2J_WITH_JDK_FALLBACK))
                 .as("pattern of another input pattern").isNotSameAs(topicsPattern)
                 .extracting(TopicsPattern::inputPattern).isEqualTo("persistent://" + REGEX);
+    }
+
+    @Test
+    public void testDoesNotKeepPatternAliveAfterItsUsersAreGone() {
+        WeakReference<TopicsPattern> topicsPattern = new WeakReference<>(
+                topicsPatternCache.get("tenant/ns/unused-.*", TopicsPattern.RegexImplementation.RE2J));
+        Awaitility.await().untilAsserted(() -> {
+            System.gc();
+            assertThat(topicsPattern.get()).as("pattern that only the cache references").isNull();
+        });
     }
 
     @Test
