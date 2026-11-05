@@ -19,8 +19,10 @@
 package org.apache.pulsar.broker;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -31,6 +33,9 @@ import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertSame;
 import io.prometheus.client.CollectorRegistry;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +56,8 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateM
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -436,6 +443,41 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos))
                 .as("broker close time in ms")
                 .isLessThan(500);
+    }
+
+    @Test
+    public void testCloseClosesInternalAdminClientBeingCreated() throws Exception {
+        setup();
+        PulsarAdmin adminClient = mock(PulsarAdmin.class);
+        PulsarAdminBuilder adminClientBuilder = mock(PulsarAdminBuilder.class);
+        doReturn(adminClientBuilder).when(pulsar).getCreateAdminClientBuilder();
+        Thread closingThread = new Thread(pulsar::closeAsync, "closing-broker");
+        // The broker starts closing while getAdminClient() creates the client under the service's lock, and the
+        // creation ends once the close waits for that lock
+        doAnswer(invocation -> {
+            Thread creatingThread = Thread.currentThread();
+            closingThread.start();
+            Awaitility.await().until(() -> {
+                ThreadInfo threadInfo = ManagementFactory.getThreadMXBean().getThreadInfo(closingThread.threadId());
+                return threadInfo != null
+                        && threadInfo.getThreadState() == Thread.State.BLOCKED
+                        && threadInfo.getLockOwnerId() == creatingThread.threadId();
+            });
+            return adminClient;
+        }).when(adminClientBuilder).build();
+
+        assertThat(pulsar.getAdminClient()).isSameAs(adminClient);
+        assertThat(closingThread.join(Duration.ofSeconds(30))).as("close finished").isTrue();
+        verify(adminClient).close();
+    }
+
+    @Test
+    public void testNoInternalAdminClientCreatedOnceClosed() throws Exception {
+        setup();
+        pulsar.close();
+
+        // The close has closed the client it found, so nothing would close a new one
+        assertThatThrownBy(() -> pulsar.getAdminClient()).isInstanceOf(PulsarServerException.class);
     }
 
     @DataProvider
