@@ -795,8 +795,14 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                                             cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture, true);
                                         } else {
                                             initNamespacePolicyFuture.completeExceptionally(ex);
+                                            // The reader is kept for the retry that the next topic load of a
+                                            // namespace served here makes, and the bundle unload closes it at the
+                                            // latest. A broker that owns no bundle of the namespace gets neither,
+                                            // so the reader would stay subscribed, with nothing reading from it,
+                                            // until the broker restarts (issue #27366).
                                             cleanupFailedPolicyCacheInit(namespace, initNamespacePolicyFuture,
-                                                    isAlreadyClosedException(ex));
+                                                    isAlreadyClosedException(ex)
+                                                            || !ownedBundlesCountPerNamespace.containsKey(namespace));
                                         }
                                     } catch (Throwable cleanupEx) {
                                         // Adding this catch to avoid break callback chain
