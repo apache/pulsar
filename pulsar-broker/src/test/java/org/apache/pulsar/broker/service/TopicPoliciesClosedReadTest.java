@@ -20,7 +20,10 @@ package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.ArrayDeque;
@@ -36,10 +39,15 @@ import java.util.function.Function;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.resources.NamespaceResources;
+import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.stats.PulsarBrokerOpenTelemetry;
+import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -68,6 +76,49 @@ public class TopicPoliciesClosedReadTest {
     @Test(dataProvider = "types")
     public void testClosedWhileCachePreparationPending(TopicPoliciesService.GetType type) throws Exception {
         assertClosedDuringPreparation(type, true);
+    }
+
+    @Test(dataProvider = "types")
+    public void testCloseAbortsRealPendingNamespaceInitialization(TopicPoliciesService.GetType type) throws Exception {
+        PulsarService pulsar = mockPulsar(new AtomicReference<>(mock(LoadManager.class)));
+        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(0);
+        NamespaceName namespace = TOPIC.getNamespaceObject();
+        PulsarResources resources = mock(PulsarResources.class);
+        NamespaceResources namespaceResources = mock(NamespaceResources.class);
+        when(pulsar.getPulsarResources()).thenReturn(resources);
+        when(resources.getNamespaceResources()).thenReturn(namespaceResources);
+        when(namespaceResources.getPoliciesAsync(namespace))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(new Policies())));
+
+        SystemTopicClient<PulsarEvent> systemTopic = mock();
+        when(systemTopic.getTopicName()).thenReturn(TopicName.get("persistent://tenant/ns/__change_events"));
+        SystemTopicClient.Reader<PulsarEvent> reader = mock();
+        when(reader.getSystemTopic()).thenReturn(systemTopic);
+        CompletableFuture<Boolean> hasMoreEvents = new CompletableFuture<>();
+        when(reader.hasMoreEventsAsync()).thenReturn(hasMoreEvents);
+
+        try (SystemTopicBasedTopicPoliciesService service = spy(new SystemTopicBasedTopicPoliciesService(pulsar))) {
+            doReturn(CompletableFuture.completedFuture(reader)).when(service).createSystemTopicClient(namespace);
+            CompletableFuture<Optional<TopicPolicies>> result = service.getTopicPoliciesAsync(TOPIC, type);
+            CompletableFuture<Void> initialization = service.getPoliciesCacheInit(namespace);
+            assertThat(initialization).isNotNull().isNotDone();
+            assertThat(result).isNotDone();
+            verify(reader).hasMoreEventsAsync();
+
+            service.close();
+
+            // A pending initialization fails before the closed-service checks in the cache-read continuation.
+            assertThatThrownBy(() -> result.get(5, TimeUnit.SECONDS))
+                    .isInstanceOf(ExecutionException.class)
+                    .hasCauseExactlyInstanceOf(BrokerServiceException.class)
+                    .hasRootCauseMessage("Topic policies cache initialization for namespace " + namespace
+                            + " was aborted because the cached state was cleared");
+            assertThat(initialization).isCompletedExceptionally();
+            assertThat(service.getPoliciesCacheInit(namespace)).isNull();
+            verify(reader).close();
+        } finally {
+            hasMoreEvents.complete(false);
+        }
     }
 
     @Test(dataProvider = "types")
@@ -228,22 +279,26 @@ public class TopicPoliciesClosedReadTest {
         final ControlledService service;
 
         Fixture() {
-            PulsarService pulsar = mock(PulsarService.class);
-            ServiceConfiguration config = new ServiceConfiguration();
-            config.setClusterName("test");
-            when(pulsar.getConfiguration()).thenReturn(config);
-            when(pulsar.getLoadManager()).thenReturn(loadManager);
-            when(loadManager.get().started()).thenReturn(true);
-            when(pulsar.getExecutor()).thenReturn(mock(ScheduledExecutorService.class));
-            PulsarBrokerOpenTelemetry telemetry = mock(PulsarBrokerOpenTelemetry.class);
-            when(telemetry.getMeter()).thenReturn(OpenTelemetry.noop().getMeter("closed-policy-test"));
-            when(pulsar.getOpenTelemetry()).thenReturn(telemetry);
-            service = new ControlledService(pulsar);
+            service = new ControlledService(mockPulsar(loadManager));
         }
 
         @Override
         public void close() throws Exception {
             service.close();
         }
+    }
+
+    private static PulsarService mockPulsar(AtomicReference<LoadManager> loadManager) {
+        PulsarService pulsar = mock(PulsarService.class);
+        ServiceConfiguration config = new ServiceConfiguration();
+        config.setClusterName("test");
+        when(pulsar.getConfiguration()).thenReturn(config);
+        when(pulsar.getLoadManager()).thenReturn(loadManager);
+        when(loadManager.get().started()).thenReturn(true);
+        when(pulsar.getExecutor()).thenReturn(mock(ScheduledExecutorService.class));
+        PulsarBrokerOpenTelemetry telemetry = mock(PulsarBrokerOpenTelemetry.class);
+        when(telemetry.getMeter()).thenReturn(OpenTelemetry.noop().getMeter("closed-policy-test"));
+        when(pulsar.getOpenTelemetry()).thenReturn(telemetry);
+        return pulsar;
     }
 }
