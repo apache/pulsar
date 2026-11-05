@@ -160,7 +160,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
             } else {
                 Throwable cause = FutureUtil.unwrapCompletionException(ex);
                 log.error("endTxn error topic: [{}]", op.topic, cause);
-                if (cause instanceof PulsarClientException.BrokerMetadataException) {
+                if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
                     op.cb.complete(null);
                 } else {
                     op.cb.completeExceptionally(
