@@ -53,6 +53,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
 import org.testng.Assert;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterClass;
@@ -90,13 +91,21 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
                 admin.brokers().deleteDynamicConfiguration(name);
             }
             int minReadBatchSize = pulsar.getConfiguration().getDispatcherMinReadBatchSize();
-            admin.brokers().updateDynamicConfiguration("dispatcherMinReadBatchSize",
-                    Integer.toString(minReadBatchSize + 1));
-            Awaitility.await().pollInterval(10, TimeUnit.MILLISECONDS).until(
-                    () -> pulsar.getConfiguration().getDispatcherMinReadBatchSize() == minReadBatchSize + 1);
-            admin.brokers().deleteDynamicConfiguration("dispatcherMinReadBatchSize");
-            Awaitility.await().pollInterval(10, TimeUnit.MILLISECONDS).until(
-                    () -> pulsar.getConfiguration().getDispatcherMinReadBatchSize() == minReadBatchSize);
+            try {
+                admin.brokers().updateDynamicConfiguration("dispatcherMinReadBatchSize",
+                        Integer.toString(minReadBatchSize + 1));
+                Awaitility.await().pollInterval(10, TimeUnit.MILLISECONDS).until(
+                        () -> pulsar.getConfiguration().getDispatcherMinReadBatchSize() == minReadBatchSize + 1);
+                admin.brokers().deleteDynamicConfiguration("dispatcherMinReadBatchSize");
+                Awaitility.await().pollInterval(10, TimeUnit.MILLISECONDS).until(
+                        () -> pulsar.getConfiguration().getDispatcherMinReadBatchSize() == minReadBatchSize);
+            } catch (ConditionTimeoutException e) {
+                // the broker didn't apply the changes, which the dynamic configuration tests report: the next
+                // method gets a new broker
+                cleanup();
+                setup();
+                return;
+            }
         }
         // and what the test set on the namespace and on the broker's configuration
         admin.namespaces().removeAutoTopicCreation("prop/ns-abc");
