@@ -401,8 +401,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         // cleanup cannot reach the end of the topic without it.
         listenerReplayPending.add(namespace);
         cleanupFailedPolicyCacheInit(namespace, initFuture, true);
-        // On the namespace's ordered executor, like the bundle ownership callbacks, so that a bundle unload cannot
-        // run between the ownership check and the start of the initialization.
+        // On the namespace's ordered executor, so the ownership check and the call that starts the initialization
+        // are ordered with the bundle loads and unloads, as they are in addOwnedNamespaceBundleAsync.
         pulsarService.getOrderedExecutor().executeOrdered(namespace, () -> {
             if (!ownsBundleOf(namespace)) {
                 // No topic of the namespace is loaded here; the next policy access initializes the namespace again.

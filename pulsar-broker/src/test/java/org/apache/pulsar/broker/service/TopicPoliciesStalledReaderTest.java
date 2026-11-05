@@ -68,9 +68,9 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
     private static final String TENANT = "stalled-reader";
     private static final String NAMESPACE = TENANT + "/ns";
     /**
-     * Short, so a read-back that never comes costs the test seconds instead of the default minute. Set only once the
-     * readers are stalled and reset when the stall has been reported, so that nothing else can time out on a slow
-     * host.
+     * Short, so a read-back that never comes costs the test seconds instead of the default minute. It is set only
+     * once the readers are stalled, and {@link #stalledUpdate} resets it on the thread that reports the stall, before
+     * the broker starts to replace the reader, so that nothing but the stalled wait can time out on a slow host.
      */
     private static final int READ_TIMEOUT_SECONDS = 2;
     /** How long an operation may take to report the stall: the timeout plus slack for a loaded CI host. */
@@ -117,7 +117,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
         stallReaders();
 
-        assertStallReported(setMaxConsumers(topicName, 7), "the policy update", TimeoutException.class);
+        assertStallReported(stalledUpdate(topicName, 7), "the policy update", TimeoutException.class);
     }
 
     @Test(timeOut = 60_000)
@@ -126,7 +126,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         setMaxConsumers(topicName, 5).get(30, TimeUnit.SECONDS);
 
         final List<StallableReader> stalledReaders = stallReaders();
-        assertStallReported(setMaxConsumers(topicName, 7), "the policy update", TimeoutException.class);
+        assertStallReported(stalledUpdate(topicName, 7), "the policy update", TimeoutException.class);
 
         assertThat(setMaxConsumers(topicName, 9))
                 .describedAs("the timeout showed that the reader is stalled, so the broker must replace it: the next"
@@ -157,7 +157,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                         .isEqualTo(5));
 
         stallReaders();
-        assertStallReported(setMaxConsumers(topicName, 7), "the policy update", TimeoutException.class);
+        assertStallReported(stalledUpdate(topicName, 7), "the policy update", TimeoutException.class);
 
         // The event of the failed update is in __change_events, and from here on nothing writes or reads topic
         // policies in this namespace. The broker still serves the topic, so it must read the namespace's events
@@ -182,6 +182,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         // While the deletion waits, the topic stays fenced.
         assertStallReported(admin.topics().deleteAsync(topic, true), "the topic deletion",
                 PulsarAdminException.class);
+        restoreDefaultTimeout();
 
         // A fenced topic rejects producers with TopicFencedException ("Topic is temporarily unavailable").
         try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
@@ -203,15 +204,17 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         setMaxConsumers(timedOutTopic, 5).get(30, TimeUnit.SECONDS);
 
         final List<StallableReader> stalledReaders = stallReaders();
-        final CompletableFuture<Void> timedOut = setMaxConsumers(timedOutTopic, 7);
+        final CompletableFuture<Void> timedOut = stalledUpdate(timedOutTopic, 7);
         // Once the stalled reader has swallowed that update's event, its wait is ahead of the two below, so it is
         // the one that times out and has the reader replaced.
-        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
-                assertThat(stalledReaders)
-                        .describedAs("the event of the first update has not reached the stalled reader yet")
-                        .anyMatch(reader -> reader.withheldEvents() > 0));
+        awaitWithheldEvents(stalledReaders, 1);
         final CompletableFuture<Void> waiting = setMaxConsumers(otherTopic, 8);
+        awaitWithheldEvents(stalledReaders, 2);
         final CompletableFuture<Void> queuedBehindWaiting = setMaxConsumers(otherTopic, 9);
+        assertThat(timedOut)
+                .describedAs("the first update timed out before the second one was waiting, so no wait would be"
+                        + " pending when the reader is replaced and the assertions below would hold vacuously")
+                .isNotDone();
 
         assertStallReported(timedOut, "the policy update", TimeoutException.class);
 
@@ -231,7 +234,6 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         return topic.getHierarchyTopicPolicies().getMaxConsumerPerTopic().get();
     }
 
-    /** Stalls the readers of the namespace, and only then shortens the timeout that reports the stall. */
     private List<StallableReader> stallReaders() {
         final List<StallableReader> stalledReaders = service.stallReaders();
         assertThat(stalledReaders)
@@ -252,7 +254,6 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                         + " topicPoliciesCacheInitTimeoutSeconds=%d instead of waiting for ever",
                         what, READ_TIMEOUT_SECONDS)
                 .isDone());
-        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(defaultTimeoutSeconds);
         assertThat(operation)
                 .describedAs("%s must report the stall", what)
                 .failsWithin(Duration.ZERO)
@@ -269,6 +270,24 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
     private CompletableFuture<Void> setMaxConsumers(TopicName topicName, int maxConsumers) {
         return service.updateTopicPoliciesAsync(topicName, false, false,
                 policies -> policies.setMaxConsumerPerTopic(maxConsumers));
+    }
+
+    /** An update that is expected to time out; the default timeout is back the moment it has. */
+    private CompletableFuture<Void> stalledUpdate(TopicName topicName, int maxConsumers) {
+        final CompletableFuture<Void> update = setMaxConsumers(topicName, maxConsumers);
+        update.whenComplete((__, e) -> restoreDefaultTimeout());
+        return update;
+    }
+
+    private void restoreDefaultTimeout() {
+        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(defaultTimeoutSeconds);
+    }
+
+    private static void awaitWithheldEvents(List<StallableReader> stalledReaders, int events) {
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(stalledReaders)
+                        .describedAs("%d written events must have reached the stalled reader", events)
+                        .anyMatch(reader -> reader.withheldEvents() >= events));
     }
 
     private static class ReaderStallingTopicPoliciesService extends SystemTopicBasedTopicPoliciesService {
@@ -320,7 +339,6 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             return closed;
         }
 
-        /** How many events arrived from the broker since the stall and were not handed on. */
         int withheldEvents() {
             return withheldEvents.get();
         }
@@ -338,10 +356,16 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                 if (!stalled) {
                     return CompletableFuture.completedFuture(message);
                 }
-                message.release();
-                withheldEvents.incrementAndGet();
+                withhold(message);
                 return new CompletableFuture<>();
             });
+        }
+
+        /** Swallows this event and every later one, until the reader is closed. */
+        private void withhold(Message<PulsarEvent> message) {
+            message.release();
+            withheldEvents.incrementAndGet();
+            delegate.readNextAsync().thenAccept(this::withhold);
         }
 
         @Override
