@@ -209,7 +209,6 @@ jobs:
         uses: ./.github/actions/setup-gradle
         with:
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
-          cache-read-only: false
 
       - name: Run unit test group BROKER_FLAKY
         run: |
