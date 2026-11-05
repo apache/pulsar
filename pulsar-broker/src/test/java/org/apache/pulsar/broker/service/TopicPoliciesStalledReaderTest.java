@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
@@ -34,7 +35,9 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.events.PulsarEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -159,6 +162,40 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                         .describedAs("the policy store holds maxConsumerPerTopic=7, written by the update that timed"
                                 + " out, while the loaded topic still enforces the value from before the stall")
                         .isEqualTo(7));
+    }
+
+    @Test(timeOut = 90_000)
+    public void testTopicDeletionDoesNotLeaveTopicFencedWhenReaderStalls() throws Exception {
+        final TopicName topicName = newTopic();
+        final String topic = topicName.toString();
+        // Deleting a topic deletes its policies with an event of its own, and only a topic that has policies gets
+        // one, so without this the deletion would not wait for the reader at all.
+        setMaxConsumers(topicName, 5).get(30, TimeUnit.SECONDS);
+
+        service.stallReaders();
+
+        final CompletableFuture<Void> deletion = admin.topics().deleteAsync(topic, true);
+        Awaitility.await().atMost(STALL_REPORTED_WITHIN).untilAsserted(() -> assertThat(deletion)
+                .describedAs("the deletion is still waiting for the stalled reader to read back the event that"
+                        + " deletes the topic's policies; the topic stays fenced for as long as it waits")
+                .isDone());
+        assertThat(deletion)
+                .describedAs("the deletion must report the failure instead of claiming the topic is gone")
+                .failsWithin(Duration.ZERO)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(PulsarAdminException.class);
+
+        // A fenced topic rejects producers with "Attempting to add producer to a fenced topic".
+        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .sendTimeout(10, TimeUnit.SECONDS).create()) {
+            producer.send("after the failed deletion".getBytes(StandardCharsets.UTF_8));
+        }
+
+        // The failed attempt also replaced the stalled reader, so deleting again goes through.
+        admin.topics().delete(topic, true);
+        assertThat(admin.topics().getList(NAMESPACE))
+                .describedAs("the topic must be gone after the second deletion")
+                .doesNotContain(topic);
     }
 
     /** The limit the loaded topic enforces; the admin API answers from the policy cache instead. */
