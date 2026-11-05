@@ -53,7 +53,9 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.ITestResult;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -70,11 +72,21 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
     private Map<String, BrokerInterceptorWithClassLoader> listenerMap;
     private BrokerInterceptors listeners;
 
-    @BeforeMethod
+    // The test methods share the broker. After a failed method, the next one gets a new broker (TestRetrySupport).
+    @BeforeClass(alwaysRun = true)
+    @Override
     public void setup() throws Exception {
         conf.setSystemTopicEnabled(false);
         conf.setTopicLevelPoliciesEnabled(false);
+        this.enableBrokerInterceptor = true;
+        super.internalSetup();
+        super.producerBaseSetup();
+    }
 
+    // Each test method starts with the broker's counters at 0, and with a client of its own: its connection,
+    // producers and consumers are new.
+    @BeforeMethod(alwaysRun = true)
+    public void setupMethod() throws Exception {
         this.listener1 = mock(BrokerInterceptor.class);
         this.ncl1 = mock(NarClassLoader.class);
         this.listener2 = mock(BrokerInterceptor.class);
@@ -88,9 +100,10 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
                 listenerName2,
                 new BrokerInterceptorWithClassLoader(listener2, ncl2));
         this.listeners = new BrokerInterceptors(this.listenerMap);
-        this.enableBrokerInterceptor = true;
-        super.internalSetup();
-        super.producerBaseSetup();
+        if (pulsarClient == null) {
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
+        }
+        getCounterBrokerInterceptor().reset();
     }
 
     @Override
@@ -113,21 +126,28 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
         return (CounterBrokerInterceptor) brokerInterceptorWithClassLoader.getInterceptor();
     }
 
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
-        teardown(null);
+        super.internalCleanup();
     }
 
     @AfterMethod(alwaysRun = true)
     public void teardown(ITestResult testResult) throws Exception {
         this.listeners.close();
-        if (testResult != null && testResult.getStatus() == ITestResult.SUCCESS) {
+        if (testResult.getStatus() == ITestResult.SUCCESS) {
             verify(listener1, times(1)).close();
             verify(listener2, times(1)).close();
             verify(ncl1, times(1)).close();
             verify(ncl2, times(1)).close();
+            // close the method's producers and consumers before the next method resets the counters
+            pulsarClient.close();
+            pulsarClient = null;
+            CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
+            Awaitility.await().pollInterval(10, TimeUnit.MILLISECONDS)
+                    .until(() -> counterBrokerInterceptor.getProducerCount() == 0
+                            && counterBrokerInterceptor.getConsumerCount() == 0);
         }
-        super.internalCleanup();
     }
 
     @Test
