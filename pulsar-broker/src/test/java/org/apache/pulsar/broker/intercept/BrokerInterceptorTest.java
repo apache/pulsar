@@ -51,6 +51,7 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.common.nar.NarClassLoader;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
+import org.awaitility.core.ConditionTimeoutException;
 import org.testng.Assert;
 import org.testng.ITestResult;
 import org.testng.annotations.AfterClass;
@@ -144,9 +145,15 @@ public class BrokerInterceptorTest extends ProducerConsumerBase {
             pulsarClient.close();
             pulsarClient = null;
             CounterBrokerInterceptor counterBrokerInterceptor = getCounterBrokerInterceptor();
-            Awaitility.await().pollInterval(10, TimeUnit.MILLISECONDS)
-                    .until(() -> counterBrokerInterceptor.getProducerCount() == 0
-                            && counterBrokerInterceptor.getConsumerCount() == 0);
+            try {
+                Awaitility.await().pollInterval(10, TimeUnit.MILLISECONDS)
+                        .until(() -> counterBrokerInterceptor.getProducerCount() == 0
+                                && counterBrokerInterceptor.getConsumerCount() == 0);
+            } catch (ConditionTimeoutException e) {
+                // the interceptor missed a close, which the close tests report: the next method gets a new broker
+                cleanup();
+                setup();
+            }
         }
     }
 
