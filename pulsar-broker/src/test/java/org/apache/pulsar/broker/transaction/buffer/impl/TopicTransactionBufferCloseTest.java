@@ -255,6 +255,8 @@ public class TopicTransactionBufferCloseTest {
             when(managedLedger.newNonDurableCursor(any(), anyString())).thenReturn(managedCursor);
             when(processor.recoverFromSnapshot()).thenReturn(recoveryFuture);
             when(processor.closeAsync()).thenReturn(CompletableFuture.completedFuture(null));
+            // Mockito 5.19 returns null for unstubbed CompletableFuture methods; newer versions return a completed one.
+            when(processor.takeAbortedTxnsSnapshot(any())).thenReturn(CompletableFuture.completedFuture(null));
 
             transactionBuffer = new TopicTransactionBuffer(topic, processor, AbortedTxnProcessor.SnapshotType.Single);
         }
