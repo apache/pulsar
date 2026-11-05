@@ -37,6 +37,15 @@ public interface TransactionTimeoutTracker extends AutoCloseable {
     void addTransaction(long sequenceId, long timeout);
 
     /**
+     * Remove a completed transaction from the timeout tracker, if it is still tracked.
+     *
+     * @param sequenceId
+     *            the sequenceId
+     */
+    default void removeTransaction(long sequenceId) {
+    }
+
+    /**
      * When replay the log, add the txnMeta to timer task queue.
      *
      * @param sequenceId
