@@ -325,8 +325,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      */
     private CompletableFuture<Void> untilMessageIdHasBeenRead(NamespaceName namespaceObject, MessageId messageId) {
         CompletableFuture<Void> future = new CompletableFuture<>();
+        // The initialization whose background reader has to read the event back: the update awaited it before it
+        // wrote the event.
+        CompletableFuture<Void> initFuture = policyCacheInitMap.get(namespaceObject);
         getMessageHandlerTracker(namespaceObject).addPendingFuture((MessageIdAdv) messageId, future);
-        scheduleReadBackTimeout(namespaceObject, messageId, future);
+        scheduleReadBackTimeout(namespaceObject, messageId, future, initFuture);
         return future;
     }
 
@@ -335,10 +338,16 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * stay connected and stop delivering (for example when its subscription on the owner broker is bound to a closed
      * cursor), and nothing else completes {@code readBackFuture}: every later update of the same topic queues behind
      * it in {@link #topicPolicyUpdateSequencer}, and a topic deletion waiting for it leaves the topic fenced (issue
-     * #27366). Failing the wait releases them.
+     * #27366). Failing the wait releases them. The timeout also shows that the reader is stalled, so the reader that
+     * belongs to {@code initFuture} is closed: the next initialization then reads the topic with a fresh reader,
+     * instead of every later update in the namespace timing out as well.
+     *
+     * @param initFuture the initialization whose reader was expected to read the event back, or {@code null} when
+     *                   the namespace had none; only that initialization's reader is closed
      */
     private void scheduleReadBackTimeout(@NonNull NamespaceName namespace, @NonNull MessageId messageId,
-                                         @NonNull CompletableFuture<Void> readBackFuture) {
+                                         @NonNull CompletableFuture<Void> readBackFuture,
+                                         @Nullable CompletableFuture<Void> initFuture) {
         long timeoutSeconds = pulsarService.getConfiguration().getTopicPoliciesCacheInitTimeoutSeconds();
         if (timeoutSeconds <= 0 || readBackFuture.isDone()) {
             return;
@@ -347,12 +356,25 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             TimeoutException timeoutException = new TimeoutException(String.format(
                     "Timed out after %d seconds waiting for the __change_events reader of namespace %s to read back "
                             + "the topic policy event %s", timeoutSeconds, namespace, messageId));
+            // Fail the wait before the cleanup below: closing the message-handler tracker completes the waits that are
+            // still pending normally, and this one must report the timeout.
             if (readBackFuture.completeExceptionally(timeoutException)) {
                 log.error()
                         .attr("namespace", namespace)
                         .attr("messageId", messageId)
                         .attr("timeoutSeconds", timeoutSeconds)
-                        .log("Timed out waiting for the __change_events reader to read back a topic policy event");
+                        .log("Timed out waiting for the __change_events reader to read back a topic policy event; "
+                                + "closing the stalled reader so the namespace's topic policies can be updated again");
+                if (initFuture != null) {
+                    try {
+                        cleanupFailedPolicyCacheInit(namespace, initFuture, true);
+                    } catch (Throwable cleanupEx) {
+                        log.error()
+                                .attr("namespace", namespace)
+                                .exception(cleanupEx)
+                                .log("Failed to close the stalled __change_events reader after a read-back timeout");
+                    }
+                }
             }
         }, timeoutSeconds, TimeUnit.SECONDS);
         // Cancel the timeout once the event has been read back so we don't leak scheduled tasks.
@@ -857,7 +879,8 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * Identity-guarded cleanup for an initialization that failed (it timed out, the {@code __change_events} reader
      * could not be created, or reading the topic threw), or whose background reader was later closed (an
      * {@code AlreadyClosedException} surfaced in {@link #readMorePoliciesAsync} after a namespace unload closed the
-     * reader). Unlike {@link #cleanPoliciesCacheInitMap}, which
+     * reader) or stopped delivering (a topic policy update timed out waiting for it to read its event back, see
+     * {@link #scheduleReadBackTimeout}). Unlike {@link #cleanPoliciesCacheInitMap}, which
      * removes/closes by namespace key unconditionally, this only tears down state that still belongs to
      * {@code initFuture}. By the time the failure is observed, a concurrent retry — or a namespace-bundle unload that
      * left the init future orphaned — may already own the namespace with a fresh future and reader; removing by key
