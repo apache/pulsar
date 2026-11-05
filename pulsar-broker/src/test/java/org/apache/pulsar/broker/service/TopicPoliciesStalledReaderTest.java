@@ -31,6 +31,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -198,6 +199,34 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                 .doesNotContain(topic);
     }
 
+    @Test(timeOut = 60_000)
+    public void testUpdateQueuedBehindAnotherWaitSucceedsWhenReaderIsReplaced() throws Exception {
+        final TopicName timedOutTopic = newTopic();
+        final TopicName otherTopic = newTopic();
+        setMaxConsumers(timedOutTopic, 5).get(30, TimeUnit.SECONDS);
+
+        final List<StallableReader> stalledReaders = service.stallReaders();
+        final CompletableFuture<Void> timedOut = setMaxConsumers(timedOutTopic, 7);
+        // Once the stalled reader has swallowed that update's event, its wait is ahead of the two below, so it is
+        // the one that times out and has the reader replaced.
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(stalledReaders).anyMatch(reader -> reader.withheldEvents() > 0));
+        final CompletableFuture<Void> waiting = setMaxConsumers(otherTopic, 8);
+        final CompletableFuture<Void> queuedBehindWaiting = setMaxConsumers(otherTopic, 9);
+
+        assertFailsWithReadBackTimeout(timedOut, "the policy update");
+
+        // Replacing the reader ends the other wait, and the update queued behind it starts at once, on the thread
+        // that is replacing the reader. It must get the replacement, not the reader that is being closed.
+        assertThat(queuedBehindWaiting)
+                .describedAs("an update that starts while the stalled reader is being replaced (wait it was queued"
+                        + " behind: %s)", waiting)
+                .succeedsWithin(Duration.ofSeconds(30));
+        assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, otherTopic).getMaxConsumerPerTopic())
+                .describedAs("the policy cache must hold the queued update")
+                .isEqualTo(9);
+    }
+
     /** The limit the loaded topic enforces; the admin API answers from the policy cache instead. */
     private static Integer liveMaxConsumers(PersistentTopic topic) {
         return topic.getHierarchyTopicPolicies().getMaxConsumerPerTopic().get();
@@ -265,6 +294,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
     private static class StallableReader implements SystemTopicClient.Reader<PulsarEvent> {
 
         private final SystemTopicClient.Reader<PulsarEvent> delegate;
+        private final AtomicInteger withheldEvents = new AtomicInteger();
         private volatile boolean stalled;
         private volatile boolean closed;
 
@@ -278,6 +308,11 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
         boolean isClosed() {
             return closed;
+        }
+
+        /** How many events arrived from the broker since the stall and were not handed on. */
+        int withheldEvents() {
+            return withheldEvents.get();
         }
 
         @Override
@@ -294,6 +329,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                     return CompletableFuture.completedFuture(message);
                 }
                 message.release();
+                withheldEvents.incrementAndGet();
                 return new CompletableFuture<>();
             });
         }
