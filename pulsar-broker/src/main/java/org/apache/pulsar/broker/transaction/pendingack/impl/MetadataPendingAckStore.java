@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.createPositionWithAckSet;
+import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.getAckSetArrayOrNull;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -25,21 +27,32 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
+import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore.OpRecord;
 import org.apache.pulsar.broker.transaction.metadata.TxnOp;
 import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
+import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
 import org.apache.pulsar.broker.transaction.metadata.TxnState;
 import org.apache.pulsar.broker.transaction.pendingack.PendingAckStore;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
@@ -53,7 +66,8 @@ import org.apache.pulsar.metadata.api.ScanConsumer;
  * <ul>
  *   <li><b>Ack</b> — {@link #appendIndividualAck} / {@link #appendCumulativeAck} write a
  *       {@link TxnOp} record under {@code /txn/op/<txnId>-<seq>} with
- *       {@code kind=ACK, segment, subscription, ledgerId, entryId, cumulative}. The associated
+ *       {@code kind=ACK, segment, subscription, ledgerId, entryId, cumulative}, including the
+ *       original batch size and acknowledgement mask. The associated
  *       {@code PendingAckHandle} keeps the in-memory state via the legacy interface.</li>
  *   <li><b>Commit / Abort marks</b> — {@link #appendCommitMark} / {@link #appendAbortMark} are
  *       <b>no-ops</b>. In v5 the TC owns the lifecycle: it CAS-updates the header and publishes
@@ -81,7 +95,7 @@ public class MetadataPendingAckStore implements PendingAckStore {
     private final String subscriptionName;
 
     private final Object lock = new Object();
-    /** Set of txnIdKeys we believe are OPEN — populated on append + recovery, drained by reconcile. */
+    /** Transactions awaiting a decision or durable cursor coverage — drained by reconcile. */
     private final Set<String> openTxns = new HashSet<>();
     /**
      * The ack appends in progress, which {@link #closeAsync()} waits for: the ack records of a deleted subscription
@@ -116,11 +130,14 @@ public class MetadataPendingAckStore implements PendingAckStore {
             return;
         }
 
-        // Scan all ack op records for this (segment, sub) and seed openTxns from the headers.
+        // Keep the positions as well as transaction ids: a fresh handle must recover the actual
+        // pending acknowledgements before it becomes Ready or applies a terminal decision.
         // The store delivers per-entry errors via this scan's returned future as well — recovery
         // still fails loudly via the terminal whenComplete below — but we log here so the cause
         // is captured with the segment/subscription context.
-        Set<String> txnIdKeys = ConcurrentHashMap.newKeySet();
+        Map<String, ConcurrentLinkedQueue<TxnOp>> opsByTxn = new ConcurrentHashMap<>();
+        Map<String, TxnState> states = new ConcurrentHashMap<>();
+        Map<String, ConcurrentLinkedQueue<RecoveredAck>> recoveredAcks = new ConcurrentHashMap<>();
         txnStore.listAcksBySegmentSubscription(segmentName, subscriptionName, new ScanConsumer() {
             @Override
             public void onNext(GetResult r) {
@@ -128,10 +145,9 @@ public class MetadataPendingAckStore implements PendingAckStore {
                 if (op.getKind() != TxnOpKind.ACK) {
                     return;
                 }
-                String txnIdKey = org.apache.pulsar.broker.transaction.metadata.TxnPaths
-                        .txnIdFromOpPath(r.getStat().getPath());
+                String txnIdKey = TxnPaths.txnIdFromOpPath(r.getStat().getPath());
                 if (txnIdKey != null) {
-                    txnIdKeys.add(txnIdKey);
+                    opsByTxn.computeIfAbsent(txnIdKey, __ -> new ConcurrentLinkedQueue<>()).add(op);
                 }
             }
 
@@ -146,22 +162,77 @@ public class MetadataPendingAckStore implements PendingAckStore {
             }
         })
         .thenCompose(__ -> {
-            List<CompletableFuture<Void>> reads = new ArrayList<>(txnIdKeys.size());
-            for (String txnIdKey : txnIdKeys) {
+            List<CompletableFuture<Void>> reads = new ArrayList<>(opsByTxn.size());
+            for (String txnIdKey : opsByTxn.keySet()) {
                 reads.add(txnStore.getHeader(txnIdKey).thenAccept(opt -> {
                     TxnState state = opt.map(v -> v.value().getState()).orElse(TxnState.ABORTED);
-                    synchronized (lock) {
-                        openTxns.add(txnIdKey);
-                    }
-                    if (state.isTerminal()) {
-                        // Schedule cleanup — applyTerminal's "remove → applied" gate fires once
-                        // and processes (handle commit/abort + delete op records).
-                        applyTerminal(txnIdKey, state);
-                    }
+                    states.put(txnIdKey, state);
                 }));
             }
             return FutureUtil.waitForAll(reads);
         })
+        .thenCompose(__ -> {
+            List<CompletableFuture<Void>> positions = new ArrayList<>();
+            opsByTxn.forEach((txnIdKey, ops) -> {
+                // An abort never advances a cursor, so lost legacy batch masks need not prevent
+                // rolling it back. Its fresh handle has no pending ACK state to release yet.
+                if (states.get(txnIdKey) == TxnState.ABORTED) {
+                    return;
+                }
+                for (TxnOp op : ops) {
+                    positions.add(recoverPosition(op).thenAccept(position -> {
+                        if (position != null) {
+                            recoveredAcks.computeIfAbsent(txnIdKey, key -> new ConcurrentLinkedQueue<>())
+                                    .add(new RecoveredAck(TxnIds.fromKey(txnIdKey), op, position));
+                        }
+                    }));
+                }
+            });
+            return FutureUtil.waitForAll(positions);
+        })
+        .thenCompose(__ -> {
+            // The handle has only one cumulative-ACK transaction slot. Finish each committed
+            // transaction before hydrating another, and only then restore OPEN transactions.
+            // A later cumulative position may be applied first: recovering an earlier position
+            // then skips it because the cursor already covers it, without moving backward.
+            CompletableFuture<Void> commits = CompletableFuture.completedFuture(null);
+            for (Map.Entry<String, TxnState> entry : states.entrySet()) {
+                if (entry.getValue() == TxnState.COMMITTED) {
+                    String txnIdKey = entry.getKey();
+                    commits = commits.thenComposeAsync(ignored -> {
+                        hydrateAcks(pendingAckHandle, recoveredAcks.get(txnIdKey));
+                        return pendingAckHandle.commitRecoveredTxn(TxnIds.fromKey(txnIdKey));
+                    }, executorService);
+                }
+            }
+            // A recovered committed ACK must already be applied before attaching consumers.
+            return commits;
+        })
+        .thenRunAsync(() -> {
+            states.forEach((txnIdKey, state) -> {
+                if (state == TxnState.OPEN) {
+                    hydrateAcks(pendingAckHandle, recoveredAcks.get(txnIdKey));
+                }
+            });
+            synchronized (lock) {
+                openTxns.addAll(states.keySet());
+            }
+            if (!pendingAckHandle.changeToReadyState()) {
+                throw new CompletionException(new BrokerServiceException.ServiceUnitNotReadyException(
+                        "Failed to change PendingAckHandle state to Ready"));
+            }
+            pendingAckHandle.completeHandleFuture();
+            pendingAckHandle.handleCacheRequest();
+            recoveryFuture.complete(null);
+            states.forEach((txnIdKey, state) -> {
+                if (state.isTerminal()) {
+                    applyTerminal(txnIdKey, state);
+                }
+            });
+            // All hydration, readiness and terminal scheduling share the handle's pinned executor.
+            // Events arriving during recovery were gated by recoveryFuture and are re-read now.
+            triggerReconcile();
+        }, executorService)
         .whenComplete((__, err) -> {
             if (err != null) {
                 log.error().attr("segment", segmentName).attr("sub", subscriptionName)
@@ -169,26 +240,74 @@ public class MetadataPendingAckStore implements PendingAckStore {
                 closeSubscriptionQuietly();
                 recoveryFuture.completeExceptionally(err);
                 pendingAckHandle.exceptionHandleFuture(err);
-                return;
             }
-            recoveryFuture.complete(null);
-            // Mirror the legacy MLPendingAckStore completion: flip the handle to Ready and
-            // complete the handle future — PersistentSubscription.addConsumer blocks on that
-            // future, so skipping it hangs every subscribe on a segment topic — then drain any
-            // ack requests queued during recovery. Run on the pinned executor so the
-            // state-machine transition and the cache drain stay single-threaded.
-            executorService.execute(() -> {
-                if (pendingAckHandle.changeToReadyState()) {
-                    pendingAckHandle.completeHandleFuture();
-                } else {
-                    pendingAckHandle.exceptionHandleFuture(
-                            new BrokerServiceException.ServiceUnitNotReadyException(
-                                    "Failed to change PendingAckHandle state to Ready"));
-                }
-                pendingAckHandle.handleCacheRequest();
-            });
-            // Drain any events that fired during recovery.
-            triggerReconcile();
+        });
+    }
+
+    private record RecoveredAck(TxnID txnId, TxnOp op, Position position) {
+    }
+
+    private static void hydrateAcks(PendingAckHandleImpl pendingAckHandle, Iterable<RecoveredAck> acks) {
+        if (acks == null) {
+            return;
+        }
+        for (RecoveredAck ack : acks) {
+            if (Boolean.TRUE.equals(ack.op().getCumulative())) {
+                pendingAckHandle.handleCumulativeAckRecover(ack.txnId(), ack.position());
+            } else {
+                int batchSize = ack.op().getBatchSize() == null ? 1 : ack.op().getBatchSize();
+                // A deleted position must only skip that op, not the remaining ACKs of the txn.
+                pendingAckHandle.handleIndividualAckRecover(ack.txnId(),
+                        Collections.singletonList(MutablePair.of(ack.position(), batchSize)));
+            }
+        }
+    }
+
+    private CompletableFuture<Position> recoverPosition(TxnOp op) {
+        return FutureUtil.supplySafely(() -> {
+            Position position = PositionFactory.create(op.getLedgerId(), op.getEntryId());
+            if (op.getBatchSize() != null) {
+                long[] ackSet = op.getAckSet();
+                return CompletableFuture.completedFuture(ackSet == null ? position
+                        : createPositionWithAckSet(op.getLedgerId(), op.getEntryId(), ackSet.clone()));
+            }
+            // Older records omitted both batch size and ACK mask. A whole-entry ACK is safe only if
+            // the original entry contained exactly one message (or the cursor durably deleted it).
+            // A legacy partial multi-message batch cannot be reconstructed: retain its ops and fail
+            // recovery rather than acknowledge messages the application never processed.
+            if (subscription.getCursor().isMessageDeleted(position)) {
+                return CompletableFuture.completedFuture(null);
+            }
+            CompletableFuture<Position> result = new CompletableFuture<>();
+            try {
+                subscription.getCursor().getManagedLedger().asyncReadEntry(position, new ReadEntryCallback() {
+                    @Override
+                    public void readEntryComplete(Entry entry, Object ctx) {
+                        try {
+                            MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer().duplicate());
+                            if (metadata.getNumMessagesInBatch() != 1) {
+                                result.completeExceptionally(new MetadataStoreException(
+                                        "Legacy transactional ACK lacks a batch acknowledgement mask at "
+                                                + segmentName + "/" + position + "; operation records retained"));
+                            } else {
+                                result.complete(position);
+                            }
+                        } catch (Throwable error) {
+                            result.completeExceptionally(error);
+                        } finally {
+                            entry.release();
+                        }
+                    }
+
+                    @Override
+                    public void readEntryFailed(ManagedLedgerException error, Object ctx) {
+                        result.completeExceptionally(error);
+                    }
+                }, null);
+            } catch (Throwable error) {
+                result.completeExceptionally(error);
+            }
+            return result;
         });
     }
 
@@ -222,6 +341,9 @@ public class MetadataPendingAckStore implements PendingAckStore {
             Position p = positions.get(i).getLeft();
             TxnOp op = new TxnOp(TxnOpKind.ACK, segmentName, subscriptionName,
                     p.getLedgerId(), p.getEntryId(), cumulative ? Boolean.TRUE : null);
+            op.setBatchSize(positions.get(i).getRight());
+            long[] ackSet = getAckSetArrayOrNull(p);
+            op.setAckSet(ackSet == null ? null : ackSet.clone());
             appends[i] = txnStore.appendOp(txnIdKey, op);
         }
         CompletableFuture.allOf(appends).whenComplete((__, err) -> {
@@ -316,14 +438,88 @@ public class MetadataPendingAckStore implements PendingAckStore {
                 }
                 return;
             }
-            // Successful handle call → clean up the ack op records on disk.
-            txnStore.deleteAckOpsForSegmentSubscriptionAndTxn(segmentName, subscriptionName, txnIdKey)
+            // A successful cursor ACK can still be only in memory (partial batches and rate
+            // limiting). Keep its recovery record until the durable whole-entry prefix covers it.
+            CompletableFuture<Void> cleanup = state == TxnState.COMMITTED
+                    ? cleanupCommittedAcks(txnIdKey)
+                    : txnStore.deleteAckOpsForSegmentSubscriptionAndTxn(segmentName, subscriptionName, txnIdKey);
+            cleanup
                     .exceptionally(cleanupErr -> {
                         log.warn().attr("segment", segmentName).attr("sub", subscriptionName)
                                 .attr("txn", txnID).exception(cleanupErr)
                                 .log("Op-record cleanup failed; will retry on next reconcile");
+                        synchronized (lock) {
+                            openTxns.add(txnIdKey);
+                        }
                         return null;
                     });
+        });
+    }
+
+    private CompletableFuture<Void> cleanupCommittedAcks(String txnIdKey) {
+        return FutureUtil.supplySafely(() -> {
+            Position persisted = subscription.getCursor().getPersistentMarkDeletedPosition();
+            ConcurrentLinkedQueue<OpRecord> covered = new ConcurrentLinkedQueue<>();
+            AtomicBoolean retained = new AtomicBoolean();
+            return txnStore.listOpsByTxn(txnIdKey, new ScanConsumer() {
+                @Override
+                public void onNext(GetResult record) {
+                    TxnOp op = TxnMetadataStore.fromJson(record.getValue(), TxnOp.class);
+                    String path = record.getStat().getPath();
+                    if (!txnIdKey.equals(TxnPaths.txnIdFromOpPath(path)) || op.getKind() != TxnOpKind.ACK
+                            || !segmentName.equals(op.getSegment()) || !subscriptionName.equals(op.getSubscription())) {
+                        return;
+                    }
+                    Position position = PositionFactory.create(op.getLedgerId(), op.getEntryId());
+                    if (persisted != null && position.compareTo(persisted) <= 0) {
+                        covered.add(new OpRecord(path, txnIdKey, record.getStat().getVersion()));
+                    } else {
+                        retained.set(true);
+                    }
+                }
+
+                @Override
+                public void onError(Throwable error) {
+                    // The returned scan future propagates the error and leaves recovery ops intact.
+                }
+
+                @Override
+                public void onCompleted() {
+                }
+            }).thenCompose(__ -> txnStore.deleteOps(List.copyOf(covered))).thenCompose(__ -> {
+                if (retained.get() || covered.isEmpty()) {
+                    return CompletableFuture.completedFuture(retained.get());
+                }
+                // Versioned deletes can skip an op replaced at the same path. Keep tracking the
+                // transaction if such a record still exists, so a later event can retry cleanup.
+                AtomicBoolean remaining = new AtomicBoolean();
+                return txnStore.listOpsByTxn(txnIdKey, new ScanConsumer() {
+                    @Override
+                    public void onNext(GetResult record) {
+                        TxnOp op = TxnMetadataStore.fromJson(record.getValue(), TxnOp.class);
+                        if (txnIdKey.equals(TxnPaths.txnIdFromOpPath(record.getStat().getPath()))
+                                && op.getKind() == TxnOpKind.ACK && segmentName.equals(op.getSegment())
+                                && subscriptionName.equals(op.getSubscription())) {
+                            remaining.set(true);
+                        }
+                    }
+
+                    @Override
+                    public void onError(Throwable error) {
+                        // The returned future preserves retry tracking on an error.
+                    }
+
+                    @Override
+                    public void onCompleted() {
+                    }
+                }).thenApply(ignored -> remaining.get());
+            }).thenAccept(needsRecovery -> {
+                if (needsRecovery) {
+                    synchronized (lock) {
+                        openTxns.add(txnIdKey);
+                    }
+                }
+            });
         });
     }
 

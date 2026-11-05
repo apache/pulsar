@@ -570,6 +570,15 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
         );
     }
 
+    /** Apply hydrated metadata-store ACKs on the pinned executor before recovery changes this handle to Ready. */
+    CompletableFuture<Void> commitRecoveredTxn(TxnID txnID) {
+        return FutureUtil.supplySafely(() -> {
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            internalCommitTxn(txnID, Map.of(), 0L, result);
+            return result;
+        });
+    }
+
     private void addAbortTxnRequest(TxnID txnId, Consumer consumer, long lowWaterMark,
                                     CompletableFuture<Void> completableFuture) {
         acceptQueue.add(() -> internalAbortTxn(txnId, consumer, lowWaterMark, completableFuture));

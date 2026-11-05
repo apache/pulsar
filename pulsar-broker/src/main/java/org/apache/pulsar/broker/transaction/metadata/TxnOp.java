@@ -56,4 +56,16 @@ public class TxnOp {
      * acks. Always {@code null} for {@link TxnOpKind#WRITE} entries.
      */
     private Boolean cumulative;
+
+    /** Batch size supplied with an ACK; absent on records written before batch-aware recovery. */
+    private Integer batchSize;
+
+    /** The actual pending batch acknowledgement mask, or null for a whole-entry ACK. */
+    private long[] ackSet;
+
+    /** Retain the original constructor for WRITE records and existing callers. */
+    public TxnOp(TxnOpKind kind, String segment, String subscription,
+                 long ledgerId, long entryId, Boolean cumulative) {
+        this(kind, segment, subscription, ledgerId, entryId, cumulative, null, null);
+    }
 }

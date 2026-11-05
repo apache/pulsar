@@ -18,48 +18,81 @@
  */
 package org.apache.pulsar.broker.transaction.pendingack.impl;
 
+import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.createPositionWithAckSet;
+import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.getAckSetArrayOrNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
+import org.apache.bookkeeper.mledger.ManagedCursor;
+import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.commons.lang3.tuple.MutablePair;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
+import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
+import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore.OpRecord;
 import org.apache.pulsar.broker.transaction.metadata.TxnOp;
 import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
+import org.apache.pulsar.broker.transaction.metadata.TxnPaths;
 import org.apache.pulsar.broker.transaction.metadata.TxnState;
+import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
+import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
+import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.MetadataStoreFactory;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.Stat;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
  * Unit tests for {@link MetadataPendingAckStore} against the in-memory {@code MetadataStore}.
- * The {@link PersistentSubscription} and {@link PendingAckHandleImpl} collaborators are mocked so
- * the test focuses on the store's state machine, append behaviour, and event-driven reconcile.
+ * Most tests mock the subscription and handle to focus on the store's state machine and reconcile.
+ * Recovery regressions also exercise the real {@link PendingAckHandleImpl} state machine.
  */
 public class MetadataPendingAckStoreTest {
 
@@ -69,7 +102,11 @@ public class MetadataPendingAckStoreTest {
     private MetadataStore store;
     private TxnMetadataStore txnStore;
     private PersistentSubscription subscription;
+    private ManagedCursor cursor;
     private PendingAckHandleImpl handle;
+    private ExecutorService replayExecutor;
+    private boolean legacyEntryBatched;
+    private int legacyEntryBatchSize;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -79,15 +116,36 @@ public class MetadataPendingAckStoreTest {
         subscription = mock(PersistentSubscription.class);
         when(subscription.getTopicName()).thenReturn(SEGMENT);
         when(subscription.getName()).thenReturn(SUB);
+        cursor = mock(ManagedCursor.class);
+        ManagedLedger ledger = mock(ManagedLedger.class);
+        when(subscription.getCursor()).thenReturn(cursor);
+        when(cursor.getManagedLedger()).thenReturn(ledger);
+        when(cursor.getPersistentMarkDeletedPosition()).thenReturn(PositionFactory.create(100, 100));
+        legacyEntryBatched = false;
+        legacyEntryBatchSize = 4;
+        doAnswer(invocation -> {
+            Position position = invocation.getArgument(0);
+            ReadEntryCallback callback = invocation.getArgument(1);
+            callback.readEntryComplete(EntryImpl.create(position.getLedgerId(), position.getEntryId(),
+                    legacyEntryBytes()), invocation.getArgument(2));
+            return null;
+        }).when(ledger).asyncReadEntry(any(), any(), any());
         handle = mock(PendingAckHandleImpl.class);
-        when(handle.commitTxn(any(), any(), org.mockito.ArgumentMatchers.anyLong()))
+        when(handle.changeToReadyState()).thenReturn(true);
+        replayExecutor = Executors.newSingleThreadExecutor();
+        when(handle.commitTxn(any(), any(), anyLong()))
                 .thenReturn(CompletableFuture.completedFuture(null));
-        when(handle.abortTxn(any(), any(), org.mockito.ArgumentMatchers.anyLong()))
+        when(handle.commitRecoveredTxn(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(handle.abortTxn(any(), any(), anyLong()))
                 .thenReturn(CompletableFuture.completedFuture(null));
     }
 
     @AfterMethod(alwaysRun = true)
     public void tearDown() throws Exception {
+        if (replayExecutor != null) {
+            replayExecutor.shutdown();
+            assertThat(replayExecutor.awaitTermination(5, TimeUnit.SECONDS)).isTrue();
+        }
         if (store != null) {
             store.close();
         }
@@ -96,7 +154,7 @@ public class MetadataPendingAckStoreTest {
     @Test
     public void appendIndividualAck_writesTxnOpsAndTracksOpenTxn() throws Exception {
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
-        ackStore.replayAsync(handle, null);
+        ackStore.replayAsync(handle, replayExecutor);
         ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
 
         TxnID txnId = new TxnID(1, 1);
@@ -120,7 +178,7 @@ public class MetadataPendingAckStoreTest {
     @Test
     public void appendCumulativeAck_writesSingleRecordWithCumulativeTrue() throws Exception {
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
-        ackStore.replayAsync(handle, null);
+        ackStore.replayAsync(handle, replayExecutor);
         ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
 
         TxnID txnId = new TxnID(1, 1);
@@ -139,7 +197,7 @@ public class MetadataPendingAckStoreTest {
         CompletableFuture<Stat> appending = new CompletableFuture<>();
         doReturn(appending).when(slowStore).appendOp(any(), any());
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, slowStore);
-        ackStore.replayAsync(handle, null);
+        ackStore.replayAsync(handle, replayExecutor);
         ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
 
         CompletableFuture<Void> ack = ackStore.appendIndividualAck(new TxnID(1, 1), Collections.singletonList(
@@ -164,7 +222,7 @@ public class MetadataPendingAckStoreTest {
         CompletableFuture<Stat> appending = new CompletableFuture<>();
         doReturn(appending).when(slowStore).appendOp(any(), any());
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, slowStore);
-        ackStore.replayAsync(handle, null);
+        ackStore.replayAsync(handle, replayExecutor);
         ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
 
         CompletableFuture<Void> ack = ackStore.appendIndividualAck(new TxnID(1, 1), Collections.singletonList(
@@ -180,7 +238,7 @@ public class MetadataPendingAckStoreTest {
     @Test
     public void appendCommitMarkAndAbortMark_areNoOps() throws Exception {
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
-        ackStore.replayAsync(handle, null);
+        ackStore.replayAsync(handle, replayExecutor);
         ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
 
         // The TC drives commits/aborts via subscription events; SPI-level marks are intentional
@@ -192,7 +250,7 @@ public class MetadataPendingAckStoreTest {
     @Test
     public void commitEvent_callsHandleCommitTxn_andDeletesOpRecords() throws Exception {
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
-        ackStore.replayAsync(handle, null);
+        ackStore.replayAsync(handle, replayExecutor);
         ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
 
         TxnID txnId = new TxnID(1, 1);
@@ -203,8 +261,7 @@ public class MetadataPendingAckStoreTest {
         // TC flips header to COMMITTED + publishes the subscription event.
         commitHeader(txnId);
         txnStore.publishSubscriptionEvent(SEGMENT, SUB,
-                new org.apache.pulsar.broker.transaction.metadata.TxnEvent(
-                        TxnIds.toKey(txnId), TxnState.COMMITTED)).get();
+                new TxnEvent(TxnIds.toKey(txnId), TxnState.COMMITTED)).get();
 
         Awaitility.await().untilAsserted(() ->
                 verify(handle).commitTxn(eq(txnId), eq(Map.of()), eq(0L)));
@@ -220,7 +277,7 @@ public class MetadataPendingAckStoreTest {
     @Test
     public void abortEvent_callsHandleAbortTxn_andDeletesOpRecords() throws Exception {
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
-        ackStore.replayAsync(handle, null);
+        ackStore.replayAsync(handle, replayExecutor);
         ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
 
         TxnID txnId = new TxnID(1, 1);
@@ -230,7 +287,7 @@ public class MetadataPendingAckStoreTest {
 
         abortHeader(txnId);
         txnStore.publishSubscriptionEvent(SEGMENT, SUB,
-                new org.apache.pulsar.broker.transaction.metadata.TxnEvent(
+                new TxnEvent(
                         TxnIds.toKey(txnId), TxnState.ABORTED)).get();
 
         Awaitility.await().untilAsserted(() ->
@@ -243,8 +300,15 @@ public class MetadataPendingAckStoreTest {
         });
     }
 
-    @Test
-    public void recovery_rebuildsOpenTxnStateFromAckRecords() throws Exception {
+    @DataProvider
+    public Object[][] legacySingleMessageEntryFormats() {
+        return new Object[][]{{false}, {true}};
+    }
+
+    @Test(dataProvider = "legacySingleMessageEntryFormats")
+    public void recovery_rebuildsOpenTxnStateFromAckRecords(boolean explicitSingleMessageBatch) throws Exception {
+        legacyEntryBatched = explicitSingleMessageBatch;
+        legacyEntryBatchSize = 1;
         // Pre-populate: an OPEN txn with two acks on this (seg, sub), and a terminal txn with a
         // lingering ack that the store should drive to cleanup during recovery.
         TxnID openTxn = new TxnID(1, 1);
@@ -263,10 +327,15 @@ public class MetadataPendingAckStoreTest {
                 new TxnOp(TxnOpKind.ACK, SEGMENT, SUB, 7L, 3L, false)).get();
 
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
-        ackStore.replayAsync(handle, null);
+        ackStore.replayAsync(handle, replayExecutor);
         ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
 
         // Terminal txn was discovered during recovery → commitTxn fired and its op record cleaned up.
+        verify(handle, times(2)).handleIndividualAckRecover(eq(openTxn), any());
+        verify(handle).handleIndividualAckRecover(eq(committedTxn), any());
+        var order = inOrder(handle);
+        order.verify(handle).commitRecoveredTxn(eq(committedTxn));
+        order.verify(handle).changeToReadyState();
         Awaitility.await().untilAsserted(() ->
                 verify(handle).commitTxn(eq(committedTxn), eq(Map.of()), eq(0L)));
         Awaitility.await().untilAsserted(() -> {
@@ -279,12 +348,262 @@ public class MetadataPendingAckStoreTest {
         });
     }
 
+    @Test
+    public void recovery_legacyBatchedAckFailsClosedAndRetainsItsOperation() throws Exception {
+        legacyEntryBatched = true;
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        commitHeader(txnId);
+        txnStore.appendOp(TxnIds.toKey(txnId),
+                new TxnOp(TxnOpKind.ACK, SEGMENT, SUB, 7L, 1L, false)).get();
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
+        ackStore.replayAsync(handle, replayExecutor);
+
+        assertThatThrownBy(() -> ackStore.recoveryFuture().get(5, TimeUnit.SECONDS))
+                .hasRootCauseInstanceOf(MetadataStoreException.class)
+                .hasStackTraceContaining("Legacy transactional ACK lacks a batch acknowledgement mask");
+        List<TxnOp> remaining = new ArrayList<>();
+        txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(remaining)).get();
+        assertThat(remaining).hasSize(1);
+        assertThat(txnStore.getHeader(TxnIds.toKey(txnId)).get()).isPresent();
+        verify(handle, never()).changeToReadyState();
+        verify(handle, never()).commitTxn(any(), any(), anyLong());
+    }
+
+    @Test
+    public void recovery_batchAckRestoresItsActualMaskBeforeReadiness() throws Exception {
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        MetadataPendingAckStore writer = new MetadataPendingAckStore(subscription, txnStore);
+        writer.replayAsync(handle, replayExecutor);
+        writer.recoveryFuture().get(5, TimeUnit.SECONDS);
+        writer.appendIndividualAck(txnId, Collections.singletonList(MutablePair.of(
+                createPositionWithAckSet(7, 1, new long[]{14L}), 4))).get();
+        writer.closeAsync().get();
+        List<TxnOp> persisted = new ArrayList<>();
+        txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(persisted)).get();
+        assertThat(persisted).hasSize(1);
+        assertThat(persisted.get(0).getBatchSize()).isEqualTo(4);
+        assertThat(persisted.get(0).getAckSet()).containsExactly(14L);
+
+        MetadataPendingAckStore recovered = new MetadataPendingAckStore(subscription, txnStore);
+        recovered.replayAsync(handle, replayExecutor);
+        recovered.recoveryFuture().get(5, TimeUnit.SECONDS);
+        ArgumentCaptor<List<MutablePair<Position, Integer>>> positions = ArgumentCaptor.forClass(List.class);
+        var ordered = inOrder(handle);
+        // The writer's initial empty replay also transitioned to Ready.
+        ordered.verify(handle).changeToReadyState();
+        ordered.verify(handle).handleIndividualAckRecover(eq(txnId), positions.capture());
+        ordered.verify(handle).changeToReadyState();
+        assertThat(positions.getValue()).hasSize(1);
+        assertThat(positions.getValue().get(0).getRight()).isEqualTo(4);
+        assertThat(getAckSetArrayOrNull(positions.getValue().get(0).getLeft())).containsExactly(14L);
+    }
+
+    @Test
+    public void recovery_appliesCommittedCumulativeAcksBeforeRestoringOpenTransaction() throws Exception {
+        TxnID firstCommitted = new TxnID(1, 1);
+        TxnID secondCommitted = new TxnID(1, 2);
+        TxnID openTxn = new TxnID(1, 3);
+        for (TxnID txnId : List.of(firstCommitted, secondCommitted, openTxn)) {
+            createOpenHeader(txnId);
+        }
+        commitHeader(firstCommitted);
+        commitHeader(secondCommitted);
+        Map<TxnID, Long> entries = Map.of(firstCommitted, 5L, secondCommitted, 10L, openTxn, 12L);
+        for (Map.Entry<TxnID, Long> entry : entries.entrySet()) {
+            TxnOp op = new TxnOp(TxnOpKind.ACK, SEGMENT, SUB, 7L, entry.getValue(), true);
+            op.setBatchSize(1);
+            txnStore.appendOp(TxnIds.toKey(entry.getKey()), op).get();
+        }
+
+        // The cursor image lost the volatile ACKs of both committed transactions. Keep its
+        // persistent prefix behind them even while replay applies ACKs to the live cursor.
+        AtomicReference<Position> markDeleted = new AtomicReference<>(PositionFactory.create(7, 0));
+        when(cursor.getMarkDeletedPosition()).thenAnswer(invocation -> markDeleted.get());
+        when(cursor.getPersistentMarkDeletedPosition()).thenReturn(PositionFactory.create(7, 0));
+        PersistentSubscription recoveredSubscription = mock(PersistentSubscription.class, RETURNS_DEEP_STUBS);
+        when(recoveredSubscription.getTopicName()).thenReturn(SEGMENT);
+        when(recoveredSubscription.getName()).thenReturn(SUB);
+        when(recoveredSubscription.getCursor()).thenReturn(cursor);
+        CompletableFuture<Void> firstCursorAck = new CompletableFuture<>();
+        CompletableFuture<Void> cursorAckStarted = new CompletableFuture<>();
+        AtomicInteger cursorAcks = new AtomicInteger();
+        when(recoveredSubscription.acknowledgeMessageAsync(anyList(), eq(AckType.Cumulative), any()))
+                .thenAnswer(invocation -> {
+                    List<Position> positions = invocation.getArgument(0);
+                    Position position = positions.get(0);
+                    CompletableFuture<Void> persisted = cursorAcks.getAndIncrement() == 0
+                            ? firstCursorAck : CompletableFuture.completedFuture(null);
+                    cursorAckStarted.complete(null);
+                    return persisted.thenRun(() -> markDeleted.updateAndGet(current ->
+                            position.compareTo(current) > 0 ? position : current));
+                });
+        var pulsar = recoveredSubscription.getTopic().getBrokerService().getPulsar();
+        when(pulsar.getTransactionExecutorProvider().getExecutor(any(PendingAckHandleImpl.class)))
+                .thenReturn(replayExecutor);
+        TransactionPendingAckStoreProvider provider = mock(TransactionPendingAckStoreProvider.class);
+        when(pulsar.getTransactionPendingAckStoreProvider()).thenReturn(provider);
+        when(provider.checkInitializedBefore(recoveredSubscription))
+                .thenReturn(CompletableFuture.completedFuture(true));
+        MetadataPendingAckStore recovered = new MetadataPendingAckStore(recoveredSubscription, txnStore);
+        when(provider.newPendingAckStore(recoveredSubscription))
+                .thenReturn(CompletableFuture.completedFuture(recovered));
+
+        PendingAckHandleImpl recoveredHandle = new PendingAckHandleImpl(recoveredSubscription);
+        try {
+            cursorAckStarted.get(5, TimeUnit.SECONDS);
+            assertThat(recoveredHandle.pendingAckHandleFuture()).as("cursor ACK is still outstanding").isNotDone();
+            assertThat(recovered.recoveryFuture()).isNotDone();
+            assertThat(recoveredHandle.getTransactionInPendingAckStats(openTxn).cumulativeAckPosition).isNull();
+            firstCursorAck.complete(null);
+            recoveredHandle.pendingAckHandleFuture().get(5, TimeUnit.SECONDS);
+            recovered.recoveryFuture().get(5, TimeUnit.SECONDS);
+            assertThat(markDeleted.get()).as("both committed cumulative ACKs must be applied")
+                    .isEqualTo(PositionFactory.create(7, 10));
+            assertThat(recoveredHandle.getTransactionInPendingAckStats(openTxn).cumulativeAckPosition)
+                    .as("the later OPEN transaction must remain pending").isEqualTo("7:12");
+        } finally {
+            firstCursorAck.complete(null);
+            recoveredHandle.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
+    @DataProvider
+    public Object[][] uncoveredPersistedPrefixes() {
+        return new Object[][]{{null}, {PositionFactory.create(3, 4)}};
+    }
+
+    @Test(dataProvider = "uncoveredPersistedPrefixes")
+    public void committedPartialAckIsRetainedUntilDurableWholeEntryCoverage(Position persisted) throws Exception {
+        when(cursor.getPersistentMarkDeletedPosition()).thenReturn(persisted);
+        // A checkpoint may truncate individual ranges or batch masks; only the whole-entry prefix is trusted.
+        when(cursor.isCursorDataFullyPersistable()).thenReturn(false);
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
+        ackStore.replayAsync(handle, replayExecutor);
+        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        ackStore.appendIndividualAck(txnId, Collections.singletonList(MutablePair.of(
+                createPositionWithAckSet(3, 5, new long[]{14L}), 4))).get();
+        commitHeader(txnId);
+        publishDecision(txnId);
+        Awaitility.await().untilAsserted(() -> verify(handle).commitTxn(eq(txnId), eq(Map.of()), eq(0L)));
+        List<TxnOp> remaining = new ArrayList<>();
+        txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(remaining)).get();
+        assertThat(remaining).hasSize(1);
+        assertThat(remaining.get(0).getAckSet()).containsExactly(14L);
+        assertThat(txnStore.getHeader(TxnIds.toKey(txnId)).get()).isPresent();
+
+        when(cursor.getPersistentMarkDeletedPosition()).thenReturn(PositionFactory.create(3, 5));
+        Awaitility.await().untilAsserted(() -> {
+            publishDecision(txnId);
+            List<TxnOp> outstanding = new ArrayList<>();
+            txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(outstanding)).get();
+            assertThat(outstanding).as("durable entry coverage permits cleanup and subsequent header GC").isEmpty();
+        });
+    }
+
+    @Test
+    public void committedAckCleanupFailureRetainsOpsAndRetries() throws Exception {
+        TxnMetadataStore failingCleanup = spy(txnStore);
+        AtomicInteger cleanups = new AtomicInteger();
+        doAnswer(invocation -> {
+            if (cleanups.getAndIncrement() == 0) {
+                return CompletableFuture.failedFuture(new MetadataStoreException("injected cleanup failure"));
+            }
+            return invocation.callRealMethod();
+        }).when(failingCleanup).deleteOps(any());
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, failingCleanup);
+        ackStore.replayAsync(handle, replayExecutor);
+        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        ackStore.appendIndividualAck(txnId, Collections.singletonList(
+                MutablePair.of(PositionFactory.create(3, 5), 1))).get();
+        commitHeader(txnId);
+        publishDecision(txnId);
+        Awaitility.await().until(() -> cleanups.get() == 1);
+        List<TxnOp> retained = new ArrayList<>();
+        txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(retained)).get();
+        assertThat(retained).hasSize(1);
+        Awaitility.await().untilAsserted(() -> {
+            publishDecision(txnId);
+            List<TxnOp> remaining = new ArrayList<>();
+            txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(remaining)).get();
+            assertThat(remaining).isEmpty();
+        });
+    }
+
+    @Test
+    public void committedAckCleanupDoesNotDeleteAReplacedOperationVersion() throws Exception {
+        TxnMetadataStore racingCleanup = spy(txnStore);
+        AtomicInteger cleanups = new AtomicInteger();
+        doAnswer(invocation -> {
+            List<OpRecord> captured = invocation.getArgument(0);
+            if (cleanups.getAndIncrement() == 0) {
+                OpRecord op = captured.get(0);
+                Set<Option> options = Set.of(new Option.PartitionKey(op.txnId()),
+                        new Option.SecondaryIndex(TxnPaths.IDX_OPS_BY_TXN, op.txnId()),
+                        new Option.SecondaryIndex(TxnPaths.IDX_ACKS_BY_SEGMENT_SUBSCRIPTION,
+                                TxnPaths.ackIndexKey(SEGMENT, SUB)));
+                return store.get(op.path(), Set.of(new Option.PartitionKey(op.txnId())))
+                        .thenCompose(value -> store.put(op.path(),
+                        value.orElseThrow().getValue(), Optional.of(op.version()), options))
+                        .thenCompose(ignored -> txnStore.deleteOps(captured));
+            }
+            return txnStore.deleteOps(captured);
+        }).when(racingCleanup).deleteOps(any());
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, racingCleanup);
+        ackStore.replayAsync(handle, replayExecutor);
+        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        ackStore.appendIndividualAck(txnId, Collections.singletonList(
+                MutablePair.of(PositionFactory.create(3, 5), 1))).get();
+        commitHeader(txnId);
+        publishDecision(txnId);
+        Awaitility.await().until(() -> cleanups.get() == 1);
+        List<TxnOp> retained = new ArrayList<>();
+        txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(retained)).get();
+        assertThat(retained).hasSize(1);
+        Awaitility.await().untilAsserted(() -> {
+            publishDecision(txnId);
+            List<TxnOp> remaining = new ArrayList<>();
+            txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(remaining)).get();
+            assertThat(remaining).isEmpty();
+        });
+    }
+
+    private void publishDecision(TxnID txnId) throws Exception {
+        txnStore.publishSubscriptionEvent(SEGMENT, SUB,
+                new TxnEvent(TxnIds.toKey(txnId), TxnState.COMMITTED)).get();
+    }
+
     // ---- helpers ----------------------------------------------------------
 
-    private static org.apache.pulsar.metadata.api.ScanConsumer collectOps(List<TxnOp> out) {
-        return new org.apache.pulsar.metadata.api.ScanConsumer() {
+    private byte[] legacyEntryBytes() {
+        MessageMetadata metadata = new MessageMetadata().setProducerName("legacy-ack")
+                .setSequenceId(1).setPublishTime(1);
+        if (legacyEntryBatched) {
+            metadata.setNumMessagesInBatch(legacyEntryBatchSize);
+        }
+        ByteBuf payload = Unpooled.buffer(1).writeByte(0);
+        ByteBuf entry = Commands.serializeMetadataAndPayload(Commands.ChecksumType.Crc32c, metadata, payload);
+        try {
+            byte[] bytes = new byte[entry.readableBytes()];
+            entry.getBytes(entry.readerIndex(), bytes);
+            return bytes;
+        } finally {
+            entry.release();
+            payload.release();
+        }
+    }
+
+    private static ScanConsumer collectOps(List<TxnOp> out) {
+        return new ScanConsumer() {
             @Override
-            public void onNext(org.apache.pulsar.metadata.api.GetResult r) {
+            public void onNext(GetResult r) {
                 out.add(TxnMetadataStore.fromJson(r.getValue(), TxnOp.class));
             }
 
