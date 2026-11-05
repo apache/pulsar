@@ -38,6 +38,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import java.time.Clock;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 import java.util.Comparator;
@@ -51,6 +52,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -3444,11 +3446,82 @@ public class ManagedCursorImpl implements ManagedCursor {
         }
     }
 
+    private interface CursorLedgerPublicationCallback extends MetaStoreCallback<Void> {
+        void operationFailed(MetaStoreException exception, boolean safeToDelete);
+
+        @Override
+        default void operationFailed(MetaStoreException exception) {
+            operationFailed(exception, false);
+        }
+    }
+
+    private void reconcileCursorLedgerPublication(ManagedCursorInfo attempted, byte[] attemptedBytes,
+                                                 Stat expectedStat, long lastActiveToPersist,
+                                                 MetaStoreException originalError,
+                                                 CursorLedgerPublicationCallback callback) {
+        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
+            @Override
+            public void operationComplete(ManagedCursorInfo current, Stat stat) {
+                boolean advancedSameNode = expectedStat != null && expectedStat.getCreationTimestamp() > 0
+                        && stat.getCreationTimestamp() == expectedStat.getCreationTimestamp()
+                        && stat.getVersion() > expectedStat.getVersion();
+                boolean committed = advancedSameNode && Arrays.equals(attemptedBytes, current.toByteArray());
+                boolean safeToDelete = advancedSameNode
+                        && current.getCursorsLedgerId() != attempted.getCursorsLedgerId();
+                boolean refreshAfterBadVersion = advancedSameNode
+                        && originalError instanceof MetaStoreException.BadVersionException
+                        && ledger.mlOwnershipChecker != null;
+                if (!committed && !refreshAfterBadVersion) {
+                    callback.operationFailed(originalError, safeToDelete);
+                    return;
+                }
+
+                CompletableFuture<Boolean> ownership = ledger.mlOwnershipChecker == null
+                        ? CompletableFuture.completedFuture(true) : FutureUtil.supplySafely(ledger.mlOwnershipChecker);
+                ownership.whenComplete((owned, error) -> {
+                    Runnable completion = () -> {
+                        Stat localStat = cursorLedgerStat;
+                        boolean currentVersion = localStat == null
+                                || (localStat.getCreationTimestamp() == stat.getCreationTimestamp()
+                                && localStat.getVersion() <= stat.getVersion());
+                        if (error == null && Boolean.TRUE.equals(owned) && !state.isClosed() && currentVersion) {
+                            updateCursorLedgerStat(current, stat);
+                            if (committed) {
+                                updateIdlePersisted(lastActiveToPersist);
+                                callback.operationComplete(null, stat);
+                                return;
+                            }
+                        }
+                        callback.operationFailed(originalError, safeToDelete);
+                    };
+                    try {
+                        ledger.getExecutor().execute(completion);
+                    } catch (RejectedExecutionException rejected) {
+                        callback.operationFailed(originalError, false);
+                    }
+                });
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException readError) {
+                log.debug().exceptionMessage(readError).log("Could not reconcile cursor ledger publication");
+                callback.operationFailed(originalError, false);
+            }
+        });
+    }
+
     private void persistPositionMetaStore(long cursorsLedgerId, Position position, Map<String, Long> properties,
             MetaStoreCallback<Void> callback, boolean persistIndividualDeletedMessageRanges) {
-        if (state == State.Closed) {
-            ledger.getExecutor().execute(() -> callback.operationFailed(new MetaStoreException(
-                    new CursorAlreadyClosedException(name + " cursor already closed"))));
+        if (state == State.Closed || (callback instanceof CursorLedgerPublicationCallback && state.isClosed())) {
+            ledger.getExecutor().execute(() -> {
+                MetaStoreException error = new MetaStoreException(
+                        new CursorAlreadyClosedException(name + " cursor already closed"));
+                if (callback instanceof CursorLedgerPublicationCallback publication) {
+                    publication.operationFailed(error, true);
+                } else {
+                    callback.operationFailed(error);
+                }
+            });
             return;
         }
 
@@ -3478,6 +3551,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         log.debug().attr("position", position).log("Closing cursor");
 
         ManagedCursorInfo cursorInfo = info;
+        byte[] publicationBytes = callback instanceof CursorLedgerPublicationCallback ? cursorInfo.toByteArray() : null;
         ledger.getStore().asyncUpdateCursorInfo(ledger.getName(), name, cursorInfo, lastCursorLedgerStat,
                 new MetaStoreCallback<Void>() {
                     @Override
@@ -3489,6 +3563,12 @@ public class ManagedCursorImpl implements ManagedCursor {
 
                     @Override
                     public void operationFailed(MetaStoreException topLevelException) {
+                        if (callback instanceof CursorLedgerPublicationCallback publication) {
+                            // A failed response does not prove that the server did not commit the cursor CAS.
+                            reconcileCursorLedgerPublication(cursorInfo, publicationBytes, lastCursorLedgerStat,
+                                    lastActiveToPersist, topLevelException, publication);
+                            return;
+                        }
                         if (topLevelException instanceof MetaStoreException.BadVersionException) {
                             log.warn()
                                     .exceptionMessage(topLevelException)
@@ -4126,7 +4206,7 @@ public class ManagedCursorImpl implements ManagedCursor {
     void switchToNewLedger(final LedgerHandle lh, final VoidCallback callback) {
         log.debug().attr("ledgerId", lh.getId()).log("Switching to new metadata ledger");
         persistPositionMetaStore(lh.getId(), lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties,
-                new MetaStoreCallback<Void>() {
+                new CursorLedgerPublicationCallback() {
             @Override
             public void operationComplete(Void result, Stat stat) {
                 log.info()
@@ -4145,11 +4225,16 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             @Override
-            public void operationFailed(MetaStoreException e) {
-                log.warn().exception(e).log("Failed to update cursor metadata");
-                // it means it failed to switch the newly created ledger so, it should be
-                // deleted to prevent leak
-                deleteLedgerAsync(lh).thenRun(() -> callback.operationFailed(e));
+            public void operationFailed(MetaStoreException e, boolean safeToDelete) {
+                log.debug().exception(e).attr("ledgerId", lh.getId()).attr("safeToDelete", safeToDelete)
+                        .log("Failed to publish new cursor ledger");
+                if (safeToDelete) {
+                    deleteLedgerAsync(lh).thenRun(() -> callback.operationFailed(e));
+                } else {
+                    // The original CAS may have committed, or may still commit after the metadata read.
+                    // Close our handle but retain the ledger that the durable cursor could reference.
+                    lh.asyncClose((rc, handle, context) -> callback.operationFailed(e), null);
+                }
             }
         }, false);
     }
