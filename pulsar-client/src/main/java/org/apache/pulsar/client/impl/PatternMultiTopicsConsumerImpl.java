@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -71,6 +72,7 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
 
     private PatternConsumerUpdateQueue updateTaskQueue;
     private volatile boolean closed = false;
+    private CompletableFuture<Void> closeFuture;
 
     /***
      * @param topicsPattern The regexp for the topic name(not contains partition suffix).
@@ -479,7 +481,13 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
     @Override
     @SuppressFBWarnings
     public CompletableFuture<Void> closeAsync() {
+        CompletableFuture<Void> result;
         synchronized (this) {
+            if (closeFuture != null) {
+                return closeFuture;
+            }
+            closeFuture = new CompletableFuture<>();
+            result = closeFuture;
             closed = true;
             Timeout timeout = recheckPatternTimeout;
             if (timeout != null) {
@@ -487,12 +495,31 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                 recheckPatternTimeout = null;
             }
         }
-        CompletableFuture<Void> topicListWatcherCloseFuture =
-                Optional.ofNullable(topicListWatcher).map(TopicListWatcher::closeAsync)
-                        .orElse(CompletableFuture.completedFuture(null)).exceptionally(t -> null);
-        CompletableFuture<Void> runningTaskCancelFuture = updateTaskQueue.cancelAllAndWaitForTheRunningTask();
-        return FutureUtil.waitForAll(Lists.newArrayList(topicListWatcherCloseFuture, runningTaskCancelFuture))
-                .exceptionally(t -> null).thenCompose(__ -> super.closeAsync());
+        FutureUtil.supplySafely(() -> {
+            CompletableFuture<Void> topicListWatcherCloseFuture =
+                    Optional.ofNullable(topicListWatcher).map(TopicListWatcher::closeAsync)
+                            .orElse(CompletableFuture.completedFuture(null)).exceptionally(t -> null);
+            CompletableFuture<Void> runningTaskCancelFuture = updateTaskQueue.cancelAllAndWaitForTheRunningTask();
+            return FutureUtil.waitForAll(Lists.newArrayList(topicListWatcherCloseFuture, runningTaskCancelFuture))
+                    .exceptionally(t -> null).thenCompose(__ -> {
+                        // Failed children leave the template open for retries. It still needs closing
+                        // when no remaining child will release it as part of normal shutdown.
+                        boolean closeTemplate = schema != null
+                                && consumers.values().stream().noneMatch(child -> child.schema == schema);
+                        CompletableFuture<Void> childrenClosed = super.closeAsync();
+                        return closeTemplate
+                                ? FutureUtil.waitForAll(List.of(childrenClosed,
+                                        FutureUtil.supplySafely(schema::closeAsync)))
+                                : childrenClosed;
+                    });
+        }).whenComplete((ignored, error) -> {
+            if (error == null) {
+                result.complete(null);
+            } else {
+                result.completeExceptionally(error);
+            }
+        });
+        return result;
     }
 
     @VisibleForTesting
@@ -536,8 +563,14 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
         try {
             internalPinnedExecutor.execute((CleanupTask) () -> {
                 List<CompletableFuture<?>> closing = new ArrayList<>();
+                Set<Schema<T>> failedSchemas = Collections.newSetFromMap(new IdentityHashMap<>());
                 for (ConsumerImpl<T> child : failedChildren) {
-                    closing.add(FutureUtil.supplySafely(child::closeAsync).handle((ignored, closeError) -> {
+                    if (child.schema != null && child.schema != schema) {
+                        failedSchemas.add(child.schema);
+                    }
+                    // Initial partitions share their schema. Decide its ownership only after all
+                    // failed children are removed, so a retained sibling can keep decoding.
+                    closing.add(FutureUtil.supplySafely(() -> child.closeAsync(false)).handle((ignored, closeError) -> {
                         if (consumers.remove(child.getTopic(), child)) {
                             allTopicPartitionsNumber.decrementAndGet();
                         }
@@ -548,7 +581,19 @@ public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T
                         return null;
                     }));
                 }
-                FutureUtil.waitForAll(closing).whenComplete((ignored, closeError) -> {
+                FutureUtil.waitForAll(closing).thenCompose(ignored -> {
+                    List<CompletableFuture<Void>> schemasClosing = new ArrayList<>();
+                    for (Schema<T> failedSchema : failedSchemas) {
+                        if (consumers.values().stream().noneMatch(child -> child.schema == failedSchema)) {
+                            schemasClosing.add(FutureUtil.supplySafely(failedSchema::closeAsync));
+                        }
+                    }
+                    return FutureUtil.waitForAll(schemasClosing);
+                }).whenComplete((ignored, closeError) -> {
+                    if (closeError != null) {
+                        log.debug().attr("topic", baseTopic).exception(closeError)
+                                .log("Failed to close schema of failed initial child subscriptions");
+                    }
                     if (consumers.keySet().stream().noneMatch(name ->
                             TopicName.get(name).getPartitionedTopicName().equals(baseTopic))) {
                         partitionedTopics.remove(baseTopic);

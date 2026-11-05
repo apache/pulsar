@@ -1252,7 +1252,12 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public synchronized CompletableFuture<Void> closeAsync() {
+    public CompletableFuture<Void> closeAsync() {
+        return closeAsync(true);
+    }
+
+    // A parent retaining another child with this schema owns its eventual close.
+    synchronized CompletableFuture<Void> closeAsync(boolean closeSchema) {
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
 
         ArrayList<CompletableFuture<Void>> closeFutures = new ArrayList<>(4);
@@ -1271,7 +1276,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
             }));
         }
-        if (schema != null) {
+        if (closeSchema && schema != null) {
             closeFutures.add(schema.closeAsync().whenComplete((ignore, ex) -> {
                 if (ex != null) {
                     log.warn().exception(ex).log("Exception ignored in closing schema of consumer");

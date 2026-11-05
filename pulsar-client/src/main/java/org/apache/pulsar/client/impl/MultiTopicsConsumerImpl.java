@@ -1169,6 +1169,9 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                     allTopicPartitionsNumber.addAndGet(-numPartitions);
                 }
             }).thenCompose(partitions -> {
+                // Metadata can include partitions that have not been created yet. Only actual
+                // children can release their reservations during failed-subscription cleanup.
+                allTopicPartitionsNumber.addAndGet(partitions.size() - numPartitions);
                 if (partitions.isEmpty()) {
                     partitionedTopics.remove(topicName, numPartitions);
                     return CompletableFuture.completedFuture(null);

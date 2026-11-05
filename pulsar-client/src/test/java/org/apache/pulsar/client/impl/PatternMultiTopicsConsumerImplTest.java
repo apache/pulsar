@@ -490,6 +490,81 @@ public class PatternMultiTopicsConsumerImplTest {
         }
     }
 
+    @DataProvider
+    public Object[][] existingPartitionCounts() {
+        return new Object[][] {{0}, {1}};
+    }
+
+    @Test(dataProvider = "existingPartitionCounts")
+    public void testPartialPartitionLookupReconcilesCountAcrossRechecks(int existingPartitionCount) throws Exception {
+        String base = "persistent://tenant/namespace/partial-partitions";
+        String healthyTopic = "persistent://tenant/namespace/healthy";
+        List<String> allPartitions = List.of(base + "-partition-0", base + "-partition-1",
+                base + "-partition-2", base + "-partition-3");
+        List<String> existingPartitions = allPartitions.subList(0, existingPartitionCount);
+        // The namespace snapshot can precede a partition deletion seen by the subsequent partition lookup.
+        List<String> snapshot = List.of(healthyTopic, allPartitions.get(0));
+        TopicsPattern pattern = TopicsPatternFactory.create("persistent://tenant/namespace/.*",
+                TopicsPattern.RegexImplementation.JDK);
+        ConsumerConfigurationData<byte[]> conf = createConsumerConfigurationData();
+        conf.setAutoUpdatePartitions(false);
+        conf.setPatternAutoDiscoveryPeriod(3600);
+        conf.setReceiverQueueSize(1);
+        PatternMultiTopicsConsumerImpl<byte[]> consumer = createPatternMultiTopicsConsumer(conf, pattern);
+        doReturn(CompletableFuture.completedFuture(new PartitionedTopicMetadata(allPartitions.size())))
+                .when(clientMock).getPartitionedTopicMetadata(base, true, false);
+        LookupService lookup = clientMock.getLookup();
+        doReturn(CompletableFuture.completedFuture(new GetTopicsResult(snapshot,
+                TopicList.calculateHash(snapshot), true, true)))
+                .when(lookup).getTopicsUnderNamespace(any(), any(), any(), any(), any());
+        doReturn(CompletableFuture.completedFuture(new GetTopicsResult(existingPartitions,
+                TopicList.calculateHash(existingPartitions), true, true)))
+                .when(lookup).getTopicsUnderNamespace(any(), any(), any(), any());
+        try {
+            consumer.topicsChangeListener.onTopicsAdded(List.of(healthyTopic)).get(5, TimeUnit.SECONDS);
+            ConsumerImpl<byte[]> healthyChild = consumer.consumers.get(healthyTopic);
+            int initialQueueSize = consumer.getCurrentReceiverQueueSize();
+            clientMock.getConfiguration().setOperationTimeoutMs(0);
+            doAnswer(invocation -> {
+                invocation.<ByteBuf>getArgument(0).release();
+                return CompletableFuture.failedFuture(
+                        new PulsarClientException.TimeoutException("Initial partition subscribe failed"));
+            }).when(cnx).sendRequestWithId(any(), anyLong());
+
+            for (int attempt = 0; attempt < 3; attempt++) {
+                consumer.recheckTopicsChange().get(5, TimeUnit.SECONDS);
+
+                assertThat(consumer.partitionedTopics).doesNotContainKey(base);
+                assertThat(consumer.getPartitions()).containsExactly(healthyTopic);
+                assertThat(consumer.consumers.get(healthyTopic)).isSameAs(healthyChild);
+                assertThat(consumer.allTopicPartitionsNumber.get())
+                        .as("only the healthy topic remains after attempt %s", attempt).isEqualTo(1);
+                assertThat(consumer.getCurrentReceiverQueueSize()).isEqualTo(initialQueueSize);
+            }
+
+            doAnswer(invocation -> {
+                invocation.<ByteBuf>getArgument(0).release();
+                return CompletableFuture.completedFuture(mock(ProducerResponse.class));
+            }).when(cnx).sendRequestWithId(any(), anyLong());
+            List<String> recoveredSnapshot = new ArrayList<>(allPartitions);
+            recoveredSnapshot.add(healthyTopic);
+            doReturn(CompletableFuture.completedFuture(new GetTopicsResult(recoveredSnapshot,
+                    TopicList.calculateHash(recoveredSnapshot), true, true)))
+                    .when(lookup).getTopicsUnderNamespace(any(), any(), any(), any(), any());
+            doReturn(CompletableFuture.completedFuture(new GetTopicsResult(allPartitions,
+                    TopicList.calculateHash(allPartitions), true, true)))
+                    .when(lookup).getTopicsUnderNamespace(any(), any(), any(), any());
+            consumer.recheckTopicsChange().get(5, TimeUnit.SECONDS);
+
+            assertThat(consumer.getPartitions()).containsExactlyInAnyOrderElementsOf(recoveredSnapshot);
+            assertThat(consumer.consumers.get(healthyTopic)).isSameAs(healthyChild);
+            assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(recoveredSnapshot.size());
+            assertThat(consumer.getCurrentReceiverQueueSize()).isEqualTo(recoveredSnapshot.size());
+        } finally {
+            consumer.closeAsync().get(5, TimeUnit.SECONDS);
+        }
+    }
+
     @Test
     public void testPartitionSubscribeFailureDoesNotRollBackHealthySiblingCount() throws Exception {
         String base = "persistent://tenant/namespace/partition-subscribe";
@@ -650,6 +725,7 @@ public class PatternMultiTopicsConsumerImplTest {
         }
         doReturn(initial).when(child).subscribeFuture();
         doReturn(CompletableFuture.completedFuture(null)).when(child).closeAsync();
+        doReturn(CompletableFuture.completedFuture(null)).when(child).closeAsync(false);
         return child;
     }
 
@@ -669,7 +745,7 @@ public class PatternMultiTopicsConsumerImplTest {
         // The exceptional initial future, not a later state assignment, identifies the failed attempt.
         ConsumerImpl<byte[]> failed = childForFailedAttemptTest(partition2, true, HandlerState.State.Connecting);
         CompletableFuture<Void> closingFailed = new CompletableFuture<>();
-        doReturn(closingFailed).when(failed).closeAsync();
+        doReturn(closingFailed).when(failed).closeAsync(false);
         consumer.partitionedTopics.put(base, 3);
         consumer.consumers.put(partition0, healthy);
         consumer.consumers.put(partition1, reconnecting);
@@ -678,7 +754,7 @@ public class PatternMultiTopicsConsumerImplTest {
         CompletableFuture<Void> failedUpdate = new CompletableFuture<>();
         try {
             consumer.handleSubscribeOneTopicError(partition2, new RuntimeException("Expansion failed"), failedUpdate);
-            Awaitility.await().untilAsserted(() -> verify(failed).closeAsync());
+            Awaitility.await().untilAsserted(() -> verify(failed).closeAsync(false));
             assertThat(failedUpdate).isNotDone();
             closingFailed.complete(null);
             assertThat(failedUpdate).failsWithin(Duration.ofSeconds(5));
@@ -686,8 +762,8 @@ public class PatternMultiTopicsConsumerImplTest {
             assertThat(consumer.getPartitions()).containsExactlyInAnyOrder(partition0, partition1);
             assertThat(consumer.partitionedTopics).containsEntry(base, 3);
             assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(2);
-            verify(healthy, never()).closeAsync();
-            verify(reconnecting, never()).closeAsync();
+            verify(healthy, never()).closeAsync(false);
+            verify(reconnecting, never()).closeAsync(false);
 
             consumer.topicsChangeListener.onTopicsAdded(Collections.singleton(partition2)).get(5, TimeUnit.SECONDS);
             assertThat(consumer.getPartitions()).containsExactlyInAnyOrder(partition0, partition1, partition2);
@@ -711,19 +787,19 @@ public class PatternMultiTopicsConsumerImplTest {
         ConsumerImpl<byte[]> failed = childForFailedAttemptTest(topic, true, HandlerState.State.Connecting);
         ConsumerImpl<byte[]> replacement = childForFailedAttemptTest(topic, false, HandlerState.State.Ready);
         CompletableFuture<Void> closingFailed = new CompletableFuture<>();
-        doReturn(closingFailed).when(failed).closeAsync();
+        doReturn(closingFailed).when(failed).closeAsync(false);
         consumer.consumers.put(topic, failed);
         consumer.allTopicPartitionsNumber.set(1);
         CompletableFuture<Void> result = new CompletableFuture<>();
         try {
             consumer.handleSubscribeOneTopicError(topic, new RuntimeException("Subscribe failed"), result);
-            Awaitility.await().untilAsserted(() -> verify(failed).closeAsync());
+            Awaitility.await().untilAsserted(() -> verify(failed).closeAsync(false));
             consumer.consumers.put(topic, replacement);
             closingFailed.complete(null);
             assertThat(result).failsWithin(Duration.ofSeconds(5));
             assertThat(consumer.consumers.get(topic)).isSameAs(replacement);
             assertThat(consumer.allTopicPartitionsNumber.get()).isEqualTo(1);
-            verify(replacement, never()).closeAsync();
+            verify(replacement, never()).closeAsync(false);
         } finally {
             closingFailed.complete(null);
             consumer.closeAsync().get(5, TimeUnit.SECONDS);
@@ -848,7 +924,7 @@ public class PatternMultiTopicsConsumerImplTest {
             RuntimeException subscribeError = new RuntimeException("Initial subscribe failed");
             consumer.handleSubscribeOneTopicError(topic, subscribeError, result);
             assertThat(result).isCompletedExceptionally();
-            verify(failed, never()).closeAsync();
+            verify(failed, never()).closeAsync(false);
         } finally {
             // The base close path also needs the deliberately terminated internal executor.
             assertThatThrownBy(() -> consumer.closeAsync().get(5, TimeUnit.SECONDS))
@@ -885,7 +961,7 @@ public class PatternMultiTopicsConsumerImplTest {
             assertThat(result).failsWithin(Duration.ofSeconds(5));
             assertThat(consumer.getConsumers()).isEmpty();
             assertThat(consumer.allTopicPartitionsNumber.get()).isZero();
-            verify(failed).closeAsync();
+            verify(failed).closeAsync(false);
         } finally {
             release.countDown();
             // The base close path also needs the deliberately terminated internal executor.
