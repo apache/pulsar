@@ -167,7 +167,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 } else {
                     log.error().attr("topic", op.topic).exception(cause).log("endTxn error topic");
                 }
-                if (cause instanceof PulsarClientException.BrokerMetadataException) {
+                if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
                     op.cb.complete(null);
                 } else {
                     op.cb.completeExceptionally(
