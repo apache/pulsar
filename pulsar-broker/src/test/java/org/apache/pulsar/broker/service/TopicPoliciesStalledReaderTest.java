@@ -109,6 +109,30 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         assertFailsWithReadBackTimeout(setMaxConsumers(topicName, 7), "the policy update");
     }
 
+    @Test(timeOut = 60_000)
+    public void testStalledReaderIsReplacedAfterReadBackTimeout() throws Exception {
+        final TopicName topicName = newTopic();
+        setMaxConsumers(topicName, 5).get(30, TimeUnit.SECONDS);
+
+        final List<StallableReader> stalledReaders = service.stallReaders();
+        assertThat(stalledReaders)
+                .describedAs("no reader was stalled, so the assertions below would hold vacuously")
+                .isNotEmpty();
+        assertFailsWithReadBackTimeout(setMaxConsumers(topicName, 7), "the policy update");
+
+        assertThat(setMaxConsumers(topicName, 9))
+                .describedAs("the timeout showed that the reader is stalled, so the broker must replace it: the next"
+                        + " update is then read back by a reader that delivers, without unloading __change_events"
+                        + " by hand")
+                .succeedsWithin(Duration.ofSeconds(30));
+        assertThat(stalledReaders)
+                .describedAs("the stalled reader must be closed, not left subscribed next to its replacement")
+                .allMatch(StallableReader::isClosed);
+        assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, topicName).getMaxConsumerPerTopic())
+                .describedAs("the policy cache must hold the update the replacement reader read back")
+                .isEqualTo(9);
+    }
+
     /**
      * Asserts in two steps so that a hang and a wrong failure read differently: an operation that is still waiting
      * fails the first assertion, one that failed for another reason fails the second.
