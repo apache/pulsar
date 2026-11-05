@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.PriorityQueue;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -122,6 +123,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
 
     private final Map<NamespaceName, TopicPolicyMessageHandlerTracker> topicPolicyMessageHandlerTrackers =
             new ConcurrentHashMap<>();
+
+    // Namespaces whose next policy cache initialization re-notifies the topic-policy listeners even when
+    // topicPolicyListenerReplayEnabled is off, because its reader replaces one that stopped delivering.
+    private final Set<NamespaceName> listenerReplayPending = ConcurrentHashMap.newKeySet();
 
     private final AsyncLoadingCache<NamespaceName, SystemTopicClient.Writer<PulsarEvent>> writerCaches;
 
@@ -364,21 +369,51 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         .attr("messageId", messageId)
                         .attr("timeoutSeconds", timeoutSeconds)
                         .log("Timed out waiting for the __change_events reader to read back a topic policy event; "
-                                + "closing the stalled reader so the namespace's topic policies can be updated again");
+                                + "replacing the stalled reader so the namespace's topic policies can be updated "
+                                + "again");
                 if (initFuture != null) {
                     try {
-                        cleanupFailedPolicyCacheInit(namespace, initFuture, true);
+                        replaceStalledReader(namespace, initFuture);
                     } catch (Throwable cleanupEx) {
                         log.error()
                                 .attr("namespace", namespace)
                                 .exception(cleanupEx)
-                                .log("Failed to close the stalled __change_events reader after a read-back timeout");
+                                .log("Failed to replace the stalled __change_events reader after a read-back timeout");
                     }
                 }
             }
         }, timeoutSeconds, TimeUnit.SECONDS);
         // Cancel the timeout once the event has been read back so we don't leak scheduled tasks.
         readBackFuture.whenComplete((__, ex) -> timeoutTask.cancel(false));
+    }
+
+    /**
+     * Close the reader of {@code initFuture}'s initialization, which stopped delivering, and read the namespace's
+     * {@code __change_events} again with a fresh one if this broker still serves topics of the namespace.
+     *
+     * <p>The topics loaded here got none of the events the stalled reader withheld, and a new initialization only
+     * fills the caches. So that initialization also re-notifies the topic-policy listeners of the namespace,
+     * whatever {@code topicPolicyListenerReplayEnabled} says: without it a loaded topic would keep enforcing its
+     * policies from before the stall until its next policy update or reload.
+     */
+    private void replaceStalledReader(@NonNull NamespaceName namespace, @NonNull CompletableFuture<Void> initFuture) {
+        if (!ownedBundlesCountPerNamespace.containsKey(namespace)) {
+            // No topic of the namespace is loaded here; the next policy access initializes the namespace again.
+            cleanupFailedPolicyCacheInit(namespace, initFuture, true);
+            return;
+        }
+        // Requested before the cleanup, so an initialization that a concurrent policy access starts right after the
+        // cleanup cannot reach the end of the topic without it.
+        listenerReplayPending.add(namespace);
+        cleanupFailedPolicyCacheInit(namespace, initFuture, true);
+        prepareInitPoliciesCacheAsync(namespace).exceptionally(t -> {
+            log.warn()
+                    .attr("namespace", namespace)
+                    .exceptionMessage(t)
+                    .log("Failed to initialize the policies cache again after replacing the stalled "
+                            + "__change_events reader; the next topic policy access retries it");
+            return null;
+        });
     }
 
     private TopicPolicyMessageHandlerTracker getMessageHandlerTracker(NamespaceName namespaceObject) {
@@ -975,9 +1010,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 // Optionally re-notify the topic-policy listeners for this namespace with the cached policies.
                 // Topics load their own policies on load (AbstractTopic#initTopicPolicy), so this replay is only
                 // needed for custom plugins that register TopicPolicyListeners and rely on the broadcast; it is
-                // off by default (topicPolicyListenerReplayEnabled).
-                if (pulsarService.getConfiguration().isTopicPolicyListenerReplayEnabled()) {
-                    NamespaceName namespaceObject = reader.getSystemTopic().getTopicName().getNamespaceObject();
+                // off by default (topicPolicyListenerReplayEnabled). A reader that replaces a stalled one replays
+                // regardless: the topics that are already loaded missed the events the stalled reader withheld.
+                NamespaceName namespaceObject = reader.getSystemTopic().getTopicName().getNamespaceObject();
+                boolean replayPending = listenerReplayPending.remove(namespaceObject);
+                if (replayPending || pulsarService.getConfiguration().isTopicPolicyListenerReplayEnabled()) {
                     FutureUtil.completeAfter(future, replayTopicPolicyListeners(namespaceObject));
                 } else {
                     future.complete(null);
@@ -1018,6 +1055,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         if (topicPolicyMessageHandlerTracker != null) {
             topicPolicyMessageHandlerTracker.close();
         }
+        listenerReplayPending.remove(namespace);
 
         CompletableFuture<SystemTopicClient.Reader<PulsarEvent>> readerFuture = readerCaches.remove(namespace);
         MutableObject<CompletableFuture<Void>> removedInitFuture = new MutableObject<>();
