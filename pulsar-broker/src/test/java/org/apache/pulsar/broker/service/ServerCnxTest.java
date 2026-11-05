@@ -3974,6 +3974,91 @@ public class ServerCnxTest {
         return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
     }
 
+    @DataProvider
+    public Object[][] delayedWatchAuthorizationResults() {
+        return new Object[][] {{"allowed"}, {"denied"}, {"exception"}};
+    }
+
+    @Test(dataProvider = "delayedWatchAuthorizationResults", timeOut = 30000)
+    public void testSameIdWatchRetryDoesNotWaitForOldAuthorization(String authorizationResult) throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        svcConfig.setAuthorizationEnabled(true);
+        CompletableFuture<Boolean> delayedAuthorization = new CompletableFuture<>();
+        AuthorizationService authorization = mock(AuthorizationService.class);
+        doReturn(delayedAuthorization, CompletableFuture.completedFuture(true)).when(authorization)
+                .allowNamespaceOperationAsync(any(), any(), any(), any());
+        doReturn(authorization).when(brokerService).getAuthorizationService();
+        var pulsarResources = pulsar.getPulsarResources();
+        TopicResources resources = spy(pulsarResources.getTopicResources());
+        doReturn(resources).when(pulsarResources).getTopicResources();
+        resetChannel();
+        @Cleanup
+        BackGroundExecutor backgroundExecutor = startBackgroundExecutorForEmbeddedChannel(channel);
+        try {
+            channel.writeInbound(Commands.newConnect("none", "", null));
+            assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+            var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+            int lookupPermits = lookupSemaphore.availablePermits();
+
+            channel.writeInbound(Commands.serializeWithSize(
+                    Commands.newWatchTopicList(1, 3, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+            assertThat(delayedAuthorization).isNotDone();
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(lookupPermits - 1);
+            verify(resources, never()).registerPersistentTopicListener(any(TopicListener.class));
+
+            // Older clients retry the same watcher id without sending CLOSE after a local request timeout.
+            channel.writeInbound(Commands.serializeWithSize(
+                    Commands.newWatchTopicList(2, 3, "use/ns-abc", "use/ns-abc/topic-1", null)));
+            assertThat(getResponse()).isInstanceOfSatisfying(CommandWatchTopicListSuccess.class, response -> {
+                assertThat(response.getRequestId()).isEqualTo(2);
+                assertThat(response.getTopicsList()).containsExactly(matchingTopics.get(0));
+            });
+            assertThat(delayedAuthorization).as("Retry must complete before the old authorization").isNotDone();
+            assertThat(lookupSemaphore.availablePermits()).as("Only the old authorization keeps a permit")
+                    .isEqualTo(lookupPermits - 1);
+            ArgumentCaptor<TopicListener> listeners = ArgumentCaptor.forClass(TopicListener.class);
+            verify(resources).registerPersistentTopicListener(listeners.capture());
+            TopicListener initializedWatcher = listeners.getValue();
+
+            if ("exception".equals(authorizationResult)) {
+                delayedAuthorization.completeExceptionally(new IllegalStateException("Authorization failed"));
+            } else {
+                delayedAuthorization.complete("allowed".equals(authorizationResult));
+            }
+            if ("allowed".equals(authorizationResult)) {
+                assertThat(getResponse()).isInstanceOfSatisfying(CommandWatchTopicListSuccess.class, response -> {
+                    assertThat(response.getRequestId()).isEqualTo(1);
+                    assertThat(response.getTopicsList()).containsExactly(matchingTopics.get(0));
+                });
+            } else {
+                assertThat(getResponse()).isInstanceOfSatisfying(CommandError.class,
+                        response -> assertThat(response.getRequestId()).isEqualTo(1));
+            }
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(lookupPermits);
+            verify(resources).registerPersistentTopicListener(any(TopicListener.class));
+            verify(resources, never()).deregisterPersistentTopicListener(any(TopicListener.class));
+
+            // A late success, denial or failure must leave the initialized watcher usable with the retry's pattern.
+            channel.writeInbound(Commands.serializeWithSize(
+                    Commands.newWatchTopicList(3, 3, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+            assertThat(getResponse()).isInstanceOfSatisfying(CommandWatchTopicListSuccess.class, response -> {
+                assertThat(response.getRequestId()).isEqualTo(3);
+                assertThat(response.getTopicsList()).containsExactly(matchingTopics.get(0));
+            });
+            verify(resources).registerPersistentTopicListener(any(TopicListener.class));
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(lookupPermits);
+            channel.writeInbound(Commands.serializeWithSize(Commands.newWatchTopicListClose(3, 4)));
+            assertThat(getResponse()).isInstanceOfSatisfying(CommandSuccess.class,
+                    response -> assertThat(response.getRequestId()).isEqualTo(4));
+            verify(resources).deregisterPersistentTopicListener(same(initializedWatcher));
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(lookupPermits);
+            assertThat(channel.isActive()).isTrue();
+        } finally {
+            delayedAuthorization.complete(false);
+            channel.finishAndReleaseAll();
+        }
+    }
+
     @Test(dataProvider = "retryWatchBeforeOldAuthorizationCompletes", timeOut = 30000)
     public void testWatchCloseBeforeAuthorizationPreventsLateRegistration(boolean alreadyRegistered,
                                                                          boolean retryBeforeAuthorization)

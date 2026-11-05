@@ -244,6 +244,68 @@ public class TopicListServiceTest {
     }
 
     @DataProvider
+    public Object[][] authorizedRetryInitializationResults() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "authorizedRetryInitializationResults")
+    public void testAuthorizedRetryClaimsReservationAndCoalescesPendingInitialization(boolean initializationFails) {
+        TopicListService.WatchTopicListRequest original = topicListService.beginWatchTopicListRequest(13);
+        TopicListService.WatchTopicListRequest retry = topicListService.beginWatchTopicListRequest(13);
+        List<String> topics = List.of("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2");
+        List<String> matchingTopics = List.of(topics.get(0));
+        try {
+            // The retry authorizes independently while the first request is still waiting for authorization.
+            topicListService.handleWatchTopicList(NamespaceName.get("tenant/ns"), 13, 8, "tenant/ns/topic1",
+                    topicsPatternImplementation, null, lookupSemaphore, retry);
+            verify(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+            assertThat(topicListFuture).isNotDone();
+            verify(topicResources, never()).registerPersistentTopicListener(any());
+
+            TopicListService.WatchTopicListRequest duplicate = topicListService.beginWatchTopicListRequest(13);
+            topicListService.handleWatchTopicList(NamespaceName.get("tenant/ns"), 13, 9, "tenant/ns/topic.*",
+                    topicsPatternImplementation, null, lookupSemaphore, duplicate);
+            topicListService.failWatchTopicListRequest(original,
+                    new IllegalStateException("Late authorization failure"));
+
+            // Once initialization starts, further authorized requests must share the ongoing listing.
+            verify(namespaceService).getListOfUserTopics(any(), eq(CommandGetTopicsOfNamespace.Mode.PERSISTENT));
+            verify(topicResources, never()).registerPersistentTopicListener(any());
+            verify(pulsarCommandSender, never())
+                    .sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(), any());
+            assertThat(topicListService.getWatcherFuture(13)).isSameAs(retry.watcherFuture()).isNotDone();
+            assertThat(lookupSemaphore.availablePermits()).isZero();
+
+            if (initializationFails) {
+                topicListFuture.completeExceptionally(new IllegalStateException("Topic listing failed"));
+
+                assertThat(retry.watcherFuture()).isCompletedExceptionally();
+                verify(topicResources, never()).registerPersistentTopicListener(any());
+                verify(pulsarCommandSender).sendErrorResponse(eq(8L), any(), anyString());
+                verify(pulsarCommandSender).sendErrorResponse(eq(9L), any(), anyString());
+                verify(pulsarCommandSender, never())
+                        .sendWatchTopicListSuccess(anyLong(), anyLong(), anyString(), any(), any(), any());
+                assertThat(topicListService.getWatcherFuture(13)).isNull();
+            } else {
+                topicListFuture.complete(topics);
+
+                assertThat(retry.watcherFuture()).succeedsWithin(Duration.ofSeconds(2));
+                verify(topicResources).registerPersistentTopicListener(any());
+                verify(pulsarCommandSender).sendWatchTopicListSuccess(eq(8L), eq(13L),
+                        eq(TopicList.calculateHash(matchingTopics)), eq(matchingTopics), any(), any());
+                verify(pulsarCommandSender).sendWatchTopicListSuccess(eq(9L), eq(13L),
+                        eq(TopicList.calculateHash(matchingTopics)), eq(matchingTopics), any(), any());
+                verify(pulsarCommandSender, never()).sendErrorResponse(anyLong(), any(), anyString());
+                assertThat(topicListService.getWatcherFuture(13)).isSameAs(retry.watcherFuture());
+            }
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(2);
+        } finally {
+            topicListService.deleteTopicListWatcher(13L);
+            topicListFuture.completeExceptionally(new IllegalStateException("Test finished"));
+        }
+    }
+
+    @DataProvider
     public Object[][] initializationTimeoutBeforeClose() {
         return new Object[][] {{false}, {true}};
     }

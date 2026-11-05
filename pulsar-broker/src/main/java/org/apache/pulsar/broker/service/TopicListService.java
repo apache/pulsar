@@ -401,7 +401,7 @@ public class TopicListService {
     private final boolean enableSubscriptionPatternEvaluation;
     private final int maxSubscriptionPatternLength;
     private final int topicListUpdateMaxQueueSize;
-    private final ConcurrentLongHashMap<CompletableFuture<TopicListWatcher>> watchers;
+    private final ConcurrentLongHashMap<WatcherFuture> watchers;
     private final Backoff retryBackoff;
 
     public TopicListService(PulsarService pulsar, ServerCnx connection,
@@ -420,7 +420,7 @@ public class TopicListService {
         this.enableSubscriptionPatternEvaluation = enableSubscriptionPatternEvaluation;
         this.maxSubscriptionPatternLength = maxSubscriptionPatternLength;
         this.topicListUpdateMaxQueueSize = topicListUpdateMaxQueueSize;
-        this.watchers = ConcurrentLongHashMap.<CompletableFuture<TopicListWatcher>>newBuilder()
+        this.watchers = ConcurrentLongHashMap.<WatcherFuture>newBuilder()
                 .expectedItems(8)
                 .concurrencyLevel(1)
                 .build();
@@ -436,20 +436,38 @@ public class TopicListService {
         }
     }
 
-    record WatchTopicListRequest(long watcherId, CompletableFuture<TopicListWatcher> watcherFuture,
+    static final class WatcherFuture extends CompletableFuture<TopicListWatcher> {
+        private enum State {
+            AUTHORIZING,
+            INITIALIZING,
+            FAILED
+        }
+
+        private final AtomicReference<State> state = new AtomicReference<>(State.AUTHORIZING);
+
+        boolean tryInitialize() {
+            return state.compareAndSet(State.AUTHORIZING, State.INITIALIZING);
+        }
+
+        boolean failBeforeInitialization() {
+            return state.compareAndSet(State.AUTHORIZING, State.FAILED);
+        }
+    }
+
+    record WatchTopicListRequest(long watcherId, WatcherFuture watcherFuture,
                                  boolean created) {
     }
 
     // Reserve before asynchronous authorization. CLOSE can then invalidate the same future that an authorized
     // request will use, without holding a lock while compiling patterns, listing topics or sending responses.
     WatchTopicListRequest beginWatchTopicListRequest(long watcherId) {
-        CompletableFuture<TopicListWatcher> future = new CompletableFuture<>();
-        CompletableFuture<TopicListWatcher> existing = watchers.putIfAbsent(watcherId, future);
+        WatcherFuture future = new WatcherFuture();
+        WatcherFuture existing = watchers.putIfAbsent(watcherId, future);
         return new WatchTopicListRequest(watcherId, existing == null ? future : existing, existing == null);
     }
 
     void failWatchTopicListRequest(WatchTopicListRequest request, Throwable error) {
-        if (request != null && request.created()) {
+        if (request != null && request.created() && request.watcherFuture().failBeforeInitialization()) {
             watchers.remove(request.watcherId(), request.watcherFuture());
             request.watcherFuture().completeExceptionally(error);
         }
@@ -522,17 +540,19 @@ public class TopicListService {
             lookupSemaphore.release();
             return;
         }
-        CompletableFuture<TopicListWatcher> existingWatcherFuture = admitted.created() ? null : watcherFuture;
+        // The first successfully authorized request initializes the reservation. An older request's authorization
+        // may never finish, so reserving the id must not make later authorized retries depend on that request.
+        boolean initialize = admitted.watcherFuture().tryInitialize();
 
         // the watcher and the snapshot of its matching topics to respond with
         CompletableFuture<WatcherTopics> watcherTopicsFuture;
-        if (existingWatcherFuture != null) {
+        if (!initialize) {
             log.debug()
                     .attr("connection", connection)
                     .attr("watcherId", watcherId)
                     .log("Watcher with the same watcherId is already created. Refreshing.");
             // use the existing watcher if it's already created
-            watcherTopicsFuture = existingWatcherFuture.thenCompose(watcher -> {
+            watcherTopicsFuture = watcherFuture.thenCompose(watcher -> {
                 CompletableFuture<WatcherTopics> future = new CompletableFuture<>();
                 BiConsumer<Collection<String>, Throwable> callback = watcherTopicsCallback(watcher, future);
                 // trigger a new update unless an update is already ongoing. Register the callback to complete
@@ -558,8 +578,8 @@ public class TopicListService {
             });
         }
 
-        // a failed request removes the watcher that it created, not an existing watcher
-        CompletableFuture<TopicListWatcher> createdWatcherFuture = existingWatcherFuture == null ? watcherFuture : null;
+        // A failed request removes the watcher it initialized, not one initialized by another authorized request.
+        CompletableFuture<TopicListWatcher> createdWatcherFuture = initialize ? watcherFuture : null;
         watcherTopicsFuture.thenAccept(watcherTopics -> {
                     TopicListWatcher watcher = watcherTopics.watcher();
                     Collection<String> topicList = watcherTopics.matchingTopics();
