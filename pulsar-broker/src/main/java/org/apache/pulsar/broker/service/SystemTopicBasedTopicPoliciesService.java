@@ -956,14 +956,10 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             return;
         }
 
-        // Close the tracker captured above only if it is still the one installed for this namespace, so a
-        // concurrent re-initialization that installed a newer tracker is left untouched.
-        if (tracker != null && topicPolicyMessageHandlerTrackers.remove(namespace, tracker)) {
-            tracker.close();
-        }
-
         // Remove and close the reader captured above only if it is still the current one, so a reader
-        // created by a later initialization is never closed by this stale cleanup.
+        // created by a later initialization is never closed by this stale cleanup. This comes before the tracker is
+        // closed: closing it completes the pending read-back waits, and an update queued behind one of them starts
+        // right there, on this thread, and initializes the namespace again. It must not find this reader cached.
         if (readerFuture != null && readerCaches.remove(namespace, readerFuture)
                 && !readerFuture.isCompletedExceptionally()) {
             readerFuture.thenCompose(SystemTopicClient.Reader::closeAsync)
@@ -971,6 +967,12 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         log.warn().attr("namespace", namespace).exception(ex).log("Close change_event reader fail.");
                         return null;
                     });
+        }
+
+        // Close the tracker captured above only if it is still the one installed for this namespace, so a
+        // concurrent re-initialization that installed a newer tracker is left untouched.
+        if (tracker != null && topicPolicyMessageHandlerTrackers.remove(namespace, tracker)) {
+            tracker.close();
         }
     }
 
