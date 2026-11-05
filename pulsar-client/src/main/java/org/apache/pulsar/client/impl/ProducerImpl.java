@@ -406,6 +406,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     CompletableFuture<MessageId> internalSendAsync(Message<?> message) {
+        return internalSendAsync(message, 0);
+    }
+
+    private CompletableFuture<MessageId> internalSendAsync(Message<?> message, int reservedBytes) {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
         MessageImpl<?> interceptorMessage = (MessageImpl) beforeSend(message);
@@ -420,7 +424,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         pendingMessagesUpDownCounter.increment();
         pendingBytesUpDownCounter.add(msgSize);
 
-        sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize));
+        sendAsync(interceptorMessage, new DefaultSendMessageCallback(future, interceptorMessage, msgSize),
+                reservedBytes);
         return future;
     }
 
@@ -517,15 +522,31 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
     @Override
     CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn) {
+        return internalSendWithTxnAsync(message, txn, 0);
+    }
+
+    /**
+     * Sends a message whose size the caller already reserved from the client memory limit, as {@code reservedBytes}.
+     * The send takes that reservation over instead of waiting for one of its own, and releases it as it does for
+     * any other message, also when it fails before the message is enqueued.
+     */
+    CompletableFuture<MessageId> internalSendWithTxnAsync(Message<?> message, Transaction txn, int reservedBytes) {
         if (txn == null) {
-            return internalSendAsync(message);
+            return internalSendAsync(message, reservedBytes);
         } else {
             CompletableFuture<MessageId> completableFuture = new CompletableFuture<>();
             if (!((TransactionImpl) txn).checkIfOpen(completableFuture)) {
+                client.getMemoryLimitController().releaseMemory(reservedBytes);
                 return completableFuture;
             }
-            return ((TransactionImpl) txn).registerProducedTopic(topic)
-                    .thenCompose(ignored -> internalSendAsync(message));
+            CompletableFuture<Void> registered = ((TransactionImpl) txn).registerProducedTopic(topic);
+            if (reservedBytes > 0) {
+                registered.exceptionally(e -> {
+                    client.getMemoryLimitController().releaseMemory(reservedBytes);
+                    return null;
+                });
+            }
+            return registered.thenCompose(ignored -> internalSendAsync(message, reservedBytes));
         }
     }
 
@@ -570,6 +591,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
      * </ul>
      */
     public void sendAsync(Message<?> message, SendCallback callback) {
+        sendAsync(message, callback, 0);
+    }
+
+    private void sendAsync(Message<?> message, SendCallback callback, int reservedBytes) {
         checkArgument(message instanceof MessageImpl);
         MessageImpl<?> msg = (MessageImpl<?>) message;
         MessageMetadata msgMetadata = msg.getMessageBuilder();
@@ -577,13 +602,19 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         final int uncompressedSize = payload.readableBytes();
 
         if (!isValidProducerState(callback, message.getSequenceId())) {
+            client.getMemoryLimitController().releaseMemory(reservedBytes);
             payload.release();
             return;
         }
 
-        if (!canEnqueueRequest(callback, message.getSequenceId(), uncompressedSize)) {
+        // A reservation made by the caller stands in for the one this message would make
+        if (!canEnqueueRequest(callback, message.getSequenceId(), reservedBytes > 0 ? 0 : uncompressedSize)) {
+            client.getMemoryLimitController().releaseMemory(reservedBytes);
             payload.release();
             return;
+        }
+        if (reservedBytes > 0) {
+            takeOverReservation(reservedBytes, uncompressedSize);
         }
 
         // If compression is enabled, we are compressing, otherwise it will simply use the same buffer
@@ -1636,6 +1667,15 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         semaphoreRelease(isBatchMessagingEnabled() ? op.numMessagesInBatch : 1);
 
         client.getMemoryLimitController().releaseMemory(op.uncompressedSize);
+    }
+
+    private void takeOverReservation(int reservedBytes, int payloadSize) {
+        // The caller reserved the size of the message it gave, which an interceptor may have changed
+        if (payloadSize > reservedBytes) {
+            client.getMemoryLimitController().forceReserveMemory(payloadSize - reservedBytes);
+        } else {
+            client.getMemoryLimitController().releaseMemory(reservedBytes - payloadSize);
+        }
     }
 
     private void completeCallbackAndReleaseSemaphore(long payloadSize, SendCallback callback, Exception exception) {

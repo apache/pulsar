@@ -32,13 +32,16 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -52,6 +55,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.client.api.interceptor.ProducerInterceptor;
 import org.apache.pulsar.client.impl.customroute.PartialRoundRobinMessageRouterImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -216,11 +220,7 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         admin.topics().createPartitionedTopic(topic, 2);
 
         @Cleanup
-        final PulsarClient client = PulsarClient.builder()
-                .serviceUrl(getBrokerServiceUrl())
-                .ioThreads(1)
-                .memoryLimit(1, SizeUnit.KILO_BYTES)
-                .build();
+        final PulsarClient client = singleIoThreadClientBuilder().memoryLimit(1, SizeUnit.KILO_BYTES).build();
         final Producer<byte[]> producer = newLazyStartProducer(client, topic)
                 .enableBatching(false)
                 .blockIfQueueFull(blockIfQueueFull)
@@ -240,6 +240,174 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
         final Throwable failure = sends.get(2).handle((id, e) -> e).get(10, TimeUnit.SECONDS);
         assertTrue(FutureUtil.unwrapCompletionException(failure)
                 instanceof PulsarClientException.MemoryBufferIsFullError, String.valueOf(failure));
+    }
+
+    @Test(timeOut = 60000)
+    public void testQueuedSendsDoNotWaitForEachOthersMemory() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final PulsarClient client = singleIoThreadClientBuilder().memoryLimit(1, SizeUnit.KILO_BYTES).build();
+        final Producer<byte[]> producer = newLazyStartProducer(client, topic)
+                .enableBatching(false)
+                .blockIfQueueFull(true)
+                .create();
+
+        // The limit admits one more message once it is reached, so the second is queued with its memory reserved
+        final List<CompletableFuture<MessageId>> sends = fromSendCallback(producer, p -> List.of(
+                p.newMessage().key("1").value(new byte[1]).sendAsync(),
+                p.newMessage().key("1").value(new byte[2048]).sendAsync()));
+
+        FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
+    }
+
+    @Test(timeOut = 60000)
+    public void testSendFromTheFailureCallbackOfAQueuedSend() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final PulsarClient client = newSingleIoThreadClient();
+        final Producer<byte[]> producer = newLazyStartProducer(client, topic)
+                .enableBatching(false)
+                .blockIfQueueFull(true)
+                .create();
+
+        // The producer rejects the oversized message as it takes it from the queue, so the callback runs on the
+        // thread that drains the queue
+        final byte[] oversized = new byte[getConfig().getMaxMessageSize() + 1];
+        final CompletableFuture<MessageId> retried = fromSendCallback(producer,
+                p -> p.newMessage().key("1").value(oversized).sendAsync().exceptionallyCompose(failure -> {
+                    assertTrue(FutureUtil.unwrapCompletionException(failure)
+                            instanceof PulsarClientException.InvalidMessageException, String.valueOf(failure));
+                    return p.newMessage().key("1").value("retry".getBytes()).sendAsync();
+                }));
+
+        assertNotNull(retried.get(10, TimeUnit.SECONDS));
+    }
+
+    @Test(timeOut = 60000)
+    public void testFlushRequestedWhileStartingCoversTheQueuedSends() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final PulsarClient client = singleIoThreadClientBuilder().memoryLimit(1, SizeUnit.KILO_BYTES).build();
+        final Producer<byte[]> producer = newLazyStartProducer(client, topic)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .maxPendingMessages(2)
+                .blockIfQueueFull(true)
+                .create();
+
+        // The batch buffer of the first send takes more than the memory left, so the second may only use what it
+        // reserved when it was queued, and only the flush sends the batches before their delay
+        final List<CompletableFuture<MessageId>> sends = fromSendCallback(producer, p -> {
+            final List<CompletableFuture<MessageId>> started = List.of(
+                    p.newMessage().key("1").value(new byte[1]).sendAsync(),
+                    p.newMessage().key("1").value(new byte[1]).sendAsync());
+            p.flushAsync();
+            return started;
+        });
+
+        FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
+    }
+
+    @Test(timeOut = 60000)
+    public void testFlushRequestedWhileStartingCoversASendMadeDuringTheDrain() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) newSingleIoThreadClient();
+        final AtomicReference<Producer<byte[]>> producer = new AtomicReference<>();
+        final AtomicReference<CompletableFuture<MessageId>> sentDuringDrain = new AtomicReference<>();
+        final AtomicBoolean sentOnce = new AtomicBoolean();
+        // An interceptor runs on the thread that hands a queued send to its producer: this one holds that thread
+        // while the IO thread sends, so the send is queued behind the two that then hold the permits in a batch,
+        // which only a flush sends before its delay
+        final ProducerInterceptor sendDuringDrain = new ProducerInterceptor() {
+            @Override
+            public boolean eligible(Message<?> message) {
+                return true;
+            }
+
+            @Override
+            public Message<?> beforeSend(Producer<?> partitionProducer, Message<?> message) {
+                if ("1".equals(message.getKey()) && sentOnce.compareAndSet(false, true)) {
+                    final CountDownLatch queued = new CountDownLatch(1);
+                    client.eventLoopGroup().execute(() -> {
+                        sentDuringDrain.set(
+                                producer.get().newMessage().key("1").value("third".getBytes()).sendAsync());
+                        queued.countDown();
+                    });
+                    try {
+                        queued.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                return message;
+            }
+
+            @Override
+            public void onSendAcknowledgement(Producer<?> partitionProducer, Message<?> message, MessageId msgId,
+                                              Throwable exception) {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        producer.set(newLazyStartProducer(client, topic)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .maxPendingMessages(2)
+                .blockIfQueueFull(true)
+                .intercept(sendDuringDrain)
+                .create());
+
+        final List<CompletableFuture<MessageId>> sends = fromSendCallback(producer.get(), p -> {
+            final List<CompletableFuture<MessageId>> started = List.of(
+                    p.newMessage().key("1").value("first".getBytes()).sendAsync(),
+                    p.newMessage().key("1").value("second".getBytes()).sendAsync());
+            p.flushAsync();
+            return started;
+        });
+
+        FutureUtil.waitForAll(sends).get(10, TimeUnit.SECONDS);
+        assertNotNull(sentDuringDrain.get().get(10, TimeUnit.SECONDS));
+    }
+
+    @Test(timeOut = 60000)
+    public void testClientCloseSettlesAQueuedSendWhenTheInternalExecutorIsBusy() throws Throwable {
+        final String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 2);
+
+        @Cleanup
+        final PulsarClientImpl client = (PulsarClientImpl) newSingleIoThreadClient();
+        final PartitionedProducerImpl<byte[]> producer = (PartitionedProducerImpl<byte[]>)
+                newLazyStartProducer(client, topic)
+                        .enableBatching(false)
+                        .blockIfQueueFull(true)
+                        .create();
+        // The queue is drained on the internal executor, whose only thread this task holds until the close
+        // interrupts it
+        final CountDownLatch never = new CountDownLatch(1);
+        client.getInternalExecutorService().execute(() -> {
+            try {
+                never.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        });
+
+        final CompletableFuture<MessageId> send = fromSendCallback(producer,
+                p -> p.newMessage().key("1").value(new byte[1]).sendAsync());
+        Awaitility.await().until(() -> producer.getProducers().get(1).producerCreatedFuture().isDone());
+        client.close();
+
+        assertTrue(send.isCompletedExceptionally());
+        assertEquals(client.getMemoryLimitController().currentUsage(), 0);
     }
 
     @Test(timeOut = 30000)
@@ -275,11 +443,12 @@ public class PartialPartitionedProducerTest extends SharedPulsarBaseTest {
     }
 
     private PulsarClient newSingleIoThreadClient() throws PulsarClientException {
-        // With one IO thread, a send made on it runs before that thread can read the creation response
-        return PulsarClient.builder()
-                .serviceUrl(getBrokerServiceUrl())
-                .ioThreads(1)
-                .build();
+        return singleIoThreadClientBuilder().build();
+    }
+
+    // With one IO thread, a send made on it runs before that thread can read the creation response
+    private ClientBuilder singleIoThreadClientBuilder() {
+        return PulsarClient.builder().serviceUrl(getBrokerServiceUrl()).ioThreads(1);
     }
 
     private static ProducerBuilder<byte[]> newLazyStartProducer(PulsarClient client, String topic) {
