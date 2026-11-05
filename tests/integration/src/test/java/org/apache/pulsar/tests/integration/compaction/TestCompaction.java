@@ -47,6 +47,11 @@ import org.testng.collections.Maps;
 @CustomLog
 public class TestCompaction extends PulsarTestSuite {
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test(dataProvider = "ServiceUrls", timeOut = 300_000)
     public void testPublishCompactAndConsumeCLI(Supplier<String> serviceUrl) throws Exception {
 

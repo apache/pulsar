@@ -211,8 +211,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
      */
     public CompletableFuture<BucketDelayedDeliveryTracker> recoverBucketSnapshotAsync(
             ScheduledExecutorService timeoutExecutor) {
+        return recoverBucketSnapshotAsync(timeoutExecutor, new CompletableFuture<>());
+    }
+
+    public CompletableFuture<BucketDelayedDeliveryTracker> recoverBucketSnapshotAsync(
+            ScheduledExecutorService timeoutExecutor, CompletableFuture<Void> skipRecovery) {
         try {
-            CompletableFuture<Long> recoverFuture = recoverBucketSnapshot0();
+            CompletableFuture<Long> recoverFuture = recoverBucketSnapshot0(skipRecovery);
             FutureUtil.addTimeoutHandling(recoverFuture, Duration.ofSeconds(AsyncOperationTimeoutSeconds * 5L),
                     timeoutExecutor, () -> FutureUtil.createTimeoutException(
                             "Timeout", getClass(), "recoverBucketSnapshotAsync(...)"));
@@ -251,7 +256,11 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
         }
     }
 
-    private synchronized CompletableFuture<Long> recoverBucketSnapshot0() {
+    private CompletableFuture<Long> recoverBucketSnapshot0() {
+        return recoverBucketSnapshot0(new CompletableFuture<>());
+    }
+
+    private synchronized CompletableFuture<Long> recoverBucketSnapshot0(CompletableFuture<Void> skipRecovery) {
         ManagedCursor cursor = ctx.cursor();
         Map<String, String> cursorProperties = cursor.getCursorProperties();
         if (MapUtils.isEmpty(cursorProperties)) {
@@ -259,12 +268,14 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             return CompletableFuture.completedFuture(0L);
         }
         Map<Range<Long>, ImmutableBucket> toBeDeletedBucketMap = new HashMap<>();
+        List<ImmutableBucket> recoveryBuckets = new ArrayList<>();
         cursorProperties.keySet().forEach(key -> {
             if (key.startsWith(DELAYED_BUCKET_KEY_PREFIX)) {
                 String[] keys = key.split(DELIMITER);
                 checkArgument(keys.length == 3);
                 ImmutableBucket immutableBucket =
                         new ImmutableBucket(ctx, Long.parseLong(keys[1]), Long.parseLong(keys[2]));
+                recoveryBuckets.add(immutableBucket);
                 putAndCleanOverlapRange(Range.closed(immutableBucket.getStartLedgerId(),
                         immutableBucket.getEndLedgerId()), immutableBucket, toBeDeletedBucketMap);
             }
@@ -276,6 +287,10 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             return CompletableFuture.completedFuture(0L);
         }
 
+        if (skipRecovery.isDone()) {
+            return CompletableFuture.completedFuture(prepareRecoveryBucketsForClear(recoveryBuckets));
+        }
+
         Map<Range<Long>, CompletableFuture<List<DelayedIndex>>>
                 futures = new HashMap<>(immutableBucketMap.size());
         for (Map.Entry<Range<Long>, ImmutableBucket> entry : immutableBucketMap.entrySet()) {
@@ -283,8 +298,13 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
             futures.put(key, handleRecoverBucketSnapshotEntry(entry.getValue()));
         }
 
-        return FutureUtil.waitForAll(futures.values()).thenApply(__ -> {
+        // Only one continuation can publish recovered state. Completing the skip signal also prevents
+        // reads that finish later from restoring indexes or deleting a replacement snapshot's property.
+        return FutureUtil.waitForAll(futures.values()).applyToEither(skipRecovery, result -> result).thenApply(__ -> {
             synchronized (this) {
+                if (skipRecovery.isDone()) {
+                    return prepareRecoveryBucketsForClear(recoveryBuckets);
+                }
                 for (Map.Entry<Range<Long>, CompletableFuture<List<DelayedIndex>>> entry : futures.entrySet()) {
                     Range<Long> key = entry.getKey();
                     // the future is completed since waitForAll completed normally
@@ -328,6 +348,16 @@ public class BucketDelayedDeliveryTracker extends AbstractDelayedDeliveryTracker
                 return index.size();
             }
         });
+    }
+
+    private long prepareRecoveryBucketsForClear(List<ImmutableBucket> recoveryBuckets) {
+        // Pending reads may still mutate their private buckets. Detach those buckets without clearing
+        // their bitmaps, and retain every snapshot (including overlaps) for clear() to delete and retry.
+        uncleanedBuckets.addAll(recoveryBuckets);
+        immutableBuckets.clear();
+        bucketsCount.set(0);
+        totalSnapshotLengthBytes.set(0);
+        return 0L;
     }
 
     /**

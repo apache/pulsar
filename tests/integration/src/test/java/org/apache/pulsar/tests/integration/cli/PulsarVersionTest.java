@@ -21,44 +21,20 @@ package org.apache.pulsar.tests.integration.cli;
 import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
  * Pulsar version test class.
  */
-public class PulsarVersionTest extends TestRetrySupport {
-
-    private static final String clusterNamePrefix = "pulsar-version";
-    private PulsarCluster pulsarCluster;
-
-    @SuppressWarnings("deprecation")
-    @Override
-    @BeforeClass(alwaysRun = true)
-    public final void setup() throws Exception {
-        incrementSetupNumber();
-        PulsarClusterSpec spec = PulsarClusterSpec.builder()
-                .clusterName(String.format("%s-%s", clusterNamePrefix, RandomStringUtils.randomAlphabetic(6)))
-                .build();
-        pulsarCluster = PulsarCluster.forSpec(spec);
-        pulsarCluster.start();
-    }
+public class PulsarVersionTest extends PulsarTestSuite {
 
     @Override
-    @AfterClass(alwaysRun = true)
-    public final void cleanup() {
-        markCurrentSetupNumberCleaned();
-        if (pulsarCluster != null) {
-            pulsarCluster.stop();
-            pulsarCluster = null;
-        }
+    protected boolean isClusterShared() {
+        return true;
     }
 
     @Test
