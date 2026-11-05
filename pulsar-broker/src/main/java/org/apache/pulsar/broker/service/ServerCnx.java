@@ -4746,20 +4746,24 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
+            TopicListService.WatchTopicListRequest request = topicListService.beginWatchTopicListRequest(watcherId);
+            CompletableFuture<Boolean> authorizationFuture = FutureUtil.supplySafely(
+                    () -> isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS));
+            authorizationFuture.thenApply(isAuthorized -> {
                 if (isAuthorized) {
                     String topicsPatternString = commandWatchTopicList.hasTopicsPattern()
                             ? commandWatchTopicList.getTopicsPattern() : TopicList.ALL_TOPICS_PATTERN;
                     String topicsHash = commandWatchTopicList.hasTopicsHash()
                             ? commandWatchTopicList.getTopicsHash() : null;
                     topicListService.handleWatchTopicList(namespaceName, watcherId, requestId, topicsPatternString,
-                            topicsPatternImplementation, topicsHash, lookupSemaphore);
+                            topicsPatternImplementation, topicsHash, lookupSemaphore, request);
                 } else {
                     final String msg = "Proxy Client is not authorized to watchTopicList";
                     log.warn()
                             .attr("principal", getPrincipal())
                             .attr("namespace", namespaceName)
                             .log(msg);
+                    topicListService.failWatchTopicListRequest(request, new IllegalStateException(msg));
                     commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
                     lookupSemaphore.release();
                 }
@@ -4768,6 +4772,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 logNamespaceNameAuthException(remoteAddress, "watchTopicList", getPrincipal(),
                         Optional.of(namespaceName), ex);
                 final String msg = "Exception occurred while trying to handle command WatchTopicList";
+                topicListService.failWatchTopicListRequest(request, ex);
                 commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
                 lookupSemaphore.release();
                 return null;
@@ -5064,7 +5069,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
                 ackSet, epoch);
         ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
-        interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
+        try {
+            interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
+        } catch (Throwable t) {
+            // The caller still owns the payload until this method returns.
+            res.getFirst().release();
+            throw t;
+        }
         return res;
     }
 

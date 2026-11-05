@@ -172,7 +172,7 @@ public class TransactionBufferHandlerImpl implements TransactionBufferHandler {
                 }
                 CompletableFuture<TxnID> cb = op.cb;
                 onResponse(op);
-                if (cause instanceof PulsarClientException.BrokerMetadataException) {
+                if (cause instanceof PulsarClientException.TopicDoesNotExistException) {
                     cb.complete(null);
                 } else {
                     cb.completeExceptionally(
