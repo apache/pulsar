@@ -174,6 +174,20 @@ function ci_record_test_durations() {
   )
 }
 
+# reports the test methods that failed their first attempt and passed or failed again on the retry, from the
+# JUnit XML reports in test-reports/: a warning annotation per hidden failure, a job summary table and
+# test-reports/retried-tests.tsv. A failure to report doesn't fail the job.
+function ci_report_retried_tests() {
+  (
+    if [ -n "${GITHUB_WORKSPACE}" ]; then
+      cd "${GITHUB_WORKSPACE}"
+    fi
+    if [ -d test-reports ]; then
+      python3 -I "$SCRIPT_DIR/report_retried_tests.py" test-reports || echo "::warning::Reporting retried tests failed."
+    fi
+  )
+}
+
 # generates a top-level index.html that links to each module's HTML test report
 function ci_generate_test_report_index() {
   (
