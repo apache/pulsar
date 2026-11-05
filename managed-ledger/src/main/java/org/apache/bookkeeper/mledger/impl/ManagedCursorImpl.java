@@ -1263,10 +1263,25 @@ public class ManagedCursorImpl implements ManagedCursor {
                     log.debug().attr("opReadId", opReadId).log("Notification was already cancelled for op id");
                 }
             } else if (ledger.isTerminated()) {
-                // At this point we registered for notification and still there were no more available
-                // entries.
-                // If the managed ledger was indeed terminated, we need to notify the cursor
-                callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
+                OpReadEntry terminalRead;
+                synchronized (registerToWaitingCursorsLock) {
+                    terminalRead = WAITING_READ_OP_UPDATER.getAndUpdate(this, current ->
+                            current == op && current.id == opReadId ? null : current);
+                    if (terminalRead != op || terminalRead.id != opReadId) {
+                        return;
+                    }
+                    // Remove this registration before another read can register the same cursor.
+                    ledger.removeWaitingCursor(this);
+                }
+                // This wait-only read never incremented pendingReadOps. Release it directly,
+                // before a callback can reenter and reuse this OpReadEntry with a different id.
+                terminalRead.recycle();
+                try {
+                    callback.readEntriesFailed(new NoMoreEntriesToReadException("Topic was terminated"), ctx);
+                } catch (Throwable error) {
+                    // An observer failure is not a second completion of the terminal read.
+                    log.debug().exception(error).log("Terminal read callback failed");
+                }
             }
         } catch (Throwable t) {
             callback.readEntriesFailed(new ManagedLedgerException(t), ctx);
