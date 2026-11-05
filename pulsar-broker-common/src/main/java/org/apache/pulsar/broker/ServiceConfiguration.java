@@ -659,7 +659,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
                     + "unloaded and the reconnected reader stops making progress), this bounds the wait: the broker "
                     + "fails the initialization, closes the stuck reader and clears the cached state so that loading "
                     + "the namespace's topics can be retried with a fresh reader instead of hanging until the broker "
-                    + "is restarted. Set to 0 or a negative value to disable the timeout (not recommended)."
+                    + "is restarted. The same timeout bounds how long a topic policy update, or a topic deletion "
+                    + "that deletes the topic's policies, waits for the reader to read its event back: when it "
+                    + "expires, the operation fails and the broker replaces the stalled reader. Set to 0 or a "
+                    + "negative value to disable the timeout (not recommended)."
     )
     private long topicPoliciesCacheInitTimeoutSeconds = 60;
 
