@@ -121,7 +121,7 @@ function ci_move_test_reports() {
 }
 
 # writes "<seconds> <class>" for each top-level test class that the test or testShard* tasks ran, from their
-# JUnit XML reports, so that the next CI run of the unit test group packs its shards by these durations
+# JUnit XML reports, so that later CI runs of the unit test group pack their shards by these durations
 # (see gradle_test_shards in run_unit_group_gradle.sh). A report's time ends with the class's last test
 # method, before its cleanup, but a shard runs its classes one after the other in one JVM, so there a class
 # lasts until the next one starts. The forks of `test` share one report directory, so there the report's
@@ -171,6 +171,44 @@ function ci_record_test_durations() {
     else
       rm -f "${durations_file}.tmp"
     fi
+  )
+}
+
+# downloads the test class durations that the latest successful run of a unit test group on master uploaded
+# (see pulsar-ci.yaml) to the file that gradle_test_shards in run_unit_group_gradle.sh packs the group's
+# shards by. Unlike cache entries, artifacts aren't evicted before they expire. Without the file, the group
+# runs `test`, so a failed download doesn't fail the job. GH_TOKEN needs the actions: read permission.
+function ci_download_test_durations() {
+  (
+    local test_group="$1"
+    local artifact_name="unit-test-durations-${test_group}"
+    local durations_dir="${TEST_DURATIONS_DIR:-$PWD/build/test-durations}"
+    local artifact
+    # only runs on this repository's master: a pull request's run can upload an artifact of the same name
+    if ! artifact=$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${artifact_name}&per_page=100" \
+        --jq '[.artifacts[] | select((.expired | not) and .workflow_run.head_branch == "master"
+                and .workflow_run.head_repository_id == .workflow_run.repository_id)]
+              | max_by(.created_at) | select(. != null) | "\(.id) \(.workflow_run.id)"'); then
+      echo "::warning::Couldn't list the $artifact_name artifacts."
+      return 0
+    fi
+    if [ -z "$artifact" ]; then
+      echo "No master run has uploaded the test class durations of $test_group."
+      return 0
+    fi
+    local artifact_id run_id zip_file
+    read -r artifact_id run_id <<< "$artifact"
+    mkdir -p "$durations_dir"
+    zip_file=$(mktemp)
+    if ! gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > "$zip_file" ||
+        ! unzip -o -q "$zip_file" -d "$durations_dir"; then
+      echo "::warning::Couldn't download the $artifact_name artifact of run $run_id."
+      rm -f "$zip_file"
+      return 0
+    fi
+    rm -f "$zip_file"
+    echo "Downloaded the durations of $(wc -l < "$durations_dir/${test_group}.txt") test classes of $test_group" \
+      "from ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${run_id}"
   )
 }
 
