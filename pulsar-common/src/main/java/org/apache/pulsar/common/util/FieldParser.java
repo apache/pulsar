@@ -228,7 +228,7 @@ public final class FieldParser {
                 throw new IllegalArgumentException(
                         format("unsupported field-type %s for %s", field.getType(), field.getName()));
             }
-        } else if (Number.class.isAssignableFrom(field.getType()) || fieldType.getClass().equals(String.class)) {
+        } else if (Number.class.isAssignableFrom(field.getType()) || field.getType().equals(String.class)) {
             field.set(obj, null);
         }
     }
@@ -283,7 +283,12 @@ public final class FieldParser {
      * @return The converted Long value.
      */
     public static Long stringToLong(String val) {
-        return Long.valueOf(trim(val));
+        String v = trim(val);
+        if (io.netty.util.internal.StringUtil.isNullOrEmpty(v)) {
+            return null;
+        } else {
+            return Long.valueOf(v);
+        }
     }
 
     /**
@@ -310,7 +315,12 @@ public final class FieldParser {
      * @return The converted Double value.
      */
     public static Float stringToFloat(String val) {
-        return Float.valueOf(trim(val));
+        String v = trim(val);
+        if (io.netty.util.internal.StringUtil.isNullOrEmpty(v)) {
+            return null;
+        } else {
+            return Float.valueOf(v);
+        }
     }
 
     /**

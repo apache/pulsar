@@ -149,4 +149,33 @@ public class FieldParserTest {
         Object optionalValue = FieldParser.value(null, optionalField);
         assertEquals(optionalValue, Optional.empty());
     }
+
+    @Test
+    public void testEmptyStringValueConversion() throws Exception {
+        class EmptyConfig {
+            public Long longValue;
+            public Float floatValue;
+            public String name;
+        }
+        EmptyConfig config = new EmptyConfig();
+        config.name = "old-value";
+
+        Map<String, String> properties = new HashMap<>();
+        properties.put("longValue", "");
+        properties.put("floatValue", "");
+        properties.put("name", "");
+        FieldParser.update(properties, config);
+
+        // Empty values mirror the Integer/Double converters and clear numeric fields.
+        assertNull(config.longValue);
+        assertNull(config.floatValue);
+        // The String field must be cleared as well rather than keeping the stale value.
+        assertNull(config.name);
+
+        // The direct converters treat empty input like stringToInteger/stringToDouble do.
+        Field longField = EmptyConfig.class.getDeclaredField("longValue");
+        assertNull(FieldParser.value("", longField));
+        Field floatField = EmptyConfig.class.getDeclaredField("floatValue");
+        assertNull(FieldParser.value("", floatField));
+    }
 }
