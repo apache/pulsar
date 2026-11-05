@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -31,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -131,6 +133,37 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, topicName).getMaxConsumerPerTopic())
                 .describedAs("the policy cache must hold the update the replacement reader read back")
                 .isEqualTo(9);
+    }
+
+    @Test(timeOut = 60_000)
+    public void testLoadedTopicAppliesUpdateThatTimedOut() throws Exception {
+        final TopicName topicName = newTopic();
+        final Optional<Topic> loaded =
+                pulsar.getBrokerService().getTopic(topicName.toString(), true).get(30, TimeUnit.SECONDS);
+        assertThat(loaded).describedAs("the broker did not load %s", topicName).isPresent();
+        final PersistentTopic topic = (PersistentTopic) loaded.get();
+
+        // Control: an update the reader delivers reaches the loaded topic.
+        setMaxConsumers(topicName, 5).get(30, TimeUnit.SECONDS);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(liveMaxConsumers(topic)).isEqualTo(5));
+
+        service.stallReaders();
+        assertFailsWithReadBackTimeout(setMaxConsumers(topicName, 7), "the policy update");
+
+        // The event of the failed update is in __change_events, and from here on nothing writes or reads topic
+        // policies in this namespace. The broker still serves the topic, so it must read the namespace's events
+        // again by itself and hand the loaded topic what the stalled reader withheld.
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(liveMaxConsumers(topic))
+                        .describedAs("the policy store holds maxConsumerPerTopic=7, written by the update that timed"
+                                + " out, while the loaded topic still enforces the value from before the stall")
+                        .isEqualTo(7));
+    }
+
+    /** The limit the loaded topic enforces; the admin API answers from the policy cache instead. */
+    private static Integer liveMaxConsumers(PersistentTopic topic) {
+        return topic.getHierarchyTopicPolicies().getMaxConsumerPerTopic().get();
     }
 
     /**
