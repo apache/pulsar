@@ -141,4 +141,25 @@ public class CmdTopicPoliciesTest {
         verify(topicPolicies, times(1)).setPersistence("persistent://public/default/topic",
                 new PersistencePolicies(2, 2, 2, -1.0, null));
     }
+
+    @Test
+    public void testGetAllPoliciesCmd() throws Exception {
+        TopicPolicies localPolicies = mock(TopicPolicies.class);
+        TopicPolicies globalPolicies = mock(TopicPolicies.class);
+
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        when(admin.topicPolicies(false)).thenReturn(localPolicies);
+        when(admin.topicPolicies(true)).thenReturn(globalPolicies);
+
+        CmdTopicPolicies cmd = new CmdTopicPolicies(() -> admin);
+
+        cmd.run("get public/default/topic".split("\\s+"));
+        verify(localPolicies, times(1)).getTopicPolicies("persistent://public/default/topic", false);
+
+        cmd.run("get persistent://public/default/topic --global".split("\\s+"));
+        verify(globalPolicies, times(1)).getTopicPolicies("persistent://public/default/topic", false);
+
+        cmd.run("get persistent://public/default/topic --applied".split("\\s+"));
+        verify(localPolicies, times(1)).getTopicPolicies("persistent://public/default/topic", true);
+    }
 }

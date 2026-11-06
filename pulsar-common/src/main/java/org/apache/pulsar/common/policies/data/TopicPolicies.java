@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.collect.Sets;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -156,106 +157,132 @@ public class TopicPolicies implements Cloneable {
         return cloned;
     }
 
+    @JsonIgnore
     public boolean isGlobalPolicies() {
         return isGlobal != null && isGlobal;
     }
 
+    @JsonIgnore
     public boolean isReplicatorDispatchRateSet() {
         return replicatorDispatchRate != null;
     }
 
+    @JsonIgnore
     public boolean isMaxSubscriptionsPerTopicSet() {
         return maxSubscriptionsPerTopic != null;
     }
 
+    @JsonIgnore
     public boolean isMaxMessageSizeSet() {
         return maxMessageSize != null;
     }
 
+    @JsonIgnore
     public boolean isDeduplicationSnapshotIntervalSecondsSet(){
         return deduplicationSnapshotIntervalSeconds != null;
     }
 
+    @JsonIgnore
     public boolean isInactiveTopicPoliciesSet() {
         return inactiveTopicPolicies != null;
     }
 
+    @JsonIgnore
     public boolean isOffloadPoliciesSet() {
         return offloadPolicies != null;
     }
 
+    @JsonIgnore
     public boolean isMaxUnackedMessagesOnConsumerSet() {
         return maxUnackedMessagesOnConsumer != null;
     }
 
+    @JsonIgnore
     public boolean isDelayedDeliveryTickTimeMillisSet(){
         return delayedDeliveryTickTimeMillis != null;
     }
 
+    @JsonIgnore
     public boolean isDelayedDeliveryEnabledSet(){
         return delayedDeliveryEnabled != null;
     }
 
+    @JsonIgnore
     public boolean isDelayedDeliveryMaxDelayInMillisSet(){
         return delayedDeliveryMaxDelayInMillis != null;
     }
 
+    @JsonIgnore
     public boolean isMaxUnackedMessagesOnSubscriptionSet() {
         return maxUnackedMessagesOnSubscription != null;
     }
 
+    @JsonIgnore
     public boolean isBacklogQuotaSet() {
         return !backLogQuotaMap.isEmpty();
     }
 
+    @JsonIgnore
     public boolean isPersistentPolicySet() {
         return persistence != null;
     }
 
+    @JsonIgnore
     public boolean isRetentionSet() {
         return retentionPolicies != null;
     }
 
+    @JsonIgnore
     public boolean isDeduplicationSet() {
         return deduplicationEnabled != null;
     }
 
+    @JsonIgnore
     public boolean isMessageTTLSet() {
         return messageTTLInSeconds != null;
     }
 
+    @JsonIgnore
     public boolean isSubscriptionExpirationTimeInMinutesSet() {
         return subscriptionExpirationTimeInMinutes != null;
     }
 
+    @JsonIgnore
     public boolean isMaxProducerPerTopicSet() {
         return maxProducerPerTopic != null;
     }
 
+    @JsonIgnore
     public boolean isMaxConsumerPerTopicSet() {
         return maxConsumerPerTopic != null;
     }
 
+    @JsonIgnore
     public boolean isMaxConsumersPerSubscriptionSet() {
         return maxConsumersPerSubscription != null;
     }
 
+    @JsonIgnore
     public boolean isDispatchRateSet() {
         return dispatchRate != null;
     }
 
+    @JsonIgnore
     public boolean isSubscriptionDispatchRateSet() {
         return subscriptionDispatchRate != null;
     }
 
+    @JsonIgnore
     public boolean isCompactionThresholdSet() {
         return compactionThreshold != null;
     }
 
+    @JsonIgnore
     public boolean isPublishRateSet() {
         return publishRate != null;
     }
 
+    @JsonIgnore
     public boolean isSubscribeRateSet() {
         return subscribeRate != null;
     }
@@ -264,6 +291,7 @@ public class TopicPolicies implements Cloneable {
         return schemaValidationEnforced != null;
     }
 
+    @JsonIgnore
     public Set<String> getReplicationClustersSet() {
         return replicationClusters != null ? Sets.newTreeSet(this.replicationClusters) : null;
     }
