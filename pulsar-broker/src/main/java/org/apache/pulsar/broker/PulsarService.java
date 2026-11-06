@@ -581,10 +581,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             // Close the broker's own admin client before stopping the web service: the graceful stop waits for every
             // open connection to close, so the admin client's idle connections to this broker would hold it up until
             // Jetty's shutdown idle timeout (1 s) expires.
-            if (adminClient != null) {
-                adminClient.close();
-                adminClient = null;
-            }
+            closeAdminClient();
 
             if (this.webService != null) {
                 try {
@@ -2112,6 +2109,10 @@ public class PulsarService implements AutoCloseable, ShutdownService {
 
     public synchronized PulsarAdmin getAdminClient() throws PulsarServerException {
         if (this.adminClient == null) {
+            // The close closes the client once, so a client created once the service is closing could outlive it
+            if (!isRunning()) {
+                throw new PulsarServerException("Broker is not running");
+            }
             try {
                 this.adminClient = getCreateAdminClientBuilder().build();
                 log.info().attr("url", adminClient.getServiceUrl()).log("created admin with url");
@@ -2120,6 +2121,18 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
         }
         return this.adminClient;
+    }
+
+    private void closeAdminClient() {
+        PulsarAdmin adminClient;
+        // Under the lock of getAdminClient(), to also close a client that is still being created
+        synchronized (this) {
+            adminClient = this.adminClient;
+            this.adminClient = null;
+        }
+        if (adminClient != null) {
+            adminClient.close();
+        }
     }
 
     protected PulsarAdminBuilder getCreateAdminClientBuilder()
