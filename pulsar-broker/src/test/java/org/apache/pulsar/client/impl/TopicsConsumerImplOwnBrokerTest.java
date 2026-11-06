@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -32,34 +33,38 @@ import lombok.Cleanup;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 /**
- * Multi-topics consumer tests that run on a broker of their own. {@link TopicsConsumerImplTest} has the tests that
- * share one. {@code testResubscribeSameTopic} names a topic without a namespace, which resolves to
+ * Multi-topics consumer tests that each run on a broker of their own. {@link TopicsConsumerImplTest} has the tests
+ * that share one. {@code testResubscribeSameTopic} names a topic without a namespace, which resolves to
  * {@code public/default}. {@code testSeekToNewerPosition} seeks by publish time and expects its four messages in four
- * milliseconds and nothing delivered across the seek, which held on brokers of its own (no failure in CI) but not on
- * the shared broker.
+ * milliseconds and nothing delivered across the seek, which held on brokers of their own (no failure in CI) but not
+ * on the shared broker. {@code testSubscriptionMustCompleteWhenOperationTimeoutOnMultipleTopics} needs its subscribes
+ * to outlast a 2 ms operation timeout, which they do on a new broker and not on the warm shared one.
  */
 @Test(groups = "broker-impl")
 public class TopicsConsumerImplOwnBrokerTest extends ProducerConsumerBase {
 
-    @BeforeClass
+    @BeforeMethod
     @Override
     public void setup() throws Exception {
         super.internalSetup();
         super.producerBaseSetup();
     }
 
-    @AfterClass(alwaysRun = true)
+    @AfterMethod(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
@@ -173,5 +178,38 @@ public class TopicsConsumerImplOwnBrokerTest extends ProducerConsumerBase {
         valuesInReceiveAsync.add(consumer4.receiveAsync().get().getValue());
         valuesInReceiveAsync.add(consumer4.receiveAsync().get().getValue());
         assertEquals(valuesInReceiveAsync.stream().sorted().toList(), Arrays.asList("1-1", "2-1"));
+    }
+
+    @Test(timeOut = 90000)
+    public void testSubscriptionMustCompleteWhenOperationTimeoutOnMultipleTopics() throws PulsarClientException {
+        @Cleanup
+        PulsarClient client = PulsarClient.builder()
+                .serviceUrl(lookupUrl.toString())
+                .ioThreads(2)
+                .listenerThreads(3)
+                // Below line: Set this very small so the operation timeout can be triggered
+                .operationTimeout(2, TimeUnit.MILLISECONDS)
+                .build();
+
+        String topic0 = "public/default/topic0";
+        String topic1 = "public/default/topic1";
+
+        for (int i = 0; i < 10; i++) {
+            try {
+                client.newConsumer(Schema.STRING)
+                        .subscriptionName("subName")
+                        .topics(Lists.newArrayList(topic0, topic1))
+                        .receiverQueueSize(2)
+                        .subscriptionType(SubscriptionType.Shared)
+                        .ackTimeout(365, TimeUnit.DAYS)
+                        .ackTimeoutTickTime(36, TimeUnit.DAYS)
+                        .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
+                        .subscribe();
+                Thread.sleep(3000);
+            } catch (Exception ex) {
+                Assert.assertTrue(ex instanceof PulsarClientException.TimeoutException);
+            }
+        }
     }
 }

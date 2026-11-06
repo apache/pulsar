@@ -59,10 +59,8 @@ import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
 import org.apache.pulsar.client.api.TopicMetadata;
@@ -1216,39 +1214,6 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
         producer.close();
         producer1.close();
         producer2.close();
-    }
-
-    @Test(timeOut = testTimeout)
-    public void testSubscriptionMustCompleteWhenOperationTimeoutOnMultipleTopics() throws PulsarClientException {
-        @Cleanup
-        PulsarClient client = PulsarClient.builder()
-                .serviceUrl(getWebServiceUrl())
-                .ioThreads(2)
-                .listenerThreads(3)
-                // Below line: Set this very small so the operation timeout can be triggered
-                .operationTimeout(2, TimeUnit.MILLISECONDS)
-                .build();
-
-        String topic0 = getNamespace() + "/topic0";
-        String topic1 = getNamespace() + "/topic1";
-
-        for (int i = 0; i < 10; i++) {
-            try {
-                client.newConsumer(Schema.STRING)
-                        .subscriptionName("subName")
-                        .topics(Lists.newArrayList(topic0, topic1))
-                        .receiverQueueSize(2)
-                        .subscriptionType(SubscriptionType.Shared)
-                        .ackTimeout(365, TimeUnit.DAYS)
-                        .ackTimeoutTickTime(36, TimeUnit.DAYS)
-                        .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
-                        .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
-                        .subscribe();
-                Thread.sleep(3000);
-            } catch (Exception ex) {
-                Assert.assertTrue(ex instanceof PulsarClientException.TimeoutException);
-            }
-        }
     }
 
     @Test(timeOut = testTimeout)
