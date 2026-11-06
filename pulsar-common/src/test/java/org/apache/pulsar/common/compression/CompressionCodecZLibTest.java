@@ -33,8 +33,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.CompositeByteBuf;
+import io.netty.buffer.DuplicatedByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,7 +64,9 @@ public class CompressionCodecZLibTest {
         HEAP_READ_ONLY,
         DIRECT_READ_ONLY,
         COMPOSITE,
-        COMPOSITE_SINGLE_RANGE;
+        COMPOSITE_SINGLE_RANGE,
+        NON_NIO,
+        NON_NIO_SINGLE_COUNT;
 
         ByteBuf create(byte[] data) {
             return switch (this) {
@@ -76,7 +80,43 @@ public class CompressionCodecZLibTest {
                 case DIRECT_READ_ONLY -> slicedBuffer(data, true).asReadOnly();
                 case COMPOSITE -> compositeBuffer(data, false);
                 case COMPOSITE_SINGLE_RANGE -> compositeBuffer(data, true);
+                case NON_NIO -> new NonNioByteBuf(slicedBuffer(data, true), -1);
+                case NON_NIO_SINGLE_COUNT -> new NonNioByteBuf(slicedBuffer(data, true), 1);
             };
+        }
+    }
+
+    private static final class NonNioByteBuf extends DuplicatedByteBuf {
+        private final int nioBufferCount;
+
+        private NonNioByteBuf(ByteBuf buffer, int nioBufferCount) {
+            super(buffer);
+            this.nioBufferCount = nioBufferCount;
+        }
+
+        @Override
+        public boolean hasArray() {
+            return false;
+        }
+
+        @Override
+        public int nioBufferCount() {
+            return nioBufferCount;
+        }
+
+        @Override
+        public ByteBuffer nioBuffer(int index, int length) {
+            throw new UnsupportedOperationException("NIO views are unavailable");
+        }
+
+        @Override
+        public ByteBuffer internalNioBuffer(int index, int length) {
+            throw new UnsupportedOperationException("NIO views are unavailable");
+        }
+
+        @Override
+        public ByteBuffer[] nioBuffers(int index, int length) {
+            throw new UnsupportedOperationException("NIO views are unavailable");
         }
     }
 
@@ -215,10 +255,26 @@ public class CompressionCodecZLibTest {
 
     @Test(dataProvider = "operations")
     public void testNioViewFailureReleasesOutput(boolean encode) {
+        assertInputFailureReleasesOutput(encode, false);
+    }
+
+    @Test(dataProvider = "operations")
+    public void testFallbackCopyFailureReleasesOutput(boolean encode) {
+        assertInputFailureReleasesOutput(encode, true);
+    }
+
+    private static void assertInputFailureReleasesOutput(boolean encode, boolean fallbackCopy) {
         ByteBuf source = BufferType.DIRECT_OFFSET.create(randomBytes(256));
+        if (fallbackCopy) {
+            source = new NonNioByteBuf(source, -1);
+        }
         ByteBuf sourceWrapper = mock(ByteBuf.class, delegatesTo(source));
-        IllegalStateException failure = new IllegalStateException("Cannot expose a NIO view");
-        doThrow(failure).when(sourceWrapper).nioBuffer(anyInt(), anyInt());
+        IllegalStateException failure = new IllegalStateException("Cannot access the input");
+        if (fallbackCopy) {
+            doThrow(failure).when(sourceWrapper).getBytes(anyInt(), any(byte[].class));
+        } else {
+            doThrow(failure).when(sourceWrapper).nioBuffer(anyInt(), anyInt());
+        }
         ByteBuf output = Unpooled.buffer(512);
         ByteBufAllocator allocator = mock(ByteBufAllocator.class);
         doReturn(output).when(allocator).heapBuffer(anyInt());

@@ -24,6 +24,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.zip.DataFormatException;
 import java.util.zip.Deflater;
 import java.util.zip.Inflater;
@@ -79,7 +80,7 @@ public class CompressionCodecZLib implements CompressionCodec {
             if (source.hasArray()) {
                 deflater.setInput(source.array(), source.arrayOffset() + source.readerIndex(), length);
             } else {
-                deflater.setInput(source.nioBuffer(source.readerIndex(), length));
+                deflater.setInput(inputBuffer(source));
             }
             while (!deflater.needsInput()) {
                 deflate(deflater, compressed);
@@ -91,6 +92,19 @@ public class CompressionCodecZLib implements CompressionCodec {
         } finally {
             // Do not retain the input's NIO view in the thread-local compressor.
             deflater.reset();
+        }
+    }
+
+    private static ByteBuffer inputBuffer(ByteBuf source) {
+        int readerIndex = source.readerIndex();
+        int length = source.readableBytes();
+        try {
+            return source.nioBuffer(readerIndex, length);
+        } catch (UnsupportedOperationException e) {
+            // Some ByteBuf implementations support getBytes but cannot expose a NIO view.
+            byte[] copy = new byte[length];
+            source.getBytes(readerIndex, copy);
+            return ByteBuffer.wrap(copy);
         }
     }
 
@@ -113,7 +127,7 @@ public class CompressionCodecZLib implements CompressionCodec {
             if (encoded.hasArray()) {
                 inflater.setInput(encoded.array(), encoded.arrayOffset() + encoded.readerIndex(), len);
             } else {
-                inflater.setInput(encoded.nioBuffer(encoded.readerIndex(), len));
+                inflater.setInput(inputBuffer(encoded));
             }
 
             int resultLength;
