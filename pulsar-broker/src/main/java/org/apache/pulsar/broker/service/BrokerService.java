@@ -271,6 +271,8 @@ public class BrokerService implements Closeable {
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
     @Getter
     private final TopicListSizeResultCache topicListSizeResultCache;
+    @Getter
+    private final TopicsPatternCache topicsPatternCache = new TopicsPatternCache();
     protected final AtomicReference<Semaphore> topicLoadRequestSemaphore;
 
     public static final String TOPIC_LOOKUP_USAGE_METRIC_NAME = "pulsar.broker.request.topic.lookup.concurrent.usage";
