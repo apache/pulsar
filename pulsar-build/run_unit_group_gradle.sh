@@ -65,9 +65,10 @@ function gradle_test() {
 
 # Runs a module's tests as `testShards`, four test tasks with one fork each, instead of `test`, whose four
 # forks get the test classes round-robin in name order (see pulsar.java-conventions.gradle.kts). The shards
-# get the classes packed by the durations that the previous CI run of the group recorded, and a successful
-# run records them for the next one. Without recorded durations, `testShards` runs `test`. Gradle runs the
-# tasks of one project in parallel only with the configuration cache.
+# get the classes packed by the durations that the group's latest successful CI run on master recorded (see
+# download_test_durations in pulsar_ci_tool.sh), and a successful run records them. Without recorded
+# durations, `testShards` runs `test`. Gradle runs the tasks of one project in parallel only with the
+# configuration cache.
 function gradle_test_shards() {
   local project="$1"
   shift

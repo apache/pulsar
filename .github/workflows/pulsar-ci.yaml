@@ -247,6 +247,9 @@ jobs:
 
 
   unit-tests:
+    permissions:
+      contents: read
+      actions: read # Download the test class durations that master's runs uploaded.
     name: CI - Unit - ${{ matrix.name }}
     env:
       JOB_NAME: CI - Unit - ${{ matrix.name }}
@@ -336,14 +339,12 @@ jobs:
           tar xf gradle-build-outputs.tar
           rm -f -- gradle-build-outputs.tar
 
-      # the test class durations of the latest earlier run of this group, which
-      # run_unit_group_gradle.sh uses to balance the group's test shards
-      - name: Restore test class durations
-        uses: actions/cache/restore@v6
-        with:
-          path: build/test-durations
-          key: unit-test-durations-${{ matrix.group }}-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: unit-test-durations-${{ matrix.group }}-
+      # the test class durations of the latest successful run of this group on master,
+      # which run_unit_group_gradle.sh uses to balance the group's test shards
+      - name: Download test class durations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./pulsar-build/pulsar_ci_tool.sh download_test_durations ${{ matrix.group }}
 
       - name: Run setup commands
         if: ${{ matrix.setup }}
@@ -354,13 +355,16 @@ jobs:
         run: |
           ./pulsar-build/run_unit_group_gradle.sh ${{ matrix.group }}
 
-      - name: Save test class durations
-        if: ${{ success() && hashFiles(format('build/test-durations/{0}.txt', matrix.group)) != '' }}
+      # master's runs keep the durations for later runs as an artifact, which, unlike a
+      # cache entry, isn't evicted when the repository's cache is full
+      - name: Upload test class durations
+        if: ${{ success() && github.ref == 'refs/heads/master' && hashFiles(format('build/test-durations/{0}.txt', matrix.group)) != '' }}
         continue-on-error: true
-        uses: actions/cache/save@v6
+        uses: actions/upload-artifact@v7
         with:
-          path: build/test-durations
-          key: unit-test-durations-${{ matrix.group }}-${{ github.run_id }}-${{ github.run_attempt }}
+          name: unit-test-durations-${{ matrix.group }}
+          path: build/test-durations/${{ matrix.group }}.txt
+          retention-days: 7
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
