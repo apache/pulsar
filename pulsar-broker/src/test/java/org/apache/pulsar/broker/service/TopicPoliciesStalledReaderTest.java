@@ -22,6 +22,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -31,24 +33,34 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.broker.systopic.TopicPoliciesSystemTopicClient;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.events.ActionType;
+import org.apache.pulsar.common.events.EventType;
 import org.apache.pulsar.common.events.PulsarEvent;
+import org.apache.pulsar.common.events.TopicPoliciesEvent;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.awaitility.Awaitility;
+import org.jspecify.annotations.Nullable;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -76,6 +88,12 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
      * the broker starts to replace the reader, so that nothing but the stalled wait can time out on a slow host.
      */
     private static final int READ_TIMEOUT_SECONDS = 2;
+    /**
+     * For the operations that have to keep waiting on the stalled reader until another one, issued with
+     * {@link #READ_TIMEOUT_SECONDS}, reports the stall. Longer than any test here: a wait takes the timeout in force
+     * when it starts, so shortening the setting later does not shorten a wait that is already pending.
+     */
+    private static final long KEEP_WAITING_TIMEOUT_SECONDS = TimeUnit.MINUTES.toSeconds(10);
     /** How long an operation may take to report the stall: the timeout plus slack for a loaded CI host. */
     private static final Duration STALL_REPORTED_WITHIN = Duration.ofSeconds(READ_TIMEOUT_SECONDS + 10);
 
@@ -107,6 +125,9 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
     @AfterMethod(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
+        if (service != null) {
+            service.readers().forEach(StallableReader::discardHeldEvent);
+        }
         service = null;
         super.internalCleanup();
     }
@@ -206,20 +227,20 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         final TopicName otherTopic = newTopic();
         setMaxConsumers(timedOutTopic, 5).get(30, TimeUnit.SECONDS);
 
-        final List<StallableReader> stalledReaders = stallReaders();
-        final CompletableFuture<Void> timedOut = stalledUpdate(timedOutTopic, 7);
-        // Once the stalled reader has swallowed that update's event, its wait is ahead of the two below, so it is
-        // the one that times out and has the reader replaced.
-        awaitWithheldEvents(stalledReaders, 1);
+        // The first update must still be waiting when another one reports the stall, however slow the host, so it
+        // gets a timeout longer than the test; only the update that is to report the stall gets the short one.
+        final List<StallableReader> stalledReaders = stallReaders(KEEP_WAITING_TIMEOUT_SECONDS);
         final CompletableFuture<Void> waiting = setMaxConsumers(otherTopic, 8);
-        awaitWithheldEvents(stalledReaders, 2);
+        awaitWithheldEvents(stalledReaders, 1);
+        // Queued behind that wait in the per-topic sequencer: it writes its event only once the wait is over.
         final CompletableFuture<Void> queuedBehindWaiting = setMaxConsumers(otherTopic, 9);
-        assertThat(timedOut)
-                .describedAs("the first update timed out before the second one was waiting, so no wait would be"
-                        + " pending when the reader is replaced and the assertions below would hold vacuously")
+        assertThat(waiting)
+                .describedAs("the update the queued one sits behind must be waiting for the stalled reader, or the"
+                        + " assertions below would hold vacuously")
                 .isNotDone();
 
-        assertStallReported(timedOut, "the policy update", TimeoutException.class);
+        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(READ_TIMEOUT_SECONDS);
+        assertStallReported(stalledUpdate(timedOutTopic, 7), "the policy update", TimeoutException.class);
 
         // Replacing the reader ends the other wait, and the update queued behind it starts at once, on the thread
         // that is replacing the reader. It must get the replacement, not the reader that is being closed.
@@ -232,6 +253,84 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                 .isEqualTo(9);
     }
 
+    @Test(timeOut = 60_000)
+    public void testUpdateWrittenWhileReaderIsReplacedCompletesWithoutRetiringTheReplacement() throws Exception {
+        final TopicName topicName = newTopic();
+        final TopicName otherTopic = newTopic();
+        setMaxConsumers(topicName, 5).get(30, TimeUnit.SECONDS);
+
+        final List<StallableReader> stalledReaders = stallReaders();
+        // An update whose write is in flight while the reader is replaced: its event is in __change_events, so the
+        // replacement reader applies it in its first pass over the topic, and the update registers its wait for the
+        // read-back only afterwards, with the replacement.
+        final HeldWrite heldWrite = service.holdNextWrite();
+        final CompletableFuture<Void> inFlight = thenRestoreDefaultTimeout(setMaxConsumers(topicName, 6));
+        awaitWithheldEvents(stalledReaders, 1);
+
+        assertStallReported(stalledUpdate(otherTopic, 7), "the policy update", TimeoutException.class);
+        Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
+                assertThat(TopicPolicyTestUtils.getLocalTopicPolicies(service, topicName).getMaxConsumerPerTopic())
+                        .describedAs("the replacement reader must have applied the in-flight update's event in its"
+                                + " first pass over __change_events")
+                        .isEqualTo(6));
+        final List<StallableReader> replacementReaders = service.readers();
+        replacementReaders.removeAll(stalledReaders);
+        assertThat(replacementReaders).describedAs("the stalled reader was not replaced").isNotEmpty();
+
+        // Short again, so that a wait nothing completes fails within the test instead of after a minute.
+        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(READ_TIMEOUT_SECONDS);
+        heldWrite.release();
+        assertThat(inFlight)
+                .describedAs("the replacement reader applied the update's event before the update started to wait"
+                        + " for it, so the wait must complete instead of timing out on a read-back that was done")
+                .succeedsWithin(Duration.ofSeconds(30));
+        assertThat(replacementReaders)
+                .describedAs("the replacement reader delivers, so the update must not retire it")
+                .noneMatch(StallableReader::isClosed);
+    }
+
+    @Test(timeOut = 120_000)
+    public void testEventDeliveredByReplacedReaderDoesNotRepopulateRebuiltCache() throws Exception {
+        final TopicName deletedTopic = newTopic();
+        final TopicName otherTopic = newTopic();
+        setMaxConsumers(deletedTopic, 5).get(30, TimeUnit.SECONDS);
+
+        final List<StallableReader> stalledReaders = stallReaders(KEEP_WAITING_TIMEOUT_SECONDS);
+        // Written by another broker of the cluster, so this broker's update sequencer does not hold the deletion
+        // behind the update. The update is the event the stalled reader received first: a consumer completes a
+        // receive it had already handed out even after it is closed, so this delivery can still reach the service
+        // once the reader is replaced.
+        writeEventAsAnotherBroker(deletedTopic, localPoliciesWithMaxConsumers(6));
+        awaitWithheldEvents(stalledReaders, 1);
+        writeEventAsAnotherBroker(deletedTopic, null);
+        awaitWithheldEvents(stalledReaders, 2);
+        // Compaction drops the key together with its tombstone, so no later reader can learn of the deletion.
+        compactChangeEvents();
+        assertThat(TopicPolicyTestUtils.getTopicPoliciesBypassCache(service, deletedTopic, false))
+                .describedAs("a new reader still finds a policy for the topic in the compacted __change_events, so"
+                        + " the deletion was not compacted away and this is not the scenario under test")
+                .isEmpty();
+
+        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(READ_TIMEOUT_SECONDS);
+        assertStallReported(stalledUpdate(otherTopic, 7), "the policy update", TimeoutException.class);
+        assertThat(service.getTopicPoliciesAsync(deletedTopic, TopicPoliciesService.GetType.LOCAL_ONLY))
+                .describedAs("the rebuilt policy cache must not hold the deleted policy")
+                .succeedsWithin(Duration.ofSeconds(30))
+                .isEqualTo(Optional.empty());
+
+        // The replaced reader completes the delivery it had received when the stall began; the service handles it
+        // on this thread, so the cache below shows what that delivery did.
+        final List<StallableReader> readersHoldingAnEvent =
+                stalledReaders.stream().filter(StallableReader::holdsEvent).toList();
+        assertThat(readersHoldingAnEvent).describedAs("the stalled reader of the namespace withheld no event").hasSize(1);
+        readersHoldingAnEvent.get(0).deliverHeldEvent();
+        assertThat(service.getTopicPoliciesAsync(deletedTopic, TopicPoliciesService.GetType.LOCAL_ONLY))
+                .describedAs("a delivery from the replaced reader must not put back a policy that the compacted"
+                        + " __change_events no longer holds, since nothing could remove it again")
+                .succeedsWithin(Duration.ofSeconds(30))
+                .isEqualTo(Optional.empty());
+    }
+
     @Test(timeOut = 120_000)
     public void testPolicyDeletedAndCompactedDuringStallIsGoneAfterReaderReplacement() throws Exception {
         final TopicName deletedTopic = newTopic();
@@ -240,8 +339,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
         // Stalled, with a timeout longer than this test: the deletion has to keep waiting while the topic is
         // compacted.
-        final List<StallableReader> stalledReaders = service.stallReaders();
-        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(TimeUnit.MINUTES.toSeconds(10));
+        final List<StallableReader> stalledReaders = stallReaders(KEEP_WAITING_TIMEOUT_SECONDS);
         final CompletableFuture<Void> deletion = service.deleteTopicPoliciesAsync(deletedTopic);
         awaitWithheldEvents(stalledReaders, 1);
 
@@ -307,13 +405,57 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         return topic.getHierarchyTopicPolicies().getMaxConsumerPerTopic().get();
     }
 
+    /** Stalls the readers and gives the operations that follow {@link #READ_TIMEOUT_SECONDS} to report the stall. */
     private List<StallableReader> stallReaders() {
+        return stallReaders(READ_TIMEOUT_SECONDS);
+    }
+
+    private List<StallableReader> stallReaders(long readBackTimeoutSeconds) {
         final List<StallableReader> stalledReaders = service.stallReaders();
         assertThat(stalledReaders)
                 .describedAs("no reader was stalled, so the assertions that follow would hold vacuously")
                 .isNotEmpty();
-        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(READ_TIMEOUT_SECONDS);
+        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(readBackTimeoutSeconds);
         return stalledReaders;
+    }
+
+    private static TopicPolicies localPoliciesWithMaxConsumers(int maxConsumers) {
+        final TopicPolicies policies = new TopicPolicies();
+        policies.setIsGlobal(false);
+        policies.setMaxConsumerPerTopic(maxConsumers);
+        return policies;
+    }
+
+    /**
+     * Writes a local policy event for {@code topicName} to the namespace's {@code __change_events} the way another
+     * broker of the cluster does: with a writer of its own, outside this broker's update sequencer. A {@code null}
+     * {@code policies} writes the tombstone of a deletion.
+     */
+    private void writeEventAsAnotherBroker(TopicName topicName, @Nullable TopicPolicies policies) throws Exception {
+        final PulsarEvent event = PulsarEvent.builder()
+                .replicateTo(new HashSet<>(Set.of(conf.getClusterName())))
+                .actionType(policies == null ? ActionType.DELETE : ActionType.UPDATE)
+                .eventType(EventType.TOPIC_POLICY)
+                .topicPoliciesEvent(TopicPoliciesEvent.builder()
+                        .domain(topicName.getDomain().toString())
+                        .tenant(topicName.getTenant())
+                        .namespace(topicName.getNamespaceObject().getLocalName())
+                        .topic(topicName.getLocalName())
+                        .policies(policies)
+                        .build())
+                .build();
+        final String key = TopicPoliciesService.getEventKey(event, false);
+        final SystemTopicClient.Writer<PulsarEvent> writer = new NamespaceEventsSystemTopicFactory(pulsar.getClient())
+                .createTopicPoliciesSystemTopicClient(topicName.getNamespaceObject()).newWriter();
+        try {
+            if (policies == null) {
+                writer.delete(key, event);
+            } else {
+                writer.write(key, event);
+            }
+        } finally {
+            writer.close();
+        }
     }
 
     /**
@@ -376,12 +518,20 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                         .anyMatch(reader -> reader.withheldEvents() >= events));
     }
 
+    /**
+     * The service with its {@code __change_events} readers and writers wrapped: a reader can be stalled, and the
+     * result of a write can be held back from the service while the event itself is written.
+     */
     private static class ReaderStallingTopicPoliciesService extends SystemTopicBasedTopicPoliciesService {
 
+        private final PulsarService pulsar;
         private final List<StallableReader> readers = new CopyOnWriteArrayList<>();
+        private final AtomicReference<HeldWrite> nextWriteHold = new AtomicReference<>();
+        private volatile NamespaceEventsSystemTopicFactory systemTopicFactory;
 
         ReaderStallingTopicPoliciesService(PulsarService pulsar) {
             super(pulsar);
+            this.pulsar = pulsar;
         }
 
         @Override
@@ -394,22 +544,144 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             });
         }
 
+        /** The factory the service takes its writers from; its writers consult {@link #nextWriteHold}. */
+        @Override
+        NamespaceEventsSystemTopicFactory getNamespaceEventsSystemTopicFactory() {
+            NamespaceEventsSystemTopicFactory factory = systemTopicFactory;
+            if (factory == null) {
+                synchronized (this) {
+                    factory = systemTopicFactory;
+                    if (factory == null) {
+                        try {
+                            factory = new WriteHoldingSystemTopicFactory(pulsar.getClient());
+                        } catch (PulsarServerException e) {
+                            throw new RuntimeException(e);
+                        }
+                        systemTopicFactory = factory;
+                    }
+                }
+            }
+            return factory;
+        }
+
+        /** Every reader created so far, as a list of its own. */
+        List<StallableReader> readers() {
+            return new ArrayList<>(readers);
+        }
+
         /** Stalls every reader created so far and returns them; a reader created afterwards delivers normally. */
         List<StallableReader> stallReaders() {
             final List<StallableReader> stalled = List.copyOf(readers);
             stalled.forEach(StallableReader::stall);
             return stalled;
         }
+
+        /**
+         * Holds the result of the next policy event the service writes: the event is written, but the service
+         * learns its message ID, and so starts waiting for the read-back, only on {@link HeldWrite#release()}.
+         */
+        HeldWrite holdNextWrite() {
+            final HeldWrite hold = new HeldWrite();
+            assertThat(nextWriteHold.compareAndSet(null, hold)).describedAs("a write hold is already armed").isTrue();
+            return hold;
+        }
+
+        private class WriteHoldingSystemTopicFactory extends NamespaceEventsSystemTopicFactory {
+
+            private final PulsarClient client;
+
+            WriteHoldingSystemTopicFactory(PulsarClient client) {
+                super(client);
+                this.client = client;
+            }
+
+            @Override
+            public TopicPoliciesSystemTopicClient createTopicPoliciesSystemTopicClient(NamespaceName namespace) {
+                return new TopicPoliciesSystemTopicClient(client, getEventsTopicName(namespace)) {
+                    @Override
+                    protected CompletableFuture<SystemTopicClient.Writer<PulsarEvent>> newWriterAsyncInternal() {
+                        return super.newWriterAsyncInternal()
+                                .thenApply(writer -> new HoldableWriter(writer, nextWriteHold));
+                    }
+                };
+            }
+        }
+    }
+
+    /** A write whose result the service gets only once the test releases it. */
+    private static class HeldWrite {
+
+        private final CompletableFuture<Void> released = new CompletableFuture<>();
+
+        /** Hands the service the message ID of the held write; the service continues on the calling thread. */
+        void release() {
+            released.complete(null);
+        }
+    }
+
+    /** Delegates to a real writer; when a {@link HeldWrite} is armed, the next asynchronous write takes it. */
+    private static class HoldableWriter implements SystemTopicClient.Writer<PulsarEvent> {
+
+        private final SystemTopicClient.Writer<PulsarEvent> delegate;
+        private final AtomicReference<HeldWrite> nextWriteHold;
+
+        HoldableWriter(SystemTopicClient.Writer<PulsarEvent> delegate, AtomicReference<HeldWrite> nextWriteHold) {
+            this.delegate = delegate;
+            this.nextWriteHold = nextWriteHold;
+        }
+
+        @Override
+        public MessageId write(String key, PulsarEvent event) throws PulsarClientException {
+            return delegate.write(key, event);
+        }
+
+        @Override
+        public CompletableFuture<MessageId> writeAsync(String key, PulsarEvent event) {
+            final CompletableFuture<MessageId> written = delegate.writeAsync(key, event);
+            final HeldWrite hold = nextWriteHold.getAndSet(null);
+            return hold == null ? written : hold.released.thenCompose(__ -> written);
+        }
+
+        @Override
+        public MessageId delete(String key, PulsarEvent event) throws PulsarClientException {
+            return delegate.delete(key, event);
+        }
+
+        @Override
+        public CompletableFuture<MessageId> deleteAsync(String key, PulsarEvent event) {
+            return delegate.deleteAsync(key, event);
+        }
+
+        @Override
+        public void close() throws IOException {
+            delegate.close();
+        }
+
+        @Override
+        public CompletableFuture<Void> closeAsync() {
+            return delegate.closeAsync();
+        }
+
+        @Override
+        public SystemTopicClient<PulsarEvent> getSystemTopicClient() {
+            return delegate.getSystemTopicClient();
+        }
     }
 
     /**
      * Delegates to a real reader until {@link #stall()}; from then on it stays open and {@code readNextAsync}
      * delivers nothing, which is what a consumer whose subscription lost its cursor looks like from the client side.
+     * The first event it withholds is kept, so that {@link #deliverHeldEvent()} can complete the read that was
+     * pending when the stall began.
      */
     private static class StallableReader implements SystemTopicClient.Reader<PulsarEvent> {
 
         private final SystemTopicClient.Reader<PulsarEvent> delegate;
         private final AtomicInteger withheldEvents = new AtomicInteger();
+        /** The read that was pending when the stall began, and the event it would have delivered. */
+        private final CompletableFuture<Message<PulsarEvent>> heldDelivery = new CompletableFuture<>();
+        private final AtomicReference<Message<PulsarEvent>> heldEvent = new AtomicReference<>();
+        private final AtomicBoolean firstReadStalled = new AtomicBoolean();
         private volatile boolean stalled;
         private volatile boolean closed;
 
@@ -429,6 +701,29 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             return withheldEvents.get();
         }
 
+        boolean holdsEvent() {
+            return heldEvent.get() != null;
+        }
+
+        /**
+         * Completes the read that was pending when the stall began with the event the reader withheld first, as a
+         * consumer completes a receive it had already handed out, even after it was closed. The service handles
+         * the event on the calling thread.
+         */
+        void deliverHeldEvent() {
+            final Message<PulsarEvent> event = heldEvent.getAndSet(null);
+            assertThat(event).describedAs("the reader withheld no event, so there is none to deliver").isNotNull();
+            heldDelivery.complete(event);
+        }
+
+        /** Releases the withheld event that no test delivered. */
+        void discardHeldEvent() {
+            final Message<PulsarEvent> event = heldEvent.getAndSet(null);
+            if (event != null) {
+                event.release();
+            }
+        }
+
         @Override
         public Message<PulsarEvent> readNext() throws PulsarClientException {
             return delegate.readNext();
@@ -443,13 +738,16 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                     return CompletableFuture.completedFuture(message);
                 }
                 withhold(message);
-                return new CompletableFuture<>();
+                // Only the read that was pending when the stall began can be completed by deliverHeldEvent().
+                return firstReadStalled.compareAndSet(false, true) ? heldDelivery : new CompletableFuture<>();
             });
         }
 
-        /** Swallows this event and every later one, until the reader is closed. */
+        /** Keeps the first withheld event for {@link #deliverHeldEvent()}, drops every later one. */
         private void withhold(Message<PulsarEvent> message) {
-            message.release();
+            if (!heldEvent.compareAndSet(null, message)) {
+                message.release();
+            }
             withheldEvents.incrementAndGet();
             delegate.readNextAsync().thenAccept(this::withhold);
         }
