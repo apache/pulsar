@@ -3413,33 +3413,27 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             ? null
             : oldestPositionInfo.getCursorName();
 
-        // Set the last publish timestamp using a hybrid approach to minimize storage reads:
-        // 1. If ledger has the timestamp (ledgerLastAddTime > 0), use it directly - this means
-        //    the topic has recent write activity and the ledger's cached value is fresh
-        // 2. If ledger doesn't have it (topic is idle), try to use our cached value first
-        // 3. If no cache available, read from storage and cache the result for future calls
-        long ledgerLastAddTime = ledger.getLastAddEntryTime();
-        CompletableFuture<Long> lastPublishTimeFuture;
-
-        boolean usedLedgerValue = false;
-        if (ledgerLastAddTime > 0) {
-            // Topic has recent activity - use ledger's value and clear the cache since
-            // we don't need it for active topics (ledger will keep providing the value)
-            cachedLastPublishTimestamp = 0;
-            stats.lastPublishTimeStamp = ledgerLastAddTime;
-            lastPublishTimeFuture = CompletableFuture.completedFuture(ledgerLastAddTime);
-            usedLedgerValue = true;
-        } else {
-            // Topic is idle - try to use cached value to avoid storage read
-            if (cachedLastPublishTimestamp > 0) {
-                lastPublishTimeFuture = CompletableFuture.completedFuture(cachedLastPublishTimestamp);
+        CompletableFuture<Void> lastPublishTimeFuture = CompletableFuture.completedFuture(null);
+        if (!getStatsOptions.isExcludeLastPublishTime()) {
+            // A loaded topic has no ledger timestamp until its first write. Use the cached publish
+            // time in that case, falling back to storage only if it has not been cached yet.
+            long ledgerLastAddTime = ledger.getLastAddEntryTime();
+            CompletableFuture<Long> timestampFuture;
+            if (ledgerLastAddTime > 0) {
+                cachedLastPublishTimestamp = 0;
+                timestampFuture = CompletableFuture.completedFuture(ledgerLastAddTime);
+            } else if (cachedLastPublishTimestamp > 0) {
+                timestampFuture = CompletableFuture.completedFuture(cachedLastPublishTimestamp);
             } else {
-                // No cache available - read from storage and cache the result
-                stats.lastPublishTimeStamp = 0; // Will be updated below if we can read the message
-                lastPublishTimeFuture = getLastMessagePublishTime();
+                timestampFuture = getLastMessagePublishTime();
             }
+            lastPublishTimeFuture = timestampFuture.thenAccept(time -> {
+                if (ledgerLastAddTime <= 0) {
+                    cachedLastPublishTimestamp = time;
+                }
+                stats.lastPublishTimeStamp = time;
+            });
         }
-        boolean finalUsedLedgerValue = usedLedgerValue;
 
         // Set the topic creation timestamp - get it directly since it's synchronous
         stats.topicCreationTimeStamp = getTopicCreationTimeStamp();
@@ -3458,19 +3452,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             subscriptionFutures.put(name, subscription.getStatsAsync(getStatsOptions));
         });
 
-        // Combine all async operations: last publish time and subscription stats
-        CompletableFuture<Void> combinedFutures = CompletableFuture.allOf(
-            lastPublishTimeFuture.thenAccept(time -> {
-                // Only update the cache if we didn't use the ledger value
-                // (i.e., we used the cached value or read from storage)
-                if (!finalUsedLedgerValue) {
-                    cachedLastPublishTimestamp = time;
-                }
-                stats.lastPublishTimeStamp = time;
-            })
-        );
-
-        return combinedFutures.thenCompose(ignore ->
+        return lastPublishTimeFuture.thenCompose(ignore ->
             FutureUtil.waitForAll(subscriptionFutures.values()).thenCompose(ignore2 -> {
             for (Map.Entry<String, CompletableFuture<SubscriptionStatsImpl>> e : subscriptionFutures.entrySet()) {
                 String name = e.getKey();
