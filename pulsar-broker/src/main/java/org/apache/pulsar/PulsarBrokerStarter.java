@@ -40,9 +40,11 @@ import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
 import org.apache.bookkeeper.common.component.ComponentStarter;
 import org.apache.bookkeeper.common.component.LifecycleComponent;
+import org.apache.bookkeeper.common.component.LifecycleComponentStack;
 import org.apache.bookkeeper.common.util.ReflectionUtils;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
+import org.apache.bookkeeper.server.EmbeddedServer;
 import org.apache.bookkeeper.server.conf.BookieConfiguration;
 import org.apache.bookkeeper.stats.StatsProvider;
 import org.apache.commons.configuration2.ex.ConfigurationException;
@@ -246,8 +248,7 @@ public class PulsarBrokerStarter {
             if (starterArguments.runBookie) {
                 Objects.requireNonNull(bookieConfig, "No ServerConfiguration for Bookie");
                 Objects.requireNonNull(bookieStatsProvider, "No Stats Provider for Bookie");
-                bookieServer = org.apache.bookkeeper.server.Main
-                        .buildBookieServer(new BookieConfiguration(bookieConfig));
+                bookieServer = newBookieServer(bookieConfig, bookieStatsProvider);
             } else {
                 bookieServer = null;
             }
@@ -308,13 +309,13 @@ public class PulsarBrokerStarter {
                 log.info("Shut down broker service successfully.");
             }
 
-            if (bookieStatsProvider != null) {
-                bookieStatsProvider.stop();
-                log.info("Shut down bookieStatsProvider successfully.");
-            }
             if (bookieServer != null) {
                 bookieServer.close();
                 log.info("Shut down bookieServer successfully.");
+            }
+            if (bookieStatsProvider != null) {
+                bookieStatsProvider.stop();
+                log.info("Shut down bookieStatsProvider successfully.");
             }
             if (autoRecoveryMain != null) {
                 autoRecoveryMain.shutdown();
@@ -396,5 +397,19 @@ public class PulsarBrokerStarter {
             throw new RuntimeException("Could not create the bookie stats provider " + statsProviderClass.getName(),
                     e);
         }
+    }
+
+    /**
+     * Builds the in-process bookie around the provider from {@link #newBookieStatsProvider}. Without an explicit
+     * provider {@code EmbeddedServer} creates a second one from the same configuration through its no-arg
+     * constructor, which for Pulsar's provider is the 1.x default registry again. The caller owns the provider's
+     * lifecycle, so it has to outlive the returned server.
+     */
+    static LifecycleComponentStack newBookieServer(ServerConfiguration bookieConfig, StatsProvider statsProvider)
+            throws Exception {
+        return EmbeddedServer.builder(new BookieConfiguration(bookieConfig))
+                .statsProvider(statsProvider)
+                .build()
+                .getLifecycleComponentStack();
     }
 }

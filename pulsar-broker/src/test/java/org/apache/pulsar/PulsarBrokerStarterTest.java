@@ -37,14 +37,20 @@ import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.util.Arrays;
 import lombok.Cleanup;
+import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
+import org.apache.bookkeeper.common.allocator.PoolingPolicy;
+import org.apache.bookkeeper.common.component.LifecycleComponentStack;
+import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.stats.NullStatsProvider;
 import org.apache.bookkeeper.stats.StatsProvider;
-import org.apache.commons.configuration2.PropertiesConfiguration;
+import org.apache.commons.io.FileUtils;
 import org.apache.pulsar.PulsarBrokerStarter.BrokerStarter;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.metrics.prometheus.bookkeeper.PrometheusMetricsProvider;
+import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.annotations.Test;
 import picocli.CommandLine.Option;
 
@@ -405,22 +411,59 @@ public class PulsarBrokerStarterTest {
         }
     }
 
+    /**
+     * Starts a bookie the way {@code -rb} does, against an embedded ZooKeeper, and checks that the broker's
+     * registry never sees it. {@code EmbeddedServer} builds its own provider from the configuration when none is
+     * passed in, and that one lands on the 1.x default registry.
+     */
     @Test
     public void testInProcessBookieStatsProviderStaysOutOfTheBrokerScrape() throws Exception {
-        PropertiesConfiguration bookieConf = new PropertiesConfiguration();
-        bookieConf.setProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_HTTP_ENABLE, false);
-        StatsProvider provider = PulsarBrokerStarter.newBookieStatsProvider(PrometheusMetricsProvider.class);
-        provider.start(bookieConf);
+        LocalBookkeeperEnsemble zk = new LocalBookkeeperEnsemble(0, 0);
+        zk.start();
+        File bookieDir = Files.createTempDirectory("bk-starter-test").toFile();
+        StatsProvider provider = null;
+        LifecycleComponentStack bookieServer = null;
         try {
-            // The bookie's own stats endpoint still serves the JVM metrics.
+            ServerConfiguration bookieConf = new ServerConfiguration();
+            bookieConf.setStatsProviderClass(PrometheusMetricsProvider.class);
+            bookieConf.setProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_HTTP_ENABLE, false);
+            bookieConf.setProperty("metadataServiceUri", "zk://127.0.0.1:" + zk.getZookeeperPort() + "/ledgers");
+            bookieConf.setJournalDirName(bookieDir.getPath());
+            bookieConf.setLedgerDirNames(new String[] {bookieDir.getPath()});
+            bookieConf.setLedgerStorageClass(DbLedgerStorage.class.getName());
+            bookieConf.setProperty("dbStorage_writeCacheMaxSizeMb", 2);
+            bookieConf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 1);
+            bookieConf.setProperty("dbStorage_rocksDB_writeBufferSizeMB", 1);
+            bookieConf.setProperty("dbStorage_rocksDB_blockCacheSize", 1024 * 1024);
+            bookieConf.setJournalSyncData(false);
+            bookieConf.setAllowLoopback(true);
+            bookieConf.setBookiePort(0);
+            bookieConf.setAllowEphemeralPorts(true);
+            bookieConf.setAllocatorPoolingPolicy(PoolingPolicy.UnpooledHeap);
+
+            provider = PulsarBrokerStarter.newBookieStatsProvider(bookieConf.getStatsProviderClass());
+            provider.start(bookieConf);
+            bookieServer = PulsarBrokerStarter.newBookieServer(bookieConf, provider);
+            bookieServer.start();
+
+            // The bookie's own stats endpoint serves the JVM metrics and the bookie's metrics.
             StringWriter bookieEndpoint = new StringWriter();
             provider.writeAllMetrics(bookieEndpoint);
-            assertThat(bookieEndpoint.toString()).contains("# TYPE jvm_memory_direct_bytes_used gauge\n");
+            assertThat(bookieEndpoint.toString())
+                    .contains("# TYPE jvm_memory_direct_bytes_used gauge\n")
+                    .contains("bookie_SERVER_STATUS");
             // But none of them reached the registry the broker's /metrics scrapes.
             assertThat(PrometheusRegistry.defaultRegistry.scrape(name -> name.startsWith("jvm_")
                     || name.startsWith("process_") || name.startsWith("bookie_")).size()).isZero();
         } finally {
-            provider.stop();
+            if (bookieServer != null) {
+                bookieServer.close();
+            }
+            if (provider != null) {
+                provider.stop();
+            }
+            zk.stop();
+            FileUtils.deleteDirectory(bookieDir);
         }
         // Any other provider still comes from its no-arg constructor.
         assertThat(PulsarBrokerStarter.newBookieStatsProvider(NullStatsProvider.class))
