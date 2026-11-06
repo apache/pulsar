@@ -41,6 +41,11 @@ public class ProducerCreationTest extends SharedPulsarBaseTest {
     private boolean brokerAllowAutoSubscriptionCreation;
     private boolean brokerAllowAutoTopicCreation;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void saveConfiguration() {
         brokerAllowAutoSubscriptionCreation = getConfig().isAllowAutoSubscriptionCreation();
@@ -68,6 +73,7 @@ public class ProducerCreationTest extends SharedPulsarBaseTest {
 
     @Test(dataProvider = "topicDomainProvider")
     public void testExactlyOnceWithProducerNameSpecified(TopicDomain domain) throws PulsarClientException {
+        @Cleanup
         Producer<byte[]> producer1 = pulsarClient.newProducer()
                 .topic(topicName(domain.value(),
                         "testExactlyOnceWithProducerNameSpecified").toString())
@@ -76,6 +82,7 @@ public class ProducerCreationTest extends SharedPulsarBaseTest {
 
         Assert.assertNotNull(producer1);
 
+        @Cleanup
         Producer<byte[]> producer2 = pulsarClient.newProducer()
                 .topic(topicName("persistent", "testExactlyOnceWithProducerNameSpecified").toString())
                 .producerName("p-name-2")
@@ -97,6 +104,7 @@ public class ProducerCreationTest extends SharedPulsarBaseTest {
     @Test(dataProvider = "topicDomainProvider")
     public void testGeneratedNameProducerReconnect(TopicDomain domain)
             throws PulsarClientException, InterruptedException {
+        @Cleanup
         ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer()
                 .topic(topicName(domain.value(),
                         "testGeneratedNameProducerReconnect").toString())

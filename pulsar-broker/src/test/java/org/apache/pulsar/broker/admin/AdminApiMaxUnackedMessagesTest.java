@@ -46,6 +46,11 @@ public class AdminApiMaxUnackedMessagesTest extends SharedPulsarBaseTest {
 
     private int brokerMaxUnackedMessagesPerConsumer;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void saveConfiguration() {
         brokerMaxUnackedMessagesPerConsumer = getConfig().getMaxUnackedMessagesPerConsumer();

@@ -102,6 +102,11 @@ public class TopicsTest extends SharedPulsarBaseTest {
     private final String testTopicName = "my-topic";
     private boolean preciseTimeBasedBacklogQuotaCheck;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void setupTopics() throws Exception {
         testNamespace = NamespaceName.get(getNamespace()).getLocalName();
@@ -302,6 +307,7 @@ public class TopicsTest extends SharedPulsarBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        @Cleanup
         Consumer consumer = pulsarClient.newConsumer(Schema.INT64)
                 .topic(topicName)
                 .subscriptionName("my-sub")
@@ -353,6 +359,7 @@ public class TopicsTest extends SharedPulsarBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        @Cleanup
         Consumer consumer = pulsarClient.newConsumer(StringSchema.utf8())
                 .topic(topicName)
                 .subscriptionName("my-sub")
@@ -431,6 +438,7 @@ public class TopicsTest extends SharedPulsarBaseTest {
                 new Seller("WA", "main street", 98004));
         PC anotherPc  = new PC("asus", "rog", 2020, GPU.NVIDIA,
                 new Seller("CA", "back street", 90232));
+        @Cleanup
         Consumer consumer = pulsarClient.newConsumer(jsonSchema)
                 .topic(topicName)
                 .subscriptionName("my-sub")
@@ -495,6 +503,7 @@ public class TopicsTest extends SharedPulsarBaseTest {
                 new Seller("WA", "main street", 98004));
         PC anotherPc  = new PC("asus", "rog", 2020, GPU.NVIDIA,
                 new Seller("CA", "back street", 90232));
+        @Cleanup
         Consumer consumer = pulsarClient.newConsumer(avroSchema)
                 .topic(topicName)
                 .subscriptionName("my-sub")
@@ -571,9 +580,11 @@ public class TopicsTest extends SharedPulsarBaseTest {
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema keyValueSchema = KeyValueSchemaImpl.of(StringSchema.utf8(), StringSchema.utf8(),
                                                 KeyValueEncodingType.SEPARATED);
+        @Cleanup
         Producer producer = pulsarClient.newProducer(keyValueSchema)
                                         .topic(topicName)
                                         .create();
+        @Cleanup
         Consumer consumer = pulsarClient.newConsumer(keyValueSchema)
                                         .topic(topicName)
                                         .subscriptionName("my-sub")
@@ -632,6 +643,7 @@ public class TopicsTest extends SharedPulsarBaseTest {
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         Schema keyValueSchema = KeyValueSchemaImpl.of(StringSchema.utf8(), StringSchema.utf8(),
                 KeyValueEncodingType.SEPARATED);
+        @Cleanup
         Consumer consumer = pulsarClient.newConsumer(keyValueSchema)
                 .topic(topicName)
                 .subscriptionName("my-sub")
@@ -711,6 +723,7 @@ public class TopicsTest extends SharedPulsarBaseTest {
         String topicName = "persistent://" + testTenant + "/" + testNamespace + "/" + testTopicName;
         admin.topics().createNonPartitionedTopic(topicName);
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        @Cleanup
         Producer producer = pulsarClient.newProducer(StringSchema.utf8())
                 .topic(topicName)
                 .create();

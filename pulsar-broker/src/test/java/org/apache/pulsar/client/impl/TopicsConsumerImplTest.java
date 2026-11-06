@@ -83,6 +83,11 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
     private int ttlDurationDefaultInSeconds;
     private boolean activeConsumerFailoverConsistentHashing;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void saveConfiguration() {
         ttlDurationDefaultInSeconds = getConfig().getTtlDurationDefaultInSeconds();
@@ -112,6 +117,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
 
         // 2. Create consumer
         try {
+            @Cleanup
             Consumer consumer = pulsarClient.newConsumer()
                 .topics(topicNames)
                 .subscriptionName(subscriptionName)
@@ -128,6 +134,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
     public void testRetryClusterTopic() throws Exception {
         String key = "testRetryClusterTopic";
         final String topicName = "persistent://" + getNamespace() + "/topic-1-" + key;
+        @Cleanup
         Consumer consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionName("my-sub")
@@ -531,6 +538,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
     public void testTopicNameValid() throws Exception{
         final String topicName = "persistent://" + getNamespace() + "/testTopicNameValid";
         admin.topics().createPartitionedTopic(topicName, 3);
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionName("subscriptionName")
@@ -781,6 +789,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
         admin.topics().createPartitionedTopic(topicName1, 2);
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -868,9 +877,11 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
         Thread.sleep(200);
 
         // 4. produce message to xx-partition-2,  and verify consumer could receive message.
+        @Cleanup
         Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1 + "-partition-2")
                 .enableBatching(false)
                 .create();
+        @Cleanup
         Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2 + "-partition-2")
                 .enableBatching(false)
                 .create();
@@ -900,6 +911,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
         final String subName = "failover-test";
         admin.topics().createPartitionedTopic(topicName, 2);
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName).partitions, 2);
+        @Cleanup
         Consumer<String> consumer1 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Failover)
@@ -909,6 +921,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
 
         assertEquals(((MultiTopicsConsumerImpl) consumer1).allTopicPartitionsNumber.get(), 2);
 
+        @Cleanup
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topicName)
                 .messageRouter(new MessageRouter() {
@@ -955,6 +968,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
         consumer1.acknowledgeCumulative(lastMessage);
 
         // 2.Create a new consumer and check active consumer changed
+        @Cleanup
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Failover)
@@ -1016,6 +1030,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
                 .subscribe();
         consumer.close();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).enableBatching(false).create();
         for (int i = 0; i < totalMessages; i++) {
             producer.send(("" + i).getBytes());
@@ -1223,6 +1238,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
         admin.topics().createPartitionedTopic(topicName0, 2);
         assertEquals(admin.topics().getPartitionedTopicMetadata(topicName0).partitions, 2);
 
+        @Cleanup
         PatternMultiTopicsConsumerImpl<String> consumer =
                 (PatternMultiTopicsConsumerImpl<String>) pulsarClient.newConsumer(Schema.STRING)
                 .topicsPattern("persistent://" + getNamespace() + "/test.*")

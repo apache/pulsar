@@ -67,6 +67,11 @@ public class MessageRedeliveryTest extends SharedPulsarBaseTest {
     private int managedLedgerMaxEntriesPerLedger;
     private int managedLedgerMinLedgerRolloverTimeMinutes;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void saveConfiguration() {
         managedLedgerMaxEntriesPerLedger = getConfig().getManagedLedgerMaxEntriesPerLedger();

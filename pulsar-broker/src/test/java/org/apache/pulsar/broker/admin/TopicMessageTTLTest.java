@@ -39,6 +39,11 @@ public class TopicMessageTTLTest extends SharedPulsarBaseTest {
     private String testTopic;
     private int brokerTtlDurationDefaultInSeconds;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod
     public void setupTestTopic() throws Exception {
         // the broker-level TTL: the shared broker reads it when a topic loads and for the applied TTL

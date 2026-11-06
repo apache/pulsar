@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -107,6 +108,11 @@ import org.testng.annotations.Test;
 @Test(groups = "schema")
 public class SchemaTest extends SharedPulsarBaseTest {
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @DataProvider(name = "topicDomain")
     public static Object[] topicDomain() {
         return new Object[] { "persistent://", "non-persistent://" };
@@ -120,8 +126,11 @@ public class SchemaTest extends SharedPulsarBaseTest {
 
         ProtobufSchema<org.apache.pulsar.client.api.schema.proto.Test.TestMessage> protobufSchema =
                 ProtobufSchema.of(org.apache.pulsar.client.api.schema.proto.Test.TestMessage.class);
-        pulsarClient.newProducer(protobufSchema).topic(topic).create();
-        pulsarClient.newProducer(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES()).topic(topic).create();
+        @Cleanup
+        Producer<?> producer = pulsarClient.newProducer(protobufSchema).topic(topic).create();
+        @Cleanup
+        Producer<?> producer2 = pulsarClient.newProducer(org.apache.pulsar.client.api.Schema.AUTO_PRODUCE_BYTES())
+                .topic(topic).create();
     }
 
     @Test
@@ -212,6 +221,7 @@ public class SchemaTest extends SharedPulsarBaseTest {
                 .topic(fqtnOne, fqtnTwo)
                 .subscribe();
 
+        @Cleanup
         Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .subscriptionName("test2")
                 .topic(fqtnOne, fqtnTwo)
@@ -308,6 +318,7 @@ public class SchemaTest extends SharedPulsarBaseTest {
                 .topic(fqtnOne, fqtnTwo)
                 .subscribe();
 
+        @Cleanup
         Consumer<GenericRecord> consumer2 = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .subscriptionName("test2")
                 .topic(fqtnOne, fqtnTwo)
@@ -357,10 +368,12 @@ public class SchemaTest extends SharedPulsarBaseTest {
         admin.namespaces().setSchemaCompatibilityStrategy(tenant + "/" + namespace,
                 SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
                 .topic(fqtnOne)
                 .create();
 
+        @Cleanup
         final Consumer<GenericRecord> consumer =
                 pulsarClient.newConsumer(Schema.AUTO_CONSUME()).topic(fqtnOne)
                 .subscriptionName("sub")
@@ -976,11 +989,13 @@ public class SchemaTest extends SharedPulsarBaseTest {
 
         admin.topics().createPartitionedTopic(topic, 2);
 
+        @Cleanup
         Producer<String> producer = pulsarClient
                 .newProducer(Schema.STRING)
                 .topic(topic)
                 .create();
 
+        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .subscriptionName("test-sub")
                 .topic(topic)
@@ -999,6 +1014,7 @@ public class SchemaTest extends SharedPulsarBaseTest {
         admin.namespaces().setSchemaCompatibilityStrategy(ns, SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE);
 
         final String autoProducerTopic = getTopicName(ns, "auto_produce_topic");
+        @Cleanup
         Producer<byte[]> autoProducer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES())
                 .topic(autoProducerTopic)
                 .create();
@@ -1034,6 +1050,7 @@ public class SchemaTest extends SharedPulsarBaseTest {
                 new KeyValue<>(100, new Schemas.PersonThree(40, "kv-separate")),
                 autoProducer, totalMsgCnt);
 
+        @Cleanup
         Consumer<GenericRecord> autoConsumer = pulsarClient.newConsumer(Schema.AUTO_CONSUME())
                 .topic(autoProducerTopic)
                 .subscriptionName("test")
@@ -1252,7 +1269,8 @@ public class SchemaTest extends SharedPulsarBaseTest {
         final String topic = getTopicName(ns, "testCreateSchemaInParallel");
         @Cleanup("shutdownNow")
         ExecutorService executor = Executors.newFixedThreadPool(16);
-        List<CompletableFuture<Producer<Schemas.PersonOne>>> producers = new ArrayList<>(16);
+        List<CompletableFuture<Producer<Schemas.PersonOne>>> producers =
+                Collections.synchronizedList(new ArrayList<>(16));
         CountDownLatch latch = new CountDownLatch(16);
         for (int i = 0; i < 16; i++) {
             executor.execute(() -> {
@@ -1264,9 +1282,9 @@ public class SchemaTest extends SharedPulsarBaseTest {
         latch.await();
         FutureUtil.waitForAll(producers).join();
         assertEquals(admin.schemas().getAllSchemas(topic).size(), 1);
-        producers.clear();
 
-        List<CompletableFuture<Producer<Schemas.PersonThree>>> producers2 = new ArrayList<>(16);
+        List<CompletableFuture<Producer<Schemas.PersonThree>>> producers2 =
+                Collections.synchronizedList(new ArrayList<>(16));
         CountDownLatch latch2 = new CountDownLatch(16);
         for (int i = 0; i < 16; i++) {
             executor.execute(() -> {

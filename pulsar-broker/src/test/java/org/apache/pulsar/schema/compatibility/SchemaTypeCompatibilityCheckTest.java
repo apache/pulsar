@@ -24,6 +24,7 @@ import static org.testng.Assert.expectThrows;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -44,6 +45,11 @@ import org.testng.annotations.Test;
 
 public class SchemaTypeCompatibilityCheckTest extends SharedPulsarBaseTest {
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @Test
     public void testSchemaCompatibilityStrategyInBrokerLevel() throws PulsarClientException {
         // the shared broker reads this setting when a topic loads, so it applies to the topic created below
@@ -56,7 +62,8 @@ public class SchemaTypeCompatibilityCheckTest extends SharedPulsarBaseTest {
                     "testSchemaCompatibilityStrategyInBrokerLevel"
             ).toString();
 
-            pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
+            @Cleanup
+            Producer<?> producer = pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
                     withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
                     .topic(topicName)
                     .create();
@@ -84,7 +91,8 @@ public class SchemaTypeCompatibilityCheckTest extends SharedPulsarBaseTest {
                 "structTypeProducerProducerUndefinedCompatible"
         ).toString();
 
-        pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+        @Cleanup
+        Producer<?> producer = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topicName)
                 .create();
 
@@ -106,7 +114,8 @@ public class SchemaTypeCompatibilityCheckTest extends SharedPulsarBaseTest {
                 "structTypeProducerConsumerUndefinedCompatible"
         ).toString();
 
-        pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
+        @Cleanup
+        Producer<?> producer = pulsarClient.newProducer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topicName)
                 .create();
 
@@ -131,7 +140,8 @@ public class SchemaTypeCompatibilityCheckTest extends SharedPulsarBaseTest {
                 "structTypeConsumerProducerUndefinedCompatible"
         ).toString();
 
-        pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
+        @Cleanup
+        Consumer<?> consumer = pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
@@ -156,7 +166,8 @@ public class SchemaTypeCompatibilityCheckTest extends SharedPulsarBaseTest {
                 "structTypeConsumerConsumerUndefinedCompatible"
         ).toString();
 
-        pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
+        @Cleanup
+        Consumer<?> consumer = pulsarClient.newConsumer(Schema.JSON(Schemas.PersonOne.class))
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
@@ -183,7 +194,8 @@ public class SchemaTypeCompatibilityCheckTest extends SharedPulsarBaseTest {
                 "primitiveTypeProducerProducerUndefinedCompatible"
         ).toString();
 
-        pulsarClient.newProducer(Schema.INT32)
+        @Cleanup
+        Producer<?> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topicName)
                 .create();
 
@@ -205,7 +217,8 @@ public class SchemaTypeCompatibilityCheckTest extends SharedPulsarBaseTest {
                 "primitiveTypeProducerConsumerUndefinedCompatible"
         ).toString();
 
-        pulsarClient.newProducer(Schema.INT32)
+        @Cleanup
+        Producer<?> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topicName)
                 .create();
 
@@ -230,7 +243,8 @@ public class SchemaTypeCompatibilityCheckTest extends SharedPulsarBaseTest {
                 "primitiveTypeConsumerProducerUndefinedCompatible"
         ).toString();
 
-        pulsarClient.newConsumer(Schema.INT32)
+        @Cleanup
+        Consumer<?> consumer = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)
@@ -255,7 +269,8 @@ public class SchemaTypeCompatibilityCheckTest extends SharedPulsarBaseTest {
                 "primitiveTypeConsumerConsumerUndefinedCompatible"
         ).toString();
 
-        pulsarClient.newConsumer(Schema.INT32)
+        @Cleanup
+        Consumer<?> consumer = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(1, TimeUnit.SECONDS)

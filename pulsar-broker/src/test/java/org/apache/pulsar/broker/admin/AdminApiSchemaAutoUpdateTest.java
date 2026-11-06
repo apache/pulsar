@@ -38,6 +38,11 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class AdminApiSchemaAutoUpdateTest extends SharedPulsarBaseTest {
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @SuppressWarnings("deprecation")
     private void testAutoUpdateBackward(String namespace, String topicName) throws Exception {
         Assert.assertNull(admin.namespaces().getSchemaAutoUpdateCompatibilityStrategy(namespace));

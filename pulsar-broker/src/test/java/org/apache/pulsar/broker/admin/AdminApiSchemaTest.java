@@ -78,6 +78,11 @@ public class AdminApiSchemaTest extends SharedPulsarBaseTest {
         PROPS.put("key1", "value1");
     }
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @DataProvider(name = "schemas")
     public Object[][] schemas() {
         return new Object[][] {

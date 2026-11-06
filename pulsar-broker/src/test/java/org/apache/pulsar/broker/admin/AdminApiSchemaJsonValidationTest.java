@@ -42,6 +42,11 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class AdminApiSchemaJsonValidationTest extends SharedPulsarBaseTest {
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @Test
     public void testAvroFormatJsonSchemaAccepted() throws Exception {
         // Valid Avro schema for SchemaType.JSON should always be accepted

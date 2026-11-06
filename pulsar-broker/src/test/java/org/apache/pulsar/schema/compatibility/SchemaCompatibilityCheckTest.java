@@ -78,6 +78,11 @@ public class SchemaCompatibilityCheckTest extends SharedPulsarBaseTest {
 
     private boolean allowAutoUpdateSchemaEnabled;
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @BeforeMethod(alwaysRun = true)
     public void saveConfiguration() {
         allowAutoUpdateSchemaEnabled = getConfig().isAllowAutoUpdateSchemaEnabled();
@@ -256,7 +261,7 @@ public class SchemaCompatibilityCheckTest extends SharedPulsarBaseTest {
                         withPojo(Schemas.PersonTwo.class).build()))
                 .topic(fqtn);
         try {
-            producerThreeBuilder.create();
+            producerThreeBuilder.create().close();
         } catch (Exception e) {
             Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }
@@ -333,7 +338,7 @@ public class SchemaCompatibilityCheckTest extends SharedPulsarBaseTest {
                         withPojo(Schemas.PersonTwo.class).build()))
                 .topic(fqtn);
         try {
-            producerThreeBuilder.create();
+            producerThreeBuilder.create().close();
         } catch (Exception e) {
             Assert.assertTrue(e.getMessage().contains("Schema not found and schema auto updating is disabled."));
         }

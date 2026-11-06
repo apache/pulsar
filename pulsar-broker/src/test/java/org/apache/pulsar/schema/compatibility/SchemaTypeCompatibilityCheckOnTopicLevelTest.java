@@ -22,9 +22,11 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
+import lombok.Cleanup;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
@@ -44,6 +46,11 @@ import org.testng.annotations.Test;
  */
 public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends SharedPulsarBaseTest {
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @Test
     public void testSetAlwaysInCompatibleStrategyOnTopicLevelAndCheckAlwaysInCompatible()
             throws PulsarClientException, PulsarServerException, PulsarAdminException {
@@ -62,7 +69,8 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends SharedPulsarBa
                         getPulsar().getAdminClient().topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
 
-        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
+        @Cleanup
+        Producer<?> producer = pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
                         withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
                 .topic(topicName)
                 .create();
@@ -97,7 +105,8 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends SharedPulsarBa
                         getPulsar().getAdminClient().topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_INCOMPATIBLE));
 
-        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
+        @Cleanup
+        Producer<?> producer = pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
                         withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
                 .topic(topicName)
                 .create();
@@ -123,12 +132,14 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends SharedPulsarBa
 
         getPulsar().getAdminClient().topics().createNonPartitionedTopic(topicName);
 
-        pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
+        @Cleanup
+        Producer<?> producer = pulsarClient.newProducer(Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().
                         withAlwaysAllowNull(true).withPojo(Schemas.PersonOne.class).build()))
                 .topic(topicName)
                 .create();
 
-        pulsarClient.newProducer(
+        @Cleanup
+        Producer<?> producer2 = pulsarClient.newProducer(
                         Schema.AVRO(SchemaDefinition.<Schemas.PersonThree>builder().withAlwaysAllowNull(true)
                                 .withPojo(Schemas.PersonThree.class).build()))
                 .topic(topicName).create();
@@ -157,7 +168,8 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends SharedPulsarBa
                 () -> assertEquals(admin.namespaces().getSchemaCompatibilityStrategy(getNamespace()),
                         SchemaCompatibilityStrategy.UNDEFINED));
 
-        pulsarClient.newProducer(
+        @Cleanup
+        Producer<?> producer = pulsarClient.newProducer(
                         Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().withAlwaysAllowNull(true)
                                 .withPojo(Schemas.PersonOne.class).build()))
                 .topic(topicName).create();
@@ -196,7 +208,8 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends SharedPulsarBa
         Awaitility.await().untilAsserted(
                 () -> assertEquals(admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE));
-        pulsarClient.newProducer(
+        @Cleanup
+        Producer<?> producer2 = pulsarClient.newProducer(
                         Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().withAlwaysAllowNull(true)
                                 .withPojo(Schemas.PersonOne.class).build()))
                 .topic(topicName).create();
@@ -218,7 +231,8 @@ public class SchemaTypeCompatibilityCheckOnTopicLevelTest extends SharedPulsarBa
         Awaitility.await().untilAsserted(
                 () -> assertEquals(admin.topicPolicies().getSchemaCompatibilityStrategy(topicName, true),
                         SchemaCompatibilityStrategy.ALWAYS_COMPATIBLE));
-        pulsarClient.newProducer(
+        @Cleanup
+        Producer<?> producer3 = pulsarClient.newProducer(
                         Schema.AVRO(SchemaDefinition.<Schemas.PersonOne>builder().withAlwaysAllowNull(true)
                                 .withPojo(Schemas.PersonOne.class).build()))
                 .topic(topicName).create();

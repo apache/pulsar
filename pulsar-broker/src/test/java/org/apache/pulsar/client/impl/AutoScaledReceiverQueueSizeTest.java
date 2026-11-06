@@ -45,6 +45,11 @@ import org.testng.annotations.Test;
 @CustomLog
 public class AutoScaledReceiverQueueSizeTest extends SharedPulsarBaseTest {
 
+    @Override
+    protected boolean checkClientHandlesClosed() {
+        return true;
+    }
+
     @Test
     public void testConsumerImpl() throws PulsarClientException {
         String topic = "persistent://" + getNamespace() + "/testConsumerImpl" + System.currentTimeMillis();
