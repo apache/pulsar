@@ -663,6 +663,23 @@ public class Consumer {
         subscription.acknowledgeMessage(positionsAcked.stream()
                 .map(Pair::getRight)
                 .collect(Collectors.toList()), AckType.Individual, properties);
+        if (Subscription.isIndividualAckMode(subType)
+                && subscription instanceof PersistentSubscription persistentSubscription) {
+            // The cursor merges batch-index ACKs even beyond a mark-delete hole. A completed batch must
+            // release its pending entry and account for the remaining unacked count exactly once.
+            for (Pair<Consumer, Position> positionPair : positionsAcked) {
+                Position position = positionPair.getRight();
+                if (AckSetStateUtil.hasAckSet(position)
+                        && persistentSubscription.getCursor().isMessageDeleted(position)) {
+                    Consumer ackOwnerConsumer = positionPair.getLeft();
+                    IntIntPair removed = ackOwnerConsumer.removePendingAckAndGet(
+                            position.getLedgerId(), position.getEntryId());
+                    if (removed != null) {
+                        ackOwnerConsumer.decrementUnackedMessagesAndReconcileBlockedState(removed.leftInt());
+                    }
+                }
+            }
+        }
         CompletableFuture<Long> completableFuture = new CompletableFuture<>();
         completableFuture.complete(totalAckCount);
         if (isTransactionEnabled() && Subscription.isIndividualAckMode(subType)) {
