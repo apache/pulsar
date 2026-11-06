@@ -182,6 +182,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsarTestContext.getMockBookKeeper().setReadHandleInterceptor(null);
             pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
             pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
+            // A producer or a consumer that the test method left open would reconnect to the recreated namespaces and
+            // create its topic again: close them with the client
+            pulsarClient.shutdown();
+            pulsarClient = newPulsarClient(lookupUrl.toString(), 0);
 
             if (!recreateBaseNamespacesIfNothingElseChanged()) {
                 for (String tenant : admin.tenants().getTenants()) {
