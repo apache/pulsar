@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
@@ -163,7 +164,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
                 .createAsync();
 
         // wait for all the Producers to be enqueued in order to prevent races
-        Thread.sleep(2000);
+        waitForQueuedProducers(topic, 1);
 
         // p6 fences out all the current producers, even p5
         Producer<String> p6 = pulsarClient.newProducer(Schema.STRING)
@@ -259,8 +260,8 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
                 .topic(topic)
                 .accessMode(ProducerAccessMode.WaitForExclusive)
                 .createAsync();
-        // sleep 1 second to make sure p1, p2, p3Future are added to broker producers and waitingExclusiveProducers
-        Thread.sleep(1000L);
+        // make sure p3Future is added to waitingExclusiveProducers, behind the broker producers p1 and p2
+        waitForQueuedProducers(topic, 1);
         // now p3Future is still pending because p1,p2 are active in shared mode.
         assertFalse(p3Future.isDone());
         p1.close();
@@ -404,9 +405,9 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
                 .accessMode(ProducerAccessMode.WaitForExclusive)
                 .createAsync();
 
-        // This sleep is made to ensure P2 is enqueued before P3. Because of the lookups
+        // This wait is made to ensure P2 is enqueued before P3. Because of the lookups
         // there's no strict guarantee they would be attempted in the same order otherwise
-        Thread.sleep(1000);
+        waitForQueuedProducers(topic, 1);
 
         CompletableFuture<Producer<String>> fp3 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
@@ -414,7 +415,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
                 .accessMode(ProducerAccessMode.WaitForExclusive)
                 .createAsync();
 
-        Thread.sleep(1000);
+        waitForQueuedProducers(topic, 2);
         // The second producer should get queued
         assertFalse(fp2.isDone());
         assertFalse(fp3.isDone());
@@ -476,6 +477,19 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
                 .subscribe();
 
         simpleTest(topic);
+    }
+
+    /**
+     * Waits until the broker has queued {@code count} WaitForExclusive producers on the topic. A partitioned producer
+     * waits on its first partition only, and creates its producers on the other partitions once it holds that one.
+     */
+    private void waitForQueuedProducers(String topic, int count) throws Exception {
+        String queueTopic = admin.topics().getPartitionedTopicMetadata(topic).partitions > 0
+                ? TopicName.get(topic).getPartition(0).toString() : topic;
+        Awaitility.await().pollDelay(0, TimeUnit.MILLISECONDS).pollInterval(10, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertEquals(
+                        ((AbstractTopic) getTopicReference(queueTopic).orElseThrow()).getWaitingProducersCount(),
+                        count));
     }
 
     private String newTopic(String type, boolean isPartitioned) throws Exception {
