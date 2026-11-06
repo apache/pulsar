@@ -31,6 +31,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
@@ -44,12 +47,19 @@ import org.apache.pulsar.admin.cli.CmdFunctions.StopFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.common.functions.BatchingConfig;
+import org.apache.pulsar.common.functions.ConsumerConfig;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.MemoryLimit;
+import org.apache.pulsar.common.functions.MessagePayloadProcessorConfig;
+import org.apache.pulsar.common.functions.ProducerConfig;
 import org.apache.pulsar.common.functions.UpdateOptionsImpl;
+import org.apache.pulsar.common.functions.WindowConfig;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.IdentityFunction;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import picocli.CommandLine;
@@ -275,6 +285,21 @@ public class CmdFunctionsTest {
         assertEquals(FN_NAME, status.getFunctionName());
 
         verify(functions, times(1)).getFunctionStatus(tenant, namespace, FN_NAME, instanceId);
+    }
+
+    @Test
+    public void testGetFunctionStats() throws Exception {
+        assertTrue(cmd.run(new String[] {"stats", "--tenant", TENANT, "--namespace", NAMESPACE, "--name", FN_NAME}));
+
+        verify(functions, times(1)).getFunctionStats(TENANT, NAMESPACE, FN_NAME);
+    }
+
+    @Test
+    public void testGetFunctionInstanceStats() throws Exception {
+        assertTrue(cmd.run(new String[] {"stats", "--tenant", TENANT, "--namespace", NAMESPACE, "--name", FN_NAME,
+                "--instance-id", "1"}));
+
+        verify(functions, times(1)).getFunctionStats(TENANT, NAMESPACE, FN_NAME, 1);
     }
 
     @Test
@@ -601,6 +626,163 @@ public class CmdFunctionsTest {
         CreateFunction creater = cmd.getCreater();
         assertNull(creater.getFunctionConfig().getOutput());
         assertTrue(stringWriter.toString().contains("Created successfully"));
+    }
+
+    // Runs "functions create" for a Java function with the given options and returns the config that the command
+    // passes to Functions.createFunction
+    private FunctionConfig createFunctionWith(String... options) throws Exception {
+        List<String> args = new ArrayList<>(List.of(
+                "create",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--name", FN_NAME,
+                "--className", DummyFunction.class.getName(),
+                "--jar", JAR_NAME));
+        args.addAll(List.of(options));
+        assertTrue(cmd.run(args.toArray(new String[0])));
+        ArgumentCaptor<FunctionConfig> config = ArgumentCaptor.forClass(FunctionConfig.class);
+        verify(functions).createFunction(config.capture(), eq(JAR_NAME));
+        return config.getValue();
+    }
+
+    @Test
+    public void testCreateFunctionWithRetainOrdering() throws Exception {
+        FunctionConfig config = createFunctionWith("--retain-ordering");
+        assertEquals(config.getRetainOrdering(), Boolean.TRUE);
+    }
+
+    @Test
+    public void testCreateFunctionWithRetainKeyOrdering() throws Exception {
+        FunctionConfig config = createFunctionWith("--retain-key-ordering");
+        assertEquals(config.getRetainKeyOrdering(), Boolean.TRUE);
+    }
+
+    @Test
+    public void testCreateFunctionWithProducerConfig() throws Exception {
+        FunctionConfig config = createFunctionWith("--producer-config", """
+                {"batchingConfig": {"enabled": true, "batchingMaxPublishDelayMs": 5, "batchingMaxMessages": 100,
+                "batchingMaxBytes": 65536, "roundRobinRouterBatchingPartitionSwitchFrequency": 5,
+                "batchBuilder": "KEY_BASED"}}""");
+        assertEquals(config.getProducerConfig(), ProducerConfig.builder()
+                .batchingConfig(BatchingConfig.builder()
+                        .enabled(true)
+                        .batchingMaxPublishDelayMs(5)
+                        .batchingMaxMessages(100)
+                        .batchingMaxBytes(65536)
+                        .roundRobinRouterBatchingPartitionSwitchFrequency(5)
+                        .batchBuilder("KEY_BASED")
+                        .build())
+                .build());
+    }
+
+    @Test
+    public void testCreateFunctionWithInputSpecs() throws Exception {
+        FunctionConfig config = createFunctionWith(
+                "--inputs", INPUT_TOPIC_NAME,
+                "--input-specs", """
+                        {"%s": {"messagePayloadProcessorConfig": {"className": "org.example.PayloadProcessor",
+                        "config": {"key": "value"}}}}""".formatted(INPUT_TOPIC_NAME));
+        ConsumerConfig consumerConfig = new ConsumerConfig();
+        consumerConfig.setMessagePayloadProcessorConfig(
+                new MessagePayloadProcessorConfig("org.example.PayloadProcessor", Map.of("key", "value")));
+        assertEquals(config.getInputs(), List.of(INPUT_TOPIC_NAME));
+        assertEquals(config.getInputSpecs(), Map.of(INPUT_TOPIC_NAME, consumerConfig));
+    }
+
+    @Test
+    public void testCreateFunctionWithSerDe() throws Exception {
+        String topicsPattern = "persistent://sample/ns1/input-.*";
+        FunctionConfig config = createFunctionWith(
+                "--topics-pattern", topicsPattern,
+                "--custom-serde-inputs", "{\"" + topicsPattern + "\": \"org.example.InputSerDe\"}",
+                "--output", OUTPUT_TOPIC_NAME,
+                "--output-serde-classname", "org.example.OutputSerDe");
+        assertEquals(config.getTopicsPattern(), topicsPattern);
+        assertEquals(config.getCustomSerdeInputs(), Map.of(topicsPattern, "org.example.InputSerDe"));
+        assertEquals(config.getOutput(), OUTPUT_TOPIC_NAME);
+        assertEquals(config.getOutputSerdeClassName(), "org.example.OutputSerDe");
+    }
+
+    @Test
+    public void testCreateFunctionWithSchemas() throws Exception {
+        FunctionConfig config = createFunctionWith(
+                "--custom-schema-inputs", """
+                        {"%s": "{\\"schemaType\\": \\"AVRO\\"}"}""".formatted(INPUT_TOPIC_NAME),
+                "--input-type-class-name", "org.example.Input",
+                "--output", OUTPUT_TOPIC_NAME,
+                "--schema-type", "JSON",
+                "--output-type-class-name", "org.example.Output");
+        assertEquals(config.getCustomSchemaInputs(), Map.of(INPUT_TOPIC_NAME, "{\"schemaType\": \"AVRO\"}"));
+        assertEquals(config.getInputTypeClassName(), "org.example.Input");
+        assertEquals(config.getOutput(), OUTPUT_TOPIC_NAME);
+        assertEquals(config.getOutputSchemaType(), "JSON");
+        assertEquals(config.getOutputTypeClassName(), "org.example.Output");
+    }
+
+    @Test
+    public void testCreateFunctionWithSubscriptionPosition() throws Exception {
+        FunctionConfig config = createFunctionWith("--subs-position", "Earliest");
+        assertEquals(config.getSubscriptionPosition(), SubscriptionInitialPosition.Earliest);
+    }
+
+    @Test
+    public void testCreateFunctionWithCountWindow() throws Exception {
+        FunctionConfig config = createFunctionWith(
+                "--window-length-count", "10",
+                "--sliding-interval-count", "5");
+        assertEquals(config.getWindowConfig(), new WindowConfig()
+                .setWindowLengthCount(10)
+                .setSlidingIntervalCount(5));
+    }
+
+    @Test
+    public void testCreateFunctionWithTimeout() throws Exception {
+        FunctionConfig config = createFunctionWith("--timeout-ms", "10000");
+        assertEquals(config.getTimeoutMs(), Long.valueOf(10000));
+    }
+
+    @Test
+    public void testCreateFunctionWithLogTopic() throws Exception {
+        FunctionConfig config = createFunctionWith("--log-topic", "persistent://sample/ns1/log-topic");
+        assertEquals(config.getLogTopic(), "persistent://sample/ns1/log-topic");
+    }
+
+    @Test
+    public void testCreateFunctionWithParallelism() throws Exception {
+        FunctionConfig config = createFunctionWith("--parallelism", "2");
+        assertEquals(config.getParallelism(), Integer.valueOf(2));
+    }
+
+    @Test
+    public void testCreateFunctionWithUserConfig() throws Exception {
+        FunctionConfig config = createFunctionWith("--user-config", "{\"publish-topic\": \"publish-topic-name\"}");
+        assertEquals(config.getUserConfig(), Map.of("publish-topic", "publish-topic-name"));
+    }
+
+    // The hidden option names that CmdFunctions keeps for backwards compatibility
+    @Test
+    public void testCreateFunctionWithDeprecatedOptionNames() throws Exception {
+        String topicsPattern = "persistent://sample/ns1/input-.*";
+        FunctionConfig config = createFunctionWith(
+                "--topicsPattern", topicsPattern,
+                "--customSerdeInputs", "{\"" + topicsPattern + "\": \"org.example.InputSerDe\"}",
+                "--outputSerdeClassName", "org.example.OutputSerDe",
+                "--logTopic", "persistent://sample/ns1/log-topic",
+                "--userConfig", "{\"publish-topic\": \"publish-topic-name\"}",
+                "--retainOrdering",
+                "--windowLengthCount", "10",
+                "--slidingIntervalCount", "5",
+                "--timeoutMs", "10000");
+        assertEquals(config.getTopicsPattern(), topicsPattern);
+        assertEquals(config.getCustomSerdeInputs(), Map.of(topicsPattern, "org.example.InputSerDe"));
+        assertEquals(config.getOutputSerdeClassName(), "org.example.OutputSerDe");
+        assertEquals(config.getLogTopic(), "persistent://sample/ns1/log-topic");
+        assertEquals(config.getUserConfig(), Map.of("publish-topic", "publish-topic-name"));
+        assertEquals(config.getRetainOrdering(), Boolean.TRUE);
+        assertEquals(config.getWindowConfig(), new WindowConfig()
+                .setWindowLengthCount(10)
+                .setSlidingIntervalCount(5));
+        assertEquals(config.getTimeoutMs(), Long.valueOf(10000));
     }
 
     @Test
