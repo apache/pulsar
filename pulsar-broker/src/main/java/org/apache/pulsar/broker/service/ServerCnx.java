@@ -4802,7 +4802,16 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
     @Override
     protected void interceptCommand(BaseCommand command) throws InterceptException {
         if (brokerInterceptor != null) {
-            brokerInterceptor.onPulsarCommand(command, this);
+            try {
+                brokerInterceptor.onPulsarCommand(command, this);
+            } catch (InterceptException e) {
+                if (command.getType() == BaseCommand.Type.PRODUCER) {
+                    ServerError error = ServerError.valueOf(e.getErrorCode());
+                    service.getPulsarStats().recordProducerCreateFailure(
+                            error == null ? ServerError.UnknownError : error);
+                }
+                throw e;
+            }
         }
     }
 
