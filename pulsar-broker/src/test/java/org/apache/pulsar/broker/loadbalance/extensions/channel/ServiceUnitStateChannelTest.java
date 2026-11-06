@@ -59,7 +59,6 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 import java.lang.reflect.Field;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +79,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -190,7 +191,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         conf.setAllowAutoTopicCreationType(TopicType.PARTITIONED);
         conf.setLoadBalancerDebugModeEnabled(true);
         conf.setBrokerServiceCompactionMonitorIntervalInSeconds(10);
-        conf.setLoadManagerServiceUnitStateTableViewClassName(serviceUnitStateTableViewClassName);
+        // The metadata store variant runs a subclass of its table view, for cleanTableViews()
+        conf.setLoadManagerServiceUnitStateTableViewClassName(
+                serviceUnitStateTableViewClassName.equals(ServiceUnitStateMetadataStoreTableViewImpl.class.getName())
+                        ? InitTrackingMetadataStoreTableView.class.getName() : serviceUnitStateTableViewClassName);
     }
 
     @BeforeClass
@@ -674,6 +678,48 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilNewOwner(channel2, bundle, brokerId1);
         assertEquals(Optional.of(brokerId1), channel2.getOwnerAsync(bundle).get(10, TimeUnit.SECONDS));
         validateHandlerCounters(channel2, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    }
+
+    @Test(priority = 4)
+    public void testCleanupWaitsForTheInitOfAServiceUnitThatLeftTheView() throws Exception {
+        if (!getTableView(channel1).isMetadataStoreBased()) {
+            // The cleanup clears the system topic table views directly
+            return;
+        }
+        channel1.publishAssignEventAsync(bundle, brokerId1);
+        waitUntilNewOwner(channel1, bundle, brokerId1);
+        waitUntilNewOwner(channel2, bundle, brokerId1);
+
+        // Once the bundle's deletion has removed it from channel1's view, hold channel1 before it handles the Init
+        // event, until the cleanup first checks for the Init events the channels have yet to handle
+        var tableView1 = getInitTrackingTableView(channel1);
+        var held = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        tableView1.beforeInitHandled = serviceUnit -> {
+            if (serviceUnit.equals(bundle)) {
+                held.countDown();
+                try {
+                    release.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        };
+        tableView1.beforeAwaitingInitCheck = release::countDown;
+        var initCounter = ((ServiceUnitStateChannelImpl) channel1).handlerCounters.get(Init).getTotal();
+        try {
+            getTableView(channel2).delete(bundle).get(10, TimeUnit.SECONDS);
+            assertTrue(held.await(10, TimeUnit.SECONDS));
+            assertNull(tableView1.get(bundle));
+            long inits = initCounter.get();
+
+            cleanTableViews();
+            assertEquals(inits + 1, initCounter.get());
+        } finally {
+            release.countDown();
+            tableView1.beforeInitHandled = serviceUnit -> { };
+            tableView1.beforeAwaitingInitCheck = () -> { };
+        }
     }
 
     @Test(priority = 5)
@@ -2568,19 +2614,14 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             cleanTableView(channel2);
             return;
         }
-        // Each channel handles one Init for each service unit that leaves its table view, whichever channel deletes
-        // it, once the notification reaches it. Count them for both channels before deleting anything, since a
-        // channel can still be handling the last events of a test.
-        var channels = List.of((ServiceUnitStateChannelImpl) channel1, (ServiceUnitStateChannelImpl) channel2);
-        Map<ServiceUnitStateChannelImpl, Long> expectedInits = new HashMap<>();
+        // Each channel handles an Init event for each service unit that leaves its view, whichever channel deletes it,
+        // once the deletion reaches it, and a channel can still be handling the last events of a test. Wait until
+        // the channels have handled all of them, so that none counts in the next test.
+        var channels = List.of(channel1, channel2);
         Set<String> serviceUnits = new HashSet<>();
         for (var channel : channels) {
-            channel.getOwnerRequests().clear();
-            long inits = channel.handlerCounters.get(Init).getTotal().get();
-            var channelServiceUnits = new HashSet<>(channel.getTableView().entrySet().stream()
-                    .map(Map.Entry::getKey).toList());
-            expectedInits.put(channel, inits + channelServiceUnits.size());
-            serviceUnits.addAll(channelServiceUnits);
+            ((ServiceUnitStateChannelImpl) channel).getOwnerRequests().clear();
+            getTableView(channel).entrySet().forEach(entry -> serviceUnits.add(entry.getKey()));
         }
         // Ignores the service units that are already deleted
         var tableView = getTableView(channel1);
@@ -2589,9 +2630,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
         Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
             for (var channel : channels) {
-                assertTrue(channel.getTableView().entrySet().isEmpty());
-                assertEquals(expectedInits.get(channel).longValue(),
-                        channel.handlerCounters.get(Init).getTotal().get());
+                assertTrue(getTableView(channel).entrySet().isEmpty());
+                assertFalse(getInitTrackingTableView(channel).isAwaitingInit());
             }
         });
     }
@@ -2895,5 +2935,60 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     private void enableChannels() {
         ((ServiceUnitStateChannelImpl) channel1).enable();
         ((ServiceUnitStateChannelImpl) channel2).enable();
+    }
+
+    private static InitTrackingMetadataStoreTableView getInitTrackingTableView(ServiceUnitStateChannel channel)
+            throws IllegalAccessException {
+        return (InitTrackingMetadataStoreTableView) getTableView(channel);
+    }
+
+    /**
+     * The metadata store table view, recording the service units whose Init event the channel has yet to handle.
+     *
+     * <p>A service unit leaves the view before the view hands the channel its Init event, so neither the view nor the
+     * channel's handler counters tell whether the channel still has to handle it. The record keeps a service unit from
+     * the time the channel handles it into the view until the channel has handled its Init event.
+     */
+    public static class InitTrackingMetadataStoreTableView extends ServiceUnitStateMetadataStoreTableViewImpl {
+        private final Set<String> serviceUnitsAwaitingInit = ConcurrentHashMap.newKeySet();
+        private volatile Consumer<String> beforeInitHandled = serviceUnit -> { };
+        private volatile Runnable beforeAwaitingInitCheck = () -> { };
+
+        @Override
+        public void start(PulsarService pulsar,
+                          BiConsumer<String, ServiceUnitStateData> tailItemListener,
+                          BiConsumer<String, ServiceUnitStateData> existingItemListener,
+                          BiConsumer<String, ServiceUnitStateData> outdatedItemListeners)
+                throws MetadataStoreException {
+            super.start(pulsar, (serviceUnit, data) -> {
+                if (data != null) {
+                    serviceUnitsAwaitingInit.add(serviceUnit);
+                    tailItemListener.accept(serviceUnit, data);
+                    return;
+                }
+                // The service unit has left the view
+                try {
+                    beforeInitHandled.accept(serviceUnit);
+                    tailItemListener.accept(serviceUnit, null);
+                } finally {
+                    serviceUnitsAwaitingInit.remove(serviceUnit);
+                }
+            }, (serviceUnit, data) -> {
+                serviceUnitsAwaitingInit.add(serviceUnit);
+                existingItemListener.accept(serviceUnit, data);
+            }, (serviceUnit, data) -> {
+                try {
+                    outdatedItemListeners.accept(serviceUnit, data);
+                } finally {
+                    // The view drops an outdated service unit without an Init event
+                    serviceUnitsAwaitingInit.remove(serviceUnit);
+                }
+            });
+        }
+
+        boolean isAwaitingInit() {
+            beforeAwaitingInitCheck.run();
+            return !serviceUnitsAwaitingInit.isEmpty();
+        }
     }
 }
