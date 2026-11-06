@@ -1141,8 +1141,9 @@ public class SubscriptionSeekTest extends BrokerTestBase {
             producer.send(i + "");
         }
 
-        // Inject a delay for reset-cursor.
-        mockZooKeeper.delay(3000, (op, path) -> {
+        // Inject a delay for reset-cursor, without holding up the other ZooKeeper operations: the broker's session
+        // watcher would report the connection as lost, and the topic couldn't be deleted until its next check.
+        mockZooKeeper.delayMulti(3000, (op, path) -> {
             if (path.equals("/managed-ledgers/prop/ns-abc/persistent/my-topic2/s1")) {
                 return op.toString().equalsIgnoreCase("SET");
             }

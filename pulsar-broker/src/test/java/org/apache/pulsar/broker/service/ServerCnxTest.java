@@ -36,6 +36,8 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.matches;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.same;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -123,12 +125,15 @@ import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerImpl
 import org.apache.pulsar.broker.loadbalance.extensions.ExtensibleLoadManagerWrapper;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
+import org.apache.pulsar.broker.resources.TopicListener;
+import org.apache.pulsar.broker.resources.TopicResources;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.scalable.ConsumerAssignment;
 import org.apache.pulsar.broker.service.scalable.ConsumerSession;
 import org.apache.pulsar.broker.service.scalable.ScalableTopicService;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
@@ -1075,7 +1080,7 @@ public class ServerCnxTest {
         assertEquals(topicRef.getProducers().size(), 1);
 
         // Verify the second producer will be reject due to the previous one still is active.
-        // Every second try once, total 10 times, all requests should fail.
+        // Try 10 times, all requests should fail.
         ClientChannel channel2 = new ClientChannel();
         BackGroundExecutor backGroundExecutor1 = startBackgroundExecutorForEmbeddedChannel(channel);
         BackGroundExecutor autoResponseForHeartBeat = autoResponseForHeartBeat(channel, clientChannelHelper);
@@ -1091,13 +1096,18 @@ public class ServerCnxTest {
             assertTrue(response2 instanceof CommandError);
             assertEquals(topicRef.getProducers().size(), 1);
             assertTrue(channel.isActive());
-            Thread.sleep(500);
         }
 
-        // cleanup.
+        // The first connection answered every liveness check, so the checks' timeouts must not close it.
         autoResponseForHeartBeat.close();
         backGroundExecutor1.close();
         backGroundExecutor2.close();
+        channel.advanceTimeBy(svcConfig.getConnectionLivenessCheckTimeoutMillis(), TimeUnit.MILLISECONDS);
+        channel.runPendingTasks();
+        assertTrue(channel.isActive());
+        assertEquals(topicRef.getProducers().size(), 1);
+
+        // cleanup.
         channel.finish();
         channel2.close();
     }
@@ -1110,6 +1120,8 @@ public class ServerCnxTest {
         final MutableInt epoch = new MutableInt(1);
         final Map<String, String> metadata = Collections.emptyMap();
         final String pName = "p1";
+        // The first connection never answers the liveness check, so don't wait the default 5 s for its timeout
+        svcConfig.setConnectionLivenessCheckTimeoutMillis(100);
         resetChannel();
         setChannelConnected();
 
@@ -1155,6 +1167,8 @@ public class ServerCnxTest {
         final String sName = successSubName;
         final String cName1 = RandomStringUtils.randomAlphanumeric(5);
         final String cName2 = RandomStringUtils.randomAlphanumeric(5);
+        // The first connection never answers the liveness check, so don't wait the default 5 s for its timeout
+        svcConfig.setConnectionLivenessCheckTimeoutMillis(100);
         resetChannel();
         setChannelConnected();
 
@@ -1280,6 +1294,13 @@ public class ServerCnxTest {
                 scheduledFuture.cancel(true);
             }
             executor.shutdown();
+            try {
+                // Don't let a run that is still going overlap with what the test does next on the channel
+                executor.awaitTermination(10, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException(e);
+            }
         }
     }
 
@@ -3439,6 +3460,35 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    @Test(timeOut = 30000)
+    public void testSendWithoutSchemaVersionFromAutoProduceBytesProducer() throws Exception {
+        String producerName = "auto-produce-bytes-producer";
+        svcConfig.setSchemaValidationEnforced(true);
+        SchemaRegistryService schemaRegistryService = pulsar.getSchemaRegistryService();
+        SchemaRegistry.SchemaAndMetadata topicSchema = mock(SchemaRegistry.SchemaAndMetadata.class);
+        doReturn(CompletableFuture.completedFuture(topicSchema)).when(schemaRegistryService).getSchema(anyString());
+        resetChannel();
+        setChannelConnected();
+
+        ByteBuf clientCommand = Commands.newProducer(successTopicName, 1 /* producer id */, 1 /* request id */,
+                producerName, false, Collections.emptyMap(), null /* schema */, 0, true, ProducerAccessMode.Shared,
+                Optional.empty(), false, null, true /* auto produce bytes */);
+        channel.writeInbound(clientCommand);
+        assertTrue(getResponse() instanceof CommandProducerSuccess);
+
+        MessageMetadata messageMetadata = new MessageMetadata()
+                .setPublishTime(System.currentTimeMillis())
+                .setProducerName(producerName)
+                .setSequenceId(0);
+        clientCommand = ByteBufPair.coalesce(Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata,
+                Unpooled.buffer(1024)));
+        channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
+        clientCommand.release();
+        CommandSendError sendError = (CommandSendError) getResponse();
+        assertEquals(sendError.getError(), ServerError.NotAllowedError);
+        channel.finish();
+    }
+
     @Test
     public void testWritabilityNotifiesOnlyConnectedConsumers() throws Exception {
         resetChannel();
@@ -3638,7 +3688,6 @@ public class ServerCnxTest {
 
         // call openLedgerComplete with ledgerMock on ML factory asyncOpen
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             ((OpenLedgerCallback) invocationOnMock.getArguments()[2]).openLedgerComplete(ledgerMock, null);
             return null;
         }).when(managedLedgerFactory)
@@ -3647,7 +3696,6 @@ public class ServerCnxTest {
 
         // call openLedgerFailed on ML factory asyncOpen
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             new Thread(() -> ((OpenLedgerCallback) invocationOnMock.getArguments()[2])
                     .openLedgerFailed(new ManagedLedgerException("Managed ledger failure"), null)).start();
 
@@ -3668,7 +3716,6 @@ public class ServerCnxTest {
         doAnswer((Answer<Object>) invocationOnMock -> true).when(cursorMock).isDurable();
 
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             ((OpenCursorCallback) invocationOnMock.getArguments()[3]).openCursorComplete(cursorMock, null);
             return null;
         }).when(ledgerMock)
@@ -3676,7 +3723,6 @@ public class ServerCnxTest {
                         any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             ((OpenCursorCallback) invocationOnMock.getArguments()[4]).openCursorComplete(cursorMock, null);
             return null;
         }).when(ledgerMock)
@@ -3684,7 +3730,6 @@ public class ServerCnxTest {
                         any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             ((OpenCursorCallback) invocationOnMock.getArguments()[3])
                     .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
@@ -3692,7 +3737,6 @@ public class ServerCnxTest {
                 .asyncOpenCursor(matches(".*fail.*"), any(InitialPosition.class), any(OpenCursorCallback.class), any());
 
         doAnswer((Answer<Object>) invocationOnMock -> {
-            Thread.sleep(300);
             ((OpenCursorCallback) invocationOnMock.getArguments()[3])
                     .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
             return null;
@@ -3968,6 +4012,265 @@ public class ServerCnxTest {
         assertEquals(response.getWatcherId(), 3);
 
         channel.finish();
+    }
+
+    @DataProvider
+    public Object[][] retryWatchBeforeOldAuthorizationCompletes() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @DataProvider
+    public Object[][] delayedWatchAuthorizationResults() {
+        return new Object[][] {{"allowed"}, {"denied"}, {"exception"}};
+    }
+
+    @Test(dataProvider = "delayedWatchAuthorizationResults", timeOut = 30000)
+    public void testSameIdWatchRetryDoesNotWaitForOldAuthorization(String authorizationResult) throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        svcConfig.setAuthorizationEnabled(true);
+        CompletableFuture<Boolean> delayedAuthorization = new CompletableFuture<>();
+        AuthorizationService authorization = mock(AuthorizationService.class);
+        doReturn(delayedAuthorization, CompletableFuture.completedFuture(true)).when(authorization)
+                .allowNamespaceOperationAsync(any(), any(), any(), any());
+        doReturn(authorization).when(brokerService).getAuthorizationService();
+        var pulsarResources = pulsar.getPulsarResources();
+        TopicResources resources = spy(pulsarResources.getTopicResources());
+        doReturn(resources).when(pulsarResources).getTopicResources();
+        resetChannel();
+        @Cleanup
+        BackGroundExecutor backgroundExecutor = startBackgroundExecutorForEmbeddedChannel(channel);
+        try {
+            channel.writeInbound(Commands.newConnect("none", "", null));
+            assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+            var lookupSemaphore = brokerService.getLookupRequestSemaphore();
+            int lookupPermits = lookupSemaphore.availablePermits();
+
+            channel.writeInbound(Commands.serializeWithSize(
+                    Commands.newWatchTopicList(1, 3, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+            assertThat(delayedAuthorization).isNotDone();
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(lookupPermits - 1);
+            verify(resources, never()).registerPersistentTopicListener(any(TopicListener.class));
+
+            // Older clients retry the same watcher id without sending CLOSE after a local request timeout.
+            channel.writeInbound(Commands.serializeWithSize(
+                    Commands.newWatchTopicList(2, 3, "use/ns-abc", "use/ns-abc/topic-1", null)));
+            assertThat(getResponse()).isInstanceOfSatisfying(CommandWatchTopicListSuccess.class, response -> {
+                assertThat(response.getRequestId()).isEqualTo(2);
+                assertThat(response.getTopicsList()).containsExactly(matchingTopics.get(0));
+            });
+            assertThat(delayedAuthorization).as("Retry must complete before the old authorization").isNotDone();
+            assertThat(lookupSemaphore.availablePermits()).as("Only the old authorization keeps a permit")
+                    .isEqualTo(lookupPermits - 1);
+            ArgumentCaptor<TopicListener> listeners = ArgumentCaptor.forClass(TopicListener.class);
+            verify(resources).registerPersistentTopicListener(listeners.capture());
+            TopicListener initializedWatcher = listeners.getValue();
+
+            if ("exception".equals(authorizationResult)) {
+                delayedAuthorization.completeExceptionally(new IllegalStateException("Authorization failed"));
+            } else {
+                delayedAuthorization.complete("allowed".equals(authorizationResult));
+            }
+            if ("allowed".equals(authorizationResult)) {
+                assertThat(getResponse()).isInstanceOfSatisfying(CommandWatchTopicListSuccess.class, response -> {
+                    assertThat(response.getRequestId()).isEqualTo(1);
+                    assertThat(response.getTopicsList()).containsExactly(matchingTopics.get(0));
+                });
+            } else {
+                assertThat(getResponse()).isInstanceOfSatisfying(CommandError.class,
+                        response -> assertThat(response.getRequestId()).isEqualTo(1));
+            }
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(lookupPermits);
+            verify(resources).registerPersistentTopicListener(any(TopicListener.class));
+            verify(resources, never()).deregisterPersistentTopicListener(any(TopicListener.class));
+
+            // A late success, denial or failure must leave the initialized watcher usable with the retry's pattern.
+            channel.writeInbound(Commands.serializeWithSize(
+                    Commands.newWatchTopicList(3, 3, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+            assertThat(getResponse()).isInstanceOfSatisfying(CommandWatchTopicListSuccess.class, response -> {
+                assertThat(response.getRequestId()).isEqualTo(3);
+                assertThat(response.getTopicsList()).containsExactly(matchingTopics.get(0));
+            });
+            verify(resources).registerPersistentTopicListener(any(TopicListener.class));
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(lookupPermits);
+            channel.writeInbound(Commands.serializeWithSize(Commands.newWatchTopicListClose(3, 4)));
+            assertThat(getResponse()).isInstanceOfSatisfying(CommandSuccess.class,
+                    response -> assertThat(response.getRequestId()).isEqualTo(4));
+            verify(resources).deregisterPersistentTopicListener(same(initializedWatcher));
+            assertThat(lookupSemaphore.availablePermits()).isEqualTo(lookupPermits);
+            assertThat(channel.isActive()).isTrue();
+        } finally {
+            delayedAuthorization.complete(false);
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test(dataProvider = "retryWatchBeforeOldAuthorizationCompletes", timeOut = 30000)
+    public void testWatchCloseBeforeAuthorizationPreventsLateRegistration(boolean alreadyRegistered,
+                                                                         boolean retryBeforeAuthorization)
+            throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        svcConfig.setAuthorizationEnabled(true);
+        CompletableFuture<Boolean> delayedAuthorization = new CompletableFuture<>();
+        AuthorizationService authorization = mock(AuthorizationService.class);
+        doReturn(CompletableFuture.completedFuture(true)).when(authorization)
+                .allowNamespaceOperationAsync(any(), any(), any(), any());
+        doReturn(authorization).when(brokerService).getAuthorizationService();
+        TopicResources resources = spy(pulsar.getPulsarResources().getTopicResources());
+        var pulsarResources = pulsar.getPulsarResources();
+        doReturn(resources).when(pulsarResources).getTopicResources();
+        resetChannel();
+        @Cleanup
+        BackGroundExecutor backgroundExecutor = startBackgroundExecutorForEmbeddedChannel(channel);
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+        int lookupPermits = brokerService.getLookupRequestSemaphore().availablePermits();
+
+        // Another handler keeps this pooled connection alive throughout the abandoned WATCH request.
+        channel.writeInbound(Commands.serializeWithSize(
+                Commands.newWatchTopicList(10, 99, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+        assertThat(getResponse()).isInstanceOf(CommandWatchTopicListSuccess.class);
+        ArgumentCaptor<TopicListener> listeners = ArgumentCaptor.forClass(TopicListener.class);
+        verify(resources).registerPersistentTopicListener(listeners.capture());
+        TopicListener otherWatcher = listeners.getValue();
+        if (alreadyRegistered) {
+            channel.writeInbound(Commands.serializeWithSize(
+                    Commands.newWatchTopicList(11, 3, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+            assertThat(getResponse()).isInstanceOf(CommandWatchTopicListSuccess.class);
+        }
+        doReturn(delayedAuthorization, CompletableFuture.completedFuture(true)).when(authorization)
+                .allowNamespaceOperationAsync(any(), any(), any(), any());
+
+        channel.writeInbound(Commands.serializeWithSize(
+                Commands.newWatchTopicList(1, 3, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+        assertThat(delayedAuthorization).isNotDone();
+        assertThat(brokerService.getLookupRequestSemaphore().availablePermits()).isEqualTo(lookupPermits - 1);
+        channel.writeInbound(Commands.serializeWithSize(Commands.newWatchTopicListClose(3, 2)));
+        assertThat(getResponse()).isInstanceOfSatisfying(CommandSuccess.class,
+                response -> assertThat(response.getRequestId()).isEqualTo(2));
+        assertThat(channel.isActive()).isTrue();
+
+        if (retryBeforeAuthorization) {
+            channel.writeInbound(Commands.serializeWithSize(
+                    Commands.newWatchTopicList(3, 3, "use/ns-abc", "use/ns-abc/topic-1", null)));
+            assertThat(getResponse()).isInstanceOfSatisfying(CommandWatchTopicListSuccess.class,
+                    response -> assertThat(response.getTopicsList()).containsExactly(matchingTopics.get(0)));
+        }
+
+        // The client may already have timed out and discarded request 1. A late authorization must not revive it.
+        delayedAuthorization.complete(true);
+        assertThat(getResponse()).isInstanceOfSatisfying(CommandError.class,
+                response -> assertThat(response.getRequestId()).isEqualTo(1));
+        verify(resources, times(1 + (alreadyRegistered ? 1 : 0) + (retryBeforeAuthorization ? 1 : 0)))
+                .registerPersistentTopicListener(any(TopicListener.class));
+        verify(resources, never()).deregisterPersistentTopicListener(same(otherWatcher));
+        assertThat(brokerService.getLookupRequestSemaphore().availablePermits()).isEqualTo(lookupPermits);
+        assertThat(channel.isActive()).isTrue();
+
+        if (retryBeforeAuthorization) {
+            // The old authorization callback must neither initialize nor remove the new generation.
+            channel.writeInbound(Commands.serializeWithSize(
+                    Commands.newWatchTopicList(4, 3, "use/ns-abc", "use/ns-abc/topic-1", null)));
+            assertThat(getResponse()).isInstanceOfSatisfying(CommandWatchTopicListSuccess.class,
+                    response -> assertThat(response.getTopicsList()).containsExactly(matchingTopics.get(0)));
+            channel.writeInbound(Commands.serializeWithSize(Commands.newWatchTopicListClose(3, 5)));
+            assertThat(getResponse()).isInstanceOf(CommandSuccess.class);
+            verify(resources, times(alreadyRegistered ? 2 : 1))
+                    .deregisterPersistentTopicListener(any(TopicListener.class));
+        }
+        channel.writeInbound(Commands.serializeWithSize(
+                Commands.newWatchTopicList(6, 99, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+        assertThat(getResponse()).isInstanceOf(CommandWatchTopicListSuccess.class);
+        channel.writeInbound(Commands.serializeWithSize(Commands.newWatchTopicListClose(99, 7)));
+        assertThat(getResponse()).isInstanceOf(CommandSuccess.class);
+        verify(resources).deregisterPersistentTopicListener(same(otherWatcher));
+        assertThat(channel.isActive()).isTrue();
+        channel.finish();
+    }
+
+    @DataProvider
+    public Object[][] rejectedWatchRequests() {
+        return new Object[][] {{false, "denied"}, {true, "denied"}, {false, "exception"}, {true, "exception"},
+                {false, "invalid-pattern"}, {true, "invalid-pattern"},
+                {false, "not-allowed"}, {true, "not-allowed"}};
+    }
+
+    @Test(dataProvider = "rejectedWatchRequests", timeOut = 30000)
+    public void testRejectedWatchRequestReleasesPermitAndOnlyItsReservation(boolean alreadyRegistered, String failure)
+            throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        svcConfig.setSubscriptionPatternMaxLength(64);
+        svcConfig.setAuthorizationEnabled(true);
+        AuthorizationService authorization = mock(AuthorizationService.class);
+        doReturn(CompletableFuture.completedFuture(true)).when(authorization)
+                .allowNamespaceOperationAsync(any(), any(), any(), any());
+        doReturn(authorization).when(brokerService).getAuthorizationService();
+        var pulsarResources = pulsar.getPulsarResources();
+        TopicResources resources = spy(pulsarResources.getTopicResources());
+        doReturn(resources).when(pulsarResources).getTopicResources();
+        resetChannel();
+        @Cleanup
+        BackGroundExecutor backgroundExecutor = startBackgroundExecutorForEmbeddedChannel(channel);
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+        int permits = brokerService.getLookupRequestSemaphore().availablePermits();
+        if (alreadyRegistered) {
+            channel.writeInbound(Commands.serializeWithSize(
+                    Commands.newWatchTopicList(10, 3, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+            assertThat(getResponse()).isInstanceOf(CommandWatchTopicListSuccess.class);
+        }
+        CompletableFuture<Boolean> authorizationResult = switch (failure) {
+            case "denied" -> CompletableFuture.completedFuture(false);
+            case "exception" -> CompletableFuture.failedFuture(new IllegalStateException("Authorization failed"));
+            default -> CompletableFuture.completedFuture(true);
+        };
+        doReturn(authorizationResult).when(authorization).allowNamespaceOperationAsync(any(), any(), any(), any());
+        String pattern = switch (failure) {
+            case "invalid-pattern" -> "use/ns-abc/[";
+            case "not-allowed" -> "use/ns-abc/" + "a".repeat(65);
+            default -> "use/ns-abc/topic-.*";
+        };
+        channel.writeInbound(Commands.serializeWithSize(
+                Commands.newWatchTopicList(20, 3, "use/ns-abc", pattern, null)));
+        assertThat(getResponse()).isInstanceOfSatisfying(CommandError.class,
+                response -> assertThat(response.getRequestId()).isEqualTo(20));
+        assertThat(brokerService.getLookupRequestSemaphore().availablePermits()).isEqualTo(permits);
+        verify(resources, times(alreadyRegistered ? 1 : 0)).registerPersistentTopicListener(any(TopicListener.class));
+        verify(resources, never()).deregisterPersistentTopicListener(any(TopicListener.class));
+
+        doReturn(CompletableFuture.completedFuture(true)).when(authorization)
+                .allowNamespaceOperationAsync(any(), any(), any(), any());
+        channel.writeInbound(Commands.serializeWithSize(
+                Commands.newWatchTopicList(30, 3, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+        assertThat(getResponse()).isInstanceOf(CommandWatchTopicListSuccess.class);
+        verify(resources).registerPersistentTopicListener(any(TopicListener.class));
+        assertThat(brokerService.getLookupRequestSemaphore().availablePermits()).isEqualTo(permits);
+        channel.writeInbound(Commands.serializeWithSize(Commands.newWatchTopicListClose(3, 31)));
+        assertThat(getResponse()).isInstanceOf(CommandSuccess.class);
+        verify(resources).deregisterPersistentTopicListener(any(TopicListener.class));
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testConnectionInactiveCancelsWatchAwaitingAuthorization() throws Exception {
+        svcConfig.setEnableBrokerSideSubscriptionPatternEvaluation(true);
+        svcConfig.setAuthorizationEnabled(true);
+        CompletableFuture<Boolean> authorizationResult = new CompletableFuture<>();
+        AuthorizationService authorization = mock(AuthorizationService.class);
+        doReturn(authorizationResult).when(authorization).allowNamespaceOperationAsync(any(), any(), any(), any());
+        doReturn(authorization).when(brokerService).getAuthorizationService();
+        var pulsarResources = pulsar.getPulsarResources();
+        TopicResources resources = spy(pulsarResources.getTopicResources());
+        doReturn(resources).when(pulsarResources).getTopicResources();
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+        int permits = brokerService.getLookupRequestSemaphore().availablePermits();
+        channel.writeInbound(Commands.serializeWithSize(
+                Commands.newWatchTopicList(1, 3, "use/ns-abc", "use/ns-abc/topic-.*", null)));
+        channel.close().sync();
+        authorizationResult.complete(true);
+        assertThat(brokerService.getLookupRequestSemaphore().availablePermits()).isEqualTo(permits);
+        verify(resources, never()).registerPersistentTopicListener(any(TopicListener.class));
     }
 
     @Test

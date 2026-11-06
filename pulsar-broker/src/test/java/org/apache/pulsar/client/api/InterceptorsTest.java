@@ -299,13 +299,16 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
                 .intercept(interceptor)
                 .subscriptionName("my-subscription-ack-timeout")
                 .ackTimeout(3, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .subscribe();
 
+        // Nothing checks how long the redeliveries take: no need to wait for the default 1 minute delay.
         Consumer<String> consumer2 = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .intercept(interceptor)
                 .subscriptionName("my-subscription-negative")
+                .negativeAckRedeliveryDelay(100, TimeUnit.MILLISECONDS)
                 .subscribe();
 
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
@@ -891,6 +894,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
                 .subscriptionName("foo")
                 .intercept(interceptor)
                 .ackTimeout(2, TimeUnit.SECONDS)
+                .ackTimeoutTickTime(100, TimeUnit.MILLISECONDS)
                 .subscribe();
 
         for (int i = 0; i < totalNumOfMessages; i++) {
@@ -984,7 +988,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         produceAndConsume(msgCount, producer, reader);
         Assert.assertEquals(interceptor1.beforeReadCount.get(), msgCount);
         Assert.assertEquals(interceptor2.beforeReadCount.get(), msgCount);
-        Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(
+        Awaitility.await().untilAsserted(
                 () -> {
                     Assert.assertEquals(listenerReceiveCount.get(), msgCount);
                 }
@@ -995,7 +999,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             // Make sure all interceptors still work well after update the topic partition.
             final int newPartition = topicPartition + 3;
             admin.topics().updatePartitionedTopic(topic, newPartition);
-            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(
+            Awaitility.await().untilAsserted(
                     () -> {
                         Assert.assertEquals(interceptor1.newPartition.get(), newPartition);
                         Assert.assertEquals(interceptor2.newPartition.get(), newPartition);
@@ -1005,7 +1009,7 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
             produceAndConsume(msgCount, producer, reader);
             Assert.assertEquals(interceptor1.beforeReadCount.get(), msgCount * 2);
             Assert.assertEquals(interceptor2.beforeReadCount.get(), msgCount * 2);
-            Awaitility.await().pollInterval(1, TimeUnit.SECONDS).untilAsserted(
+            Awaitility.await().untilAsserted(
                     () -> {
                         Assert.assertEquals(listenerReceiveCount.get(), msgCount * 2);
                     }
@@ -1020,7 +1024,9 @@ public class InterceptorsTest extends SharedPulsarBaseTest {
         // interceptor3 is on reader2 (listener-based), so messages are delivered asynchronously
         Awaitility.await().untilAsserted(
                 () -> Assert.assertTrue(interceptor3.encounterException.get()));
-        Assert.assertNull(reader.readNext(3, TimeUnit.SECONDS));
+        // The reader has read every message of the topic: nothing more can come.
+        Assert.assertFalse(reader.hasMessageAvailable());
+        Assert.assertNull(reader.readNext(200, TimeUnit.MILLISECONDS));
     }
 
     @Test(dataProvider = "topicPartition")

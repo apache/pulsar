@@ -16,13 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.functions.go;
 
-import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
-
-public class PulsarFunctionsGoThreadTest extends PulsarFunctionsGoTest {
-
-    PulsarFunctionsGoThreadTest() {
-        super(FunctionRuntimeType.THREAD);
-    }
-}
+/**
+ * Benchmarks for the topic list memory limiter.
+ */
+package org.apache.pulsar.broker.topiclistlimit;

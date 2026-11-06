@@ -99,6 +99,7 @@ import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableInt;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.delayed.BucketDelayedDeliveryTrackerFactory;
@@ -118,6 +119,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionAlreadyExistsException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionConflictUnloadException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionNotFoundException;
@@ -321,6 +323,15 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private volatile CloseFutures closeFutures;
 
+    // Once the ledger is deleted, failures can only retry cleanup; clients must never resume on this instance.
+    private volatile boolean managedLedgerDeleted;
+    // Guarded by lock.writeLock(). Each attempt includes partitioned-topic deletion-marker cleanup.
+    private CompletableFuture<Void> deletionFuture;
+    // Accessed only by serialized deletion attempts; successful steps must not require idempotent cleanup.
+    private boolean dispatchRateLimiterClosedOnDelete;
+    private boolean subscribeRateLimiterClosedOnDelete;
+    private boolean topicPolicyListenerUnregisteredOnDelete;
+
     @Getter
     private final PersistentTopicMetrics persistentTopicMetrics = new PersistentTopicMetrics();
 
@@ -366,7 +377,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     /**
      * Set while a deletion triggered by {@link #removeTopicIfLocalClusterNotAllowed()} is in progress, and while
-     * a failed one is waiting to be retried. Every failure path of {@link #delete} un-fences the topic, and
+     * a failed one is waiting to be retried. Failures before ledger deletion in {@link #delete} un-fence the topic, and
      * un-fencing runs {@link #checkReplication()} again, which would start the same deletion again straight away.
      * Without this guard, a deletion that keeps failing is retried in a tight loop for as long as the local
      * cluster stays out of the replication clusters.
@@ -554,6 +565,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     private void initializeDispatchRateLimiterIfNeeded() {
         synchronized (dispatchRateLimiterLock) {
+            if (managedLedgerDeleted) {
+                return;
+            }
             // dispatch rate limiter for topic
             if (!dispatchRateLimiter.isPresent()
                 && DispatchRateLimiter.isDispatchRateEnabled(topicPolicies.getDispatchRate().get())) {
@@ -723,6 +737,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
     public void updateSubscribeRateLimiter() {
         SubscribeRate subscribeRate = getSubscribeRate();
         synchronized (subscribeRateLimiterLock) {
+            if (managedLedgerDeleted) {
+                return;
+            }
             if (isSubscribeRateEnabled(subscribeRate)) {
                 if (subscribeRateLimiter.isPresent()) {
                     this.subscribeRateLimiter.get().onSubscribeRateUpdate(subscribeRate);
@@ -1079,7 +1096,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             CompletableFuture<? extends Subscription> subscriptionFuture = isDurable
                     ? getDurableSubscription(subscriptionName, initialPosition, startMessageRollbackDurationSec,
-                    replicatedSubscriptionState, subscriptionProperties)
+                    replicatedSubscriptionState, subscriptionProperties, false)
                     : getNonDurableSubscription(subscriptionName, startMessageId, initialPosition,
                     startMessageRollbackDurationSec, readCompacted, subscriptionProperties);
 
@@ -1169,6 +1186,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                             .log("Failed to create compaction subscription");
                 } else if (ex.getCause() instanceof ManagedLedgerFencedException) {
                     // If the topic has been fenced, we cannot continue using it. We need to close and reopen
+                    brokerService.requireFreshOwnershipBeforeTopicReadmission(this);
                     log.warn()
                             .attr("subscription", subscriptionName)
                             .exceptionMessage(ex)
@@ -1214,7 +1232,8 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                                    InitialPosition initialPosition,
                                                                    long startMessageRollbackDurationSec,
                                                                    Boolean replicated,
-                                                                   Map<String, String> subscriptionProperties) {
+                                                                   Map<String, String> subscriptionProperties,
+                                                                   boolean failIfExists) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         if (checkMaxSubscriptionsPerTopicExceed(subscriptionName)) {
             subscriptionFuture.completeExceptionally(new NotAllowedException(
@@ -1229,11 +1248,14 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                 try {
                     log.debug().attr("subscription", subscriptionName).log("Opened cursor");
 
+                    MutableBoolean created = new MutableBoolean();
                     PersistentSubscription subscription = subscriptions.get(subscriptionName);
                     if (subscription == null) {
-                        subscription = subscriptions.computeIfAbsent(subscriptionName,
-                                      name -> createPersistentSubscription(subscriptionName, cursor,
-                                              replicated, subscriptionProperties));
+                        subscription = subscriptions.computeIfAbsent(subscriptionName, name -> {
+                            created.setTrue();
+                            return createPersistentSubscription(subscriptionName, cursor, replicated,
+                                    subscriptionProperties);
+                        });
                     } else {
                         // if subscription exists, check if it's a non-durable subscription
                         if (subscription.getCursor() != null && !subscription.getCursor().isDurable()) {
@@ -1241,6 +1263,12 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                     "NonDurable subscription with the same name already exists."));
                             return;
                         }
+                    }
+                    if (failIfExists && created.isFalse()) {
+                        // The subscription existed, or an overlapping call added it while this one opened the cursor
+                        subscriptionFuture.completeExceptionally(new SubscriptionAlreadyExistsException(
+                                "Subscription " + subscriptionName + " already exists"));
+                        return;
                     }
                     if (replicated != null && replicated && !subscription.isReplicated()) {
                         // Flip the subscription state
@@ -1269,6 +1297,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         .exceptionMessage(exception)
                         .log("Failed to create subscription for");
                 decrementUsageCount();
+                if (exception instanceof ManagedLedgerFencedException) {
+                    brokerService.requireFreshOwnershipBeforeTopicReadmission(PersistentTopic.this);
+                }
                 subscriptionFuture.completeExceptionally(new PersistenceException(exception));
                 if (exception instanceof ManagedLedgerFencedException) {
                     // If the managed ledger has been fenced, we cannot continue using it. We need to close and reopen
@@ -1412,7 +1443,20 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                                               boolean replicateSubscriptionState,
                                                               Map<String, String> subscriptionProperties) {
         return getDurableSubscription(subscriptionName, initialPosition,
-                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties);
+                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties, false);
+    }
+
+    /**
+     * Creates a durable subscription that doesn't exist yet. Unlike {@link #createSubscription}, which completes with
+     * the existing subscription, it fails with {@link SubscriptionAlreadyExistsException} when the subscription exists,
+     * also when an overlapping call creates it first: only the call that creates the subscription gets it.
+     */
+    public CompletableFuture<Subscription> createNewSubscription(String subscriptionName,
+                                                                 InitialPosition initialPosition,
+                                                                 boolean replicateSubscriptionState,
+                                                                 Map<String, String> subscriptionProperties) {
+        return getDurableSubscription(subscriptionName, initialPosition,
+                0 /*avoid reseting cursor*/, replicateSubscriptionState, subscriptionProperties, true);
     }
 
     /**
@@ -1735,6 +1779,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         lock.writeLock().lock();
         try {
+            if (managedLedgerDeleted) {
+                return retryDeleteCleanup();
+            }
             if (isClosingOrDeleting) {
                 log.warn("Topic is already being closed or deleted");
                 return FutureUtil.failedFuture(new TopicFencedException("Topic is already fenced"));
@@ -1784,8 +1831,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
             fenceTopicToCloseOrDelete(); // Avoid clients reconnections while deleting
             // Mark the progress of close to prevent close calling concurrently.
-            this.closeFutures =
-                    new CloseFutures(new CompletableFuture<>(), new CompletableFuture<>(), new CompletableFuture<>());
+            CompletableFuture<Void> result = new CompletableFuture<>();
+            deletionFuture = result;
+            this.closeFutures = new CloseFutures(result, result, result);
 
             AtomicBoolean alreadyUnFenced = new AtomicBoolean();
             // The outer whenComplete below sees the same failure the inner handlers already reported, so it only
@@ -1858,16 +1906,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                                             ledger.asyncDelete(new AsyncCallbacks.DeleteLedgerCallback() {
                                                 @Override
                                                 public void deleteLedgerComplete(Object ctx) {
-                                                    brokerService.removeTopicFromCache(PersistentTopic.this);
-
-                                                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
-
-                                                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
-
-                                                    unregisterTopicPolicyListener();
-
-                                                    log.info("Topic deleted");
-                                                    deleteFuture.complete(null);
+                                                    managedLedgerDeleted = true;
+                                                    FutureUtil.completeAfter(deleteFuture,
+                                                            cleanupAfterLedgerDeletion());
                                                 }
 
                                                 @Override
@@ -1912,20 +1953,56 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
                         if (!deleteFailureLogged.get()) {
                             log.error().exception(ex).log("Error deleting topic");
                         }
-                        if (!alreadyUnFenced.get()) {
+                        if (!alreadyUnFenced.get() && !managedLedgerDeleted) {
                             unfenceTopicToResume();
                         }
                     }
                 });
 
-            FutureUtil.completeAfter(closeFutures.transferring, res);
-            FutureUtil.completeAfter(closeFutures.notWaitDisconnectClients, res);
-            FutureUtil.completeAfter(closeFutures.waitDisconnectClients, res);
-            return res;
+            FutureUtil.completeAfter(result, res);
+            return result;
         } finally {
             lock.writeLock().unlock();
         }
 
+    }
+
+    // Called with the topic write lock held, after ledger deletion has committed.
+    private CompletableFuture<Void> retryDeleteCleanup() {
+        if (!deletionFuture.isCompletedExceptionally()) {
+            return deletionFuture;
+        }
+        // Publish the new attempt before invoking cleanup, which may complete or reenter synchronously.
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        deletionFuture = result;
+        closeFutures = new CloseFutures(result, result, result);
+        FutureUtil.completeAfter(result, FutureUtil.supplySafely(() -> brokerService.getPulsar().getPulsarResources()
+                .getNamespaceResources().getPartitionedTopicResources()
+                .runWithMarkDeleteAsync(TopicName.get(topic), this::cleanupAfterLedgerDeletion)));
+        return result;
+    }
+
+    private CompletableFuture<Void> cleanupAfterLedgerDeletion() {
+        return FutureUtil.supplySafely(() -> {
+            if (!dispatchRateLimiterClosedOnDelete) {
+                synchronized (dispatchRateLimiterLock) {
+                    dispatchRateLimiter.ifPresent(DispatchRateLimiter::close);
+                    dispatchRateLimiterClosedOnDelete = true;
+                }
+            }
+            if (!subscribeRateLimiterClosedOnDelete) {
+                synchronized (subscribeRateLimiterLock) {
+                    subscribeRateLimiter.ifPresent(SubscribeRateLimiter::close);
+                    subscribeRateLimiterClosedOnDelete = true;
+                }
+            }
+            if (!topicPolicyListenerUnregisteredOnDelete) {
+                unregisterTopicPolicyListener();
+                topicPolicyListenerUnregisteredOnDelete = true;
+            }
+            // Retain the fenced instance until all cleanup succeeds so normal admin retries can still find it.
+            return brokerService.removeTopicFromCache(PersistentTopic.this);
+        }).thenRun(() -> log.info("Topic deleted"));
     }
 
     public CompletableFuture<Void> close() {
@@ -1968,6 +2045,9 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
         /** Maybe there is a in-progress half closing task. see the section 2-b-1 of {@link CloseFutures}. **/
         CompletableFuture<Void> inProgressTransferCloseTask = null;
         try {
+            if (managedLedgerDeleted) {
+                return retryDeleteCleanup();
+            }
             // Return in-progress future if exists.
             if (isClosingOrDeleting) {
                 if (closeType == CloseTypes.transferring) {
@@ -4112,8 +4192,13 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
     @Override
     public void updateDispatchRateLimiter() {
-        initializeDispatchRateLimiterIfNeeded();
-        dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
+        synchronized (dispatchRateLimiterLock) {
+            if (managedLedgerDeleted) {
+                return;
+            }
+            initializeDispatchRateLimiterIfNeeded();
+            dispatchRateLimiter.ifPresent(DispatchRateLimiter::updateDispatchRate);
+        }
     }
 
     @Override

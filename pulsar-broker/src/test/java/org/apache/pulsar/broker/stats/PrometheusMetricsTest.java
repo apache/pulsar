@@ -100,6 +100,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.SystemTopicNames;
+import org.apache.pulsar.common.policies.data.PublishRate;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.compaction.Compactor;
@@ -248,6 +249,10 @@ public class PrometheusMetricsTest extends BrokerTestBase {
             }
         });
 
+        // At 1 byte/s, the message (with its metadata) throttles the connection of producer and producer2 for ~40 s,
+        // and a throttled connection reads no command, so closing them would wait for it. A new publish rate rebuilds
+        // the rate limiter, which unthrottles the connection at once.
+        admin.namespaces().setPublishRate(ns1, new PublishRate(1000, 1024 * 1024));
         producer.close();
         producer2.close();
         producer3.close();
