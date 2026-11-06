@@ -238,6 +238,9 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
     }
 
     void configureDefaults(ServiceConfiguration conf) {
+        // testPartitionedStatsAggregationByProducerName* enable it on the running broker, which reads it when a
+        // producer is created
+        conf.setAggregatePublisherStatsByProducerName(false);
         conf.setForceDeleteNamespaceAllowed(true);
         conf.setLoadBalancerEnabled(true);
         conf.setAllowOverrideEntryFilters(true);
