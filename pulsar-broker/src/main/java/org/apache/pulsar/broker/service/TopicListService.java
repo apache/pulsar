@@ -505,17 +505,22 @@ public class TopicListService {
             return;
         }
 
-        TopicsPattern topicsPattern;
-        try {
-            topicsPattern = TopicsPatternFactory.create(topicsPatternString, topicsPatternRegexImplementation);
-        } catch (Exception e) {
-            log.warn("[{}] Unable to create topic list watcher: Invalid pattern: {} on namespace {}",
-                    connection.toString(), topicsPatternString, namespaceName);
-            failWatchTopicListRequest(request, e);
-            connection.getCommandSender().sendErrorResponse(requestId, ServerError.InvalidTopicName,
-                    "Invalid topics pattern: " + e.getMessage());
-            lookupSemaphore.release();
-            return;
+        // Clients reconcile their watchers periodically with watch requests that have the watcher's id and pattern.
+        // Such a request reuses the pattern that the watcher was created with instead of compiling it again.
+        TopicsPattern topicsPattern = getCreatedWatcherTopicsPattern(
+                request != null ? request.watcherFuture() : watchers.get(watcherId), topicsPatternString);
+        if (topicsPattern == null) {
+            try {
+                topicsPattern = TopicsPatternFactory.create(topicsPatternString, topicsPatternRegexImplementation);
+            } catch (Exception e) {
+                log.warn("[{}] Unable to create topic list watcher: Invalid pattern: {} on namespace {}",
+                        connection.toString(), topicsPatternString, namespaceName);
+                failWatchTopicListRequest(request, e);
+                connection.getCommandSender().sendErrorResponse(requestId, ServerError.InvalidTopicName,
+                        "Invalid topics pattern: " + e.getMessage());
+                lookupSemaphore.release();
+                return;
+            }
         }
 
         WatchTopicListRequest admitted = request == null ? beginWatchTopicListRequest(watcherId) : request;
@@ -625,6 +630,19 @@ public class TopicListService {
                     lookupSemaphore.release();
                     return null;
                 });
+    }
+
+    /**
+     * Returns the pattern of the created watcher when it's the same as the given pattern, otherwise null.
+     */
+    private static TopicsPattern getCreatedWatcherTopicsPattern(CompletableFuture<TopicListWatcher> watcherFuture,
+                                                                String topicsPatternString) {
+        // Future#state() and Future#resultNow() require Java 19, so check for a normal completion with Java 17 APIs
+        if (watcherFuture == null || !watcherFuture.isDone() || watcherFuture.isCompletedExceptionally()) {
+            return null;
+        }
+        TopicsPattern topicsPattern = watcherFuture.join().topicsPattern;
+        return topicsPattern.inputPattern().equals(topicsPatternString) ? topicsPattern : null;
     }
 
     /**
