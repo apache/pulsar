@@ -52,6 +52,9 @@ import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.PrometheusMetricsTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -62,6 +65,7 @@ import org.apache.pulsar.broker.service.StickyKeyDispatcher;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.AbstractPersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.plugin.EntryFilter;
 import org.apache.pulsar.broker.service.plugin.EntryFilterProducerTest;
@@ -71,6 +75,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageIdAdv;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -834,6 +839,55 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
                 assertEquals(numMessages, svcConsumer.getUnackedMessages()));
 
         expireAndVerifyUnackedDrained(topic, sub, producer, consumer, svcConsumer);
+    }
+
+    /**
+     * The cursor moves its mark-delete position in memory before persisting it and keeps that position when persisting
+     * fails, and later expiry checks for the same position return early. The failure callback must therefore release
+     * the pending acks up to that position.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    public void testPendingAcksReleasedWhenPersistingExpiryMarkDeleteFails(SubscriptionType subType) throws Exception {
+        String topic = newTopicName();
+        String sub = "sub";
+        int numMessages = 10;
+
+        @Cleanup Producer<byte[]> producer = pulsarClient.newProducer()
+                .topic(topic).enableBatching(false).create();
+        @Cleanup Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic(topic).subscriptionName(sub)
+                .subscriptionType(subType)
+                .subscribe();
+
+        // the last message stays unexpired: the cursor persists a position without later messages to the metadata
+        // store when it has no metadata ledger, and that wouldn't fail below
+        MessageIdAdv expiredMessageId = null;
+        for (int i = 0; i < numMessages; i++) {
+            MessageId messageId = producer.send(("msg-" + i).getBytes());
+            if (i == numMessages - 2) {
+                expiredMessageId = (MessageIdAdv) messageId;
+            }
+        }
+
+        org.apache.pulsar.broker.service.Consumer svcConsumer = getTheUniqueServiceConsumer(topic, sub);
+        Awaitility.await().untilAsserted(() -> assertEquals(numMessages, svcConsumer.getUnackedMessages()));
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        PersistentSubscription subscription = persistentTopic.getSubscription(sub);
+        Position expiredPosition =
+                PositionFactory.create(expiredMessageId.getLedgerId(), expiredMessageId.getEntryId());
+
+        // the cursor has no metadata ledger yet, so the mark-delete below fails when creating it fails
+        pulsarTestContext.getMockBookKeeper().failNow(BKException.Code.BookieHandleNotAvailableException);
+        subscription.getExpiryMonitor().findEntryComplete(expiredPosition, null);
+
+        assertThat(subscription.getCursor().getMarkDeletedPosition()).isEqualTo(expiredPosition);
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            assertThat(svcConsumer.getPendingAcks().size()).isOne();
+            assertThat(svcConsumer.getUnackedMessages()).isOne();
+        });
+        // the success callback records expired messages, so this shows that the failure callback ran instead
+        assertThat(subscription.getExpiryMonitor().getTotalMessageExpired()).isZero();
     }
 
     /**
