@@ -32,8 +32,10 @@ import jakarta.ws.rs.core.Response;
 import java.io.ByteArrayOutputStream;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import lombok.AllArgsConstructor;
 import lombok.Cleanup;
@@ -253,6 +255,46 @@ public class TopicsTest extends SharedPulsarBaseTest {
             Assert.assertTrue(response.getMessagePublishResults().get(index).getMessageId().length() > 0);
         }
     }
+
+    @Test
+    public void testProduceWithDeduplicationEnabled() throws Exception {
+        String namespace = testTenant + "/" + testNamespace;
+        String topicName = "persistent://" + namespace + "/" + testTopicName;
+        admin.namespaces().setDeduplicationStatus(namespace, true);
+        admin.topics().createNonPartitionedTopic(topicName);
+        PersistentTopic topic = (PersistentTopic) getTopicIfExists(topicName).get().orElseThrow();
+        await().until(() -> topic.getMessageDeduplication().isEnabled());
+        Schema<String> schema = StringSchema.utf8();
+        ProducerMessages producerMessages = new ProducerMessages();
+        producerMessages.setKeySchema(ObjectMapperFactory.getMapper().getObjectMapper().
+                writeValueAsString(schema.getSchemaInfo()));
+        producerMessages.setValueSchema(ObjectMapperFactory.getMapper().getObjectMapper().
+                writeValueAsString(schema.getSchemaInfo()));
+        producerMessages.setMessages(createMessages("["
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:1\",\"sequenceId\":1},"
+                + "{\"key\":\"my-key\",\"payload\":\"RestProducer:2\",\"sequenceId\":2}]"));
+        // The REST API publishes without a producer, so the topic doesn't deduplicate its messages: the same request
+        // sent twice publishes the messages twice
+        Set<String> messageIds = new HashSet<>();
+        for (int request = 0; request < 2; request++) {
+            AsyncResponse asyncResponse = mock(AsyncResponse.class);
+            topics.produceOnPersistentTopic(asyncResponse, testTenant, testNamespace, testTopicName,
+                    false, producerMessages);
+            ArgumentCaptor<Response> responseCaptor = ArgumentCaptor.forClass(Response.class);
+            verify(asyncResponse, timeout(5000).times(1)).resume(responseCaptor.capture());
+            Assert.assertEquals(responseCaptor.getValue().getStatus(), Response.Status.OK.getStatusCode());
+            ProducerAcks response = (ProducerAcks) responseCaptor.getValue().getEntity();
+            Assert.assertEquals(response.getMessagePublishResults().size(), 2);
+            for (ProducerAck ack : response.getMessagePublishResults()) {
+                Assert.assertEquals(ack.getErrorCode(), 0, ack.getErrorMsg());
+                messageIds.add(ack.getMessageId());
+            }
+        }
+        // A duplicate would be acknowledged with the message ID -1:-1, without being persisted
+        Assert.assertEquals(messageIds.size(), 4, messageIds.toString());
+        Assert.assertEquals(topic.getNumberOfEntries(), 4);
+    }
+
 
     @Test
     @SuppressWarnings("unchecked")
