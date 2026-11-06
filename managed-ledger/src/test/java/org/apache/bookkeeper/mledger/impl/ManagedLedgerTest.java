@@ -1888,7 +1888,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             });
         }
         try {
-            for (int i = 0; i < 100; i++) {
+            // Roll the ledger over, which updates the metadata too, while the property updates are in progress
+            for (int i = 0; i < 100 && latch.getCount() > 0; i++) {
                 ledger.addEntry("data".getBytes(Encoding));
                 Thread.sleep(300);
             }
@@ -3590,6 +3591,10 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         // Check ledger recovered before time consuming cursor recovery complete.
         ledger = factory2.open("testLedger", managedLedgerConfig);
         assertTrue(System.currentTimeMillis() - startLedgerRecovery < 5000);
+
+        // The ledger opened while the cursor recovery is held: let it complete now. The completion after 10 s only
+        // ends the wait of a ledger open that waits for the cursor recovery
+        future.complete(null);
 
         // Check cursor recovered successfully.
         cursor = ledger.openCursor("testCursor");
@@ -5664,7 +5669,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         try {
             factory = new ManagedLedgerFactoryImpl(metadataStore, bkc);
             ManagedLedgerConfig config = defaultConfig();
-            config.setMetadataOperationsTimeoutSeconds(5);
+            config.setMetadataOperationsTimeoutSeconds(1);
             bkc.delay(10 * 1000);
             ml = factory.open(mlName, config);
             fail("Should get a timeout ex");
