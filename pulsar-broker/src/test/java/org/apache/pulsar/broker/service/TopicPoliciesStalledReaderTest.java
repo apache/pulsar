@@ -607,6 +607,9 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
         /** Puts the result of {@code gatedWrite} behind {@link #release()}. */
         CompletableFuture<MessageId> gate(CompletableFuture<MessageId> gatedWrite) {
+            // Chained before the result is relayed, so that release() cannot run before the service's continuation
+            // hangs off this future.
+            final CompletableFuture<MessageId> gated = released.thenCompose(__ -> gatedWrite);
             gatedWrite.whenComplete((messageId, e) -> {
                 if (e == null) {
                     written.complete(messageId);
@@ -614,7 +617,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                     written.completeExceptionally(e);
                 }
             });
-            return released.thenCompose(__ -> gatedWrite);
+            return gated;
         }
 
         /**
