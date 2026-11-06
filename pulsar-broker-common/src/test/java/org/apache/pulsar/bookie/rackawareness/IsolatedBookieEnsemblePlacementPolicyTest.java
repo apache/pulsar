@@ -1399,7 +1399,8 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         ClientConfiguration bkClientConf = new ClientConfiguration();
         bkClientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_INSTANCE, store);
         bkClientConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "*");
-        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = createIsolationPolicy(bkClientConf);
+        IsolatedBookieEnsemblePlacementPolicy isolationPolicy = new IsolatedBookieEnsemblePlacementPolicy();
+        initializeIsolationPolicy(isolationPolicy, bkClientConf);
         isolationPolicy.onClusterChanged(writableBookies, readOnlyBookies);
 
         assertThat(isolationPolicy.getInitialRackConfigurationLoadFuture()).isCompletedExceptionally();
