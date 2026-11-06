@@ -226,7 +226,8 @@ public class TopicTransactionBufferTest extends TransactionTestBase {
         Assert.assertTrue(buffer instanceof TopicTransactionBuffer);
         TopicTransactionBuffer ttb = (TopicTransactionBuffer) buffer;
         TopicTransactionBufferState.State expectState = TopicTransactionBufferState.State.Close;
-        Assert.assertEquals(ttb.getState(), expectState);
+        // The broker closes the topic, whose load timed out, once its initialization after newTopic completes
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(ttb.getState(), expectState));
         Assert.assertTrue(f.isCompletedExceptionally());
     }
 
