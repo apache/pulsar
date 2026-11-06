@@ -120,6 +120,74 @@ function ci_move_test_reports() {
   )
 }
 
+# writes "<seconds> <class>" for each top-level test class that the test or testShard* tasks ran, from their
+# JUnit XML reports, so that the next CI run of the unit test group packs its shards by these durations
+# (see gradle_test_shards in run_unit_group_gradle.sh). A report's time ends with the class's last test
+# method, before its cleanup, but a shard runs its classes one after the other in one JVM, so there a class
+# lasts until the next one starts. The forks of `test` share one report directory, so there the report's
+# time is all there is.
+function ci_record_test_durations() {
+  (
+    local durations_file="$1"
+    if [ -n "${GITHUB_WORKSPACE}" ]; then
+      cd "${GITHUB_WORKSPACE}"
+    fi
+    mkdir -p "$(dirname "$durations_file")"
+    find . -type d \( -path '*/build/test-results/test' -o -path '*/build/test-results/testShard*' \) |
+      while read -r results_dir; do
+        in_order=0
+        if [[ "$results_dir" == */testShard* ]]; then
+          in_order=1
+        fi
+        find "$results_dir" -maxdepth 1 -name 'TEST-*.xml' -print0 |
+          xargs -0 -r sed -n -E 's/^<testsuite name="([^"]+)".* timestamp="([^"]+)".* time="([0-9.]+)".*/\2 \3 \1/p' |
+          sort |
+          awk -v in_order=$in_order '
+            {
+              split(substr($1, 12), hms, ":")
+              start[NR] = hms[1] * 3600 + hms[2] * 60 + hms[3]
+              seconds[NR] = $2
+              name[NR] = $3
+            }
+            END {
+              for (i = 1; i <= NR; i++) {
+                if (in_order && i < NR) {
+                  seconds[i] = start[i + 1] - start[i]
+                  if (seconds[i] < 0) {
+                    seconds[i] += 86400
+                  }
+                }
+                # a nested class counts toward its top-level class, which decides its shard
+                sub(/\$.*/, "", name[i])
+                printf "%.3f %s\n", seconds[i], name[i]
+              }
+            }'
+      done |
+      awk '{ total[$2] += $1 } END { for (name in total) printf "%.3f %s\n", total[name], name }' |
+      sort -k2 > "${durations_file}.tmp"
+    if [ -s "${durations_file}.tmp" ]; then
+      mv "${durations_file}.tmp" "$durations_file"
+      echo "Recorded the durations of $(wc -l < "$durations_file") test classes in $durations_file"
+    else
+      rm -f "${durations_file}.tmp"
+    fi
+  )
+}
+
+# reports the test methods that failed their first attempt and passed or failed again on the retry, from the
+# JUnit XML reports in test-reports/: a warning annotation per hidden failure, a job summary table and
+# test-reports/retried-tests.tsv. A failure to report doesn't fail the job.
+function ci_report_retried_tests() {
+  (
+    if [ -n "${GITHUB_WORKSPACE}" ]; then
+      cd "${GITHUB_WORKSPACE}"
+    fi
+    if [ -d test-reports ]; then
+      python3 -I "$SCRIPT_DIR/report_retried_tests.py" test-reports || echo "::warning::Reporting retried tests failed."
+    fi
+  )
+}
+
 # generates a top-level index.html that links to each module's HTML test report
 function ci_generate_test_report_index() {
   (
@@ -131,7 +199,8 @@ function ci_generate_test_report_index() {
     local found_reports=()
     while IFS= read -r -d '' report; do
       found_reports+=("$report")
-    done < <(find . -path '*/build/reports/tests/test/index.html' -not -path './build/*' -print0 | sort -z)
+    done < <(find . \( -path '*/build/reports/tests/test/index.html' \
+      -o -path '*/build/reports/tests/testShard[0-9]/index.html' \) -not -path './build/*' -print0 | sort -z)
     if [ ${#found_reports[@]} -eq 0 ]; then
       echo "No HTML test reports found."
       return 0
@@ -156,8 +225,13 @@ HEADER
     for report in "${found_reports[@]}"; do
       # strip leading ./
       local rel_path="${report#./}"
-      # extract module name (everything before /build/reports/tests/test/index.html)
-      local module_name="${rel_path%%/build/reports/tests/test/index.html}"
+      # extract module name (everything before /build/reports/tests/<task>/index.html)
+      local module_name="${rel_path%%/build/reports/tests/*}"
+      local task_dir="${rel_path%/index.html}"
+      local task_name="${task_dir##*/}"
+      if [ "$task_name" != "test" ]; then
+        module_name="${module_name} (${task_name})"
+      fi
       echo "  <li><a href=\"../${rel_path}\">${module_name}</a></li>" >> "$index_file"
     done
     cat >> "$index_file" <<'FOOTER'

@@ -16,13 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests.integration.functions.python;
+package org.apache.pulsar.broker.web.invalidmodel;
 
-import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
 
-public class PulsarFunctionsPythonThreadTest extends PulsarFunctionsPythonTest {
+/**
+ * A resource with two methods for the same requests, which fails Jersey's validation of the resource model. It's alone
+ * in its package, which WebServiceResourceModelTest scans like the broker scans the packages of its admin resources.
+ */
+@Path("/ambiguous")
+public class AmbiguousResource {
 
-    public PulsarFunctionsPythonThreadTest() {
-        super(FunctionRuntimeType.THREAD);
-  }
+    @GET
+    public String get() {
+        return "get";
+    }
+
+    @GET
+    public String getAgain() {
+        return "getAgain";
+    }
 }

@@ -257,6 +257,7 @@ jobs:
       THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/build/thread-leak-dumps
       NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
       NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/build/netty-leak-dumps
+      TEST_DURATIONS_DIR: ${{ github.workspace }}/build/test-durations
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -270,6 +271,7 @@ jobs:
             timeout: 75
           - name: Brokers - Broker Group 1
             group: BROKER_GROUP_1
+            timeout: 70
           - name: Brokers - Broker Group 2
             group: BROKER_GROUP_2
           - name: Brokers - Broker Group 3
@@ -330,7 +332,18 @@ jobs:
           name: gradle-build-outputs
 
       - name: Extract build outputs
-        run: tar xf gradle-build-outputs.tar
+        run: |
+          tar xf gradle-build-outputs.tar
+          rm -f -- gradle-build-outputs.tar
+
+      # the test class durations of the latest earlier run of this group, which
+      # run_unit_group_gradle.sh uses to balance the group's test shards
+      - name: Restore test class durations
+        uses: actions/cache/restore@v6
+        with:
+          path: build/test-durations
+          key: unit-test-durations-${{ matrix.group }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: unit-test-durations-${{ matrix.group }}-
 
       - name: Run setup commands
         if: ${{ matrix.setup }}
@@ -340,6 +353,14 @@ jobs:
       - name: Run unit test group '${{ matrix.group }}'
         run: |
           ./pulsar-build/run_unit_group_gradle.sh ${{ matrix.group }}
+
+      - name: Save test class durations
+        if: ${{ success() && hashFiles(format('build/test-durations/{0}.txt', matrix.group)) != '' }}
+        continue-on-error: true
+        uses: actions/cache/save@v6
+        with:
+          path: build/test-durations
+          key: unit-test-durations-${{ matrix.group }}-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
@@ -464,10 +485,12 @@ jobs:
           name: gradle-build-outputs
 
       - name: Extract build outputs
-        run: tar xf gradle-build-outputs.tar
+        run: |
+          tar xf gradle-build-outputs.tar
+          rm -f -- gradle-build-outputs.tar
 
       - name: Setup Docker
-        uses: gradle/develocity-actions/setup-docker@f852d93dada312948b1ba533226c28e05d756866 # v2.4
+        uses: gradle/develocity-actions/setup-docker@9d8792ab22712b19790c2abce53e9ebb2694c312 # v2.5
         with:
           develocity-url: https://develocity.apache.org
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
@@ -574,6 +597,13 @@ jobs:
         with:
           limit-access-to-actor: true
 
+      # Backwards compatibility tests pull several older Pulsar images
+      - name: Clean disk for backwards compatibility tests
+        if: ${{ matrix.group == 'BACKWARDS_COMPAT' }}
+        uses: ./.github/actions/clean-disk
+        with:
+          clean-threshold-gb: '30'
+
       - name: Set up JDK ${{ env.CI_JDK_MAJOR_VERSION }}${{ matrix.runtime_jdk && matrix.runtime_jdk != env.CI_JDK_MAJOR_VERSION && format(' and {0}', matrix.runtime_jdk) || '' }}
         if: ${{ matrix.group != 'NATIVE_IMAGE' }}
         uses: actions/setup-java@v5
@@ -603,7 +633,9 @@ jobs:
           name: gradle-build-outputs
 
       - name: Extract build outputs
-        run: tar xf gradle-build-outputs.tar
+        run: |
+          tar xf gradle-build-outputs.tar
+          rm -f -- gradle-build-outputs.tar
 
       - name: Download docker image
         uses: actions/download-artifact@v8
@@ -612,7 +644,9 @@ jobs:
           path: /tmp
 
       - name: Load docker image
-        run: docker load -i /tmp/java-test-image.tar.gz
+        run: |
+          docker load -i /tmp/java-test-image.tar.gz
+          rm -f -- /tmp/java-test-image.tar.gz
 
       - name: Run setup commands
         if: ${{ matrix.setup }}
@@ -718,10 +752,12 @@ jobs:
           name: gradle-build-outputs
 
       - name: Extract build outputs
-        run: tar xf gradle-build-outputs.tar
+        run: |
+          tar xf gradle-build-outputs.tar
+          rm -f -- gradle-build-outputs.tar
 
       - name: Setup Docker
-        uses: gradle/develocity-actions/setup-docker@f852d93dada312948b1ba533226c28e05d756866 # v2.4
+        uses: gradle/develocity-actions/setup-docker@9d8792ab22712b19790c2abce53e9ebb2694c312 # v2.5
         with:
           develocity-url: https://develocity.apache.org
           develocity-access-key: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
@@ -838,7 +874,9 @@ jobs:
           name: gradle-build-outputs
 
       - name: Extract build outputs
-        run: tar xf gradle-build-outputs.tar
+        run: |
+          tar xf gradle-build-outputs.tar
+          rm -f -- gradle-build-outputs.tar
 
       - name: Download docker image
         uses: actions/download-artifact@v8
@@ -847,7 +885,9 @@ jobs:
           path: /tmp
 
       - name: Load docker image
-        run: docker load -i /tmp/pulsar-test-latest-version.tar.gz
+        run: |
+          docker load -i /tmp/pulsar-test-latest-version.tar.gz
+          rm -f -- /tmp/pulsar-test-latest-version.tar.gz
 
       - name: Run system test group '${{ matrix.group }}'
         run: |
@@ -910,7 +950,8 @@ jobs:
     name: Run CodeQL Analysis
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    needs: ['preconditions', 'unit-tests']
+    # build-mode: none reads the sources only, so the analysis doesn't wait for the build or the tests.
+    needs: ['preconditions']
     # Private repositories need Code Security enabled before opting in.
     if: ${{ (github.event.repository.visibility == 'public' || vars.CI_ENABLE_CODEQL == 'true') && (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
     permissions:
