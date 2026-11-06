@@ -145,6 +145,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
 
         admin1.topicPolicies(true).setReplicationClusters(topic, Arrays.asList(cluster1, cluster2));
         Awaitility.await().untilAsserted(() -> {
+            assertTrue(admin2.topics().getList(replicatedNamespace).contains(topic));
             assertThat(admin1.topics().getPermissions(topic)).containsEntry(role, permissions);
             assertThat(admin2.topics().getPermissions(topic)).containsEntry(role, permissions);
         });
