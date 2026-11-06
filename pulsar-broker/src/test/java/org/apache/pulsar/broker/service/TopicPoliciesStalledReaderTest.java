@@ -322,7 +322,9 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         // on this thread, so the cache below shows what that delivery did.
         final List<StallableReader> readersHoldingAnEvent =
                 stalledReaders.stream().filter(StallableReader::holdsEvent).toList();
-        assertThat(readersHoldingAnEvent).describedAs("the stalled reader of the namespace withheld no event").hasSize(1);
+        assertThat(readersHoldingAnEvent)
+                .describedAs("the stalled reader of the namespace withheld no event")
+                .hasSize(1);
         readersHoldingAnEvent.get(0).deliverHeldEvent();
         assertThat(service.getTopicPoliciesAsync(deletedTopic, TopicPoliciesService.GetType.LOCAL_ONLY))
                 .describedAs("a delivery from the replaced reader must not put back a policy that the compacted"

@@ -333,11 +333,22 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      */
     private CompletableFuture<Void> untilMessageIdHasBeenRead(NamespaceName namespaceObject, MessageId messageId) {
         CompletableFuture<Void> future = new CompletableFuture<>();
-        // The initialization whose background reader has to read the event back: the update awaited it before it
-        // wrote the event.
-        CompletableFuture<Void> initFuture = policyCacheInitMap.get(namespaceObject);
-        getMessageHandlerTracker(namespaceObject).addPendingFuture((MessageIdAdv) messageId, future);
-        scheduleReadBackTimeout(namespaceObject, messageId, future, initFuture);
+        // The initialization whose reader has to read the event back, and its tracker, taken in one step so that
+        // they belong together: a reader replacement between the two would otherwise register the wait with the new
+        // reader's tracker and blame the old reader's initialization for a timeout. It is the initialization current
+        // now, not the one the update read its policies from, because a reader that replaces a stalled one records
+        // the events of its first pass over the topic in the tracker, so the wait completes when the replacement
+        // has applied the event (see initPolicesCache).
+        MutableObject<CompletableFuture<Void>> initFuture = new MutableObject<>();
+        MutableObject<TopicPolicyMessageHandlerTracker> tracker = new MutableObject<>();
+        policyCacheInitMap.compute(namespaceObject, (__, currentInitFuture) -> {
+            initFuture.setValue(currentInitFuture);
+            tracker.setValue(getMessageHandlerTracker(namespaceObject));
+            return currentInitFuture;
+        });
+        // Outside compute(): a wait for an event that was already read back completes here, and its callbacks run.
+        tracker.getValue().addPendingFuture((MessageIdAdv) messageId, future);
+        scheduleReadBackTimeout(namespaceObject, messageId, future, initFuture.getValue());
         return future;
     }
 
@@ -350,8 +361,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
      * is stalled, so the reader that belongs to {@code initFuture} is closed: the next initialization then reads the
      * topic with a fresh reader, instead of every later update in the namespace timing out as well.
      *
-     * @param initFuture the initialization whose reader was expected to read the event back, or {@code null} when
-     *                   the namespace had none; only that initialization's reader is closed
+     * @param initFuture the initialization whose reader was expected to read the event back and whose tracker holds
+     *                   the wait, or {@code null} when the namespace had none; only that initialization's reader is
+     *                   closed
      */
     private void scheduleReadBackTimeout(@NonNull NamespaceName namespace, @NonNull MessageId messageId,
                                          @NonNull CompletableFuture<Void> readBackFuture,
@@ -422,9 +434,11 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             // The cached policies and the reader go in the same step as the initialization they belong to. A policy
             // read takes its answer inside compute() on this key, from a completed initialization only, and the
             // next initialization is installed through this map as well. So no read sees the namespace's cache
-            // while it is empty or half rebuilt, and the next initialization cannot be handed this reader. The
-            // replay is requested here too, so that this next initialization cannot reach the end of the topic
-            // without it.
+            // while it is empty or half rebuilt, and the next initialization cannot be handed this reader. A
+            // delivery of this reader writes to the cache inside compute() on this key too, and only while this
+            // initialization is still current (applyEventIfCurrent), so a delivery that the reader had already
+            // received when it is closed cannot put a policy back after this step. The replay is requested here too,
+            // so that this next initialization cannot reach the end of the topic without it.
             listenerReplayPending.merge(namespace, removeCachedPolicies(namespace),
                     TopicsWithPoliciesBeforeReplacement::mergedWith);
             readerRemoved.set(readerFuture != null && readerCaches.remove(namespace, readerFuture));
@@ -858,7 +872,7 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                         readerCompletableFuture
                                 .thenCompose(reader -> {
                                     final CompletableFuture<Void> stageFuture = new CompletableFuture<>();
-                                    initPolicesCache(reader, stageFuture);
+                                    initPolicesCache(reader, stageFuture, initNamespacePolicyFuture);
                                     return stageFuture
                                             // Read policies in background
                                             .thenAccept(__ -> readMorePoliciesAsync(reader, initNamespacePolicyFuture));
@@ -1066,10 +1080,19 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         }
     }
 
-    private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future) {
+    /**
+     * The first pass of {@code reader} over the namespace's {@code __change_events}, from the start of the compacted
+     * topic to its end: fills the policy caches and completes {@code future} when the end is reached.
+     *
+     * @param initFuture the initialization this pass belongs to; the pass writes to the caches only while it is the
+     *                   namespace's current one, and ends when it has been superseded
+     */
+    private void initPolicesCache(SystemTopicClient.Reader<PulsarEvent> reader, CompletableFuture<Void> future,
+                                  CompletableFuture<Void> initFuture) {
+        NamespaceName namespaceObject = reader.getSystemTopic().getTopicName().getNamespaceObject();
         if (closed.get()) {
             future.completeExceptionally(new BrokerServiceException(getClass().getName() + " is closed."));
-            cleanPoliciesCacheInitMap(reader.getSystemTopic().getTopicName().getNamespaceObject());
+            cleanPoliciesCacheInitMap(namespaceObject);
             return;
         }
         reader.hasMoreEventsAsync().whenComplete((hasMore, ex) -> {
@@ -1083,15 +1106,33 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
             }
             if (hasMore) {
                 reader.readNextAsync().thenAccept(msg -> {
+                    TopicPolicyMessageHandlerTracker tracker;
                     try {
-                        refreshTopicPoliciesCache(msg);
+                        tracker = applyEventIfCurrent(namespaceObject, initFuture, msg);
+                        if (tracker != null) {
+                            writeTombstoneForLegacyDeleteEvent(msg);
+                            // Recorded as read, like a live delivery in readMorePoliciesAsync. An update that wrote
+                            // its event while the reader was being replaced finds it here: its wait for the
+                            // read-back, registered after this pass has applied the event, completes at once instead
+                            // of timing out on a delivery that never comes, since the event is behind this reader.
+                            tracker.handleMessageId((MessageIdAdv) msg.getMessageId());
+                        }
                     } finally {
                         msg.release();
                     }
+                    if (tracker == null) {
+                        log.debug()
+                                .attr("namespaceObject", namespaceObject)
+                                .log("Stop the first pass over the system topic: its initialization was superseded.");
+                        future.completeExceptionally(new BrokerServiceException(
+                                "Topic policies cache initialization for namespace " + namespaceObject
+                                        + " was superseded while reading " + reader.getSystemTopic().getTopicName()));
+                        return;
+                    }
                     log.debug()
-                            .attr("namespaceObject", reader.getSystemTopic().getTopicName().getNamespaceObject())
+                            .attr("namespaceObject", namespaceObject)
                             .log("Loop next event reading for system topic.");
-                    initPolicesCache(reader, future);
+                    initPolicesCache(reader, future, initFuture);
                 }).exceptionally(e -> {
                     log.error()
                             .attr("topic", reader.getSystemTopic().getTopicName())
@@ -1110,7 +1151,6 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 // needed for custom plugins that register TopicPolicyListeners and rely on the broadcast; it is
                 // off by default (topicPolicyListenerReplayEnabled). A reader that replaces a stalled one replays
                 // regardless: the topics that are already loaded missed the events the stalled reader withheld.
-                NamespaceName namespaceObject = reader.getSystemTopic().getTopicName().getNamespaceObject();
                 TopicsWithPoliciesBeforeReplacement beforeReplacement = listenerReplayPending.remove(namespaceObject);
                 if (beforeReplacement != null) {
                     FutureUtil.completeAfter(future,
@@ -1241,10 +1281,21 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
         reader.readNextAsync()
                 .thenAccept(msg -> {
                     try {
-                        refreshTopicPoliciesCache(msg);
+                        TopicPolicyMessageHandlerTracker tracker =
+                                applyEventIfCurrent(namespaceObject, initFuture, msg);
+                        if (tracker == null) {
+                            // A reader that was replaced or unloaded can still complete a receive it had handed out
+                            // before it was closed. The namespace's state belongs to a newer initialization now (or
+                            // to none), so this delivery changes nothing; the loop ends with AlreadyClosedException.
+                            log.debug()
+                                    .attr("topic", reader.getSystemTopic().getTopicName())
+                                    .attr("messageId", msg.getMessageId())
+                                    .log("Dropped an event delivered by a superseded system topic reader.");
+                            return;
+                        }
+                        writeTombstoneForLegacyDeleteEvent(msg);
                         try {
-                            getMessageHandlerTracker(namespaceObject).handleMessageId(
-                                    (MessageIdAdv) msg.getMessageId());
+                            tracker.handleMessageId((MessageIdAdv) msg.getMessageId());
                         } finally {
                             notifyListener(msg);
                         }
@@ -1279,6 +1330,38 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
     private boolean isAlreadyClosedException(Throwable ex) {
         Throwable cause = FutureUtil.unwrapCompletionException(ex);
         return cause instanceof PulsarClientException.AlreadyClosedException;
+    }
+
+    /**
+     * Applies {@code msg} to the policy caches, unless the initialization that delivered it has been superseded by a
+     * reader replacement ({@link #replaceStalledReader}) or a namespace unload ({@link #cleanPoliciesCacheInitMap}).
+     * Both clear the namespace's cached policies inside {@code policyCacheInitMap.compute} on the namespace, and so
+     * does this check-and-write: it either lands before the clearing step, and is cleared with the rest, or finds
+     * the initialization superseded and writes nothing. A reader that is closed can still complete a receive it had
+     * already handed out, and a plain check before an unguarded write would let that delivery put a policy back into
+     * the cleared cache; the reader that replaced it reads the compacted topic, which no longer holds the tombstone
+     * of a policy deleted and compacted since, so nothing would remove it again.
+     *
+     * <p>The caches are the only state touched inside {@code compute}: completing a future or writing to the system
+     * topic from there could re-enter this map on the same key (see #24977), so the tracker update, the listener
+     * notification and the tombstone of a legacy delete event stay with the caller.
+     *
+     * @return the tracker that the delivery is to be recorded in, the one of {@code initFuture}'s initialization, or
+     *         {@code null} when the delivery was dropped because the initialization is not the namespace's current one
+     */
+    @Nullable
+    private TopicPolicyMessageHandlerTracker applyEventIfCurrent(@NonNull NamespaceName namespace,
+                                                                 @NonNull CompletableFuture<Void> initFuture,
+                                                                 @NonNull Message<PulsarEvent> msg) {
+        MutableObject<TopicPolicyMessageHandlerTracker> tracker = new MutableObject<>();
+        policyCacheInitMap.compute(namespace, (__, currentInitFuture) -> {
+            if (currentInitFuture == initFuture) {
+                refreshTopicPoliciesCache(msg);
+                tracker.setValue(getMessageHandlerTracker(namespace));
+            }
+            return currentInitFuture;
+        });
+        return tracker.getValue();
     }
 
     private void refreshTopicPoliciesCache(Message<PulsarEvent> msg) {
@@ -1319,18 +1402,9 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                 case DELETE:
                     // Since PR #11928, this branch is no longer needed.
                     // However, due to compatibility, it is temporarily retained here
-                    // and can be deleted in the future.
+                    // and can be deleted in the future. The tombstone that replaces the event is written by
+                    // writeTombstoneForLegacyDeleteEvent, outside the lock this method runs under.
                     policiesCache.remove(topicName);
-                    sendTopicPolicyEventInternal(topicName, ActionType.DELETE, null,
-                            event.getPolicies().isGlobalPolicies())
-                            .whenComplete((__, ex) -> {
-                                if (ex != null) {
-                                    log.error()
-                                            .attr("topic", topicName)
-                                            .exception(ex)
-                                            .log("Failed to send delete topic policy event for");
-                                }
-                            });
                     break;
                 case NONE:
                     break;
@@ -1339,6 +1413,31 @@ public class SystemTopicBasedTopicPoliciesService implements TopicPoliciesServic
                     break;
             }
         }
+    }
+
+    /**
+     * A DELETE event that still carries policies was written before PR #11928; compaction does not drop it, so a
+     * tombstone is written for its key. Kept apart from {@link #refreshTopicPoliciesCache}, which runs inside
+     * {@code policyCacheInitMap.compute} (see {@link #applyEventIfCurrent}) and must not write to the system topic.
+     */
+    private void writeTombstoneForLegacyDeleteEvent(Message<PulsarEvent> msg) {
+        PulsarEvent value = msg.getValue();
+        if (value == null || !EventType.TOPIC_POLICY.equals(value.getEventType())
+                || value.getActionType() != ActionType.DELETE) {
+            return;
+        }
+        TopicPoliciesEvent event = value.getTopicPoliciesEvent();
+        TopicName topicName =
+                TopicName.get(event.getDomain(), event.getTenant(), event.getNamespace(), event.getTopic());
+        sendTopicPolicyEventInternal(topicName, ActionType.DELETE, null, event.getPolicies().isGlobalPolicies())
+                .whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        log.error()
+                                .attr("topic", topicName)
+                                .exception(ex)
+                                .log("Failed to send delete topic policy event for");
+                    }
+                });
     }
 
     private boolean hasReplicateTo(Message<?> message) {
