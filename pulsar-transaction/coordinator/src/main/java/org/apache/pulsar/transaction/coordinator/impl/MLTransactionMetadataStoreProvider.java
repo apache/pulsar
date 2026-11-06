@@ -19,7 +19,7 @@
 package org.apache.pulsar.transaction.coordinator.impl;
 
 import io.netty.util.Timer;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -86,7 +86,7 @@ public class MLTransactionMetadataStoreProvider implements TransactionMetadataSt
             super("pulsar_txn_tc",
                     new String[]{"broker"},
                     new String[]{brokerAdvertisedAddress},
-                    CollectorRegistry.defaultRegistry);
+                    PrometheusRegistry.defaultRegistry);
         }
     }
 }

@@ -32,7 +32,9 @@ dependencies {
     api(libs.netty.buffer)
     api(libs.netty.common)
     implementation(libs.jctools.core.jdk11)
-    api(libs.simpleclient)
+    // PrometheusRegistry is part of the TxnLogBufferedWriterMetricsStats constructor signature.
+    api(libs.prometheus.metrics.model)
+    implementation(libs.prometheus.metrics.core)
     implementation(libs.guava)
     implementation(libs.bookkeeper.server)
 

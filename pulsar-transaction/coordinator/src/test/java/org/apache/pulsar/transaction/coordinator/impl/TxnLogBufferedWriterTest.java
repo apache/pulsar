@@ -27,7 +27,12 @@ import io.netty.buffer.Unpooled;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.CounterSnapshot;
+import io.prometheus.metrics.model.snapshots.DataPointSnapshot;
+import io.prometheus.metrics.model.snapshots.HistogramSnapshot;
+import io.prometheus.metrics.model.snapshots.Labels;
+import io.prometheus.metrics.model.snapshots.MetricSnapshot;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -804,7 +809,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     @Test
     public void testMetricsStatsWhenDisabledBatchFeature() throws Exception {
         TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
-                metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
+                metricsPrefix, metricsLabelNames, metricsLabelValues, PrometheusRegistry.defaultRegistry
         );
         ManagedLedger managedLedger = factory.open("tx_test_ledger");
         // Create callback with counter.
@@ -835,7 +840,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         metricsStats.close();
         transactionTimer.stop();
         orderedExecutor.shutdown();
-        CollectorRegistry.defaultRegistry.clear();
     }
 
     @Test
@@ -1008,7 +1012,6 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         context.metrics.close();
         context.timer.stop();
         context.orderedExecutor.shutdownNow();
-        CollectorRegistry.defaultRegistry.clear();
     }
 
     @AllArgsConstructor
@@ -1041,7 +1044,7 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
         HashedWheelTimer transactionTimer = new HashedWheelTimer(new DefaultThreadFactory("transaction-timer"),
                 1, TimeUnit.MILLISECONDS);
         TxnLogBufferedWriterMetricsStats metricsStats = new TxnLogBufferedWriterMetricsStats(
-                metricsPrefix, metricsLabelNames, metricsLabelValues, CollectorRegistry.defaultRegistry
+                metricsPrefix, metricsLabelNames, metricsLabelValues, PrometheusRegistry.defaultRegistry
         );
         // Mock managed ledger and write counter.
         MockedManagedLedger mockedManagedLedger = mockManagedLedgerWithWriteCounter(mlName);
@@ -1127,27 +1130,31 @@ public class TxnLogBufferedWriterTest extends MockedBookKeeperTestCase {
     }
 
     private double getCounterValue(String name) {
-        Double d = CollectorRegistry.defaultRegistry.getSampleValue(
-                name + "_total",
-                metricsLabelNames,
-                metricsLabelValues);
-        return d == null ? 0 : d.doubleValue();
+        DataPointSnapshot dataPoint = findDataPoint(name);
+        return dataPoint == null ? 0 : ((CounterSnapshot.CounterDataPointSnapshot) dataPoint).getValue();
     }
 
     private double getHistogramCount(String name) {
-        Double d = CollectorRegistry.defaultRegistry.getSampleValue(
-                name + "_count",
-                metricsLabelNames,
-                metricsLabelValues);
-        return d == null ? 0 : d.doubleValue();
+        DataPointSnapshot dataPoint = findDataPoint(name);
+        return dataPoint == null ? 0 : ((HistogramSnapshot.HistogramDataPointSnapshot) dataPoint).getCount();
     }
 
     private double getHistogramSum(String name) {
-        Double d = CollectorRegistry.defaultRegistry.getSampleValue(
-                name + "_sum",
-                metricsLabelNames,
-                metricsLabelValues);
-        return d == null ? 0 : d.doubleValue();
+        DataPointSnapshot dataPoint = findDataPoint(name);
+        return dataPoint == null ? 0 : ((HistogramSnapshot.HistogramDataPointSnapshot) dataPoint).getSum();
+    }
+
+    /** The data point of the metric carrying this test's labels, or null if it is not registered. */
+    private DataPointSnapshot findDataPoint(String name) {
+        Labels labels = Labels.of(metricsLabelNames, metricsLabelValues);
+        for (MetricSnapshot snapshot : PrometheusRegistry.defaultRegistry.scrape(name::equals)) {
+            for (DataPointSnapshot dataPoint : snapshot.getDataPoints()) {
+                if (labels.equals(dataPoint.getLabels())) {
+                    return dataPoint;
+                }
+            }
+        }
+        return null;
     }
 
 }
