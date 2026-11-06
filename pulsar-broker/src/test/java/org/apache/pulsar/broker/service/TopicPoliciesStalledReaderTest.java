@@ -238,9 +238,10 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         final TopicName otherTopic = newTopic();
         setMaxConsumers(deletedTopic, 5).get(30, TimeUnit.SECONDS);
 
-        // Stalled, but with the default timeout for now: the deletion has to keep waiting while the topic is
+        // Stalled, with a timeout longer than this test: the deletion has to keep waiting while the topic is
         // compacted.
         final List<StallableReader> stalledReaders = service.stallReaders();
+        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(TimeUnit.MINUTES.toSeconds(10));
         final CompletableFuture<Void> deletion = service.deleteTopicPoliciesAsync(deletedTopic);
         awaitWithheldEvents(stalledReaders, 1);
 
@@ -252,6 +253,9 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                 .isEmpty();
 
         // An update of another topic now reports the stall and has the reader replaced.
+        assertThat(deletion)
+                .describedAs("the deletion must still be waiting, or the reader was replaced before the compaction")
+                .isNotDone();
         pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(READ_TIMEOUT_SECONDS);
         assertStallReported(stalledUpdate(otherTopic, 7), "the policy update", TimeoutException.class);
 
