@@ -32,6 +32,9 @@ class ReadEntryUtils {
 
     static CompletableFuture<LedgerEntries> readAsync(ManagedLedger ml, ReadHandle handle, long firstEntry,
                                                       long lastEntry, boolean batchReadEnabled, long maxSizeBytes) {
+        // ml is the original owner of a cache shared by managed-ledger name, not necessarily the read's caller.
+        // This type check assumes read-only and shadow ledgers never share such a cache; otherwise a shadow
+        // point read could bypass its last-confirmed bound.
         if (ml instanceof ReadOnlyManagedLedgerImpl && firstEntry == lastEntry) {
             // A shared cache may retain an older read-only instance whose inventory predates this ledger.
             // Published point positions must not depend on that inventory or an open handle's piggyback LAC.
