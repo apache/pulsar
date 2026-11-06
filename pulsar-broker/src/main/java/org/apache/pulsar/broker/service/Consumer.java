@@ -154,6 +154,7 @@ public class Consumer {
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
     private final Map<String, String> metadata;
+    private final String consumerInstanceId;
 
     private final KeySharedMeta keySharedMeta;
 
@@ -213,6 +214,16 @@ public class Consumer {
                     Map<String, String> metadata, boolean readCompacted,
                     KeySharedMeta keySharedMeta, MessageId startMessageId,
                     long consumerEpoch, SchemaType schemaType) {
+        this(subscription, subType, topicName, consumerId, priorityLevel, consumerName, isDurable, cnx, appId,
+                metadata, readCompacted, keySharedMeta, startMessageId, consumerEpoch, schemaType, null);
+    }
+
+    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
+                    int priorityLevel, String consumerName,
+                    boolean isDurable, TransportCnx cnx, String appId,
+                    Map<String, String> metadata, boolean readCompacted,
+                    KeySharedMeta keySharedMeta, MessageId startMessageId,
+                    long consumerEpoch, SchemaType schemaType, String consumerInstanceId) {
         this.subscription = subscription;
         this.subType = subType;
         this.topicName = topicName;
@@ -250,6 +261,7 @@ public class Consumer {
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
 
+        this.consumerInstanceId = subType == SubType.Failover ? consumerInstanceId : null;
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         stats = new ConsumerStatsImpl();
@@ -302,6 +314,7 @@ public class Consumer {
         this.isDurable = false;
         this.isPersistentTopic = false;
         this.metadata = null;
+        this.consumerInstanceId = null;
         this.keySharedMeta = null;
         this.clientAddress = null;
         this.startMessageId = null;
@@ -1625,6 +1638,10 @@ public class Consumer {
 
     public Map<String, String> getMetadata() {
         return metadata;
+    }
+
+    String consumerInstanceId() {
+        return consumerInstanceId;
     }
     public Attributes getOpenTelemetryAttributes() {
         if (openTelemetryAttributes != null) {

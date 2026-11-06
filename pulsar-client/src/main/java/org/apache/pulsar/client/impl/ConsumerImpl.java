@@ -307,17 +307,36 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                                                ConsumerInterceptors<T> interceptors,
                                                boolean createTopicIfDoesNotExist,
                                                long startMessageRollbackDurationInSec) {
+        return newConsumerImpl(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
+                parentConsumerHasListener, subscribeFuture, startMessageId, schema, interceptors,
+                createTopicIfDoesNotExist, startMessageRollbackDurationInSec, null);
+    }
+
+    static <T> ConsumerImpl<T> newConsumerImpl(PulsarClientImpl client,
+                                               String topic,
+                                               ConsumerConfigurationData<T> conf,
+                                               ExecutorProvider executorProvider,
+                                               int partitionIndex,
+                                               boolean hasParentConsumer,
+                                               boolean parentConsumerHasListener,
+                                               CompletableFuture<Consumer<T>> subscribeFuture,
+                                               MessageId startMessageId,
+                                               Schema<T> schema,
+                                               ConsumerInterceptors<T> interceptors,
+                                               boolean createTopicIfDoesNotExist,
+                                               long startMessageRollbackDurationInSec,
+                                               String parentConsumerInstanceId) {
         if (conf.getReceiverQueueSize() == 0) {
             return new ZeroQueueConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
                     subscribeFuture,
                     startMessageId, schema, interceptors,
-                    createTopicIfDoesNotExist);
+                    createTopicIfDoesNotExist, parentConsumerInstanceId);
         } else {
             return new ConsumerImpl<>(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer,
                     parentConsumerHasListener,
                     subscribeFuture, startMessageId,
                     startMessageRollbackDurationInSec /* rollback time in sec to start msgId */,
-                    schema, interceptors, createTopicIfDoesNotExist);
+                    schema, interceptors, createTopicIfDoesNotExist, parentConsumerInstanceId);
         }
     }
 
@@ -328,8 +347,20 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                            long startMessageRollbackDurationInSec, Schema<T> schema,
                            ConsumerInterceptors<T> interceptors,
                            boolean createTopicIfDoesNotExist) {
+        this(client, topic, conf, executorProvider, partitionIndex, hasParentConsumer, parentConsumerHasListener,
+                subscribeFuture, startMessageId, startMessageRollbackDurationInSec, schema, interceptors,
+                createTopicIfDoesNotExist, null);
+    }
+
+    protected ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+                           ExecutorProvider executorProvider, int partitionIndex, boolean hasParentConsumer,
+                           boolean parentConsumerHasListener, CompletableFuture<Consumer<T>> subscribeFuture,
+                           MessageId startMessageId,
+                           long startMessageRollbackDurationInSec, Schema<T> schema,
+                           ConsumerInterceptors<T> interceptors,
+                           boolean createTopicIfDoesNotExist, String parentConsumerInstanceId) {
         super(client, topic, conf, conf.getReceiverQueueSize(), executorProvider, subscribeFuture, schema,
-                interceptors);
+                interceptors, parentConsumerInstanceId);
         this.consumerId = client.newConsumerId();
         this.log = LOG.with()
                 .attr("topic", topic)
@@ -412,7 +443,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (conf.getProperties().isEmpty()) {
             metadata = Collections.emptyMap();
         } else {
-            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
+            Map<String, String> consumerMetadata = new HashMap<>(conf.getProperties());
+            metadata = Collections.unmodifiableMap(consumerMetadata);
         }
 
         this.connectionHandler = new ConnectionHandler(this,
@@ -1073,7 +1105,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     conf.getReplicateSubscriptionState(),
                     InitialPosition.valueOf(subscriptionInitialPosition.getValue()),
                     startMessageRollbackDuration, si, createTopicIfDoesNotExist, conf.getKeySharedPolicy(),
-                    conf.getSubscriptionProperties(), subscribeEpoch, conf.isEntryBucketDispatch());
+                    conf.getSubscriptionProperties(), subscribeEpoch, conf.isEntryBucketDispatch(), consumerInstanceId);
 
             cnx.sendRequestWithId(request, requestId).thenRun(() -> {
                 synchronized (ConsumerImpl.this) {

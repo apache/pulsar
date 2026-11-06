@@ -137,6 +137,9 @@ public class Commands {
     // so client don't need to think about consumerEpoch feature
     public static final long DEFAULT_CONSUMER_EPOCH = -1L;
 
+    // Bound the optional CommandSubscribe consumer instance identity.
+    public static final int MAX_CONSUMER_INSTANCE_ID_LENGTH = 36;
+
     @SuppressWarnings("checkstyle:ConstantName")
     public static final short magicCrc32c = 0x0e01;
     @SuppressWarnings("checkstyle:ConstantName")
@@ -695,6 +698,19 @@ public class Commands {
                InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
                SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
                Map<String, String> subscriptionProperties, long consumerEpoch, boolean entryBucketDispatch) {
+        return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
+                isDurable, startMessageId, metadata, readCompacted, isReplicated, subscriptionInitialPosition,
+                startMessageRollbackDurationInSec, schemaInfo, createTopicIfDoesNotExist, keySharedPolicy,
+                subscriptionProperties, consumerEpoch, entryBucketDispatch, null);
+    }
+
+    public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
+               SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
+               Map<String, String> metadata, boolean readCompacted, Boolean isReplicated,
+               InitialPosition subscriptionInitialPosition, long startMessageRollbackDurationInSec,
+               SchemaInfo schemaInfo, boolean createTopicIfDoesNotExist, KeySharedPolicy keySharedPolicy,
+               Map<String, String> subscriptionProperties, long consumerEpoch, boolean entryBucketDispatch,
+               String consumerInstanceId) {
         BaseCommand cmd = localCmd(Type.SUBSCRIBE);
         CommandSubscribe subscribe = cmd.setSubscribe()
                 .setTopic(topic)
@@ -709,6 +725,9 @@ public class Commands {
                 .setInitialPosition(subscriptionInitialPosition)
                 .setForceTopicCreation(createTopicIfDoesNotExist)
                 .setConsumerEpoch(consumerEpoch);
+        if (consumerInstanceId != null) {
+            subscribe.setConsumerInstanceId(consumerInstanceId);
+        }
         if (isReplicated != null) {
             subscribe.setReplicateSubscriptionState(isReplicated);
         }
