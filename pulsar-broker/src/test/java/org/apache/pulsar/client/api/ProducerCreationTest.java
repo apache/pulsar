@@ -214,6 +214,10 @@ public class ProducerCreationTest extends SharedPulsarBaseTest {
                 topicName(domain.value(),
                                 "testCreateProducerWhenTopicTypeMismatch-nonPartitionedTopic")
                         .toString();
+        // a client that looks topics up over HTTP, as the test's client did on a broker of its own: the binary
+        // lookups of the shared client answer an unknown partition with TopicDoesNotExistException
+        @Cleanup
+        PulsarClient client = PulsarClient.builder().serviceUrl(getWebServiceUrl()).build();
         admin.topics().createNonPartitionedTopic(nonPartitionedTopic);
 
         // Topic type is non-partitioned, trying to create producer on the complete partitioned topic.
@@ -221,7 +225,7 @@ public class ProducerCreationTest extends SharedPulsarBaseTest {
         assertThrows(NotAllowedException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored =
-                    pulsarClient.newProducer().topic(TopicName.get(nonPartitionedTopic).getPartition(2).toString())
+                    client.newProducer().topic(TopicName.get(nonPartitionedTopic).getPartition(2).toString())
                             .create();
         });
 
@@ -235,7 +239,7 @@ public class ProducerCreationTest extends SharedPulsarBaseTest {
         {
             @Cleanup
             Producer<byte[]> ignored =
-                    pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartitionedTopicName())
+                    client.newProducer().topic(TopicName.get(partitionedTopic).getPartitionedTopicName())
                             .create();
         }
 
@@ -243,13 +247,13 @@ public class ProducerCreationTest extends SharedPulsarBaseTest {
         assertThrows(PulsarClientException.NotFoundException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored =
-                    pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartition(3).toString())
+                    client.newProducer().topic(TopicName.get(partitionedTopic).getPartition(3).toString())
                             .create();
         });
         assertThrows(PulsarClientException.NotFoundException.class, () -> {
             @Cleanup
             Producer<byte[]> ignored =
-                    pulsarClient.newProducer().topic(TopicName.get(partitionedTopic).getPartition(100).toString())
+                    client.newProducer().topic(TopicName.get(partitionedTopic).getPartition(100).toString())
                             .create();
         });
     }

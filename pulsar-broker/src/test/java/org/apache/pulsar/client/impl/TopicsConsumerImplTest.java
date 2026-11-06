@@ -1301,7 +1301,7 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
 
     @Test
     public void testTopicsDistribution() throws Exception {
-        final String topic = "topics-distribution";
+        final String topic = getNamespace() + "/topics-distribution";
         final int topicCount = 100;
         final int consumers = 10;
 
@@ -1398,6 +1398,9 @@ public class TopicsConsumerImplTest extends SharedPulsarBaseTest {
         @Cleanup final var producer2 = pulsarClient.newProducer(Schema.STRING).topic(topic2).create();
         producer1.send("1-0");
         producer2.send("2-0");
+        // the seek below splits the messages by publish time, so the later two need a later millisecond
+        final long firstTwoSentBy = System.currentTimeMillis();
+        Awaitility.await().until(() -> System.currentTimeMillis() > firstTwoSentBy);
         producer1.send("1-1");
         producer2.send("2-1");
         final var consumer1 = pulsarClient.newConsumer(Schema.STRING)
