@@ -28,8 +28,20 @@ import org.apache.bookkeeper.mledger.ManagedCursorMXBean;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 public class ManagedCursorMetrics extends AbstractMetrics {
+
+    private static final String[] PROMETHEUS_METRIC_NAMES = {
+            "pulsar_ml_cursor_nonContiguousDeletedMessagesRange",
+            "pulsar_ml_cursor_persistLedgerSucceed",
+            "pulsar_ml_cursor_persistLedgerErrors",
+            "pulsar_ml_cursor_persistZookeeperSucceed",
+            "pulsar_ml_cursor_persistZookeeperErrors",
+            "pulsar_ml_cursor_writeLedgerSize",
+            "pulsar_ml_cursor_writeLedgerLogicalSize",
+            "pulsar_ml_cursor_readLedgerSize"
+    };
 
     private Map<String, String> dimensionMap;
     private List<Metrics> metricsCollection;
@@ -45,6 +57,51 @@ public class ManagedCursorMetrics extends AbstractMetrics {
         return aggregate();
     }
 
+
+    /**
+     * Writes each cursor's Prometheus samples without retaining an intermediate metrics object.
+     */
+    public synchronized void generate(SimpleTextOutputStream stream) {
+        String cluster = getLocalClusterName();
+        boolean wroteHeaders = false;
+        for (Map.Entry<String, ManagedLedger> entry : getManagedLedgers().entrySet()) {
+            String ledgerName = entry.getKey();
+            String namespace = parseNamespaceFromLedgerName(ledgerName);
+            for (ManagedCursor cursor : entry.getValue().getCursors()) {
+                if (!wroteHeaders) {
+                    for (String name : PROMETHEUS_METRIC_NAMES) {
+                        stream.write("# TYPE ").write(name).write(" gauge\n");
+                    }
+                    wroteHeaders = true;
+                }
+                ManagedCursorMXBean stats = cursor.getStats();
+                String cursorName = cursor.getName();
+                writeSample(stream, PROMETHEUS_METRIC_NAMES[0], cursor.getTotalNonContiguousDeletedMessagesRange(),
+                        cluster, namespace, ledgerName, cursorName);
+                writeSample(stream, PROMETHEUS_METRIC_NAMES[1], stats.getPersistLedgerSucceed(),
+                        cluster, namespace, ledgerName, cursorName);
+                writeSample(stream, PROMETHEUS_METRIC_NAMES[2], stats.getPersistLedgerErrors(),
+                        cluster, namespace, ledgerName, cursorName);
+                writeSample(stream, PROMETHEUS_METRIC_NAMES[3], stats.getPersistZookeeperSucceed(),
+                        cluster, namespace, ledgerName, cursorName);
+                writeSample(stream, PROMETHEUS_METRIC_NAMES[4], stats.getPersistZookeeperErrors(),
+                        cluster, namespace, ledgerName, cursorName);
+                writeSample(stream, PROMETHEUS_METRIC_NAMES[5], stats.getWriteCursorLedgerSize(),
+                        cluster, namespace, ledgerName, cursorName);
+                writeSample(stream, PROMETHEUS_METRIC_NAMES[6], stats.getWriteCursorLedgerLogicalSize(),
+                        cluster, namespace, ledgerName, cursorName);
+                writeSample(stream, PROMETHEUS_METRIC_NAMES[7], stats.getReadCursorLedgerSize(),
+                        cluster, namespace, ledgerName, cursorName);
+            }
+        }
+    }
+
+    private static void writeSample(SimpleTextOutputStream stream, String name, long value,
+                                    String cluster, String namespace, String ledgerName, String cursorName) {
+        stream.write(name).write("{cluster=\"").write(cluster).write("\", cursor_name=\"").write(cursorName)
+                .write("\", ledger_name=\"").write(ledgerName).write("\", namespace=\"").write(namespace)
+                .write("\"} ").write(value).write('\n');
+    }
 
     /**
      * Aggregation by namespace, ledger, cursor.
