@@ -139,18 +139,30 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     private void createFunction(CommandGenerator generator, String codeFile) throws Exception {
         FunctionConfig config = generator.generateFunctionConfig(codeFile);
         String file = localCodeFile(ObjectUtils.firstNonNull(config.getJar(), config.getPy(), config.getGo()));
-        whenLeaderReady(() -> workerAdmin().functions().createFunction(config, file));
+        retryRejectedWrite(() -> workerAdmin().functions().createFunction(config, file));
     }
 
-    // Runs a create, update or delete, which the workers apply through their leader. The workers of a class start
-    // together, and the leadership can move to the second one a moment after both have started; until a new leader
-    // has taken over, they reject the write with 503 "Leader not yet ready. Please retry again", before applying it.
-    private static void whenLeaderReady(ThrowingRunnable write) {
+    // Runs a create, update or delete, retrying it while the workers reject it before applying it:
+    // - with 503 "Leader not yet ready. Please retry again": the workers apply writes through their leader, and the
+    //   leadership can move to the second worker of a class a moment after both have started; the new leader rejects
+    //   writes until it has taken over.
+    // - with 400 "... request ignored because it is out of date. Please try again.": a worker that isn't the leader
+    //   numbers the function's next version from its own copy of the metadata, which can still miss the previous write,
+    //   such as the code update right before a delete.
+    private static void retryRejectedWrite(ThrowingRunnable write) {
         Awaitility.await()
                 .atMost(Duration.ofSeconds(30))
-                .ignoreExceptionsMatching(e -> e instanceof PulsarAdminException
-                        && ((PulsarAdminException) e).getStatusCode() == 503)
+                .ignoreExceptionsMatching(PulsarFunctionsTest::isRejectedWrite)
                 .untilAsserted(write);
+    }
+
+    private static boolean isRejectedWrite(Throwable e) {
+        if (!(e instanceof PulsarAdminException adminException)) {
+            return false;
+        }
+        String message = String.valueOf(adminException.getMessage());
+        return adminException.getStatusCode() == 503
+                || (adminException.getStatusCode() == 400 && message.contains("is out of date"));
     }
 
     // Copies a code file out of the worker containers, keeping its name: the worker names the function's package after
@@ -1127,7 +1139,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         config.setNamespace("default");
         config.setName(functionName);
         config.setParallelism(parallelism);
-        whenLeaderReady(() -> workerAdmin().functions().updateFunction(config, null));
+        retryRejectedWrite(() -> workerAdmin().functions().updateFunction(config, null));
     }
 
     private void updateFunctionCodeFile(String functionName, Runtime runtime, String codeFile) throws Exception {
@@ -1137,7 +1149,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
         // the name and the code, which pulsar-admin functions update --jar, --py or --go sends
         FunctionConfig config = generator.generateFunctionConfig(codeFile);
         String file = localCodeFile(ObjectUtils.firstNonNull(config.getJar(), config.getPy(), config.getGo()));
-        whenLeaderReady(() -> workerAdmin().functions().updateFunction(config, file));
+        retryRejectedWrite(() -> workerAdmin().functions().updateFunction(config, file));
     }
 
     protected <T> void submitFunction(Runtime runtime,
@@ -1495,7 +1507,7 @@ public abstract class PulsarFunctionsTest extends PulsarFunctionsTestBase {
     }
 
     protected void deleteFunction(String functionName) throws Exception {
-        whenLeaderReady(() -> workerAdmin().functions().deleteFunction("public", "default", functionName));
+        retryRejectedWrite(() -> workerAdmin().functions().deleteFunction("public", "default", functionName));
     }
 
     protected void testAutoSchemaFunction() throws Exception {
