@@ -221,7 +221,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             setupConfigAndStart(null);
             return;
         }
-        removeDynamicConfigurations();
+        restoreBrokerShutdownTimeout();
+        // Remove the other dynamic configurations that the test method left behind: they would apply to the
+        // following test methods too, and testGetDynamicLocalConfiguration expects none
+        for (String name : admin.brokers().getAllDynamicConfigurations().keySet()) {
+            admin.brokers().deleteDynamicConfiguration(name);
+        }
         pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
         for (String tenant : admin.tenants().getTenants()) {
@@ -249,27 +254,22 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Removes the dynamic configurations that the test method left behind, which would apply to the following test
-     * methods too: testGetDynamicLocalConfiguration, for one, expects none.
-     *
-     * <p>Several test methods of this class lower the {@code brokerShutdownTimeoutMs} dynamic configuration to 10ms.
+     * Several test methods of this class lower the {@code brokerShutdownTimeoutMs} dynamic configuration to 10ms.
      * The broker applies dynamic configuration changes asynchronously, so when the value is left behind it can
      * become effective while a later test method is shutting the broker down in stopBroker() or restartBroker().
      * PulsarService#close then fails with "Timeout in close" and leaves the test holding a broker that is no
      * longer listening, which fails this @AfterMethod and skips the remaining test methods of the class.
      */
-    private void removeDynamicConfigurations() throws Exception {
-        Map<String, String> dynamicConfigurations = admin.brokers().getAllDynamicConfigurations();
-        // removing a dynamic configuration makes the broker restore the value it was started with
-        for (String name : dynamicConfigurations.keySet()) {
-            admin.brokers().deleteDynamicConfiguration(name);
+    private void restoreBrokerShutdownTimeout() throws Exception {
+        String overriddenValue = admin.brokers().getAllDynamicConfigurations().get(BROKER_SHUTDOWN_TIMEOUT_MS);
+        if (overriddenValue == null) {
+            return;
         }
-        String overriddenShutdownTimeout = dynamicConfigurations.get(BROKER_SHUTDOWN_TIMEOUT_MS);
-        if (overriddenShutdownTimeout != null) {
-            long overriddenTimeoutMs = Long.parseLong(overriddenShutdownTimeout);
-            Awaitility.await().untilAsserted(() ->
-                    assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), overriddenTimeoutMs));
-        }
+        long overriddenTimeoutMs = Long.parseLong(overriddenValue);
+        // removing the dynamic configuration makes the broker restore the value it was started with
+        admin.brokers().deleteDynamicConfiguration(BROKER_SHUTDOWN_TIMEOUT_MS);
+        Awaitility.await().untilAsserted(
+                () -> assertNotEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), overriddenTimeoutMs));
     }
 
     private void setupClusters() throws PulsarAdminException {
@@ -698,12 +698,17 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .equals(SimpleLoadManagerImpl.class.getName()), 150, 5);
         assertEquals(pulsar.getConfiguration().getLoadManagerClassName(), SimpleLoadManagerImpl.class.getName());
         // The broker replaces its load manager on an executor after updating the configuration. Wait for each
-        // replacement: two that run concurrently can leave both load managers running, and lookups failing with
-        // "No broker available"
+        // replacement: two that run concurrently can leave both load managers running.
         Awaitility.await().until(() -> pulsar.getLoadManager().get() instanceof SimpleLoadManagerImpl);
         admin.brokers().deleteDynamicConfiguration("loadManagerClassName");
         assertFalse(admin.brokers().getAllDynamicConfigurations().containsKey("loadManagerClassName"));
         Awaitility.await().until(() -> pulsar.getLoadManager().get() instanceof ModularLoadManagerWrapper);
+        // The new ModularLoadManagerImpl gets the broker-registration lock manager that the first one closed when it
+        // was stopped (the coordination service keeps one per class), so it loses the broker's registration, and
+        // lookups fail with "No broker available": restart the broker, after restoring the shutdown timeout that
+        // this method lowered
+        restoreBrokerShutdownTimeout();
+        restartBroker();
     }
 
     /**
