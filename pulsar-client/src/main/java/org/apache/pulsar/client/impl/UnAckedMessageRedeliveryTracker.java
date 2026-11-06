@@ -137,7 +137,8 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         long now = System.currentTimeMillis();
         ackTimeoutMessages.forEach((messageId, timestamp) -> {
             if (timestamp <= now) {
-                addMessageToRedeliver(messageId, messageIds, consumerBase);
+                addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
+                messageIds.add(messageId);
             }
         });
         if (!messageIds.isEmpty()) {
@@ -152,23 +153,23 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         }
     }
 
+    // Keeps the chunk mappings of these messages, since their redelivery is not due yet: an acknowledgment of one of
+    // them must still cover all its chunks
     private void removeAllMessagesToRedeliver(ConsumerBase<?> consumerBase, Set<MessageId> messageIds) {
-        ackTimeoutMessages.keySet().forEach(messageId -> addMessageToRedeliver(messageId, messageIds, consumerBase));
+        ackTimeoutMessages.keySet().forEach(messageId -> {
+            addChunkedMessageIds(messageId, messageIds, consumerBase);
+            messageIds.add(messageId);
+        });
         ackTimeoutMessages.clear();
         redeliveryMessageIdPartitionMap.clear();
         redeliveryTimePartitions.forEach(partition -> {
             partition.forEach(unackMessageIdWrapper -> {
-                addMessageToRedeliver(unackMessageIdWrapper.getMessageId(), messageIds, consumerBase);
+                addChunkedMessageIds(unackMessageIdWrapper.getMessageId(), messageIds, consumerBase);
+                messageIds.add(unackMessageIdWrapper.getMessageId());
                 unackMessageIdWrapper.recycle();
             });
             partition.clear();
         });
-    }
-
-    private static void addMessageToRedeliver(MessageId messageId, Set<MessageId> messageIds,
-                                              ConsumerBase<?> consumerBase) {
-        addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
-        messageIds.add(messageId);
     }
 
     @Override

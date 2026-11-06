@@ -161,12 +161,13 @@ public class UnAckedMessageTracker implements Closeable {
                             log.info().attr("consumerBase", consumerBase)
                                     .attr("count", headPartition.size())
                                     .log("messages will be re-delivered");
-                            removeMessagesToRedeliver(headPartition, messageIds, consumerBase);
+                            removeMessagesToRedeliver(headPartition, messageIds, consumerBase, true);
                             if (redeliversAllOnAckTimeout) {
                                 // The consumer redelivers the messages tracked after the timed-out ones too, and
-                                // drops them from this tracker: report them to onAckTimeoutSend as well
+                                // drops them from this tracker: report them to onAckTimeoutSend as well. Keep their
+                                // chunk mappings: an acknowledgment of one of them must still cover all its chunks
                                 timePartitions.forEach(partition -> {
-                                    removeMessagesToRedeliver(partition, messageIds, consumerBase);
+                                    removeMessagesToRedeliver(partition, messageIds, consumerBase, false);
                                     partition.clear();
                                 });
                             }
@@ -195,10 +196,14 @@ public class UnAckedMessageTracker implements Closeable {
     }
 
     private void removeMessagesToRedeliver(HashSet<MessageId> partition, Set<MessageId> messageIds,
-                                           ConsumerBase<?> consumerBase) {
+                                           ConsumerBase<?> consumerBase, boolean timedOut) {
         partition.forEach(messageId -> {
             if (messageId instanceof ChunkMessageIdImpl) {
-                addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
+                if (timedOut) {
+                    addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
+                } else {
+                    addChunkedMessageIds(messageId, messageIds, consumerBase);
+                }
             } else {
                 messageIds.add(messageId);
             }
@@ -208,13 +213,19 @@ public class UnAckedMessageTracker implements Closeable {
 
     public static void addChunkedMessageIdsAndRemoveFromSequenceMap(MessageId messageId, Set<MessageId> messageIds,
                                                                     ConsumerBase<?> consumerBase) {
+        addChunkedMessageIds(messageId, messageIds, consumerBase);
+        if (messageId instanceof MessageIdImpl) {
+            consumerBase.unAckedChunkedMessageIdSequenceMap.remove((MessageIdImpl) messageId);
+        }
+    }
+
+    static void addChunkedMessageIds(MessageId messageId, Set<MessageId> messageIds, ConsumerBase<?> consumerBase) {
         if (messageId instanceof MessageIdImpl) {
             MessageIdImpl[] chunkedMsgIds = consumerBase.unAckedChunkedMessageIdSequenceMap
                     .get((MessageIdImpl) messageId);
             if (chunkedMsgIds != null && chunkedMsgIds.length > 0) {
                 Collections.addAll(messageIds, chunkedMsgIds);
             }
-            consumerBase.unAckedChunkedMessageIdSequenceMap.remove((MessageIdImpl) messageId);
         }
     }
 

@@ -193,4 +193,52 @@ public class UnAckedMessageTrackerTest  {
         assertEquals(tracker.size(), redeliversAll ? 0 : 1);
     }
 
+    /**
+     * When an Exclusive or Failover consumer redelivers a chunked message along with the timed-out ones, before it
+     * timed out itself, the tracker must keep the mapping to its chunks: the application can still acknowledge the
+     * message it received, and the acknowledgment must cover all of its chunks, not only the last one.
+     */
+    @Test(dataProvider = "subscriptionTypes")
+    @SuppressWarnings("unchecked")
+    public void testAckTimeoutKeepsChunkMappingsOfMessagesNotTimedOut(SubscriptionType subscriptionType,
+                                                                       boolean redeliversAll) throws Exception {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        // Run the tick task by hand
+        Timer timer = mock(Timer.class);
+        Timeout timeout = mock(Timeout.class);
+        ArgumentCaptor<TimerTask> tickTask = ArgumentCaptor.forClass(TimerTask.class);
+        when(timer.newTimeout(tickTask.capture(), anyLong(), any())).thenReturn(timeout);
+        when(client.timer()).thenReturn(timer);
+
+        ConsumerBase<byte[]> consumer = mock(ConsumerBase.class);
+        consumer.unAckedChunkedMessageIdSequenceMap = new ConcurrentHashMap<>();
+        List<Set<MessageId>> ackTimeoutSends = new ArrayList<>();
+        // Copy the set, since the tracker reuses it
+        doAnswer(invocation -> ackTimeoutSends.add(new HashSet<>(invocation.<Set<MessageId>>getArgument(0))))
+                .when(consumer).onAckTimeoutSend(any());
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionType(subscriptionType);
+        conf.setAckTimeoutMillis(300);
+        conf.setTickDurationMillis(100);
+        UnAckedMessageTracker tracker = new UnAckedMessageTracker(client, consumer, conf);
+
+        MessageIdImpl timedOut = new MessageIdImpl(1L, 1L, -1);
+        MessageIdImpl[] chunks = {new MessageIdImpl(1L, 2L, -1), new MessageIdImpl(1L, 3L, -1)};
+        ChunkMessageIdImpl chunked = new ChunkMessageIdImpl(chunks[0], chunks[1]);
+        consumer.unAckedChunkedMessageIdSequenceMap.put(chunked, chunks);
+        tracker.add(timedOut);
+        tickTask.getValue().run(timeout);
+        tracker.add(chunked);
+        tickTask.getValue().run(timeout);
+        tickTask.getValue().run(timeout);
+
+        // timedOut times out
+        tickTask.getValue().run(timeout);
+        assertEquals(ackTimeoutSends,
+                List.of(redeliversAll ? Set.of(timedOut, chunks[0], chunks[1]) : Set.of(timedOut)));
+        // PersistentAcknowledgmentsGroupingTracker acknowledges all the chunks of a message only through this mapping
+        assertEquals(consumer.unAckedChunkedMessageIdSequenceMap.get(chunked), chunks);
+    }
+
 }
