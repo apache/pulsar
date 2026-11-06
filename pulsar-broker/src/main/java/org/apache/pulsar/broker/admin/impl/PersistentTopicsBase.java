@@ -3883,22 +3883,16 @@ public class PersistentTopicsBase extends AdminResource {
             ret = CompletableFuture.completedFuture(null);
         }
         return ret
-                .thenCompose(__ -> checkTopicExistsAsync(topicName))
-                .thenCompose(exist -> {
-                    if (!exist) {
-                        throw new RestException(Status.NOT_FOUND, getTopicNotFoundErrorMessage(topicName.toString()));
+                .thenCompose(__ -> internalCheckTopicExists(topicName))
+                .thenCompose(__ -> getPartitionedTopicMetadataAsync(topicName, false, false))
+                .thenCompose(metadata -> {
+                    if (metadata.partitions > 0) {
+                        return validateTopicOwnershipAsync(TopicName.get(topicName.toString()
+                                + PARTITIONED_TOPIC_SUFFIX + 0), authoritative);
                     } else {
-                        return getPartitionedTopicMetadataAsync(topicName, false, false)
-                            .thenCompose(metadata -> {
-                                if (metadata.partitions > 0) {
-                                    return validateTopicOwnershipAsync(TopicName.get(topicName.toString()
-                                    + PARTITIONED_TOPIC_SUFFIX + 0), authoritative);
-                                } else {
-                                    return validateTopicOwnershipAsync(topicName, authoritative);
-                                }
-                        });
+                        return validateTopicOwnershipAsync(topicName, authoritative);
                     }
-        });
+                });
     }
 
     protected CompletableFuture<Void> internalRemoveMaxProducers(boolean isGlobal) {

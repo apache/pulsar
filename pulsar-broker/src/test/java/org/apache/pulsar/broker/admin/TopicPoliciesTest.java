@@ -295,6 +295,27 @@ public class TopicPoliciesTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
+    public void testTopicPolicyValidationDoesNotListNamespaceTopics() throws Exception {
+        TopicName topicName = TopicName.get(
+                TopicDomain.persistent.value(),
+                NamespaceName.get(myNamespace),
+                "test-direct-existence-check-" + UUID.randomUUID());
+        admin.topics().createNonPartitionedTopic(topicName.toString());
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        CompletableFuture<List<String>> unexpectedNamespaceScan = FutureUtil.failedFuture(
+                new AssertionError("Topic policy validation must not list all topics in the namespace"));
+        Mockito.doReturn(unexpectedNamespaceScan).when(namespaceService)
+                .getListOfTopics(Mockito.eq(topicName.getNamespaceObject()), Mockito.any());
+        try {
+            assertNull(admin.topicPolicies().getRetention(topicName.toString()));
+        } finally {
+            Mockito.doCallRealMethod().when(namespaceService)
+                    .getListOfTopics(Mockito.eq(topicName.getNamespaceObject()), Mockito.any());
+        }
+    }
+
+    @Test
     public void testGlobalPolicyUpdateDoesNotClearLocalSubscriptionPolicy() throws Exception {
         // A global topic policy carries no subscription-level overrides by default (an empty subscriptionPolicies
         // map). Because AbstractTopic keeps the local and global per-subscription policies separately and merges them
