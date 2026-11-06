@@ -113,8 +113,8 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
 
     protected PulsarCluster pulsarCluster;
 
-    // Whether tearDownCluster leaves the cluster running for the next class: this class shares its cluster, the cluster
-    // has started, and no test has failed on it
+    // Whether tearDownCluster leaves the cluster running for the next class: this class shares its cluster and isn't
+    // the last class on it, the cluster has started, and no test has failed on it
     private boolean clusterReusable;
 
     public PulsarCluster getPulsarCluster() {
@@ -178,6 +178,15 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         return false;
     }
 
+    /**
+     * Whether this class, which shares its cluster ({@link #isClusterShared()}), is the last class to run on it: it
+     * runs on the cluster that the class before it left running, and the cluster is stopped after it rather than left
+     * running for the next class. A class that pauses or stops containers can share a cluster this way.
+     */
+    protected boolean isLastClassOnCluster() {
+        return false;
+    }
+
     protected void setupCluster(PulsarClusterSpec spec, boolean doInit) throws Exception {
         incrementSetupNumber();
         boolean shareCluster = doInit && isClusterShared();
@@ -201,7 +210,7 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
         }
 
         pulsarAdmin = PulsarAdmin.builder().serviceHttpUrl(pulsarCluster.getHttpServiceUrl()).build();
-        clusterReusable = shareCluster;
+        clusterReusable = shareCluster && !isLastClassOnCluster();
 
         log.info().attr("cluster", pulsarCluster.getClusterName()).log("Cluster is setup");
     }
