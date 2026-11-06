@@ -501,27 +501,36 @@ public class BrokerServiceAutoTopicCreationTest extends BrokerTestBase{
     public void testAutoCreationOfSystemTopicTransactionBufferSnapshot() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
 
-        final String topicString = "persistent://prop/ns-abc/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+        // a namespace that no earlier test method loaded, so the system topic doesn't exist yet
+        final String namespace = newNamespace();
+        final String topicString = "persistent://" + namespace + "/" + SystemTopicNames.TRANSACTION_BUFFER_SNAPSHOT;
+        assertFalse(pulsar.getPulsarResources().getTopicResources()
+                .persistentTopicExists(TopicName.get(topicString)).get());
 
         pulsarClient.newProducer().topic(topicString).create();
 
-        assertTrue(admin.namespaces().getTopics("prop/ns-abc",
+        assertTrue(admin.namespaces().getTopics(namespace,
                 ListNamespaceTopicsOptions.builder().includeSystemTopic(true).build()).contains(topicString));
-        assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
+        assertFalse(admin.topics().getPartitionedTopicList(namespace).contains(topicString));
     }
 
     @Test
     public void testAutoCreationOfSystemTopicNamespaceEvents() throws Exception {
         pulsar.getConfiguration().setAllowAutoTopicCreation(false);
 
-        final String topicString = "persistent://prop/ns-abc/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        // a namespace that no earlier test method loaded: loading one creates its __change_events topic (the topic
+        // policies reader), which would leave nothing for this test to create
+        final String namespace = newNamespace();
+        final String topicString = "persistent://" + namespace + "/" + SystemTopicNames.NAMESPACE_EVENTS_LOCAL_NAME;
+        assertFalse(pulsar.getPulsarResources().getTopicResources()
+                .persistentTopicExists(TopicName.get(topicString)).get());
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicString).create();
 
-        assertTrue(admin.namespaces().getTopics("prop/ns-abc",
+        assertTrue(admin.namespaces().getTopics(namespace,
                 ListNamespaceTopicsOptions.builder().includeSystemTopic(true).build()).contains(topicString));
-        assertFalse(admin.topics().getPartitionedTopicList("prop/ns-abc").contains(topicString));
+        assertFalse(admin.topics().getPartitionedTopicList(namespace).contains(topicString));
     }
 
     @Test
