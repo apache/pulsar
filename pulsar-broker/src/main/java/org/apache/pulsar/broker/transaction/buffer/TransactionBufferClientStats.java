@@ -38,7 +38,7 @@ public interface TransactionBufferClientStats {
     static TransactionBufferClientStats create(PulsarService pulsarService, boolean exposeTopicMetrics,
                                                TransactionBufferHandler handler, boolean enableTxnCoordinator) {
         return enableTxnCoordinator
-                ? TransactionBufferClientStatsImpl.getInstance(pulsarService, exposeTopicMetrics, handler) : NOOP;
+                ? new TransactionBufferClientStatsImpl(pulsarService, exposeTopicMetrics, handler) : NOOP;
     }
 
 

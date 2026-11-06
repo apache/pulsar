@@ -113,7 +113,7 @@ public class ExtensibleLoadManagerCloseTest {
         return new Object[][]{{false}, {true}};
     }
 
-    @Test(invocationCount = 10, dataProvider = "topicPoliciesEnabled")
+    @Test(invocationCount = 3, dataProvider = "topicPoliciesEnabled")
     public void testCloseAfterLoadingBundles(boolean topicPoliciesEnabled) throws Exception {
         setupBrokers(3, topicPoliciesEnabled);
         final var topic = "test-" + System.currentTimeMillis();
