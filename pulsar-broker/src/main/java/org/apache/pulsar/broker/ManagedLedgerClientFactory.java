@@ -257,8 +257,15 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 }
             }
         });
-        // Keep ownership of the provider's future even if shutdown or cancellation fails the cached wrapper.
-        FutureUtil.supplySafely(creator).whenComplete((bk, error) -> {
+        // Return the tracked future before invoking the provider: a synchronous provider must not keep the cache's
+        // mapping function or managed-ledger initialization in progress while shutdown waits for this future.
+        CompletableFuture.completedFuture(null).thenComposeAsync(__ -> {
+            if (closed || result.isDone()) {
+                return CompletableFuture.<BookKeeper>failedFuture(new ManagedLedgerFactoryClosedException());
+            }
+            // Keep ownership of a late provider result even after shutdown or cancellation fails the cached wrapper.
+            return FutureUtil.supplySafely(creator);
+        }).whenComplete((bk, error) -> {
             if (error != null) {
                 result.completeExceptionally(error);
             } else if (!result.complete(bk)) {

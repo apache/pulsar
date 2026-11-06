@@ -45,6 +45,7 @@ import static org.testng.Assert.fail;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.opentelemetry.api.OpenTelemetry;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
@@ -55,6 +56,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.ClientContext;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
@@ -74,6 +76,7 @@ import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -246,6 +249,164 @@ public class BookKeeperClientFactoryImplTest {
         assertThatThrownBy(() -> clientFuture.get(5, TimeUnit.SECONDS)).cause().isSameAs(loadFailure);
         assertThat(loadFailure.getSuppressed()).containsExactly(closeFailure);
         verify(initialization.client()).close();
+    }
+
+    @DataProvider
+    public Object[][] unpublishedClientFailures() {
+        return new Object[][] {{"load", false}, {"load", true}, {"timeout", false},
+                {"cancel", false}, {"build", false}};
+    }
+
+    @Test(dataProvider = "unpublishedClientFailures")
+    public void testUnpublishedClientReleasesMetadataListeners(String mode, boolean cleanupFails) throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        Runnable cleanup = mock(Runnable.class);
+        if (cleanupFails) {
+            doThrow(new IllegalStateException("listener cleanup failure")).when(cleanup).run();
+        }
+        ListenerRegistration registration = trackListenerOnBuild(initialization, cleanup);
+        IOException buildFailure = new IOException("client build failure");
+        if (mode.equals("build")) {
+            when(registration.builder().build()).thenThrow(buildFailure);
+        }
+        RuntimeException loadFailure = new RuntimeException("rack metadata unavailable");
+        CompletableFuture<BookKeeper> clientFuture = createIsolatedClient(initialization,
+                mode.equals("timeout") ? 100 : 10_000);
+        Consumer<Runnable> registrar = registration.registrar().get(5, TimeUnit.SECONDS);
+        try {
+            if (!mode.equals("build")) {
+                initialization.readinessRequested().get(5, TimeUnit.SECONDS);
+            }
+            if (mode.equals("cancel")) {
+                assertThat(clientFuture.cancel(false)).isTrue();
+                initialization.readiness().complete(null);
+            } else {
+                if (mode.equals("load")) {
+                    initialization.readiness().completeExceptionally(loadFailure);
+                }
+                Throwable failure = FutureUtil.unwrapCompletionException(
+                        clientFuture.handle((bk, error) -> error).get(5, TimeUnit.SECONDS));
+                if (mode.equals("build")) {
+                    assertThat(failure.getCause()).isSameAs(buildFailure);
+                } else if (mode.equals("timeout")) {
+                    assertThat(failure).isInstanceOf(TimeoutException.class);
+                } else {
+                    assertThat(failure).isSameAs(loadFailure);
+                }
+            }
+            verify(cleanup).run();
+            assertThat(initialization.factory().getMetadataStoreListenerCleanupCount()).isZero();
+            Runnable lateCleanup = mock(Runnable.class);
+            registrar.accept(lateCleanup);
+            verify(lateCleanup).run();
+            initialization.factory().close();
+            verify(cleanup).run();
+            verify(lateCleanup).run();
+        } finally {
+            initialization.readiness().complete(null);
+            initialization.factory().close();
+        }
+    }
+
+    @Test
+    public void testPublishedClientKeepsMetadataListenersUntilFactoryCloses() throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        initialization.readiness().complete(null);
+        Runnable cleanup = mock(Runnable.class);
+        ListenerRegistration registration = trackListenerOnBuild(initialization, cleanup);
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setMetadataStoreUrl("memory:published-client-listener");
+        try {
+            assertThat(initialization.factory().create(conf, mock(MetadataStoreExtended.class),
+                    mock(EventLoopGroup.class), Optional.empty(), null).get(5, TimeUnit.SECONDS))
+                    .isSameAs(initialization.client());
+            verify(cleanup, never()).run();
+            assertThat(initialization.factory().getMetadataStoreListenerCleanupCount()).isEqualTo(1);
+            initialization.factory().close();
+            verify(cleanup).run();
+            assertThat(initialization.factory().getMetadataStoreListenerCleanupCount()).isZero();
+            Runnable lateCleanup = mock(Runnable.class);
+            registration.registrar().get(5, TimeUnit.SECONDS).accept(lateCleanup);
+            verify(lateCleanup).run();
+            initialization.factory().close();
+            verify(cleanup).run();
+            verify(lateCleanup).run();
+        } finally {
+            initialization.factory().close();
+        }
+    }
+
+    @DataProvider
+    public Object[][] listenerCleanupRaces() {
+        return new Object[][] {{false, false}, {false, true}, {true, false}, {true, true}};
+    }
+
+    @Test(dataProvider = "listenerCleanupRaces")
+    public void testFactoryCloseRacesUnpublishedListenerCleanup(boolean factoryFirst, boolean cancel) throws Exception {
+        ClientInitialization initialization = newClientInitialization(mock(BookKeeper.class));
+        CompletableFuture<Void> cleanupStarted = new CompletableFuture<>();
+        CompletableFuture<Void> allowCleanup = new CompletableFuture<>();
+        Runnable cleanup = mock(Runnable.class);
+        doAnswer(invocation -> {
+            cleanupStarted.complete(null);
+            allowCleanup.get(10, TimeUnit.SECONDS);
+            return null;
+        }).when(cleanup).run();
+        ListenerRegistration registration = trackListenerOnBuild(initialization, cleanup);
+        CompletableFuture<BookKeeper> clientFuture = createIsolatedClient(initialization, 30_000);
+        initialization.readinessRequested().get(5, TimeUnit.SECONDS);
+        RuntimeException loadFailure = new RuntimeException("rack metadata unavailable");
+        Runnable failCreation = () -> {
+            if (cancel) {
+                clientFuture.cancel(false);
+            } else {
+                initialization.readiness().completeExceptionally(loadFailure);
+            }
+        };
+        ExecutorService executor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("test-listener-cleanup"));
+        try {
+            var firstAction = executor.submit(factoryFirst ? initialization.factory()::close : failCreation);
+            cleanupStarted.get(5, TimeUnit.SECONDS);
+            if (factoryFirst) {
+                failCreation.run();
+            } else {
+                initialization.factory().close();
+            }
+            // Both late registration and the competing cleanup must proceed while the first callback is blocked.
+            Runnable lateCleanup = mock(Runnable.class);
+            registration.registrar().get(5, TimeUnit.SECONDS).accept(lateCleanup);
+            verify(lateCleanup).run();
+            assertThat(initialization.factory().getMetadataStoreListenerCleanupCount()).isZero();
+            allowCleanup.complete(null);
+            firstAction.get(5, TimeUnit.SECONDS);
+            verify(cleanup).run();
+        } finally {
+            allowCleanup.complete(null);
+            initialization.readiness().complete(null);
+            initialization.factory().close();
+            executor.shutdownNow();
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private ListenerRegistration trackListenerOnBuild(ClientInitialization initialization, Runnable cleanup)
+            throws Exception {
+        BookKeeper.Builder builder = mock(BookKeeper.Builder.class);
+        when(builder.build()).thenReturn(initialization.client());
+        CompletableFuture<Consumer<Runnable>> registrar = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            ClientConfiguration conf = invocation.getArgument(3);
+            Consumer<Runnable> registration = (Consumer<Runnable>) conf.getProperty(
+                    BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP);
+            registration.accept(cleanup);
+            registrar.complete(registration);
+            return builder;
+        }).when(initialization.factory()).getBookKeeperBuilder(any(), any(), any(), any());
+        return new ListenerRegistration(builder, registrar);
+    }
+
+    private record ListenerRegistration(BookKeeper.Builder builder,
+                                        CompletableFuture<Consumer<Runnable>> registrar) {
     }
 
     @Test

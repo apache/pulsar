@@ -59,7 +59,7 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     // The callbacks that unregister the metadata store listeners of the BookieRackAffinityMapping instances of the
     // created clients. Guarded by this
-    private final List<Runnable> metadataStoreListenerCleanups = new ArrayList<>();
+    private final List<ClientListenerCleanup> metadataStoreListenerCleanups = new ArrayList<>();
     // Guarded by this
     private boolean closed;
 
@@ -80,8 +80,6 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         PulsarMetadataClientDriver.init();
 
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
-        bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP,
-                (Consumer<Runnable>) this::addMetadataStoreListenerCleanup);
         if (properties != null) {
             // The isolation groups of a namespace reach the placement policy through the custom metadata of each
             // ledger. They must not become the client's default groups: the client is shared and kept after the
@@ -99,20 +97,30 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             setDefaultEnsemblePlacementPolicy(bkConf, conf, store);
         }
 
+        ClientListenerCleanup listenerCleanup = newClientListenerCleanup();
+        bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP, listenerCleanup);
         CompletableFuture<BookKeeper> creation = CompletableFuture.supplyAsync(() -> {
             try {
                 return getBookKeeperBuilder(conf, eventLoopGroup, statsLogger, bkConf).build();
             } catch (InterruptedException | BKException | IOException e) {
                 throw new RuntimeException(e);
             }
-        }).thenCompose(bk -> waitForPlacementPolicyInitialization(bk, bkConf, properties));
+        }).thenCompose(bk -> waitForPlacementPolicyInitialization(bk, bkConf, properties, listenerCleanup));
         // Keep the initialization chain alive if its caller cancels, so a late client is still closed.
         CompletableFuture<BookKeeper> result = new CompletableFuture<>();
+        result.whenComplete((bk, error) -> {
+            if (error != null) {
+                disposeClientListenerCleanup(listenerCleanup);
+            }
+        });
         creation.whenComplete((bk, error) -> {
             if (error != null) {
+                // A builder can register its resolver before failing without returning a BookKeeper instance.
+                disposeClientListenerCleanup(listenerCleanup);
                 result.completeExceptionally(error);
             } else if (!result.complete(bk)) {
-                closeBookKeeperAsync(bk, new CancellationException("BookKeeper client creation was cancelled"));
+                closeBookKeeperAsync(bk, new CancellationException("BookKeeper client creation was cancelled"),
+                        listenerCleanup);
             }
         });
         return result;
@@ -121,7 +129,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
     // The default client is awaited during broker startup, and lazy namespace clients are awaited before ML opens.
     private CompletableFuture<BookKeeper> waitForPlacementPolicyInitialization(BookKeeper bk,
                                                                                ClientConfiguration bkConf,
-                                                                               Map<String, Object> properties) {
+                                                                               Map<String, Object> properties,
+                                                                               ClientListenerCleanup listenerCleanup) {
         CompletableFuture<Void> initialization;
         try {
             EnsemblePlacementPolicy policy = bk.getClientCtx().getPlacementPolicy();
@@ -136,13 +145,16 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         }
         return initialization.thenApply(__ -> bk).exceptionallyCompose(error -> {
             Throwable cause = FutureUtil.unwrapCompletionException(error);
-            return closeBookKeeperAsync(bk, cause).thenCompose(__ -> CompletableFuture.failedFuture(cause));
+            return closeBookKeeperAsync(bk, cause, listenerCleanup)
+                    .thenCompose(__ -> CompletableFuture.failedFuture(cause));
         });
     }
 
-    private CompletableFuture<Void> closeBookKeeperAsync(BookKeeper bk, Throwable error) {
+    private CompletableFuture<Void> closeBookKeeperAsync(BookKeeper bk, Throwable error,
+                                                        ClientListenerCleanup listenerCleanup) {
         // BookKeeper.close() can block. Never run it on the metadata callback or timeout thread.
         return CompletableFuture.runAsync(() -> {
+            disposeClientListenerCleanup(listenerCleanup);
             try {
                 bk.close();
             } catch (InterruptedException e) {
@@ -324,23 +336,76 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     @Override
     public void close() {
-        List<Runnable> cleanups;
+        List<ClientListenerCleanup> cleanups;
         synchronized (this) {
             closed = true;
             cleanups = new ArrayList<>(metadataStoreListenerCleanups);
             metadataStoreListenerCleanups.clear();
         }
-        cleanups.forEach(Runnable::run);
+        cleanups.forEach(ClientListenerCleanup::run);
     }
 
-    // A client can still be building when the factory is closed: its listener is then unregistered right away
-    private void addMetadataStoreListenerCleanup(Runnable cleanup) {
+    private ClientListenerCleanup newClientListenerCleanup() {
+        ClientListenerCleanup cleanup = new ClientListenerCleanup();
         synchronized (this) {
             if (!closed) {
                 metadataStoreListenerCleanups.add(cleanup);
-                return;
+                return cleanup;
             }
         }
         cleanup.run();
+        return cleanup;
+    }
+
+    private void disposeClientListenerCleanup(ClientListenerCleanup cleanup) {
+        synchronized (this) {
+            metadataStoreListenerCleanups.remove(cleanup);
+        }
+        cleanup.run();
+    }
+
+    @VisibleForTesting
+    synchronized int getMetadataStoreListenerCleanupCount() {
+        return metadataStoreListenerCleanups.size();
+    }
+
+    // Both factory shutdown and a failed or cancelled creation can claim this client's resolver listeners.
+    // Callbacks registered after either cleanup are unregistered immediately, without invoking them under a lock.
+    private static final class ClientListenerCleanup implements Consumer<Runnable>, Runnable {
+        private final List<Runnable> callbacks = new ArrayList<>();
+        private boolean disposed;
+
+        @Override
+        public void accept(Runnable callback) {
+            synchronized (this) {
+                if (!disposed) {
+                    callbacks.add(callback);
+                    return;
+                }
+            }
+            runCallback(callback);
+        }
+
+        @Override
+        public void run() {
+            List<Runnable> pending;
+            synchronized (this) {
+                if (disposed) {
+                    return;
+                }
+                disposed = true;
+                pending = new ArrayList<>(callbacks);
+                callbacks.clear();
+            }
+            pending.forEach(ClientListenerCleanup::runCallback);
+        }
+
+        private static void runCallback(Runnable callback) {
+            try {
+                callback.run();
+            } catch (RuntimeException e) {
+                log.debug().exception(e).log("Failed to unregister a BookKeeper metadata store listener");
+            }
+        }
     }
 }
