@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -103,18 +104,16 @@ public class BrokerMessageDeduplicationTest {
     @Test
     public void markerMessageNotRecordPersistent() {
         Topic.PublishContext context = mock(Topic.PublishContext.class);
+        doReturn("p1").when(context).getProducerName();
          // marker message don't record message persisted.
         doReturn(true).when(context).isMarkerMessage();
         deduplication.recordMessagePersisted(context, null);
+        verify(deduplication, never()).recordMessagePersistedNormal(any(), any());
 
-        // if is not a marker message, we will get NPE. because context is mocked with null value fields.
+        // a message that isn't a marker is recorded
         doReturn(false).when(context).isMarkerMessage();
-        try {
-            deduplication.recordMessagePersisted(context, null);
-            fail();
-        } catch (Exception npe) {
-            assertTrue(npe instanceof NullPointerException);
-        }
+        deduplication.recordMessagePersisted(context, null);
+        verify(deduplication, times(1)).recordMessagePersistedNormal(any(), any());
     }
 
     @Test
