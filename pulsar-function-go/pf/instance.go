@@ -21,6 +21,7 @@ package pf
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -197,36 +198,25 @@ CLOSE:
 }
 
 const (
-	authPluginToken = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
-	authPluginNone  = ""
+	authPluginToken  = "org.apache.pulsar.client.impl.auth.AuthenticationToken"
+	authPluginOAuth2 = "org.apache.pulsar.client.impl.auth.oauth2.AuthenticationOAuth2"
+	authPluginNone   = ""
 )
 
 func (gi *goInstance) setupClient() error {
 	ic := gi.context.instanceConf
+
+	authentication, err := newAuthentication(ic)
+	if err != nil {
+		return err
+	}
 
 	clientOpts := pulsar.ClientOptions{
 		URL:                        ic.pulsarServiceURL,
 		TLSTrustCertsFilePath:      ic.tlsTrustCertsPath,
 		TLSAllowInsecureConnection: ic.tlsAllowInsecure,
 		TLSValidateHostname:        ic.tlsHostnameVerification,
-	}
-
-	switch ic.authPlugin {
-	case authPluginToken:
-		switch {
-		case strings.HasPrefix(ic.authParams, "file://"):
-			clientOpts.Authentication = pulsar.NewAuthenticationTokenFromFile(ic.authParams[7:])
-		case strings.HasPrefix(ic.authParams, "token:"):
-			clientOpts.Authentication = pulsar.NewAuthenticationToken(ic.authParams[6:])
-		case ic.authParams == "":
-			return fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
-		default:
-			return fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
-		}
-	case authPluginNone:
-		clientOpts.Authentication, _ = pulsar.NewAuthentication("", "") // ret: auth.NewAuthDisabled()
-	default:
-		return fmt.Errorf("unknown auth provider: %s", ic.authPlugin)
+		Authentication:             authentication,
 	}
 
 	client, err := pulsar.NewClient(clientOpts)
@@ -237,6 +227,51 @@ func (gi *goInstance) setupClient() error {
 	}
 	gi.client = client
 	return nil
+}
+
+// newAuthentication creates the client authentication from the auth plugin and
+// params the function worker passes to the instance.
+func newAuthentication(ic *instanceConf) (pulsar.Authentication, error) {
+	switch ic.authPlugin {
+	case authPluginToken:
+		switch {
+		case strings.HasPrefix(ic.authParams, "file://"):
+			return pulsar.NewAuthenticationTokenFromFile(ic.authParams[7:]), nil
+		case strings.HasPrefix(ic.authParams, "token:"):
+			return pulsar.NewAuthenticationToken(ic.authParams[6:]), nil
+		case ic.authParams == "":
+			return nil, fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginToken)
+		default:
+			return nil, fmt.Errorf(`unknown token format - expecting "file://" or "token:" prefix`)
+		}
+	case authPluginOAuth2:
+		var params map[string]string
+		if err := json.Unmarshal([]byte(ic.authParams), &params); err != nil {
+			return nil, fmt.Errorf("invalid authParams for auth plugin %s - expecting a JSON map: %w",
+				authPluginOAuth2, err)
+		}
+		if len(params) == 0 {
+			return nil, fmt.Errorf("auth plugin %s given, but authParams is empty", authPluginOAuth2)
+		}
+		// The Java client defaults to the client credentials flow, the Go client requires the type
+		if _, ok := params["type"]; !ok {
+			params["type"] = "client_credentials"
+		}
+		encoded, err := json.Marshal(params)
+		if err != nil {
+			return nil, err
+		}
+		authentication, err := pulsar.NewAuthentication(authPluginOAuth2, string(encoded))
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure auth plugin %s: %w", authPluginOAuth2, err)
+		}
+		return authentication, nil
+	case authPluginNone:
+		authentication, _ := pulsar.NewAuthentication("", "") // ret: auth.NewAuthDisabled()
+		return authentication, nil
+	default:
+		return nil, fmt.Errorf("unknown auth provider: %s", ic.authPlugin)
+	}
 }
 
 func (gi *goInstance) setupProducer() error {
@@ -525,18 +560,13 @@ func (gi *goInstance) setupLogHandler() error {
 }
 
 func (gi *goInstance) addLogTopicHandler() {
-	// Clear StrEntry regardless gi.context.logAppender is set or not
-	defer func() {
-		log.StrEntry = nil
-	}()
-
+	// Drain the captured entries regardless gi.context.logAppender is set or not
 	if gi.context.logAppender == nil {
+		log.DrainEntries()
 		return
 	}
 
-	for _, logByte := range log.StrEntry {
-		gi.context.logAppender.Append([]byte(logByte))
-	}
+	gi.context.logAppender.Flush()
 }
 
 func (gi *goInstance) closeLogTopic() {
@@ -725,11 +755,12 @@ func (gi *goInstance) getAvgProcessLatency() float32 {
 	return float32(*sum) / float32(*count)
 }
 
-func (gi *goInstance) getLastInvocation() float32 {
+func (gi *goInstance) getLastInvocation() float64 {
 	metric := gi.getMatchingMetricFromRegistry(PulsarFunctionMetricsPrefix + LastInvocation)
 	// "pulsar_function_" + "last_invocation", GaugeVec.
+	// float64, as a float32 would round an epoch-millis timestamp to ~2 minutes.
 	val := metric.GetGauge().Value
-	return float32(*val)
+	return *val
 }
 
 func (gi *goInstance) getTotalProcessedSuccessfully1min() float32 {

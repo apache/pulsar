@@ -59,12 +59,16 @@ public class MultiTopicConsumerHandler extends ConsumerHandler {
                                 .allowTopicOperationAsync(TopicName.get(topicName),
                                         TopicOperation.CONSUME, authRole, subscription));
                 }
-                FutureUtil.waitForAll(futures)
+                return FutureUtil.waitForAll(futures)
+                        .thenCompose(__ -> futures.stream().allMatch(f -> f.join())
+                                ? authorizeDeadLetterTopic(authRole, authenticationData)
+                                : CompletableFuture.completedFuture(false))
                         .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
-                return futures.stream().allMatch(f -> f.join());
             } else {
                 return service.getAuthorizationService()
                         .allowTopicOperationAsync(topic, TopicOperation.CONSUME, authRole, subscription)
+                        .thenCompose(allowed -> allowed ? authorizeDeadLetterTopic(authRole, authenticationData)
+                                : CompletableFuture.completedFuture(false))
                         .get(service.getConfig().getMetadataStoreOperationTimeoutSeconds(), SECONDS);
             }
         } catch (TimeoutException e) {

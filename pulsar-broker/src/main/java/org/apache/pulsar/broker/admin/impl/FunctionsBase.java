@@ -732,7 +732,7 @@ public class FunctionsBase extends AdminResource {
      * Deprecated in favor of moving endpoint to {@link org.apache.pulsar.broker.admin.v2.Worker}
      */
     public List<ConnectorDefinition> getConnectorsList() throws IOException {
-        return functions().getListOfConnectors();
+        return validateAndGetWorkerService().getWorkers().getListOfConnectors(authParams());
     }
 
     @POST

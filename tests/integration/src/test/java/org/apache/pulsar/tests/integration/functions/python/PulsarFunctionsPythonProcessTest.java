@@ -25,4 +25,9 @@ public class PulsarFunctionsPythonProcessTest extends PulsarFunctionsPythonTest 
     public PulsarFunctionsPythonProcessTest() {
         super(FunctionRuntimeType.PROCESS);
     }
+
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
 }

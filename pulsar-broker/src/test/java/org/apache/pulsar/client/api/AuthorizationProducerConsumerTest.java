@@ -49,7 +49,6 @@ import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.authorization.AuthorizationProvider;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
-import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerBuilderImpl;
@@ -102,7 +101,7 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies plugable authorization service
+     * It verifies plugable authorization service.
      *
      * <pre>
      * 1. Client passes correct authorization plugin-name + correct auth role: SUCCESS
@@ -901,8 +900,8 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         }
 
         @Override
-        public void initialize(ServiceConfiguration conf, PulsarResources pulsarResources) throws IOException {
-            this.conf = conf;
+        public void initialize(InitialContext context) throws IOException {
+            this.conf = context.config();
             // No-op
         }
 

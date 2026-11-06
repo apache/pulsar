@@ -3,8 +3,6 @@
 - Status: Proposal
 - Author: [@hnail](https://github.com/hnail)
 - Pull Request: https://github.com/apache/pulsar/pull/8422
-- Mailing List discussion:
-- Release:
 
 ## Motivation
 

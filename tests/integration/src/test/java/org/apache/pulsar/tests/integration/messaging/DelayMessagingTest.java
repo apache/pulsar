@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.messaging;
 
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -39,13 +40,19 @@ import org.testng.annotations.Test;
 @CustomLog
 public class DelayMessagingTest extends PulsarTestSuite {
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test(dataProvider = "ServiceUrls")
     public void delayMsgBlockTest(Supplier<String> serviceUrl) throws Exception {
+        // With the admin client: pulsar-admin in a broker container would start a JVM for every command
         String nsName = generateNamespaceName();
-        pulsarCluster.createNamespace(nsName);
+        pulsarAdmin.namespaces().createNamespace("public/" + nsName, Set.of(pulsarCluster.getClusterName()));
 
         String topic = generateTopicName(nsName, "testDelayMsgBlock", true);
-        pulsarCluster.createPartitionedTopic(topic, 3);
+        pulsarAdmin.topics().createPartitionedTopic(topic, 3);
 
         String retryTopic = topic + "-RETRY";
         String deadLetterTopic = topic + "-DLT";
@@ -59,7 +66,12 @@ public class DelayMessagingTest extends PulsarTestSuite {
                 .create();
 
         final int redeliverCnt = 10;
-        final int delayTimeSeconds = 5;
+        // Longer than the broker's delayed delivery tick (1 s): the broker dispatches a message that is due within a
+        // tick at once, without tracking it
+        final int delayTimeSeconds = 2;
+        // A tracked message arrives within a tick of its delivery time; one that the broker stops dispatching (#10078)
+        // never does
+        final int receiveTimeoutSeconds = 10;
         @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
@@ -79,15 +91,14 @@ public class DelayMessagingTest extends PulsarTestSuite {
         producer.newMessage().value("hello".getBytes()).send();
 
         // receive message at first time
-        Message<byte[]> message = consumer.receive(delayTimeSeconds * 2, TimeUnit.SECONDS);
+        Message<byte[]> message = consumer.receive(receiveTimeoutSeconds, TimeUnit.SECONDS);
         Assert.assertNotNull(message, "Can't receive message at the first time.");
         consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
 
         // receive retry messages
         for (int i = 0; i < redeliverCnt; i++) {
-            message = consumer.receive(delayTimeSeconds * 2, TimeUnit.SECONDS);
-            Assert.assertNotNull(message, "Consumer can't receive message in double delayTimeSeconds time "
-                    + delayTimeSeconds * 2 + "s");
+            message = consumer.receive(receiveTimeoutSeconds, TimeUnit.SECONDS);
+            Assert.assertNotNull(message, "Consumer can't receive message in " + receiveTimeoutSeconds + "s");
             log.info().attr("reConsumeTimes", message.getProperty("RECONSUMETIMES")).log("receive msg. reConsumeTimes");
             consumer.reconsumeLater(message, delayTimeSeconds, TimeUnit.SECONDS);
         }

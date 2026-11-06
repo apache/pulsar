@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api.v5;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Constructor;
@@ -31,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.v5.schema.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.awaitility.Awaitility;
@@ -146,6 +148,36 @@ public class V5ScalableTopicsWatcherTest extends V5ClientBaseTest {
         }
     }
 
+    @Test
+    public void watcherDropsDeletedTopicWithStreamConsumer() throws Exception {
+        NamespaceName ns = NamespaceName.get(getNamespace());
+
+        WatcherHandle handle = openWatcher(ns, Map.of());
+        try {
+            for (int i = 0; i < 20; i++) {
+                String topic = newScalableTopic(1);
+                // An attached stream consumer puts children under the topic record — the
+                // controller leader lock and the consumer registration — which the recursive
+                // delete removes before the record itself.
+                try (StreamConsumer<String> consumer = v5Client.newStreamConsumer(Schema.string())
+                        .topic(topic)
+                        .subscriptionName("sub")
+                        .subscribe()) {
+                    Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                            assertThat(handle.listener.currentSet).as("watched topics").contains(topic));
+
+                    admin.scalableTopics().deleteScalableTopic(topic, true);
+
+                    Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                            assertThat(handle.listener.currentSet).as("watched topics after deleting " + topic)
+                                    .doesNotContain(topic));
+                }
+            }
+        } finally {
+            handle.close();
+        }
+    }
+
     // --- Helpers ---
 
     /** Bundle of watcher state needed to clean up at the end of a test. */
@@ -175,6 +207,8 @@ public class V5ScalableTopicsWatcherTest extends V5ClientBaseTest {
      * initial snapshot is delivered via the future + {@code onSnapshot} on the
      * listener for uniform handling — see the watcher's javadoc.
      */
+    // The watcher is driven reflectively, so its listener arguments and start() future are untyped.
+    @SuppressWarnings("unchecked")
     private WatcherHandle openWatcher(NamespaceName ns, Map<String, String> filters)
             throws Exception {
         // Pull the underlying v4 client out of v5Client so we can construct the

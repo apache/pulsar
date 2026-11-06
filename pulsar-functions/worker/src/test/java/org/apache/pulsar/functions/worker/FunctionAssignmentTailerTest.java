@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.worker;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -35,8 +34,6 @@ import static org.testng.Assert.assertEquals;
 import io.netty.buffer.Unpooled;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
@@ -56,8 +53,6 @@ import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.functions.utils.FunctionCommon;
 import org.awaitility.Awaitility;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -100,7 +95,6 @@ public class FunctionAssignmentTailerTest {
         Assignment assignment1 = createAssignment("worker-1", function1, 0);
         Assignment assignment2 = createAssignment("worker-1", function2, 0);
 
-        ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
         MessageMetadata metadata = new MessageMetadata();
         Message message1 = spy(new MessageImpl("foo", MessageId.latest.toString(),
                 new HashMap<>(), Unpooled.copiedBuffer(assignment1.toByteArray()), null, metadata));
@@ -113,28 +107,7 @@ public class FunctionAssignmentTailerTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
 
         Reader<byte[]> reader = mock(Reader.class);
-
-        when(reader.readNext(anyInt(), any())).thenAnswer(new Answer<Message<byte[]>>() {
-            @Override
-            public Message<byte[]> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return messageList.poll(10, TimeUnit.SECONDS);
-            }
-        });
-
-        when(reader.readNextAsync()).thenAnswer(new Answer<CompletableFuture<Message<byte[]>>>() {
-            @Override
-            public CompletableFuture<Message<byte[]>> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return new CompletableFuture<>();
-            }
-        });
-
-        when(reader.hasMessageAvailable()).thenAnswer(new Answer<Boolean>() {
-            @Override
-            @SuppressWarnings("unchecked")
-            public Boolean answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return !messageList.isEmpty();
-            }
-        });
+        ReaderStub readerStub = new ReaderStub(reader);
 
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
@@ -174,7 +147,7 @@ public class FunctionAssignmentTailerTest {
         // verify no errors occurred
         verify(errorNotifier, times(0)).triggerError(any());
 
-        messageList.add(message1);
+        readerStub.add(message1);
         Assert.assertTrue(firstProcessed.await(5, TimeUnit.SECONDS),
                 "First processing did not reach the blocking point");
 
@@ -186,7 +159,7 @@ public class FunctionAssignmentTailerTest {
         // Release the first processing
         release.countDown();
 
-        messageList.add(message2);
+        readerStub.add(message2);
 
         try {
             errorNotifier.waitForError();
@@ -218,8 +191,6 @@ public class FunctionAssignmentTailerTest {
         Assignment assignment1 = createAssignment("worker-1", function1, 0);
         Assignment assignment2 = createAssignment("worker-1", function2, 0);
 
-        ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
-
         MessageId messageId1 = new MessageIdImpl(1, 1, -1);
         MessageId messageId2 = new MessageIdImpl(1, 2, -1);
 
@@ -235,28 +206,7 @@ public class FunctionAssignmentTailerTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
 
         Reader<byte[]> reader = mock(Reader.class);
-
-        when(reader.readNext(anyInt(), any())).thenAnswer(new Answer<Message<byte[]>>() {
-            @Override
-            public Message<byte[]> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return messageList.poll(10, TimeUnit.SECONDS);
-            }
-        });
-
-        when(reader.readNextAsync()).thenAnswer(new Answer<CompletableFuture<Message<byte[]>>>() {
-            @Override
-            public CompletableFuture<Message<byte[]>> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return new CompletableFuture<>();
-            }
-        });
-
-        when(reader.hasMessageAvailable()).thenAnswer(new Answer<Boolean>() {
-            @Override
-            @SuppressWarnings("unchecked")
-            public Boolean answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return !messageList.isEmpty();
-            }
-        });
+        ReaderStub readerStub = new ReaderStub(reader);
 
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
@@ -283,11 +233,11 @@ public class FunctionAssignmentTailerTest {
         try (functionAssignmentTailer) {
             functionAssignmentTailer.start();
 
-            messageList.add(message1);
+            readerStub.add(message1);
             Awaitility.await().untilAsserted(() ->
                     verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1)));
 
-            messageList.add(message2);
+            readerStub.add(message2);
             Awaitility.await().untilAsserted(() ->
                     verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message2)));
         }
@@ -316,8 +266,6 @@ public class FunctionAssignmentTailerTest {
         Assignment assignment1 = createAssignment("worker-1", function1, 0);
         Assignment assignment2 = createAssignment("worker-1", function2, 0);
 
-        ArrayBlockingQueue<Message<byte[]>> messageList = new ArrayBlockingQueue<>(2);
-
         MessageId messageId1 = new MessageIdImpl(1, 1, -1);
         MessageId messageId2 = new MessageIdImpl(1, 2, -1);
 
@@ -333,28 +281,7 @@ public class FunctionAssignmentTailerTest {
         PulsarClient pulsarClient = mock(PulsarClient.class);
 
         Reader<byte[]> reader = mock(Reader.class);
-
-        when(reader.readNext(anyInt(), any())).thenAnswer(new Answer<Message<byte[]>>() {
-            @Override
-            public Message<byte[]> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return messageList.poll(10, TimeUnit.MILLISECONDS);
-            }
-        });
-
-        when(reader.readNextAsync()).thenAnswer(new Answer<CompletableFuture<Message<byte[]>>>() {
-            @Override
-            public CompletableFuture<Message<byte[]>> answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return new CompletableFuture<>();
-            }
-        });
-
-        when(reader.hasMessageAvailable()).thenAnswer(new Answer<Boolean>() {
-            @Override
-            @SuppressWarnings("unchecked")
-            public Boolean answer(InvocationOnMock invocationOnMock) throws Throwable {
-                return !messageList.isEmpty();
-            }
-        });
+        ReaderStub readerStub = new ReaderStub(reader);
 
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
         doReturn(readerBuilder).when(pulsarClient).newReader();
@@ -380,7 +307,7 @@ public class FunctionAssignmentTailerTest {
 
         functionAssignmentTailer.start();
 
-        messageList.add(message1);
+        readerStub.add(message1);
         for (int i = 0; i < 10; i++) {
             try {
                 verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1));
@@ -405,9 +332,47 @@ public class FunctionAssignmentTailerTest {
             Thread.sleep(200);
         }
 
-        messageList.add(message2);
+        readerStub.add(message2);
         Assert.assertEquals(functionAssignmentTailer.getLastMessageId(), message1.getMessageId());
 
         functionAssignmentTailer.close();
+    }
+
+    @Test(timeOut = 10000)
+    @SuppressWarnings("unchecked")
+    public void testTriggerReadToTheEndAndExitProcessesTheLastReceivedMessage() throws Exception {
+        WorkerConfig workerConfig = new WorkerConfig();
+        workerConfig.setWorkerId("worker-1");
+        workerConfig.setFunctionAssignmentTopicName("assignments");
+
+        Message<byte[]> message = mock(Message.class);
+        MessageId messageId = new MessageIdImpl(1, 1, -1);
+        when(message.getMessageId()).thenReturn(messageId);
+
+        Reader<byte[]> reader = mock(Reader.class);
+        ReaderStub readerStub = new ReaderStub(reader);
+        ReaderBuilder<byte[]> readerBuilder = mock(ReaderBuilder.class);
+        doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).readerName(anyString());
+        doReturn(readerBuilder).when(readerBuilder).subscriptionRolePrefix(anyString());
+        doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(readerBuilder).when(readerBuilder).readCompacted(anyBoolean());
+        doReturn(reader).when(readerBuilder).create();
+
+        FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
+        FunctionAssignmentTailer functionAssignmentTailer = new FunctionAssignmentTailer(functionRuntimeManager,
+                readerBuilder, workerConfig, ErrorNotifier.getDefaultImpl());
+        try (functionAssignmentTailer) {
+            functionAssignmentTailer.start();
+            Awaitility.await().untilAsserted(() -> verify(reader).readNextAsync());
+
+            // The reader takes the last message off the topic right before the tailer finds no more messages
+            // available
+            readerStub.receiveBeforeClose(message);
+            functionAssignmentTailer.triggerReadToTheEndAndExit().get();
+
+            verify(functionRuntimeManager).processAssignmentMessage(message);
+            assertEquals(functionAssignmentTailer.getLastMessageId(), messageId);
+        }
     }
 }

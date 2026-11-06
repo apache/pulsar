@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -41,6 +42,7 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected final ProducerConfigurationData conf;
     protected final Schema<T> schema;
     protected final ProducerInterceptors interceptors;
+    private final AtomicBoolean interceptorsClosed = new AtomicBoolean();
     protected final Map<SchemaHash, byte[]> schemaCache = new ConcurrentHashMap<>();
     protected volatile MultiSchemaMode multiSchemaMode = MultiSchemaMode.Auto;
 
@@ -145,6 +147,13 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     @Override
     public abstract CompletableFuture<Void> closeAsync();
 
+    /** Whether the producer has reached a state it does not leave: closing, closed, failed, terminated or fenced. */
+    protected boolean isTerminalState() {
+        State state = getState();
+        return state == State.Closing || state == State.Closed || state == State.Failed
+                || state == State.Terminated || state == State.ProducerFenced;
+    }
+
     @Override
     public String getTopic() {
         return topic;
@@ -175,6 +184,15 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected void onPartitionsChange(String topicName, int partitions) {
         if (interceptors != null) {
             interceptors.onPartitionsChange(topicName, partitions);
+        }
+    }
+
+    /**
+     * Close the interceptors once this producer is closed. Later calls do nothing.
+     */
+    protected void closeInterceptors() {
+        if (interceptors != null && interceptorsClosed.compareAndSet(false, true)) {
+            interceptors.close();
         }
     }
 

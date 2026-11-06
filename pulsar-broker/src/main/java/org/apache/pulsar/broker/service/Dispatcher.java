@@ -136,6 +136,13 @@ public interface Dispatcher {
         return CompletableFuture.completedFuture(null);
     }
 
+    /**
+     * Clear delayed state after the cursor has successfully discarded its backlog.
+     */
+    default CompletableFuture<Void> clearDelayedMessagesAfterBacklogClear() {
+        return clearDelayedMessages();
+    }
+
     default void cursorIsReset() {
         //No-op
     }
@@ -163,9 +170,9 @@ public interface Dispatcher {
     /**
      * A callback hook after acknowledge messages.
      * @param exOfDeletion the ex of {@link org.apache.bookkeeper.mledger.ManagedCursor#asyncDelete},
-     *              {@link ManagedCursor#asyncClearBacklog} or {@link ManagedCursor#asyncSkipEntries)}.
+     *              {@link ManagedCursor#asyncClearBacklog} or {@link ManagedCursor#asyncSkipEntries}.
      * @param ctxOfDeletion the param ctx of calling {@link org.apache.bookkeeper.mledger.ManagedCursor#asyncDelete},
-     *              {@link ManagedCursor#asyncClearBacklog} or {@link ManagedCursor#asyncSkipEntries)}.
+     *              {@link ManagedCursor#asyncClearBacklog} or {@link ManagedCursor#asyncSkipEntries}.
      */
     default void afterAckMessages(Throwable exOfDeletion, Object ctxOfDeletion){}
 

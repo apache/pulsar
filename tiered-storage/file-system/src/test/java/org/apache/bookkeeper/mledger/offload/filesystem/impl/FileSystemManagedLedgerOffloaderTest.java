@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.offload.filesystem.impl;
 
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -37,6 +38,7 @@ import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
 import org.apache.bookkeeper.mledger.offload.filesystem.FileStoreTestBase;
 import org.apache.hadoop.conf.Configuration;
@@ -101,6 +103,20 @@ public class FileSystemManagedLedgerOffloaderTest extends FileStoreTestBase {
     @Override
     public void tearDown() throws Exception {
         super.tearDown();
+    }
+
+    @Test
+    public void testReadHandleIsOffloadedLedgerHandle() throws Exception {
+        UUID uuid = UUID.randomUUID();
+        fileSystemManagedLedgerOffloader.offload(toWrite, uuid, map).get();
+        ReadHandle readHandle = fileSystemManagedLedgerOffloader.readOffloaded(toWrite.getId(), uuid, map).get();
+        try {
+            // The managed ledger relies on this marker to tell that the entries of a ledger are read from tiered
+            // storage, e.g. for the metrics of the search of a message position by timestamp
+            assertThat(readHandle).isInstanceOf(OffloadedLedgerHandle.class);
+        } finally {
+            readHandle.close();
+        }
     }
 
     @Test

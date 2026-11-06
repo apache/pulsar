@@ -54,6 +54,8 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
     private final Map<TopicName, List<TopicPolicyListener>> listeners = new ConcurrentHashMap<>();
     private MetadataCache<TopicPolicies> localPoliciesCache;
     private MetadataCache<TopicPolicies> globalPoliciesCache;
+    private volatile Runnable cancelLocalStoreListener;
+    private volatile Runnable cancelConfigurationStoreListener;
 
     @Override
     public void start(PulsarService pulsar) {
@@ -61,8 +63,10 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
         MetadataStore configurationStore = pulsar.getConfigurationMetadataStore();
         this.localPoliciesCache = localStore.getMetadataCache(TopicPolicies.class);
         this.globalPoliciesCache = configurationStore.getMetadataCache(TopicPolicies.class);
-        localStore.registerListener(notification -> handleNotification(notification, false));
-        configurationStore.registerListener(notification -> handleNotification(notification, true));
+        cancelLocalStoreListener =
+                localStore.registerCancellableListener(notification -> handleNotification(notification, false));
+        cancelConfigurationStoreListener =
+                configurationStore.registerCancellableListener(notification -> handleNotification(notification, true));
     }
 
     @Override
@@ -135,6 +139,7 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
                 .thenApply(policies -> policies.map(policy -> cloneWithScope(policy, global)));
     }
 
+    @Deprecated
     @Override
     public boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
         listeners.compute(normalizeTopicName(topicName), (__, topicListeners) -> {
@@ -158,6 +163,12 @@ public class MetadataStoreTopicPoliciesService implements TopicPoliciesService {
     @Override
     public void close() {
         if (closed.compareAndSet(false, true)) {
+            if (cancelLocalStoreListener != null) {
+                cancelLocalStoreListener.run();
+            }
+            if (cancelConfigurationStoreListener != null) {
+                cancelConfigurationStoreListener.run();
+            }
             listeners.clear();
             if (localPoliciesCache != null) {
                 localPoliciesCache.invalidateAll();

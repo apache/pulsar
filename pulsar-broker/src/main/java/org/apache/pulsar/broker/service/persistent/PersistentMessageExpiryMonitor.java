@@ -38,8 +38,10 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.MessageExpirer;
+import org.apache.pulsar.broker.stats.OpenTelemetryMessageFinderStats.FindReason;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.stats.Rate;
 import org.jspecify.annotations.Nullable;
@@ -80,10 +82,12 @@ public class PersistentMessageExpiryMonitor implements FindEntryCallback, Messag
                 .attr("topic", topicName)
                 .attr("subscription", subscriptionName)
                 .build();
-        int managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis = topic.getBrokerService().pulsar()
-                .getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis();
+        PulsarService pulsar = topic.getBrokerService().pulsar();
+        int managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis =
+                pulsar.getConfig().getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis();
         this.finder = new PersistentMessageFinder(topicName, cursor,
-                managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis);
+                managedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis,
+                pulsar.getOpenTelemetryMessageFinderStats(), FindReason.EXPIRY);
     }
 
     @VisibleForTesting

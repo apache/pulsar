@@ -19,59 +19,39 @@
 package org.apache.pulsar.tests.integration.cli;
 
 import static org.testng.Assert.assertTrue;
-import org.apache.commons.lang3.RandomStringUtils;
-import org.apache.pulsar.tests.TestRetrySupport;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.tests.integration.containers.BrokerContainer;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
+import org.apache.pulsar.tests.integration.suites.PulsarTestSuite;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
-import org.apache.pulsar.tests.integration.topologies.PulsarClusterSpec;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 /**
  * Pulsar version test class.
  */
-public class PulsarVersionTest extends TestRetrySupport {
-
-    private static final String clusterNamePrefix = "pulsar-version";
-    private PulsarCluster pulsarCluster;
-
-    @SuppressWarnings("deprecation")
-    @Override
-    @BeforeClass(alwaysRun = true)
-    public final void setup() throws Exception {
-        incrementSetupNumber();
-        PulsarClusterSpec spec = PulsarClusterSpec.builder()
-                .clusterName(String.format("%s-%s", clusterNamePrefix, RandomStringUtils.randomAlphabetic(6)))
-                .build();
-        pulsarCluster = PulsarCluster.forSpec(spec);
-        pulsarCluster.start();
-    }
+public class PulsarVersionTest extends PulsarTestSuite {
 
     @Override
-    @AfterClass(alwaysRun = true)
-    public final void cleanup() {
-        markCurrentSetupNumberCleaned();
-        if (pulsarCluster != null) {
-            pulsarCluster.stop();
-            pulsarCluster = null;
-        }
+    protected boolean isClusterShared() {
+        return true;
     }
 
     @Test
     public void getVersion() throws Exception {
-        ContainerExecResult result = pulsarCluster.runAdminCommandOnAnyBroker("brokers", "version");
-        String version = result.getStdout();
-        ContainerExecResult adminVersionShortOption = pulsarCluster.runAdminCommandOnAnyBroker("-v");
-        assertTrue(adminVersionShortOption.getStdout().contains(version));
-        ContainerExecResult adminVersionLongOption = pulsarCluster.runAdminCommandOnAnyBroker("--version");
-        assertTrue(adminVersionLongOption.getStdout().contains(version));
-        ContainerExecResult clientVersionShortOption = pulsarCluster.getAnyBroker().execCmd(
-                PulsarCluster.CLIENT_SCRIPT, "-v");
-        assertTrue(clientVersionShortOption.getStdout().contains(version));
-        ContainerExecResult clientVersionLongOption = pulsarCluster.getAnyBroker().execCmd(
-                PulsarCluster.CLIENT_SCRIPT, "--version");
-        assertTrue(clientVersionLongOption.getStdout().contains(version));
+        // Each command starts a JVM: they run at once
+        BrokerContainer broker = pulsarCluster.getAnyBroker();
+        CompletableFuture<ContainerExecResult> brokerVersion =
+                broker.execCmdAsync(PulsarCluster.ADMIN_SCRIPT, "brokers", "version");
+        List<CompletableFuture<ContainerExecResult>> versionOptions = List.of(
+                broker.execCmdAsync(PulsarCluster.ADMIN_SCRIPT, "-v"),
+                broker.execCmdAsync(PulsarCluster.ADMIN_SCRIPT, "--version"),
+                broker.execCmdAsync(PulsarCluster.CLIENT_SCRIPT, "-v"),
+                broker.execCmdAsync(PulsarCluster.CLIENT_SCRIPT, "--version"));
+        String version = brokerVersion.get().getStdout();
+        for (CompletableFuture<ContainerExecResult> versionOption : versionOptions) {
+            assertTrue(versionOption.get().getStdout().contains(version));
+        }
     }
 
 }

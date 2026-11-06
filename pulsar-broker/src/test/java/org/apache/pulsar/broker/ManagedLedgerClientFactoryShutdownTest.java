@@ -93,7 +93,7 @@ public class ManagedLedgerClientFactoryShutdownTest {
         when(policyClient.getClientCtx()).thenReturn(context);
         IsolatedBookieEnsemblePlacementPolicy policy = mock(IsolatedBookieEnsemblePlacementPolicy.class);
         when(context.getPlacementPolicy()).thenReturn(policy);
-        when(policy.getInitializationFuture()).thenAnswer(invocation -> {
+        when(policy.getInitializationFuture(any())).thenAnswer(invocation -> {
             readinessRequested.complete(null);
             return readiness;
         });

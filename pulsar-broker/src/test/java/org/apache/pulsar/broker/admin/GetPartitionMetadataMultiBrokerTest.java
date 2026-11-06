@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
@@ -97,7 +98,7 @@ public class GetPartitionMetadataMultiBrokerTest extends GetPartitionMetadataTes
         doInitConf();
         pulsar2 = new PulsarService(conf);
         pulsar2.start();
-        url2 = new URL(pulsar2.getWebServiceAddress());
+        url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
         clientWithHttpLookup2 =
                 (PulsarClientImpl) PulsarClient.builder().serviceUrl(pulsar2.getWebServiceAddress()).build();

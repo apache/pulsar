@@ -183,6 +183,54 @@ public class TopicTerminationTest extends SharedPulsarBaseTest {
         }
     }
 
+    /**
+     * A send that fails because the topic was terminated must not have been persisted: a producer that re-sends it
+     * elsewhere, as the V5 client does to the successors of a sealed segment, would store it twice.
+     */
+    @Test(timeOut = 30000)
+    public void testTerminateWhilePublishingFailsOnlyUnpersistedMessages() throws Exception {
+        String topicName = newTopicName();
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("sub")
+                .subscribe();
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .enableBatching(false)
+                .sendTimeout(10, TimeUnit.SECONDS)
+                .create();
+
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+        CompletableFuture<MessageId> terminate = null;
+        for (int i = 0; !(terminate != null && terminate.isDone()) && i < 100_000; i++) {
+            futures.add(producer.sendAsync(String.valueOf(i).getBytes()));
+            if (i == 200) {
+                terminate = admin.topics().terminateTopicAsync(topicName);
+            }
+        }
+        terminate.get(10, TimeUnit.SECONDS);
+        try {
+            FutureUtil.waitForAll(futures).get(20, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            // Checked below
+        }
+
+        List<Integer> persisted = new ArrayList<>();
+        while (!consumer.hasReachedEndOfTopic()) {
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
+            if (msg == null) {
+                break;
+            }
+            persisted.add(Integer.parseInt(new String(msg.getValue())));
+            consumer.acknowledge(msg);
+        }
+        List<Integer> failedButPersisted = persisted.stream()
+                .filter(i -> futures.get(i).isCompletedExceptionally())
+                .toList();
+        assertTrue(failedButPersisted.isEmpty(), "persisted messages reported as failed: " + failedButPersisted
+                + " of " + persisted.size() + " persisted, " + futures.size() + " sent");
+    }
+
     @Test(groups = "broker")
     public void testDoubleTerminate() throws Exception {
         String topicName = newTopicName();

@@ -1,0 +1,111 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# The performance tests' metrics stack: VictoriaMetrics stores the metrics that it scrapes from the runs' clusters, and
+# Grafana shows them on the dashboards of the Apache Pulsar Helm chart, see docs/metrics.md. Docker Compose runs it as
+# the project pulsar-performance-metrics: ./gradlew :tests:performance:metrics:up starts it in the background, until
+# ./gradlew :tests:performance:metrics:down stops it, and a run that finds it not running runs it while the run runs. The volumes and the network are external,
+# created before the stack starts, so that they outlive it: the volumes keep the metrics, the dashboards and Grafana's
+# settings, so that the runs can be analyzed afterwards.
+services:
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:latest
+    # How the runs find the running VictoriaMetrics; Testcontainers names the containers itself
+    labels:
+      org.apache.pulsar.tests.performance.metrics: victoriametrics
+    command:
+      - -storageDataPath=/victoria-metrics-data
+      # Keeps the metrics of the runs for a year
+      - -retentionPeriod=1y
+      - -promscrape.config=/etc/victoriametrics/scrape.yaml
+      # The launcher adds a run's scrape configuration to /etc/victoriametrics/runs when the run's cluster has started,
+      # and removes it when the run ends; VictoriaMetrics notices the changes within a second
+      - -promscrape.configCheckInterval=1s
+      # Queries see the data 2 s after it was scraped rather than 30 s, so that the panels that a run renders into its
+      # report right after it ends show its end
+      - -search.latencyOffset=2s
+    volumes:
+      - victoriametrics-data:/victoria-metrics-data
+      - ./victoriametrics/scrape.yaml:/etc/victoriametrics/scrape.yaml:ro
+    # Emptied on every start, so that no scrape configuration of a run that didn't end remains
+    tmpfs:
+      - /etc/victoriametrics/runs
+    ports:
+      - ${PERFORMANCE_METRICS_BIND_ADDRESS:-127.0.0.1}:8428:8428
+    # Across restarts of Docker, until the stack is stopped
+    restart: unless-stopped
+  # Sets Grafana up in its volume when the volume is empty, and does nothing otherwise
+  grafana-setup:
+    image: grafana/grafana:latest-slim
+    user: "0"
+    entrypoint: ["sh", "/setup/setup.sh"]
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana:/setup:ro
+  grafana:
+    # The slim image, without the data source plugins, which Grafana installs into its volume on the first start
+    image: grafana/grafana:latest-slim
+    labels:
+      org.apache.pulsar.tests.performance.metrics: grafana
+    depends_on:
+      grafana-setup:
+        condition: service_completed_successfully
+      victoriametrics:
+        condition: service_started
+      renderer:
+        condition: service_started
+    environment:
+      GF_PLUGINS_PREINSTALL_SYNC: prometheus
+      GF_PATHS_PROVISIONING: /var/lib/grafana/provisioning
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: pulsar-performance
+      # Anyone who reaches Grafana can view the dashboards without logging in; editing needs the admin user
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/pulsar/messaging.json
+      # Renders panels as PNG images through the image renderer, with GET /render/d-solo/<dashboard>?panelId=<id>
+      GF_RENDERING_SERVER_URL: http://renderer:8081/render
+      GF_RENDERING_CALLBACK_URL: http://grafana:3000/
+      GF_RENDERING_RENDERER_TOKEN: pulsar-performance
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - ${PERFORMANCE_METRICS_BIND_ADDRESS:-127.0.0.1}:3000:3000
+    restart: unless-stopped
+  # Grafana's image renderer, a headless browser that renders dashboards and panels as images for Grafana
+  renderer:
+    image: grafana/grafana-image-renderer:latest
+    environment:
+      AUTH_TOKEN: pulsar-performance
+    restart: unless-stopped
+networks:
+  # The stack's network, which a run also connects its brokers to while it runs, under their names in the run's own
+  # network, so that VictoriaMetrics can scrape them; a broker leaves it when its container is removed
+  default:
+    name: pulsar-performance-metrics
+    external: true
+volumes:
+  victoriametrics-data:
+    name: pulsar-performance-victoriametrics-data
+    external: true
+  grafana-data:
+    name: pulsar-performance-grafana-data
+    external: true

@@ -29,6 +29,7 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -46,12 +47,15 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.OffloadedLedgerMetadata;
 import org.apache.bookkeeper.mledger.impl.LedgerOffloaderStatsImpl;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.pulsar.common.naming.TopicName;
@@ -94,8 +98,15 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
         return getOffloader(BUCKET, mockedBlobStore);
     }
 
+    // Data blocks of DEFAULT_BLOCK_SIZE, for which buildReadHandle sizes the ledgers
+    private TieredStorageConfiguration getOffloaderConfiguration(String bucket) {
+        return getConfiguration(bucket, Map.of(
+                TieredStorageConfiguration.OFFLOADER_PROPERTY_PREFIX + "MaxBlockSizeInBytes",
+                Integer.toString(DEFAULT_BLOCK_SIZE)));
+    }
+
     private BlobStoreManagedLedgerOffloader getOffloader(String bucket) throws IOException {
-        mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getConfiguration(bucket)));
+        mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getOffloaderConfiguration(bucket)));
         Mockito.doReturn(blobStore).when(mockedConfig).getBlobStore(); // Use the REAL blobStore
         BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader.create(mockedConfig,
                 new HashMap<String, String>(), scheduler, scheduler, this.offloaderStats,
@@ -104,7 +115,7 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
     }
 
     private BlobStoreManagedLedgerOffloader getOffloader(String bucket, BlobStore mockedBlobStore) throws IOException {
-        mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getConfiguration(bucket)));
+        mockedConfig = mock(TieredStorageConfiguration.class, delegatesTo(getOffloaderConfiguration(bucket)));
         Mockito.doReturn(mockedBlobStore).when(mockedConfig).getBlobStore();
         BlobStoreManagedLedgerOffloader offloader = BlobStoreManagedLedgerOffloader.create(mockedConfig,
                 new HashMap<String, String>(), scheduler, scheduler, this.offloaderStats,
@@ -147,6 +158,13 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
 
         UUID uuid = UUID.randomUUID();
         offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        // The ledger was offloaded in three data blocks
+        try (InputStream indexStream = blobStore.getBlob(BUCKET,
+                DataBlockUtils.indexBlockOffloadKey(toWrite.getId(), uuid)).getPayload().openStream();
+             OffloadIndexBlock index = (OffloadIndexBlock) OffloadIndexBlockBuilder.create().fromStream(indexStream)) {
+            assertEquals(index.getEntryCount(), 3);
+        }
 
         @Cleanup
         ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
@@ -667,6 +685,35 @@ public class BlobStoreManagedLedgerOffloaderTest extends BlobStoreManagedLedgerO
                 return;
             }
             throw e;
+        }
+    }
+
+    @Test
+    public void testLedgerMetadataOfAClosedReadHandle() throws Exception {
+        @Cleanup
+        ReadHandle toWrite = buildReadHandle(DEFAULT_BLOCK_SIZE, 3);
+        @Cleanup
+        LedgerOffloader offloader = getOffloader();
+        UUID uuid = UUID.randomUUID();
+        offloader.offload(toWrite, uuid, new HashMap<>()).get();
+
+        ReadHandle toTest = offloader.readOffloaded(toWrite.getId(), uuid, Collections.emptyMap()).get();
+        LedgerMetadata metadata = toTest.getLedgerMetadata();
+        toTest.closeAsync().get();
+
+        // The managed ledger may close a read handle while a read that got it from its cache still uses it: the
+        // handle's ledger metadata stays, and the read fails with OffloadReadHandleClosedException, which makes the
+        // managed ledger reopen the handle
+        assertEquals(toTest.getLedgerMetadata(), metadata);
+        assertEquals(toTest.getLength(), toWrite.getLength());
+        assertEquals(toTest.getLastAddConfirmed(), toWrite.getLastAddConfirmed());
+        assertTrue(toTest.isClosed());
+        assertEquals(toTest.readLastAddConfirmedAsync().get().longValue(), toWrite.getLastAddConfirmed());
+        try {
+            toTest.readAsync(0, toTest.getLastAddConfirmed()).get();
+            fail("Reading from a closed read handle should fail");
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof ManagedLedgerException.OffloadReadHandleClosedException);
         }
     }
 

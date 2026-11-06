@@ -114,6 +114,7 @@ public class ServiceUnitStateMetadataStoreTableViewImpl extends ServiceUnitState
     @Override
     public void close() throws IOException {
         if (tableview != null) {
+            tableview.close();
             tableview = null;
             log.info("Successfully closed the channel tableview.");
         }

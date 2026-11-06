@@ -382,7 +382,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             pubKey = loadPublicKey(keyInfo.getKey());
         } catch (Exception e) {
             String msg = logCtx + "Failed to load public key " + keyName + ". " + e.getMessage();
-            log.error(msg);
+            log.error().exception(e).log(msg);
             throw new PulsarClientException.CryptoException(msg);
         }
 
@@ -410,7 +410,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
         } catch (IllegalBlockSizeException | BadPaddingException | NoSuchAlgorithmException
                  | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException e) {
             log.error().attr("logCtx", logCtx).attr("keyName", keyName)
-                    .exceptionMessage(e).log("Failed to encrypt data key");
+                    .exception(e).log("Failed to encrypt data key");
             throw new PulsarClientException.CryptoException(e.getMessage());
         }
         EncryptionKeyInfo eki = new EncryptionKeyInfo(encryptedKey, keyInfo.getMetadata());
@@ -544,7 +544,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
             }
         } catch (Exception e) {
             log.error().attr("logCtx", logCtx).attr("keyName", keyName)
-                    .exceptionMessage(e).log("Failed to decrypt data key to decrypt messages");
+                    .exception(e).log("Failed to decrypt data key to decrypt messages");
             return null;
         }
 
@@ -573,7 +573,7 @@ public class MessageCryptoBc implements MessageCrypto<MessageMetadata, MessageMe
 
         } catch (Exception e) {
             log.error().attr("logCtx", logCtx).attr("keyName", keyName)
-                    .exceptionMessage(e).log("Failed to decrypt data key to decrypt messages");
+                    .exception(e).log("Failed to decrypt data key to decrypt messages");
             return null;
         }
     }

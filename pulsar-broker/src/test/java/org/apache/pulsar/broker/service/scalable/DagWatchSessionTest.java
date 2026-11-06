@@ -30,7 +30,10 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultChannelPromise;
+import io.netty.util.concurrent.ImmediateEventExecutor;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -82,6 +85,8 @@ public class DagWatchSessionTest {
 
         when(resources.topicPath(TOPIC)).thenReturn(TOPIC_PATH);
         when(cnx.ctx()).thenReturn(ctx);
+        when(ctx.writeAndFlush(any())).thenReturn(
+                new DefaultChannelPromise(mock(Channel.class), ImmediateEventExecutor.INSTANCE).setSuccess());
         // Default: metadata store has a valid registerListener hook.
         var store = mock(org.apache.pulsar.metadata.api.MetadataStore.class);
         when(resources.getStore()).thenReturn(store);
@@ -106,13 +111,13 @@ public class DagWatchSessionTest {
 
     @Test
     public void testStartFailsWhenTopicMetadataMissingAndAutoCreateDisallowed() {
-        // topic://... input + no scalable metadata + auto-create disallowed by policy =
+        // topic://... input + no scalable metadata + auto-create disallowed by policy or authorization =
         // TopicNotFound. (When auto-create is allowed the topic is created instead — covered
         // end-to-end by V5ScalableTopicAutoCreateTest.) Synthetic layouts are only produced
         // for persistent://... input (regular topics).
         when(resources.getScalableTopicMetadataAsync(TOPIC, true))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
-        when(brokerService.isAllowAutoTopicCreationAsync(TOPIC))
+        when(cnx.isAllowAutoTopicCreationAsync(TOPIC))
                 .thenReturn(CompletableFuture.completedFuture(false));
 
         CompletableFuture<ScalableTopicLayoutResponse> future = session.start();
@@ -156,7 +161,7 @@ public class DagWatchSessionTest {
             assertTrue(e.getCause().getMessage().contains("not found"), e.getCause().getMessage());
         }
         // The opt-out short-circuits before policy is consulted and nothing is created.
-        verify(brokerService, never()).isAllowAutoTopicCreationAsync(any(TopicName.class));
+        verify(cnx, never()).isAllowAutoTopicCreationAsync(any(TopicName.class));
         verify(brokerService, never()).getScalableTopicService();
     }
 

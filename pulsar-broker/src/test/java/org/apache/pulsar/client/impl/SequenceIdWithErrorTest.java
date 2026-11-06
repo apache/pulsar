@@ -20,7 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
@@ -66,7 +67,7 @@ public class SequenceIdWithErrorTest extends BkEnsemblesTestBase {
 
         // Fence the topic by opening the ManagedLedger for the topic outside the Pulsar broker. This will cause the
         // broker to fail subsequent send operation and it will trigger a recover
-        EventLoopGroup eventLoopGroup = new NioEventLoopGroup(1);
+        EventLoopGroup eventLoopGroup = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
         ManagedLedgerClientFactory clientFactory = new ManagedLedgerClientFactory();
         clientFactory.initialize(pulsar.getConfiguration(), pulsar.getLocalMetadataStore(),
                 pulsar.getBookKeeperClientFactory(), eventLoopGroup, OpenTelemetry.noop());

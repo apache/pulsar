@@ -1,0 +1,32 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# The gateways' uplink to the cluster drops to a bandwidth near or below what they send, for 30 s of the measurement,
+# as a congested or a degraded link does, with a 100 ms queue at the bottleneck, which holds at least 64 full frames:
+# 775 ms at 1 Mbit/s. Set the rate for the base scenario's traffic, such as
+# --set network.impairments.gateways-uplink.rate=2mbit; the run report's Network conditions section shows the packets
+# that went through it and the queue it got. Look for: the producers' pending messages and publish latency during the
+# limit, whether anything fails, and how long the backlog takes to drain after it.
+
+network:
+  impairments:
+    gateways-uplink:
+      from: gateways
+      to: brokers
+      rate: 1mbit
+      start: 30s
+      duration: 30s

@@ -71,6 +71,10 @@ public class PulsarBookKeeperTestClient extends BookKeeper {
         return bookieClient;
     }
 
+    public boolean hasScheduledAddTimeout(LedgerHandle handle) {
+        return handle.timeoutFuture != null && !handle.timeoutFuture.isCancelled();
+    }
+
     public Future<?> waitForReadOnlyBookie(BookieId id)
             throws Exception {
         return waitForBookieInSet(id, false);

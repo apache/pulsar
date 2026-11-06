@@ -22,6 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.HashSet;
@@ -94,7 +95,7 @@ public class SLAMonitoringTest {
 
             brokerWebServicePorts[i] = pulsarServices[i].getListenPortHTTP().get();
             brokerNativeBrokerPorts[i] = pulsarServices[i].getBrokerListenPort().get();
-            brokerUrls[i] = new URL(pulsarServices[i].getWebServiceAddress());
+            brokerUrls[i] = URI.create(pulsarServices[i].getWebServiceAddress()).toURL();
             pulsarAdmins[i] = PulsarAdmin.builder().serviceHttpUrl(brokerUrls[i].toString()).build();
         }
 

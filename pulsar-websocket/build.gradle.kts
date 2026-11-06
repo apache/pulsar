@@ -53,6 +53,7 @@ dependencies {
     implementation(libs.netty.buffer)
 
     compileOnly(libs.swagger.annotations)
+    testCompileOnly(libs.swagger.annotations)
 
     testImplementation(libs.netty.transport.native.epoll)
 }

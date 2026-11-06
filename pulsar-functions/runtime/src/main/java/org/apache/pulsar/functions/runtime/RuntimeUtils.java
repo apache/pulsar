@@ -47,6 +47,7 @@ import lombok.CustomLog;
 import org.apache.commons.lang3.JavaVersion;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.SystemUtils;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -368,6 +369,10 @@ public class RuntimeUtils {
             // miss log events from the SLF4J logger (resolved via the root classloader).
             args.add("-Dlog4j2.contextSelector="
                     + "org.apache.logging.log4j.core.selector.BasicContextSelector");
+            // Log4j2 is shut down explicitly by JavaInstanceStarter after the instance has been closed.
+            // Otherwise Log4j2's own JVM shutdown hook can stop the appenders before Sink.close() and
+            // Function.close() have run, which drops the logs written by them.
+            args.add("-Dlog4j.shutdownHookEnabled=false");
             args.add("-Dpulsar.function.log.dir=" + genFunctionLogFolder(logDirectory, instanceConfig));
             args.add("-Dpulsar.function.log.file=" + String.format(
                     "%s-%s",
@@ -378,7 +383,6 @@ public class RuntimeUtils {
             args.add("-Dio.netty.tryReflectionSetAccessible=true");
             // Handle possible shaded Netty versions
             args.add("-Dorg.apache.pulsar.shade.io.netty.tryReflectionSetAccessible=true");
-            args.add("-Dio.grpc.netty.shaded.io.netty.tryReflectionSetAccessible=true");
 
             if (SystemUtils.isJavaVersionAtLeast(JavaVersion.JAVA_11)) {
                 // Needed for optimized Netty direct byte buffer support
@@ -507,6 +511,16 @@ public class RuntimeUtils {
             if (instanceConfig.isIgnoreUnknownConfigFields()) {
                 args.add("--ignore_unknown_config_fields");
             }
+
+            MemoryLimit clientMemoryLimit = instanceConfig.getPulsarClientMemoryLimit();
+            if (clientMemoryLimit != null && clientMemoryLimit.getLimitInBytes() != null) {
+                args.add("--pulsar_client_memory_limit_bytes");
+                args.add(String.valueOf(clientMemoryLimit.getLimitInBytes()));
+            }
+            if (clientMemoryLimit != null && clientMemoryLimit.getPercentOfMaxDirectMemory() != null) {
+                args.add("--pulsar_client_memory_limit_percent");
+                args.add(String.valueOf(clientMemoryLimit.getPercentOfMaxDirectMemory()));
+            }
         }
 
         // state storage configs
@@ -546,6 +560,8 @@ public class RuntimeUtils {
     }
 
     public static String getPrometheusMetrics(int metricsPort) throws IOException {
+        // An IPv6 host address is not bracketed here, which URI parsing would reject.
+        @SuppressWarnings("deprecation")
         URL url = new URL(String.format("http://%s:%s", InetAddress.getLocalHost().getHostAddress(), metricsPort));
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         conn.setRequestMethod("GET");

@@ -37,7 +37,9 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Semaphore;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -50,6 +52,7 @@ import org.apache.pulsar.broker.resources.ClusterResources;
 import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException.MetadataSessionLostException;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -181,6 +184,45 @@ public class HttpTopicLookupv2Test {
         assertEquals(arg.getValue().getClass(), RestException.class);
         RestException restException = (RestException) arg.getValue();
         assertEquals(restException.getResponse().getStatus(), Status.NOT_FOUND.getStatusCode());
+    }
+
+    @Test
+    public void testLookupFailsWithServiceUnavailableWhileTheMetadataSessionIsLost() throws Exception {
+        MockTopicLookup destLookup = spy(MockTopicLookup.class);
+        doReturn(false).when(destLookup).isRequestHttps();
+        destLookup.setPulsar(pulsar);
+        doReturn("null").when(destLookup).clientAppId();
+        Field uriField = PulsarWebResource.class.getDeclaredField("uri");
+        uriField.setAccessible(true);
+        UriInfo uriInfo = mock(UriInfo.class);
+        uriField.set(destLookup, uriInfo);
+        URI uri = URI.create("http://localhost:8080/lookup/v2/topic/persistent/myprop/ns2/topic1");
+        doReturn(uri).when(uriInfo).getRequestUri();
+        Policies policies = new Policies();
+        policies.replication_clusters = Sets.newHashSet("use");
+        when(namespaceResources.getPoliciesAsync(NamespaceName.get("myprop", "ns2")))
+                .thenReturn(CompletableFuture.completedFuture(Optional.of(policies)));
+        BrokerService brokerService = pulsar.getBrokerService();
+        doReturn(true).when(brokerService).isCurrentClusterAllowed(any(), any());
+
+        NamespaceService namespaceService = pulsar.getNamespaceService();
+        doReturn(CompletableFuture.completedFuture(TopicExistsInfo.newNonPartitionedTopicExists()))
+                .when(namespaceService).checkTopicExistsAsync(any(TopicName.class));
+        // the lookup selected this broker, which can't acquire the bundle while its metadata session is lost
+        doReturn(CompletableFuture.failedFuture(new PulsarServerException("Failed to acquire ownership",
+                new CompletionException(new MetadataSessionLostException("Metadata session lost")))))
+                .when(namespaceService).getBrokerServiceUrlAsync(any(TopicName.class), any());
+
+        AsyncResponse asyncResponse = mock(AsyncResponse.class);
+        destLookup.lookupTopicAsync(asyncResponse, TopicDomain.persistent.value(), "myprop",
+                "ns2", "topic1", false, null, null);
+
+        // the client looks the topic up again, as after a ServiceNotReady of the binary lookup
+        ArgumentCaptor<Throwable> arg = ArgumentCaptor.forClass(Throwable.class);
+        verify(asyncResponse).resume(arg.capture());
+        assertEquals(arg.getValue().getClass(), RestException.class);
+        RestException restException = (RestException) arg.getValue();
+        assertEquals(restException.getResponse().getStatus(), Status.SERVICE_UNAVAILABLE.getStatusCode());
     }
 
     public static class MockTopicLookup extends TopicLookup {

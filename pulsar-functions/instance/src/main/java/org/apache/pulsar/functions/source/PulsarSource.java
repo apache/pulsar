@@ -111,8 +111,11 @@ public abstract class PulsarSource<T> implements Source<T> {
         return cb;
     }
 
+    /**
+     * Returns the schema that a record built from the message exposes to the function or sink.
+     */
     @SuppressWarnings("unchecked") // schema type casts are safe within message context
-    protected Record<T> buildRecord(Consumer<T> consumer, Message<T> message) {
+    protected static <T> Schema<T> recordSchema(Message<T> message) {
         Schema<T> schema = null;
         if (message instanceof MessageImpl) {
             MessageImpl<T> impl = (MessageImpl<T>) message;
@@ -130,9 +133,13 @@ public abstract class PulsarSource<T> implements Source<T> {
             schema = (Schema<T>) autoConsumeSchema
                     .unwrapInternalSchema(message.getSchemaVersion());
         }
+        return schema;
+    }
+
+    protected Record<T> buildRecord(Consumer<T> consumer, Message<T> message) {
         return PulsarRecord.<T>builder()
                 .message(message)
-                .schema(schema)
+                .schema(recordSchema(message))
                 .topicName(message.getTopicName())
                 .customAckFunction(cumulative -> {
                     if (cumulative) {

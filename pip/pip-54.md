@@ -3,7 +3,7 @@
 * **Status**: Proposal
 * **Author**: Penghui Li
 * **Pull Request**: https://github.com/apache/pulsar/pull/6052
-* **Mailing List discussion**: https://lists.apache.org/thread.html/rdcc306653be6ac6d910e7302096ddae8e1a9e563df20cf6ca73085de%40%3Cdev.pulsar.apache.org%3E
+* **Mailing List discussion**: https://lists.apache.org/thread/xxyxokwvq1swvo2rkckny98yxngn27zm
 * **Release**:2.6.0
 
 

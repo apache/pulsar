@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.loadbalance.extensions.data.BrokerLookupData;
 import org.apache.pulsar.common.api.proto.FeatureFlags;
+import org.apache.pulsar.common.api.proto.ScalableConsumerAssignment;
 
 public interface TransportCnx {
 
@@ -98,4 +99,17 @@ public interface TransportCnx {
         return getFeatures() != null && getFeatures().hasSupportsReplDedupByLidAndEid()
                 && getFeatures().isSupportsReplDedupByLidAndEid();
     }
+
+    /**
+     * Send a scalable-topic consumer an assignment pushed by its controller: as the response to the
+     * consumer's subscribe while that is unanswered on this connection, as an assignment update
+     * otherwise.
+     */
+    void sendScalableConsumerAssignment(long consumerId, ScalableConsumerAssignment assignment);
+
+    /**
+     * Make a scalable-topic consumer subscribe again: the controller holding its session stopped
+     * serving as the leader, and the consumer must subscribe with the one that leads now.
+     */
+    void closeScalableConsumerSession(long consumerId);
 }

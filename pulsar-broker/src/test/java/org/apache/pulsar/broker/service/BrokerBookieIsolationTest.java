@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import static org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl.REPP_DNS_RESOLVER_CLASS;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Sets;
@@ -32,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -62,7 +64,6 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceException;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
@@ -764,15 +765,20 @@ public class BrokerBookieIsolationTest {
         // broker should create only 1 bk-client and factory per isolation-group
         assertEquals(bkPlacementPolicyToBkClientMap.size(), 1);
 
-        // ns4 doesn't have secondary group so, publish should fail
+        // ns4 doesn't have secondary group so, the topic can't create a ledger and fails to load. Load it on the
+        // broker, once the lookup has assigned its bundle: a client retries the persistence error until its
+        // operation timeout.
+        final String topic4 = String.format("persistent://%s/topic1", ns4);
+        admin.lookups().lookupTopic(topic4);
         try {
-            PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", 1);
+            pulsarService.getBrokerService().getOrCreateTopic(topic4).get();
             fail("should have failed due to not enough non-faulty bookie");
-        } catch (BrokerPersistenceException e) {
-            // Ok..
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.PersistenceException, e.toString());
         }
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testDeleteIsolationGroup() throws Exception {
 
@@ -815,6 +821,7 @@ public class BrokerBookieIsolationTest {
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
 
         config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+        config.setManagedLedgerMaxEntriesPerLedger(1);
         pulsarService = new PulsarService(config);
         pulsarService.start();
 
@@ -863,6 +870,42 @@ public class BrokerBookieIsolationTest {
                         .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
                         .build());
 
+        // (4) the bookie affinity group must not become the default isolation groups of the bookkeeper client
+        // created for it: once it is removed, new ledgers fall back to the broker's isolation groups.
+        admin.namespaces().setBookieAffinityGroup(ns2,
+                BookieAffinityGroupData.builder()
+                        .bookkeeperAffinityGroupPrimary(tenantNamespaceIsolationGroupsPrimary)
+                        .bookkeeperAffinityGroupSecondary(tenantNamespaceIsolationGroupsSecondary)
+                        .build());
+
+        @Cleanup
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsarService.getBrokerServiceUrl())
+                .statsInterval(-1, TimeUnit.SECONDS).build();
+
+        BookieImpl bookie1 = (BookieImpl) bookies[0].getBookie();
+        LedgerManager ledgerManager = getLedgerManager(bookie1);
+
+        PersistentTopic topic1 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns2, "topic1", 1);
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic1.getManagedLedger();
+        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList(), isolatedBookies);
+
+        admin.namespaces().deleteBookieAffinityGroup(ns2);
+        // Wait for the topic to apply the removal, with no ledger creation in flight that could still use the
+        // bookie affinity group
+        Awaitility.await().untilAsserted(() -> {
+            assertNull(ml.getConfig().getBookKeeperEnsemblePlacementPolicyClassName());
+            assertEquals(ml.getState(), ManagedLedgerImpl.State.LedgerOpened);
+        });
+        long lastLedgerBeforeRemoval = ml.getLedgersInfoAsList().get(ml.getLedgersInfoAsList().size() - 1)
+                .getLedgerId();
+
+        // Each entry fills a ledger, so publishing rolls over to ledgers created after the removal
+        createTopicAndPublish(pulsarClient, ns2, "topic1", 1);
+        Awaitility.await().untilAsserted(() -> assertTrue(ml.getLedgersInfoAsList().stream()
+                .anyMatch(ledgerInfo -> ledgerInfo.getLedgerId() > lastLedgerBeforeRemoval)));
+        assertAffinityBookies(ledgerManager, ml.getLedgersInfoAsList().stream()
+                .filter(ledgerInfo -> ledgerInfo.getLedgerId() > lastLedgerBeforeRemoval)
+                .toList(), defaultBookies);
     }
 
     private void assertAffinityBookies(LedgerManager ledgerManager, List<LedgerInfo> ledgers1,

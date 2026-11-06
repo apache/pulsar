@@ -18,13 +18,21 @@
  */
 package org.apache.pulsar.common.compression;
 
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.proto.CompressionType;
 import org.testng.annotations.DataProvider;
@@ -222,5 +230,89 @@ public class CompressorCodecTest {
 
         compressed.release();
         uncompressed.release();
+    }
+
+    /**
+     * Each row is an input that the codec must reject: the Airlift codecs reject an output buffer smaller than the
+     * data, ZLib rejects a decoded size that differs from the advertised one and corrupt input. The Airlift codecs
+     * decompress through raw memory addresses when both buffers are direct and through NIO buffers otherwise, so
+     * each of them is exercised with heap and with direct buffers; ZLib has only the heap path.
+     */
+    @DataProvider(name = "decodeFailure")
+    public Object[][] decodeFailureProvider() {
+        return new Object[][] {
+                { CompressionType.LZ4, -1, false, false },
+                { CompressionType.LZ4, -1, false, true },
+                { CompressionType.SNAPPY, -1, false, false },
+                { CompressionType.SNAPPY, -1, false, true },
+                { CompressionType.ZSTD, -1, false, false },
+                { CompressionType.ZSTD, -1, false, true },
+                { CompressionType.ZLIB, +1, false, false },
+                { CompressionType.ZLIB, 0, true, false },
+        };
+    }
+
+    /**
+     * A decode that fails must release the output buffer it allocated, which nothing else can reach. The codec is
+     * built on a recording allocator so the test can hold that buffer without the codec handing it out.
+     */
+    @Test(dataProvider = "decodeFailure")
+    void testFailedDecodeReleasesOutputBuffer(CompressionType type, int lengthDelta, boolean corruptInput,
+                                              boolean direct) throws IOException {
+        byte[] data = text.getBytes(StandardCharsets.UTF_8);
+        ByteBuf encoded = CompressionCodecProvider.getCompressionCodec(type).encode(Unpooled.wrappedBuffer(data));
+        ByteBuf compressed = direct ? Unpooled.directBuffer(encoded.readableBytes()).writeBytes(encoded) : encoded;
+        if (compressed != encoded) {
+            encoded.release();
+        }
+        if (corruptInput) {
+            for (int i = compressed.readerIndex(); i < compressed.writerIndex(); i++) {
+                compressed.setByte(i, ~compressed.getByte(i));
+            }
+        }
+
+        // Whether a buffer has a memory address is read while it is live: once released, a direct buffer without
+        // Unsafe (the Netty default on JDK 25+) reports none.
+        boolean inputHasMemoryAddress = compressed.hasMemoryAddress();
+        List<ByteBuf> allocated = new ArrayList<>();
+        List<Boolean> allocatedHasMemoryAddress = new ArrayList<>();
+        ByteBufAllocator recordingAllocator = mock(ByteBufAllocator.class);
+        doAnswer(invocation -> record(allocated, allocatedHasMemoryAddress, direct
+                ? Unpooled.directBuffer(invocation.getArgument(0), invocation.getArgument(1))
+                : Unpooled.buffer(invocation.getArgument(0), invocation.getArgument(1))))
+                .when(recordingAllocator).buffer(anyInt(), anyInt());
+        doAnswer(invocation -> record(allocated, allocatedHasMemoryAddress,
+                Unpooled.buffer(invocation.getArgument(0), invocation.getArgument(1))))
+                .when(recordingAllocator).heapBuffer(anyInt(), anyInt());
+        CompressionCodec codec = switch (type) {
+            case LZ4 -> new CompressionCodecLZ4(recordingAllocator);
+            case SNAPPY -> new CompressionCodecSnappy(recordingAllocator);
+            case ZSTD -> new CompressionCodecZstd(recordingAllocator);
+            case ZLIB -> new CompressionCodecZLib(recordingAllocator);
+            default -> throw new IllegalArgumentException("no allocating decode for " + type);
+        };
+
+        try {
+            ByteBuf decoded = codec.decode(compressed, data.length + lengthDelta);
+            decoded.release();
+            fail("decode must reject the input");
+        } catch (Exception expected) {
+            // the codec's own failure type: IOException, IllegalArgumentException or MalformedInputException
+        } finally {
+            compressed.release();
+        }
+        assertEquals(allocated.size(), 1, "decode allocates exactly one output buffer");
+        if (direct) {
+            // both buffers must expose a memory address, or the codec silently took the NIO path instead
+            assertTrue(inputHasMemoryAddress && allocatedHasMemoryAddress.get(0),
+                    "the direct variant must reach the memory-address decompression branch");
+        }
+        assertEquals(allocated.get(0).refCnt(), 0, "the output buffer of a failed decode was not released");
+    }
+
+    private static ByteBuf record(List<ByteBuf> allocated, List<Boolean> allocatedHasMemoryAddress, ByteBuf buffer) {
+        allocated.add(buffer);
+        allocatedHasMemoryAddress.add(buffer.hasMemoryAddress());
+        return buffer;
     }
 }

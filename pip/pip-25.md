@@ -3,8 +3,8 @@
 * **Status**: Done
 * **Author**: [Matteo Merli](https://github.com/merlimat)
 * **Pull Request**: [#2888](https://github.com/apache/pulsar/pull/2888)
-* **Mailing List discussion**:
 * **Release**: 2.3.0
+* **Mailing List discussion**: https://lists.apache.org/thread/081gywvs53fc326zjo9dh3ro690mc8b0
 
 
 ## Motivation

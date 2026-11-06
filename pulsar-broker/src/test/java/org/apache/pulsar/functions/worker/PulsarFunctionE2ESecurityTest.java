@@ -71,6 +71,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.runtime.thread.ThreadRuntimeFactoryConfig;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
@@ -134,6 +135,9 @@ public class PulsarFunctionE2ESecurityTest {
         config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
         config.setAdvertisedAddress("localhost");
         config.setAllowAutoTopicCreationType(TopicType.NON_PARTITIONED);
+        // The function worker elects its leader through a Failover subscription: don't delay the election by the
+        // default 1 s
+        config.setActiveConsumerFailoverDelayTimeMillis(0);
 
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderToken.class.getName());
@@ -205,9 +209,7 @@ public class PulsarFunctionE2ESecurityTest {
         superUserAdmin.tenants().createTenant(TENANT2, propAdmin);
         superUserAdmin.namespaces().createNamespace(TENANT2 + "/" + NAMESPACE);
 
-        while (!functionsWorkerService.getLeaderService().isLeader()) {
-            Thread.sleep(1000);
-        }
+        Awaitility.await().until(() -> functionsWorkerService.getLeaderService().isLeader());
     }
 
     @AfterMethod(alwaysRun = true)

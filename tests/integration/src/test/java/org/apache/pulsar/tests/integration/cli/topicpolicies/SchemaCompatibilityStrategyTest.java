@@ -19,26 +19,19 @@
 package org.apache.pulsar.tests.integration.cli.topicpolicies;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import org.apache.pulsar.common.policies.data.SchemaCompatibilityStrategy;
 import org.apache.pulsar.tests.integration.docker.ContainerExecResult;
 import org.apache.pulsar.tests.integration.suites.PulsarCliTestSuite;
 import org.awaitility.Awaitility;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+// The brokers enable topic policies by default
 public class SchemaCompatibilityStrategyTest extends PulsarCliTestSuite {
-    @BeforeClass(alwaysRun = true)
-    @Override
-    public void before() throws Exception {
-        enableTopicPolicies();
-        super.before();
-    }
 
-    @AfterClass(alwaysRun = true)
     @Override
-    public void after() throws Exception {
-        super.after();
+    protected boolean isClusterShared() {
+        return true;
     }
 
     @Test
@@ -54,11 +47,11 @@ public class SchemaCompatibilityStrategyTest extends PulsarCliTestSuite {
                 "--applied", topicName);
         assertEquals(result.getStdout().trim(), SchemaCompatibilityStrategy.FULL.name());
 
+        // Checked with the admin client: pulsar-admin in a broker container would start a JVM for every poll, and the
+        // command is checked above
         pulsarAdmin.topicPolicies().removeSchemaCompatibilityStrategy(topicName);
-        Awaitility.await().untilAsserted(() -> {
-            assertEquals(pulsarCluster.runAdminCommandOnAnyBroker("topicPolicies",
-                    "get-schema-compatibility-strategy", topicName).getStdout().trim(), "null");
-        });
+        Awaitility.await().untilAsserted(() ->
+                assertNull(pulsarAdmin.topicPolicies().getSchemaCompatibilityStrategy(topicName, false)));
     }
 
     @Test
@@ -83,8 +76,6 @@ public class SchemaCompatibilityStrategyTest extends PulsarCliTestSuite {
 
         pulsarAdmin.namespaces()
                 .setSchemaCompatibilityStrategy(fullNS, SchemaCompatibilityStrategy.UNDEFINED);
-        result = pulsarCluster.runAdminCommandOnAnyBroker("topicPolicies", "get-schema-compatibility-strategy",
-                topicName);
-        assertEquals(result.getStdout().trim(), "null");
+        assertNull(pulsarAdmin.topicPolicies().getSchemaCompatibilityStrategy(topicName, false));
     }
 }

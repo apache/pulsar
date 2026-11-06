@@ -83,15 +83,20 @@ import org.apache.pulsar.metadata.api.MetadataStoreException.NotFoundException;
 public class ClustersBase extends AdminResource {
 
     @GET
-    @Operation(summary = "Get the list of all the Pulsar clusters.")
+    @Operation(
+        summary = "Get the list of all the Pulsar clusters.",
+        description = "This operation requires Pulsar superuser privileges."
+    )
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Return a list of clusters.",
                     content = @Content(array = @ArraySchema(
                             schema = @Schema(implementation = String.class), uniqueItems = true))),
+            @ApiResponse(responseCode = "403", description = "Don't have admin permission."),
             @ApiResponse(responseCode = "500", description = "Internal server error.")
     })
     public void getClusters(@Suspended AsyncResponse asyncResponse) {
-        clusterResources().listAsync()
+        validateBothSuperuserAndClusterOperation(null, ClusterOperation.LIST_CLUSTERS)
+                .thenCompose(__ -> clusterResources().listAsync())
                 .thenApply(HashSet::new)
                 .thenAccept(asyncResponse::resume)
                 .exceptionally(ex -> {
@@ -686,11 +691,17 @@ public class ClustersBase extends AdminResource {
             return brokerIsolationData.build();
         }
         List<String> namespaceRegexes = new ArrayList<>();
+        // the broker is given as a broker id (host:port), as listed by `pulsar-admin brokers list`;
+        // match host entries against the host and port-specific entries against the broker id, like placement does
+        int portIdx = broker.lastIndexOf(':');
+        String brokerHost = portIdx > 0 ? broker.substring(0, portIdx) : broker;
         policies.forEach((name, policyData) -> {
             NamespaceIsolationPolicyImpl nsPolicyImpl = new NamespaceIsolationPolicyImpl(policyData);
-            if (nsPolicyImpl.isPrimaryBroker(broker) || nsPolicyImpl.isSecondaryBroker(broker)) {
+            boolean primary = nsPolicyImpl.isPrimaryBroker(brokerHost) || nsPolicyImpl.isPrimaryBrokerId(broker);
+            boolean secondary = nsPolicyImpl.isSecondaryBroker(brokerHost) || nsPolicyImpl.isSecondaryBrokerId(broker);
+            if (primary || secondary) {
                 namespaceRegexes.addAll(policyData.getNamespaces());
-                brokerIsolationData.primary(nsPolicyImpl.isPrimaryBroker(broker));
+                brokerIsolationData.primary(primary);
                 brokerIsolationData.policyName(name);
             }
         });

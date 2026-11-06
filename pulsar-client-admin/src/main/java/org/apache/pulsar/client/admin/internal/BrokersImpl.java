@@ -32,7 +32,6 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.BrokerInfo;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
-import org.apache.pulsar.common.util.Codec;
 
 public class BrokersImpl extends BaseResource implements Brokers {
     private final WebTarget adminBrokers;
@@ -94,8 +93,8 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     @Override
     public CompletableFuture<Void> updateDynamicConfigurationAsync(String configName, String configValue) {
-        String value = Codec.encode(configValue);
-        WebTarget path = adminBrokers.path("configuration").path(configName).path(value);
+        WebTarget path = WebTargets.addParts(adminBrokers.path("configuration").path(configName),
+                new String[] {configValue});
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 

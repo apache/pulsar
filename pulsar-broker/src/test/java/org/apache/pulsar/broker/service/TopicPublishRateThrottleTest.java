@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.pulsar.broker.BrokerTestUtil;
@@ -69,8 +70,7 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         } catch (TimeoutException e) {
             // No-op
         }
-        // Close the PulsarClient gracefully to avoid ByteBuf leak
-        pulsarClient.close();
+        removePublishRateAndCloseClient();
     }
 
     @Test
@@ -85,6 +85,7 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
 
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
+        TransportCnx cnx = topicRef.getProducers().values().iterator().next().getCnx();
         MessageId messageId = null;
         // first will be success, and the second will fail, will set auto read to false.
         messageId = producer.sendAsync(new byte[10]).get(500, TimeUnit.MILLISECONDS);
@@ -95,13 +96,12 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         // Verify: even through the producer was closed before the unblock, the state should be unblocked at the next
         // period of rate limiter.
         producer.close();
-        Thread.sleep(3000);
+        Awaitility.await().untilAsserted(() -> Assert.assertEquals(getThrottledCount(cnx), 0));
         org.apache.pulsar.client.api.Producer<byte[]> producer2 = pulsarClient.newProducer()
                 .topic(topic).create();
         producer2.sendAsync(new byte[2]).get(500, TimeUnit.MILLISECONDS);
 
-        // Close the PulsarClient gracefully to avoid ByteBuf leak
-        pulsarClient.close();
+        removePublishRateAndCloseClient();
     }
 
     @Test
@@ -135,25 +135,21 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         Topic topicRef = pulsar.getBrokerService().getTopicReference(topic).get();
         Assert.assertNotNull(topicRef);
         MessageId messageId = null;
+        CompletableFuture<MessageId> blockedSend = null;
         try {
             // first will be success, and will set auto read to false
             messageId = producer.sendAsync(new byte[10]).get(500, TimeUnit.MILLISECONDS);
             Assert.assertNotNull(messageId);
             // second will be blocked
-            producer.sendAsync(new byte[10]).get(500, TimeUnit.MILLISECONDS);
+            blockedSend = producer.sendAsync(new byte[10]);
+            blockedSend.get(500, TimeUnit.MILLISECONDS);
             Assert.fail("should failed, because producer blocked by topic publish rate limiting");
         } catch (TimeoutException e) {
             // No-op
         }
-        Thread.sleep(1000);
-        try {
-            messageId = producer.sendAsync(new byte[10]).get(1, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            // No-op
-        }
-        Assert.assertNotNull(messageId);
-        // Close the PulsarClient gracefully to avoid ByteBuf leak
-        pulsarClient.close();
+        // The blocked message is published once the rate limiter has tokens again
+        Assert.assertNotNull(blockedSend.get(10, TimeUnit.SECONDS));
+        removePublishRateAndCloseClient();
     }
 
     @Test
@@ -194,5 +190,20 @@ public class TopicPublishRateThrottleTest extends BrokerTestBase{
         Assert.assertEquals(limiter.getTokenBucketOnMessage().getRate(), rateInMsg);
 
         producer.close();
+    }
+
+    // The throttle tracker belongs to the connection's I/O thread: read it there
+    private static int getThrottledCount(TransportCnx cnx) throws Exception {
+        CompletableFuture<Integer> throttledCount = new CompletableFuture<>();
+        cnx.execute(() -> throttledCount.complete(cnx.getThrottleTracker().throttledCount()));
+        return throttledCount.get(5, TimeUnit.SECONDS);
+    }
+
+    // A throttled connection reads the producers' close requests only once the pending messages' publish rate debt
+    // is paid, a few seconds per message: remove the publish rate first
+    private void removePublishRateAndCloseClient() throws Exception {
+        admin.namespaces().removePublishRate("prop/ns-abc");
+        // Close the PulsarClient gracefully to avoid ByteBuf leak
+        pulsarClient.close();
     }
 }

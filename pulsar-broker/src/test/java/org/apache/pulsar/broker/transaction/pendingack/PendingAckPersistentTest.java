@@ -184,9 +184,10 @@ public class PendingAckPersistentTest extends TransactionTestBase {
                 .thenReturn(FutureUtil.failedFuture(new ManagedLedgerException
                         .NonRecoverableLedgerException("mock fail")))
                 .thenReturn(CompletableFuture.completedFuture(false));
+        // The broker fails every subscribe attempt the same way, and the client retries until its operation timeout
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsarServiceList.get(0).getBrokerServiceUrl())
-                .operationTimeout(3, TimeUnit.SECONDS)
+                .operationTimeout(1, TimeUnit.SECONDS)
                 .build();
         try {
             @Cleanup
@@ -211,6 +212,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
     public void individualPendingAckReplayTest() throws Exception {
         int messageCount = 1000;
         String subName = "individual-test";
+        // Each transactional ack is an add to the pending ack log: don't make every add sleep 1 ms
+        pulsarTestContexts.get(0).getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -229,10 +232,14 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         Transaction abortTxn = pulsarClient.newTransaction()
                 .withTransactionTimeout(30, TimeUnit.SECONDS).build().get();
 
+        // Send every message on its own (one entry each), then receive them: receiving each one right after sending
+        // it waits for the broker's new entries check delay (10 ms) every time
+        for (int i = 0; i < messageCount; i++) {
+            producer.send("Hello Pulsar!".getBytes());
+        }
         List<MessageId> pendingAckMessageIds = new ArrayList<>();
         List<MessageId> normalAckMessageIds = new ArrayList<>();
         for (int i = 0; i < messageCount; i++) {
-            producer.send("Hello Pulsar!".getBytes());
             Message<byte[]> message = consumer.receive();
             if (i % 2 == 0) {
                 consumer.acknowledgeAsync(message.getMessageId(), abortTxn).get();
@@ -434,6 +441,8 @@ public class PendingAckPersistentTest extends TransactionTestBase {
         getPulsarServiceList().get(0).getConfig().setTransactionPendingAckLogIndexMinLag(4 * messageCount + 2);
         getPulsarServiceList().get(0).getConfiguration().setManagedLedgerDefaultMarkDeleteRateLimit(10);
         String subName = "cumulative-test";
+        // Each transactional ack is an add to the pending ack log: don't make every add sleep 1 ms
+        pulsarTestContexts.get(0).getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()

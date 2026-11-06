@@ -46,6 +46,11 @@ public class TestProxy extends PulsarTestSuite {
         return super.beforeSetupCluster(clusterName, specBuilder);
     }
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     private void testProxy(String serviceUrl, String httpServiceUrl) throws Exception {
         final String tenant = "proxy-test-" + randomName(10);
         final String namespace = tenant + "/ns1";

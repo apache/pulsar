@@ -42,7 +42,7 @@ public abstract class AbstractSchema<T> implements Schema<T> {
     };
 
     /**
-     * Decode a byteBuf into an object using the schema definition and deserializer implementation
+     * Decode a byteBuf into an object using the schema definition and deserializer implementation.
      * <p>Do not modify reader/writer index of ByteBuf so, it can be reused to access correct data.
      *
      * @param byteBuf

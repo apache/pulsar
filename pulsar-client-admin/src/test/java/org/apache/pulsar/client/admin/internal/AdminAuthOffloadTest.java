@@ -64,6 +64,7 @@ public class AdminAuthOffloadTest {
         }
 
         @Override
+        @Deprecated
         public AuthenticationDataProvider getAuthData() {
             getAuthDataThread.set(Thread.currentThread());
             return new AuthenticationDataProvider() {
@@ -80,6 +81,7 @@ public class AdminAuthOffloadTest {
         }
 
         @Override
+        @Deprecated
         public void configure(Map<String, String> authParams) {
         }
 

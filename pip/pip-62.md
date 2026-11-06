@@ -2,8 +2,7 @@
 
 - Status: Proposal
 - Author: Sijie Guo
-- Pull Request:
-- Mailing List discussion:
+- Mailing List discussion: https://lists.apache.org/thread/qr49rp91w8pp8ljz1jtxn92ktnznh9tb
 - Release: 2.6.0
 
 ## Motivation

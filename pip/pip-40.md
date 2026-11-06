@@ -2,9 +2,7 @@
 
 * **Status**: Adopted
 * **Author**: Guangning E
-* **Pull Request**: https://lists.apache.org/thread.html/ec4437456d399aaefbca0b980bbfb2c63fd83ad1d15a2d05d8046962@%3Cdev.pulsar.apache.org%3E
-* **Mailing List discussion**:
-* **Release**:
+* **Pull Request**: https://lists.apache.org/thread/mo8cp5k1sbzhdl173obxork4qfy8bpzh
 
 Pulsar Manager is already accepted as part of Pulsar project. The repo is available at - https://github.com/apache/pulsar-manager.
 
@@ -18,7 +16,7 @@ Current State: *\[“Drafted”\]*
 
 Pull Request:
 
-Mailing List Discussion:
+Mailing List Discussion: https://lists.apache.org/thread/mo8cp5k1sbzhdl173obxork4qfy8bpzh
 
 Github Repo*: \[[https://github.com/streamnative/pulsar-manager](https://github.com/streamnative/pulsar-manager)\]*
 

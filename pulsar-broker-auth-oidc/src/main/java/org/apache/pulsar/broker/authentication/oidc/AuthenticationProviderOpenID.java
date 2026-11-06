@@ -47,6 +47,7 @@ import java.net.SocketAddress;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.interfaces.RSAPublicKey;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
@@ -64,6 +65,7 @@ import org.apache.pulsar.broker.authentication.TokenAuthenticationProvider;
 import org.apache.pulsar.broker.authentication.metrics.AuthenticationMetrics;
 import org.apache.pulsar.broker.authentication.utils.AuthTokenUtils;
 import org.apache.pulsar.common.api.AuthData;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
 import org.asynchttpclient.DefaultAsyncHttpClient;
@@ -206,13 +208,9 @@ public class AuthenticationProviderOpenID implements TokenAuthenticationProvider
 
     @Override
     public CompletableFuture<Set<String>> authenticateRolesAsync(AuthenticationDataSource authData, String roleClaim) {
-        try {
-            return authenticateTokenAsync(authData)
-                    .thenApply(jwt -> AuthTokenUtils.rolesFromClaim(
-                            jwt.getClaim(roleClaim).as(Object.class)));
-        } catch (Exception e) {
-            return CompletableFuture.failedFuture(e);
-        }
+        return FutureUtil.supplySafely(() -> authenticateTokenAsync(authData)
+                .thenApply(jwt -> AuthTokenUtils.rolesFromClaim(
+                        jwt.getClaim(roleClaim).as(Object.class))));
     }
 
     /**
@@ -241,7 +239,8 @@ public class AuthenticationProviderOpenID implements TokenAuthenticationProvider
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_DECODING_JWT);
             return CompletableFuture.failedFuture(e);
         }
-        return authenticateToken(token)
+        // Unexpected runtime exceptions must fail the returned future instead of escaping to the caller
+        return FutureUtil.supplySafely(() -> authenticateToken(token))
                 .whenComplete((jwt, e) -> {
                     if (jwt != null) {
                         authenticationMetrics.recordSuccess();
@@ -303,7 +302,7 @@ public class AuthenticationProviderOpenID implements TokenAuthenticationProvider
         }
         try {
             return jwtLibrary.decodeJwt(token);
-        } catch (JWTDecodeException e) {
+        } catch (JWTDecodeException | DateTimeException e) {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_DECODING_JWT);
             throw new AuthenticationException("Unable to decode JWT: " + e.getMessage());
         }
@@ -479,7 +478,7 @@ public class AuthenticationProviderOpenID implements TokenAuthenticationProvider
         } catch (AlgorithmMismatchException e) {
             incrementFailureMetric(AuthenticationExceptionCode.ALGORITHM_MISMATCH);
             throw new AuthenticationException("JWT algorithm does not match Public Key algorithm: " + e.getMessage());
-        } catch (JWTDecodeException e) {
+        } catch (JWTDecodeException | DateTimeException e) {
             incrementFailureMetric(AuthenticationExceptionCode.ERROR_DECODING_JWT);
             throw new AuthenticationException("Error while decoding JWT: " + e.getMessage());
         } catch (JWTVerificationException | IllegalArgumentException e) {

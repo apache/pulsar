@@ -25,11 +25,9 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.common.FileSource;
-import com.github.tomakehurst.wiremock.extension.Parameters;
-import com.github.tomakehurst.wiremock.extension.ResponseTransformer;
-import com.github.tomakehurst.wiremock.http.Request;
+import com.github.tomakehurst.wiremock.extension.ResponseTransformerV2;
 import com.github.tomakehurst.wiremock.http.Response;
+import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.impl.DefaultJwtBuilder;
 import io.jsonwebtoken.security.Keys;
@@ -93,7 +91,7 @@ public class MockOIDCIdentityProvider {
         return server.baseUrl();
     }
 
-    class OAuth2Transformer extends ResponseTransformer {
+    class OAuth2Transformer implements ResponseTransformerV2 {
 
         private final PrivateKey privateKey;
         private final long tokenTTL;
@@ -106,8 +104,8 @@ public class MockOIDCIdentityProvider {
         }
 
         @Override
-        public Response transform(Request request, Response response, FileSource files, Parameters parameters) {
-            Matcher m = clientIdToRolePattern.matcher(request.getBodyAsString());
+        public Response transform(Response response, ServeEvent serveEvent) {
+            Matcher m = clientIdToRolePattern.matcher(serveEvent.getRequest().getBodyAsString());
             if (m.find()) {
                 String role = m.group(1);
                 return Response.Builder.like(response).but().body("""

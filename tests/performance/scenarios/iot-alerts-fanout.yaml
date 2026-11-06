@@ -1,0 +1,46 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# Alert fan-out with Shared subscriptions and broker deduplication: a building-management platform's gateways publish
+# the alerts of 100,000 devices to one topic, with the broker's deduplication on (cluster-base.yaml), so that a gateway
+# that resends after a reconnection doesn't raise an alert twice. Fifty backend applications, such as notification,
+# ticketing, an audit log, analytics and a digital twin, each read every alert through a Shared subscription of their
+# own, handled by a pool of four stateless worker pods: 250,000 messages per second of dispatch from one topic's
+# managed ledger to 200 consumers. A Shared subscription doesn't keep a device's alerts in order, so the applications
+# check for lost and duplicated alerts only, and the gateways batch alerts of any device together. Each of the 20
+# gateways' producers receives an alert every 4 ms on average, longer than the client's default batching delay of 1 ms,
+# so the producers wait 10 ms for more alerts: about two or three alerts a batch.
+extends: [iot-telemetry-base.yaml, configs/iot-telemetry-high-mem.yaml]
+workloads:
+  iotTelemetry:
+    rate: 5000
+    payload:
+      size: 256
+    devices:
+      count: 100000
+    gateways:
+      count: 20
+      producer:
+        precreate: true
+        batchingMaxPublishDelayMillis: 10
+    topics:
+      count: 1
+      prefix: persistent://public/default/iot-alerts-
+    applications:
+      count: 50
+      podsPerApplication: 4
+      subscriptionPrefix: alert-processor-
+      subscriptionType: Shared

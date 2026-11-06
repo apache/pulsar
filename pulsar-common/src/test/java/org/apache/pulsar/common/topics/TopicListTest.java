@@ -19,16 +19,21 @@
 package org.apache.pulsar.common.topics;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Lists;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.apache.pulsar.common.naming.TopicName;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class TopicListTest {
@@ -49,6 +54,115 @@ public class TopicListTest {
         Pattern pattern2 = Pattern.compile("persistent://my-property/my-ns/.*");
         List<String> result2 = TopicList.filterTopics(topicsNames, pattern2);
         assertThat(result2).containsExactly(topicName1, topicName2, topicName3, topicName4);
+    }
+
+    private static List<String> projectionTopics() {
+        return List.of(
+                "persistent://tenant/ns/plain",
+                "non-persistent://tenant/ns/plain",
+                "tenant/ns/short",
+                "short-topic",
+                "persistent://tenant/ns/local-partition-0",
+                "persistent://tenant/ns/local-partition-1",
+                "persistent://tenant/ns/local-partition-01",
+                "persistent://tenant/ns/local-partition--1",
+                "persistent://tenant/ns/local-partition-word",
+                "persistent://tenant/ns/-partition-0",
+                "persistent://tenant/ns/local%3A%2F%2Ftail",
+                "persistent://tenant/ns/雪-😀",
+                "topic://tenant/ns/plain",
+                "topic://tenant/ns/plain/child",
+                "topic://tenant/ns/a://b",
+                "topic://tenant/ns/a://b://c",
+                "topic://tenant/ns/a://",
+                "topic://tenant/ns/a://://b",
+                "topic://tenant/ns/://",
+                "topic://tenant/ns/雪://😀",
+                "topic://tenant/ns/local-partition-1",
+                "segment://tenant/ns/plain/0000-ffff-1",
+                "segment://tenant/ns/a://b/0000-ffff-1",
+                "segment://tenant/ns/a://b://c/0000-7fff-2",
+                "segment://tenant/ns/local-partition-1/0000-ffff-2",
+                "segment://tenant/ns/雪://😀/0000-ffff-1",
+                "segment://tenant/ns/plain/00AF-FFFF-01");
+    }
+
+    @Test
+    public void testFilterTopicsPreservesLegacyProjectionAndCanonicalOrder() {
+        List<String> expectedProjections = new ArrayList<>();
+        List<String> expectedTopics = new ArrayList<>();
+        for (String input : projectionTopics()) {
+            TopicName topic = TopicName.get(input);
+            expectedProjections.add(legacyProjection(topic));
+            expectedTopics.add(topic.toString());
+        }
+        List<String> actualProjections = new ArrayList<>();
+        TopicsPattern recording = new TopicsPattern() {
+            @Override
+            public boolean matches(String topic) {
+                actualProjections.add(topic);
+                return true;
+            }
+
+            @Override
+            public String inputPattern() {
+                return ".*";
+            }
+        };
+
+        assertThat(TopicList.filterTopics(projectionTopics(), recording)).containsExactlyElementsOf(expectedTopics);
+        assertThat(actualProjections).containsExactlyElementsOf(expectedProjections);
+        // The second literal separator is intentionally preserved as a boundary, rather than changing semantics.
+        assertThat(actualProjections.get(14)).isEqualTo("tenant/ns/a");
+        assertThat(actualProjections.get(23)).isEqualTo("tenant/ns/a");
+    }
+
+    @DataProvider
+    public Object[][] patternImplementations() {
+        return Arrays.stream(TopicsPattern.RegexImplementation.values()).map(value -> new Object[] {value})
+                .toArray(Object[][]::new);
+    }
+
+    @Test(dataProvider = "patternImplementations")
+    public void testFilterTopicsMatchesLegacyImplementation(TopicsPattern.RegexImplementation implementation) {
+        List<String> expressions = new ArrayList<>(List.of(".*", "tenant/ns/plain", "tenant/ns/.*",
+                "tenant/ns/a", "tenant/ns/a/.*", "tenant/ns/local", "tenant/ns/absent"));
+        if (implementation != TopicsPattern.RegexImplementation.RE2J) {
+            expressions.add("tenant/ns/(?=plain).*?");
+        }
+        for (String expression : expressions) {
+            TopicsPattern pattern = TopicsPatternFactory.create(expression, implementation);
+            assertThat(TopicList.filterTopics(projectionTopics(), pattern))
+                    .as("legacy projection using %s and %s", implementation, expression)
+                    .containsExactlyElementsOf(legacyFilter(projectionTopics(), pattern));
+        }
+    }
+
+    @DataProvider
+    public Object[][] invalidProjectionTopics() {
+        return new Object[][] {{"unknown://tenant/ns/topic"}, {"persistent://tenant/cluster/ns/topic"},
+                {"persistent://tenant/ns/"}, {"persistent://tenant/ns/a://b"},
+                {"segment://tenant/ns/topic/invalid-descriptor"}, {""}, {null}};
+    }
+
+    @Test(dataProvider = "invalidProjectionTopics")
+    public void testFilterTopicsPreservesInvalidNameFailures(String input) {
+        List<String> topics = Arrays.asList(input);
+        TopicsPattern pattern = TopicsPatternFactory.matchAll();
+        Throwable oldFailure = catchThrowable(() -> legacyFilter(topics, pattern));
+        assertThat(oldFailure).isNotNull();
+        assertThatThrownBy(() -> TopicList.filterTopics(topics, pattern)).isExactlyInstanceOf(oldFailure.getClass());
+    }
+
+    private static String legacyProjection(TopicName topic) {
+        // Independent reference for the exact implementation before the allocation optimization.
+        return com.google.re2j.Pattern.compile(com.google.re2j.Pattern.quote("://"))
+                .split(topic.getPartitionedTopicName())[1];
+    }
+
+    private static List<String> legacyFilter(List<String> topics, TopicsPattern pattern) {
+        return topics.stream().map(TopicName::get).filter(topic -> pattern.matches(legacyProjection(topic)))
+                .map(TopicName::toString).toList();
     }
 
     @Test

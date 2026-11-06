@@ -72,3 +72,9 @@ configurations {
         }
     }
 }
+
+// Check the actual shaded contents too, including relocated classes and multi-release entries.
+tasks.withType<VerifyJavaCompatibility>().configureEach {
+    classpath.from(tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar")
+        .flatMap { it.archiveFile })
+}

@@ -22,18 +22,15 @@ plugins {
     id("pulsar.shadow-conventions")
 }
 
-// Pin guava to 32.x for jclouds compatibility — jclouds uses TypeToken from
-// com.google.common.reflect which was removed in guava 33.x.
-// jclouds 2.6.0 requires Jakarta EE 10+ APIs (jakarta namespace) and Guice 7.x.
+// Force the versions that jclouds 2.7.0 manages in its parent pom (jakarta namespace, Guice 7.x).
 // The enforced platform pins older javax-era versions for Pulsar, but jclouds-shaded
 // bundles its own copies so they won't conflict at runtime.
 configurations.all {
     resolutionStrategy {
-        force("com.google.guava:guava:32.0.0-jre")
         force("com.google.inject:guice:7.0.0")
         force("com.google.inject.extensions:guice-assistedinject:7.0.0")
-        force("jakarta.annotation:jakarta.annotation-api:3.0.0")
-        force("jakarta.ws.rs:jakarta.ws.rs-api:3.1.0")
+        force("jakarta.annotation:jakarta.annotation-api:2.0.0")
+        force("jakarta.ws.rs:jakarta.ws.rs-api:3.0.0")
         force("jakarta.inject:jakarta.inject-api:2.0.1")
     }
 }
@@ -75,8 +72,7 @@ tasks.shadowJar {
     exclude("lib/gson*jar")
 
     // No relocations needed — the NAR classloader provides isolation.
-    // The shadow jar bundles guava 32.x (forced above) which has TypeToken
-    // that jclouds needs. Relocating com.google would break jclouds' public
+    // Relocating com.google would break jclouds' public
     // API (e.g. credentialsSupplier expects com.google.common.base.Supplier).
 }
 

@@ -637,6 +637,8 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *
      * @param interceptors the list of interceptors to intercept the consumer created by this builder.
      */
+    // @SafeVarargs cannot be applied to an abstract method; implementations declare it on their final override.
+    @SuppressWarnings("unchecked")
     ConsumerBuilder<T> intercept(ConsumerInterceptor<T> ...interceptors);
 
     /**
@@ -661,6 +663,24 @@ public interface ConsumerBuilder<T> extends Cloneable {
      *              .builder()
      *              .maxRedeliverCount(10)
      *              .deadLetterTopic("your-topic-name")
+     *              .build())
+     *          .subscribe();
+     * </pre>
+     *
+     * <p>If you configure a custom retry letter topic or retry letter producer, you must also enable retry
+     * by calling {@link #enableRetry(boolean)} with {@code true}. Without {@code enableRetry(true)},
+     * any {@code retryLetterTopic} or {@code retryLetterProducerBuilderCustomizer} configuration is ignored.
+     * example:
+     * <pre>
+     * client.newConsumer()
+     *          .enableRetry(true)
+     *          .deadLetterPolicy(DeadLetterPolicy
+     *              .builder()
+     *              .maxRedeliverCount(10)
+     *              .retryLetterTopic("your-retry-letter-topic")
+     *              .retryLetterProducerBuilderCustomizer(customizer)
+     *              .deadLetterTopic("your-dead-letter-topic")
+     *              .deadLetterProducerBuilderCustomizer(customizer)
      *              .build())
      *          .subscribe();
      * </pre>
@@ -739,6 +759,10 @@ public interface ConsumerBuilder<T> extends Cloneable {
     /**
      * If enabled, the consumer auto-retries messages.
      * Default: disabled.
+     *
+     * <p>This method must be called with {@code true} if you configure a custom
+     * {@link DeadLetterPolicy#retryLetterTopic} or {@link DeadLetterPolicy#retryLetterProducerBuilderCustomizer}.
+     * Without this, retry letter topic configurations are ignored and no retry topic producer is created.
      *
      * @param retryEnable
      *            whether to auto retry message

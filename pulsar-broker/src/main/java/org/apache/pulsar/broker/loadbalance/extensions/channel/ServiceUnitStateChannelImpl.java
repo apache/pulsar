@@ -150,6 +150,8 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
     private volatile long lastOwnEventHandledAt = 0;
     private long lastOwnedServiceUnitCountAt = 0;
     private int totalOwnedServiceUnitCnt = 0;
+    // Guarded by this
+    private Runnable cancelSessionListener;
 
     public enum EventType {
         Assign,
@@ -356,7 +358,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
             if (debug) {
                 log.info("Successfully started the channel tableview.");
             }
-            pulsar.getLocalMetadataStore().registerSessionListener(this::handleMetadataSessionEvent);
+            unregisterSessionListener();
+            cancelSessionListener =
+                    pulsar.getLocalMetadataStore().registerCancellableSessionListener(this::handleMetadataSessionEvent);
             if (debug) {
                 log.info("Successfully registered the handleMetadataSessionEvent");
             }
@@ -398,11 +402,19 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
         return pulsar.getAdminClient();
     }
 
+    private void unregisterSessionListener() {
+        if (cancelSessionListener != null) {
+            cancelSessionListener.run();
+            cancelSessionListener = null;
+        }
+    }
+
     @Override
     public synchronized void close() throws PulsarServerException {
         channelState = Closed;
         try {
             leaderElectionService = null;
+            unregisterSessionListener();
 
             if (tableview != null) {
                 tableview.close();
@@ -825,6 +837,15 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                     .log("Loaded the service unit state data");
         }
         ServiceUnitState state = state(data);
+        if (state.equals(Owned)) {
+            // The table view is refilled with the existing items after the metadata store session is reestablished.
+            // A lookup waiting for an owner misses the event that set it if it came while the session was lost:
+            // answer the lookup now, instead of when it times out.
+            var getOwnerRequest = getOwnerRequests.remove(serviceUnit);
+            if (getOwnerRequest != null) {
+                getOwnerRequest.complete(data.dstBroker());
+            }
+        }
         if (state.equals(Owned) && isTargetBroker(data.dstBroker())) {
             pulsar.getNamespaceService()
                     .onNamespaceBundleOwned(LoadManagerShared.getNamespaceBundle(pulsar, serviceUnit));
@@ -1173,7 +1194,9 @@ public class ServiceUnitStateChannelImpl implements ServiceUnitStateChannel {
                                 .exception(ex)
                                 .log("Failed to close topics under bundle");
                         if (!disconnectClients) {
-                            pulsar.getBrokerService().cleanUnloadedTopicFromCache(bundle, topicFutures);
+                            // The failed transfer leaves the bundle owned by this broker, so a topic whose close
+                            // failed keeps serving its clients until a later close of the bundle closes it.
+                            pulsar.getBrokerService().cleanFencedTopicsFromCache(bundle, topicFutures);
                         }
                     } else {
                         log.info().attr("bundle", bundle).attr("topicCount", unloadedTopics)

@@ -68,7 +68,6 @@ import org.apache.pulsar.functions.worker.PulsarWorkerService.PulsarClientCreato
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 import org.apache.pulsar.utils.ResourceUtils;
-import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -79,8 +78,6 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-io")
 @CustomLog
 public class PulsarFunctionTlsTest {
-    LocalBookkeeperEnsemble bkEnsemble;
-
     ServiceConfiguration config;
     WorkerConfig workerConfig;
     PulsarWorkerService functionsWorkerService;
@@ -109,17 +106,12 @@ public class PulsarFunctionTlsTest {
 
         log.info().attr("method", method.getName()).log("Setting up method");
 
-        // Start local bookkeeper ensemble
-        bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
-        bkEnsemble.start();
-
         config = new ServiceConfiguration();
         config.setBrokerShutdownTimeoutMs(0L);
         config.setLoadBalancerOverrideBrokerNicSpeedGbps(Optional.of(1.0d));
         config.setClusterName("use");
         Set<String> superUsers = Sets.newHashSet("superUser", "admin");
         config.setSuperUserRoles(superUsers);
-        config.setMetadataStoreUrl("zk:127.0.0.1:" + bkEnsemble.getZookeeperPort());
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         config.setAuthenticationEnabled(true);
@@ -158,7 +150,6 @@ public class PulsarFunctionTlsTest {
 
         workerServer = new WorkerServer(functionsWorkerService, authenticationService);
         workerServer.start();
-        Thread.sleep(2000);
         String functionTlsUrl = String.format("https://%s:%s",
                 functionsWorkerService.getWorkerConfig().getWorkerHostname(), workerServer.getListenPortHTTPS().get());
 
@@ -171,8 +162,6 @@ public class PulsarFunctionTlsTest {
         functionAdmin = PulsarAdmin.builder().serviceHttpUrl(functionTlsUrl)
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
                 .authentication(authTls).build();
-
-        Thread.sleep(100);
     }
 
     @AfterMethod(alwaysRun = true)
@@ -190,10 +179,6 @@ public class PulsarFunctionTlsTest {
             if (workerServer != null) {
                 workerServer.stop();
                 workerServer = null;
-            }
-            if (bkEnsemble != null) {
-                bkEnsemble.stop();
-                bkEnsemble = null;
             }
         } finally {
             if (tempDirectory != null) {

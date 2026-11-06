@@ -33,7 +33,19 @@ import org.apache.pulsar.metadata.api.extended.CreateOption;
 /**
  * Represent the caching layer access for a specific type of objects.
  */
-public interface MetadataCache<T> {
+public interface MetadataCache<T> extends AutoCloseable {
+
+    /**
+     * Release this cache's registration with its metadata store and its cached values.
+     * The store itself remains open. Calling this more than once has no further effect.
+     * Operations already in flight may still complete; callers must not use the cache after closing it.
+     *
+     * <p>The default is a no-op for compatibility with third-party cache implementations.
+     */
+    @Override
+    default void close() {
+        // Implementations that own resources override this method.
+    }
 
     /**
      * Tries to fetch one item from the cache or fallback to the store if not present.
@@ -65,6 +77,28 @@ public interface MetadataCache<T> {
      * @return the cached object or an empty {@link Optional} is the cache does not have the object
      */
     Optional<T> getIfCached(String path);
+
+    /**
+     * Whether quiet snapshots are supported, so observers can distinguish a repairable cache miss from
+     * an unsupported snapshot without repeatedly loading data that they cannot observe.
+     */
+    default boolean supportsQuietSnapshots() {
+        return false;
+    }
+
+    /**
+     * Read a completed cached value without loading, refreshing, or updating cache access statistics/policies.
+     *
+     * <p>Unlike {@link #getIfCached(String)}, this must not trigger an asynchronous refresh of a stale entry.
+     * Implementations without quiet snapshot support return empty; the default deliberately does not delegate
+     * to a potentially refreshing read. Existing cache readers retain their original behavior.
+     *
+     * @param path the metadata path
+     * @return the available cached value, or empty when absent, pending, failed, expired, or unsupported
+     */
+    default Optional<T> getIfCachedQuietly(String path) {
+        return Optional.empty();
+    }
 
     /**
      * Return all the nodes (lexicographically sorted) that are children to the specific path.

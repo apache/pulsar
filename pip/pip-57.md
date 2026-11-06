@@ -3,8 +3,7 @@
 - Status: Proposal
 - Author: Penghui Li
 - Pull Request: https://github.com/apache/pulsar/pull/6347
-- Mailing List discussion: https://lists.apache.org/thread.html/r1f0de583a2d02f9aeff0cadc2bab0fcfb41bf092cfdc7ff4cc9ed1bc%40%3Cdev.pulsar.apache.org%3E
-- Release:
+- Mailing List discussion: https://lists.apache.org/thread/5qv2j3x56xk5q7qr7x67mrck1f9rt442
 
 ## Motivation
 

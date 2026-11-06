@@ -3,8 +3,8 @@
 * **Status**: Accepted
 * **Author**: Sijie Guo
 * **Pull Request**: https://github.com/apache/pulsar/pull/8530
-* **Mailing List discussion**:
 * **Release**: 2.7.0
+* **Mailing List discussion**: https://lists.apache.org/thread/xkkgcy1rdbm9v0y2krkjb7pr0y4szlro
 
 ## Motivation
 

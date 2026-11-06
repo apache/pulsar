@@ -132,7 +132,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         }
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
-        Thread.sleep(2000);
+        waitForStatsRecorded(consumer, producer, numMessages, isAckTimeoutTaskEnabledForCumulativeAck);
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, isAckTimeoutTaskEnabledForCumulativeAck);
@@ -189,7 +189,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Future<Void> ackFuture = consumer.acknowledgeCumulativeAsync(msg);
         log.info("Waiting for async ack to complete");
         ackFuture.get();
-        Thread.sleep(2000);
+        waitForStatsRecorded(consumer, producer, numMessages, batchMessageDelayMs == 0 && ackTimeoutSec > 0);
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, batchMessageDelayMs == 0 && ackTimeoutSec > 0);
@@ -250,7 +250,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         Future<Void> ackFuture = consumer.acknowledgeCumulativeAsync(msg);
         log.info("Waiting for async ack to complete");
         ackFuture.get();
-        Thread.sleep(5000);
+        waitForStatsRecorded(consumer, producer, numMessages, batchMessageDelayMs == 0 && ackTimeoutSec > 0);
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, batchMessageDelayMs == 0 && ackTimeoutSec > 0);
@@ -295,9 +295,9 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         for (Future<MessageId> future : futures) {
             future.get();
         }
-        Thread.sleep(5000);
         log.info("Waiting for message listener to ack all messages");
         assertTrue(latch.await(numMessages, TimeUnit.SECONDS), "Timed out waiting for message listener acks");
+        waitForStatsRecorded(consumer, producer, numMessages, true);
         consumer.close();
         producer.close();
         validatingLogInfo(consumer, producer, true);
@@ -338,12 +338,20 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
 
         startBroker();
 
-        // We should not have received any message
-        Message<byte[]> msg = consumer.receive(3, TimeUnit.SECONDS);
+        // We should not have received any message. Once the producer, which resends its pending messages when it
+        // reconnects, and the consumer are connected again, the subscription has no message for the consumer.
+        Awaitility.await().untilAsserted(() -> {
+            assertTrue(producer.isConnected());
+            assertTrue(consumer.isConnected());
+            assertEquals(admin.topics().getStats("persistent://my-property/my-ns/my-topic5", true)
+                    .getSubscriptions().get("my-subscriber-name").getMsgBacklog(), 0);
+        });
+        Message<byte[]> msg = consumer.receive(200, TimeUnit.MILLISECONDS);
         assertNull(msg);
+        // The producer's stats timer, which runs every second, records the failed send before the producer is closed
+        Awaitility.await().untilAsserted(() -> assertEquals(producer.getStats().getTotalSendFailed(), 1));
         consumer.close();
         producer.close();
-        Thread.sleep(1000);
         ConsumerStats cStat = consumer.getStats();
         ProducerStats pStat = producer.getStats();
         assertEquals(pStat.getTotalMsgsSent(), 0);
@@ -381,12 +389,28 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         consumer.unsubscribe();
         log.info().attr("method", methodName).log("Exiting test");
     }
+
+    /**
+     * Waits until the stats of the consumer and producer include every message and acknowledgment. The stats timers,
+     * which run every second, add them to the totals; closing the consumer and producer stops the timers.
+     */
+    @SuppressWarnings("deprecation")
+    private void waitForStatsRecorded(Consumer<?> consumer, Producer<?> producer, int numMessages,
+                                      boolean verifyAckCount) {
+        Awaitility.await().untilAsserted(() -> {
+            ConsumerStats cStat = consumer.getStats();
+            ProducerStats pStat = producer.getStats();
+            assertEquals(pStat.getTotalMsgsSent(), numMessages);
+            assertEquals(pStat.getTotalAcksReceived(), numMessages);
+            assertEquals(cStat.getTotalMsgsReceived(), numMessages);
+            if (verifyAckCount) {
+                assertEquals(cStat.getTotalAcksSent(), numMessages);
+            }
+        });
+    }
     @SuppressWarnings("deprecation")
 
-    private void validatingLogInfo(Consumer<?> consumer, Producer<?> producer, boolean verifyAckCount)
-            throws InterruptedException {
-        // Waiting for recording last stat info
-        Thread.sleep(1000);
+    private void validatingLogInfo(Consumer<?> consumer, Producer<?> producer, boolean verifyAckCount) {
         ConsumerStats cStat = consumer.getStats();
         ProducerStats pStat = producer.getStats();
         assertEquals(pStat.getTotalMsgsSent(), cStat.getTotalMsgsReceived());

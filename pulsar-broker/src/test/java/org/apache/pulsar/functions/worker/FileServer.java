@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
-import java.net.URL;
+import java.net.URI;
 import java.nio.file.Files;
 import lombok.CustomLog;
 import org.awaitility.Awaitility;
@@ -79,7 +79,7 @@ public class FileServer implements AutoCloseable {
         Awaitility.await()
                 .ignoreExceptions()
                 .untilAsserted(() -> {
-                    HttpURLConnection urlConnection = (HttpURLConnection) new URL(getUrl(HEALTH_PATH))
+                    HttpURLConnection urlConnection = (HttpURLConnection) URI.create(getUrl(HEALTH_PATH)).toURL()
                             .openConnection();
                     urlConnection.setUseCaches(false);
                     urlConnection.setConnectTimeout(5000);

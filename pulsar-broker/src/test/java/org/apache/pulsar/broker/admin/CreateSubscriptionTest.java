@@ -29,6 +29,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -142,6 +144,63 @@ public class CreateSubscriptionTest extends SharedPulsarBaseTest {
                     admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
                     List.of("sub-1"));
         }
+    }
+
+    @Test
+    public void createSubscriptionConcurrently() throws Exception {
+        String topic = newTopicName();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
+        for (int i = 0; i < 3; i++) {
+            producer.send(new byte[10]);
+        }
+        producer.close();
+        // Both creations wait for the same topic load, so both find the subscription missing
+        admin.topics().unload(topic);
+
+        int created = countCreated(List.of(
+                admin.topics().createSubscriptionAsync(topic, "sub-1", MessageId.earliest),
+                admin.topics().createSubscriptionAsync(topic, "sub-1", MessageId.earliest)));
+
+        // The other creation fails as if it had come after the subscription was created
+        assertEquals(created, 1);
+        assertEquals(admin.topics().getSubscriptions(topic), List.of("sub-1"));
+        assertEquals(admin.topics().getStats(topic).getSubscriptions().get("sub-1").getMsgBacklog(), 3);
+    }
+
+    @Test
+    public void createSubscriptionConcurrentlyOnPartitionedTopic() throws Exception {
+        String topic = newTopicName();
+        admin.topics().createPartitionedTopic(topic, 4);
+
+        // No partition is loaded yet, so on each partition both creations wait for the same topic load
+        int created = countCreated(List.of(
+                admin.topics().createSubscriptionAsync(topic, "sub-1", MessageId.earliest),
+                admin.topics().createSubscriptionAsync(topic, "sub-1", MessageId.earliest)));
+
+        // Each partition's subscription is created by one of them; a creation that created none fails with 409
+        assertTrue(created >= 1);
+        for (int i = 0; i < 4; i++) {
+            assertEquals(admin.topics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
+                    List.of("sub-1"));
+        }
+    }
+
+    /**
+     * Waits for the creations and returns how many succeeded; any failure must be a 409 Conflict.
+     */
+    private static int countCreated(List<CompletableFuture<Void>> creations) throws Exception {
+        int created = 0;
+        for (CompletableFuture<Void> creation : creations) {
+            try {
+                creation.get(30, TimeUnit.SECONDS);
+                created++;
+            } catch (ExecutionException e) {
+                if (!(e.getCause() instanceof ConflictException)) {
+                    throw e;
+                }
+            }
+        }
+        return created;
     }
 
     @DataProvider(name = "subscriptionMode")

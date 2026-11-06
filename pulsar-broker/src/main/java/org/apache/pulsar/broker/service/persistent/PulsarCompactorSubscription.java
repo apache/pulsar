@@ -24,11 +24,14 @@ import io.github.merlimat.slog.Logger;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.util.Errors;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.CompactedTopicContext;
 import org.apache.pulsar.compaction.CompactedTopicImpl;
@@ -61,6 +64,18 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
                         }
                     });
         }
+    }
+
+    /**
+     * The compactor owns this cursor, so it can never be replicated. Disabling is still delegated, so that a
+     * replicated status that was set before is removed from the cursor properties.
+     */
+    @Override
+    public boolean setReplicated(boolean replicated) {
+        if (replicated) {
+            return false;
+        }
+        return super.setReplicated(false);
     }
 
     @Override
@@ -121,13 +136,24 @@ public class PulsarCompactorSubscription extends PersistentSubscription {
     }
 
     CompletableFuture<Void> cleanCompactedLedger() {
-        final CompletableFuture<CompactedTopicContext> compactedTopicContextFuture =
-                ((CompactedTopicImpl) compactedTopic).getCompactedTopicContextFuture();
+        final CompletableFuture<CompactedTopicContext> compactedTopicContextFuture;
+        synchronized (compactedTopic) {
+            compactedTopicContextFuture = ((CompactedTopicImpl) compactedTopic).getCompactedTopicContextFuture();
+            // The subscription was explicitly deleted. Clear its registration even if the ledger
+            // could not be opened, before another compaction can install a replacement context.
+            ((CompactedTopicImpl) compactedTopic).reset();
+        }
         if (compactedTopicContextFuture != null) {
             return compactedTopicContextFuture.thenCompose(context -> {
                 long compactedLedgerId = context.getLedger().getId();
-                ((CompactedTopicImpl) compactedTopic).reset();
                 return compactedTopic.deleteCompactedLedger(compactedLedgerId);
+            }).exceptionallyCompose(ex -> {
+                Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                if (cause instanceof BKException bkException
+                        && Errors.isNoSuchLedgerExistsException(bkException.getCode())) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                return CompletableFuture.failedFuture(cause);
             });
         } else {
             return CompletableFuture.completedFuture(null);

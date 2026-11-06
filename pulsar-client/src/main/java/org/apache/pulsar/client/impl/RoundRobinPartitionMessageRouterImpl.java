@@ -26,7 +26,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
 
 /**
- * The routing strategy here:
+ * The routing strategy here.
  * <ul>
  * <li>If a key is present, choose a partition based on a hash of the key.
  * <li>If no key is present, choose a partition in a "round-robin" fashion. Batching-Awareness is built-in to improve

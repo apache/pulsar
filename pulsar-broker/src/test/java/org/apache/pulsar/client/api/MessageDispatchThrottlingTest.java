@@ -302,7 +302,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * verify rate-limiting should throttle message-dispatching based on message-rate
+     * verify rate-limiting should throttle message-dispatching based on message-rate.
      *
      * <pre>
      *  1. dispatch-msg-rate = 10 msg/sec
@@ -370,7 +370,7 @@ public class MessageDispatchThrottlingTest extends AbstractMessageDispatchThrott
     }
 
     /**
-     * verify rate-limiting should throttle message-dispatching based on byte-rate
+     * verify rate-limiting should throttle message-dispatching based on byte-rate.
      *
      * <pre>
      *  1. dispatch-byte-rate = 100 bytes/sec

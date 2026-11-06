@@ -20,6 +20,7 @@
 package org.apache.pulsar.broker.testcontext;
 
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -33,6 +34,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.storage.ManagedLedgerStorage;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 
 /**
@@ -49,9 +51,10 @@ class StartableTestPulsarService extends AbstractTestPulsarService {
                                   BrokerInterceptor brokerInterceptor,
                                   BookKeeperClientFactory bookKeeperClientFactory,
                                   Function<BrokerService, BrokerService> brokerServiceCustomizer,
-                                  Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer) {
+                                  Consumer<AutoConfiguredOpenTelemetrySdkBuilder> openTelemetrySdkBuilderCustomizer,
+                                  Optional<WorkerService> functionWorkerService) {
         super(spyConfig, config, localMetadataStore, configurationMetadataStore, compactionServiceFactory,
-                brokerInterceptor, bookKeeperClientFactory, openTelemetrySdkBuilderCustomizer);
+                brokerInterceptor, bookKeeperClientFactory, openTelemetrySdkBuilderCustomizer, functionWorkerService);
         this.brokerServiceCustomizer = brokerServiceCustomizer;
     }
 

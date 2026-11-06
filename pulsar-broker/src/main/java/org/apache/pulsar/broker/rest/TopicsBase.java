@@ -37,6 +37,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -85,6 +86,7 @@ import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
+import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.common.protocol.schema.SchemaData;
@@ -199,9 +201,10 @@ public class TopicsBase extends PersistentTopicsBase {
                 ProducerAck produceMessageResult = new ProducerAck();
                 produceMessageResult.setMessageId(partition + "");
                 produceMessageResults.add(produceMessageResult);
-                publishResults.add(publishSingleMessageToPartition(topicName.getPartition(partition).toString(),
-                        messages.get(index)));
+                publishResults.add(new CompletableFuture<>());
             }
+            publishMessagesToPartition(topicName.getPartition(partition).toString(), producerName, messages,
+                    publishResults);
             FutureUtil.waitForAll(publishResults).thenRun(() -> {
                 processPublishMessageResults(produceMessageResults, publishResults);
                 asyncResponse.resume(Response.ok().entity(new ProducerAcks(produceMessageResults,
@@ -237,14 +240,21 @@ public class TopicsBase extends PersistentTopicsBase {
             List<CompletableFuture<Position>> publishResults = new ArrayList<>();
             List<ProducerAck> produceMessageResults = new ArrayList<>();
             // Try to publish messages to all partitions this broker owns in round robin mode.
+            Map<Integer, List<Message<?>>> messagesByPartition = new HashMap<>();
+            Map<Integer, List<CompletableFuture<Position>>> publishResultsByPartition = new HashMap<>();
             for (int index = 0; index < messages.size(); index++) {
+                int partition = partitionIndexes.get(index % partitionIndexes.size());
                 ProducerAck produceMessageResult = new ProducerAck();
-                produceMessageResult.setMessageId(partitionIndexes.get(index % partitionIndexes.size()) + "");
+                produceMessageResult.setMessageId(partition + "");
                 produceMessageResults.add(produceMessageResult);
-                publishResults.add(publishSingleMessageToPartition(topicName.getPartition(partitionIndexes
-                                .get(index % partitionIndexes.size())).toString(),
-                        messages.get(index)));
+                CompletableFuture<Position> publishResult = new CompletableFuture<>();
+                publishResults.add(publishResult);
+                messagesByPartition.computeIfAbsent(partition, __ -> new ArrayList<>()).add(messages.get(index));
+                publishResultsByPartition.computeIfAbsent(partition, __ -> new ArrayList<>()).add(publishResult);
             }
+            messagesByPartition.forEach((partition, partitionMessages) ->
+                    publishMessagesToPartition(topicName.getPartition(partition).toString(), producerName,
+                            partitionMessages, publishResultsByPartition.get(partition)));
             FutureUtil.waitForAll(publishResults).thenRun(() -> {
                 processPublishMessageResults(produceMessageResults, publishResults);
                 asyncResponse.resume(Response.ok().entity(new ProducerAcks(produceMessageResults,
@@ -265,36 +275,55 @@ public class TopicsBase extends PersistentTopicsBase {
         }
     }
 
-    private CompletableFuture<Position> publishSingleMessageToPartition(String topic, Message<?> message) {
-        CompletableFuture<Position> publishResult = new CompletableFuture<>();
+    // Check the backlog quota once per partition, as the binary protocol does once per producer, and only then
+    // publish the partition's messages, in request order.
+    private void publishMessagesToPartition(String topic, String producerName, List<Message<?>> messages,
+                                            List<CompletableFuture<Position>> publishResults) {
         pulsar().getBrokerService().getTopic(topic, false)
-                .thenAccept(t -> {
-            // TODO: Check message backlog and fail if backlog too large.
-            if (t.isEmpty()) {
-                // Topic not found, and remove from owning partition list.
-                publishResult.completeExceptionally(new BrokerServiceException.TopicNotFoundException("Topic not "
-                        + "owned by current broker."));
-            } else {
-                try {
-                    ByteBuf headersAndPayload = messageToByteBuf(message);
-                    try {
-                        Topic topicObj = t.get();
-                        topicObj.publishMessage(headersAndPayload,
-                                RestMessagePublishContext.get(publishResult, topicObj, System.nanoTime()));
-                    } finally {
-                        headersAndPayload.release();
+                .thenCompose(optTopic -> {
+                    if (optTopic.isEmpty()) {
+                        return CompletableFuture.failedFuture(new BrokerServiceException.TopicNotFoundException(
+                                "Topic not owned by current broker."));
                     }
-                } catch (Exception e) {
-                        log.debug()
-                                .attr("topic", topicName)
-                                .exceptionMessage(e)
-                                .log("Fail to publish single messages to topic");
-                                        publishResult.completeExceptionally(e);
-                }
-            }
-        });
+                    Topic topicObj = optTopic.get();
+                    return CompletableFuture.allOf(
+                            topicObj.checkBacklogQuotaExceeded(producerName,
+                                    BacklogQuota.BacklogQuotaType.destination_storage),
+                            topicObj.checkBacklogQuotaExceeded(producerName,
+                                    BacklogQuota.BacklogQuotaType.message_age))
+                            .thenRun(() -> {
+                                for (int index = 0; index < messages.size(); index++) {
+                                    publishSingleMessage(topicObj, messages.get(index), publishResults.get(index));
+                                }
+                            });
+                })
+                .exceptionally(ex -> {
+                    Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                    log.debug()
+                            .attr("topic", topic)
+                            .exceptionMessage(cause)
+                            .log("Fail to publish messages to topic");
+                    publishResults.forEach(publishResult -> publishResult.completeExceptionally(cause));
+                    return null;
+                });
+    }
 
-        return publishResult;
+    private void publishSingleMessage(Topic topic, Message<?> message, CompletableFuture<Position> publishResult) {
+        try {
+            ByteBuf headersAndPayload = messageToByteBuf(message);
+            try {
+                topic.publishMessage(headersAndPayload,
+                        RestMessagePublishContext.get(publishResult, topic, System.nanoTime()));
+            } finally {
+                headersAndPayload.release();
+            }
+        } catch (Exception e) {
+            log.debug()
+                    .attr("topic", topic.getName())
+                    .exceptionMessage(e)
+                    .log("Fail to publish single messages to topic");
+            publishResult.completeExceptionally(e);
+        }
     }
 
     // Process results for all message publishing attempts

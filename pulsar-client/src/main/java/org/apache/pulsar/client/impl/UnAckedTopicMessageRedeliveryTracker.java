@@ -60,6 +60,8 @@ public class UnAckedTopicMessageRedeliveryTracker extends UnAckedMessageRedelive
                     removed++;
                 }
             }
+            localRedeliveryCounts.keySet().removeIf(messageId -> messageId instanceof TopicMessageId topicMessageId
+                    && topicMessageId.hasSameBasePartitionedTopic(topicName));
             return removed;
         } finally {
             writeLock.unlock();

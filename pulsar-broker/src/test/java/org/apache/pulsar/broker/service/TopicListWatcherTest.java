@@ -81,7 +81,7 @@ public class TopicListWatcherTest {
                 "persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2", newTopic);
         String hash = TopicList.calculateHash(allMatchingTopics);
         verify(topicListService).sendTopicListUpdate(eq(ID), eq(hash), eq(Collections.emptyList()),
-                eq(Collections.singletonList(newTopic)), any());
+                eq(Collections.singletonList(newTopic)), any(), any());
         Assert.assertEquals(
                 allMatchingTopics,
                 watcher.getMatchingTopics());
@@ -95,7 +95,7 @@ public class TopicListWatcherTest {
         List<String> allMatchingTopics = Collections.singletonList("persistent://tenant/ns/topic2");
         String hash = TopicList.calculateHash(allMatchingTopics);
         verify(topicListService).sendTopicListUpdate(eq(ID), eq(hash),
-                eq(Collections.singletonList(deletedTopic)), eq(Collections.emptyList()), any());
+                eq(Collections.singletonList(deletedTopic)), eq(Collections.emptyList()), any(), any());
         Assert.assertEquals(
                 allMatchingTopics,
                 watcher.getMatchingTopics());
@@ -116,7 +116,7 @@ public class TopicListWatcherTest {
             String newTopic = "persistent://tenant/ns/topic" + i;
             watcher.onTopicEvent(newTopic, NotificationType.Created);
         }
-        verify(topicListService).sendTopicListUpdate(anyLong(), anyString(), any(), any(), any());
+        verify(topicListService).sendTopicListUpdate(anyLong(), anyString(), any(), any(), any(), any());
         verify(topicListService).updateTopicListWatcher(any());
         verifyNoMoreInteractions(topicListService);
     }

@@ -97,7 +97,7 @@ public class PulsarClientToolForceBatchNum extends PulsarClientTool {
                 ProducerBuilder<byte[]> spyBuilder = spy(realBuilder);
                 doAnswer(c -> forceAsyncSend(realBuilder.create())).when(spyBuilder).create();
                 return spyBuilder;
-            }).when(spyClient).newProducer(any(Schema.class));
+            }).when(spyClient).newProducer(any());
 
             PulsarClientBuilder spyBuilder = spy(newBuilder);
             doReturn(spyClient).when(spyBuilder).build();

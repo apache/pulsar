@@ -2,8 +2,7 @@
 
 - Status: Accepted
 - Author: Dezhi Liu
-- Pull Request:
-- Mailing List discussion: https://lists.apache.org/thread.html/r5ab7533b6461f29b8ff18e4c51e058226a1b3081fddc5649b234b7fc%40%3Cdev.pulsar.apache.org%3E
+- Mailing List discussion: https://lists.apache.org/thread/9l49w10d3zok4n70mmppksfm61h47o14
 - Release: 2.6.0
 
 ## Motivation

@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BooleanSupplier;
 import java.util.function.Function;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.pulsar.client.api.transaction.TxnID;
@@ -100,15 +101,31 @@ public interface PulsarCommandSender {
 
     void sendEndTxnErrorResponse(long requestId, TxnID txnID, ServerError error, String message);
 
+    /**
+     * Sends the topic list watcher success response after acquiring direct memory permits for it.
+     *
+     * @param isCancelled supplier that returns true when the response is no longer needed, for example when the
+     *                    watcher has been closed. The response isn't sent when the connection is inactive or the
+     *                    request has been cancelled.
+     */
     CompletableFuture<Void> sendWatchTopicListSuccess(long requestId, long watcherId, String topicsHash,
                                                       Collection<String> topics,
                                                       Function<Throwable, CompletableFuture<Void>>
-                                                              permitAcquireErrorHandler);
+                                                              permitAcquireErrorHandler,
+                                                      BooleanSupplier isCancelled);
 
+    /**
+     * Sends a topic list watcher update after acquiring direct memory permits for it.
+     *
+     * @param isCancelled supplier that returns true when the update is no longer needed, for example when the
+     *                    watcher has been closed. The update isn't sent when the connection is inactive or the
+     *                    request has been cancelled.
+     */
     CompletableFuture<Void> sendWatchTopicListUpdate(long watcherId,
                                   List<String> newTopics, List<String> deletedTopics, String topicsHash,
                                   Function<Throwable, CompletableFuture<Void>>
-                                                             permitAcquireErrorHandler);
+                                                             permitAcquireErrorHandler,
+                                  BooleanSupplier isCancelled);
 
     /**
      * Send the response to a scalable-topic subscribe request on success. The caller is

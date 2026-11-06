@@ -67,9 +67,12 @@ RUN apk add --no-cache binutils
 #     java.desktop), and localedata is needed for non-English date/number formatting.
 #   - jdk.jcmd, jdk.jfr, jdk.management.agent: live ops/diagnostics on a running broker.
 #   - jdk.jdwp.agent: lets you attach a remote debugger (-agentlib:jdwp) inside the container.
+#   - java.compiler: not used by Pulsar itself, but connectors (no longer bundled with Pulsar,
+#     so not covered by the scan below) run on this image, and Debezium calls
+#     javax.lang.model.SourceVersion. API-only and about 250KB; it does not pull in jdk.compiler.
 #
 # Left out (verified unused by Pulsar's shipped jars via a jdeps/bytecode scan):
-#   - build/compile tools: java.compiler, jdk.compiler (also drops the ~10MB lib/ct.sym),
+#   - build/compile tools: jdk.compiler (also drops the ~10MB lib/ct.sym),
 #     jdk.javadoc, jdk.jdeps, jdk.jlink, jdk.jpackage, jdk.jartool
 #   - REPL/console: jdk.jshell, jdk.editpad, jdk.internal.ed, jdk.internal.le, jdk.jconsole
 #   - debugger client + serviceability: jdk.jdi, jdk.hotspot.agent, jdk.jstatd
@@ -80,6 +83,7 @@ RUN apk add --no-cache binutils
 #
 RUN JDK_MODULES="\
 java.base,\
+java.compiler,\
 java.datatransfer,\
 java.xml,\
 java.prefs,\
@@ -149,6 +153,20 @@ RUN mv /apache-pulsar-offloaders-*/offloaders /offloaders
 # It remains available in the apache-pulsar-offloaders distribution tarball for users who need it.
 RUN rm -f /offloaders/tiered-storage-file-system-*.nar
 
+## Build mimalloc (https://github.com/microsoft/mimalloc), which the final stage preloads as the malloc of the Pulsar
+## processes in place of musl's
+FROM alpine:$ALPINE_VERSION AS mimalloc
+# The build passes the version of gradle/libs.versions.toml
+ARG MIMALLOC_VERSION=3.5.3
+RUN apk add --no-cache build-base cmake ninja curl linux-headers
+RUN curl -fsSL https://github.com/microsoft/mimalloc/archive/refs/tags/v${MIMALLOC_VERSION}.tar.gz | tar -xz \
+    && mv mimalloc-${MIMALLOC_VERSION} mimalloc
+RUN CFLAGS="-D__USE_ISOC11" cmake -S mimalloc -B build -G Ninja \
+      -DCMAKE_BUILD_TYPE=Release -DMI_SECURE=OFF \
+      -DMI_NO_OPT_ARCH=ON -DMI_INSTALL_TOPLEVEL=ON -DCMAKE_INSTALL_PREFIX=/usr \
+      -DMI_BUILD_TESTS=OFF -DMI_LIBC_MUSL=ON \
+    && cmake --build build && cmake --install build
+
 ## Create final stage from Alpine image
 ## and add OpenJDK and Python dependencies (for Pulsar functions)
 FROM alpine:$ALPINE_VERSION
@@ -190,7 +208,13 @@ RUN pip3 install --break-system-packages --no-cache-dir \
 COPY --from=jvm /opt/jvm /opt/jvm
 ENV JAVA_HOME=/opt/jvm
 
+# Match the compiled server target; custom builds may override this build argument.
+ARG PULSAR_MIN_JAVA_VERSION=21
+ENV PULSAR_MIN_JAVA_VERSION=${PULSAR_MIN_JAVA_VERSION}
+
 COPY --from=snappy-java /tmp/libsnappyjava.so /usr/lib/libsnappyjava.so
+# The shared library itself, which the install links as libmimalloc.so and libmimalloc.so.3
+COPY --from=mimalloc /usr/lib/libmimalloc.so.3.5 /usr/lib/libmimalloc.so.3
 
 # The default is /pulsat/bin and cannot be written.
 ENV PULSAR_PID_DIR=/pulsar/logs
@@ -204,8 +228,10 @@ WORKDIR /pulsar
 ENV PATH=$PATH:$JAVA_HOME/bin:/pulsar/bin
 # Use musl libc library for RocksDB
 ENV ROCKSDB_MUSL_LIBC=true
-# Preload gcompat library for glibc compatibility with Netty native libraries
-ENV LD_PRELOAD=/lib/libgcompat.so.0
+# Preload mimalloc, which replaces musl's malloc: musl maps and unmaps each allocation of 128 KB or more, such as the
+# chunks of Netty's buffer allocators, see https://github.com/apache/pulsar/issues/26786. Then preload gcompat library
+# for glibc compatibility with Netty native libraries.
+ENV LD_PRELOAD=/usr/lib/libmimalloc.so.3:/lib/libgcompat.so.0
 
 # The UID must be non-zero. Otherwise, it is arbitrary. No logic should rely on its specific value.
 ARG DEFAULT_USERNAME=pulsar

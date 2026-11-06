@@ -183,21 +183,20 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 log.info().attr("sendMessage", msg).attr("messageid", messageId).log("Txn2 send message , messageId");
             }
         }
-        Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
-        assertNull(message);
+        // Neither transaction has ended
+        assertNoMoreMessages(consumer);
 
         tnx1.commit().get();
 
         // only can receive message 1
-        message = consumer.receive(2, TimeUnit.SECONDS);
+        Message<String> message = consumer.receive(2, TimeUnit.SECONDS);
         assertNotNull(message);
         log.info().attr("receiveMessage", message.getValue()).attr("messageid", message.getMessageId())
                 .log("Txn1 commit receive message , messageId");
         consumer.acknowledge(message);
 
         // can't receive message
-        message = consumer.receive(2, TimeUnit.SECONDS);
-        assertNull(message);
+        assertNoMoreMessages(consumer);
         admin.topics().unload(testTopic);
 
         Awaitility.await().until(() -> {
@@ -232,8 +231,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
             }
 
             // can't receive message
-            message = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(message);
+            assertNoMoreMessages(consumer);
         } else {
             tnx2.abort().get();
 
@@ -245,8 +243,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
             }
 
             // can't receive message
-            message = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(message);
+            assertNoMoreMessages(consumer);
         }
 
         consumer.close();
@@ -569,14 +566,11 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 .topic(topicName.toString())
                 .create();
 
+        // The broker answers a compacted reader with the end of the compacted view
         int count = 0;
-        while (true) {
-            Message<GenericRecord> snapshotMsg = reader.readNext(2, TimeUnit.SECONDS);
-            if (snapshotMsg != null) {
-                count++;
-            } else {
-                break;
-            }
+        while (reader.hasMessageAvailable()) {
+            assertNotNull(reader.readNext(2, TimeUnit.SECONDS));
+            count++;
         }
         assertTrue(hasSnapshot ? count > 0 : count == 0);
         reader.close();
@@ -862,6 +856,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 .setTransactionBufferSnapshotSegmentSize(8 + topic.length() + theSizeOfSegment * 3);
         this.getPulsarServiceList().get(0).getConfig()
                 .setTransactionBufferSnapshotMaxTransactionCount(theCountOfSnapshotMaxTxnCount);
+        // The 400 transactions add ~2000 entries to the mock BookKeeper, which sleeps 1 ms for each by default
+        pulsarTestContexts.get(0).getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
         // 1. Build producer and consumer
         @Cleanup
         Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
@@ -881,6 +877,8 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
         for (int i = 0; i < 10; i++) {
             MessageId maxReadMessage = null;
             int abortedTxnSize = 0;
+            // The messages sent without a transaction before the first ongoing transaction's message
+            int readableMessages = 0;
             for (int j = 0; j < messageSize; j++) {
                 Transaction transaction = pulsarClient.newTransaction()
                         .withTransactionTimeout(5, TimeUnit.MINUTES).build().get();
@@ -902,19 +900,19 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
                 } else {
                     producer.newMessage().value(i * 10 + j).send();
                     transaction.commit().get();
+                    if (maxReadMessage == null) {
+                        readableMessages++;
+                    }
                 }
             }
             // 2.1 Receive all message before the maxReadPosition to verify the correctness of the max read position.
-            int hasReceived = 0;
-            while (true) {
+            for (int k = 0; k < readableMessages; k++) {
                 Message<Integer> message = consumer.receive(2, TimeUnit.SECONDS);
-                if (message != null) {
-                    Assert.assertTrue(message.getMessageId().compareTo(maxReadMessage) < 0);
-                    hasReceived++;
-                } else {
-                    break;
-                }
+                assertNotNull(message);
+                Assert.assertTrue(message.getMessageId().compareTo(maxReadMessage) < 0);
             }
+            assertNoMoreMessages(consumer);
+            int hasReceived = readableMessages;
             //2.2 Commit all ongoing transaction and verify that the consumer can receive all rest message
             // expect for aborted txn message.
             for (Transaction ongoingTxn: ongoingTxns.keySet()) {
@@ -935,7 +933,7 @@ public class TopicTransactionBufferRecoverTest extends TransactionTestBase {
             assertNotNull(message);
             assertFalse(abortedTxns.contains(message.getMessageId()));
         }
-        assertNull(consumer.receive(2, TimeUnit.SECONDS));
+        assertNoMoreMessages(consumer);
     }
 
 }

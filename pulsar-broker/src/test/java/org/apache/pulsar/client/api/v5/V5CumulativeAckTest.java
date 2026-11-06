@@ -24,8 +24,10 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import lombok.Cleanup;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -326,11 +328,12 @@ public class V5CumulativeAckTest extends V5ClientBaseTest {
     }
 
     /**
-     * An ack that could not be sent must not count as done: retrying the same position once the
-     * consumer is back on the broker still has to advance the cursor.
+     * An ack issued while the consumer is off the broker, then retried with the same position once
+     * it is back, must advance the cursor whether the client held the first attempt until the
+     * re-subscribe or the broker dropped it.
      */
     @Test
-    public void testRetryingAnAckThatFailedWhileDisconnectedAdvancesTheCursor() throws Exception {
+    public void testRetryingAnAckIssuedWhileDisconnectedAdvancesTheCursor() throws Exception {
         String topic = newScalableTopic(1);
         String subscription = "retry-failed-ack-sub";
         @Cleanup
@@ -342,7 +345,7 @@ public class V5CumulativeAckTest extends V5ClientBaseTest {
                 .topic(topic)
                 .subscriptionName(subscription)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.EARLIEST)
-                // No grouping: every ack is sent right away, and fails outright without a connection.
+                // No grouping: every ack is sent right away while the consumer is subscribed.
                 .acknowledgmentGroupTime(Duration.ZERO)
                 .subscribe();
         int n = 10;
@@ -354,23 +357,33 @@ public class V5CumulativeAckTest extends V5ClientBaseTest {
         // Throw the consumer off the broker and ack while it is gone.
         var segments = admin.scalableTopics().getStats(topic).getLayout().getSegments().values();
         assertEquals(segments.size(), 1, "single-segment topic");
-        var brokerSub = getTopicReference(segments.iterator().next().getName()).orElseThrow()
-                .getSubscription(subscription);
+        var brokerSub = (PersistentSubscription) getTopicReference(segments.iterator().next().getName())
+                .orElseThrow().getSubscription(subscription);
         Awaitility.await().until(() -> !brokerSub.getConsumers().isEmpty());
-        brokerSub.getConsumers().get(0).disconnect();
-        Awaitility.await().until(() -> brokerSub.getConsumers().isEmpty());
-        consumer.acknowledgeCumulative(last);
+        // Fence the subscription while disconnecting: the client re-subscribes on its own after a short
+        // backoff, and the fence keeps it off the broker until the ack has been issued.
+        brokerSub.close(true, Optional.empty()).get();
+        try {
+            consumer.acknowledgeCumulative(last);
+        } finally {
+            brokerSub.resumeAfterFence();
+        }
 
-        // Once re-attached the broker redelivers everything still unacked; drain that copy. The
-        // cursor has not moved: the ack above never made it.
-        receiveAll(consumer, n);
-        assertTrue(subscriptionBacklog(topic, subscription) > 0,
-                "an ack sent without a connection must not count as done");
+        // The ack either went out before the client saw the disconnect, and the broker, having dropped
+        // the consumer, discarded it, or the client held it until the consumer re-subscribed and sent it
+        // then. Only in the first case is anything redelivered, and the stream consumer lets the retry
+        // below through only once it has seen that redelivery: drain up to a marker published now.
+        producer.newMessage().value("marker").send();
+        Message<String> msg;
+        do {
+            msg = consumer.receive(Duration.ofSeconds(5));
+            assertNotNull(msg, "the marker must be delivered");
+        } while (!msg.value().equals("marker"));
 
-        // Retry with the id retained from the first delivery: must reach the broker now.
+        // Retry with the id retained from the first delivery: either way, all but the marker ends up acked.
         consumer.acknowledgeCumulative(last);
-        Awaitility.await().untilAsserted(() -> assertEquals(subscriptionBacklog(topic, subscription), 0L,
-                "retrying the failed ack must advance the cursor"));
+        Awaitility.await().untilAsserted(() -> assertEquals(subscriptionBacklog(topic, subscription), 1L,
+                "retrying the ack must leave only the marker unacked"));
     }
 
     /** Receive {@code n} messages and return the id of the last one. */

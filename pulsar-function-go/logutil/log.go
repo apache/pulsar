@@ -27,6 +27,7 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -87,7 +88,21 @@ func Fatalf(format string, v ...interface{}) {
 	log.Fatalf(format, v...)
 }
 
-var StrEntry []string
+// entries holds the formatted log entries that have not been sent to the log topic yet.
+// The hook appends to it from any goroutine, so it is guarded by entriesMutex.
+var (
+	entriesMutex sync.Mutex
+	entries      []string
+)
+
+// DrainEntries returns the log entries captured since the previous call and clears the buffer.
+func DrainEntries() []string {
+	entriesMutex.Lock()
+	defer entriesMutex.Unlock()
+	drained := entries
+	entries = nil
+	return drained
+}
 
 // modifyHook injects file name and line pos into log entry.
 type contextHook struct{}
@@ -114,7 +129,9 @@ func (hook *contextHook) Fire(entry *log.Entry) error {
 		fmt.Fprintf(os.Stderr, "Unable to read entry, %v", err)
 		return err
 	}
-	StrEntry = append(StrEntry, strEntry)
+	entriesMutex.Lock()
+	entries = append(entries, strEntry)
+	entriesMutex.Unlock()
 	return nil
 }
 

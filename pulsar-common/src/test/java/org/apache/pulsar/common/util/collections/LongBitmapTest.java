@@ -819,13 +819,12 @@ public class LongBitmapTest {
     public void testUint32BoundaryRange() {
         // Verify range APIs handle the uint32 upper boundary correctly.
         // add(MAX_UINT32, MAX_UINT32+1) should add exactly one value: MAX_UINT32.
-        // Note: RoaringBitmap.contains(long, long) has a known issue at this
-        // boundary where it returns false even when the value is present, so we only
-        // test contains(long) single-value form and cardinality.
         LongBitmap bitmap = LongBitmaps.create();
         bitmap.add(0xFFFFFFFFL, 0x100000000L);
         assertEquals(bitmap.cardinality(), 1);
         assertTrue(bitmap.contains(0xFFFFFFFFL));
+        assertTrue(bitmap.contains(0xFFFFFFFFL, 0x100000000L));
+        assertFalse(bitmap.contains(0xFFFFFFFEL, 0x100000000L));
 
         bitmap.remove(0xFFFFFFFFL, 0x100000000L);
         assertEquals(bitmap.cardinality(), 0);
@@ -1050,5 +1049,50 @@ public class LongBitmapTest {
         assertEquals(bitmap.nextPresentValue(0), 0xFFFFFFFFL);
         assertEquals(bitmap.nextPresentValue(0xFFFFFFFFL), 0xFFFFFFFFL);
         assertEquals(bitmap.nextPresentValue(0x100000000L), -1);
+    }
+
+    @Test
+    public void testRangeContainsRejectsMissingValueAfterContainerBoundary() {
+        // https://github.com/apache/pulsar/issues/27088
+        LongBitmap bitmap = LongBitmaps.create();
+        bitmap.add(131_071);
+
+        assertFalse(bitmap.contains(131_072));
+        assertFalse(bitmap.contains(131_071, 131_073));
+        assertTrue(bitmap.contains(131_071, 131_072));
+
+        bitmap.add(131_072);
+        assertTrue(bitmap.contains(131_071, 131_073));
+        assertFalse(bitmap.contains(131_071, 131_074));
+    }
+
+    @Test
+    public void testRangeContainsAcrossFullContainers() {
+        LongBitmap bitmap = LongBitmaps.create();
+        bitmap.add(65_530, 3 * 65_536 + 10);
+
+        assertTrue(bitmap.contains(65_530, 3 * 65_536 + 10));
+        assertFalse(bitmap.contains(65_529, 3 * 65_536 + 10));
+        assertFalse(bitmap.contains(65_530, 3 * 65_536 + 11));
+
+        bitmap.remove(2 * 65_536 + 7);
+        assertFalse(bitmap.contains(65_530, 3 * 65_536 + 10));
+        assertTrue(bitmap.contains(65_530, 2 * 65_536 + 7));
+    }
+
+    @Test
+    public void testPreviousAbsentDoesNotConfuseSentinelWithMaxUint32() {
+        // https://github.com/apache/pulsar/issues/27089
+        LongBitmap bitmap = LongBitmaps.create();
+        bitmap.add(0);
+        bitmap.add(0xFFFFFFFFL);
+
+        assertEquals(bitmap.previousAbsentValue(0), -1);
+        assertEquals(bitmap.previousAbsentValue(1), 1);
+        assertEquals(bitmap.previousAbsentValue(0xFFFFFFFFL), 0xFFFFFFFEL);
+
+        bitmap.add(1, 10);
+        assertEquals(bitmap.previousAbsentValue(9), -1);
+        assertEquals(bitmap.previousAbsentValue(10), 10);
     }
 }

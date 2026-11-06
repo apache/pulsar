@@ -46,7 +46,11 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ReadOnlyManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.ShadowManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.proto.ManagedLedgerInfo.LedgerInfo;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class ReadEntryUtilsTest {
@@ -63,6 +67,175 @@ public class ReadEntryUtilsTest {
         Position lastConfirmedEntry = PositionFactory.create(1L, 99L);
         when(ml.getLastConfirmedEntry()).thenReturn(lastConfirmedEntry);
         when(ml.getOptionalLedgerInfo(1L)).thenReturn((Optional) Optional.of(new Object()));
+    }
+
+    @Test
+    public void testReadOnlyOpenSingleEntryBeyondConfirmedFrontier() {
+        ManagedLedger reader = mock(ReadOnlyManagedLedgerImpl.class);
+        when(reader.getOptionalLedgerInfo(1L)).thenReturn(Optional.of(new LedgerInfo().setLedgerId(1L)));
+        when(reader.getLastConfirmedEntry()).thenReturn(PositionFactory.create(1L, 0L));
+        when(lh.isClosed()).thenReturn(false);
+        LedgerEntries entries = createLedgerEntries(1L, 1L);
+        when(lh.readUnconfirmedAsync(1L, 1L)).thenReturn(CompletableFuture.completedFuture(entries));
+
+        CompletableFuture<LedgerEntries> future = ReadEntryUtils.readAsync(reader, lh, 1L, 1L, true, 1024);
+
+        assertThat(future).isCompletedWithValue(entries);
+        future.getNow(null).close();
+        verify(lh).readUnconfirmedAsync(1L, 1L);
+        verify(lh, never()).readAsync(anyLong(), anyLong());
+        verify(lh, never()).batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong());
+    }
+
+    @Test
+    public void testReadOnlyOpenSingleEntryWithStaleInventoryUsesUnconfirmedRead() {
+        ManagedLedger reader = mock(ReadOnlyManagedLedgerImpl.class);
+        when(reader.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+        when(lh.isClosed()).thenReturn(false);
+        when(lh.getLastAddConfirmed()).thenReturn(0L);
+        LedgerEntries entries = createLedgerEntries(1L, 1L);
+        when(lh.readUnconfirmedAsync(1L, 1L)).thenReturn(CompletableFuture.completedFuture(entries));
+
+        CompletableFuture<LedgerEntries> future = ReadEntryUtils.readAsync(reader, lh, 1L, 1L, true, 1024);
+
+        assertThat(future).isCompletedWithValue(entries);
+        future.getNow(null).close();
+        verify(lh).readUnconfirmedAsync(1L, 1L);
+        verify(lh, never()).readAsync(anyLong(), anyLong());
+        verify(lh, never()).batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong());
+    }
+
+    @DataProvider(name = "readOnlyInventoryMembership")
+    public Object[][] readOnlyInventoryMembership() {
+        return new Object[][]{{true}, {false}};
+    }
+
+    @Test(dataProvider = "readOnlyInventoryMembership")
+    public void testReadOnlyOpenSingleEntryStorageFailureIsPropagated(boolean ownsLedger) {
+        ManagedLedger reader = mock(ReadOnlyManagedLedgerImpl.class);
+        when(reader.getOptionalLedgerInfo(1L)).thenReturn(ownsLedger
+                ? Optional.of(new LedgerInfo().setLedgerId(1L)) : Optional.empty());
+        when(lh.isClosed()).thenReturn(false);
+        when(lh.readUnconfirmedAsync(1L, 1L))
+                .thenReturn(CompletableFuture.failedFuture(new BKException.BKNoSuchEntryException()));
+
+        CompletableFuture<LedgerEntries> future = ReadEntryUtils.readAsync(reader, lh, 1L, 1L, true, 1024);
+
+        assertThatThrownBy(future::get).hasCauseInstanceOf(BKException.BKNoSuchEntryException.class);
+        verify(lh).readUnconfirmedAsync(1L, 1L);
+        verify(lh, never()).readAsync(anyLong(), anyLong());
+    }
+
+    @Test
+    public void testReadOnlyClosedSingleEntryWithStaleInventoryKeepsFinalHandleBound() {
+        ManagedLedger reader = mock(ReadOnlyManagedLedgerImpl.class);
+        when(reader.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+        when(lh.isClosed()).thenReturn(true);
+        when(lh.getLastAddConfirmed()).thenReturn(2L);
+        LedgerEntries entries = createLedgerEntries(1L, 2L);
+        when(lh.readAsync(2L, 2L)).thenReturn(CompletableFuture.completedFuture(entries));
+        when(lh.readAsync(3L, 3L)).thenReturn(CompletableFuture.failedFuture(new BKException.BKReadException()));
+
+        CompletableFuture<LedgerEntries> found = ReadEntryUtils.readAsync(reader, lh, 2L, 2L, true, 1024);
+        assertThat(found).isCompletedWithValue(entries);
+        found.getNow(null).close();
+        CompletableFuture<LedgerEntries> beyond = ReadEntryUtils.readAsync(reader, lh, 3L, 3L, true, 1024);
+        assertThatThrownBy(beyond::get).hasCauseInstanceOf(BKException.BKReadException.class);
+        verify(lh).readAsync(2L, 2L);
+        verify(lh).readAsync(3L, 3L);
+        verify(lh, never()).readUnconfirmedAsync(anyLong(), anyLong());
+        verify(lh, never()).batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong());
+    }
+
+    @Test
+    public void testReadOnlyRangeWithStaleInventoryStillUsesConfirmedRead() {
+        ManagedLedger reader = mock(ReadOnlyManagedLedgerImpl.class);
+        when(reader.getOptionalLedgerInfo(1L)).thenReturn(Optional.empty());
+        when(lh.isClosed()).thenReturn(false);
+        LedgerEntries entries = createLedgerEntries(1L, 0L, 1L);
+        when(lh.readAsync(0L, 1L)).thenReturn(CompletableFuture.completedFuture(entries));
+
+        CompletableFuture<LedgerEntries> future = ReadEntryUtils.readAsync(reader, lh, 0L, 1L, true, 1024);
+
+        assertThat(future).isCompletedWithValue(entries);
+        future.getNow(null).close();
+        verify(lh).readAsync(0L, 1L);
+        verify(lh, never()).readUnconfirmedAsync(anyLong(), anyLong());
+        verify(lh, never()).batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong());
+    }
+
+    @DataProvider(name = "capturedReadOnlyFrontiers")
+    public Object[][] capturedReadOnlyFrontiers() {
+        return new Object[][]{{null}, {PositionFactory.create(0L, 99L)}, {PositionFactory.create(1L, 1L)}};
+    }
+
+    @Test(dataProvider = "capturedReadOnlyFrontiers")
+    public void testReadOnlyClosedSingleEntryUsesFinalHandleBound(Position capturedFrontier) {
+        ManagedLedger reader = mock(ReadOnlyManagedLedgerImpl.class);
+        when(reader.getOptionalLedgerInfo(1L)).thenReturn(Optional.of(new LedgerInfo().setLedgerId(1L)));
+        when(reader.getLastConfirmedEntry()).thenReturn(capturedFrontier);
+        when(lh.isClosed()).thenReturn(true);
+        when(lh.getLastAddConfirmed()).thenReturn(2L);
+        LedgerEntries entries = createLedgerEntries(1L, 2L);
+        when(lh.readAsync(2L, 2L)).thenReturn(CompletableFuture.completedFuture(entries));
+
+        CompletableFuture<LedgerEntries> future = ReadEntryUtils.readAsync(reader, lh, 2L, 2L, true, 1024);
+
+        assertThat(future).isCompletedWithValue(entries);
+        future.getNow(null).close();
+        verify(lh).readAsync(2L, 2L);
+        verify(lh, never()).readUnconfirmedAsync(anyLong(), anyLong());
+        verify(lh, never()).batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong());
+    }
+
+    @Test
+    public void testReadOnlyClosedSingleEntryPastFinalHandleBoundFails() {
+        ManagedLedger reader = mock(ReadOnlyManagedLedgerImpl.class);
+        when(reader.getOptionalLedgerInfo(1L)).thenReturn(Optional.of(new LedgerInfo().setLedgerId(1L)));
+        when(reader.getLastConfirmedEntry()).thenReturn(PositionFactory.create(1L, 1L));
+        when(lh.isClosed()).thenReturn(true);
+        when(lh.getLastAddConfirmed()).thenReturn(2L);
+        when(lh.readAsync(3L, 3L)).thenReturn(CompletableFuture.failedFuture(new BKException.BKReadException()));
+
+        CompletableFuture<LedgerEntries> future = ReadEntryUtils.readAsync(reader, lh, 3L, 3L, true, 1024);
+
+        assertThatThrownBy(future::get).hasCauseInstanceOf(BKException.BKReadException.class);
+        verify(lh).readAsync(3L, 3L);
+        verify(lh, never()).readUnconfirmedAsync(anyLong(), anyLong());
+        verify(lh, never()).batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong());
+    }
+
+    @DataProvider(name = "guardedReadCases")
+    public Object[][] guardedReadCases() {
+        List<Object[]> cases = new ArrayList<>();
+        for (String kind : List.of("writable", "shadow", "read-only-range", "read-only-closed-range")) {
+            for (Position frontier : new Position[]{null, PositionFactory.create(0L, 99L),
+                    PositionFactory.create(1L, 0L)}) {
+                cases.add(new Object[]{kind, frontier});
+            }
+        }
+        return cases.toArray(new Object[0][]);
+    }
+
+    @Test(dataProvider = "guardedReadCases")
+    public void testReadOnlyPointReadDoesNotBypassOtherReadBounds(String kind, Position frontier) {
+        ManagedLedger reader = switch (kind) {
+            case "shadow" -> mock(ShadowManagedLedgerImpl.class);
+            case "read-only-range", "read-only-closed-range" -> mock(ReadOnlyManagedLedgerImpl.class);
+            default -> mock(ManagedLedger.class);
+        };
+        when(reader.getOptionalLedgerInfo(1L)).thenReturn(Optional.of(new LedgerInfo().setLedgerId(1L)));
+        when(reader.getLastConfirmedEntry()).thenReturn(frontier);
+        when(lh.isClosed()).thenReturn(kind.equals("read-only-closed-range"));
+        long first = kind.endsWith("range") ? 0L : 1L;
+
+        CompletableFuture<LedgerEntries> future = ReadEntryUtils.readAsync(reader, lh, first, 1L, true, 1024);
+
+        assertThat(future).isCompletedExceptionally();
+        assertThatThrownBy(future::get).hasCauseInstanceOf(ManagedLedgerException.class);
+        verify(lh, never()).readUnconfirmedAsync(anyLong(), anyLong());
+        verify(lh, never()).readAsync(anyLong(), anyLong());
+        verify(lh, never()).batchReadUnconfirmedAsync(anyLong(), anyInt(), anyLong());
     }
 
     @Test

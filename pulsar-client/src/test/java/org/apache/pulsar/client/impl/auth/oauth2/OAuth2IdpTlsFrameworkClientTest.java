@@ -27,7 +27,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.google.common.io.Resources;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.opentelemetry.api.OpenTelemetry;
@@ -92,7 +93,7 @@ public class OAuth2IdpTlsFrameworkClientTest {
                 .keyManagerPassword(STORE_PW).keystorePassword(STORE_PW));
         idp.start();
         idp.stubFor(get(urlEqualTo("/probe")).willReturn(aResponse().withStatus(200).withBody("ok")));
-        eventLoopGroup = new NioEventLoopGroup(1);
+        eventLoopGroup = new MultiThreadIoEventLoopGroup(1, NioIoHandler.newFactory());
         timer = new HashedWheelTimer();
         scheduler = Executors.newSingleThreadScheduledExecutor();
     }

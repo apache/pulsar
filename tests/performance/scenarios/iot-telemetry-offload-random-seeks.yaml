@@ -1,0 +1,71 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Random reads of offloaded ledgers by time: the gateways publish 110,000 unbatched 1 KiB messages to one topic, 1 ms
+# apart, at 1,000 msg/s, into ledgers of 25,000 entries, which the brokers offload to an S3-compatible SeaweedFS as
+# soon as they roll over, deleting them from BookKeeper, while one application receives them. The namespace retains the
+# messages for an hour, so that the offloaded ledgers stay. After the workloads, the launcher unloads the topic, and
+# then seeks a subscription of its own 500 times to random publish times, each a reset by timestamp, which searches
+# the ledgers by publish time, and a read of the message at the new position. The brokers reach the storage with 10 ms
+# of delay each way, and the storage logs every request. The report's Seeks section shows the seeks' latencies and
+# the reads of offloaded data per seek.
+extends: iot-telemetry-base.yaml
+cluster:
+  brokers:
+    env:
+      # A ledger rolls over at 25,000 entries, without the 60-minute minimum between rollovers of
+      # configs/cluster-base.yaml
+      managedLedgerMaxEntriesPerLedger: "25000"
+      managedLedgerMinLedgerRolloverTimeMinutes: "0"
+      # An hour's retention, through the namespaces' defaults: the messages that the application has received stay
+      defaultRetentionTimeInMinutes: "60"
+      defaultRetentionSizeInMB: "-1"
+offload:
+  namespace: public/default
+  thresholdBytes: 0
+  deletionLagMillis: 0
+  logRequests: true
+  seeks:
+    count: 500
+    seed: 1
+    peek: true
+    unloadFirst: true
+network:
+  impairments:
+    offload-storage-latency:
+      between: [brokers, offload-storage]
+      delay: 10ms
+workloads:
+  iotTelemetry:
+    warmup:
+      seconds: 0
+    measurement:
+      seconds: 110
+    timeoutSeconds: 400
+    rate: 1000
+    payload:
+      size: 1024
+    devices:
+      count: 1000
+    gateways:
+      producer:
+        batchingEnabled: false
+    topics:
+      count: 1
+    applications:
+      count: 1
+      podsPerApplication: 1

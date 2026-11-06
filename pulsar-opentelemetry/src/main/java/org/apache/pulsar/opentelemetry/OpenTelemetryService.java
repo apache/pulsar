@@ -25,7 +25,6 @@ import io.opentelemetry.exporter.prometheus.PrometheusHttpServer;
 import io.opentelemetry.instrumentation.runtimetelemetry.RuntimeTelemetry;
 import io.opentelemetry.instrumentation.runtimetelemetry.RuntimeTelemetryBuilder;
 import io.opentelemetry.instrumentation.runtimetelemetry.internal.Experimental;
-import io.opentelemetry.instrumentation.runtimetelemetry.internal.Internal;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdkBuilder;
@@ -131,8 +130,7 @@ public class OpenTelemetryService implements Closeable {
         // For a list of exposed metrics, see https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/
         RuntimeTelemetryBuilder runtimeTelemetryBuilder =
                 RuntimeTelemetry.builder(openTelemetrySdkReference.get());
-        // Disable JFR-based telemetry and rely on JMX-based metrics only.
-        Internal.setDisableAllJfrFeatures(runtimeTelemetryBuilder, true);
+        // Leave JFR metrics unselected (disabled by default) and rely on JMX-based metrics only.
         // Emit experimental JMX-based runtime metrics in addition to the stable ones.
         Experimental.setEmitExperimentalMetrics(runtimeTelemetryBuilder, true);
         runtimeTelemetryReference.set(runtimeTelemetryBuilder.build());

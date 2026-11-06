@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api.v5;
 import io.opentelemetry.api.OpenTelemetry;
 import java.time.Duration;
 import org.apache.pulsar.client.api.v5.auth.Authentication;
+import org.apache.pulsar.client.api.v5.config.BackoffPolicy;
 import org.apache.pulsar.client.api.v5.config.ConnectionPolicy;
 import org.apache.pulsar.client.api.v5.config.MemorySize;
 import org.apache.pulsar.client.api.v5.config.TransactionPolicy;
@@ -101,6 +102,10 @@ public interface PulsarClientBuilder {
     /**
      * Configure connection-level settings such as timeouts, pool size, threading,
      * keep-alive, and proxy configuration.
+     *
+     * <p>The reconnection backoff's initial and max intervals are applied. A backoff whose
+     * multiplier is not 2, or whose jitter is not {@link BackoffPolicy#DEFAULT_JITTER_PERCENT},
+     * is rejected rather than ignored. The client doubles the delay on each attempt.
      *
      * @param policy the connection policy
      * @return this builder instance for chaining

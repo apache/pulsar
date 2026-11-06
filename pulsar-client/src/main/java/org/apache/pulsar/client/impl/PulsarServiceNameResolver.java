@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
@@ -155,7 +156,7 @@ public class PulsarServiceNameResolver implements ServiceNameResolver {
     private static int randomIndex(int numAddresses) {
         return numAddresses == 1
                 ?
-                0 : io.netty.util.internal.PlatformDependent.threadLocalRandom().nextInt(numAddresses);
+                0 : ThreadLocalRandom.current().nextInt(numAddresses);
     }
 
     /**

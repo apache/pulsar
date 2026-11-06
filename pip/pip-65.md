@@ -2,8 +2,8 @@
 
 * **Status**: Proposal
  * **Author**: [Sanjeev Kulkarni](https://github.com/srkukarni), [Jerry Peng](https://github.com/jerrypeng)
- * **Mailing List discussion**:
  * **Target Release**: 2.6.0
+ * **Mailing List discussion**: https://lists.apache.org/thread/p6zwkqg9sqbhoh53vtkpnf37krs2czwy
 
 ## Background
 

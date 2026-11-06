@@ -447,21 +447,33 @@ public abstract class BaseResource {
     }
 
     public static String getReasonFromServer(WebApplicationException e) {
+        String reason = parseErrorDataReason(readBody(e.getResponse()));
+        if (reason == null) {
+            reason = parseErrorDataReason(e.getMessage());
+        }
+        return reason != null ? reason : e.getMessage();
+    }
+
+    private static String readBody(Response response) {
         try {
-            return e.getResponse().readEntity(ErrorData.class).reason.toString();
+            // Read an inbound entity only once: any read attempt closes its stream
+            return response.readEntity(String.class);
         } catch (Exception ex) {
+            // Responses built in-process (e.g. by FunctionsImpl) are outbound and carry the body as their entity
             try {
-                return ObjectMapperFactory.getMapper().reader().readValue(
-                        e.getResponse().getEntity().toString(), ErrorData.class).reason;
+                return response.getEntity() instanceof String body ? body : null;
             } catch (Exception ex1) {
-                try {
-                    return ObjectMapperFactory.getMapper().reader()
-                            .readValue(e.getMessage(), ErrorData.class).reason;
-                } catch (Exception ex2) {
-                    // could not parse output to ErrorData class
-                    return e.getMessage();
-                }
+                return null;
             }
+        }
+    }
+
+    private static String parseErrorDataReason(String json) {
+        try {
+            return ObjectMapperFactory.getMapper().reader().readValue(json, ErrorData.class).reason;
+        } catch (Exception ex) {
+            // could not parse output to ErrorData class
+            return null;
         }
     }
 

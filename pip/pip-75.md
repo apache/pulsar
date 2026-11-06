@@ -2,9 +2,7 @@
 
 * **Status**: Proposal
 * **Author**: Matteo Merli
-* **Pull Request**:
-* **Mailing List discussion**:
-* **Release**:
+* **Mailing List discussion**: https://lists.apache.org/thread/bw1sq7b6dl6m6osgjqqym2mr8h5ocftd
 
 ## Motivation
 

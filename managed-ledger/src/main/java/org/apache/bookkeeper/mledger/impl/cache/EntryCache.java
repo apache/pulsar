@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl.cache;
 
+import java.util.function.BooleanSupplier;
 import java.util.function.IntSupplier;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
@@ -107,6 +108,50 @@ public interface EntryCache {
      *            the context object
      */
     void asyncReadEntry(ReadHandle lh, Position position, ReadEntryCallback callback, Object ctx);
+
+    /**
+     * Read an entry, as {@link #asyncReadEntry(ReadHandle, Position, ReadEntryCallback, Object)} does, caching it
+     * with the expected read count when it's read from storage.
+     *
+     * @param expectedReadCount
+     *            the expected read count that the entry is cached with when it's read from storage, a negative value
+     *            not to cache it, or {@link #DEFAULT_EXPECTED_READ_COUNT} for the cache's default for a single entry
+     */
+    default void asyncReadEntry(ReadHandle lh, Position position, int expectedReadCount, ReadEntryCallback callback,
+                                Object ctx) {
+        asyncReadEntry(lh, position, callback, ctx);
+    }
+
+    /**
+     * The expected read count argument for the cache's default for a single entry read.
+     */
+    int DEFAULT_EXPECTED_READ_COUNT = Integer.MIN_VALUE;
+
+    /**
+     * Whether the cache has the entry, without reading it.
+     *
+     * @param position
+     *            the entry's position
+     * @return whether the cache has the entry; false when the cache keeps no entries
+     */
+    default boolean hasEntry(Position position) {
+        return false;
+    }
+
+    /**
+     * Reads a range of entries ahead of a cursor into the cache, unless the range's first entry is cached, the cache
+     * is at its eviction watermark, a read of an overlapping range is pending, the cache wouldn't keep the entries, or
+     * the permits of the reads in flight aren't available right away. The entries that the read returns are released
+     * without counting as reads of the cached entries.
+     *
+     * @param cacheKeepsEntries whether the cache would keep the entries, checked after the cheaper conditions
+     * @param onComplete run once when the read ahead completes or fails, if it was started
+     * @return whether the read ahead was started
+     */
+    default boolean readAhead(ReadHandle lh, long firstEntry, long lastEntry, long maxSizeBytes,
+                              BooleanSupplier cacheKeepsEntries, IntSupplier expectedReadCount, Runnable onComplete) {
+        return false;
+    }
 
     /**
      * Get the total size in bytes of all the entries stored in this cache.

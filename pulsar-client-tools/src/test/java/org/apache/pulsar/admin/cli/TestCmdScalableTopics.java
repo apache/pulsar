@@ -25,8 +25,10 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ScalableTopics;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -149,5 +151,22 @@ public class TestCmdScalableTopics {
 
         verify(scalableTopics).listScalableTopicsByProperties(eq(namespace),
                 eq(Map.of("app", "cli", "mode", "blackbox")));
+    }
+
+    @Test
+    public void testPermissionCommands() throws Exception {
+        String topic = "topic://public/default/v5-cli-permissions";
+
+        assertTrue(cmdScalableTopics.run(new String[] {
+                "grant-permission", topic, "--role", "app", "--actions", "produce,consume"
+        }));
+        verify(scalableTopics).grantPermission(eq(topic), eq("app"),
+                eq(Set.of(AuthAction.produce, AuthAction.consume)));
+
+        assertTrue(cmdScalableTopics.run(new String[] {"permissions", topic}));
+        verify(scalableTopics).getPermissions(eq(topic));
+
+        assertTrue(cmdScalableTopics.run(new String[] {"revoke-permission", topic, "--role", "app"}));
+        verify(scalableTopics).revokePermissions(eq(topic), eq("app"));
     }
 }

@@ -2,7 +2,7 @@
 * Status: Proposed
 * Author: [Penghui Li](https://github.com/codelipenghui), [Jia Zhai](https://github.com/jiazhai)
 * Pull Request: [#2375](https://github.com/apache/pulsar/issues/2375), [#4062](https://github.com/apache/pulsar/pull/4062)
-* Mailing List Discussion: https://lists.apache.org/thread.html/977a8042581819769809f298bd2a2e9fd6b78598792c98069eb691e5@%3Cdev.pulsar.apache.org%3E
+* Mailing List Discussion: https://lists.apache.org/thread/jtd1l0bwjq4y8pcjk1pnmtnnbvys6gq0
 * Release: N/A
 
 ## Motivation

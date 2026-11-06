@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -29,15 +30,19 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import javax.net.ssl.SSLException;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.commons.compress.utils.IOUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.Assert;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
@@ -45,6 +50,41 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-api")
 @CustomLog
 public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
+
+    @DataProvider
+    public Object[][] tlsAuthenticationFailures() {
+        return new Object[][]{
+                {"JDK", true},
+                {"JDK", false},
+                {"OPENSSL", true},
+                {"OPENSSL", false}
+        };
+    }
+
+    @Test(dataProvider = "tlsAuthenticationFailures", timeOut = 30_000)
+    public void testMissingTlsClientCertificateFailsWithoutRetry(String sslProvider, boolean producer)
+            throws Exception {
+        try (PulsarClient client = PulsarClient.builder()
+                .serviceUrl(pulsar.getBrokerServiceUrlTls())
+                .sslProvider(sslProvider)
+                .tlsProtocols(Set.of("TLSv1.3"))
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
+                .operationTimeout(30, TimeUnit.SECONDS)
+                .build()) {
+            CompletableFuture<?> creation = producer
+                    ? client.newProducer().topic("persistent://my-property/my-ns/missing-cert").createAsync()
+                    : client.newConsumer().topic("persistent://my-property/my-ns/missing-cert")
+                            .subscriptionName("missing-cert").subscribeAsync();
+            Throwable failure = creation.handle((result, error) -> error).get(10, TimeUnit.SECONDS);
+            assertThat(failure).isNotNull();
+            Throwable cause = FutureUtil.unwrapCompletionException(failure);
+            assertThat(cause).isInstanceOf(PulsarClientException.class);
+            assertThat(PulsarClientException.isRetriableError(cause))
+                    .as("a TLS certificate_required alert must fail creation without retrying")
+                    .isFalse();
+            assertThat(cause.getCause()).isInstanceOf(SSLException.class);
+        }
+    }
 
     /**
      * verifies that messages whose size is larger than 2^14 bytes (max size of single TLS chunk) can be

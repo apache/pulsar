@@ -56,6 +56,6 @@ Configuration:
         AppenderRef:
           ref: File
     Root:
-      level: debug
+      level: info
       AppenderRef:
         ref: STDOUT

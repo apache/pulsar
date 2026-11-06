@@ -34,8 +34,8 @@ import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -46,7 +46,8 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
     private final String testTopic = "persistent://" + myNamespace + "/test-";
     private final AtomicInteger lastExitCode = new AtomicInteger(0);
 
-    @BeforeMethod
+    // The tests share a broker: each one uses topics of its own
+    @BeforeClass
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -63,7 +64,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(myNamespace, Sets.newHashSet("test"));
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -111,9 +112,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
         consumer1.close();
         consumer2.close();
         thread.interrupt();
-        while (thread.isAlive()) {
-            Thread.sleep(1000);
-        }
+        thread.join();
 
         //use msg key generator,so every consumer can get msg
         String newArgString = "%s -r 10 -u %s -m 500 -mk autoIncrement";
@@ -150,6 +149,7 @@ public class PerformanceProducerTest extends MockedPulsarServiceBaseTest {
                 });
 
         thread2.interrupt();
+        thread2.join();
         newConsumer1.close();
         newConsumer2.close();
     }

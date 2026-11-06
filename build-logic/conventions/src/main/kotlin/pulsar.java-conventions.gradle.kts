@@ -18,6 +18,7 @@
  */
 
 import java.io.File
+import org.gradle.api.attributes.java.TargetJvmVersion
 
 plugins {
     `java-library`
@@ -31,6 +32,7 @@ val catalog = the<VersionCatalogsExtension>().named("libs")
 // explicit versions rather than relying on the alignment platform being on every classpath).
 val jakartaActivationApiVersion = catalog.findVersion("jakarta-activation").get().requiredVersion
 val angusActivationVersion = catalog.findVersion("angus-activation").get().requiredVersion
+val grpcVersion = catalog.findVersion("grpc").get().requiredVersion
 
 // Internal version-alignment platform bucket.
 // The enforced platform (:pulsar-dependencies) must align the build's OWN resolution but must NOT
@@ -65,10 +67,72 @@ configurations.matching { it.name in platformAlignedClasspaths }.configureEach {
     extendsFrom(internalPlatform)
 }
 
+// Java 17 is a compatibility promise for client libraries and user-written Functions/IO APIs.
+// Keep this list explicit: a new server module must not silently lower its baseline, and a new
+// client dependency must be reviewed before joining the Java 17 dependency closure. Gradle's JVM
+// attributes reject project dependencies from this group onto Java 21 modules.
+val clientProjects = setOf(
+    ":pulsar-client-api", ":pulsar-client-api-v5", ":pulsar-client-admin-api",
+    ":pulsar-tls-factory-api", ":pulsar-http-client-api", ":pulsar-common",
+    ":pulsar-client-original", ":pulsar-client-v5", ":pulsar-client-admin-original",
+    ":pulsar-client-auth-athenz", ":pulsar-client-auth-sasl", ":pulsar-client-messagecrypto-bc",
+    ":pulsar-client-shaded", ":pulsar-client-all", ":pulsar-client-admin-shaded",
+    ":pulsar-client-v5-shaded", ":pulsar-client-v5-all", ":pulsar-client-fastutil-minimized",
+    ":pulsar-client-tools-api", ":pulsar-client-tools", ":pulsar-client-tools-test",
+    ":pulsar-client-tools-customcommand-example", ":pulsar-cli-utils",
+    ":pulsar-package-management:pulsar-package-core",
+    ":pulsar-functions:pulsar-functions-api", ":pulsar-io:pulsar-io-core",
+    // Test support must also load in the Java 17 consumer compatibility test JVM.
+    ":buildtools", ":testmocks", ":tests:pulsar-client-java-compatibility",
+)
+val pulsarJavaVersion = providers.gradleProperty("pulsarJavaVersion").map { it.toInt() }.orElse(21)
+val pulsarClientJavaVersion = providers.gradleProperty("pulsarClientJavaVersion").map { it.toInt() }.orElse(17)
+val mainJavaVersion = if (path in clientProjects) pulsarClientJavaVersion.get() else pulsarJavaVersion.get()
+// Client tests can embed the broker and Functions implementation. Test bytecode and dependency
+// resolution therefore have their own baseline, independent of the published main artifact.
+val testJavaVersion = if (path == ":tests:pulsar-client-java-compatibility") {
+    pulsarClientJavaVersion
+} else {
+    providers.gradleProperty("testJavaVersion").map { it.toInt() }
+}
+// A newer test JVM (-PtestJavaVersion=25) only changes the test launcher; test sources are still
+// compiled by the Gradle JDK, which may not support a release above the server baseline.
+val testRelease = minOf(testJavaVersion.getOrElse(pulsarJavaVersion.get()), pulsarJavaVersion.get())
+if (path == ":tests:pulsar-client-java-compatibility") {
+    tasks.withType<Test>().configureEach {
+        systemProperty("pulsarClientJavaVersion", pulsarClientJavaVersion.get())
+    }
+}
+java {
+    sourceCompatibility = JavaVersion.toVersion(mainJavaVersion)
+    targetCompatibility = JavaVersion.toVersion(mainJavaVersion)
+}
+configurations.matching { it.name in setOf("testCompileClasspath", "testRuntimeClasspath") }.configureEach {
+    // Follow explicit module overrides too (for example the Java 21 performance tools).
+    attributes.attributeProvider(TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE,
+        tasks.named<JavaCompile>("compileTestJava").flatMap { it.options.release })
+}
+
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
-    options.release.set(17)
+    options.release.set(mainJavaVersion)
     options.compilerArgs.addAll(listOf("-parameters", "-Xlint:deprecation", "-Xlint:unchecked"))
+}
+
+tasks.named<JavaCompile>("compileTestJava") {
+    options.release.set(testRelease)
+}
+
+if (path in clientProjects) {
+    val verifyClientJavaCompatibility = tasks.register<VerifyJavaCompatibility>("verifyClientJavaCompatibility") {
+        group = "verification"
+        description = "Check client/API classes and dependencies against pulsarClientJavaVersion."
+        javaVersion.set(pulsarClientJavaVersion)
+        classpath.from(sourceSets.main.get().output.classesDirs,
+            configurations.named("compileClasspath"), configurations.named("runtimeClasspath"))
+    }
+    tasks.named("check") { dependsOn(verifyClientJavaCompatibility) }
+    tasks.named("assemble") { dependsOn(verifyClientJavaCompatibility) }
 }
 
 configurations.all {
@@ -125,6 +189,20 @@ dependencies {
                 }
             }
         }
+        // grpc-netty-shaded bundles its own relocated copy of Netty, which duplicates the Netty that
+        // Pulsar already ships and stays outside Pulsar's Netty version management. The BookKeeper
+        // stream-storage modules depend on it, but only reach the transport through gRPC's provider
+        // lookup (ManagedChannelBuilder/ServerBuilder), so the unshaded grpc-netty, which uses
+        // Pulsar's Netty, works in its place.
+        all {
+            allVariants {
+                withDependencies {
+                    if (removeAll { it.group == "io.grpc" && it.name == "grpc-netty-shaded" }) {
+                        add("io.grpc:grpc-netty:$grpcVersion")
+                    }
+                }
+            }
+        }
         // async-http-client depends on the classic io.netty:netty-codec module, which in Netty 4.2
         // is an empty backwards-compatibility aggregator that only adds the unused
         // netty-codec-marshalling and netty-codec-protobuf modules to the classpath. The codec
@@ -170,15 +248,6 @@ dependencies {
         }
     }
 
-    // Allow overriding protobuf version via -PprotobufVersion=4.31.1 for protobuf v4 tests
-    providers.gradleProperty("protobufVersion").orNull?.let { protobufVersion ->
-        configurations.all {
-            resolutionStrategy {
-                force("com.google.protobuf:protobuf-java:$protobufVersion")
-            }
-        }
-    }
-
     // Annotation processing for Lombok
     "compileOnly"(catalog.findLibrary("lombok").get())
     "annotationProcessor"(catalog.findLibrary("lombok").get())
@@ -199,8 +268,7 @@ dependencies {
     "testRuntimeOnly"(catalog.findLibrary("log4j-jul").get())
 }
 
-// Allow overriding the JDK used for running tests via -PtestJavaVersion=17
-val testJavaVersion = providers.gradleProperty("testJavaVersion").map { it.toInt() }
+// Allow overriding the JDK used for running tests via -PtestJavaVersion=17.
 val javaToolchains = extensions.getByType<JavaToolchainService>()
 // Effective Java major version used to run tests: the -PtestJavaVersion override when set,
 // otherwise the JVM running Gradle.
@@ -311,6 +379,82 @@ tasks.withType<Test>().configureEach {
         // every test JVM that touches a Netty native transport prints a multi-line warning to
         // stderr, which is noise in test output and breaks assertions on empty stderr.
         jvmArgs("--enable-native-access=ALL-UNNAMED")
+    }
+}
+
+// CI runs the unit test groups as `testShards` (see pulsar-build/run_unit_group_gradle.sh). A test task
+// deals its classes to its forks round-robin, in class name order, before any of them runs, so a few slow
+// classes that sort close together can share a fork while the other forks finish early. With
+// `-PtestShards=N` and the durations in `-PtestShardDurations` (lines of "<seconds> <class name>", which CI
+// records from its previous run of the group), `testShards` runs N test tasks with one fork each, which
+// Gradle runs in parallel when the configuration cache is on, with the classes packed longest-first. A
+// class missing from that file goes by a hash of its name. Every test class goes to exactly one shard, so
+// the shards run the same tests as `test`. Without recorded durations, `testShards` runs `test`.
+val testShardCount = providers.gradleProperty("testShards").map { it.toInt() }.getOrElse(0)
+if (testShardCount > 0) {
+    // Locals, so that the exclude spec below doesn't capture the script object (configuration cache).
+    val shardCount = testShardCount
+    val shardOfClass = mutableMapOf<String, Int>()
+    val shardSeconds = DoubleArray(shardCount)
+    providers.gradleProperty("testShardDurations")
+        .flatMap { providers.fileContents(rootProject.layout.projectDirectory.file(it)).asText }
+        .getOrElse("")
+        .lines()
+        .mapNotNull { line ->
+            val fields = line.trim().split(Regex("\\s+"))
+            val seconds = fields[0].toDoubleOrNull()
+            if (seconds != null && fields.size == 2) fields[1] to seconds else null
+        }
+        .sortedWith(compareByDescending<Pair<String, Double>> { it.second }.thenBy { it.first })
+        .forEach { (className, seconds) ->
+            val shard = shardSeconds.indices.minBy { shardSeconds[it] }
+            shardOfClass[className] = shard
+            shardSeconds[shard] += seconds
+        }
+    if (shardOfClass.isEmpty()) {
+        tasks.register("testShards") {
+            description = "Runs the tests with `test`, as there are no recorded durations to balance shards by."
+            group = "verification"
+            dependsOn("test")
+        }
+    } else {
+        // FailFastNotifier creates this file when a test fails and, with testFailFast, skips the remaining
+        // tests while it exists, so that a failure stops the other shards too. The shards share it, so it is
+        // neither an output nor local state of theirs: Gradle doesn't run tasks whose outputs or local state
+        // overlap at the same time.
+        val failFastFile = layout.buildDirectory.file("test-shards/fail-fast")
+        val resetFailFast = tasks.register<Delete>("testShardsResetFailFast") {
+            delete(failFastFile)
+        }
+        val testSourceSet = project.the<SourceSetContainer>()["test"]
+        // The `withType<Test>` blocks, in this plugin and in the modules, configure the shards like `test`, with
+        // the same system properties, JVM arguments, TestNG options and task dependencies.
+        val shards = (0 until shardCount).map { shard ->
+            tasks.register<Test>("testShard${shard + 1}") {
+                description = "Runs shard ${shard + 1} of $shardCount of the tests, in one fork."
+                group = "verification"
+                testClassesDirs = testSourceSet.output.classesDirs
+                classpath = testSourceSet.runtimeClasspath
+                maxParallelForks = 1
+                exclude { element ->
+                    val path = element.relativePath.pathString
+                    if (element.isDirectory || !path.endsWith(".class")) {
+                        false
+                    } else {
+                        // A nested class goes with its top-level class.
+                        val className = path.removeSuffix(".class").substringBefore('$').replace('/', '.')
+                        (shardOfClass[className] ?: Math.floorMod(className.hashCode(), shardCount)) != shard
+                    }
+                }
+                systemProperty("testFailFastFile", failFastFile.get().asFile.absolutePath)
+                dependsOn(resetFailFast)
+            }
+        }
+        tasks.register("testShards") {
+            description = "Runs the tests as $shardCount test tasks with one fork each, balanced by recorded durations."
+            group = "verification"
+            dependsOn(shards)
+        }
     }
 }
 

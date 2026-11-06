@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.Closeable;
-import java.io.IOException;
 import java.util.List;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.Message;
@@ -114,7 +113,7 @@ public class ProducerInterceptors implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         for (ProducerInterceptor interceptor : interceptors) {
             try {
                 interceptor.close();

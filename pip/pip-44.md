@@ -2,9 +2,7 @@
 
 * **Status**: Adopted, Release 2.5.0
 * **Author**: Bo Cong, Penghui Li
-* **Pull Request**:
-* **Mailing List discussion**:
-* **Release**:
+* **Mailing List discussion**: https://lists.apache.org/thread/xkvn9mdcgygx202q2t7h996cdgqmlw7t
 
 ## Motivation
 

@@ -1,0 +1,32 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# A cluster that can lose a broker or a bookie, for the fault overlays: two brokers, both in the workloads' service URL
+# so that the clients can look topics up on either, and four bookies with an ensemble, a write quorum and an ack quorum
+# of 3, 3 and 2: an entry is acknowledged by the two fastest of its three bookies, and a fourth bookie can replace a
+# failed one. The fault overlays extend it; the memory of each container comes from the base scenario.
+
+cluster:
+  brokers:
+    replicas: 2
+    bootstrap: all
+    env:
+      managedLedgerDefaultEnsembleSize: "3"
+      managedLedgerDefaultWriteQuorum: "3"
+      managedLedgerDefaultAckQuorum: "2"
+  bookies:
+    replicas: 4

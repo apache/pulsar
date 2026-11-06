@@ -25,7 +25,7 @@ import org.apache.pulsar.common.classification.InterfaceAudience;
 import org.apache.pulsar.common.classification.InterfaceStability;
 
 /**
- * Opaque unique identifier of a single message
+ * Opaque unique identifier of a single message.
  *
  * <p>The MessageId can be used to reference a specific message, for example when acknowledging, without having
  * to retain the message content in memory for an extended period of time.

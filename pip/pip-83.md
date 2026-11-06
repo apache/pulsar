@@ -3,8 +3,7 @@
 * **Status**: Implemented
 * **Authors**: Matteo Merli, Rajan Dhabalia
 * **Pull Request**: https://github.com/apache/pulsar/pull/10184
-* **Mailing List discussion**:
-* **Release**:
+* **Mailing List discussion**: https://lists.apache.org/thread/m941o4j9tj8ykcs6bgsm1x5lbh97z11d
 
 ## Motivation
 

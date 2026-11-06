@@ -53,6 +53,7 @@ public class CommandGenerator {
     private String logTopic;
     private String outputSerDe;
     private String processingGuarantees;
+    private Long timeoutMs;
     private Runtime runtime;
     private Integer parallelism;
     private String adminUrl;
@@ -209,6 +210,9 @@ public class CommandGenerator {
         }
         if (processingGuarantees != null) {
             commandBuilder.append(" --processingGuarantees " + processingGuarantees);
+        }
+        if (timeoutMs != null) {
+            commandBuilder.append(" --timeout-ms " + timeoutMs);
         }
         if (!userConfig.isEmpty()) {
             commandBuilder.append(" --userConfig \'" + new Gson().toJson(userConfig) + "\'");

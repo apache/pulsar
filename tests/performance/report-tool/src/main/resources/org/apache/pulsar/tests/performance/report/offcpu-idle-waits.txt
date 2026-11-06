@@ -1,0 +1,52 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Frames that mark a thread waiting for work rather than for something it needs to make progress, passed to
+# `jonoffcpu-correlator stacks --exclude-from` for the offcpu-no-idle flame graph. An interval with any of these
+# frames anywhere in its Java, native or kernel stack is left out, so that what remains is time a thread was
+# blocked while busy: lock and monitor contention, safepoints, GC phases and I/O.
+#
+# One Java regular expression per line, matched against each frame's full name whatever --package-names renders.
+# Each names the wait itself rather than the thread's run loop, so that a lock taken while running a task stays
+# visible. Native frames are only symbolized with glibc, so the JVM's own threads are recognized on the Wolfi image.
+
+# Netty event loops and timers, and NIO selectors such as ZooKeeper's, waiting for the network
+^io\.netty\.channel\.epoll\.Native\.epollWait0?$
+^io\.netty\.util\.HashedWheelTimer\$Worker\.waitForNextTick$
+^sun\.nio\.ch\.SelectorImpl\.select$
+
+# Executor threads waiting for a task, whichever queue backs the pool
+^java\.util\.concurrent\.ThreadPoolExecutor\.getTask$
+^java\.util\.concurrent\.ForkJoinPool\.awaitWork$
+^java\.util\.concurrent\.[\w$]*(BlockingQueue|BlockingDeque|TransferQueue|DelayedWorkQueue|DelayQueue|SynchronousQueue)\.take$
+^org\.apache\.bookkeeper\.common\.collections\.[\w$]*BlockingQueue\.take(All)?$
+# Jetty's reserved threads (the broker's pulsar-web pool) waiting to be handed a job
+^org\.eclipse\.jetty\.util\.thread\.ReservedThreadExecutor\$ReservedThread\.waitForTask$
+
+# JDK housekeeping threads
+^java\.lang\.ref\.Reference\.waitForReferencePendingList$
+^java\.lang\.ref\.ReferenceQueue\.remove$
+^jdk\.jfr\.internal\.PlatformRecorder\.takeNap$
+
+# HotSpot's service, compiler and idle GC threads. The waits inside a GC phase, such as a driver waiting in
+# WorkerThreads::run_task for its workers, are not matched. WorkerThread::run also parents a GC worker's task, so
+# a worker blocked inside a task is excluded too; that was 33 ms of a broker run.
+^libjvm\.so\.(WorkerThread::run|CompileQueue::get|VMThread::wait_for_operation|WatcherThread::sleep|AsyncLogWriter::run|NotificationThread::notification_thread_entry|ServiceThread::service_thread_entry|MonitorDeflationThread::monitor_deflation_thread_entry|recorderthread_entry)$
+^libjvm\.so\.(ZDriverPort::receive|ZDirector::run_thread|ZMetronome::wait_for_tick|G1\w*Thread::wait_for_\w+)$
+
+# The profiler's own timer thread, and threads switched out inside its sampling signal handler
+^libasyncProfiler\.so\.(Profiler::timerLoop|PerfEvents::signalHandler)$

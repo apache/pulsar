@@ -54,6 +54,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.OpenTelemetryTopicStats;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.client.admin.LongRunningProcessStatus;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
@@ -68,6 +69,7 @@ import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.protocol.Commands;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.opentelemetry.OpenTelemetryAttributes;
 import org.awaitility.Awaitility;
 import org.mockito.Mockito;
@@ -406,6 +408,46 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
                 lastMessagePosition.entryId()) >= 0);
 
         future.join();
+    }
+
+    @Test
+    public void testLastMessagePositionOfCompressedBatch() throws Exception {
+        String topic = BrokerTestUtil.newUniqueName(
+                "persistent://my-property/my-ns/testLastMessagePositionOfCompressedBatch");
+        final int numMessages = 5;
+
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic)
+                .compressionType(CompressionType.LZ4)
+                .compressionMinMsgBodySize(0)
+                .enableBatching(true)
+                .batchingMaxMessages(numMessages)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                .messageRoutingMode(MessageRoutingMode.SinglePartition)
+                .create();
+        List<CompletableFuture<MessageId>> futures = new ArrayList<>();
+        for (int i = 0; i < numMessages; i++) {
+            // a compressible value so that the compressed batch payload differs from the uncompressed one
+            futures.add(producer.newMessage().key("key-" + i).value(("value-" + i).repeat(20).getBytes())
+                    .sendAsync());
+        }
+        FutureUtil.waitForAll(futures).get();
+
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
+        PulsarTopicCompactionService topicCompactionService =
+                (PulsarTopicCompactionService) persistentTopic.getTopicCompactionService();
+
+        long compactedLedgerId = compact(topic);
+        Awaitility.await().untilAsserted(() -> {
+            Optional<CompactedTopicContext> compactedTopicContext = topicCompactionService.getCompactedTopic()
+                    .getCompactedTopicContext();
+            assertThat(compactedTopicContext).isPresent();
+            assertThat(compactedTopicContext.get().ledger.getId()).isEqualTo(compactedLedgerId);
+        });
+
+        // the last entry of the compacted ledger is a compressed batch of numMessages messages
+        final var lastMessagePosition = topicCompactionService.getLastMessagePosition().get();
+        assertThat(lastMessagePosition.batchIndex()).isEqualTo(numMessages - 1);
     }
 
     public ByteBuf extractPayload(RawMessage m) throws Exception {

@@ -24,6 +24,7 @@ import static org.testng.Assert.assertTrue;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import org.apache.pulsar.packages.management.core.exceptions.PackagesManagementException.MetadataFormatException;
 import org.testng.annotations.Test;
@@ -61,7 +62,23 @@ public class PackageMetadataSerdeTest {
     }
 
     @Test
-    public void testJsonReadableWhenLegacyDisabled() throws MetadataFormatException {
+    public void testLegacyBytesWrittenByPulsar42AreReadable() throws MetadataFormatException {
+        // sampleMetadata() Java-serialized by Pulsar 4.2.4 (and identical in 4.0.x), whose PackageMetadata had
+        // no explicit serialVersionUID. Pins the serialVersionUID so that metadata stored by earlier releases
+        // stays readable after an upgrade.
+        byte[] bytes = Base64.getDecoder().decode(
+                "rO0ABXNyAEFvcmcuYXBhY2hlLnB1bHNhci5wYWNrYWdlcy5tYW5hZ2VtZW50LmNvcmUuY29tbW9uLlBhY2thZ2VNZXRhZGF0"
+                        + "Yc6i+Qb080CGAgAFSgAKY3JlYXRlVGltZUoAEG1vZGlmaWNhdGlvblRpbWVMAAdjb250YWN0dAASTGphdmEvbGFu"
+                        + "Zy9TdHJpbmc7TAALZGVzY3JpcHRpb25xAH4AAUwACnByb3BlcnRpZXN0AA9MamF2YS91dGlsL01hcDt4cAAAAAAA"
+                        + "AAPoAAAAAAAAB9B0AA90ZXN0QGFwYWNoZS5vcmd0ADR0ZXN0IHBhY2thZ2UgbWV0YWRhdGEgc2VyaWFsaXplIGFu"
+                        + "ZCBkZXNlcmlhbGl6ZSBmbG93c3IAEWphdmEudXRpbC5IYXNoTWFwBQfawcMWYNEDAAJGAApsb2FkRmFjdG9ySQAJ"
+                        + "dGhyZXNob2xkeHA/QAAAAAAADHcIAAAAEAAAAAF0AAd0ZXN0S2V5dAAJdGVzdFZhbHVleA==");
+        PackageMetadata metadata = PackageMetadataUtil.fromBytes(bytes, true);
+        assertEquals(metadata, sampleMetadata());
+    }
+
+    @Test
+    public void testJsonReadableWhenLegacyDisabled()throws MetadataFormatException {
         PackageMetadata metadata = sampleMetadata();
         byte[] jsonBytes = PackageMetadataUtil.toBytes(metadata, true);
         // JSON is safe regardless of the legacy flag.

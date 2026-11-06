@@ -4,8 +4,8 @@
  * **Author**: [Sanjeev Kulkarni](https://github.com/srkukarni), [Jerry Peng](https://github.com/jerrypeng), [Sijie Guo](https://github.com/sijie)
  * **Pull Request**:
    - [#1314](https://github.com/apache/incubator-pulsar/pull/1314)
- * **Mailing List discussion**:
  * **Release**: 2.0.0
+ * **Mailing List discussion**: https://lists.apache.org/thread/jd544kntw5qts9n7r26fo61c5xllq618
 
 ## Background
 

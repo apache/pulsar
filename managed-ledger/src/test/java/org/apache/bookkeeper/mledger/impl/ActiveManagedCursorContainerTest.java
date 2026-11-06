@@ -84,6 +84,30 @@ public class ActiveManagedCursorContainerTest implements ITest {
     }
 
     @Test
+    public void testNumberOfCursorsAtPositionOrBefore() {
+        ActiveManagedCursorContainer container = containerSupplier.get();
+        // two cursors at each of the entries 2, 4 and 6
+        IntStream.rangeClosed(1, 6)
+                .mapToObj(idx -> createCursor(container, "cursor" + idx,
+                        PositionFactory.create(1, 2 * ((idx + 1) / 2))))
+                .forEach(cursor -> container.add(cursor, cursor.getReadPosition()));
+        assertThat(container.getNumberOfCursorsAtPositionOrBefore(null, PositionFactory.create(1, 1))).isEqualTo(0);
+        assertThat(container.getNumberOfCursorsAtPositionOrBefore(null, PositionFactory.create(1, 2))).isEqualTo(2);
+        assertThat(container.getNumberOfCursorsAtPositionOrBefore(null, PositionFactory.create(1, 3))).isEqualTo(2);
+        assertThat(container.getNumberOfCursorsAtPositionOrBefore(null, PositionFactory.create(1, 5))).isEqualTo(4);
+        assertThat(container.getNumberOfCursorsAtPositionOrBefore(null, PositionFactory.create(1, 6))).isEqualTo(6);
+        assertThat(container.getNumberOfCursorsAtPositionOrBefore(null, PositionFactory.create(2, 0))).isEqualTo(6);
+        // after a cursor moves past the position
+        container.updateCursor(container.get("cursor1"), PositionFactory.create(1, 7));
+        assertThat(container.getNumberOfCursorsAtPositionOrBefore(null, PositionFactory.create(1, 6))).isEqualTo(5);
+        // from a cursor at the position or before it, and from one after it
+        assertThat(container.getNumberOfCursorsAtPositionOrBefore(container.get("cursor3"),
+                PositionFactory.create(1, 5))).isEqualTo(3);
+        assertThat(container.getNumberOfCursorsAtPositionOrBefore(container.get("cursor1"),
+                PositionFactory.create(1, 5))).isEqualTo(3);
+    }
+
+    @Test
     public void testAddingMultipleWithSamePosition() {
         int numberOfCursors = 1000;
         ActiveManagedCursorContainer container = containerSupplier.get();

@@ -42,7 +42,7 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.Assert;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
@@ -83,7 +83,7 @@ public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
         pulsarAdminBuilder.authentication(AuthenticationFactory.token(adminToken));
     }
 
-    @BeforeMethod
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         conf.setAuthenticationEnabled(true);
@@ -108,6 +108,12 @@ public class AuthenticatedConsumerStatsTest extends ConsumerStatsTest{
 
         super.internalSetup();
         super.producerBaseSetup();
+    }
+
+    // Replaced by testConsumerStatsOutput() below. A skipped method would make the next one restart the broker.
+    @Test(enabled = false)
+    @Override
+    public void testConsumerStatsOutput(SubscriptionType subscriptionType) {
     }
 
     @Test

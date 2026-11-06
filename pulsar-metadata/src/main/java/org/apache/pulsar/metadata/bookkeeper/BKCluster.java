@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.bookkeeper;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.io.FileUtils.cleanDirectory;
 import java.io.File;
 import java.io.IOException;
@@ -31,9 +32,12 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.bookkeeper.bookie.BookieImpl;
+import org.apache.bookkeeper.bookie.Cookie;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.allocator.PoolingPolicy;
 import org.apache.bookkeeper.common.component.Lifecycle;
@@ -42,6 +46,7 @@ import org.apache.bookkeeper.common.component.LifecycleComponentStack;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.bookkeeper.proto.BookieServer;
 import org.apache.bookkeeper.replication.AutoRecoveryMain;
 import org.apache.bookkeeper.server.conf.BookieConfiguration;
@@ -78,6 +83,8 @@ public class BKCluster implements AutoCloseable {
         private String metadataServiceUri;
         private int numBookies = 1;
         private String dataDir;
+        private String bookieIdPrefix;
+        private int bkPort;
 
         private boolean clearOldData;
 
@@ -98,6 +105,26 @@ public class BKCluster implements AutoCloseable {
 
         public BKClusterConf dataDir(String dataDir) {
             this.dataDir = dataDir;
+            return this;
+        }
+
+        /**
+         * Use {@code prefix-index} IDs for new bookies. The prefix must be unique among
+         * clusters sharing a metadata store. Existing cookies always retain their IDs.
+         * When unset, new bookie IDs include a hash of the data-directory path.
+         */
+        public BKClusterConf bookieIdPrefix(String bookieIdPrefix) {
+            this.bookieIdPrefix = bookieIdPrefix;
+            return this;
+        }
+
+        /**
+         * Set the base listening port for bookies, or zero for kernel-assigned ports.
+         * Legacy host:port cookies take precedence over this setting.
+         */
+        public BKClusterConf bkPort(int bkPort) {
+            checkArgument(bkPort >= 0 && bkPort <= 65535, "Invalid bookie base port: %s", bkPort);
+            this.bkPort = bkPort;
             return this;
         }
 
@@ -227,12 +254,42 @@ public class BKCluster implements AutoCloseable {
             cleanDirectory(dataDir);
         }
 
-        // Bookies bind to a kernel-assigned port. Identity is established via a `bookieId`
-        // derived from the data dir path: bookies with the same dir (e.g. on cluster restart)
-        // get the same id so cookies match, while bookies with different dirs (e.g. separate
-        // test runs sharing the same metadata store) get different ids and don't collide.
-        String bookieId = "bk-" + index + "-" + Integer.toHexString(dataDir.getAbsolutePath().hashCode());
-        return newServerConfiguration(0, bookieId, dataDir, new File[]{dataDir});
+        // The cookie's identity is also referenced by ledger ensembles, so preserve it
+        // regardless of how IDs are configured for new bookies.
+        String bookieId = null;
+        File cookieDir = new File(dataDir, "current");
+        if (new File(cookieDir, "VERSION").exists()) {
+            bookieId = parseBookieAddressFromCookie(cookieDir);
+            if (bookieId.contains(":")) {
+                // Legacy standalone bookies must also retain their listening address.
+                BookieSocketAddress bookieAddress = new BookieSocketAddress(bookieId);
+                ServerConfiguration conf = newServerConfiguration(bookieAddress.getPort(), bookieId,
+                        dataDir, new File[]{dataDir});
+                conf.setAdvertisedAddress(bookieAddress.getHostName());
+                return conf;
+            }
+        }
+
+        // Standalone uses an explicit identity prefix;
+        // the default isolates test clusters with different directories sharing a metadata store.
+        if (bookieId == null) {
+            bookieId = clusterConf.bookieIdPrefix != null ? clusterConf.bookieIdPrefix + "-" + index
+                    : "bk-" + index + "-" + Integer.toHexString(dataDir.getAbsolutePath().hashCode());
+        }
+        int port = clusterConf.bkPort == 0 ? 0 : clusterConf.bkPort + index;
+        checkArgument(port <= 65535, "Bookie port out of range: %s", port);
+        return newServerConfiguration(port, bookieId, dataDir, new File[]{dataDir});
+    }
+
+    private String parseBookieAddressFromCookie(File dir) throws IOException {
+        Cookie cookie = Cookie.readFromDirectory(dir);
+        // Cookie has no public accessor for its bookie ID. The bookieHost field contains
+        // either a legacy host:port address or an ID independent of the network address.
+        Matcher matcher = Pattern.compile("bookieHost: \"([^\"]+)\"").matcher(cookie.toString());
+        if (!matcher.find()) {
+            throw new IOException("Missing bookie identity in cookie in " + dir);
+        }
+        return matcher.group(1);
     }
 
     private ClientConfiguration newClientConfiguration() {

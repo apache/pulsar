@@ -29,6 +29,7 @@ import lombok.CustomLog;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SizeUnit;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.functions.instance.AuthenticationConfig;
@@ -101,8 +102,37 @@ public class ThreadRuntimeFactoryTest {
     }
 
 
-    @SuppressWarnings("unchecked")
+    @Test
+    public void testWorkerMemoryLimitUsedWhenFactoryLimitNotSet() throws Exception {
+        ClientBuilder clientBuilder = initWithMemoryLimits(null, new MemoryLimit().setPercentOfMaxDirectMemory(50.0));
+        Mockito.verify(clientBuilder, Mockito.times(1))
+                .memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 2), Mockito.eq(SizeUnit.BYTES));
+    }
+
+    @Test
+    public void testFactoryMemoryLimitOverridesWorkerMemoryLimit() throws Exception {
+        ClientBuilder clientBuilder = initWithMemoryLimits(
+                new ThreadRuntimeFactoryConfig.MemoryLimit().setAbsoluteValue(JVM_MAX_DIRECT_MEMORY / 4),
+                new MemoryLimit().setPercentOfMaxDirectMemory(50.0));
+        Mockito.verify(clientBuilder, Mockito.times(1))
+                .memoryLimit(Mockito.eq(JVM_MAX_DIRECT_MEMORY / 4), Mockito.eq(SizeUnit.BYTES));
+    }
+
     private ClientBuilder testMemoryLimit(Long absolute, Double percent) throws Exception {
+        ThreadRuntimeFactoryConfig.MemoryLimit memoryLimit = new ThreadRuntimeFactoryConfig.MemoryLimit();
+        if (percent != null) {
+            memoryLimit.setPercentOfMaxDirectMemory(percent);
+        }
+
+        if (absolute != null) {
+            memoryLimit.setAbsoluteValue(absolute);
+        }
+        return initWithMemoryLimits(memoryLimit, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private ClientBuilder initWithMemoryLimits(ThreadRuntimeFactoryConfig.MemoryLimit factoryMemoryLimit,
+                                               MemoryLimit workerMemoryLimit) throws Exception {
         try (MockedStatic<PulsarClient> mockedPulsarClient = mockStatic(PulsarClient.class)) {
             ClientBuilder clientBuilder = Mockito.mock(ClientBuilder.class);
             mockedPulsarClient.when(PulsarClient::builder).thenAnswer(i -> clientBuilder);
@@ -111,21 +141,14 @@ public class ThreadRuntimeFactoryTest {
 
             ThreadRuntimeFactoryConfig threadRuntimeFactoryConfig = new ThreadRuntimeFactoryConfig();
             threadRuntimeFactoryConfig.setThreadGroupName("foo");
-            ThreadRuntimeFactoryConfig.MemoryLimit memoryLimit = new ThreadRuntimeFactoryConfig.MemoryLimit();
-            if (percent != null) {
-                memoryLimit.setPercentOfMaxDirectMemory(percent);
-            }
-
-            if (absolute != null) {
-                memoryLimit.setAbsoluteValue(absolute);
-            }
-            threadRuntimeFactoryConfig.setPulsarClientMemoryLimit(memoryLimit);
+            threadRuntimeFactoryConfig.setPulsarClientMemoryLimit(factoryMemoryLimit);
 
             WorkerConfig workerConfig = new WorkerConfig();
             workerConfig.setFunctionRuntimeFactoryClassName(ThreadRuntimeFactory.class.getName());
             workerConfig.setFunctionRuntimeFactoryConfigs(ObjectMapperFactory.getMapper().getObjectMapper()
                     .convertValue(threadRuntimeFactoryConfig, Map.class));
             workerConfig.setPulsarServiceUrl("pulsar://broker.pulsar:6650");
+            workerConfig.setPulsarClientMemoryLimit(workerMemoryLimit);
 
             ThreadRuntimeFactory threadRuntimeFactory = new ThreadRuntimeFactory();
 

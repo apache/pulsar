@@ -134,6 +134,13 @@ public class ManagedLedgerMBeanImpl implements ManagedLedgerMXBean {
         entriesRead.recordEvent(count);
     }
 
+    /**
+     * Counts the entries as read one by one, as {@code entries} calls of {@code addEntriesRead(1)} would.
+     */
+    public void addEntriesReadOneByOne(int entries) {
+        entriesRead.recordMultipleEvents(entries, entries);
+    }
+
     public void startDataLedgerOpenOp() {
         dataLedgerOpenOp.increment();
     }

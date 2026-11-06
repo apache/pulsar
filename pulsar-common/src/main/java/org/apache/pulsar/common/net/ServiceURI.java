@@ -40,7 +40,8 @@ import org.apache.commons.lang3.StringUtils;
  * ServiceURI represents service uri within pulsar cluster.
  *
  * <p>This file is based on
- * {@link https://github.com/apache/bookkeeper/blob/master/bookkeeper-common/src/main/java/org/apache/bookkeeper/common/net/ServiceURI.java}
+ * <a href="https://github.com/apache/bookkeeper/blob/master/bookkeeper-common/src/main/java/org/apache/bookkeeper/common/net/ServiceURI.java">
+ * BookKeeper ServiceURI</a>.
  */
 @RequiredArgsConstructor(access = AccessLevel.PRIVATE)
 @Getter

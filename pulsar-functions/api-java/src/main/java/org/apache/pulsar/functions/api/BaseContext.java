@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.api;
 
 import java.nio.ByteBuffer;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.classification.InterfaceAudience;
@@ -214,6 +215,32 @@ public interface BaseContext {
      * @return the instance of pulsar client builder.
      */
     default ClientBuilder getPulsarClientBuilder() {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
+    /**
+     * Get the pre-configured pulsar admin client.
+     *
+     * You can use this admin client to administrate a Pulsar cluster. It is only available when the function
+     * worker sets {@code exposeAdminClientEnabled}; otherwise this method throws an exception.
+     *
+     * @return The instance of pulsar admin client
+     */
+    default PulsarAdmin getPulsarAdmin() {
+        throw new UnsupportedOperationException("not implemented");
+    }
+
+    /**
+     * Get the pre-configured Pulsar V5 client.
+     *
+     * <p>Use it to reach {@code topic://} (scalable) topics, which only the V5 client supports. To publish to a
+     * {@code topic://} topic, {@code newOutputMessage} is enough: it uses the V5 client for such topics. The runtime
+     * creates the client on first use and shares it with the other instances it runs, so the function must not close
+     * it.
+     *
+     * @return the instance of the Pulsar V5 client
+     */
+    default org.apache.pulsar.client.api.v5.PulsarClient getPulsarClientV5() {
         throw new UnsupportedOperationException("not implemented");
     }
 

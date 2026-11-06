@@ -194,6 +194,10 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             assertEquals(consumers.get(index).getTopic(), topics.get(index)));
 
         assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 2);
+        // each internal consumer's configuration has only its own topic, and the consumer's keeps all of them
+        consumers.forEach(c -> assertEquals(c.conf.getTopicNames(), Set.of(c.getTopic())));
+        assertEquals(((MultiTopicsConsumerImpl<byte[]>) consumer).conf.getTopicNames(),
+                Set.of(topicName1, topicName2, topicName3));
 
         consumer.unsubscribe();
         consumer.close();

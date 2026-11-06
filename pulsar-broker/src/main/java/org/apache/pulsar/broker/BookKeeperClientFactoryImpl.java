@@ -27,11 +27,14 @@ import static org.apache.bookkeeper.net.CommonConfigurationKeys.NET_TOPOLOGY_SCR
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.channel.EventLoopGroup;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -54,6 +57,11 @@ import org.apache.pulsar.metadata.bookkeeper.PulsarMetadataClientDriver;
 
 @CustomLog
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
+    // The callbacks that unregister the metadata store listeners of the BookieRackAffinityMapping instances of the
+    // created clients. Guarded by this
+    private final List<Runnable> metadataStoreListenerCleanups = new ArrayList<>();
+    // Guarded by this
+    private boolean closed;
 
     @Override
     public CompletableFuture<BookKeeper> create(ServiceConfiguration conf, MetadataStoreExtended store,
@@ -72,8 +80,18 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         PulsarMetadataClientDriver.init();
 
         ClientConfiguration bkConf = createBkClientConfiguration(store, conf);
+        bkConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP,
+                (Consumer<Runnable>) this::addMetadataStoreListenerCleanup);
         if (properties != null) {
-            properties.forEach(bkConf::setProperty);
+            // The isolation groups of a namespace reach the placement policy through the custom metadata of each
+            // ledger. They must not become the client's default groups: the client is shared and kept after the
+            // namespace bookie affinity group is removed, and new ledgers would still be placed on those groups.
+            properties.forEach((key, value) -> {
+                if (!IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS.equals(key)
+                        && !IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS.equals(key)) {
+                    bkConf.setProperty(key, value);
+                }
+            });
         }
         if (ensemblePlacementPolicyClass.isPresent()) {
             setEnsemblePlacementPolicy(bkConf, conf, store, ensemblePlacementPolicyClass.get());
@@ -87,7 +105,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
             } catch (InterruptedException | BKException | IOException e) {
                 throw new RuntimeException(e);
             }
-        }).thenCompose(bk -> waitForPlacementPolicyInitialization(bk, bkConf));
+        }).thenCompose(bk -> waitForPlacementPolicyInitialization(bk, bkConf, properties));
         // Keep the initialization chain alive if its caller cancels, so a late client is still closed.
         CompletableFuture<BookKeeper> result = new CompletableFuture<>();
         creation.whenComplete((bk, error) -> {
@@ -102,7 +120,8 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     // The default client is awaited during broker startup, and lazy namespace clients are awaited before ML opens.
     private CompletableFuture<BookKeeper> waitForPlacementPolicyInitialization(BookKeeper bk,
-                                                                               ClientConfiguration bkConf) {
+                                                                               ClientConfiguration bkConf,
+                                                                               Map<String, Object> properties) {
         CompletableFuture<Void> initialization;
         try {
             EnsemblePlacementPolicy policy = bk.getClientCtx().getPlacementPolicy();
@@ -110,7 +129,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 return CompletableFuture.completedFuture(bk);
             }
             // Time out only this client's wait, without modifying the policy's metadata-load future.
-            initialization = isolatedPolicy.getInitializationFuture().copy()
+            initialization = isolatedPolicy.getInitializationFuture(properties).copy()
                     .orTimeout(bkConf.getZkTimeout(), TimeUnit.MILLISECONDS);
         } catch (Exception e) {
             initialization = CompletableFuture.failedFuture(e);
@@ -292,10 +311,36 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                     NET_TOPOLOGY_SCRIPT_FILE_NAME_KEY,
                     ""));
         }
+
+        if (IsolatedBookieEnsemblePlacementPolicy.class.isAssignableFrom(policyClass)
+                && conf.getBookkeeperClientIsolationGroups() != null
+                && !conf.getBookkeeperClientIsolationGroups().isEmpty()) {
+            bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS,
+                    conf.getBookkeeperClientIsolationGroups());
+            bkConf.setProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS,
+                    conf.getBookkeeperClientSecondaryIsolationGroups());
+        }
     }
 
     @Override
     public void close() {
-        // Nothing to do
+        List<Runnable> cleanups;
+        synchronized (this) {
+            closed = true;
+            cleanups = new ArrayList<>(metadataStoreListenerCleanups);
+            metadataStoreListenerCleanups.clear();
+        }
+        cleanups.forEach(Runnable::run);
+    }
+
+    // A client can still be building when the factory is closed: its listener is then unregistered right away
+    private void addMetadataStoreListenerCleanup(Runnable cleanup) {
+        synchronized (this) {
+            if (!closed) {
+                metadataStoreListenerCleanups.add(cleanup);
+                return;
+            }
+        }
+        cleanup.run();
     }
 }

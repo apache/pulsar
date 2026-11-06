@@ -45,7 +45,9 @@ public class InMemoryDelayedDeliveryTrackerFactory implements DelayedDeliveryTra
                 config.getDelayedDeliveryTickTimeMillis(), TimeUnit.MILLISECONDS);
         this.tickTimeMillis = config.getDelayedDeliveryTickTimeMillis();
         this.isDelayedDeliveryDeliverAtTimeStrict = config.isDelayedDeliveryDeliverAtTimeStrict();
-        this.fixedDelayDetectionLookahead = config.getDelayedDeliveryFixedDelayDetectionLookahead();
+        // Observed delivery times cannot prove that unread or future messages have the same order.
+        this.fixedDelayDetectionLookahead = config.isDelayedDeliveryAssumeOrderedDeliveryTimes()
+                ? config.getDelayedDeliveryFixedDelayDetectionLookahead() : 0;
     }
 
     @Override

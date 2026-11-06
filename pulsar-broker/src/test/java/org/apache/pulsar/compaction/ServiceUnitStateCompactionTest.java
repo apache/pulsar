@@ -57,6 +57,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import lombok.Cleanup;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -64,6 +65,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitState;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateChannelImpl;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateData;
 import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateDataConflictResolver;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -71,6 +73,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
@@ -749,8 +752,12 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         }
 
         stopBroker();
+        // The lookups to the stopped broker are retried until the operation timeout, 30 s by default
+        @Cleanup
+        PulsarClient stoppedBrokerClient = PulsarClient.builder().serviceUrl(lookupUrl.toString())
+                .operationTimeout(1, TimeUnit.SECONDS).build();
         try (Consumer<ServiceUnitStateData> consumer =
-                     pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
+                     stoppedBrokerClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
             consumer.receive();
             Assert.fail("Shouldn't have been able to receive anything");
@@ -888,8 +895,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         try (Consumer<ServiceUnitStateData> consumer =
                      pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscribe()) {
-            Message<ServiceUnitStateData> m = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(m);
+            assertNoMoreMessages(consumer);
         }
     }
 
@@ -923,8 +929,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
         try (Consumer<ServiceUnitStateData> consumer =
                      pulsarClient.newConsumer(schema).topic(topic).subscriptionName("sub1")
                 .readCompacted(true).subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe()) {
-            Message<ServiceUnitStateData> m = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(m);
+            assertNoMoreMessages(consumer);
         }
     }
 
@@ -975,8 +980,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
             assertNotNull(m1);
             assertEquals(m1.getKey(), key);
             assertEquals(m1.getValue().dstBroker(), "19");
-            Message<ServiceUnitStateData> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertNoMoreMessages(consumer);
         }
     }
 
@@ -1026,8 +1030,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 assertEquals(received.getValue().dstBroker(), i + 9 + "");
                 consumer.acknowledge(received);
             }
-            Message<ServiceUnitStateData> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertNoMoreMessages(consumer);
         }
 
         // 4.Send empty message to delete the key-value in the compacted topic.
@@ -1042,8 +1045,7 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 .readCompacted(true)
                 .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest)
                 .subscribe()) {
-            Message<ServiceUnitStateData> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertNoMoreMessages(consumer);
         }
 
         for (int i = 0; i < messages; i++) {
@@ -1064,9 +1066,18 @@ public class ServiceUnitStateCompactionTest extends MockedPulsarServiceBaseTest 
                 assertEquals(received.getValue().dstBroker(), i + 20 + "");
                 consumer.acknowledge(received);
             }
-            Message<ServiceUnitStateData> none = consumer.receive(2, TimeUnit.SECONDS);
-            assertNull(none);
+            assertNoMoreMessages(consumer);
         }
+    }
+
+    // The broker has read the subscription past the end of the topic, and the consumer got no message
+    private void assertNoMoreMessages(Consumer<?> consumer) throws PulsarClientException {
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
+                .getTopicReference(consumer.getTopic()).orElseThrow();
+        ManagedCursor cursor = persistentTopic.getSubscription(consumer.getSubscription()).getCursor();
+        Awaitility.await().untilAsserted(() ->
+                assertTrue(cursor.getReadPosition().compareTo(persistentTopic.getLastPosition()) > 0));
+        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
     }
 
     public static long versionId(ServiceUnitStateData data) {

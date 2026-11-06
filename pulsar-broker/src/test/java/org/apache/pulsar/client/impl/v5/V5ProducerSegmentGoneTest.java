@@ -175,6 +175,41 @@ public class V5ProducerSegmentGoneTest extends V5ClientBaseTest {
     }
 
     @Test
+    public void closingTheClientFailsTheSendsWaitingForTheLayout() throws Exception {
+        PulsarClient client = newClient();
+        String topic = newScalableTopic(1);
+        long segmentId = singleActiveSegmentId(topic);
+        ScalableTopicProducer<byte[]> producer = newProducer(client, topic);
+
+        Sends sends = new Sends();
+        Thread sender = startSender(producer, sends);
+        try {
+            Awaitility.await().until(() -> sends.segmentsAcked.contains(segmentId));
+            // Terminate the segment topic underneath the layout, while quiet (see above). The sends
+            // that fail on it wait for a layout that never comes, and the ones after them are held
+            // behind them: none of them is in flight on a v4 producer that closing the client would
+            // fail.
+            sends.pause.set(true);
+            Awaitility.await().until(sends::drained);
+            admin.scalableTopics().terminateSegment(segmentTopic(topic, segmentId));
+            sends.pause.set(false);
+            Awaitility.await().until(() -> producer.waitingSendCount() > 0);
+            sends.pause.set(true);
+            Awaitility.await().until(() -> producer.inFlightSendCount() == 0);
+            assertEquals(sends.failed.get(), 0, "the sends must still be waiting for the layout");
+            client.close();
+        } finally {
+            stopSender(sender, sends);
+        }
+
+        // Closing the client fails them right away, well before their retry budget would run out.
+        allSettled(sends).get(2, TimeUnit.SECONDS);
+        assertTrue(sends.failed.get() > 0, "expected the waiting sends to fail");
+        assertEquals(((PulsarClientV5) client).v4Client().getMemoryLimitController().currentUsage(), 0,
+                "the failed sends must give their memory back");
+    }
+
+    @Test
     public void closingTheClientWhileSendsAreInFlightFailsThemWithoutRecreatingProducers() throws Exception {
         PulsarClient client = newClient();
         String topic = newScalableTopic(2);

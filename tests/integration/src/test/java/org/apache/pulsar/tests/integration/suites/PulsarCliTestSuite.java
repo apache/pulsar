@@ -32,9 +32,4 @@ public abstract class PulsarCliTestSuite extends PulsarClusterTestBase {
     public void after() throws Exception {
         cleanup();
     }
-
-    protected final void enableTopicPolicies() {
-        this.brokerEnvs.put("systemTopicEnabled", "true");
-        this.brokerEnvs.put("topicLevelPoliciesEnabled", "true");
-    }
 }

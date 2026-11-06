@@ -2,7 +2,6 @@
 
 * **Status**: Proposal
  * **Author**: Zhengxin Cai, Lin Lin
- * **Pull Request**:
  * **Mailing List discussion**: http://mail-archives.apache.org/mod_mbox/pulsar-dev/201904.mbox/%3CCAHQi0xemFAGC6P9e240-8Ho0z4qtUv0uSBLtHfSs5ZeBDJXEug%40mail.gmail.com%3E
 
 ## Motivation

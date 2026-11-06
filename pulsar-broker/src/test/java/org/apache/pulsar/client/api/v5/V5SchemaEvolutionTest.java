@@ -21,10 +21,9 @@ package org.apache.pulsar.client.api.v5;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
+import static org.testng.Assert.expectThrows;
 import java.time.Duration;
 import java.util.Objects;
-import java.util.concurrent.CompletionException;
 import lombok.Cleanup;
 import org.apache.pulsar.client.api.v5.config.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.v5.schema.Schema;
@@ -178,17 +177,9 @@ public class V5SchemaEvolutionTest extends V5ClientBaseTest {
         Producer<VBad> bad = v5Client.newProducer(Schema.avro(VBad.class))
                 .topic(topic)
                 .create();
-        try {
-            bad.newMessage().key("bad").value(new VBad(5, 50)).send();
-            fail("expected incompatible schema to be rejected post-split");
-        } catch (PulsarClientException expected) {
-            // good — the broker preserved v1 history across the split and rejected
-            // the registration.
-        } catch (CompletionException ce) {
-            // Some V5 builders may surface the error wrapped — accept either form.
-            assertTrue(ce.getCause() instanceof PulsarClientException,
-                    "unexpected wrapped error: " + ce);
-        }
+        // The broker preserved v1 history across the split and rejects the registration.
+        expectThrows(PulsarClientException.IncompatibleSchemaException.class,
+                () -> bad.newMessage().key("bad").value(new VBad(5, 50)).send());
 
         // The registry still shows just v1 — the failed registration didn't leak through.
         var schemas = admin.schemas().getAllSchemas(topic);

@@ -20,29 +20,54 @@ package org.apache.pulsar.broker.service;
 
 
 import io.netty.util.Recycler;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.util.LongArrayAckSets;
 
-@SuppressWarnings("unchecked")
+/**
+ * Holds, for each entry in a dispatch batch, the batch size and the ack set (bits of batch messages already acked).
+ * The data lives in two parallel arrays so that storing one entry's info does not require allocating a Pair.
+ */
 public class EntryBatchIndexesAcks {
     private int size = 100;
-    private Pair<Integer, long[]>[] indexesAcks = new Pair[size];
+    // batch size for each entry (0 means no ack info was recorded for this entry)
+    private int[] batchSizes = new int[size];
+    // ack set (long bitmap of acked indexes) for each entry; null means no partial acks recorded
+    private long[][] ackSets = new long[size][];
 
-    public void setIndexesAcks(int entryIdx, Pair<Integer, long[]> indexesAcks) {
-        this.indexesAcks[entryIdx] = indexesAcks;
+    /**
+     * Store the batch size and ack set for entry at {@code entryIdx} without allocating a Pair.
+     */
+    public void setIndexesAcks(int entryIdx, int batchSize, long[] ackSet) {
+        batchSizes[entryIdx] = batchSize;
+        ackSets[entryIdx] = ackSet;
+    }
+
+    /**
+     * @deprecated use {@link #setIndexesAcks(int, int, long[])} to avoid Pair allocation on the hot path.
+     */
+    @Deprecated
+    public void setIndexesAcks(int entryIdx, org.apache.commons.lang3.tuple.Pair<Integer, long[]> indexesAcks) {
+        batchSizes[entryIdx] = indexesAcks == null ? 0 : indexesAcks.getLeft();
+        ackSets[entryIdx] = indexesAcks == null ? null : indexesAcks.getRight();
     }
 
     public long[] getAckSet(int entryIdx) {
-        Pair<Integer, long[]> pair = indexesAcks[entryIdx];
-        return pair == null ? null : pair.getRight();
+        return ackSets[entryIdx];
     }
 
+    public int getBatchSize(int entryIdx) {
+        return batchSizes[entryIdx];
+    }
+
+    /**
+     * Sum of acked individual indexes across all entries in the current batch.
+     * Only entries with a recorded ackSet (i.e. partial batch acks) contribute to this count.
+     */
     public int getTotalAckedIndexCount() {
         int count = 0;
         for (int i = 0; i < size; i++) {
-            Pair<Integer, long[]> pair = indexesAcks[i];
-            if (pair != null) {
-                count += pair.getLeft() - LongArrayAckSets.cardinality(pair.getRight());
+            long[] ackSet = ackSets[i];
+            if (ackSet != null) {
+                count += batchSizes[i] - LongArrayAckSets.cardinality(ackSet);
             }
         }
         return count;
@@ -50,15 +75,19 @@ public class EntryBatchIndexesAcks {
 
     public void recycle() {
         for (int i = 0; i < size; i++) {
-            indexesAcks[i] = null;
+            batchSizes[i] = 0;
+            ackSets[i] = null;
         }
         handle.recycle(this);
     }
 
     private void ensureCapacityAndSetSize(int entriesListSize) {
         size = entriesListSize;
-        if (indexesAcks.length < size) {
-            indexesAcks = new Pair[size];
+        if (batchSizes.length < size) {
+            batchSizes = new int[size];
+        }
+        if (ackSets.length < size) {
+            ackSets = new long[size][];
         }
     }
 

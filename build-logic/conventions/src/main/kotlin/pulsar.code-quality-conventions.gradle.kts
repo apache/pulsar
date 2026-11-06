@@ -33,6 +33,15 @@ configure<CheckstyleExtension> {
         rootProject.file("buildtools/src/main/resources/pulsar/suppressions.xml").absolutePath
 }
 
+dependencies {
+    // Checkstyle brings its own Guava onto the `checkstyle` tool classpath, which the
+    // pulsar-dependencies platform doesn't manage; align it with the catalog's Guava version
+    // so the tool classpath doesn't carry a vulnerable Guava.
+    constraints {
+        add("checkstyle", catalog.findLibrary("guava").get())
+    }
+}
+
 tasks.withType<Checkstyle>().configureEach {
     // Checkstyle here analyzes source only; none of the configured checks need type
     // resolution from compiled bytecode. By default Gradle wires the Checkstyle task

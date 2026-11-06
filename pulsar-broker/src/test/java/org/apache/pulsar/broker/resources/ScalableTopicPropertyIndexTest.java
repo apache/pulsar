@@ -20,14 +20,21 @@ package org.apache.pulsar.broker.resources;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Predicate;
+import lombok.Cleanup;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
+import org.apache.pulsar.metadata.api.Option;
+import org.apache.pulsar.metadata.api.ScanConsumer;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.metadata.impl.LocalMemoryMetadataStore;
 import org.testng.annotations.AfterMethod;
@@ -209,5 +216,42 @@ public class ScalableTopicPropertyIndexTest {
         List<String> matches = resources
                 .findScalableTopicsByPropertiesAsync(ns, Map.of("owner", "alice")).get();
         assertEquals(matches, List.of("topic://tenant/ns-noprops/t-tagged"));
+    }
+
+    @Test
+    public void listsMatchesInTheOrderOfTheNamespaceTopics() throws Exception {
+        // Index scans return their records in no particular order: this store returns them in reverse
+        @Cleanup
+        MetadataStoreExtended reversingStore = new LocalMemoryMetadataStore("memory:reversing-scans",
+                MetadataStoreConfig.builder().build()) {
+            @Override
+            public CompletableFuture<Void> scanByIndex(String scanPathPrefix, String indexName,
+                                                       String fromKeyInclusive, String toKeyInclusive,
+                                                       Predicate<GetResult> fallbackFilter, ScanConsumer consumer,
+                                                       Set<Option> opts) {
+                List<GetResult> results = new ArrayList<>();
+                return super.scanByIndex(scanPathPrefix, indexName, fromKeyInclusive, toKeyInclusive,
+                        fallbackFilter, ScanConsumer.collectInto(results), opts).thenRun(() -> {
+                    for (int i = results.size() - 1; i >= 0; i--) {
+                        consumer.onNext(results.get(i));
+                    }
+                    consumer.onCompleted();
+                });
+            }
+        };
+        ScalableTopicResources reversingResources = new ScalableTopicResources(reversingStore, 30);
+        NamespaceName ns = NamespaceName.get("tenant/ns-order");
+        for (String name : List.of("t-a", "t-b", "t-c")) {
+            reversingResources.createScalableTopicAsync(topicIn(ns, name),
+                    metaWithProps(Map.of("team", "platform"))).get();
+        }
+
+        List<String> matches = reversingResources
+                .findScalableTopicsByPropertiesAsync(ns, Map.of("team", "platform")).get();
+        assertEquals(matches, List.of(
+                "topic://tenant/ns-order/t-a",
+                "topic://tenant/ns-order/t-b",
+                "topic://tenant/ns-order/t-c"));
+        assertEquals(matches, reversingResources.listScalableTopicsAsync(ns).get());
     }
 }

@@ -78,7 +78,7 @@ public class BrokerVersionFilter implements BrokerFilter {
 
             Version brokerVersionVersion = null;
             try {
-                brokerVersionVersion = Version.valueOf(brokerVersion);
+                brokerVersionVersion = Version.parse(brokerVersion);
             } catch (Exception x) {
                 log.warn().attr("broker", broker).attr("version", brokerVersion)
                         .log("Invalid version string in load report for broker;"
@@ -90,7 +90,7 @@ public class BrokerVersionFilter implements BrokerFilter {
 
             if (null == latestVersion) {
                 latestVersion = brokerVersionVersion;
-            } else if (Version.BUILD_AWARE_ORDER.compare(latestVersion, brokerVersionVersion) < 0) {
+            } else if (latestVersion.compareTo(brokerVersionVersion) < 0) {
                 latestVersion = brokerVersionVersion;
             }
         }
@@ -137,7 +137,7 @@ public class BrokerVersionFilter implements BrokerFilter {
             String broker = brokerIterator.next();
             BrokerData data = loadData.getBrokerData().get(broker);
             String brokerVersion = data.getLocalData().getBrokerVersionString();
-            com.github.zafarkhaja.semver.Version brokerVersionVersion = Version.valueOf(brokerVersion);
+            com.github.zafarkhaja.semver.Version brokerVersionVersion = Version.parse(brokerVersion);
 
             if (brokerVersionVersion.equals(latestVersion)) {
                 log.debug().attr("broker", broker).attr("version", brokerVersion)

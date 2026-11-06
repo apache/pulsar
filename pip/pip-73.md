@@ -3,8 +3,6 @@
 - Status: Proposal
 - Author: [@Renkai](https://github.com/Renkai)
 - Pull Request: https://github.com/apache/pulsar/pull/8717
-- Mailing List discussion:
-- Release:
 
 # Motivation
 

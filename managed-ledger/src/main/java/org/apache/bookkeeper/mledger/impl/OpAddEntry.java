@@ -274,7 +274,8 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
 
         // Handle caching for tailing reads
         if (ml.shouldCacheAddedEntry()) {
-            int expectedReadCount = 0;
+            // no read count handler, unless the cache evicts entries by their expected read count
+            int expectedReadCount = EntryImpl.NO_EXPECTED_READ_COUNT;
             // only use expectedReadCount if cache eviction is enabled by expected read count
             if (ml.getConfig().isCacheEvictionByExpectedReadCount()) {
                 // use the number of active cursors as the expected read count
@@ -288,8 +289,7 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             entry.release();
         }
 
-        ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
-        ml.lastConfirmedEntry = lastEntry;
+        ml.updateLastPositionAndCounter(lastEntry);
 
         if (closeWhenDone) {
             log.info().attr("managedLedger", ml.getName())
@@ -301,7 +301,10 @@ public class OpAddEntry implements AddCallback, CloseCallback, Runnable, Managed
             }
         } else {
             updateLatency();
+            ManagedLedgerImpl ml = this.ml;
+            // Recycles this op
             completeAdd(lastEntry, ctx);
+            ml.failAddsQueuedAfterTermination();
         }
     }
 

@@ -58,20 +58,21 @@ import org.apache.pulsar.common.schema.KeyValue;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class PulsarClientToolTest extends BrokerTestBase {
 
-    @BeforeMethod
+    // The tests share a broker: each one uses topics of its own
+    @BeforeClass
     @Override
     public void setup() throws Exception {
         super.baseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();

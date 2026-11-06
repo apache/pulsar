@@ -7,7 +7,6 @@
   * C++ Client: https://github.com/apache/pulsar/pull/11570
   * Stats: https://github.com/apache/pulsar/pull/12401
 * **Mailing List discussion**: https://mail-archives.apache.org/mod_mbox/pulsar-dev/202102.mbox/%3c5490ED12-C172-4AD6-8E77-2E70C66C9793@yahoo-corp.jp%3e
-* **Release**:
 
 ### Motivation
 When producer connects to partitioned topic, sometimes doesn't need to connect to all partitions depending on rate, routing mode, etc.

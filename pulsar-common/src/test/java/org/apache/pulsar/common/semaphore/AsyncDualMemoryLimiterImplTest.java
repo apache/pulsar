@@ -24,6 +24,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -33,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BooleanSupplier;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter.AsyncDualMemoryLimiterPermit;
@@ -741,5 +743,57 @@ public class AsyncDualMemoryLimiterImplTest {
         assertThat(future2Ref.get()).succeedsWithin(1, TimeUnit.SECONDS);
         assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAvailablePermits()).isEqualTo(100000);
         assertThat(limiter.getLimiter(LimitType.HEAP_MEMORY).getAcquiredPermits()).isEqualTo(0);
+    }
+
+    @Test
+    public void testQueuedRequestIsCompletedOnCompletionExecutor() throws Exception {
+        limiter = new AsyncDualMemoryLimiterImpl(100, 10, 5000, 100, 10, 5000);
+        AsyncDualMemoryLimiterPermit permit =
+                limiter.acquire(100, LimitType.HEAP_MEMORY, () -> false).get(1, TimeUnit.SECONDS);
+        CompletableFuture<String> completingThreadName =
+                limiter.acquire(50, LimitType.HEAP_MEMORY, () -> false).thenApply(p -> {
+                    limiter.release(p);
+                    return Thread.currentThread().getName();
+                });
+        assertThat(completingThreadName).isNotDone();
+
+        limiter.release(permit);
+
+        // independent of the number of CPUs, the continuation doesn't run on the limiter's executor
+        assertThat(completingThreadName).succeedsWithin(Duration.ofSeconds(1))
+                .asString().startsWith("async-dual-memory-limiter-completion");
+    }
+
+    @Test
+    public void testGrantedRequestIsCompletedWhenClosedDuringQueueProcessing() throws Exception {
+        limiter = new AsyncDualMemoryLimiterImpl(2, 10, 60_000, 2, 10, 60_000);
+        AsyncDualMemoryLimiterPermit permit =
+                limiter.acquire(2, LimitType.HEAP_MEMORY, () -> false).get(1, TimeUnit.SECONDS);
+        CompletableFuture<AsyncDualMemoryLimiterPermit> granted =
+                limiter.acquire(1, LimitType.HEAP_MEMORY, () -> false);
+        CountDownLatch processingQueue = new CountDownLatch(1);
+        CountDownLatch closed = new CountDownLatch(1);
+        AtomicInteger isCancelledCalls = new AtomicInteger();
+        limiter.acquire(1, LimitType.HEAP_MEMORY, () -> {
+            // the first call happens before queueing, the second one while processing the queue after the
+            // previous request has been granted
+            if (isCancelledCalls.incrementAndGet() == 2) {
+                processingQueue.countDown();
+                try {
+                    closed.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+            return false;
+        });
+        limiter.release(permit);
+        assertThat(processingQueue.await(5, TimeUnit.SECONDS)).isTrue();
+
+        // shuts down the executors before the granted request has been handed off for completion
+        limiter.close();
+        closed.countDown();
+
+        assertThat(granted).succeedsWithin(Duration.ofSeconds(5));
     }
 }

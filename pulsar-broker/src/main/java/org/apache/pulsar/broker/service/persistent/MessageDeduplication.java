@@ -23,14 +23,15 @@ import static org.apache.bookkeeper.mledger.util.ManagedLedgerUtils.openCursor;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_IS_REPL_MARKER;
 import static org.apache.pulsar.client.impl.GeoReplicationProducerImpl.MSG_PROP_REPL_SOURCE_POSITION;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Maps;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -109,12 +110,26 @@ public class MessageDeduplication {
     // Map that contains the highest sequenceId that have been sent by each producers. The map will be updated before
     // the messages are persisted
     @VisibleForTesting
-    final Map<String, Long> highestSequencedPushed = new ConcurrentHashMap<>();
+    final ConcurrentMap<String, Long> highestSequencedPushed = new ConcurrentHashMap<>();
 
     // Map that contains the highest sequenceId that have been persistent by each producers. The map will be updated
     // after the messages are persisted
     @VisibleForTesting
-    final Map<String, Long> highestSequencedPersisted = new ConcurrentHashMap<>();
+    final ConcurrentMap<String, PersistedSequenceId> highestSequencedPersisted = new ConcurrentHashMap<>();
+
+    /**
+     * The highest sequence ID persisted for a producer. It's recorded for every persisted message, normally on the
+     * topic's managed-ledger thread, so the value is updated in place: replacing the map's entry would lock a bin of
+     * the map and box the value for every message. See {@link #setHighestSequencedPersisted(String, long)} for how an
+     * update orders with a removal of the entry.
+     */
+    static final class PersistedSequenceId {
+        volatile long value;
+
+        PersistedSequenceId(long value) {
+            this.value = value;
+        }
+    }
 
     // Number of persisted entries after which to store a snapshot of the sequence ids map
     private final int snapshotInterval;
@@ -129,7 +144,7 @@ public class MessageDeduplication {
     private final int maxNumberOfProducers;
 
     // Map used to track the inactive producer along with the timestamp of their last activity
-    private final Map<String, Long> inactiveProducers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Long> inactiveProducers = new ConcurrentHashMap<>();
 
     private final String replicatorPrefix;
 
@@ -161,6 +176,9 @@ public class MessageDeduplication {
         boolean shouldBeEnabled = topic.isDeduplicationEnabled();
         synchronized (this) {
             if (status == Status.Recovering) {
+                if (!shouldBeEnabled) {
+                    return statusChangeFuture.handle((__, e) -> null).thenCompose(__ -> checkStatus());
+                }
                 return statusChangeFuture;
             }
             if (status == Status.Removing) {
@@ -186,12 +204,14 @@ public class MessageDeduplication {
                             log.error()
                                     .exception(exception)
                                     .log("Deleted deduplication cursor error");
+                            // Leave Removing so the next checkStatus() retries the delete
+                            status = Status.Failed;
                         }
                     }
                 }, null);
             }
 
-            if (status == Status.Enabled && !shouldBeEnabled) {
+            if ((status == Status.Enabled || status == Status.Failed) && !shouldBeEnabled) {
                 // Disabled deduping
                 CompletableFuture<Void> future = new CompletableFuture<>();
                 status = Status.Removing;
@@ -267,9 +287,10 @@ public class MessageDeduplication {
         managedCursor.getProperties().forEach((k, v) -> {
             producerRemoved(k);
             highestSequencedPushed.put(k, v);
-            highestSequencedPersisted.put(k, v);
+            setHighestSequencedPersisted(k, v);
         });
         // Replay all the entries and apply all the sequence ids updates
+        final long startTimeReplayDedup = System.currentTimeMillis();
         log.info()
                 .attr("numberOfEntries", managedCursor.getNumberOfEntries())
                 .log("Replaying entries for deduplication");
@@ -278,7 +299,7 @@ public class MessageDeduplication {
             final var producerName = metadata.getProducerName();
             final var sequenceId = Math.max(metadata.getHighestSequenceId(), metadata.getSequenceId());
             highestSequencedPushed.put(producerName, sequenceId);
-            highestSequencedPersisted.put(producerName, sequenceId);
+            setHighestSequencedPersisted(producerName, sequenceId);
             producerRemoved(producerName);
         }).thenCompose(optPosition -> {
             if (optPosition.isEmpty()) {
@@ -286,13 +307,14 @@ public class MessageDeduplication {
             }
             snapshotCounter = replayTask.getNumEntriesProcessed();
             if (snapshotCounter >= snapshotInterval) {
+                log.info("Taking snapshot of sequence ids map");
                 return takeSnapshot(optPosition.get());
             } else {
                 return CompletableFuture.completedFuture(null);
             }
         }).thenRun(() -> {
             status = Status.Enabled;
-            log.info("Enabled deduplication");
+            log.info().attr("cost ms", System.currentTimeMillis() - startTimeReplayDedup).log("Enabled deduplication");
         });
     }
 
@@ -427,8 +449,8 @@ public class MessageDeduplication {
                 // "lastSequenceLIdPersisted:lastSequenceEIdPersisted", then we cannot be sure whether the message
                 // is a dup or not we should return an error to the producer for the latter case so that it can retry
                 // at a future time
-                Long lastSequenceLIdPersisted = highestSequencedPersisted.get(lastSequenceLIdKey);
-                Long lastSequenceEIdPersisted = highestSequencedPersisted.get(lastSequenceEIdKey);
+                Long lastSequenceLIdPersisted = getHighestSequencedPersisted(lastSequenceLIdKey);
+                Long lastSequenceEIdPersisted = getHighestSequencedPersisted(lastSequenceEIdKey);
                 log.debug()
                         .attr("producerName", publishContext.getProducerName())
                         .attr("replSequenceLId", replSequenceLId)
@@ -479,9 +501,10 @@ public class MessageDeduplication {
             publishContext.setProperty(IS_LAST_CHUNK, Boolean.FALSE);
             return MessageDupStatus.NotDup;
         }
-        // Synchronize the get() and subsequent put() on the map. This would only be relevant if the producer
-        // disconnects and re-connects very quickly. At that point the call can be coming from a different thread
-        synchronized (highestSequencedPushed) {
+        // A producer that disconnects and reconnects quickly can publish from two threads. Update its sequence
+        // atomically without serializing unrelated producers on one topic-wide monitor.
+        Long newHighestSequenceId = null;
+        while (true) {
             Long lastSequenceIdPushed = highestSequencedPushed.get(producerName);
             if (lastSequenceIdPushed != null && sequenceId <= lastSequenceIdPushed) {
                 log.debug()
@@ -496,14 +519,24 @@ public class MessageDeduplication {
                 // If current message's seq id is between lastSequenceIdPersisted and
                 // lastSequenceIdPushed, then we cannot be sure whether the message is a dup or not
                 // we should return an error to the producer for the latter case so that it can retry at a future time
-                Long lastSequenceIdPersisted = highestSequencedPersisted.get(producerName);
+                Long lastSequenceIdPersisted = getHighestSequencedPersisted(producerName);
                 if (lastSequenceIdPersisted != null && sequenceId <= lastSequenceIdPersisted) {
                     return MessageDupStatus.Dup;
                 } else {
                     return MessageDupStatus.Unknown;
                 }
             }
-            highestSequencedPushed.put(producerName, highestSequenceId);
+            if (newHighestSequenceId == null) {
+                newHighestSequenceId = highestSequenceId;
+            }
+            if (lastSequenceIdPushed == null) {
+                if (highestSequencedPushed.putIfAbsent(producerName, newHighestSequenceId) == null) {
+                    break;
+                }
+            } else if (highestSequencedPushed.replace(producerName, lastSequenceIdPushed,
+                    newHighestSequenceId)) {
+                break;
+            }
         }
         // Only put sequence ID into highestSequencedPushed and
         // highestSequencedPersisted until receive and persistent the last chunk.
@@ -547,8 +580,8 @@ public class MessageDeduplication {
         long replSequenceEId = positionPair[1];
         String lastSequenceLIdKey = publishContext.getProducerName() + "_LID";
         String lastSequenceEIdKey = publishContext.getProducerName() + "_EID";
-        highestSequencedPersisted.put(lastSequenceLIdKey, replSequenceLId);
-        highestSequencedPersisted.put(lastSequenceEIdKey, replSequenceEId);
+        setHighestSequencedPersisted(lastSequenceLIdKey, replSequenceLId);
+        setHighestSequencedPersisted(lastSequenceEIdKey, replSequenceEId);
         increaseSnapshotCounterAndTakeSnapshotIfNeeded(position);
     }
 
@@ -564,7 +597,7 @@ public class MessageDeduplication {
         }
         Boolean isLastChunk = (Boolean) publishContext.getProperty(IS_LAST_CHUNK);
         if (isLastChunk == null || isLastChunk) {
-            highestSequencedPersisted.put(producerName, Math.max(highestSequenceId, sequenceId));
+            setHighestSequencedPersisted(producerName, Math.max(highestSequenceId, sequenceId));
         }
         increaseSnapshotCounterAndTakeSnapshotIfNeeded(position);
     }
@@ -587,9 +620,8 @@ public class MessageDeduplication {
         }
 
         highestSequencedPushed.clear();
-        for (String producer : highestSequencedPersisted.keySet()) {
-            highestSequencedPushed.put(producer, highestSequencedPersisted.get(producer));
-        }
+        highestSequencedPersisted.forEach((producer, persisted) ->
+                highestSequencedPushed.put(producer, persisted.value));
     }
 
     private CompletableFuture<Void> takeSnapshot(Position position) {
@@ -602,15 +634,11 @@ public class MessageDeduplication {
             return CompletableFuture.completedFuture(null);
         }
 
-        Map<String, Long> snapshot = new TreeMap<>();
-        highestSequencedPersisted.forEach((producerName, sequenceId) -> {
-            if (snapshot.size() < maxNumberOfProducers) {
-                snapshot.put(producerName, sequenceId);
-            }
-        });
+        Map<String, Long> snapshot = snapshotPersistedSequenceIds();
 
         final var cursor = managedCursor;
         if (cursor == null) {
+            snapshotTaking.set(false);
             log.warn()
                     .attr("position", position)
                     .log("Cursor is null when taking snapshot for");
@@ -674,9 +702,9 @@ public class MessageDeduplication {
         }
 
         Iterator<Map.Entry<String, Long>> mapIterator = inactiveProducers.entrySet().iterator();
-        boolean hasInactive = false;
+        AtomicBoolean hasInactive = new AtomicBoolean();
         while (mapIterator.hasNext()) {
-            java.util.Map.Entry<String, Long> entry = mapIterator.next();
+            Map.Entry<String, Long> entry = mapIterator.next();
             String producerName = entry.getKey();
             long lastActiveTimestamp = entry.getValue();
 
@@ -684,15 +712,69 @@ public class MessageDeduplication {
                 log.info()
                         .attr("producerName", producerName)
                         .log("Purging dedup information for producer");
-                mapIterator.remove();
-                highestSequencedPushed.remove(producerName);
-                highestSequencedPersisted.remove(producerName);
-                hasInactive = true;
+                // The iterator can retain an expired entry after a reconnect removes it. Recheck inactivity
+                // and remove the sequence IDs atomically with producerAdded/producerRemoved for this name,
+                // so a newly registered producer cannot publish before its old state has been purged.
+                inactiveProducers.computeIfPresent(producerName, (name, inactiveSince) -> {
+                    if (inactiveSince < minimumActiveTimestamp) {
+                        highestSequencedPushed.remove(name);
+                        highestSequencedPersisted.remove(name);
+                        hasInactive.set(true);
+                        return null;
+                    }
+                    return inactiveSince;
+                });
             }
         }
-        if (hasInactive && isEnabled()) {
+        if (hasInactive.get() && isEnabled()) {
             takeSnapshot(getManagedCursor().getMarkDeletedPosition());
         }
+    }
+
+    /**
+     * The highest persisted sequence IDs of up to {@code maxNumberOfProducers} producers, to store in the cursor's
+     * properties. The properties don't need an order, so the producers' names aren't sorted.
+     */
+    Map<String, Long> snapshotPersistedSequenceIds() {
+        Map<String, Long> snapshot = Maps.newHashMapWithExpectedSize(
+                Math.max(0, Math.min(highestSequencedPersisted.size(), maxNumberOfProducers)));
+        highestSequencedPersisted.forEach((producerName, persisted) -> {
+            if (snapshot.size() < maxNumberOfProducers) {
+                snapshot.put(producerName, persisted.value);
+            }
+        });
+        return snapshot;
+    }
+
+    /**
+     * Records the highest sequence ID persisted for a producer, updating its entry in place.
+     *
+     * <p>A purge of inactive producers or a clear that removes the entry after the lookup orders after the update:
+     * the update's value is removed with the entry, as a put of the value before the removal would have been. The
+     * entry isn't put back, so a removal that has completed stays in effect, and a producer that reuses the name
+     * doesn't inherit a sequence ID it hasn't persisted.
+     */
+    void setHighestSequencedPersisted(String producerName, long sequenceId) {
+        setHighestSequencedPersisted(highestSequencedPersisted, producerName, sequenceId);
+    }
+
+    @VisibleForTesting
+    static void setHighestSequencedPersisted(ConcurrentMap<String, PersistedSequenceId> highestSequencedPersisted,
+                                             String producerName, long sequenceId) {
+        PersistedSequenceId persisted = highestSequencedPersisted.get(producerName);
+        if (persisted == null) {
+            highestSequencedPersisted.put(producerName, new PersistedSequenceId(sequenceId));
+        } else {
+            persisted.value = sequenceId;
+        }
+    }
+
+    /**
+     * Returns the highest sequence ID persisted for a producer, or null when there's none.
+     */
+    Long getHighestSequencedPersisted(String producerName) {
+        PersistedSequenceId persisted = highestSequencedPersisted.get(producerName);
+        return persisted != null ? persisted.value : null;
     }
 
     public long getLastPublishedSequenceId(String producerName) {

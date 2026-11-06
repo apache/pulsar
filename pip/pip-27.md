@@ -2,7 +2,7 @@
 * Status: Accepted
 * Author: [Sijie Guo](https://github.com/sijie)
 * Pull Request: N/A
-* Mailing List Discussion: N/A
+* Mailing List Discussion: https://lists.apache.org/thread/4kz85bdtb8nl9ob33r4ms7qrj2shfmcl
 * Release: N/A
 
 ## Motivation

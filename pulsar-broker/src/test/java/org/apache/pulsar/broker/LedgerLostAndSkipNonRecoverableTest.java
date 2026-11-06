@@ -90,7 +90,7 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
 
         log.info("make individual ack.");
         ConsumerAndReceivedMessages consumerAndReceivedMessages1 =
-                waitConsumeAndAllMessages(topicName, subName, enabledBatch, false);
+                waitConsumeAndAllMessages(topicName, subName, enabledBatch, false, sendMessageCount);
         List<MessageIdImpl>[] messageIds = consumerAndReceivedMessages1.messageIds;
         Consumer<?> consumer = consumerAndReceivedMessages1.consumer;
         MessageIdImpl individualPosition = messageIds[1].get(messageCountPerEntry - 1);
@@ -98,8 +98,9 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
                 new MessageIdImpl(messageIds[0].get(0).getLedgerId(), messageIds[0].get(0).getEntryId(), -1);
         MessageIdImpl lastPosition =
                 new MessageIdImpl(messageIds[2].get(4).getLedgerId(), messageIds[2].get(4).getEntryId(), -1);
-        consumer.acknowledge(individualPosition);
-        consumer.acknowledge(expectedMarkDeletedPosition);
+        // Both in one ack, so the cursor persists them in one mark-delete: its mark-delete rate limit (1 per second)
+        // would leave a second mark-delete right after the first one unpersisted until the next cursor flush.
+        consumer.acknowledge(List.of(individualPosition, expectedMarkDeletedPosition));
         waitPersistentCursorLedger(topicName, subName, expectedMarkDeletedPosition.getLedgerId(),
                 expectedMarkDeletedPosition.getEntryId());
         consumer.close();
@@ -110,11 +111,14 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
         pulsar.getBookKeeperClient().deleteLedger(individualPosition.getLedgerId());
 
         log.info("send some messages.");
-        sendManyMessages(topicName, 3, messageCountPerEntry);
+        int newMessageCount = sendManyMessages(topicName, 3, messageCountPerEntry).size();
 
         log.info("receive all messages then verify mark deleted position");
+        // Everything but the acked first entry and the lost ledger: the rest of the first ledger, the third ledger and
+        // the new messages.
+        int remainingMessageCount = sendMessageCount - messageCountPerEntry - messageCountPerLedger + newMessageCount;
         ConsumerAndReceivedMessages consumerAndReceivedMessages2 =
-                waitConsumeAndAllMessages(topicName, subName, enabledBatch, true);
+                waitConsumeAndAllMessages(topicName, subName, enabledBatch, true, remainingMessageCount);
         waitMarkDeleteLargeAndEquals(topicName, subName, lastPosition.getLedgerId(), lastPosition.getEntryId());
 
         // cleanup
@@ -223,18 +227,15 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
 
     private ConsumerAndReceivedMessages waitConsumeAndAllMessages(String topicName, String subName,
                                                             final boolean enabledBatch,
-                                                            boolean ack) throws Exception {
+                                                            boolean ack, int messageCount) throws Exception {
         List<MessageIdImpl> messageIds = new ArrayList<>();
         final Consumer<?> consumer = createConsumer(topicName, subName, enabledBatch);
-        while (true){
-            Message<?> message = consumer.receive(5, TimeUnit.SECONDS);
-            if (message != null){
-                messageIds.add((MessageIdImpl) message.getMessageId());
-                if (ack) {
-                    consumer.acknowledge(message);
-                }
-            } else {
-                break;
+        for (int i = 0; i < messageCount; i++) {
+            Message<?> message = consumer.receive(10, TimeUnit.SECONDS);
+            Assert.assertNotNull(message, "Received " + i + " of " + messageCount + " messages");
+            messageIds.add((MessageIdImpl) message.getMessageId());
+            if (ack) {
+                consumer.acknowledge(message);
             }
         }
         log.info().attr("count", messageIds.size()).log("Received messages");
@@ -277,6 +278,8 @@ public class LedgerLostAndSkipNonRecoverableTest extends SharedPulsarBaseTest {
                 .autoScaledReceiverQueueSizeEnabled(false)
                 .subscriptionType(SubscriptionType.Failover)
                 .isAckReceiptEnabled(true)
+                // Each acknowledge() waits for its receipt: send it at once instead of after 100 ms of grouping
+                .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
                 .enableBatchIndexAcknowledgment(enabledBatch)
                 .receiverQueueSize(1000)
                 .topic(topicName)

@@ -74,6 +74,7 @@ final class ConsumeV4 {
                     .subscriptionType(SubscriptionType.valueOf(cmd.subscriptionType.name()))
                     .subscriptionMode(SubscriptionMode.valueOf(cmd.subscriptionMode.name()))
                     .subscriptionInitialPosition(cmd.subscriptionInitialPosition)
+                    .readCompacted(v4.readCompacted)
                     .poolMessages(v4.poolMessages)
                     .replicateSubscriptionState(v4.replicateSubscriptionState);
 
@@ -130,8 +131,10 @@ final class ConsumeV4 {
                 }
             }
         } catch (Exception e) {
-            LOG.error("Error while consuming messages");
-            LOG.error(e.getMessage(), e);
+            if (!AbstractCmd.isInterruption(e)) {
+                LOG.error("Error while consuming messages");
+                LOG.error(e.getMessage(), e);
+            }
             returnCode = -1;
         } finally {
             LOG.info("{} messages successfully consumed", numMessagesConsumed);

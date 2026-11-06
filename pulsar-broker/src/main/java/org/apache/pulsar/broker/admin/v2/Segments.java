@@ -43,12 +43,16 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 
 /**
  * Admin REST API for segment topic operations.
@@ -501,6 +505,7 @@ public class Segments extends AdminResource {
                     Topic t = optTopic.get();
                     return (force ? t.deleteForcefully() : t.delete()).thenApply(__ -> null);
                 })
+                .thenCompose(__ -> deleteSegmentTxnState(segmentTopic))
                 .thenAccept(__ -> {
                     log.info().attr("clientAppId", clientAppId()).attr("segment", segmentTopic)
                             .log("Deleted segment topic");
@@ -512,5 +517,62 @@ public class Segments extends AdminResource {
                     resumeAsyncResponseExceptionally(asyncResponse, ex);
                     return null;
                 });
+    }
+
+    /**
+     * Delete what the transactions on a segment keep in the metadata store, which deleting the topic leaves in
+     * place: the write records of the transactions still open on it, their ack records on its subscriptions, and
+     * the state of the segment's transaction buffer. The buffer and the pending-ack store of each subscription
+     * delete a transaction's records as they apply its outcome; left behind, they keep the coordinator from
+     * garbage-collecting the transaction, and make a segment re-created with the same name recover it as open.
+     * Only once the segment's data is gone: the aborted-txn records are what hides the data of aborted
+     * transactions.
+     *
+     * <p>Not while the segment is still active in the layout of its topic: a client can then load it again (see
+     * {@code BrokerService#isAllowAutoTopicCreationAsync}), and its new transaction buffer recovers from these
+     * records. They are left to the delete that takes the segment out of the layout. Best effort: once the topic is
+     * gone, none of the callers retries the delete.
+     */
+    private CompletableFuture<Void> deleteSegmentTxnState(TopicName segmentTopic) {
+        if (!pulsar().getConfiguration().isTransactionCoordinatorEnabled()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        String segment = segmentTopic.toString();
+        return isActiveInLayout(segmentTopic)
+                .thenCompose(active -> {
+                    if (active) {
+                        log.debug().attr("segment", segment)
+                                .log("Keeping the transaction state of a segment still active in its topic");
+                        return CompletableFuture.completedFuture(null);
+                    }
+                    TxnMetadataStore txnStore = new TxnMetadataStore(pulsar().getLocalMetadataStore());
+                    // Independently: the write and ack records are the ones that matter. A leftover watermark or
+                    // aborted record is harmless to a later segment with the same name (ledger ids only grow, txn
+                    // ids are unique).
+                    return FutureUtil.waitForAll(List.of(
+                            txnStore.deleteWriteOpsForSegment(segment),
+                            txnStore.deleteAckOpsForSegment(segment),
+                            txnStore.deleteAllSegmentState(segment)));
+                })
+                .exceptionally(ex -> {
+                    log.warn().attr("segment", segment).exceptionMessage(ex)
+                            .log("Failed to delete the transaction state of the deleted segment topic");
+                    return null;
+                });
+    }
+
+    /** Whether the segment is active in the layout of its topic. */
+    private CompletableFuture<Boolean> isActiveInLayout(TopicName segmentTopic) {
+        ScalableTopicResources resources = pulsar().getPulsarResources().getScalableTopicResources();
+        if (resources == null) {
+            return CompletableFuture.completedFuture(false);
+        }
+        // Not from the cache: the topic delete and the controller GC update the layout from another broker, and a
+        // stale layout that still has the segment active would leave its state behind for good
+        return resources.getScalableTopicMetadataAsync(SegmentTopicName.getParentTopicName(segmentTopic), true)
+                .thenApply(optMd -> optMd
+                        .map(md -> md.getSegments().get(SegmentTopicName.getSegmentId(segmentTopic)))
+                        .map(seg -> seg.isActive())
+                        .orElse(false));
     }
 }

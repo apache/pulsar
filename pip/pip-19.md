@@ -2,8 +2,6 @@
 
 * **Status**: In Progress
 * **Authors**: Jerry Peng, Matteo Merli
-* **Mailing List discussion**:
-N/A
 * **Prototype**: https://github.com/jerrypeng/presto/tree/pulsar_connector
 
 ## What are we trying to do?

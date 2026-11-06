@@ -294,7 +294,7 @@ public class BookKeeperClientFactoryImplTest {
         CompletableFuture<Void> readiness = new CompletableFuture<>();
         CompletableFuture<Void> readinessRequested = new CompletableFuture<>();
         IsolatedBookieEnsemblePlacementPolicy policy = mock(IsolatedBookieEnsemblePlacementPolicy.class);
-        when(policy.getInitializationFuture()).thenAnswer(invocation -> {
+        when(policy.getInitializationFuture(any())).thenAnswer(invocation -> {
             readinessRequested.complete(null);
             return readiness;
         });
@@ -526,6 +526,27 @@ public class BookKeeperClientFactoryImplTest {
                 ZkIsolatedBookieEnsemblePlacementPolicy.class);
         assertEquals(bkConf.getMinNumRacksPerWriteQuorum(), 3);
         assertTrue(bkConf.getEnforceMinNumRacksPerWriteQuorum());
+    }
+
+    @Test
+    public void testSetEnsemblePlacementPolicyUsesBrokerIsolationGroups() {
+        ClientConfiguration bkConf = new ClientConfiguration();
+        ServiceConfiguration conf = new ServiceConfiguration();
+        MetadataStore store = mock(MetadataStore.class);
+
+        BookKeeperClientFactoryImpl.setEnsemblePlacementPolicy(bkConf, conf, store,
+                IsolatedBookieEnsemblePlacementPolicy.class);
+        assertNull(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS));
+        assertNull(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS));
+
+        conf.setBookkeeperClientIsolationGroups("broker-primary");
+        conf.setBookkeeperClientSecondaryIsolationGroups("broker-secondary");
+        BookKeeperClientFactoryImpl.setEnsemblePlacementPolicy(bkConf, conf, store,
+                IsolatedBookieEnsemblePlacementPolicy.class);
+        assertEquals(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS),
+                "broker-primary");
+        assertEquals(bkConf.getProperty(IsolatedBookieEnsemblePlacementPolicy.SECONDARY_ISOLATION_BOOKIE_GROUPS),
+                "broker-secondary");
     }
 
     @Test

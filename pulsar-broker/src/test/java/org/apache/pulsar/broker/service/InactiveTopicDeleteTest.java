@@ -114,6 +114,9 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
         conf.setBrokerDeleteInactivePartitionedTopicMetadataEnabled(true);
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        // A single admin client connection per broker: before the fix for #24879, the per-partition deletes
+        // queued behind the broker's own delete-partitioned-topic request and the metadata was never deleted
+        conf.getProperties().put("brokerClient_connectionsPerBroker", 1);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoSubscriptions";
@@ -253,7 +256,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         final String namespace3 = "prop/ns-abc3";
         List<String> namespaceList = Arrays.asList(namespace2, namespace3);
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        // The test runs the GC itself, with no max inactive duration: a run decides on the topics' subscriptions
+        // and backlogs at once
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(3600);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(0);
         super.baseSetup();
 
         for (String ns : namespaceList) {
@@ -282,7 +288,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         // namespace use delete_when_no_subscriptions, namespace2 use delete_when_subscriptions_caught_up
         // namespace3 use default:delete_when_no_subscriptions
         InactiveTopicPolicies inactiveTopicPolicies =
-                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true);
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 0, true);
         admin.namespaces().setInactiveTopicPolicies(namespace, inactiveTopicPolicies);
         inactiveTopicPolicies.setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
         admin.namespaces().setInactiveTopicPolicies(namespace2, inactiveTopicPolicies);
@@ -293,31 +299,39 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
                     .get()).getInactiveTopicPolicies();
             return temp.isDeleteWhileInactive();
         });
+        Awaitility.await().untilAsserted(() -> assertEquals(getPersistentTopic(topic2).getInactiveTopicPolicies()
+                .getInactiveTopicDeleteMode(), InactiveTopicDeleteMode.delete_when_subscriptions_caught_up));
 
         // topic should still exist
-        Thread.sleep(2000);
+        assertKeptByGC(topics);
         Assert.assertTrue(admin.topics().getList(namespace).contains(topic));
         Assert.assertTrue(admin.topics().getList(namespace2).contains(topic2));
         Assert.assertTrue(admin.topics().getList(namespace3).contains(topic3));
 
         // no backlog, trigger delete_when_subscriptions_caught_up
         admin.topics().skipAllMessages(topic2, topicToSub.remove(topic2));
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertFalse(admin.topics().getList(namespace2).contains(topic2)));
+        Awaitility.await().untilAsserted(() -> {
+            pulsar.getBrokerService().checkGC();
+            Assert.assertFalse(admin.topics().getList(namespace2).contains(topic2));
+        });
         // delete subscription, trigger delete_when_no_subscriptions
         for (Map.Entry<String, String> entry : topicToSub.entrySet()) {
             admin.topics().deleteSubscription(entry.getKey(), entry.getValue());
         }
-        Awaitility.await()
-                .untilAsserted(() -> Assert.assertFalse(admin.topics().getList(namespace).contains(topic)));
-        Awaitility.await()
-                .untilAsserted(() -> Assert.assertFalse(admin.topics().getList(namespace3).contains(topic3)));
+        Awaitility.await().untilAsserted(() -> {
+            pulsar.getBrokerService().checkGC();
+            Assert.assertFalse(admin.topics().getList(namespace).contains(topic));
+            Assert.assertFalse(admin.topics().getList(namespace3).contains(topic3));
+        });
     }
 
     @Test
     public void testDeleteWhenNoBacklogs() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        // The test runs the GC itself, with no max inactive duration: a run decides on the subscriptions' backlogs at
+        // once, and the consumers can't recreate a topic deleted in between
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(3600);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(0);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testDeleteWhenNoBacklogs";
@@ -355,11 +369,12 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         }
         assertEquals(producedCount * 2, receivedCount);
 
-        Thread.sleep(2000);
+        assertKeptByGC(List.of(topic));
         Assert.assertTrue(admin.topics().getList("prop/ns-abc").contains(topic));
 
         admin.topics().skipAllMessages(topic, "sub");
         Awaitility.await().untilAsserted(() -> {
+            pulsar.getBrokerService().checkGC();
             final List<String> topics = admin.topics().getList("prop/ns-abc");
             Assert.assertFalse(topics.contains(topic));
             Assert.assertFalse(topics.contains(topic2));
@@ -371,8 +386,9 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     @Test
     public void testMaxInactiveDuration() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
-        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(5);
+        // The test runs the GC itself; a max inactive duration that isn't set would be this frequency
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(3600);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(2);
         super.baseSetup();
 
         final String topic = "persistent://prop/ns-abc/testMaxInactiveDuration";
@@ -381,14 +397,19 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
             .topic(topic)
             .create();
 
+        long closeStartNanos = System.nanoTime();
         producer.close();
-        Thread.sleep(2000);
+        assertKeptByGC(List.of(topic));
         Assert.assertTrue(admin.topics().getList("prop/ns-abc")
             .contains(topic));
 
-        Thread.sleep(4000);
-        Assert.assertFalse(admin.topics().getList("prop/ns-abc")
-            .contains(topic));
+        Awaitility.await().untilAsserted(() -> {
+            pulsar.getBrokerService().checkGC();
+            Assert.assertFalse(admin.topics().getList("prop/ns-abc")
+                .contains(topic));
+        });
+        // Not deleted before it was inactive for the max inactive duration
+        assertTrue(System.nanoTime() - closeStartNanos >= TimeUnit.SECONDS.toNanos(2));
 
         super.internalCleanup();
     }
@@ -504,7 +525,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     public void testDeleteWhenNoSubscriptionsWithTopicLevelPolicies() throws Exception {
         final String namespace = "prop/ns-abc";
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        // The test runs the GC itself, with no max inactive duration: a run decides on the topics' subscriptions
+        // and backlogs at once
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(3600);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(0);
         super.baseSetup();
         final String topic = "persistent://prop/ns-abc/test-" + UUID.randomUUID();
         final String topic2 = "persistent://prop/ns-abc/test-" + UUID.randomUUID();
@@ -527,7 +551,7 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         // "topic" use delete_when_no_subscriptions, "topic2" use delete_when_subscriptions_caught_up
         // "topic3" use default:delete_when_no_subscriptions
         InactiveTopicPolicies inactiveTopicPolicies =
-                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 1, true);
+                new InactiveTopicPolicies(InactiveTopicDeleteMode.delete_when_no_subscriptions, 0, true);
         admin.topics().setInactiveTopicPolicies(topic, inactiveTopicPolicies);
         inactiveTopicPolicies.setInactiveTopicDeleteMode(InactiveTopicDeleteMode.delete_when_subscriptions_caught_up);
         admin.topics().setInactiveTopicPolicies(topic2, inactiveTopicPolicies);
@@ -535,23 +559,29 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         //wait for update
         Awaitility.await().until(()
                 -> admin.topics().getInactiveTopicPolicies(topic2) != null);
+        Awaitility.await().untilAsserted(() -> assertEquals(getPersistentTopic(topic2).getInactiveTopicPolicies()
+                .getInactiveTopicDeleteMode(), InactiveTopicDeleteMode.delete_when_subscriptions_caught_up));
         // topic should still exist
-        Thread.sleep(2000);
+        assertKeptByGC(topics);
         Assert.assertTrue(admin.topics().getList(namespace).contains(topic));
         Assert.assertTrue(admin.topics().getList(namespace).contains(topic2));
         Assert.assertTrue(admin.topics().getList(namespace).contains(topic3));
 
         // no backlog, trigger delete_when_subscriptions_caught_up
         admin.topics().skipAllMessages(topic2, topicToSub.remove(topic2));
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertFalse(admin.topics().getList(namespace).contains(topic2)));
+        Awaitility.await().untilAsserted(() -> {
+            pulsar.getBrokerService().checkGC();
+            Assert.assertFalse(admin.topics().getList(namespace).contains(topic2));
+        });
         // delete subscription, trigger delete_when_no_subscriptions
         for (Map.Entry<String, String> entry : topicToSub.entrySet()) {
             admin.topics().deleteSubscription(entry.getKey(), entry.getValue());
         }
-        Awaitility.await().untilAsserted(()
-                -> Assert.assertFalse(admin.topics().getList(namespace).contains(topic3)));
-        Assert.assertFalse(admin.topics().getList(namespace).contains(topic));
+        Awaitility.await().untilAsserted(() -> {
+            pulsar.getBrokerService().checkGC();
+            Assert.assertFalse(admin.topics().getList(namespace).contains(topic3));
+            Assert.assertFalse(admin.topics().getList(namespace).contains(topic));
+        });
     }
 
     @SuppressWarnings("deprecation")
@@ -637,6 +667,23 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     }
 
     @Test
+    public void testEnableBrokerDeleteInactiveTopicsDynamically() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        super.baseSetup();
+
+        // Loaded while deletion is disabled, so the topic itself must pick up the change.
+        final String topic = "persistent://prop/ns-abc/testEnableBrokerDeleteInactiveTopicsDynamically";
+        pulsarClient.newProducer().topic(topic).create().close();
+        assertTrue(pulsar.getBrokerService().getTopicReference(topic).isPresent());
+
+        admin.brokers().updateDynamicConfiguration("brokerDeleteInactiveTopicsEnabled", "true");
+        Awaitility.await().untilAsserted(() -> assertFalse(admin.topics().getList("prop/ns-abc").contains(topic)));
+    }
+
+    @Test
     public void testDynamicConfigurationBrokerDeleteInactiveTopicsFrequencySeconds() throws Exception {
         conf.setBrokerDeleteInactiveTopicsFrequencySeconds(30);
         super.baseSetup();
@@ -702,8 +749,10 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
     @Test(timeOut = 30000)
     public void testRetainTopicWithDataAndRetentionPolicy() throws Exception {
         conf.setBrokerDeleteInactiveTopicsMode(InactiveTopicDeleteMode.delete_when_no_subscriptions);
-        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
-        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        // The test runs the GC itself, with no max inactive duration: once the producer is closed, a run decides on
+        // the retention at once
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(3600);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(0);
         super.baseSetup();
         final String namespace = "prop/ns-abc";
         final String topic = "persistent://" + namespace + "/testRetainTopicWithData-" + UUID.randomUUID();
@@ -711,8 +760,20 @@ public class InactiveTopicDeleteTest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
         producer.send("test message".getBytes());
         producer.close();
-        Awaitility.await().during(5, TimeUnit.SECONDS).untilAsserted(() ->
-                Assert.assertTrue(admin.topics().getList(namespace).contains(topic)));
+        assertKeptByGC(List.of(topic));
+        Assert.assertTrue(admin.topics().getList(namespace).contains(topic));
+    }
+
+    private PersistentTopic getPersistentTopic(String topic) {
+        return (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).orElseThrow();
+    }
+
+    // Runs the GC, which starts deleting a topic it doesn't keep before it returns
+    private void assertKeptByGC(List<String> topics) {
+        pulsar.getBrokerService().checkGC();
+        for (String topic : topics) {
+            assertFalse(getPersistentTopic(topic).isClosingOrDeleting(), topic);
+        }
     }
 
 }

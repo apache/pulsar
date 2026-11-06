@@ -121,6 +121,7 @@ import org.apache.pulsar.client.impl.schema.writer.AvroWriter;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.api.EncryptionContext;
 import org.apache.pulsar.common.api.EncryptionContext.EncryptionKey;
+import org.apache.pulsar.common.api.proto.CommandError;
 import org.apache.pulsar.common.api.proto.CommandProducerSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.SingleMessageMetadata;
@@ -737,8 +738,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         startBroker();
 
-        // We should not have received any message
-        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        // We should not have received any message. A producer resends its pending messages before it is connected
+        // again, so wait for the reconnections first.
+        Awaitility.await().until(() -> producer.isConnected() && consumer.isConnected());
+        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg);
         consumer.close();
         log.info().attr("method", methodName).log("Exiting test");
@@ -804,8 +807,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         startBroker();
 
-        // 5. We should not have received any message
-        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        // 5. We should not have received any message. A producer resends its pending messages before it is connected
+        // again, so wait for the reconnections first.
+        Awaitility.await().until(() -> partitionedProducer.isConnected() && consumer.isConnected());
+        Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg);
 
         // 6. We keep sending data after connection reconnected.
@@ -1090,7 +1095,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     /**
      * Verifies non-batch message size being validated after performing compression while batch-messaging validates
-     * before compression of message
+     * before compression of message.
      *
      * <pre>
      * send msg with size > MAX_SIZE (5 MB)
@@ -1511,9 +1516,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
         });
 
+        // the acks reach the consumer each message was dispatched to, so the broker has nothing to redeliver
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(getBrokerConsumer(consumer1).getUnackedMessages(), 0);
+            assertEquals(getBrokerConsumer(consumer2).getUnackedMessages(), 0);
+        });
         consumer1.redeliverUnacknowledgedMessages();
         consumer2.redeliverUnacknowledgedMessages();
-        Thread.sleep(1000L);
 
         try {
             if (consumer1.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS) != null
@@ -1557,6 +1566,73 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
     }
 
     /**
+     * Receives messages until the broker has blocked the consumer on its unacked messages limit and the consumer has
+     * received every message dispatched to it. The broker dispatches nothing more to a blocked consumer, so a short
+     * receive is enough to check that the consumer stops receiving.
+     *
+     * <p>The blocked flag and the unacked count are read separately, and the broker can process pending acks or a
+     * redelivery in between, clearing the flag. A consumer that is still blocked holds at least its limit of unacked
+     * messages, so the loop checks that too.
+     */
+    private <T> List<Message<T>> receiveUntilBlockedOnUnackedMessages(Consumer<T> consumer) throws Exception {
+        org.apache.pulsar.broker.service.Consumer brokerConsumer = getBrokerConsumer(consumer);
+        List<Message<T>> messages = new ArrayList<>();
+        while (!brokerConsumer.isBlocked() || brokerConsumer.getUnackedMessages() != messages.size()
+                || messages.size() < brokerConsumer.getMaxUnackedMessages()) {
+            Message<T> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (msg == null) {
+                fail("Consumer not blocked after " + messages.size() + " messages: blocked="
+                        + brokerConsumer.isBlocked() + ", unacked=" + brokerConsumer.getUnackedMessages()
+                        + ", limit=" + brokerConsumer.getMaxUnackedMessages());
+            }
+            messages.add(msg);
+        }
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
+        return messages;
+    }
+
+    private org.apache.pulsar.broker.service.Consumer getBrokerConsumer(Consumer<?> consumer) throws Exception {
+        PersistentTopic topic =
+                (PersistentTopic) pulsar.getBrokerService().getTopicReference(consumer.getTopic()).get();
+        return topic.getSubscription(consumer.getSubscription()).getConsumers().stream()
+                .filter(c -> c.consumerName().equals(consumer.getConsumerName()))
+                .findFirst().get();
+    }
+
+    private long getMsgBacklog(Consumer<?> consumer) throws Exception {
+        return admin.topics().getStats(consumer.getTopic()).getSubscriptions().get(consumer.getSubscription())
+                .getMsgBacklog();
+    }
+
+    /**
+     * Waits until none of the consumers of the multi-topics consumer has permits left at the broker, so the broker
+     * dispatches nothing more to it.
+     */
+    private void awaitNoPermitsAtBroker(MultiTopicsConsumerImpl<?> consumer) {
+        Awaitility.await().untilAsserted(() -> {
+            for (ConsumerImpl<?> topicConsumer : consumer.getConsumers()) {
+                assertEquals(getBrokerConsumer(topicConsumer).getAvailablePermits(), 0, topicConsumer.getTopic());
+            }
+        });
+    }
+
+    /**
+     * Waits until the broker has dispatched every message published to the topics of the consumer exactly once, so
+     * none is in flight or left to dispatch.
+     */
+    private void awaitAllMessagesDispatched(Consumer<?> consumer) {
+        List<String> topics = consumer instanceof MultiTopicsConsumerImpl<?> multiTopicsConsumer
+                ? multiTopicsConsumer.getConsumers().stream().map(ConsumerImpl::getTopic).toList()
+                : List.of(consumer.getTopic());
+        Awaitility.await().untilAsserted(() -> {
+            for (String topic : topics) {
+                TopicStats stats = admin.topics().getStats(topic);
+                assertEquals(stats.getMsgOutCounter(), stats.getMsgInCounter(), topic);
+            }
+        });
+    }
+
+    /**
      * Verify: Consumer stops receiving msg when reach unack-msg limit and starts receiving once acks messages 1.
      * Produce X (600) messages 2. Consumer has receive size (10) and receive message without acknowledging 3. Consumer
      * will stop receiving message after unAckThreshold = 500 4. Consumer acks messages and starts consuming remaining
@@ -1590,17 +1666,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             // (2) try to consume messages: but will be able to consume number of messages = unAckedMessagesBufferSize
-            Message<byte[]> msg;
-            List<Message<byte[]>> messages = new ArrayList<>();
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (msg != null) {
-                    messages.add(msg);
-                    log.info("Received message: " + new String(msg.getData()));
-                } else {
-                    break;
-                }
-            }
+            List<Message<byte[]>> messages = receiveUntilBlockedOnUnackedMessages(consumer);
             // client must receive number of messages = unAckedMessagesBufferSize rather all produced messages
             assertEquals(messages.size(), unAckedMessagesBufferSize);
 
@@ -1610,7 +1676,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // try to consume remaining messages
             int remainingMessages = totalProducedMsgs - messages.size();
             for (int i = 0; i < remainingMessages; i++) {
-                msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     log.info("Received message: " + new String(msg.getData()));
@@ -1669,17 +1735,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             // (2) Receive Messages
             for (int j = 0; j < totalReceiveIteration; j++) {
 
-                Message<byte[]> msg;
-                List<Message<byte[]>> messages = new ArrayList<>();
-                for (int i = 0; i < totalProducedMsgs; i++) {
-                    msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                    if (msg != null) {
-                        messages.add(msg);
-                        log.info("Received message: " + new String(msg.getData()));
-                    } else {
-                        break;
-                    }
-                }
+                List<Message<byte[]>> messages = receiveUntilBlockedOnUnackedMessages(consumer);
                 // client must receive number of messages = unAckedMessagesBufferSize rather all produced messages
                 assertEquals(messages.size(), unAckedMessagesBufferSize);
 
@@ -1708,9 +1764,13 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "ackReceiptEnabledAndSubscriptionTypes")
     public void testMaxUnAckMessagesLowerThanPermits(boolean ackReceiptEnabled, SubscriptionType subType)
-            throws PulsarClientException {
+            throws Exception {
         final int maxUnacks = 10;
+        int unAckedMessages = pulsar.getConfiguration().getMaxUnackedMessagesPerConsumer();
         pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(maxUnacks);
+        @Cleanup
+        Closeable restoreMaxUnackedMessages =
+                () -> pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessages);
         final String topic = "persistent://my-property/my-ns/testMaxUnAckMessagesLowerThanPermits";
 
         @Cleanup
@@ -1733,15 +1793,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         producer.flush();
         List<MessageId> receives = new ArrayList<>();
-        for (int i = 0; i < maxUnacks; i++) {
-            Message<String> received =  consumer.receive();
+        for (Message<String> received : receiveUntilBlockedOnUnackedMessages(consumer)) {
             log.info()
                     .attr("message", received.getValue())
                     .attr("iD", received.getMessageId())
                     .log("Received message with message ID");
             receives.add(received.getMessageId());
         }
-        assertNull(consumer.receive(3, TimeUnit.SECONDS));
+        assertEquals(receives.size(), maxUnacks);
         consumer.acknowledge(receives);
         for (int i = 0; i < messages - maxUnacks; i++) {
             Message<String> received =  consumer.receive();
@@ -1793,56 +1852,33 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (2) Consumer1: consume without ack:
             // try to consume messages: but will be able to consume number of messages = maxUnackedMessages
-            Message<byte[]> msg;
-            List<Message<byte[]>> messages = new ArrayList<>();
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (msg != null) {
-                    messages.add(msg);
-                    totalReceiveMessages++;
-                    log.info("Received message: " + new String(msg.getData()));
-                } else {
-                    break;
-                }
-            }
+            List<Message<byte[]>> messages = receiveUntilBlockedOnUnackedMessages(consumer1);
+            totalReceiveMessages += messages.size();
             // client must receive number of messages = unAckedMessagesBufferSize rather all produced messages
             assertEquals(messages.size(), maxUnackedMessages);
 
             // (3.1) Consumer2 will start consuming messages without ack: it should stop after maxUnackedMessages
-            messages.clear();
-            for (int i = 0; i < totalProducedMsgs - maxUnackedMessages; i++) {
-                msg = consumer2.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (msg != null) {
-                    messages.add(msg);
-                    totalReceiveMessages++;
-                    log.info("Received message: " + new String(msg.getData()));
-                } else {
-                    break;
-                }
-            }
+            messages = receiveUntilBlockedOnUnackedMessages(consumer2);
+            totalReceiveMessages += messages.size();
             assertEquals(messages.size(), maxUnackedMessages);
             // (3.2) ack for all maxUnackedMessages
-            messages.forEach(m -> {
-                try {
-                    consumer2.acknowledge(m);
-                } catch (PulsarClientException e) {
-                    fail("shouldn't have failed ", e);
-                }
-            });
+            FutureUtil.waitForAll(messages.stream().map(consumer2::acknowledgeAsync).toList()).get();
 
             // (4) Consumer2 consumer and ack: so it should consume all remaining messages
             messages.clear();
+            List<CompletableFuture<Void>> ackFutures = new ArrayList<>();
             for (int i = 0; i < totalProducedMsgs - (2 * maxUnackedMessages); i++) {
-                msg = consumer2.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                Message<byte[]> msg = consumer2.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     totalReceiveMessages++;
-                    consumer2.acknowledge(msg);
+                    ackFutures.add(consumer2.acknowledgeAsync(msg));
                     log.info("Received message: " + new String(msg.getData()));
                 } else {
                     break;
                 }
             }
+            FutureUtil.waitForAll(ackFutures).get();
 
             // verify total-consumer messages = total-produce messages
             assertEquals(totalProducedMsgs, totalReceiveMessages);
@@ -1940,34 +1976,25 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             // (2) try to consume messages: but will be able to consume number of messages = unAckedMessagesBufferSize
-            Message<byte[]> msg;
-            List<Message<byte[]>> messages = new ArrayList<>();
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (msg != null) {
-                    messages.add(msg);
-                    totalReceiveMsg++;
-                    log.info("Received message: " + new String(msg.getData()));
-                } else {
-                    break;
-                }
-            }
+            List<Message<byte[]>> messages = receiveUntilBlockedOnUnackedMessages(consumer);
+            totalReceiveMsg += messages.size();
 
             consumer.redeliverUnacknowledgedMessages();
 
-            Thread.sleep(1000);
             int alreadyConsumedMessages = messages.size();
             messages.clear();
+            List<CompletableFuture<Void>> ackFutures = new ArrayList<>();
             for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                Message<byte[]> msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
-                    consumer.acknowledge(msg);
+                    ackFutures.add(consumer.acknowledgeAsync(msg));
                     totalReceiveMsg++;
                     log.info("Received message: " + new String(msg.getData()));
                 } else {
                     break;
                 }
             }
+            FutureUtil.waitForAll(ackFutures).get();
 
             // total received-messages should match to produced messages
             assertEquals(totalProducedMsgs + alreadyConsumedMessages, totalReceiveMsg);
@@ -2022,33 +2049,17 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (2) Consumer1: consume without ack:
             // try to consume messages: but will be able to consume number of messages = maxUnackedMessages
-            Message<byte[]> msg;
-            List<Message<byte[]>> messages = new ArrayList<>();
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (msg != null) {
-                    messages.add(msg);
-                    totalReceiveMessages++;
-                    log.info("Received message: " + new String(msg.getData()));
-                } else {
-                    break;
-                }
-            }
+            List<Message<byte[]>> messages = receiveUntilBlockedOnUnackedMessages(consumer1);
+            totalReceiveMessages += messages.size();
             // should be blocked due to unack-msgs and should not consume all msgs
             assertNotEquals(messages.size(), totalProducedMsgs);
             // ack for all maxUnackedMessages
-            messages.forEach(m -> {
-                try {
-                    consumer1.acknowledge(m);
-                } catch (PulsarClientException e) {
-                    fail("shouldn't have failed ", e);
-                }
-            });
+            FutureUtil.waitForAll(messages.stream().map(consumer1::acknowledgeAsync).toList()).get();
 
             // (3) Consumer consumes and ack: so it should consume all remaining messages
             messages.clear();
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            while (totalReceiveMessages < totalProducedMsgs) {
+                Message<byte[]> msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
                     messages.add(msg);
                     totalReceiveMessages++;
@@ -2060,6 +2071,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
             // verify total-consumer messages = total-produce messages
             assertEquals(totalProducedMsgs, totalReceiveMessages);
+            // every message is acked, so the broker has nothing left to dispatch: no more messages arrive
+            Awaitility.await().untilAsserted(() -> assertEquals(getMsgBacklog(consumer1), 0));
+            assertNull(consumer1.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
             producer.close();
             consumer1.close();
             log.info().attr("method", methodName).log("Exiting test");
@@ -2104,18 +2118,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (2) Consumer1: consume without ack:
             // try to consume messages: but will be able to consume number of messages = maxUnackedMessages
-            Message<byte[]> msg;
-            List<Message<byte[]>> messages = new ArrayList<>();
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (msg != null) {
-                    messages.add(msg);
-                    totalReceiveMessages++;
-                    log.info("Received message: " + new String(msg.getData()));
-                } else {
-                    break;
-                }
-            }
+            List<Message<byte[]>> messages = receiveUntilBlockedOnUnackedMessages(consumer1);
+            totalReceiveMessages += messages.size();
 
             assertEquals(messages.size(), maxUnackedMessages); // consumer1
 
@@ -2128,9 +2132,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 }
             });
 
-            // (4) consumer1 will consumer remaining msgs and consumer2 will ack those messages
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            // (4) consumer1 will consumer remaining msgs and consumer2 will ack those messages. The messages the
+            // broker dispatched to consumer2 fill its receiver queue, so the broker dispatches it no more.
+            int dispatchedToConsumer2 = getBrokerConsumer(consumer2).getUnackedMessages();
+            while (totalReceiveMessages < totalProducedMsgs - dispatchedToConsumer2) {
+                Message<byte[]> msg = consumer1.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
                     totalReceiveMessages++;
                     consumer2.acknowledge(msg);
@@ -2140,8 +2146,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 }
             }
 
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer2.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            while (totalReceiveMessages < totalProducedMsgs) {
+                Message<byte[]> msg = consumer2.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
                 if (msg != null) {
                     totalReceiveMessages++;
                     log.info("Received message: " + new String(msg.getData()));
@@ -2152,6 +2158,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // verify total-consumer messages = total-produce messages
             assertEquals(totalProducedMsgs, totalReceiveMessages);
+            // only the messages consumer2 received are left unacked, so the broker has nothing left to dispatch: no
+            // more messages arrive
+            Awaitility.await().untilAsserted(() -> assertEquals(getMsgBacklog(consumer1), dispatchedToConsumer2));
+            assertNull(consumer1.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
+            assertNull(consumer2.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
             producer.close();
             consumer1.close();
             consumer2.close();
@@ -2231,17 +2242,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             }
 
             // (2) try to consume messages: but will be able to consume number of messages = unAckedMessagesBufferSize
-            Message<byte[]> msg;
-            List<Message<byte[]>> messages1 = new ArrayList<>();
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (msg != null) {
-                    messages1.add(msg);
-                    log.info("Received message: " + new String(msg.getData()));
-                } else {
-                    break;
-                }
-            }
+            List<Message<byte[]>> messages1 = receiveUntilBlockedOnUnackedMessages(consumer);
 
             // client should not receive all produced messages and should be blocked due to unack-messages
             assertEquals(messages1.size(), unAckedMessagesBufferSize);
@@ -2250,18 +2251,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (3) redeliver all consumed messages
             consumer.redeliverUnacknowledgedMessages(Sets.newHashSet(redeliveryMessages));
-            Thread.sleep(1000);
 
-            Set<MessageIdImpl> messages2 = new HashSet<>();
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (msg != null) {
-                    messages2.add((MessageIdImpl) msg.getMessageId());
-                    log.info("Received message: " + new String(msg.getData()));
-                } else {
-                    break;
-                }
-            }
+            Set<MessageIdImpl> messages2 = receiveUntilBlockedOnUnackedMessages(consumer).stream().map(m ->
+                    (MessageIdImpl) m.getMessageId()).collect(Collectors.toCollection(HashSet::new));
 
             assertEquals(messages1.size(), messages2.size());
             // (4) Verify: redelivered all previous unacked-consumed messages
@@ -2318,17 +2310,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
 
             // (2) try to consume messages: but will be able to consume number of messages = unAckedMessagesBufferSize
-            Message<byte[]> msg;
-            List<Message<byte[]>> messages1 = new ArrayList<>();
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (msg != null) {
-                    messages1.add(msg);
-                    log.info("Received message: " + new String(msg.getData()));
-                } else {
-                    break;
-                }
-            }
+            List<Message<byte[]>> messages1 = receiveUntilBlockedOnUnackedMessages(consumer);
 
             // client should not receive all produced messages and should be blocked due to unack-messages
             Set<MessageIdImpl> redeliveryMessages = messages1.stream().map(m ->
@@ -2336,18 +2318,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
             // (3) redeliver all consumed messages
             consumer.redeliverUnacknowledgedMessages(Sets.newHashSet(redeliveryMessages));
-            Thread.sleep(1000);
 
-            Set<MessageIdImpl> messages2 = new HashSet<>();
-            for (int i = 0; i < totalProducedMsgs; i++) {
-                msg = consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                if (msg != null) {
-                    messages2.add((MessageIdImpl) msg.getMessageId());
-                    log.info("Received message: " + new String(msg.getData()));
-                } else {
-                    break;
-                }
-            }
+            Set<MessageIdImpl> messages2 = receiveUntilBlockedOnUnackedMessages(consumer).stream().map(m ->
+                    (MessageIdImpl) m.getMessageId()).collect(Collectors.toCollection(HashSet::new));
 
             assertEquals(messages1.size(), messages2.size());
             // (4) Verify: redelivered all previous unacked-consumed messages
@@ -2455,15 +2428,20 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
+        // Close the clients together: closing a client waits for its event loop to shut down
+        List<PulsarClient> clients = new ArrayList<>();
         @Cleanup
+        Closeable closeClients = () ->
+                FutureUtil.waitForAll(clients.stream().map(PulsarClient::closeAsync).toList()).join();
         PulsarClient newPulsarClient = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        clients.add(newPulsarClient);
         Consumer<byte[]> c1 = newPulsarClient.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
-        @Cleanup
         PulsarClient newPulsarClient1 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        clients.add(newPulsarClient1);
         Consumer<byte[]> c2 = newPulsarClient1.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
@@ -2483,45 +2461,29 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             future.get();
         }
 
-        List<Message<byte[]>> messages = new ArrayList<>();
-
         // let consumer1 and consumer2 consume messages up to the queue will be full
-        for (int i = 0; i < totalPublishMessages; i++) {
-            Message<byte[]> msg = c1.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
-            if (msg != null) {
-                messages.add(msg);
-            } else {
-                break;
-            }
-        }
-        for (int i = 0; i < totalPublishMessages; i++) {
-            Message<byte[]> msg = c2.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
-            if (msg != null) {
-                messages.add(msg);
-            } else {
-                break;
-            }
-        }
+        List<Message<byte[]>> messages = receiveUntilBlockedOnUnackedMessages(c1);
+        messages.addAll(receiveUntilBlockedOnUnackedMessages(c2));
 
         Assert.assertEquals(queueSize * 2, messages.size());
 
         // create new consumers with the same priority
-        @Cleanup
         PulsarClient newPulsarClient2 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        clients.add(newPulsarClient2);
         Consumer<byte[]> c3 = newPulsarClient2.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
-        @Cleanup
         PulsarClient newPulsarClient3 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        clients.add(newPulsarClient3);
         Consumer<byte[]> c4 = newPulsarClient3.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
-        @Cleanup
         PulsarClient newPulsarClient4 = newPulsarClient(lookupUrl.toString(), 0); // Creates new client connection
+        clients.add(newPulsarClient4);
         Consumer<byte[]> c5 = newPulsarClient4.newConsumer()
                 .topic("persistent://my-property/my-ns/my-topic2").subscriptionName("my-subscriber-name")
                 .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
@@ -2529,25 +2491,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // c1 and c2 are blocked: so, let c3, c4 and c5 consume rest of the messages
 
-        for (int i = 0; i < totalPublishMessages; i++) {
-            Message<byte[]> msg = c4.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
-            if (msg != null) {
-                messages.add(msg);
-            } else {
-                break;
-            }
-        }
+        messages.addAll(receiveUntilBlockedOnUnackedMessages(c4));
+        messages.addAll(receiveUntilBlockedOnUnackedMessages(c5));
 
-        for (int i = 0; i < totalPublishMessages; i++) {
-            Message<byte[]> msg = c5.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
-            if (msg != null) {
-                messages.add(msg);
-            } else {
-                break;
-            }
-        }
-
-        for (int i = 0; i < totalPublishMessages; i++) {
+        while (messages.size() < totalPublishMessages) {
             Message<byte[]> msg = c3.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
             if (msg != null) {
                 messages.add(msg);
@@ -2556,6 +2503,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 break;
             }
         }
+        assertNull(c3.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS));
 
         // total messages must be consumed by all consumers
         Assert.assertEquals(messages.size(), totalPublishMessages);
@@ -3262,8 +3210,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
 
         // 3. KeyReder is not set by consumer
-        // Receive should fail since key reader is not setup
-        msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        // Receive should fail since key reader is not setup: the consumer drops every message the broker dispatches
+        awaitAllMessagesDispatched(consumer);
+        msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_MEDIUM_MILLIS, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg, "Receive should have failed with no keyreader");
 
         // 4. Set consumer config to consume even if decryption fails
@@ -3321,8 +3270,10 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
                 .acknowledgmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
-        // Receive should proceed and discard encrypted messages
-        msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        // Receive should proceed and discard encrypted messages: the consumer acks the messages it discards
+        Consumer<byte[]> discardingConsumer = consumer;
+        Awaitility.await().untilAsserted(() -> assertEquals(getMsgBacklog(discardingConsumer), 0));
+        msg = (MessageImpl<byte[]>) consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS);
         Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
 
         consumer.close();
@@ -3698,17 +3649,23 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 ("my-message-" + counter++).getBytes());
         }
 
-        // 7. should not consume any messages
-        assertNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+        // 7. should not consume any messages: the paused consumers, including the ones for the new partitions, give
+        // the broker no permits
+        awaitNoPermitsAtBroker((MultiTopicsConsumerImpl<?>) consumer);
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
 
 
         // 8. resume multi-topic consumer
         consumer.resume();
 
         // 9. continue to consume
-        while (consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
-           counter++;
+        while (counter < 10) {
+            assertNotNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
+            counter++;
         }
+        // every message was dispatched once, so no more arrive
+        awaitAllMessagesDispatched(consumer);
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
         assertEquals(counter, 10);
 
         producer.close();
@@ -3779,16 +3736,22 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             counter++;
         }
 
-        // 6. should not consume any messages
-        Awaitility.await().untilAsserted(() -> assertNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS)));
+        // 6. should not consume any messages: the paused consumers, including the one added manually, give the broker
+        // no permits
+        awaitNoPermitsAtBroker((MultiTopicsConsumerImpl<?>) consumer);
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
 
         // 7. resume multi-topic consumer
         consumer.resume();
 
         // 8. continue to consume
-        while (consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS) != null) {
+        while (counter < 30) {
+            assertNotNull(consumer.receive(RECEIVE_TIMEOUT_SECONDS, TimeUnit.SECONDS));
             counter++;
         }
+        // every message was dispatched once, so no more arrive
+        awaitAllMessagesDispatched(consumer);
+        assertNull(consumer.receive(RECEIVE_TIMEOUT_SHORT_MILLIS, TimeUnit.MILLISECONDS));
         assertEquals(counter, 30);
 
         producer1.close();
@@ -5088,7 +5051,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // Verify all messages will be consumed.
         Set<String> receivedMessages = new HashSet<>();
-        while (true) {
+        while (receivedMessages.size() < messagesCount) {
             Message<String> msg = consumer.receive(2, TimeUnit.SECONDS);
             if (msg != null) {
                 receivedMessages.add(msg.getValue());
@@ -5191,14 +5154,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         }
         sendFutureList.get(messageCount - 1).join();
 
-        // Left 2 seconds to wait the code in the finally-block, which is using to avoid this test to be flaky.
-        Thread.sleep(1000 * 2);
-
-        // Verify: payload's refCnf.
-        for (int i = 0; i < messageCount; i++) {
-            log.info().attr("payload", i).attr("th", payloads[i].refCnt()).log("Payload refCnt (4th)");
-            assertEquals(payloads[i].refCnt(), 1);
-        }
+        // Verify: payload's refCnf, once the producer released its reference in the finally-block that runs after the
+        // send completes.
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < messageCount; i++) {
+                log.info().attr("payload", i).attr("th", payloads[i].refCnt()).log("Payload refCnt (4th)");
+                assertEquals(payloads[i].refCnt(), 1);
+            }
+        });
 
         // Verify: the messages has not been released when calling interceptor.
         assertFalse(payloadWasReleasedWhenIntercept.get());
@@ -5557,7 +5520,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         String mlName = TopicName.get(topic).getPersistenceNamingEncoding();
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(2);
-        config.setMinimumRolloverTime(1, TimeUnit.SECONDS);
+        config.setMinimumRolloverTime(100, TimeUnit.MILLISECONDS);
         if (!trimLegderBeforeGetStats) {
             config.setRetentionTime(3600, TimeUnit.SECONDS);
         }
@@ -5568,8 +5531,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .create();
         for (int i = 0; i < 4; i++) {
             producer.send("message-" + i);
-            Thread.sleep(1000);
+            // outlast the minimum rollover time, so that every second message rolls the ledger over
+            Thread.sleep(200);
         }
+        // the last message rolled the ledger over to an empty one
+        Awaitility.await().untilAsserted(() -> assertEquals(ml.getCurrentLedgerEntries(), 0));
         producer.close();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).get();
         assertEquals(persistentTopic.getManagedLedger(), ml);
@@ -5589,6 +5555,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         admin.topics().delete(topic, false);
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testTopicPartitionCannotBeCreatedAfterTopicDeleted() throws Exception {
         final String topic = BrokerTestUtil.newUniqueName("persistent://public/default/tp");
@@ -5600,6 +5567,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                 .statsInterval(0, TimeUnit.SECONDS)
                 .connectionsPerBroker(1);
         CountDownLatch countDownLatch = new CountDownLatch(1);
+        List<String> serverErrors = new CopyOnWriteArrayList<>();
         PulsarClientImpl pulsarClient = InjectedClientCnxClientBuilder.create(clientBuilder, (conf, eventLoopGroup) -> {
 
             return new ClientCnx(InstrumentProvider.NOOP, conf, eventLoopGroup) {
@@ -5610,6 +5578,12 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     log.info("channel inactive");
                     countDownLatch.await();
                     super.channelInactive(ctx);
+                }
+
+                @Override
+                protected void handleError(CommandError error) {
+                    serverErrors.add(error.getMessage());
+                    super.handleError(error);
                 }
             };
         });
@@ -5637,9 +5611,11 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             assertTrue(persistentTopic1.isClosingOrDeleting());
         });
 
-        // Verify: the partition can not be loaded up once the partitioned topic was deleted.
+        // Verify: the partition can not be loaded up once the partitioned topic was deleted, so the broker rejects the
+        // reconnecting producer.
         countDownLatch.countDown();
-        Thread.sleep(10_000);
+        Awaitility.await().untilAsserted(() -> assertThat(serverErrors)
+                .anyMatch(error -> error.contains("Partition metadata not found")));
         assertFalse(producer.isConnected());
         assertFalse(pulsar.getBrokerService().getTopics().containsKey(topic + "-partition-0"));
 

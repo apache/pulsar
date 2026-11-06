@@ -80,6 +80,7 @@ public class InmemoryTopicPoliciesService implements TopicPoliciesService {
         return CompletableFuture.completedFuture(Optional.ofNullable(cache.get(topicName)));
     }
 
+    @Deprecated
     @Override
     public synchronized boolean registerListener(TopicName topicName, TopicPolicyListener listener) {
         listeners.computeIfAbsent(topicName, __ -> new ArrayList<>()).add(listener);

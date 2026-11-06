@@ -2,9 +2,7 @@
 
 * **Status**: Proposed
 * **Author**: Daniel Blankensteiner
-* **Pull Request**:
-* **Mailing List discussion**: https://lists.apache.org/thread.html/8ebe35027d818e595eec322da26a3f392324ec3d86c4c1b12b1ff498%40%3Cdev.pulsar.apache.org%3E
-* **Release**:
+* **Mailing List discussion**: https://lists.apache.org/thread/1ykzdf51wk1fzgtmo5164fr3yg3l145r
 
 At [Danske Commodities A/S](https://github.com/danske-commodities/dotpulsar/wiki#who-we-are) we have developed a Pulsar client library for .NET - DotPulsar.
 The repository is here: https://github.com/danske-commodities/dotpulsar

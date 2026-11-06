@@ -31,7 +31,7 @@ import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 /**
  * Generate metrics in a text format suitable to be consumed by Prometheus.
- * Format specification can be found at {@link https://prometheus.io/docs/instrumenting/exposition_formats/}
+ * Format specification can be found at <a href="https://prometheus.io/docs/instrumenting/exposition_formats/">exposition formats</a>
  */
 public class PrometheusMetricsGeneratorUtils {
 
@@ -59,8 +59,10 @@ public class PrometheusMetricsGeneratorUtils {
         while (metricFamilySamples.hasMoreElements()) {
             Collector.MetricFamilySamples metricFamily = metricFamilySamples.nextElement();
 
-            // Write type of metric
-            stream.write("# TYPE ").write(metricFamily.name).write(getTypeNameSuffix(metricFamily.type)).write(' ')
+            // Preserve existing TYPE names; only explicitly opted-in counter families use the total sample name.
+            String typeName = metricFamily instanceof PrometheusCounterMetricFamily counter
+                    ? counter.getPrometheusTypeName() : metricFamily.name + getTypeNameSuffix(metricFamily.type);
+            stream.write("# TYPE ").write(typeName).write(' ')
                     .write(getTypeStr(metricFamily.type)).write('\n');
 
             for (int i = 0; i < metricFamily.samples.size(); i++) {

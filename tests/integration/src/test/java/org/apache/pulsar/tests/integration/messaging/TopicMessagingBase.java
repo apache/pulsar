@@ -174,8 +174,6 @@ public class TopicMessagingBase extends MessagingBase {
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
         // To simulate a consumer crashed
         Consumer<String> crashedConsumer = consumerList.remove(0);
-        // wait ack send
-        Thread.sleep(3000);
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
                 MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();
@@ -227,8 +225,6 @@ public class TopicMessagingBase extends MessagingBase {
         receiveMessagesCheckOrderAndDuplicate(consumerList, messagesToSend);
         // To simulate a consumer crashed
         Consumer<String> crashedConsumer = consumerList.remove(0);
-        // wait ack send
-        Thread.sleep(3000);
         crashedConsumer.close();
         for (int i = 0; i < messagesToSend; i++) {
             MessageId messageId = producer.newMessage().value(producer.getProducerName() + "-" + i).send();

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import java.util.ArrayDeque;
@@ -30,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RedeliveryBackoff;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 @CustomLog
@@ -39,6 +41,12 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
     protected final ArrayDeque<HashSet<UnackMessageIdWrapper>> redeliveryTimePartitions;
 
     protected final HashMap<MessageId, Long> ackTimeoutMessages;
+
+    // The broker only tracks the redelivery count for Shared and Key_Shared subscriptions, so for the other
+    // subscription types the ack-timeout redeliveries are counted here. The counts are kept across clear(),
+    // since an Exclusive or Failover consumer clears the tracker every time it redelivers.
+    protected final HashMap<MessageId, Integer> localRedeliveryCounts;
+    private final boolean countRedeliveriesLocally;
     private final RedeliveryBackoff ackTimeoutRedeliveryBackoff;
 
     public UnAckedMessageRedeliveryTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase,
@@ -46,6 +54,9 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         super(client, consumerBase, conf);
         this.ackTimeoutRedeliveryBackoff = conf.getAckTimeoutRedeliveryBackoff();
         this.ackTimeoutMessages = new HashMap<MessageId, Long>();
+        this.localRedeliveryCounts = new HashMap<>();
+        this.countRedeliveriesLocally = conf.getSubscriptionType() != SubscriptionType.Shared
+                && conf.getSubscriptionType() != SubscriptionType.Key_Shared;
         this.redeliveryMessageIdPartitionMap = new HashMap<>();
         this.redeliveryTimePartitions = new ArrayDeque<>();
 
@@ -61,6 +72,9 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                     return;
                 }
 
+                Set<MessageId> messageIds = TL_MESSAGE_IDS_SET.get();
+                messageIds.clear();
+
                 writeLock.lock();
                 try {
                     HashSet<UnackMessageIdWrapper> headPartition = redeliveryTimePartitions.removeFirst();
@@ -73,12 +87,20 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                     }
                     headPartition.clear();
                     redeliveryTimePartitions.addLast(headPartition);
-                    triggerRedelivery(consumerBase);
+                    collectMessagesToRedeliver(consumerBase, messageIds);
                 } finally {
                     try {
                         timeout = client.timer().newTimeout(this, tickDurationInMs, TimeUnit.MILLISECONDS);
                     } finally {
                         writeLock.unlock();
+
+                        // Never call into the consumer while holding the tracker lock: receive processing
+                        // and explicit redelivery hold the consumer monitor while updating this tracker.
+                        // UnAckedMessageTracker follows the same lock ordering.
+                        if (!messageIds.isEmpty()) {
+                            consumerBase.onAckTimeoutSend(messageIds);
+                            consumerBase.redeliverUnacknowledgedMessages(messageIds);
+                        }
                     }
                 }
             }
@@ -91,6 +113,9 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         try {
             MessageId messageId = messageIdWrapper.getMessageId();
             int redeliveryCount = messageIdWrapper.getRedeliveryCount();
+            if (countRedeliveriesLocally) {
+                redeliveryCount = localRedeliveryCounts.merge(messageId, 1, Integer::sum) - 1;
+            }
             long backoffNs = ackTimeoutRedeliveryBackoff.next(redeliveryCount);
             ackTimeoutMessages.put(messageId, System.currentTimeMillis() + backoffNs);
         } finally {
@@ -98,35 +123,26 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
         }
     }
 
-    private void triggerRedelivery(ConsumerBase<?> consumerBase) {
+    private void collectMessagesToRedeliver(ConsumerBase<?> consumerBase, Set<MessageId> messageIds) {
         if (ackTimeoutMessages.isEmpty()) {
             return;
         }
-        Set<MessageId> messageIds = TL_MESSAGE_IDS_SET.get();
-        messageIds.clear();
 
-        try {
-            long now = System.currentTimeMillis();
-            ackTimeoutMessages.forEach((messageId, timestamp) -> {
-                if (timestamp <= now) {
-                    addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
-                    messageIds.add(messageId);
-                }
-            });
-            if (!messageIds.isEmpty()) {
-                log.info().attr("consumerBase", consumerBase)
-                        .attr("size", messageIds.size())
-                        .log("messages will be re-delivered");
-                Iterator<MessageId> iterator = messageIds.iterator();
-                while (iterator.hasNext()) {
-                    MessageId messageId = iterator.next();
-                    ackTimeoutMessages.remove(messageId);
-                }
+        long now = System.currentTimeMillis();
+        ackTimeoutMessages.forEach((messageId, timestamp) -> {
+            if (timestamp <= now) {
+                addChunkedMessageIdsAndRemoveFromSequenceMap(messageId, messageIds, consumerBase);
+                messageIds.add(messageId);
             }
-        } finally {
-            if (messageIds.size() > 0) {
-                consumerBase.onAckTimeoutSend(messageIds);
-                consumerBase.redeliverUnacknowledgedMessages(messageIds);
+        });
+        if (!messageIds.isEmpty()) {
+            log.info().attr("consumerBase", consumerBase)
+                    .attr("size", messageIds.size())
+                    .log("messages will be re-delivered");
+            Iterator<MessageId> iterator = messageIds.iterator();
+            while (iterator.hasNext()) {
+                MessageId messageId = iterator.next();
+                ackTimeoutMessages.remove(messageId);
             }
         }
     }
@@ -192,6 +208,7 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
             if (exist != null) {
                 removed = exist.remove(messageIdWrapper);
             }
+            localRedeliveryCounts.remove(messageId);
             return removed || ackTimeoutMessages.remove(messageId) != null;
         } finally {
             messageIdWrapper.recycle();
@@ -235,9 +252,20 @@ public class UnAckedMessageRedeliveryTracker extends UnAckedMessageTracker {
                     removed++;
                 }
             }
+            localRedeliveryCounts.keySet().removeIf(messageId -> messageId.compareTo(msgId) <= 0);
             return removed;
         } finally {
             writeLock.unlock();
+        }
+    }
+
+    @VisibleForTesting
+    int getLocalRedeliveryCount(MessageId messageId) {
+        readLock.lock();
+        try {
+            return localRedeliveryCounts.getOrDefault(messageId, 0);
+        } finally {
+            readLock.unlock();
         }
     }
 

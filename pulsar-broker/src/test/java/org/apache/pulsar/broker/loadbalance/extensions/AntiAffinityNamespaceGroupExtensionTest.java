@@ -145,6 +145,16 @@ public class AntiAffinityNamespaceGroupExtensionTest extends AntiAffinityNamespa
                         primaryLoadManager, "serviceUnitStateChannel", true);
         var srcBroker = serviceUnitStateChannel.getOwnerAsync(namespaceBundle.toString())
                 .get(5, TimeUnit.SECONDS).get();
+        // the namespace's own bundles don't exclude its owner
+        actual = antiAffinityGroupPolicyFilter.filterAsync(
+                brokers, namespaceBundle, context).get();
+        assertEquals(actual, expected);
+
+        // another namespace of the group must avoid the broker that owns the first one
+        final String otherAntiAffinityNamespace = namespace + "-other" + nsSuffix;
+        admin.namespaces().createNamespace(otherAntiAffinityNamespace);
+        admin.namespaces().setNamespaceAntiAffinityGroup(otherAntiAffinityNamespace, namespaceAntiAffinityGroup);
+        doReturn(otherAntiAffinityNamespace + "/" + bundle).when(namespaceBundle).toString();
         expected.remove(srcBroker);
         actual = antiAffinityGroupPolicyFilter.filterAsync(
                 brokers, namespaceBundle, context).get();

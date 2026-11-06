@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.PrivateKey;
@@ -406,7 +407,7 @@ public class WebServiceTest {
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
 
-        URL url = new URL(metricsUrl);
+        URL url = URI.create(metricsUrl).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
         connection.setRequestProperty("Accept-Encoding", "gzip");
@@ -438,7 +439,7 @@ public class WebServiceTest {
 
         String metricsUrl = pulsar.getWebServiceAddress() + "/metrics/";
 
-        URL url = new URL(metricsUrl);
+        URL url = URI.create(metricsUrl).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("GET");
 
@@ -486,9 +487,9 @@ public class WebServiceTest {
                 SSLContext sslCtx = SSLContext.getInstance("TLS");
                 sslCtx.init(keyManagers, trustManagers, new SecureRandom());
                 HttpsURLConnection.setDefaultSSLSocketFactory(sslCtx.getSocketFactory());
-                response = new URL(brokerLookUpUrlTls).openStream();
+                response = URI.create(brokerLookUpUrlTls).toURL().openStream();
             } else {
-                response = new URL(brokerLookUpUrl).openStream();
+                response = URI.create(brokerLookUpUrl).toURL().openStream();
             }
             String resp = CharStreams.toString(new InputStreamReader(response));
             log.info().attr("response", resp).log("Response");

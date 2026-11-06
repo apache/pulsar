@@ -104,11 +104,11 @@ class WatchTcAssignmentsDiscovery implements TcDiscovery, ClientCnx.TcAssignment
         }
         if (!newCnx.isSupportsTcMetadataDiscovery()) {
             // The broker we landed on doesn't support the watch. On the very first open this is a
-            // hard failure (the caller chose this strategy on a probe that said it was supported);
+            // hard failure (the V5 client requires the metadata-store coordinator);
             // after that, it's likely transient — config drift or we hit a different/old broker —
             // so reconnect to find a supporting broker rather than freezing on the last snapshot.
-            onAttachFailure(new PulsarClientException(
-                    "Broker does not support metadata-store TC discovery"));
+            onAttachFailure(new PulsarClientException.NotSupportedException(
+                    "Broker does not support scalable-topics transactions (metadata-store TC discovery)"));
             return;
         }
         this.cnx = newCnx;

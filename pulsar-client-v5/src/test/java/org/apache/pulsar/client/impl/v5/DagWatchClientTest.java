@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.v5;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -26,9 +28,16 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.util.Timer;
 import io.netty.util.TimerTask;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.ScalableTopicDAG;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.Test;
 
@@ -64,5 +73,106 @@ public class DagWatchClientTest {
         watch.connectionClosed();
 
         verify(v4Client, never()).timer();
+    }
+
+    @Test
+    public void testSetListenerDeliversLayoutReceivedBeforeIt() {
+        DagWatchClient watch = watchWithLayout(mock(PulsarClientImpl.class));
+        // Epoch 1 is the initial layout, which the caller applies itself. Epoch 2 arrives while it does.
+        watch.onUpdate(new ScalableTopicDAG().setEpoch(2L), TOPIC);
+        List<String> changes = new ArrayList<>();
+
+        watch.setListener((newLayout, oldLayout) -> changes.add(oldLayout.epoch() + "->" + newLayout.epoch()));
+
+        assertThat(changes).containsExactly("1->2");
+    }
+
+    @Test
+    public void testSetListenerDeliversNothingWhenNoLayoutArrivedSinceStart() {
+        DagWatchClient watch = watchWithLayout(mock(PulsarClientImpl.class));
+        List<String> changes = new ArrayList<>();
+
+        watch.setListener((newLayout, oldLayout) -> changes.add(oldLayout.epoch() + "->" + newLayout.epoch()));
+        assertThat(changes).isEmpty();
+
+        watch.onUpdate(new ScalableTopicDAG().setEpoch(2L), TOPIC);
+        assertThat(changes).containsExactly("1->2");
+    }
+
+    @Test(timeOut = 30_000)
+    public void testLayoutArrivingWhileListenerRunsIsDeliveredAfterIt() throws Exception {
+        DagWatchClient watch = watchWithLayout(mock(PulsarClientImpl.class));
+        watch.onUpdate(new ScalableTopicDAG().setEpoch(2L), TOPIC);
+        List<String> changes = new CopyOnWriteArrayList<>();
+        CountDownLatch delivering = new CountDownLatch(1);
+        CountDownLatch resume = new CountDownLatch(1);
+        Thread caller = new Thread(() -> watch.setListener((newLayout, oldLayout) -> {
+            changes.add(oldLayout.epoch() + "->" + newLayout.epoch());
+            delivering.countDown();
+            awaitUninterruptibly(resume);
+        }));
+        caller.start();
+        try {
+            assertThat(delivering.await(10, TimeUnit.SECONDS)).isTrue();
+
+            // Epoch 3 arrives on the I/O thread while the caller's thread is still delivering epoch 2: the
+            // I/O thread must neither wait for that delivery nor call the listener alongside it.
+            watch.onUpdate(new ScalableTopicDAG().setEpoch(3L), TOPIC);
+            assertThat(changes).containsExactly("1->2");
+        } finally {
+            // Let the caller's thread finish even if an assertion failed.
+            resume.countDown();
+            caller.join();
+        }
+        assertThat(changes).containsExactly("1->2", "2->3");
+    }
+
+    @Test
+    public void testListenerErrorDoesNotStopLaterLayouts() {
+        DagWatchClient watch = watchWithLayout(mock(PulsarClientImpl.class));
+        List<String> changes = new ArrayList<>();
+        watch.setListener((newLayout, oldLayout) -> {
+            changes.add(oldLayout.epoch() + "->" + newLayout.epoch());
+            if (changes.size() == 1) {
+                throw new Error("listener failure");
+            }
+        });
+
+        // Whether or not the Error reaches the I/O thread, the layouts that follow must still be delivered.
+        catchThrowable(() -> watch.onUpdate(new ScalableTopicDAG().setEpoch(2L), TOPIC));
+        watch.onUpdate(new ScalableTopicDAG().setEpoch(3L), TOPIC);
+
+        assertThat(changes).containsExactly("1->2", "2->3");
+    }
+
+    @Test
+    public void testRejectedLookupFailsStartWithItsErrorCategory() {
+        assertThat(startFailure(ServerError.TopicNotFound))
+                .hasCauseInstanceOf(PulsarClientException.NotFoundException.class);
+        assertThat(startFailure(ServerError.AuthorizationError))
+                .hasCauseInstanceOf(PulsarClientException.AuthorizationException.class);
+        assertThat(startFailure(ServerError.AuthenticationError))
+                .hasCauseInstanceOf(PulsarClientException.AuthenticationException.class);
+    }
+
+    /** How {@link DagWatchClient#start} fails when the broker rejects the lookup with {@code error}. */
+    private static Throwable startFailure(ServerError error) {
+        PulsarClientImpl v4Client = mock(PulsarClientImpl.class);
+        // The broker's answer is fed in by the test: the connection never opens.
+        when(v4Client.getConnection(TOPIC)).thenReturn(new CompletableFuture<>());
+        DagWatchClient watch = new DagWatchClient(v4Client, TopicName.get(TOPIC));
+        CompletableFuture<ClientSegmentLayout> start = watch.start();
+
+        watch.onError(error, "rejected");
+
+        return catchThrowable(start::join);
+    }
+
+    private static void awaitUninterruptibly(CountDownLatch latch) {
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }

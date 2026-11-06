@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.function.Supplier;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
@@ -42,6 +43,10 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
     public static final String BUCKET = "pulsar-unittest";
     protected static final int DEFAULT_BLOCK_SIZE = 5 * 1024 * 1024;
     protected static final int DEFAULT_READ_BUFFER_SIZE = 1 * 1024 * 1024;
+    // The offload and the reads allocate buffers for each entry, which the paranoid leak detector of the test JVMs
+    // tracks, so a ledger of a few data blocks is made of thousands of 1 KiB entries rather than of hundreds of
+    // thousands of 10 bytes
+    private static final int ENTRY_SIZE = 1024;
 
     protected final OrderedScheduler scheduler;
     protected final OrderedExecutor bkExecutor;
@@ -147,14 +152,15 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
         Assert.assertTrue(maxBlockSize > DataBlockHeaderImpl.getDataStartOffset());
 
         LedgerHandle lh = bk.createLedger(1, 1, 1, BookKeeper.DigestType.CRC32, "foobar".getBytes());
+        Random random = new Random(lh.getId());
 
-        int i = 0;
         int bytesWrittenCurrentBlock = DataBlockHeaderImpl.getDataStartOffset();
         int blocksWritten = 1;
 
         while (blocksWritten < blockCount
                || bytesWrittenCurrentBlock < maxBlockSize / 2) {
-            byte[] entry = ("foobar" + i).getBytes();
+            byte[] entry = new byte[ENTRY_SIZE];
+            random.nextBytes(entry);
             int sizeInBlock = entry.length + 12 /* ENTRY_HEADER_SIZE */;
 
             if (bytesWrittenCurrentBlock + sizeInBlock > maxBlockSize) {
@@ -164,7 +170,6 @@ public abstract class BlobStoreManagedLedgerOffloaderBase {
 
             lh.addEntry(entry);
             bytesWrittenCurrentBlock += sizeInBlock;
-            i++;
         }
 
         lh.close();

@@ -18,13 +18,18 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
 import java.io.Closeable;
 import java.time.Duration;
 import java.util.Arrays;
@@ -38,6 +43,7 @@ import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.mockito.stubbing.Answer;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "utils")
@@ -50,14 +56,24 @@ public class PatternConsumerUpdateQueueTest {
                 null, null);
     }
 
-    @SuppressWarnings("rawtypes")
     private QueueInstance createInstance(CompletableFuture<Void> customizedRecheckFuture,
                                          CompletableFuture<Void> customizedPartialUpdateFuture,
                                          CompletableFuture<Void> customizedConsumerInitFuture,
                                          Collection<String> successTopics,
                                          Collection<String> errorTopics) {
-        HashedWheelTimer timer = new HashedWheelTimer(new ExecutorProvider.ExtendedThreadFactory("timer-x",
+        Timer timer = new HashedWheelTimer(new ExecutorProvider.ExtendedThreadFactory("timer-x",
                 Thread.currentThread().isDaemon()), 1, TimeUnit.MILLISECONDS);
+        return createInstance(customizedRecheckFuture, customizedPartialUpdateFuture, customizedConsumerInitFuture,
+                successTopics, errorTopics, timer);
+    }
+
+    @SuppressWarnings("rawtypes")
+    private QueueInstance createInstance(CompletableFuture<Void> customizedRecheckFuture,
+                                         CompletableFuture<Void> customizedPartialUpdateFuture,
+                                         CompletableFuture<Void> customizedConsumerInitFuture,
+                                         Collection<String> successTopics,
+                                         Collection<String> errorTopics,
+                                         Timer timer) {
         PulsarClientImpl client = mock(PulsarClientImpl.class);
         when(client.timer()).thenReturn(timer);
 
@@ -228,6 +244,81 @@ public class PatternConsumerUpdateQueueTest {
 
         // cleanup.
         instance.close();
+    }
+
+    @DataProvider
+    public Object[][] queuedRecheckSources() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "queuedRecheckSources")
+    public void testFailedAddWithQueuedRecheck(boolean compactQueue) {
+        CompletableFuture<Void> completedFuture = CompletableFuture.completedFuture(null);
+        CompletableFuture<Void> addFuture = new CompletableFuture<>();
+        CompletableFuture<Void> recheckFuture = new CompletableFuture<>();
+        Timer timer = mock(Timer.class);
+        try (QueueInstance instance = createInstance(recheckFuture, completedFuture, completedFuture,
+                null, null, timer)) {
+            List<String> failedTopics = List.of("failed");
+            when(instance.mockedListener.onTopicsAdded(failedTopics)).thenReturn(addFuture);
+
+            instance.queue.appendTopicsChangedOp(failedTopics, List.of(), "");
+            verify(instance.mockedListener).onTopicsAdded(failedTopics);
+
+            if (compactQueue) {
+                // The first 30 updates fill the queue; the next update enqueues a recheck instead.
+                for (int i = 0; i < 31; i++) {
+                    instance.queue.appendTopicsChangedOp(List.of("queued-" + i), List.of(), "");
+                }
+            } else {
+                instance.queue.appendRecheckOp();
+            }
+            verify(instance.mockedConsumer, never()).recheckTopicsChange();
+
+            addFuture.completeExceptionally(new RuntimeException("Failed topic subscription"));
+
+            verify(instance.mockedConsumer).recheckTopicsChange();
+
+            List<String> addedTopics = List.of("added-after-recheck");
+            List<String> removedTopics = List.of("removed-after-recheck");
+            instance.queue.appendTopicsChangedOp(addedTopics, removedTopics, "");
+            verify(instance.mockedListener, never()).onTopicsAdded(addedTopics);
+            verify(instance.mockedListener, never()).onTopicsRemoved(removedTopics);
+
+            recheckFuture.complete(null);
+
+            verify(instance.mockedListener).onTopicsAdded(addedTopics);
+            verify(instance.mockedListener).onTopicsRemoved(removedTopics);
+            verify(instance.mockedListener, times(2)).onTopicsAdded(anyCollection());
+            verify(instance.mockedListener, times(2)).onTopicsRemoved(anyCollection());
+            verify(instance.mockedConsumer).recheckTopicsChange();
+            verify(timer, never()).newTimeout(any(), anyLong(), any());
+        }
+    }
+
+    @Test
+    public void testFailedAddWithQueuedRecheckAfterClose() {
+        CompletableFuture<Void> completedFuture = CompletableFuture.completedFuture(null);
+        CompletableFuture<Void> addFuture = new CompletableFuture<>();
+        Timer timer = mock(Timer.class);
+        try (QueueInstance instance = createInstance(completedFuture, completedFuture, completedFuture,
+                null, null, timer)) {
+            List<String> failedTopics = List.of("failed");
+            when(instance.mockedListener.onTopicsAdded(failedTopics)).thenReturn(addFuture);
+
+            instance.queue.appendTopicsChangedOp(failedTopics, List.of(), "");
+            verify(instance.mockedListener).onTopicsAdded(failedTopics);
+            instance.queue.appendRecheckOp();
+
+            CompletableFuture<Void> closeFuture = instance.queue.cancelAllAndWaitForTheRunningTask();
+            assertThat(closeFuture).as("closing waits for the running update").isNotDone();
+
+            addFuture.completeExceptionally(new RuntimeException("Failed topic subscription"));
+
+            assertThat(closeFuture).as("closing completes despite the failed update").isCompleted();
+            verify(instance.mockedConsumer, never()).recheckTopicsChange();
+            verify(timer, never()).newTimeout(any(), anyLong(), any());
+        }
     }
 
     @Test

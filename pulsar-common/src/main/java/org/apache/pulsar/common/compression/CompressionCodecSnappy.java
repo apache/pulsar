@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar.common.compression;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.airlift.compress.snappy.SnappyCompressor;
 import io.airlift.compress.snappy.SnappyDecompressor;
 import io.airlift.compress.snappy.SnappyRawCompressor;
 import io.airlift.compress.snappy.SnappyRawDecompressor;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.util.concurrent.FastThreadLocal;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -32,6 +34,17 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
  * Snappy Compression.
  */
 public class CompressionCodecSnappy implements CompressionCodec {
+
+    private final ByteBufAllocator allocator;
+
+    public CompressionCodecSnappy() {
+        this(PulsarByteBufAllocator.DEFAULT);
+    }
+
+    @VisibleForTesting
+    CompressionCodecSnappy(ByteBufAllocator allocator) {
+        this.allocator = allocator;
+    }
 
     private static final FastThreadLocal<short[]> SNAPPY_TABLE = //
             new FastThreadLocal<short[]>() {
@@ -62,7 +75,7 @@ public class CompressionCodecSnappy implements CompressionCodec {
         int uncompressedLength = source.readableBytes();
         int maxLength = SnappyRawCompressor.maxCompressedLength(uncompressedLength);
 
-        ByteBuf target = PulsarByteBufAllocator.DEFAULT.buffer(maxLength, maxLength);
+        ByteBuf target = allocator.buffer(maxLength, maxLength);
         int compressedLength;
 
         if (source.hasMemoryAddress() && target.hasMemoryAddress()) {
@@ -88,24 +101,31 @@ public class CompressionCodecSnappy implements CompressionCodec {
 
     @Override
     public ByteBuf decode(ByteBuf encoded, int uncompressedLength) throws IOException {
-        ByteBuf uncompressed = PulsarByteBufAllocator.DEFAULT.buffer(uncompressedLength, uncompressedLength);
+        ByteBuf uncompressed = allocator.buffer(uncompressedLength, uncompressedLength);
+        try {
 
-        if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
-            SnappyRawDecompressor.decompress(
-                    null,
-                    encoded.memoryAddress() + encoded.readerIndex(),
-                    encoded.memoryAddress() + encoded.writerIndex(),
-                    null, uncompressed.memoryAddress(),
-                    uncompressed.memoryAddress() + uncompressedLength);
-        } else {
-            ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
-            ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
+            if (encoded.hasMemoryAddress() && uncompressed.hasMemoryAddress()) {
+                SnappyRawDecompressor.decompress(
+                        null,
+                        encoded.memoryAddress() + encoded.readerIndex(),
+                        encoded.memoryAddress() + encoded.writerIndex(),
+                        null, uncompressed.memoryAddress(),
+                        uncompressed.memoryAddress() + uncompressedLength);
+            } else {
+                ByteBuffer uncompressedNio = uncompressed.nioBuffer(0, uncompressedLength);
+                ByteBuffer encodedNio = encoded.nioBuffer(encoded.readerIndex(), encoded.readableBytes());
 
-            encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
-            SNAPPY_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+                encodedNio = AirliftUtils.ensureAirliftSupported(encodedNio);
+                SNAPPY_DECOMPRESSOR.get().decompress(encodedNio, uncompressedNio);
+            }
+
+            uncompressed.writerIndex(uncompressedLength);
+            return uncompressed;
+        } catch (Throwable t) {
+            // The output buffer is only ever handed to the caller on success: release it when the decompressor
+            // rejects the input, whether as malformed or as not fitting the advertised uncompressed size.
+            uncompressed.release();
+            throw t;
         }
-
-        uncompressed.writerIndex(uncompressedLength);
-        return uncompressed;
     }
 }

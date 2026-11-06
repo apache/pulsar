@@ -29,8 +29,10 @@ import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.awaitility.Awaitility;
 import org.testng.annotations.Test;
 
 public class UnAckedTopicMessageRedeliveryTrackerTest {
@@ -110,6 +112,106 @@ public class UnAckedTopicMessageRedeliveryTrackerTest {
 
         assertEquals(tracker.removeTopicMessages("persistent://public/default/my-topic"), 0);
         assertEquals(tracker.size(), 1);
+
+        tracker.close();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testLocalRedeliveryCountForExclusiveSubscription() {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        when(client.getCnxPool()).thenReturn(connectionPool);
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(
+                new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
+                1, TimeUnit.MILLISECONDS);
+        when(client.timer()).thenReturn(timer);
+
+        ConsumerBase<byte[]> consumer = mock(ConsumerBase.class);
+        doNothing().when(consumer).onAckTimeoutSend(any());
+        doNothing().when(consumer).redeliverUnacknowledgedMessages(any());
+
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        conf.setAckTimeoutMillis(100);
+        conf.setTickDurationMillis(10);
+        // A long backoff keeps the timed-out messages in ackTimeoutMessages instead of redelivering them
+        conf.setAckTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder().minDelayMs(60_000).build());
+
+        UnAckedTopicMessageRedeliveryTracker tracker =
+                new UnAckedTopicMessageRedeliveryTracker(client, consumer, conf);
+
+        String topic = "persistent://public/default/my-topic-partition-0";
+        TopicMessageIdImpl msg1 = new TopicMessageIdImpl(topic, new MessageIdImpl(1L, 0L, -1));
+        TopicMessageIdImpl msg2 = new TopicMessageIdImpl(topic, new MessageIdImpl(1L, 1L, -1));
+        TopicMessageIdImpl msg3 = new TopicMessageIdImpl(topic, new MessageIdImpl(1L, 2L, -1));
+
+        tracker.add(msg1);
+        tracker.add(msg2);
+        tracker.add(msg3);
+        Awaitility.await().untilAsserted(() -> {
+            assertEquals(tracker.getLocalRedeliveryCount(msg1), 1);
+            assertEquals(tracker.getLocalRedeliveryCount(msg2), 1);
+            assertEquals(tracker.getLocalRedeliveryCount(msg3), 1);
+        });
+
+        // The redelivery of an Exclusive consumer clears the tracker, but the counts must survive it
+        tracker.clear();
+        tracker.add(msg1);
+        tracker.add(msg2);
+        tracker.add(msg3);
+        Awaitility.await().untilAsserted(() -> assertEquals(tracker.getLocalRedeliveryCount(msg1), 2));
+
+        tracker.removeMessagesTill(msg1);
+        assertEquals(tracker.getLocalRedeliveryCount(msg1), 0);
+        tracker.remove(msg2);
+        assertEquals(tracker.getLocalRedeliveryCount(msg2), 0);
+        tracker.removeTopicMessages(topic);
+        assertEquals(tracker.getLocalRedeliveryCount(msg3), 0);
+
+        tracker.close();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testNoLocalRedeliveryCountForSharedSubscription() {
+        PulsarClientImpl client = mock(PulsarClientImpl.class);
+        ConnectionPool connectionPool = mock(ConnectionPool.class);
+        when(client.instrumentProvider()).thenReturn(InstrumentProvider.NOOP);
+        when(client.getCnxPool()).thenReturn(connectionPool);
+        @Cleanup("stop")
+        Timer timer = new HashedWheelTimer(
+                new DefaultThreadFactory("pulsar-timer", Thread.currentThread().isDaemon()),
+                1, TimeUnit.MILLISECONDS);
+        when(client.timer()).thenReturn(timer);
+
+        ConsumerBase<byte[]> consumer = mock(ConsumerBase.class);
+        doNothing().when(consumer).onAckTimeoutSend(any());
+        doNothing().when(consumer).redeliverUnacknowledgedMessages(any());
+
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        conf.setAckTimeoutMillis(100);
+        conf.setTickDurationMillis(10);
+        conf.setAckTimeoutRedeliveryBackoff(MultiplierRedeliveryBackoff.builder().minDelayMs(60_000).build());
+
+        UnAckedTopicMessageRedeliveryTracker tracker =
+                new UnAckedTopicMessageRedeliveryTracker(client, consumer, conf);
+
+        TopicMessageIdImpl msg = new TopicMessageIdImpl("persistent://public/default/my-topic-partition-0",
+                new MessageIdImpl(1L, 0L, -1));
+        tracker.add(msg);
+        Awaitility.await().until(() -> {
+            tracker.readLock.lock();
+            try {
+                return !tracker.ackTimeoutMessages.isEmpty();
+            } finally {
+                tracker.readLock.unlock();
+            }
+        });
+        assertEquals(tracker.getLocalRedeliveryCount(msg), 0);
 
         tracker.close();
     }

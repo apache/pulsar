@@ -132,10 +132,10 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
             }
         });
 
-        return future;
+        return future.thenRun(this::initializeLastConfirmedEntry);
     }
 
-    public ReadOnlyCursor createReadOnlyCursor(Position startPosition) {
+    private void initializeLastConfirmedEntry() {
         if (ledgers.isEmpty()) {
             lastConfirmedEntry = PositionFactory.EARLIEST;
         } else if (ledgers.lastEntry().getValue().getEntries() > 0) {
@@ -152,14 +152,18 @@ public class ReadOnlyManagedLedgerImpl extends ManagedLedgerImpl {
                 lastConfirmedEntry = PositionFactory.EARLIEST;
             }
         }
+    }
 
+    public ReadOnlyCursor createReadOnlyCursor(Position startPosition) {
+        initializeLastConfirmedEntry();
         return new ReadOnlyCursorImpl(bookKeeper, this, startPosition, "read-only-cursor");
     }
 
     @Override
-    public void asyncReadEntry(Position position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
+    void asyncReadEntry(Position position, int expectedReadCount, AsyncCallbacks.ReadEntryCallback callback,
+                        Object ctx) {
             this.getLedgerHandle(position.getLedgerId())
-                    .thenAccept((ledger) -> asyncReadEntry(ledger, position, callback, ctx))
+                    .thenAccept((ledger) -> asyncReadEntry(ledger, position, expectedReadCount, callback, ctx))
                     .exceptionally((ex) -> {
                         log.error().attr("ledgerName", this.name)
                                 .attr("position", position)

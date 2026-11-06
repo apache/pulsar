@@ -110,7 +110,7 @@ public final class JcaProviders {
     }
 
     /**
-     * The Bouncy Castle provider, installed process-wide on first resolution:
+     * The Bouncy Castle provider, installed process-wide on first resolution.
      * <ol>
      *   <li>an already-registered {@code BC} or {@code BCFIPS} provider, if any;</li>
      *   <li>otherwise loaded from the classpath (non-FIPS preferred, FIPS as fallback) and registered via

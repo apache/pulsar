@@ -62,7 +62,7 @@ import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.policies.data.loadbalancer.BundleData;
 
 @CustomLog
-public class NamespaceBundleFactory {
+public class NamespaceBundleFactory implements AutoCloseable {
     private final HashFunction hashFunc;
 
     private final AsyncLoadingCache<NamespaceName, NamespaceBundles> bundlesCache;
@@ -73,6 +73,7 @@ public class NamespaceBundleFactory {
     private final TopicBundleAssignmentStrategy topicBundleAssignmentStrategy;
 
     private final Duration maxRetryDuration = Duration.ofSeconds(10);
+    private final Runnable cancelMetadataStoreListener;
 
     public NamespaceBundleFactory(PulsarService pulsar, HashFunction hashFunc) {
         this.hashFunc = hashFunc;
@@ -83,7 +84,8 @@ public class NamespaceBundleFactory {
 
         CacheMetricsCollector.CAFFEINE.addCache("bundles", this.bundlesCache);
 
-        pulsar.getLocalMetadataStore().registerListener(this::handleMetadataStoreNotification);
+        cancelMetadataStoreListener =
+                pulsar.getLocalMetadataStore().registerCancellableListener(this::handleMetadataStoreNotification);
 
         this.pulsar = pulsar;
 
@@ -430,4 +432,12 @@ public class NamespaceBundleFactory {
                 (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
     }
 
+
+    /**
+     * Stop following the changes of the bundles in the metadata store.
+     */
+    @Override
+    public void close() {
+        cancelMetadataStoreListener.run();
+    }
 }

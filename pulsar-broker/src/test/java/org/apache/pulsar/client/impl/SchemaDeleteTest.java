@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import com.google.common.collect.Sets;
+import java.time.Duration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -30,6 +31,7 @@ import org.apache.pulsar.common.policies.data.SchemaAutoUpdateCompatibilityStrat
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -111,6 +113,24 @@ public class SchemaDeleteTest extends MockedPulsarServiceBaseTest {
         Assert.assertTrue(pulsar.getLocalMetadataStore().get(schemaPath).get().isPresent());
         admin.schemas().deleteSchema(topic, true);
         Assert.assertFalse(pulsar.getLocalMetadataStore().get(schemaPath).get().isPresent());
+    }
+
+    @Test
+    public void testDeleteSchemaWhileAutoProduceProducerIsConnected() throws Exception {
+        String topic = "my-property/my-ns/auto-produce-bytes-delete-schema";
+        admin.schemas().createSchema(topic, Schema.AVRO(DummyPojo.class).getSchemaInfo());
+
+        try (Producer<byte[]> producer = pulsarClient.newProducer(Schema.AUTO_PRODUCE_BYTES()).topic(topic).create()) {
+            Awaitility.await().atMost(Duration.ofSeconds(5)).until(producer::isConnected);
+            ProducerImpl<byte[]> producerImpl = (ProducerImpl<byte[]>) producer;
+            long connectionEpoch = producerImpl.getConnectionHandler().getEpoch();
+            admin.schemas().deleteSchema(topic);
+            admin.topics().unload(topic);
+
+            Awaitility.await().atMost(Duration.ofSeconds(10)).until(() ->
+                    producerImpl.getConnectionHandler().getEpoch() > connectionEpoch && producer.isConnected());
+            Assert.assertTrue(admin.schemas().getAllSchemas(topic).isEmpty());
+        }
     }
 
     public static class DummyPojo {

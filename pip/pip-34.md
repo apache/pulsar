@@ -3,8 +3,8 @@
 * **Status**: Implemented
  * **Author**: Jia Zhai
  * **Pull Request**: https://github.com/apache/pulsar/pull/4079
- * **Mailing List discussion**:
  * **Release**: 2.4.0
+ * **Mailing List discussion**: https://lists.apache.org/thread/z201o6qbmdcfnzz1hf2pzgpymo7z4szv
 
 ## Motivation
 At present, there are 3 kinds of subscription modes: exclusive, shared, and failover. Shared mode subscription is used a lot, because consumers could effectively parallel consume messages of same partition.  But using shared mode will not keep the message order of same key, It would be good to leverage share mode, while also keeping the ordering of messages.

@@ -20,8 +20,8 @@
 
 -->
 <!DOCTYPE suppressions PUBLIC
-        "-//Puppy Crawl//DTD Suppressions 1.1//EN"
-        "https://checkstyle.org/dtds/suppressions_1_1.dtd">
+        "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+        "https://checkstyle.org/dtds/suppressions_1_2.dtd">
 
 <suppressions>
     <suppress checks="JavadocPackage" files=".*[\\/]src[\\/]test[\\/].*"/>
@@ -30,7 +30,9 @@
 
     <!-- suppress javadoc check for impl classes and package-info.java -->
     <suppress checks="JavadocType" files=".*Impl\.java$" />
-    <suppress checks="JavadocStyle" files=".+[\\/]package-info\.java$" />
+    <suppress checks="SummaryJavadoc" files=".+[\\/]package-info\.java$" />
+    <!-- Javadoc made of block tags only (no summary sentence) is an accepted style here. -->
+    <suppress checks="SummaryJavadoc" message="^Summary javadoc is missing\.$" />
 
     <!-- suppress all checks in the generated directories -->
     <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java"/>

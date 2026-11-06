@@ -30,7 +30,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.pulsar.broker.BrokerTestUtil;
-import org.apache.pulsar.broker.admin.AdminApiTest.MockedPulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
@@ -44,25 +43,19 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-admin")
 public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
 
-    private MockedPulsarService mockPulsarSetup;
-
-    @BeforeMethod
+    // The test methods use topics of their own, so they share one broker
+    @BeforeClass
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
         super.internalSetup();
-
-        // create otherbroker to test redirect on calls that need
-        // namespace ownership
-        mockPulsarSetup = new MockedPulsarService(this.conf);
-        mockPulsarSetup.setup();
 
         // Setup namespaces
         admin.clusters().createCluster("test", ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build());
@@ -73,11 +66,10 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         setupDefaultTenantAndNamespace();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     public void cleanup() throws Exception {
         super.internalCleanup();
-        mockPulsarSetup.cleanup();
     }
 
     @Test

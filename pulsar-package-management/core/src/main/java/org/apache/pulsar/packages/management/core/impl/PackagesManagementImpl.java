@@ -193,6 +193,11 @@ public class PackagesManagementImpl implements PackagesManagement {
 
     @Override
     public CompletableFuture<List<String>> list(PackageType type, String tenant, String namespace) {
+        try {
+            PackageName.validateNamespace(tenant, namespace);
+        } catch (IllegalArgumentException e) {
+            return CompletableFuture.failedFuture(e);
+        }
         return storage.listAsync(String.format("%s/%s/%s", type, tenant, namespace));
     }
 

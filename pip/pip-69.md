@@ -2,9 +2,7 @@
 
 - Status: Proposal
 - Author: XiaoLong Ran
-- Pull Request:
-- Mailing List discussion:
-- Release:
+- Mailing List discussion: https://lists.apache.org/thread/d15kt7bhvwzg6tjdslhzgombgz1z27k4
 
 ## Motivation
 

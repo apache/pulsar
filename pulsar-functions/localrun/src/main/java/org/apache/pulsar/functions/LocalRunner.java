@@ -49,6 +49,7 @@ import lombok.CustomLog;
 import lombok.Value;
 import org.apache.pulsar.common.functions.FunctionConfig;
 import org.apache.pulsar.common.functions.FunctionDefinition;
+import org.apache.pulsar.common.functions.MemoryLimit;
 import org.apache.pulsar.common.functions.Utils;
 import org.apache.pulsar.common.io.ConnectorDefinition;
 import org.apache.pulsar.common.io.SinkConfig;
@@ -582,6 +583,7 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig
                             .setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
+                instanceConfig.setPulsarClientMemoryLimit(functionConfig.getPulsarClientMemoryLimit());
             }
 
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
@@ -662,6 +664,9 @@ public class LocalRunner implements AutoCloseable {
             if (userCodeClassLoader != null && userCodeClassLoader.getClassLoader() != null) {
                 Thread.currentThread().setContextClassLoader(userCodeClassLoader.getClassLoader());
             }
+            Optional<MemoryLimit> pulsarClientMemoryLimit = functionConfig != null
+                    ? Optional.ofNullable(functionConfig.getPulsarClientMemoryLimit())
+                    : Optional.empty();
             runtimeFactory = new ThreadRuntimeFactory("LocalRunnerThreadGroup",
                     serviceUrl,
                     stateStorageImplClass,
@@ -670,7 +675,7 @@ public class LocalRunner implements AutoCloseable {
                     secretsProvider,
                     collectorRegistry, narExtractionDirectory,
                     null,
-                    exposePulsarAdminClientEnabled, webServiceUrl);
+                    exposePulsarAdminClientEnabled, webServiceUrl, pulsarClientMemoryLimit);
         } finally {
             Thread.currentThread().setContextClassLoader(originalClassLoader);
         }
@@ -693,6 +698,7 @@ public class LocalRunner implements AutoCloseable {
                     instanceConfig
                             .setExposePulsarAdminClientEnabled(functionConfig.getExposePulsarAdminClientEnabled());
                 }
+                instanceConfig.setPulsarClientMemoryLimit(functionConfig.getPulsarClientMemoryLimit());
             }
 
             RuntimeSpawner runtimeSpawner = new RuntimeSpawner(

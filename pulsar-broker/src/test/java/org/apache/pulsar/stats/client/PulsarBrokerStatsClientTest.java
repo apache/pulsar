@@ -25,6 +25,7 @@ import static org.testng.Assert.assertTrue;
 import jakarta.ws.rs.ClientErrorException;
 import jakarta.ws.rs.ServerErrorException;
 import java.lang.reflect.Method;
+import java.net.URI;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -64,7 +65,7 @@ public class PulsarBrokerStatsClientTest extends SharedPulsarBaseTest {
 
     @Test
     public void testServiceException() throws Exception {
-        URL url = new URL("http://localhost:15000");
+        URL url = URI.create("http://localhost:15000").toURL();
         @Cleanup
         PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
         BrokerStatsImpl client = (BrokerStatsImpl) admin.brokerStats();
@@ -126,9 +127,8 @@ public class PulsarBrokerStatsClientTest extends SharedPulsarBaseTest {
 
         PersistentTopicInternalStats internalStats = topic.getInternalStats(true).get();
         assertNotNull(internalStats.ledgers.get(0).metadata);
-        // For the mock test, the default ensembles is ["192.0.2.1:1234","192.0.2.2:1234","192.0.2.3:1234"]
-        // The registered bookie ID is 192.168.1.1:5000
-        assertTrue(internalStats.ledgers.get(0).underReplicated);
+        // Every bookie in the ensemble is registered and available
+        assertFalse(internalStats.ledgers.get(0).underReplicated);
 
         for (ManagedLedgerInternalStats.LedgerInfo ledgerInfo : internalStats.ledgers) {
             if (ledgerInfo.ledgerId == firstLedgerId) {

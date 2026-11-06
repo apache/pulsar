@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.web;
 
+import com.google.common.annotations.VisibleForTesting;
 import io.prometheus.client.CollectorRegistry;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.Filter;
@@ -43,6 +44,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.v2.ScalableTopics;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.intercept.BrokerInterceptors;
 import org.apache.pulsar.broker.tls.DefaultBrokerTlsFactory;
@@ -51,6 +53,7 @@ import org.apache.pulsar.broker.validator.BindAddressValidator;
 import org.apache.pulsar.common.configuration.BindAddress;
 import org.apache.pulsar.jetty.metrics.JettyStatisticsCollector;
 import org.apache.pulsar.jetty.tls.JettyTlsFactory;
+import org.apache.pulsar.jetty.tls.PulsarSslConnectionFactory;
 import org.apache.pulsar.tls.PulsarTlsFactory;
 import org.apache.pulsar.tls.TlsFactoryInitContext;
 import org.apache.pulsar.tls.TlsPurpose;
@@ -73,7 +76,6 @@ import org.eclipse.jetty.server.RequestLog;
 import org.eclipse.jetty.server.SecureRequestCustomizer;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
-import org.eclipse.jetty.server.SslConnectionFactory;
 import org.eclipse.jetty.server.handler.ContextHandler;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
@@ -84,6 +86,7 @@ import org.eclipse.jetty.util.resource.ResourceFactory;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.server.ServerProperties;
 import org.glassfish.jersey.servlet.ServletContainer;
 
 /**
@@ -101,6 +104,7 @@ public class WebService implements AutoCloseable {
     private final PulsarService pulsar;
     private final Server server;
     private final List<Handler> handlers;
+    private final List<ResourceConfig> resourceConfigs = new ArrayList<>();
     @Deprecated
     private final WebExecutorStats executorStats;
     private final WebExecutorThreadPoolStats webExecutorThreadPoolStats;
@@ -186,7 +190,8 @@ public class WebService implements AutoCloseable {
                 connectionFactories.add(new ProxyConnectionFactory());
             }
             if (isTls) {
-                connectionFactories.add(new SslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
+                connectionFactories.add(
+                        new PulsarSslConnectionFactory(sslCtxFactory, httpConnectionFactory.getProtocol()));
             }
             connectionFactories.add(httpConnectionFactory);
             ServerConnector connector = new ServerConnector(server,
@@ -228,6 +233,10 @@ public class WebService implements AutoCloseable {
         for (String javaPackage : javaPackages) {
             config.packages(false, javaPackage);
         }
+        if (!pulsar.getConfiguration().isScalableTopicsEnabled()) {
+            config = new ResourceConfig(config.getClasses().stream()
+                    .filter(resource -> resource != ScalableTopics.class).toArray(Class<?>[]::new));
+        }
         addResourceServlet(basePath, requiresAuthentication, attributeMap, config, useSharedJsonMapperProvider);
     }
 
@@ -250,6 +259,14 @@ public class WebService implements AutoCloseable {
             config.register(JsonMapperProvider.class);
         }
         config.register(MultiPartFeature.class);
+        // Write the responses of async endpoints on the web service executor instead of the thread that resumes them
+        config.register(new WebExecutorAsyncResponseFeature(webServiceExecutor));
+        // Validating the resource model is about a third of Jersey's initialization of the context, at every broker
+        // start, while the model only changes with the code: WebServiceResourceModelTest validates it instead
+        config.property(ServerProperties.RESOURCE_VALIDATION_DISABLE, true);
+        // WADL needs a JAXB implementation, which the broker doesn't have: don't look for one
+        config.property(ServerProperties.WADL_FEATURE_DISABLE, true);
+        resourceConfigs.add(config);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
         addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
@@ -548,6 +565,14 @@ public class WebService implements AutoCloseable {
         webExecutorThreadPoolStats.close();
         this.executorStats.close();
         log.info("Web service closed");
+    }
+
+    /**
+     * The Jersey applications of the resources that {@link #addRestResources} and {@link #addRestResource} added.
+     */
+    @VisibleForTesting
+    List<ResourceConfig> getResourceConfigs() {
+        return resourceConfigs;
     }
 
     public Optional<Integer> getListenPortHTTP() {

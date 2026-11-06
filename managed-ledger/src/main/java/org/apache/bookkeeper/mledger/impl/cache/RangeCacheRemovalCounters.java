@@ -34,6 +34,8 @@ class RangeCacheRemovalCounters {
     };
     int removedEntries;
     long removedSize;
+    // the queue slots that an eviction pass has examined, to tell the queue's first cycle from the next ones
+    int evaluatedEntries;
 
     private RangeCacheRemovalCounters(Recycler.Handle<RangeCacheRemovalCounters> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
@@ -43,12 +45,14 @@ class RangeCacheRemovalCounters {
         RangeCacheRemovalCounters results = RECYCLER.get();
         results.removedEntries = 0;
         results.removedSize = 0;
+        results.evaluatedEntries = 0;
         return results;
     }
 
     void recycle() {
         removedEntries = 0;
         removedSize = 0;
+        evaluatedEntries = 0;
         recyclerHandle.recycle(this);
     }
 

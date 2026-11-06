@@ -69,10 +69,11 @@ public class PublishPositionSharingBenchmark {
         long entryId = nextEntryId++;
         Position lastEntry = sharePosition ? PositionFactory.create(1, entryId) : null;
         if (cacheEntry) {
-            EntryImpl entry = sharePosition ? EntryImpl.create(lastEntry, data, 0)
-                    : EntryImpl.create(1, entryId, data, 0);
+            EntryImpl entry = sharePosition ? EntryImpl.create(lastEntry, data, EntryImpl.NO_EXPECTED_READ_COUNT)
+                    : EntryImpl.create(1, entryId, data, EntryImpl.NO_EXPECTED_READ_COUNT);
             try {
-                EntryImpl copy = EntryImpl.createWithRetainedDuplicate(entry.getPosition(), entry.getDataBuffer(), 0);
+                EntryImpl copy = EntryImpl.createWithRetainedDuplicate(entry.getPosition(), entry.getDataBuffer(),
+                        EntryImpl.NO_EXPECTED_READ_COUNT);
                 try {
                     cachedPosition = copy.getPosition();
                 } finally {

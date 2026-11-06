@@ -294,3 +294,7 @@ If you need to rollback to an old version Pulsar cluster, follow this guide can 
 Integration Test (Filesystem Offloader)
 
 - Offload mechanism should be  transparent to readers, so the test will included a mixed ledger-based and streaming offload result to read to check the compatibility.
+
+# Links
+
+* Mailing List discussion thread: https://lists.apache.org/thread/vfyjyjr89q09l7ln0z6vtbg4m8f0rm35

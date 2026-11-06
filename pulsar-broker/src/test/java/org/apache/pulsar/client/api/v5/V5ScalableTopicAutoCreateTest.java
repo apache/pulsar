@@ -73,6 +73,21 @@ public class V5ScalableTopicAutoCreateTest extends V5ClientBaseTest {
     }
 
     @Test
+    public void testStreamConsumerAutoCreatesScalableTopic() throws Exception {
+        String topic = freshTopic();
+
+        @Cleanup
+        StreamConsumer<String> consumer = v5Client.newStreamConsumer(Schema.string())
+                .topic(topic)
+                .subscriptionName("sub")
+                .subscribe();
+
+        ScalableTopicMetadata md = admin.scalableTopics().getMetadata(topic);
+        assertNotNull(md);
+        assertEquals(md.getSegments().size(), 1);
+    }
+
+    @Test
     public void testNoAutoCreateWhenNamespaceDisallows() throws Exception {
         // Turn auto-topic-creation off for this namespace; a lookup of a non-existent
         // scalable topic must then fail instead of creating one.
@@ -84,6 +99,12 @@ public class V5ScalableTopicAutoCreateTest extends V5ClientBaseTest {
             // topic does — not a generic PulsarClientException.
             assertThrows(PulsarClientException.NotFoundException.class, () ->
                     v5Client.newProducer(Schema.string()).topic(topic).create());
+            assertThrows(PulsarClientException.NotFoundException.class, () ->
+                    v5Client.newQueueConsumer(Schema.string()).topic(topic).subscriptionName("sub").subscribe());
+            assertThrows(PulsarClientException.NotFoundException.class, () ->
+                    v5Client.newStreamConsumer(Schema.string()).topic(topic).subscriptionName("sub").subscribe());
+            assertThrows(PulsarClientException.NotFoundException.class, () ->
+                    v5Client.newCheckpointConsumer(Schema.string()).topic(topic).create());
         } finally {
             admin.namespaces().removeAutoTopicCreation(getNamespace());
         }

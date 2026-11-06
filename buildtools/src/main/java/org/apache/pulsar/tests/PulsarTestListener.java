@@ -19,16 +19,18 @@
 package org.apache.pulsar.tests;
 
 import java.util.Arrays;
+import org.testng.IClassListener;
 import org.testng.IExecutionListener;
 import org.testng.ISuite;
 import org.testng.ISuiteListener;
+import org.testng.ITestClass;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
 import org.testng.SkipException;
 import org.testng.internal.thread.ThreadTimeoutException;
 
-public class PulsarTestListener implements ITestListener, IExecutionListener, ISuiteListener {
+public class PulsarTestListener implements ITestListener, IClassListener, IExecutionListener, ISuiteListener {
 
     @Override
     public void onTestStart(ITestResult result) {
@@ -42,7 +44,6 @@ public class PulsarTestListener implements ITestListener, IExecutionListener, IS
     public void onTestSuccess(ITestResult result) {
         System.out.format("------- SUCCESS -- %s.%s(%s)-------\n", result.getTestClass(),
                 result.getMethod().getMethodName(), Arrays.toString(result.getParameters()));
-        ExtendedNettyLeakDetector.triggerLeakDetection();
     }
 
     @Override
@@ -58,7 +59,6 @@ public class PulsarTestListener implements ITestListener, IExecutionListener, IS
                 }
             }
         }
-        ExtendedNettyLeakDetector.triggerLeakDetection();
     }
 
     @Override
@@ -77,7 +77,11 @@ public class PulsarTestListener implements ITestListener, IExecutionListener, IS
     }
 
     @Override
-    public void onTestFailedButWithinSuccessPercentage(ITestResult result) {
+    public void onAfterClass(ITestClass testClass) {
+        // Detect leaks once per test class instead of with a full GC after every test method: a report names the test
+        // method that allocated the leaked buffer either way (Netty records the hint set in onTestStart at
+        // allocation). TestNG calls this before the @AfterClass methods, so a buffer that they drop is reported after
+        // the next test class, or when the test JVM finishes.
         ExtendedNettyLeakDetector.triggerLeakDetection();
     }
 

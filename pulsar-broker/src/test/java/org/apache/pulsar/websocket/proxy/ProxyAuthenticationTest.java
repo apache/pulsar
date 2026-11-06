@@ -102,13 +102,15 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
             log.error().exception(e).log("Failed to stop proxy clients");
         }
 
-        super.internalCleanup();
+        // Stop the proxy before the broker: the broker would wait for the proxy's connections to close when it stops
+        // its web service
         if (service != null) {
             service.close();
         }
         if (proxyServer != null) {
             proxyServer.stop();
         }
+        super.internalCleanup();
         log.info("Finished Cleaning Up Test setup");
     }
 

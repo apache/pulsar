@@ -111,11 +111,11 @@ public class LoadManagerShared {
             // todo: in future check if the resource unit has resources to take the namespace
             if (isIsolationPoliciesPresent) {
                 // note: serviceUnitID is namespace name and ResourceID is brokerName
-                if (policies.isPrimaryBroker(namespace, brokerHost)) {
+                if (isPrimaryBroker(policies, namespace, brokerHost, brokerId)) {
                     primariesCache.add(brokerId);
                     log.debug().attr("broker", brokerHost).attr("namespace", namespace.toString())
                             .log("Added Primary Broker as possible Candidates for namespace with policies");
-                } else if (policies.isSecondaryBroker(namespace, brokerHost)) {
+                } else if (isSecondaryBroker(policies, namespace, brokerHost, brokerId)) {
                     secondaryCache.add(brokerId);
                     log.debugf(
                             "Added Shared Broker - [%s] as possible "
@@ -135,7 +135,7 @@ public class LoadManagerShared {
                     // persistent topic can be assigned to only brokers that enabled for persistent-topic
                     log.debug().attr("broker", brokerHost).attr("namespace", namespace.toString())
                             .log("Filter broker because broker only supports non-persistent namespace");
-                } else if (policies.isSharedBroker(brokerHost)) {
+                } else if (isSharedBroker(policies, brokerHost, brokerId)) {
                     secondaryCache.add(brokerId);
                     log.debug().attr("broker", brokerHost).attr("namespace", namespace.toString())
                             .log("Added Shared Broker as possible Candidates for namespace");
@@ -158,6 +158,25 @@ public class LoadManagerShared {
                     namespace.toString(), secondaryCache.size());
             brokerCandidateCache.addAll(secondaryCache);
         }
+    }
+
+    // Policy entries are matched against the broker host. Entries that contain a ':' may name a port
+    // (host:port, as brokers are listed by `pulsar-admin brokers list`) and are also matched against the broker id.
+    private static boolean isPrimaryBroker(SimpleResourceAllocationPolicies policies, NamespaceName namespace,
+                                           String brokerHost, String brokerId) {
+        return policies.isPrimaryBroker(namespace, brokerHost) || policies.isPrimaryBrokerId(namespace, brokerId);
+    }
+
+    private static boolean isSecondaryBroker(SimpleResourceAllocationPolicies policies, NamespaceName namespace,
+                                             String brokerHost, String brokerId) {
+        return policies.isSecondaryBroker(namespace, brokerHost)
+                || policies.isSecondaryBrokerId(namespace, brokerId);
+    }
+
+    // A broker reserved as primary by a policy entry with a port is not part of the shared broker pool.
+    private static boolean isSharedBroker(SimpleResourceAllocationPolicies policies, String brokerHost,
+                                          String brokerId) {
+        return policies.isSharedBroker(brokerHost) && !policies.isPrimaryBrokerIdInAnyPolicy(brokerId);
     }
 
     private static String parseBrokerHost(String brokerId) {
@@ -198,11 +217,11 @@ public class LoadManagerShared {
                 // todo: in future check if the resource unit has resources to take the namespace
                 if (isIsolationPoliciesPresent) {
                     // note: serviceUnitID is namespace name and ResourceID is brokerName
-                    if (policies.isPrimaryBroker(namespace, brokerHost)) {
+                    if (isPrimaryBroker(policies, namespace, brokerHost, brokerId)) {
                         primariesCache.add(brokerId);
                         log.debug().attr("broker", brokerHost).attr("namespace", namespace.toString())
                                 .log("Added Primary Broker as possible Candidates for namespace with policies");
-                    } else if (policies.isSecondaryBroker(namespace, brokerHost)) {
+                    } else if (isSecondaryBroker(policies, namespace, brokerHost, brokerId)) {
                         secondaryCache.add(brokerId);
                         log.debugf(
                                 "Added Shared Broker - [%s] as possible "
@@ -223,7 +242,7 @@ public class LoadManagerShared {
                         // persistent topic can be assigned to only brokers that enabled for persistent-topic
                         log.debug().attr("broker", brokerId).attr("namespace", namespace.toString())
                                 .log("Filter broker because broker only supports non-persistent namespace");
-                    } else if (policies.isSharedBroker(brokerHost)) {
+                    } else if (isSharedBroker(policies, brokerHost, brokerId)) {
                         secondaryCache.add(brokerId);
                         log.debug().attr("broker", brokerHost).attr("namespace", namespace.toString())
                                 .log("Added Shared Broker as possible Candidates for namespace");
@@ -500,6 +519,8 @@ public class LoadManagerShared {
 
     /**
      * It returns map of broker and count of namespace that are belong to the same anti-affinity group as given.
+     * The given namespace itself is not counted, so that a broker already owning other bundles of that namespace
+     * does not look like it owns another namespace of the group.
      *
      * @param pulsar
      * @param namespaceName
@@ -522,7 +543,7 @@ public class LoadManagerShared {
             final var brokerToNamespaces = brokerToNamespaceToBundleRange.getBrokerToNamespacesMap();
             FutureUtil.waitForAll(brokerToNamespaces.entrySet().stream().flatMap(e -> {
                 final var broker = e.getKey();
-                return e.getValue().stream().map(namespace -> {
+                return e.getValue().stream().filter(namespace -> !namespace.equals(namespaceName)).map(namespace -> {
                     final var future = new CompletableFuture<Void>();
                     countAntiAffinityNamespaceOwnedBrokers(broker, namespace, future,
                             pulsar, antiAffinityGroup, brokerToAntiAffinityNamespaceCount);
@@ -572,14 +593,14 @@ public class LoadManagerShared {
             bundleOwnershipData
                     .forEach(etr -> {
                         var stateData = etr.getValue();
-                        var bundle = etr.getKey();
+                        var namespace = LoadManagerShared.getNamespaceNameFromBundleName(etr.getKey());
                         if (stateData.state() == ServiceUnitState.Owned
-                                && StringUtils.isNotBlank(stateData.dstBroker())) {
+                                && StringUtils.isNotBlank(stateData.dstBroker())
+                                && !namespace.equals(namespaceName)) {
                             CompletableFuture<Void> future = new CompletableFuture<>();
                             futures.add(future);
                             countAntiAffinityNamespaceOwnedBrokers
-                                    (stateData.dstBroker(),
-                                            LoadManagerShared.getNamespaceNameFromBundleName(bundle),
+                                    (stateData.dstBroker(), namespace,
                                             future, pulsar,
                                             antiAffinityGroup, brokerToAntiAffinityNamespaceCount);
                         }
@@ -658,14 +679,17 @@ public class LoadManagerShared {
                 int nsCount = brokerNamespaceCount.getOrDefault(broker, 0);
                 if (currentBroker.equals(broker)) {
                     currentBrokerNsCount = nsCount;
-                }
-                if (leastNsCount > nsCount) {
+                } else if (leastNsCount > nsCount) {
+                    // only the other brokers, so that we can tell whether one of them can take the bundle
                     leastNsCount = nsCount;
                 }
             }
             // check if there is any other broker has less number of ns
             if (leastNsCount == 0 || currentBrokerNsCount > leastNsCount) {
                 return true;
+            } else if (currentBrokerNsCount < leastNsCount) {
+                // the current broker is the only one with the least number of ns, the bundle would come back to it
+                return false;
             }
             // check if all the brokers having same number of ns-count then broker can't unload
             int leastNsOwnerBrokers = 0;
