@@ -1336,11 +1336,6 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         assertPlacementUnavailable(isolationPolicy, isolationMetadata("group1"), replaceBookie);
     }
 
-    @DataProvider
-    public Object[][] placementOperations() {
-        return new Object[][] {{false}, {true}};
-    }
-
     @SuppressWarnings("unchecked")
     @Test
     public void testMissingBookiesNodeIsLoadedAsEmptyConfiguration() throws Exception {
