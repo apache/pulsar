@@ -287,7 +287,10 @@ public class ProducerConfigurationData implements Serializable, Cloneable {
 
     @Schema(
             name = "lazyStartPartitionedProducers",
-            description = "Whether to delay creating internal partition producers until messages are routed to each partition."
+            description = "This config affects Producer behaviors on partitioned topic. "
+                    + "When enabled, partitioned producer will delay creating internal partition producers "
+                    + "until messages are routed to each partition. This is only applicable when accessMode is Shared. "
+                    + "The first producer for partition 0 is still created eagerly to validate permissions and topic existence."
     )
     private boolean lazyStartPartitionedProducers = false;
 
