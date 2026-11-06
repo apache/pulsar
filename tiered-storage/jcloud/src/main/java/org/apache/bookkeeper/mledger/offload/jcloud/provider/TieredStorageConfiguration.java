@@ -275,7 +275,8 @@ public class TieredStorageConfiguration {
         return 10 * MB;
     }
 
-    public Supplier<Credentials> getProviderCredentials() {
+    public synchronized Supplier<Credentials> getProviderCredentials() {
+        // Serialize lazy initialization to avoid creating multiple assume-role providers and their STS clients.
         if (credentials == null) {
             getProvider().buildCredentials(this);
         }
@@ -323,7 +324,8 @@ public class TieredStorageConfiguration {
             }
         };
         checkConfig.setProvider(getProvider());
-        checkConfig.setProviderCredentials(credentials);
+        // Closing the diagnostic BlobStoreContext does not close a credential provider's separate STS client.
+        checkConfig.setProviderCredentials(getProviderCredentials());
         return checkConfig;
     }
 
