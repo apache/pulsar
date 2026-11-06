@@ -59,13 +59,17 @@ import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
 import java.lang.reflect.Field;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -100,10 +104,11 @@ import org.apache.pulsar.common.policies.data.TopicType;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
-import org.apache.pulsar.metadata.api.MetadataStoreTableView;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.coordination.LeaderElectionState;
 import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -149,6 +154,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     private final String serviceUnitStateTableViewClassName;
 
     private Brokers brokers;
+
+    // Reset before each test, so that the failures a failed test did not use cannot fail the next one
+    private final AtomicInteger remainingNamespaceBundlesUpdateFailures = new AtomicInteger();
 
     @DataProvider(name = "serviceUnitStateTableViewClassName")
     public static Object[][] serviceUnitStateTableViewClassName() {
@@ -227,6 +235,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     @BeforeMethod
     protected void initChannels() throws Exception {
+        remainingNamespaceBundlesUpdateFailures.set(0);
         disableChannels();
         cleanTableViews();
         cleanOwnershipMonitorCounters(channel1);
@@ -515,8 +524,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(getOwnerRequests1.size(), 0);
         assertEquals(getOwnerRequests2.size(), 0);
 
-        validateHandlerCounters(channel1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-        validateHandlerCounters(channel2, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        // The channel of the broker that lost the assignment can miss the Assigning that the other one moves on
+        var winner = assignedAddr1.equals(brokerId1) ? channel1 : channel2;
+        var loser = winner == channel1 ? channel2 : channel1;
+        validateHandlerCounters(winner, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        validateHandlerCounters(loser, Map.of(Assigning, 1), 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         validateEventCounters(channel1, 1, 0, 0, 0, 0, 0);
         validateEventCounters(channel2, 1, 0, 0, 0, 0, 0);
     }
@@ -588,10 +600,53 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr1, ownerAddr2);
         assertEquals(ownerAddr1, Optional.of(brokerId2));
 
-        validateHandlerCounters(channel1, 2, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-        validateHandlerCounters(channel2, 2, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        // channel1 can miss the Assigning that channel2 moves on, channel2 the first Assigning and the Releasing that
+        // channel1 moves on
+        validateHandlerCounters(channel1, Map.of(Assigning, 1), 2, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        validateHandlerCounters(channel2, Map.of(Assigning, 1, Releasing, 1),
+                2, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         validateEventCounters(channel1, 1, 0, 0, 0, 1, 0);
         validateEventCounters(channel2, 0, 0, 0, 0, 0, 0);
+    }
+
+    @Test(priority = 4)
+    public void testLaggingChannelMissesStatesItDoesNotActOn() throws Exception {
+        if (!getTableView(channel2).isMetadataStoreBased()) {
+            // The table view over the system topic hands every message to the channel
+            return;
+        }
+        // Each broker has its own metadata store client. Hold the event thread of broker 2's, which hands channel2 its
+        // notifications, while channel1 assigns the bundle to its broker.
+        var store2 = pulsar2.getLocalMetadataStore();
+        String holdPath = "/service-unit-state-channel-test-hold";
+        var held = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        Runnable cancelListener = store2.registerCancellableListener(notification -> {
+            if (notification.getPath().equals(holdPath) && notification.getType() == NotificationType.Created) {
+                held.countDown();
+                try {
+                    release.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        try {
+            store2.put(holdPath, new byte[0], Optional.empty());
+            assertTrue(held.await(10, TimeUnit.SECONDS));
+            channel1.publishAssignEventAsync(bundle, brokerId1);
+            waitUntilNewOwner(channel1, bundle, brokerId1);
+            validateHandlerCounters(channel1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        } finally {
+            release.countDown();
+            cancelListener.run();
+        }
+        store2.delete(holdPath, Optional.empty()).get(10, TimeUnit.SECONDS);
+
+        // channel2 reads the bundle once it is Owned: it misses the Assigning, which only channel1 acts on
+        waitUntilNewOwner(channel2, bundle, brokerId1);
+        assertEquals(Optional.of(brokerId1), channel2.getOwnerAsync(bundle).get(10, TimeUnit.SECONDS));
+        validateHandlerCounters(channel2, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 
     @Test(priority = 5)
@@ -698,20 +753,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr2, Optional.of(brokerId1));
         assertTrue(ownerAddr1.isPresent());
 
-        NamespaceService namespaceService = pulsar1.getNamespaceService();
-        CompletableFuture<Void> future = new CompletableFuture<>();
+        // The split's first 2 updates of the namespace bundles fail, the third succeeds
         int badVersionExceptionCount = 3;
-        AtomicInteger count = new AtomicInteger(badVersionExceptionCount);
-        future.completeExceptionally(new MetadataStoreException.BadVersionException("BadVersion"));
-        doAnswer(invocationOnMock -> {
-            if (count.decrementAndGet() > 0) {
-                return future;
-            }
-            return invocationOnMock.callRealMethod();
-        }).when(namespaceService).updateNamespaceBundles(any(), any());
-        doReturn(namespaceService).when(pulsar1).getNamespaceService();
-        doReturn(CompletableFuture.completedFuture(List.of("test-topic-1", "test-topic-2")))
-                .when(namespaceService).getOwnedTopicListForNamespaceBundle(any());
+        failNamespaceBundlesUpdates(namespaceName, badVersionExceptionCount - 1);
 
         // Assert child bundle ownerships in the channels.
 
@@ -722,8 +766,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilState(channel1, bundle, Init);
         waitUntilState(channel2, bundle, Init);
 
+        // channel2 can miss the states that channel1 moves on
         validateHandlerCounters(channel1, 1, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0);
-        validateHandlerCounters(channel2, 1, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0);
+        validateHandlerCounters(channel2, Map.of(Assigning, 1, Splitting, 1, Deleted, 1),
+                1, 0, 3, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0);
         validateEventCounters(channel1, 1, 0, 1, 0, 0, 0);
         validateEventCounters(channel2, 0, 0, 0, 0, 0, 0);
         // Verify the retry count
@@ -1694,21 +1740,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(ownerAddr2, Optional.of(brokerId1));
         assertTrue(ownerAddr1.isPresent());
 
-        NamespaceService namespaceService = pulsar1.getNamespaceService();
-        CompletableFuture<Void> future = new CompletableFuture<>();
-
-        int badVersionExceptionCount = 10;
-        AtomicInteger count = new AtomicInteger(badVersionExceptionCount);
-        future.completeExceptionally(new MetadataStoreException.BadVersionException("BadVersion"));
-        doAnswer(invocationOnMock -> {
-            if (count.decrementAndGet() > 0) {
-                return future;
-            }
-            return invocationOnMock.callRealMethod();
-        }).when(namespaceService).updateNamespaceBundles(any(), any());
-        doReturn(namespaceService).when(pulsar1).getNamespaceService();
-        doReturn(CompletableFuture.completedFuture(List.of("test-topic-1", "test-topic-2")))
-                .when(namespaceService).getOwnedTopicListForNamespaceBundle(any());
+        // The split gives up after 7 failed updates of the namespace bundles. The split the monitor retries fails
+        // the last 2, then succeeds.
+        int badVersionExceptionCount = NamespaceService.BUNDLE_SPLIT_RETRY_LIMIT + 2;
+        AtomicInteger count = failNamespaceBundlesUpdates(namespaceName2, badVersionExceptionCount);
 
         // Assert child bundle ownerships in the channels.
 
@@ -1725,7 +1760,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> {
-                    assertEquals(3, count.get());
+                    assertEquals(2, count.get());
                 });
         ServiceUnitStateChannelImpl leader =
                 (ServiceUnitStateChannelImpl) (channel1.isChannelOwnerAsync().get() ? channel1 : channel2);
@@ -1748,8 +1783,10 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertEquals(Optional.of(brokerId1), channel2.getOwnerAsync(childBundle32).get());
 
 
+        // channel2 can miss the states that channel1 moves on
         validateHandlerCounters(channel1, 1, 0, 3, 0, 0, 0, 2, 1, 0, 0, 1, 0, 1, 0);
-        validateHandlerCounters(channel2, 1, 0, 3, 0, 0, 0, 2, 0, 0, 0, 1, 0, 1, 0);
+        validateHandlerCounters(channel2, Map.of(Assigning, 1, Splitting, 2, Deleted, 1),
+                1, 0, 3, 0, 0, 0, 2, 0, 0, 0, 1, 0, 1, 0);
         validateEventCounters(channel1, 1, 0, 1, 0, 0, 0);
         validateEventCounters(channel2, 0, 0, 0, 0, 0, 0);
 
@@ -2379,6 +2416,31 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 FieldUtils.readField(channel, "cleanupJobs", true);
     }
 
+    /**
+     * Fails the next {@code failures} updates of the namespace bundles with a BadVersion, as a concurrent update of
+     * the namespace's local policies would. The failures are programmed into the mock ZooKeeper instead of stubbed
+     * on the broker's NamespaceService spy: Mockito stubs the method of the next call on a spy, from any thread, and
+     * broker threads call the spy at any time.
+     *
+     * @return the number of failures left
+     */
+    private AtomicInteger failNamespaceBundlesUpdates(String namespace, int failures) {
+        String localPoliciesPath = "/admin/local-policies/" + namespace;
+        remainingNamespaceBundlesUpdateFailures.set(failures);
+        for (int i = 0; i < failures; i++) {
+            // The mock ZooKeeper checks its programmed failures on its single executor thread
+            mockZooKeeper.failConditional(KeeperException.Code.BADVERSION, (op, path) -> {
+                if (op == MockZooKeeper.Op.SET && path.equals(localPoliciesPath)
+                        && remainingNamespaceBundlesUpdateFailures.get() > 0) {
+                    remainingNamespaceBundlesUpdateFailures.decrementAndGet();
+                    return true;
+                }
+                return false;
+            });
+        }
+        return remainingNamespaceBundlesUpdateFailures;
+    }
+
 
     @SuppressWarnings("deprecation")
     private static void waitUntilNewChannelOwner(ServiceUnitStateChannel channel, String oldOwner) {
@@ -2489,8 +2551,37 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
     private void cleanTableViews()
             throws IllegalAccessException {
-        cleanTableView(channel1);
-        cleanTableView(channel2);
+        if (serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getCanonicalName())) {
+            cleanTableView(channel1);
+            cleanTableView(channel2);
+            return;
+        }
+        // Each channel handles one Init for each service unit that leaves its table view, whichever channel deletes
+        // it, once the notification reaches it. Count them for both channels before deleting anything, since a
+        // channel can still be handling the last events of a test.
+        var channels = List.of((ServiceUnitStateChannelImpl) channel1, (ServiceUnitStateChannelImpl) channel2);
+        Map<ServiceUnitStateChannelImpl, Long> expectedInits = new HashMap<>();
+        Set<String> serviceUnits = new HashSet<>();
+        for (var channel : channels) {
+            channel.getOwnerRequests().clear();
+            long inits = channel.handlerCounters.get(Init).getTotal().get();
+            var channelServiceUnits = new HashSet<>(channel.getTableView().entrySet().stream()
+                    .map(Map.Entry::getKey).toList());
+            expectedInits.put(channel, inits + channelServiceUnits.size());
+            serviceUnits.addAll(channelServiceUnits);
+        }
+        // Ignores the service units that are already deleted
+        var tableView = getTableView(channel1);
+        for (String serviceUnit : serviceUnits) {
+            tableView.delete(serviceUnit).join();
+        }
+        Awaitility.await().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
+            for (var channel : channels) {
+                assertTrue(channel.getTableView().entrySet().isEmpty());
+                assertEquals(expectedInits.get(channel).longValue(),
+                        channel.handlerCounters.get(Init).getTotal().get());
+            }
+        });
     }
 
     private void cleanTableView(ServiceUnitStateChannel channel) throws IllegalAccessException {
@@ -2498,39 +2589,11 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 FieldUtils.readField(channel, "getOwnerRequests", true);
         getOwnerRequests.clear();
         var tv = getTableView(channel);
-        if (serviceUnitStateTableViewClassName.equals(ServiceUnitStateTableViewImpl.class.getCanonicalName())) {
-            var tableview = (TableView<ServiceUnitStateData>)
-                    FieldUtils.readField(tv, "tableview", true);
-            var cache = (ConcurrentMap<String, ServiceUnitStateData>)
-                    FieldUtils.readField(tableview, "data", true);
-            cache.clear();
-        } else {
-            var tableview = (MetadataStoreTableView<ServiceUnitStateData>)
-                    FieldUtils.readField(tv, "tableview", true);
-            var handlerCounters =
-                    (Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters>)
-                            FieldUtils.readDeclaredField(channel, "handlerCounters", true);
-            var initCounter = handlerCounters.get(Init).getTotal();
-            var deletedCounter = new AtomicLong(initCounter.get());
-            try {
-                var set = tableview.entrySet();
-                for (var e : set) {
-                    try {
-                        tableview.delete(e.getKey()).join();
-                        deletedCounter.incrementAndGet();
-                    } catch (CompletionException ex) {
-                        if (!(ex.getCause() instanceof MetadataStoreException.NotFoundException)) {
-                            throw ex;
-                        }
-                    }
-                }
-                Awaitility.await().ignoreNoExceptions().atMost(5, TimeUnit.SECONDS).untilAsserted(() -> {
-                    assertEquals(initCounter.get(), deletedCounter.get());
-                });
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
+        var tableview = (TableView<ServiceUnitStateData>)
+                FieldUtils.readField(tv, "tableview", true);
+        var cache = (ConcurrentMap<String, ServiceUnitStateData>)
+                FieldUtils.readField(tableview, "data", true);
+        cache.clear();
     }
 
     private void overrideTableViews(String serviceUnit, ServiceUnitStateData val) throws IllegalAccessException {
@@ -2653,29 +2716,63 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                                                 long initT, long initF,
                                                 long deletedT, long deletedF)
             throws IllegalAccessException {
+        validateHandlerCounters(channel, Map.of(), assignedT, assignedF, ownedT, ownedF, releasedT, releasedF,
+                splittingT, splittingF, freeT, freeF, initT, initF, deletedT, deletedF);
+    }
+
+    /**
+     * Validates the handler counters of a channel that can miss up to {@code missable} events of some states.
+     *
+     * <p>A table view over the metadata store reads a service unit's state when it handles its notification, so a
+     * channel that falls behind, or whose own write completes late, sees only the latest state. It can miss a state
+     * that it does not act on, when the channel that acts on it moves on before the read. It never misses a state it
+     * acts on, since nothing moves on before it does. The table view over the system topic hands every message to
+     * the channel. A missed state is not handled later, so the counters are final once the channel has handled the
+     * last state of each service unit.
+     */
+    private static void validateHandlerCounters(ServiceUnitStateChannel channel,
+                                                Map<ServiceUnitState, Integer> missable,
+                                                long assignedT, long assignedF,
+                                                long ownedT, long ownedF,
+                                                long releasedT, long releasedF,
+                                                long splittingT, long splittingF,
+                                                long freeT, long freeF,
+                                                long initT, long initF,
+                                                long deletedT, long deletedF)
+            throws IllegalAccessException {
         var handlerCounters =
                 (Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters>)
                         FieldUtils.readDeclaredField(channel, "handlerCounters", true);
+        var maxMissed = getTableView(channel).isMetadataStoreBased() ? missable : Map.<ServiceUnitState, Integer>of();
 
         Awaitility.await()
                 .pollInterval(200, TimeUnit.MILLISECONDS)
                 .atMost(10, TimeUnit.SECONDS)
                 .untilAsserted(() -> { // wait until true
-                    assertEquals(assignedT, handlerCounters.get(Assigning).getTotal().get());
+                    assertHandled(handlerCounters, Assigning, assignedT, maxMissed);
                     assertEquals(assignedF, handlerCounters.get(Assigning).getFailure().get());
-                    assertEquals(ownedT, handlerCounters.get(Owned).getTotal().get());
+                    assertHandled(handlerCounters, Owned, ownedT, maxMissed);
                     assertEquals(ownedF, handlerCounters.get(Owned).getFailure().get());
-                    assertEquals(releasedT, handlerCounters.get(Releasing).getTotal().get());
+                    assertHandled(handlerCounters, Releasing, releasedT, maxMissed);
                     assertEquals(releasedF, handlerCounters.get(Releasing).getFailure().get());
-                    assertEquals(splittingT, handlerCounters.get(Splitting).getTotal().get());
+                    assertHandled(handlerCounters, Splitting, splittingT, maxMissed);
                     assertEquals(splittingF, handlerCounters.get(Splitting).getFailure().get());
-                    assertEquals(freeT, handlerCounters.get(Free).getTotal().get());
+                    assertHandled(handlerCounters, Free, freeT, maxMissed);
                     assertEquals(freeF, handlerCounters.get(Free).getFailure().get());
-                    assertEquals(initT, handlerCounters.get(Init).getTotal().get());
+                    assertHandled(handlerCounters, Init, initT, maxMissed);
                     assertEquals(initF, handlerCounters.get(Init).getFailure().get());
-                    assertEquals(deletedT, handlerCounters.get(Deleted).getTotal().get());
+                    assertHandled(handlerCounters, Deleted, deletedT, maxMissed);
                     assertEquals(deletedF, handlerCounters.get(Deleted).getFailure().get());
                 });
+    }
+
+    private static void assertHandled(Map<ServiceUnitState, ServiceUnitStateChannelImpl.Counters> handlerCounters,
+                                      ServiceUnitState state, long expected,
+                                      Map<ServiceUnitState, Integer> maxMissed) {
+        long handled = handlerCounters.get(state).getTotal().get();
+        long minHandled = expected - maxMissed.getOrDefault(state, 0);
+        assertTrue(handled >= minHandled && handled <= expected,
+                state + " events handled: " + handled + ", expected " + minHandled + " to " + expected);
     }
 
     private static void validateEventCounters(ServiceUnitStateChannel channel,
