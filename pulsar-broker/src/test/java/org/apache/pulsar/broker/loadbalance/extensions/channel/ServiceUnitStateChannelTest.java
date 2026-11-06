@@ -2125,8 +2125,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertTrue(ex.getCause() instanceof IllegalStateException);
         assertTrue(System.currentTimeMillis() - start >= 1000);
 
-        if (pulsar1.getConfig().getLoadManagerServiceUnitStateTableViewClassName()
-            .equals(ServiceUnitStateTableViewImpl.class.getName())) {
+        if (!getTableView(channel1).isMetadataStoreBased()) {
             try {
                 // verify getOwnerAsync returns immediately when not registered
                 registry.unregister();
@@ -2139,8 +2138,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             }
         }
 
-        if (pulsar1.getConfig().getLoadManagerServiceUnitStateTableViewClassName()
-                .equals(ServiceUnitStateMetadataStoreTableViewImpl.class.getName())) {
+        if (getTableView(channel1).isMetadataStoreBased()) {
             try {
                 // verify getOwnerAsync returns immediately when not registered
                 registry.unregister();
