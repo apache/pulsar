@@ -23,12 +23,14 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
@@ -81,6 +83,7 @@ import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
+import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.Notification;
 import org.apache.pulsar.metadata.api.NotificationType;
@@ -89,6 +92,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.awaitility.Awaitility;
 import org.jspecify.annotations.NonNull;
 import org.mockito.InOrder;
+import org.mockito.MockedStatic;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -1186,6 +1190,31 @@ public class TopicListServiceTest {
 
         Awaitility.await().untilAsserted(() ->
                 assertThat(watcher.getMatchingTopics()).containsExactlyInAnyOrderElementsOf(initialTopics));
+    }
+
+    @Test
+    public void testWatchTopicListReconcileDoesntCompileTopicsPattern() {
+        List<String> topics = List.of("persistent://tenant/ns/topic1", "persistent://tenant/ns/topic2");
+        String hash = TopicList.calculateHash(topics);
+        try (MockedStatic<TopicsPatternFactory> topicsPatternFactory =
+                     mockStatic(TopicsPatternFactory.class, CALLS_REAL_METHODS)) {
+            topicListService.handleWatchTopicList(NamespaceName.get("tenant/ns"), 13, 7,
+                    "persistent://tenant/ns/topic\\d", topicsPatternImplementation, null, lookupSemaphore);
+            topicListFuture.complete(topics);
+            verify(pulsarCommandSender, timeout(2000L)).sendWatchTopicListSuccess(eq(7L), eq(13L), eq(hash),
+                    eq(new ArrayList<>(topics)), any(), any());
+
+            // clients reconcile their watchers periodically by sending a watch request with the same watcher id
+            topicListService.handleWatchTopicList(NamespaceName.get("tenant/ns"), 13, 8,
+                    "persistent://tenant/ns/topic\\d", topicsPatternImplementation, hash, lookupSemaphore);
+            verify(pulsarCommandSender, timeout(2000L)).sendWatchTopicListSuccess(eq(8L), eq(13L), eq(hash),
+                    eq(Collections.emptyList()), any(), any());
+
+            // the pattern is compiled only for the request that created the watcher
+            topicsPatternFactory.verify(() -> TopicsPatternFactory.create(anyString(),
+                    any(TopicsPattern.RegexImplementation.class)), times(1));
+        }
+        Awaitility.await().untilAsserted(() -> assertThat(lookupSemaphore.availablePermits()).isEqualTo(2));
     }
 
     private TopicListService.TopicListWatcher createWatcher(List<String> topics) throws Exception {
