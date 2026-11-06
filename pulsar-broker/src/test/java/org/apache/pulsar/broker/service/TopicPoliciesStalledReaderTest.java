@@ -228,10 +228,13 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         setMaxConsumers(timedOutTopic, 5).get(30, TimeUnit.SECONDS);
 
         // The first update must still be waiting when another one reports the stall, however slow the host, so it
-        // gets a timeout longer than the test; only the update that is to report the stall gets the short one.
-        final List<StallableReader> stalledReaders = stallReaders(KEEP_WAITING_TIMEOUT_SECONDS);
+        // gets a timeout longer than the test; only the update that is to report the stall gets the short one. The
+        // wait takes the timeout in force when it starts, so the write is held and released by hand: the update has
+        // registered its wait, under the long timeout, when release() returns.
+        stallReaders(KEEP_WAITING_TIMEOUT_SECONDS);
+        final HeldWrite waitingWrite = service.holdNextWrite();
         final CompletableFuture<Void> waiting = setMaxConsumers(otherTopic, 8);
-        awaitWithheldEvents(stalledReaders, 1);
+        waitingWrite.release();
         // Queued behind that wait in the per-topic sequencer: it writes its event only once the wait is over.
         final CompletableFuture<Void> queuedBehindWaiting = setMaxConsumers(otherTopic, 9);
         assertThat(waiting)
@@ -407,11 +410,11 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         return topic.getHierarchyTopicPolicies().getMaxConsumerPerTopic().get();
     }
 
-    /** Stalls the readers and gives the operations that follow {@link #READ_TIMEOUT_SECONDS} to report the stall. */
     private List<StallableReader> stallReaders() {
         return stallReaders(READ_TIMEOUT_SECONDS);
     }
 
+    /** Stalls the readers; {@code readBackTimeoutSeconds} is what the operations that follow get to report it. */
     private List<StallableReader> stallReaders(long readBackTimeoutSeconds) {
         final List<StallableReader> stalledReaders = service.stallReaders();
         assertThat(stalledReaders)
@@ -526,14 +529,14 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
      */
     private static class ReaderStallingTopicPoliciesService extends SystemTopicBasedTopicPoliciesService {
 
-        private final PulsarService pulsar;
         private final List<StallableReader> readers = new CopyOnWriteArrayList<>();
         private final AtomicReference<HeldWrite> nextWriteHold = new AtomicReference<>();
-        private volatile NamespaceEventsSystemTopicFactory systemTopicFactory;
+        /** The factory the service takes its writers from; its writers consult {@link #nextWriteHold}. */
+        private final NamespaceEventsSystemTopicFactory systemTopicFactory;
 
-        ReaderStallingTopicPoliciesService(PulsarService pulsar) {
+        ReaderStallingTopicPoliciesService(PulsarService pulsar) throws PulsarServerException {
             super(pulsar);
-            this.pulsar = pulsar;
+            systemTopicFactory = new WriteHoldingSystemTopicFactory(pulsar.getClient());
         }
 
         @Override
@@ -546,27 +549,11 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
             });
         }
 
-        /** The factory the service takes its writers from; its writers consult {@link #nextWriteHold}. */
         @Override
         NamespaceEventsSystemTopicFactory getNamespaceEventsSystemTopicFactory() {
-            NamespaceEventsSystemTopicFactory factory = systemTopicFactory;
-            if (factory == null) {
-                synchronized (this) {
-                    factory = systemTopicFactory;
-                    if (factory == null) {
-                        try {
-                            factory = new WriteHoldingSystemTopicFactory(pulsar.getClient());
-                        } catch (PulsarServerException e) {
-                            throw new RuntimeException(e);
-                        }
-                        systemTopicFactory = factory;
-                    }
-                }
-            }
-            return factory;
+            return systemTopicFactory;
         }
 
-        /** Every reader created so far, as a list of its own. */
         List<StallableReader> readers() {
             return new ArrayList<>(readers);
         }
@@ -579,8 +566,9 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         }
 
         /**
-         * Holds the result of the next policy event the service writes: the event is written, but the service
-         * learns its message ID, and so starts waiting for the read-back, only on {@link HeldWrite#release()}.
+         * Holds the result of the next policy update the service writes (a deletion is not held): the event is
+         * written, but the service learns its message ID, and so starts waiting for the read-back, only on
+         * {@link HeldWrite#release()}.
          */
         HeldWrite holdNextWrite() {
             final HeldWrite hold = new HeldWrite();
@@ -614,9 +602,22 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
     private static class HeldWrite {
 
         private final CompletableFuture<Void> released = new CompletableFuture<>();
+        /** The write, once the service has made it. */
+        private final CompletableFuture<CompletableFuture<MessageId>> write = new CompletableFuture<>();
 
-        /** Hands the service the message ID of the held write; the service continues on the calling thread. */
-        void release() {
+        /** Puts the result of {@code write} behind {@link #release()}. */
+        CompletableFuture<MessageId> gate(CompletableFuture<MessageId> write) {
+            this.write.complete(write);
+            return released.thenCompose(__ -> write);
+        }
+
+        /**
+         * Hands the service the message ID of the held write, once the service has made the write and the write is
+         * done, so that the service continues on the calling thread and has started its wait for the read-back when
+         * this returns.
+         */
+        void release() throws Exception {
+            write.get(30, TimeUnit.SECONDS).get(30, TimeUnit.SECONDS);
             released.complete(null);
         }
     }
@@ -641,7 +642,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
         public CompletableFuture<MessageId> writeAsync(String key, PulsarEvent event) {
             final CompletableFuture<MessageId> written = delegate.writeAsync(key, event);
             final HeldWrite hold = nextWriteHold.getAndSet(null);
-            return hold == null ? written : hold.released.thenCompose(__ -> written);
+            return hold == null ? written : hold.gate(written);
         }
 
         @Override
