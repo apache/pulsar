@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.transaction.pendingack.PendingAckReplyCallBack;
 import org.apache.pulsar.broker.transaction.pendingack.TransactionPendingAckStoreProvider;
 import org.apache.pulsar.client.api.transaction.TxnID;
 import org.apache.pulsar.common.api.proto.CommandAck.AckType;
@@ -135,6 +136,29 @@ public class MLPendingAckStoreCloseTest {
             context.assertWriterClosed(append);
             assertThat(context.store.closeAsync()).isSameAs(first);
             verify(context.ledger, times(1)).asyncClose(any(), any());
+        }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testCloseWaitsForWriterCleanupStartedByReplayFailure() throws Exception {
+        try (TestContext context = new TestContext()) {
+            CompletableFuture<Void> append = context.bufferAppend();
+            when(context.cursor.isClosed()).thenReturn(true);
+            PendingAckReplyCallBack replayCallback = mock(PendingAckReplyCallBack.class);
+            context.store.new PendingAckReplay(replayCallback, context.handleExecutor).run();
+            verify(replayCallback).replayFailed(any(ManagedLedgerException.CursorAlreadyClosedException.class));
+
+            CompletableFuture<Void> closed = context.store.closeAsync();
+            context.completeCursorClose(null);
+            context.completeLedgerClose(null);
+
+            assertThat(closed).as("store close must await writer cleanup already queued by replay failure")
+                    .isNotDone();
+            assertThat(append).as("the queued writer cleanup has not failed the buffered append yet").isNotDone();
+            verify(context.timeout, never()).cancel();
+            context.writerExecutor.runAll();
+            closed.get(1, TimeUnit.SECONDS);
+            context.assertWriterClosed(append);
         }
     }
 

@@ -264,7 +264,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    private void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
+    @VisibleForTesting
+    void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
         if (duringSeek) {
             log.info().attr("topic", consumer.getTopic())
                     .log("Pause receiving messages for topic due to seek");
@@ -292,7 +293,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
                 if (isValidEpoch && !skipDueToSeek) {
                     messageReceived(consumer, msg);
                 } else if (!isValidEpoch) {
-                    consumer.increaseAvailablePermits(cnx);
+                    // Only a listener's messages still hold their permit here. Without a listener, the sub consumer
+                    // gave it back when it handed over the message.
+                    if (listener != null) {
+                        consumer.increaseAvailablePermits(cnx);
+                    }
                 } else if (skipDueToSeek) {
                     log.info().attr("messageId", msg.getMessageId())
                             .log("Skip processing message received during seek");
@@ -361,6 +366,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         decreaseIncomingMessageSize(msg);
     }
 
+    @Override
+    protected void discardIncomingMessage(Message<?> message) {
+        if (listener != null && !duringSeek) {
+            // With a listener, the consumer that received the message gives back its permit only when the listener
+            // gets the message, see callMessageListener(). Give it back before the release clears the connection
+            // that a pooled message was received on. Not during a seek: afterSeek() refills the receiver queue of
+            // every consumer, also of those the seek skips, which keep their connection.
+            TopicMessageImpl<?> topicMessage = (TopicMessageImpl<?>) message;
+            topicMessage.receivedByconsumer.increaseAvailablePermits((MessageImpl<?>) topicMessage.getMessage());
+        }
+        super.discardIncomingMessage(message);
+    }
+
     private void resumeReceivingFromPausedConsumersIfNeeded() {
         if (incomingMessages.size() <= getCurrentReceiverQueueSize() / 2 && !pausedConsumers.isEmpty()) {
             while (true) {
@@ -395,9 +413,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (incomingMessages.isEmpty()) {
                 expectMoreIncomingMessages();
             }
-            message = incomingMessages.take();
-            decreaseIncomingMessageSize(message);
-            checkState(message instanceof TopicMessageImpl);
+            do {
+                message = incomingMessages.take();
+                decreaseIncomingMessageSize(message);
+                checkState(message instanceof TopicMessageImpl);
+            } while (!isValidConsumerEpoch((TopicMessageImpl<T>) message));
             unAckedMessageTracker.add(message.getMessageId(), message.getRedeliveryCount());
             resumeReceivingFromPausedConsumersIfNeeded();
             return beforeConsume(message);
@@ -414,10 +434,19 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             if (incomingMessages.isEmpty()) {
                 expectMoreIncomingMessages();
             }
+            long deadlineNanos = System.nanoTime() + unit.toNanos(timeout);
             message = incomingMessages.poll(timeout, unit);
-            if (message != null) {
+            while (message != null) {
                 decreaseIncomingMessageSize(message);
                 checkArgument(message instanceof TopicMessageImpl);
+                // The listener drain also takes messages here. Keep them: callMessageListener() gives back the
+                // permits that a listener's messages hold, before it drops the messages from an older epoch.
+                if (listener != null || isValidConsumerEpoch((TopicMessageImpl<T>) message)) {
+                    break;
+                }
+                message = incomingMessages.poll(deadlineNanos - System.nanoTime(), TimeUnit.NANOSECONDS);
+            }
+            if (message != null) {
                 trackUnAckedMsgIfNoListener(message.getMessageId(), message.getRedeliveryCount());
                 message = listener == null ? beforeConsume(message) : message;
             }
@@ -427,6 +456,13 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             ExceptionHandler.handleInterruptedException(e);
             throw PulsarClientException.unwrap(e);
         }
+    }
+
+    // The synchronous receive paths take from incomingMessages on the caller's thread, so they can run before the
+    // redeliverUnacknowledgedMessages() task on internalPinnedExecutor clears the queue. Drop the messages that the
+    // clear would have dropped.
+    private boolean isValidConsumerEpoch(TopicMessageImpl<T> message) {
+        return isValidConsumerEpoch((MessageImpl<T>) message.getMessage());
     }
 
     @Override
@@ -504,7 +540,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
         }
         if (ackType == AckType.Cumulative) {
-            return consumer.acknowledgeCumulativeAsync(messageId);
+            return consumer.acknowledgeCumulativeAsync(messageId, txnImpl);
         } else {
             return consumer.doAcknowledgeWithTxn(messageId, ackType, properties, txnImpl)
                 .thenRun(() -> unAckedMessageTracker.remove(messageId));
@@ -576,7 +612,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         if (ackType == AckType.Cumulative) {
             Consumer<T> individualConsumer = consumers.get(topicMessageId.getOwnerTopic());
             if (individualConsumer != null) {
-                return individualConsumer.reconsumeLaterCumulativeAsync(message, delayTime, unit);
+                return individualConsumer.reconsumeLaterCumulativeAsync(message, customProperties, delayTime, unit);
             } else {
                 return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
             }
@@ -743,10 +779,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public void redeliverUnacknowledgedMessages() {
+        // Bump the epoch before returning, so that a receive() right after this call skips the messages that are
+        // still queued until the task below clears them.
+        CONSUMER_EPOCH.incrementAndGet(this);
         internalPinnedExecutor.execute(() -> {
             incomingQueueLock.lock();
             try {
-                CONSUMER_EPOCH.incrementAndGet(this);
                 consumers.values().stream().forEach(consumer -> {
                     consumer.redeliverUnacknowledgedMessages();
                     consumer.unAckedChunkedMessageIdSequenceMap.clear();

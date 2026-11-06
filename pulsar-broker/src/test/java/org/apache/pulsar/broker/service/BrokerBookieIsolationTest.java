@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
 import lombok.CustomLog;
@@ -63,7 +64,6 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException.BrokerPersistenceException;
 import org.apache.pulsar.common.policies.data.BookieAffinityGroupData;
 import org.apache.pulsar.common.policies.data.BookieInfo;
 import org.apache.pulsar.common.policies.data.BookiesRackConfiguration;
@@ -765,12 +765,16 @@ public class BrokerBookieIsolationTest {
         // broker should create only 1 bk-client and factory per isolation-group
         assertEquals(bkPlacementPolicyToBkClientMap.size(), 1);
 
-        // ns4 doesn't have secondary group so, publish should fail
+        // ns4 doesn't have secondary group so, the topic can't create a ledger and fails to load. Load it on the
+        // broker, once the lookup has assigned its bundle: a client retries the persistence error until its
+        // operation timeout.
+        final String topic4 = String.format("persistent://%s/topic1", ns4);
+        admin.lookups().lookupTopic(topic4);
         try {
-            PersistentTopic topic4 = (PersistentTopic) createTopicAndPublish(pulsarClient, ns4, "topic1", 1);
+            pulsarService.getBrokerService().getOrCreateTopic(topic4).get();
             fail("should have failed due to not enough non-faulty bookie");
-        } catch (BrokerPersistenceException e) {
-            // Ok..
+        } catch (ExecutionException e) {
+            assertTrue(e.getCause() instanceof BrokerServiceException.PersistenceException, e.toString());
         }
     }
 

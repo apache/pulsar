@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
@@ -100,6 +101,44 @@ public class OneWayReplicatorSchemaValidationEnforcedTest extends OneWayReplicat
             assertThat(receivedBody.getField2()).isEqualTo("test");
             assertThat(receivedBody.getField3()).isEqualTo(123456789L);
         });
+    }
+
+    @Test(timeOut = 30000)
+    public void testReplicationOfSchemaLessMessagesWithSchemaValidationEnforced() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName(
+                "persistent://" + sourceClusterAlwaysSchemaCompatibleNamespace + "/tp_");
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin1.topics().createNonPartitionedTopic(topicName);
+
+        try (org.apache.pulsar.client.api.Consumer<byte[]> consumer = client2.newConsumer()
+                .topic(topicName).subscriptionName("sub").subscribe();
+                Producer<byte[]> producer = client1.newProducer().topic(topicName).create()) {
+            producer.send("schema-less".getBytes(UTF_8));
+
+            Message<byte[]> received = consumer.receive(10, TimeUnit.SECONDS);
+            assertThat(received).isNotNull();
+            assertThat(received.getData()).isEqualTo("schema-less".getBytes(UTF_8));
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testReplicationOfSchemaLessMessagesToRemoteTopicWithSchema() throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName(
+                "persistent://" + sourceClusterAlwaysSchemaCompatibleNamespace + "/tp_");
+        // Only the remote topic has a schema, so the replicator sends the message without a schema version
+        admin2.topics().createNonPartitionedTopic(topicName);
+        admin2.schemas().createSchema(topicName, Schema.STRING.getSchemaInfo());
+        admin1.topics().createNonPartitionedTopic(topicName);
+
+        try (org.apache.pulsar.client.api.Consumer<String> consumer = client2.newConsumer(Schema.STRING)
+                .topic(topicName).subscriptionName("sub").subscribe();
+                Producer<byte[]> producer = client1.newProducer().topic(topicName).create()) {
+            producer.send("schema-less".getBytes(UTF_8));
+
+            Message<String> received = consumer.receive(10, TimeUnit.SECONDS);
+            assertThat(received).isNotNull();
+            assertThat(received.getValue()).isEqualTo("schema-less");
+        }
     }
 
     @Test(timeOut = 30000)

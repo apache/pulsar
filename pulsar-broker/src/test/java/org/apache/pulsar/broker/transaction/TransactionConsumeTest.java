@@ -114,7 +114,6 @@ public class TransactionConsumeTest extends TransactionTestBase {
         int messageCntBeforeTxn = 10;
         int transactionMessageCnt = 10;
         int messageCntAfterTxn = 10;
-        int totalMsgCnt = messageCntBeforeTxn + transactionMessageCnt + messageCntAfterTxn;
 
         @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
@@ -151,28 +150,23 @@ public class TransactionConsumeTest extends TransactionTestBase {
         sendNormalMessages(producer, messageCntBeforeTxn, messageCntAfterTxn, sendMessageList);
 
         Message<byte[]> message;
-        for (int i = 0; i < totalMsgCnt; i++) {
-            if (i < messageCntBeforeTxn) {
-                // receive normal messages successfully
-                message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
-                Assert.assertNotNull(message);
-                log.info().attr("msg", new String(message.getData(), UTF_8))
-                        .log("Receive exclusive normal msg");
-                message = sharedConsumer.receive(2, TimeUnit.SECONDS);
-                Assert.assertNotNull(message);
-                log.info().attr("msg", new String(message.getData(), UTF_8))
-                        .log("Receive shared normal msg");
-            } else {
-                // can't receive transaction messages before commit
-                message = exclusiveConsumer.receive(500, TimeUnit.MILLISECONDS);
-                Assert.assertNull(message);
-                log.info("exclusive consumer can't receive message before commit.");
-
-                message = sharedConsumer.receive(500, TimeUnit.MILLISECONDS);
-                Assert.assertNull(message);
-                log.info("shared consumer can't receive message before commit.");
-            }
+        for (int i = 0; i < messageCntBeforeTxn; i++) {
+            // receive normal messages successfully
+            message = exclusiveConsumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            log.info().attr("msg", new String(message.getData(), UTF_8))
+                    .log("Receive exclusive normal msg");
+            message = sharedConsumer.receive(2, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            log.info().attr("msg", new String(message.getData(), UTF_8))
+                    .log("Receive shared normal msg");
         }
+
+        // can't receive transaction messages before commit, nor the normal messages after them
+        assertNoMoreMessages(exclusiveConsumer);
+        log.info("exclusive consumer can't receive message before commit.");
+        assertNoMoreMessages(sharedConsumer);
+        log.info("shared consumer can't receive message before commit.");
 
         persistentTopic.endTxn(txnID, TxnAction.COMMIT_VALUE, 0L).get();
         log.info("Commit txn.");
@@ -518,10 +512,12 @@ public class TransactionConsumeTest extends TransactionTestBase {
 
         // cleanup.
         consumer.close();
+        List<CompletableFuture<Void>> closeFutures = new ArrayList<>(producerCount);
         for (int i = 0; i < producerCount; i++) {
             producerList.get(i).close();
-            clientList.get(i).close();
+            closeFutures.add(clientList.get(i).closeAsync());
         }
+        CompletableFuture.allOf(closeFutures.toArray(CompletableFuture[]::new)).get();
         admin.topics().delete(topic, false);
     }
 }

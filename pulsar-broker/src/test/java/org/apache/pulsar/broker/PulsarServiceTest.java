@@ -103,7 +103,7 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         conf.setBrokerServicePortTls(Optional.of(0));
         conf.setWebServicePortTls(Optional.of(0));
         conf.setTopicNameCacheMaxCapacity(5000);
-        conf.setMaxSecondsToClearTopicNameCache(5);
+        conf.setMaxSecondsToClearTopicNameCache(1);
         if (useStaticPorts) {
             conf.setBrokerServicePortTls(Optional.of(6651));
             conf.setBrokerServicePort(Optional.of(6660));
@@ -291,15 +291,15 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         cleanup();
         setup();
         assertEquals(conf.getTopicNameCacheMaxCapacity(), 5000);
-        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 5);
+        assertEquals(conf.getMaxSecondsToClearTopicNameCache(), 1);
 
         List<TopicName> topicNameCached = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             topicNameCached.add(TopicName.get("public/default/tp_" + i));
         }
 
-        // Verify: the cache does not clear since it is not larger than max capacity.
-        Thread.sleep(10 * 1000);
+        // Verify: the cache does not clear since it is not larger than max capacity, in two runs of the clearing.
+        Thread.sleep(2500);
         for (int i = 0; i < 20; i++) {
             assertTrue(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
         }
@@ -308,10 +308,11 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         admin.brokers().updateDynamicConfiguration("topicNameCacheMaxCapacity", "10");
 
         // Verify: the cache were cleared.
-        Thread.sleep(10 * 1000);
-        for (int i = 0; i < 20; i++) {
-            assertFalse(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
-        }
+        Awaitility.await().untilAsserted(() -> {
+            for (int i = 0; i < 20; i++) {
+                assertFalse(topicNameCached.get(i) == TopicName.get("public/default/tp_" + i));
+            }
+        });
     }
 
     @Test
@@ -421,6 +422,21 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         } catch (Exception e) {
             assertTrue(e instanceof PulsarClientException.TimeoutException);
         }
+    }
+
+    @Test
+    public void testCloseDoesNotWaitForInternalAdminClientConnections() throws Exception {
+        setup();
+        // a request through the broker's own admin client leaves its connection to the web service open
+        pulsar.getAdminClient().clusters().getClusters();
+
+        long startNanos = System.nanoTime();
+        pulsar.close();
+
+        // the graceful web service stop would wait until that connection had been idle for 1 s
+        assertThat(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos))
+                .as("broker close time in ms")
+                .isLessThan(500);
     }
 
     @DataProvider

@@ -146,6 +146,14 @@ Test JVMs default to a `1300m` heap and up to four forks per task. Override thes
 concurrent workers across projects. Task-specific limits, such as the integration tests' single
 fork and `1G` heap, take precedence.
 
+A test task deals its classes to its forks round-robin, in class name order, before any of them runs,
+so a few slow classes can end up on one fork. CI therefore runs most unit test groups as `testShards`.
+With `-PtestShards=4 -PtestShardDurations=<file>` (lines of `<seconds> <class name>`, which CI records
+from the group's previous run), it runs `testShard1` to `testShard4`, test tasks with one fork each
+that run in parallel when the configuration cache is on, with the classes packed longest-first by
+those durations; a class missing from the file goes by a hash of its name. Without recorded
+durations, `testShards` runs `test`.
+
 Use `-PtestForkEvery=50` to replace a test JVM after 50 detected test classes, limiting state
 retained across classes. The default is `0` (no class limit). Gradle counts candidate classes
 passed to test workers before TestNG group filtering, so classes excluded by groups still count
@@ -166,7 +174,9 @@ instead of having retries mask them.
 ### Netty buffer leak detection
 
 Tests enable Netty's `paranoid` leak detection by default, using `ExtendedNettyLeakDetector`
-to include test names in leak reports and write `netty_leak_*.txt` files. Set
+to include test names in leak reports and write `netty_leak_*.txt` files. Leaks are detected with a
+GC after the test methods of each test class and when the test JVM finishes, and a report names the
+test that was running when the leaked buffer was allocated. Set
 `NETTY_LEAK_DUMP_DIR` to choose the output directory (the default is the JVM's temporary directory).
 
 `NETTY_LEAK_DETECTION=report` (the default) reports leaks without failing tests.

@@ -167,10 +167,18 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final MessageCrypto<?, ?> msgCrypto;
 
     private ScheduledFuture<?> keyGeneratorTask = null;
+    // Completed by the key task once the first key load has succeeded; null without encryption. The creation
+    // completes only after it, so a producer whose key cannot be loaded fails its creation whether the connection
+    // or the key load finishes first.
+    private final CompletableFuture<Void> firstKeyLoad;
+    // Guarded by the producer lock: a reconnection must not restart the wait for the first key load.
+    private boolean firstKeyLoadTimeoutScheduled;
 
     private final Map<String, String> metadata;
 
     private Optional<byte[]> schemaVersion = Optional.empty();
+
+    private volatile boolean registeredWithoutSchemaForAutoProduceBytes;
 
     private final ConnectionHandler connectionHandler;
 
@@ -276,6 +284,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         } else {
             this.msgCrypto = null;
         }
+        this.firstKeyLoad = this.msgCrypto != null ? new CompletableFuture<>() : null;
 
         if (conf.getSendTimeoutMs() > 0) {
             sendTimeout = client.timer().newTimeout(this, conf.getSendTimeoutMs(), TimeUnit.MILLISECONDS);
@@ -864,7 +873,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     // Should flush the last potential duplicated since can't combine potential duplicated messages
                     // and non-duplicated messages into a batch.
                     if (isLastSequenceIdPotentialDuplicated) {
-                        doBatchSendAndAdd(msg, callback, payload);
+                        if (!doBatchSendAndAdd(msg, callback, payload)) {
+                            return;
+                        }
                     } else {
                         // handle boundary cases where message being added would exceed
                         // batch size and/or max message size
@@ -929,7 +940,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     @VisibleForTesting
     boolean populateMessageSchema(MessageImpl<?> msg, SendCallback callback) {
         MessageMetadata msgMetadataBuilder = msg.getMessageBuilder();
-        if (msg.getSchemaInternal() == schema) {
+        if (msg.getSchemaInternal() == schema && !registeredWithoutSchemaForAutoProduceBytes) {
             schemaVersion.ifPresent(v -> msgMetadataBuilder.setSchemaVersion(v));
             msg.setSchemaState(MessageImpl.SchemaState.Ready);
             return true;
@@ -1222,15 +1233,25 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         }
     }
 
-    private void doBatchSendAndAdd(MessageImpl<?> msg, SendCallback callback, ByteBuf payload) {
+    private boolean doBatchSendAndAdd(MessageImpl<?> msg, SendCallback callback, ByteBuf payload) {
             log.debug()
                     .attr("messageSize", msg.getUncompressedSize())
                     .log("Closing out batch to accommodate large message");
         try {
             batchMessageAndSend(false);
+            if (!batchMessageContainer.isEmpty()) {
+                // A failed build retains the old batch for retry. The incoming message required a new
+                // batch (transaction, schema, capacity or sequence boundary), so it cannot join that batch.
+                maybeScheduleBatchFlushTask();
+                completeCallbackAndReleaseSemaphore(msg.getUncompressedSize(), callback,
+                        new PulsarClientException("Failed to flush the previous batch before adding a new message",
+                                msg.getSequenceId()));
+                return false;
+            }
             boolean isBatchFull = batchMessageContainer.add(msg, callback);
             triggerSendIfFullOrScheduleFlush(isBatchFull);
             lastSendFuture = callback.getFuture();
+            return true;
         } finally {
             payload.release();
         }
@@ -2190,8 +2211,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         PRODUCER_DEADLINE_UPDATER
                 .compareAndSet(this, 0, System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs());
 
+        boolean shouldRegisterWithoutSchemaForAutoProduceBytes =
+                schema != null
+                && schema instanceof AutoProduceBytesSchema<?> autoProduceBytesSchema
+                && !autoProduceBytesSchema.hasUserProvidedSchema()
+                && cnx.isSupportsAutoProduceBytesWithoutSchema();
         SchemaInfo schemaInfo = null;
-        if (schema != null) {
+        if (schema != null && !shouldRegisterWithoutSchemaForAutoProduceBytes) {
             if (schema.getSchemaInfo() != null) {
                 if (schema.getSchemaInfo().getType() == SchemaType.JSON) {
                     // for backwards compatibility purposes
@@ -2222,8 +2248,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata,
                         schemaInfo, epoch, userProvidedProducerName,
-                        conf.getAccessMode(), topicEpoch, client.conf.isEnableTransaction(),
-                        conf.getInitialSubscriptionName()),
+                        conf.getAccessMode(), topicEpoch, client.getConfiguration().isEnableTransaction(),
+                        conf.getInitialSubscriptionName(), schema instanceof AutoProduceBytesSchema),
                 requestId).thenAccept(response -> {
             if (connectionHandler.isSupersededAttempt(cnx, epoch)) {
                 log.debug().attr("connection", cnx.channel())
@@ -2233,6 +2259,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             String producerName = response.getProducerName();
             long lastSequenceId = response.getLastSequenceId();
             schemaVersion = Optional.ofNullable(response.getSchemaVersion());
+            registeredWithoutSchemaForAutoProduceBytes = shouldRegisterWithoutSchemaForAutoProduceBytes;
             schemaVersion.ifPresent(v -> schemaCache.put(SchemaHash.of(schema), v));
 
             // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
@@ -2409,11 +2436,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 .attr("retry", t.getClass().getName())
                 .exceptionMessage(t)
                 .log("Closed producer because get an error that does not support to retry");
+        // Fail the creation with the error before closing, so that the close does not fail it first with its own.
+        producerCreatedFuture.completeExceptionally(t);
         closeAsync().whenComplete((v, ex) -> {
             if (ex != null) {
                 log.error().exception(ex).log("Failed to close producer on TopicDoesNotExistException.");
             }
-            producerCreatedFuture.completeExceptionally(t);
         });
     }
 
@@ -2461,13 +2489,64 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
             keyGeneratorTask.cancel(false);
         }
+        if (firstKeyLoad != null) {
+            // The creation of a producer that encrypts can wait for the key, or for a reconnection after it, and
+            // nothing else completes it once the producer has closed: fail it here, whatever stage it has reached.
+            // A creation that has already completed, or already failed with its own cause, is not affected.
+            producerCreatedFuture.completeExceptionally(new PulsarClientException.AlreadyClosedException(
+                    String.format("The producer %s of the topic %s was closed before it was created",
+                            producerName, topic)));
+        }
 
         stats.cancelStatsTimeout();
+    }
+
+    /**
+     * Completes the creation, after the first key load when the producer encrypts: the key is loaded by a task
+     * that runs apart from the connection, and a producer whose key cannot be loaded must not be created even
+     * when the connection is ready first. The key task fails the creation itself in that case, and so does the
+     * timeout if the key does not load before the producer deadline. Called under the producer lock.
+     */
+    private void completeCreation() {
+        if (firstKeyLoad == null) {
+            producerCreatedFuture.complete(this);
+            return;
+        }
+        if (!firstKeyLoad.isDone() && !firstKeyLoadTimeoutScheduled) {
+            firstKeyLoadTimeoutScheduled = true;
+            // The creation has the same budget as when it retries a connection: the time left until the producer
+            // deadline set on the first connection. Waited for on the timer, not on the event loop running the key
+            // reader.
+            long remainingMs = Math.max(0, producerDeadline - System.currentTimeMillis());
+            Timeout timeout = client.timer().newTimeout(ignored -> {
+                if (!firstKeyLoad.isDone() && producerCreatedFuture.completeExceptionally(
+                        new PulsarClientException.TimeoutException(String.format(
+                                "The producer %s of the topic %s timed out waiting for its encryption key",
+                                producerName, topic)))) {
+                    closeAsync();
+                }
+            }, remainingMs, TimeUnit.MILLISECONDS);
+            firstKeyLoad.thenRun(timeout::cancel);
+            producerCreatedFuture.whenComplete((producer, error) -> timeout.cancel());
+        }
+        firstKeyLoad.thenRun(() -> {
+            if (getState() == State.Ready) {
+                producerCreatedFuture.complete(this);
+            }
+            // Otherwise the producer is reconnecting, and the next switch to Ready completes the creation, or it
+            // has ended, and closeProducerTasks() has failed the creation.
+        });
     }
 
     private void resendMessages(ClientCnx cnx, long expectedEpoch) {
         cnx.ctx().channel().eventLoop().execute(() -> {
             synchronized (ProducerImpl.this) {
+                // The attempt may have been superseded after its success response queued this task.
+                // Check before Closing/Closed too, so a broker-closed registration does not cause stale work
+                // to close the possibly shared channel.
+                if (connectionHandler.isSupersededAttempt(cnx, expectedEpoch)) {
+                    return;
+                }
                 if (getState() == State.Closing || getState() == State.Closed) {
                     // Producer was closed while reconnecting, close the connection to make sure the broker
                     // drops the producer on its side
@@ -2481,7 +2560,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                                 .attr("resend", messagesToResend)
                                 .log("No pending messages to resend");
                     if (changeToReadyState()) {
-                        producerCreatedFuture.complete(ProducerImpl.this);
+                        completeCreation();
                         scheduleBatchFlushTask(0);
                         return;
                     } else {
@@ -2634,6 +2713,13 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             // Track message count to fail so that newly added messages by synchronous retries
             // triggered by op.sendComplete(ex); don't get removed
             int pendingMessagesToFailCount = pendingMessages.size();
+            // Invalidate the failed queue's registration before callbacks can start one for a new message.
+            if (compareAndSetState(State.RegisteringSchema, State.Ready)) {
+                schemaRegistrationGeneration++;
+                cancelSchemaRegistrationRetry();
+                schemaRegistrationBackoff.reset();
+                schemaRegistrationFailed = false;
+            }
 
             for (int i = 0; i < pendingMessagesToFailCount; i++) {
                 OpSendMsg op = pendingMessages.remove();
@@ -3232,18 +3318,25 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private void addPublicKeyCipher() {
         try {
             msgCrypto.addPublicKeyCipher(conf.getEncryptionKeys(), conf.getCryptoKeyReader());
-        } catch (CryptoException e) {
+            firstKeyLoad.complete(null);
+        } catch (Throwable e) {
+            // A key reader that throws, an exception or an error, cannot provide the key either: the creation must
+            // not wait for a key load that has ended.
             if (!producerCreatedFuture.isDone()) {
-                log.warn().log("Failed to add public key cipher");
-                producerCreatedFuture.completeExceptionally(
-                        PulsarClientException.wrap(e,
-                                String.format("The producer %s of the topic %s "
-                                                + "adds the public key cipher was failed",
-                                        producerName, topic)));
+                log.warn().exception(e).log("Failed to add public key cipher");
+                String message = String.format("The producer %s of the topic %s adds the public key cipher was failed",
+                        producerName, topic);
+                producerCreatedFuture.completeExceptionally(e instanceof CryptoException
+                        ? PulsarClientException.wrap(e, message) : new PulsarClientException(message, e));
                 // The creation has failed, so close the producer as the other creation failures do. Otherwise it
                 // stays in the client and keeps the connection it is about to open, which registers it on the
                 // broker and then reconnects it as if it had been created.
                 closeAsync();
+            } else if (e instanceof RuntimeException) {
+                // A later refresh: leave it to the task wrapper to log, as before.
+                throw (RuntimeException) e;
+            } else if (e instanceof Error) {
+                throw (Error) e;
             }
         }
     }

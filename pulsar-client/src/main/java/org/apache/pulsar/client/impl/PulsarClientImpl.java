@@ -1522,18 +1522,19 @@ public class PulsarClientImpl implements PulsarClient {
                 }
             }
 
+            // Close the connections before shutting down the event loop, which runs those closes before it terminates
+            try {
+                closeCnxPool(cnxPool);
+            } catch (PulsarClientException e) {
+                log.warn().exception(e).log("Failed to shutdown cnxPool");
+                throwable = e;
+            }
             try {
                 // Shutting down eventLoopGroup separately because in some cases, cnxPool might be using different
                 // eventLoopGroup.
                 shutdownEventLoopGroup(eventLoopGroup);
             } catch (PulsarClientException e) {
                 log.warn().exception(e).log("Failed to shutdown eventLoopGroup");
-                throwable = e;
-            }
-            try {
-                closeCnxPool(cnxPool);
-            } catch (PulsarClientException e) {
-                log.warn().exception(e).log("Failed to shutdown cnxPool");
                 throwable = e;
             }
             if (timer != null && needStopTimer) {
@@ -1657,7 +1658,12 @@ public class PulsarClientImpl implements PulsarClient {
     private void shutdownEventLoopGroup(EventLoopGroup eventLoopGroup) throws PulsarClientException {
         if (createdEventLoopGroup && eventLoopGroup != null && !eventLoopGroup.isShutdown()) {
             try {
-                eventLoopGroup.shutdownGracefully().get(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                // No quiet period: Netty's default of 2 s would hold every close for at least 2 s. The loop runs every
+                // task queued before the shutdown request before it terminates, including the connection closes that
+                // closeCnxPool() queued. Those closes are needed: when the request arrives while the loop is running
+                // tasks, Netty 4.2 ends a loop with no quiet period without closing its channels itself.
+                eventLoopGroup.shutdownGracefully(0, CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                        .get(CLOSE_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             } catch (Throwable t) {
                 throw PulsarClientException.unwrap(t);
             }

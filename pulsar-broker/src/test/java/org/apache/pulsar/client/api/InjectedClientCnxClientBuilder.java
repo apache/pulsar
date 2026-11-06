@@ -114,7 +114,9 @@ public class InjectedClientCnxClientBuilder {
                 }
                 if (!eventLoopGroupProvided) {
                     try {
-                        eventLoopGroup.shutdownGracefully().get(10, TimeUnit.SECONDS);
+                        // No quiet period, as in PulsarClientImpl.shutdownEventLoopGroup(): the pool closed above
+                        // has queued its connection closes, which the loop runs before it terminates
+                        eventLoopGroup.shutdownGracefully(0, 10, TimeUnit.SECONDS).get(10, TimeUnit.SECONDS);
                     } catch (Exception e) {
                         log.warn().exception(e).log("Failed to shutdown event loop group");
                     }
