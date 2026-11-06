@@ -360,10 +360,15 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     // A storage factory can discard a late client even after the provider's own creation future succeeded.
     static void releaseClientListeners(BookKeeper client) {
-        Object registration = BookKeeperClientConfigAccessor.getConfigurationProperty(client,
-                BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP);
-        if (registration instanceof ClientListenerCleanup cleanup) {
-            cleanup.run();
+        try {
+            Object registration = BookKeeperClientConfigAccessor.getConfigurationProperty(client,
+                    BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP);
+            if (registration instanceof ClientListenerCleanup cleanup) {
+                cleanup.run();
+            }
+        } catch (RuntimeException e) {
+            // A custom client can override the configuration getter. Its failure must not prevent closing the client.
+            log.debug().exception(e).log("Failed to inspect a BookKeeper client's metadata store listener cleanup");
         }
     }
 

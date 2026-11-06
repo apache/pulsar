@@ -43,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.ClientContext;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
+import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
@@ -265,20 +266,36 @@ public class ManagedLedgerClientFactoryShutdownTest {
         }
     }
 
-    @Test
-    public void testCancelledClientCreationClosesLateClient() throws Exception {
+    @DataProvider
+    public Object[][] lateClientConfigurations() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "lateClientConfigurations")
+    public void testCancelledClientCreationClosesLateClient(boolean configLookupFails) throws Exception {
         BookKeeper defaultClient = mock(BookKeeper.class);
-        BookKeeper policyClient = mock(BookKeeper.class);
+        PulsarMockBookKeeper policyClient = mock(PulsarMockBookKeeper.class);
+        if (configLookupFails) {
+            when(policyClient.getConf()).thenThrow(new IllegalStateException("client configuration unavailable"));
+        }
         CompletableFuture<BookKeeper> creation = new CompletableFuture<>();
         CompletableFuture<Void> clientClosed = new CompletableFuture<>();
         doAnswer(invocation -> {
             clientClosed.complete(null);
             return null;
         }).when(policyClient).close();
+        CompletableFuture<Void> providerRequested = new CompletableFuture<>();
+        BookKeeperClientFactory bookkeeperProvider = provider(defaultClient, creation);
+        when(bookkeeperProvider.create(any(), any(), any(), any(), anyMap(), any())).thenAnswer(invocation -> {
+            providerRequested.complete(null);
+            return creation;
+        });
         try (MetadataStoreExtended store = newStore("cancelled-client")) {
-            ManagedLedgerClientFactory factory = newFactory(store, provider(defaultClient, creation));
+            ManagedLedgerClientFactory factory = newFactory(store, bookkeeperProvider);
             try {
                 CompletableFuture<BookKeeper> result = policyFactory(factory).get(POLICY);
+                // Cancellation before invocation intentionally skips the provider; this case covers its late result.
+                providerRequested.get(5, TimeUnit.SECONDS);
                 assertThat(result.cancel(false)).isTrue();
                 assertThat(creation).isNotDone();
                 factory.close();
