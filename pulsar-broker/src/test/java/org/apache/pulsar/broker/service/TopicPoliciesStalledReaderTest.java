@@ -602,13 +602,19 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
     private static class HeldWrite {
 
         private final CompletableFuture<Void> released = new CompletableFuture<>();
-        /** The write, once the service has made it. */
-        private final CompletableFuture<CompletableFuture<MessageId>> write = new CompletableFuture<>();
+        /** The result of the write, once the service has made it and the broker has acknowledged it. */
+        private final CompletableFuture<MessageId> written = new CompletableFuture<>();
 
-        /** Puts the result of {@code write} behind {@link #release()}. */
-        CompletableFuture<MessageId> gate(CompletableFuture<MessageId> write) {
-            this.write.complete(write);
-            return released.thenCompose(__ -> write);
+        /** Puts the result of {@code gatedWrite} behind {@link #release()}. */
+        CompletableFuture<MessageId> gate(CompletableFuture<MessageId> gatedWrite) {
+            gatedWrite.whenComplete((messageId, e) -> {
+                if (e == null) {
+                    written.complete(messageId);
+                } else {
+                    written.completeExceptionally(e);
+                }
+            });
+            return released.thenCompose(__ -> gatedWrite);
         }
 
         /**
@@ -617,7 +623,7 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
          * this returns.
          */
         void release() throws Exception {
-            write.get(30, TimeUnit.SECONDS).get(30, TimeUnit.SECONDS);
+            written.get(30, TimeUnit.SECONDS);
             released.complete(null);
         }
     }
