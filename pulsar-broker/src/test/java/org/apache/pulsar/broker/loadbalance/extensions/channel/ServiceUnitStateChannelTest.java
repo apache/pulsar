@@ -41,11 +41,11 @@ import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -76,8 +76,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.FieldUtils;
@@ -110,6 +112,7 @@ import org.apache.pulsar.metadata.api.extended.SessionEvent;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
+import org.mockito.Answers;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -158,6 +161,17 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
     // Reset before each test, so that the failures a failed test did not use cannot fail the next one
     private final AtomicInteger remainingNamespaceBundlesUpdateFailures = new AtomicInteger();
 
+    // What the mocks and spies that the channels call return. Their answers are installed in setup, before anything
+    // calls them, and read these: Mockito stubs the method of the next call on a mock, from any thread, so a test
+    // can't stub a mock that other threads call.
+    private final AtomicBoolean failBrokerHealthChecks = new AtomicBoolean();
+    private final Map<String, CompletableFuture<?>> brokerLookups = new ConcurrentHashMap<>();
+    private final AtomicReference<CompletableFuture<Optional<String>>> selectedBroker = new AtomicReference<>();
+    private static final CompletableFuture<Void> FAILED_HEALTH_CHECK =
+            CompletableFuture.failedFuture(new RuntimeException("failed"));
+    private final AtomicReference<CompletableFuture<Void>> brokerHealthCheck =
+            new AtomicReference<>(FAILED_HEALTH_CHECK);
+
     @DataProvider(name = "serviceUnitStateTableViewClassName")
     public static Object[][] serviceUnitStateTableViewClassName() {
         return new Object[][]{
@@ -192,13 +206,27 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace(namespaceName2);
 
         pulsar1 = pulsar;
+        failBrokerHealthChecks.set(false);
+        brokerLookups.clear();
+        selectedBroker.set(null);
+        brokerHealthCheck.set(FAILED_HEALTH_CHECK);
         registry = spy(new BrokerRegistryImpl(pulsar1));
+        doAnswer(invocation -> {
+            var lookup = brokerLookups.get(invocation.getArgument(0, String.class));
+            return lookup != null ? lookup : invocation.callRealMethod();
+        }).when(registry).lookupAsync(any());
         registry.start();
         pulsarAdmin = spy(pulsar.getAdminClient());
+        doAnswer(invocation -> failBrokerHealthChecks.get() ? brokers : invocation.callRealMethod())
+                .when(pulsarAdmin).brokers();
         loadManagerContext = mock(LoadManagerContext.class);
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).brokerLoadDataStore();
         doReturn(mock(LoadDataStore.class)).when(loadManagerContext).topBundleLoadDataStore();
         loadManager = mock(ExtensibleLoadManagerImpl.class);
+        doAnswer(invocation -> {
+            var selected = selectedBroker.get();
+            return selected != null ? selected : Answers.RETURNS_DEFAULTS.answer(invocation);
+        }).when(loadManager).selectAsync(any(), any(), any());
         var conf2 = getDefaultConf();
         updateConfig(conf2);
         additionalPulsarTestContext = createAdditionalPulsarTestContext(conf2);
@@ -229,8 +257,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         childBundle32 = namespaceName2 + "/" + childBundle2Range;
 
         brokers = mock(Brokers.class);
-        doReturn(CompletableFuture.failedFuture(new RuntimeException("failed"))).when(brokers)
-                .healthcheckAsync(any());
+        doAnswer(invocation -> brokerHealthCheck.get()).when(brokers).healthcheckAsync(any());
     }
 
     @BeforeMethod
@@ -245,7 +272,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         cleanMetadataState(channel1);
         cleanMetadataState(channel2);
         enableChannels();
-        reset(pulsarAdmin);
+        failBrokerHealthChecks.set(false);
     }
 
 
@@ -699,8 +726,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             assertEquals(0, getOwnerRequests2.size());
 
             // recovered, check the monitor update state : Assigned -> Owned
-            doReturn(CompletableFuture.completedFuture(Optional.of(brokerId1)))
-                    .when(loadManager).selectAsync(any(), any(), any());
+            selectedBroker.set(CompletableFuture.completedFuture(Optional.of(brokerId1)));
         } finally {
             setTableView(channel2, tableView);
         }
@@ -978,9 +1004,9 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         CompletableFuture<Void> oldJob = cleanupJobs.get(broker);
         assertNotNull(oldJob);
 
-        reset(brokers);
-        doReturn(healthCheck).when(brokers).healthcheckAsync(any());
-        doReturn(brokers).when(pulsarAdmin).brokers();
+        clearInvocations(brokers);
+        brokerHealthCheck.set(healthCheck);
+        failBrokerHealthChecks.set(true);
         CompletableFuture<Void> newJob = null;
         try {
             channel.handleBrokerRegistrationEvent(broker, NotificationType.Created);
@@ -1013,10 +1039,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
             if (newJob != null) {
                 newJob.cancel(false);
             }
-            reset(brokers);
-            doReturn(CompletableFuture.failedFuture(new RuntimeException("failed"))).when(brokers)
-                    .healthcheckAsync(any());
-            reset(pulsarAdmin);
+            failBrokerHealthChecks.set(false);
+            brokerHealthCheck.set(FAILED_HEALTH_CHECK);
         }
     }
 
@@ -1048,8 +1072,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
         var owner1 = channel1.getOwnerAsync(bundle1);
         var owner2 = channel2.getOwnerAsync(bundle2);
-        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId2)))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(Optional.of(brokerId2)));
         assertTrue(owner1.get().isEmpty());
         assertTrue(owner2.get().isEmpty());
 
@@ -1075,7 +1098,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(followerChannel, "lastMetadataSessionEventTimestamp",
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
 
-        doReturn(brokers).when(pulsarAdmin).brokers();
+        failBrokerHealthChecks.set(true);
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
         followerChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
 
@@ -1137,7 +1160,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 3,
                 0,
                 0);
-        reset(pulsarAdmin);
+        failBrokerHealthChecks.set(false);
 
         // broker is back online
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Created);
@@ -1162,7 +1185,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
 
         // broker is offline again
-        doReturn(brokers).when(pulsarAdmin).brokers();
+        failBrokerHealthChecks.set(true);
         FieldUtils.writeDeclaredField(leaderChannel, "maxCleanupDelayTimeInSecs", 3, true);
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
         followerChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
@@ -1204,7 +1227,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 4,
                 0,
                 1);
-        reset(pulsarAdmin);
+        failBrokerHealthChecks.set(false);
 
         // test unstable state
         channel1.publishUnloadEventAsync(new Unload(brokerId2, bundle1, Optional.of(broker)));
@@ -1468,8 +1491,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 "inFlightStateWaitingTimeInMillis", 3 * 1000, true);
         FieldUtils.writeDeclaredField(channel2,
                 "inFlightStateWaitingTimeInMillis", 3 * 1000, true);
-        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId2)))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(Optional.of(brokerId2)));
         channel1.publishAssignEventAsync(bundle, brokerId2);
         // channel1 is broken. the assign won't be complete.
         waitUntilState(channel1, bundle, Assigning);
@@ -1573,8 +1595,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
 
         var leader = channel1.isChannelOwnerAsync().get() ? channel1 : channel2;
-        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId1)))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(Optional.of(brokerId1)));
         waitUntilStateWithMonitor(leader, bundle, Init);
         waitUntilStateWithMonitor(channel1, bundle, Init);
         waitUntilStateWithMonitor(channel2, bundle, Init);
@@ -1764,8 +1785,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
                 });
         ServiceUnitStateChannelImpl leader =
                 (ServiceUnitStateChannelImpl) (channel1.isChannelOwnerAsync().get() ? channel1 : channel2);
-        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId1)))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(Optional.of(brokerId1)));
         leader.monitorOwnerships(List.of(brokerId1, brokerId2));
 
         waitUntilState(leader, bundle3, Init);
@@ -1872,8 +1892,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         }
 
         // test stable metadata state
-        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId2)))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(Optional.of(brokerId2)));
         leaderChannel.handleMetadataSessionEvent(SessionReestablished);
         followerChannel.handleMetadataSessionEvent(SessionReestablished);
         FieldUtils.writeDeclaredField(leaderChannel, "lastMetadataSessionEventTimestamp",
@@ -1881,7 +1900,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(followerChannel, "lastMetadataSessionEventTimestamp",
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
 
-        doReturn(brokers).when(pulsarAdmin).brokers();
+        failBrokerHealthChecks.set(true);
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
         followerChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
 
@@ -1900,7 +1919,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         // clean-up
         FieldUtils.writeDeclaredField(leaderChannel, "maxCleanupDelayTimeInSecs", 3 * 60, true);
         cleanTableViews();
-        reset(pulsarAdmin);
+        failBrokerHealthChecks.set(false);
     }
 
     @Test(priority = 19)
@@ -1961,8 +1980,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
 
         // test stable metadata state
-        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId2)))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(Optional.of(brokerId2)));
         FieldUtils.writeDeclaredField(leaderChannel, "inFlightStateWaitingTimeInMillis",
                 -1, true);
         FieldUtils.writeDeclaredField(followerChannel, "inFlightStateWaitingTimeInMillis",
@@ -2041,7 +2059,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 1000, true);
         var delayedFuture = new CompletableFuture<Object>();
-        doReturn(delayedFuture).when(registry).lookupAsync(eq(broker));
+        brokerLookups.put(broker, delayedFuture);
 
         // verify the owner eventually returns in inFlightStateWaitingTimeInMillis.
         long start = System.currentTimeMillis();
@@ -2053,8 +2071,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         assertTrue(elapsed < 1000);
 
         // case 6: the owner is inactive
-        doReturn(CompletableFuture.completedFuture(Optional.empty()))
-                .when(registry).lookupAsync(eq(broker));
+        brokerLookups.put(broker, CompletableFuture.completedFuture(Optional.empty()));
 
         // verify getOwnerAsync times out
         start = System.currentTimeMillis();
@@ -2094,8 +2111,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
 
 
         // case 7: the ownership cleanup(no new owner) by the leader channel
-        doReturn(CompletableFuture.completedFuture(Optional.empty()))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(Optional.empty()));
         ServiceUnitStateChannelImpl leaderChannel = (ServiceUnitStateChannelImpl) channel1;
         String leader1 = channel1.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
         String leader2 = channel2.getChannelOwnerAsync().get(2, TimeUnit.SECONDS).get();
@@ -2106,7 +2122,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         leaderChannel.handleMetadataSessionEvent(SessionReestablished);
         FieldUtils.writeDeclaredField(leaderChannel, "lastMetadataSessionEventTimestamp",
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
-        doReturn(brokers).when(pulsarAdmin).brokers();
+        failBrokerHealthChecks.set(true);
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
 
         // verify the ownership cleanup, and channel's getOwnerAsync returns empty result without timeout
@@ -2118,7 +2134,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         waitUntilState(channel2, bundle, Init);
 
         assertTrue(System.currentTimeMillis() - start < 20_000);
-        reset(pulsarAdmin);
+        failBrokerHealthChecks.set(false);
         // case 8: simulate ownership cleanup(brokerId1 as the new owner) by the leader channel
         try {
             disableChannels();
@@ -2127,13 +2143,12 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         } finally {
             enableChannels();
         }
-        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId1)))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(Optional.of(brokerId1)));
         leaderChannel.handleMetadataSessionEvent(SessionReestablished);
         FieldUtils.writeDeclaredField(leaderChannel, "lastMetadataSessionEventTimestamp",
                 System.currentTimeMillis() - (MAX_CLEAN_UP_DELAY_TIME_IN_SECS * 1000 + 1000), true);
         getCleanupJobs(leaderChannel).clear();
-        doReturn(brokers).when(pulsarAdmin).brokers();
+        failBrokerHealthChecks.set(true);
         leaderChannel.handleBrokerRegistrationEvent(broker, NotificationType.Deleted);
 
         // verify the ownership cleanup, and channel's getOwnerAsync returns brokerId1 without timeout
@@ -2145,7 +2160,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         FieldUtils.writeDeclaredField(channel1,
                 "inFlightStateWaitingTimeInMillis", 30 * 1000, true);
         cleanTableViews();
-        reset(pulsarAdmin);
+        failBrokerHealthChecks.set(false);
     }
 
     @Test(priority = 21)
@@ -2193,8 +2208,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://pulsar/system/test-system-topic";
         NamespaceBundle bundleName = pulsar.getNamespaceService().getBundle(TopicName.get(topic));
         var releasing = new ServiceUnitStateData(Releasing, pulsar2.getBrokerId(), pulsar1.getBrokerId(), 1);
-        doReturn(CompletableFuture.completedFuture(Optional.of(brokerId1)))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(Optional.of(brokerId1)));
 
         try {
             disableChannels();
@@ -2278,8 +2292,7 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var pendingAssignment = new CompletableFuture<ServiceUnitStateData>();
         var published = new CompletableFuture<Void>();
         var disabled = new CompletableFuture<Void>();
-        doReturn(CompletableFuture.completedFuture(Optional.empty()))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(Optional.empty()));
         doAnswer(invocation -> {
             ServiceUnitStateData data = invocation.getArgument(1);
             if (data.state() == Assigning && !data.force()) {
@@ -2342,9 +2355,8 @@ public class ServiceUnitStateChannelTest extends MockedPulsarServiceBaseTest {
         var pendingOwned = new CompletableFuture<ServiceUnitStateData>();
         var ownedPublished = new CompletableFuture<Void>();
         var conflictingOverride = new CompletableFuture<ServiceUnitStateData>();
-        doReturn(CompletableFuture.completedFuture(
-                hasDestinationBroker ? Optional.of(brokerId2) : Optional.empty()))
-                .when(loadManager).selectAsync(any(), any(), any());
+        selectedBroker.set(CompletableFuture.completedFuture(
+                hasDestinationBroker ? Optional.of(brokerId2) : Optional.empty()));
         doAnswer(invocation -> {
             ServiceUnitStateData data = invocation.getArgument(1);
             if (data.state() == Owned && !data.force()) {
