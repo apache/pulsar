@@ -44,9 +44,11 @@ import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -498,12 +500,99 @@ public class MultiTopicsConsumerImplTest {
         // The receive tasks that the seek started run on the pinned executor before this task
         impl.internalPinnedExecutor.submit(() -> { }).get();
 
-        // The consumer that sought gets a full receiver queue of permits, and receiving from it resumes. The consumer
-        // that the seek skipped kept its permits and its connection, and kept receiving: the seek gives it nothing.
+        // The consumer that sought gets a full receiver queue of permits. The consumer that the seek skipped kept its
+        // permits and its connection, and kept receiving: the seek gives it nothing.
         verify(soughtConsumer).increaseAvailablePermits(cnx, receiverQueueSize);
-        verify(soughtConsumer).batchReceiveAsync();
         verify(skippedConsumer, never()).increaseAvailablePermits(any(ClientCnx.class), anyInt());
         verify(skippedConsumer, never()).batchReceiveAsync();
+    }
+
+    @Test(timeOut = 10000)
+    public void testSeekKeepsOneReceiveLoopPerConsumer() throws Exception {
+        String stoppedTopic = "persistent://public/default/topic-partition-0";
+        String waitingTopic = "persistent://public/default/topic-partition-1";
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer();
+        ConsumerImpl<byte[]> stoppedConsumer = addPartitionConsumer(impl, stoppedTopic, null, 10);
+        ConsumerImpl<byte[]> waitingConsumer = addPartitionConsumer(impl, waitingTopic, null, 10);
+        List<CompletableFuture<?>> stoppedReceives = recordReceives(stoppedConsumer);
+        List<CompletableFuture<?>> waitingReceives = recordReceives(waitingConsumer);
+        CompletableFuture<Void> partitionSeeks = new CompletableFuture<>();
+        when(stoppedConsumer.seekAsync(any(MessageId.class))).thenReturn(partitionSeeks);
+        when(waitingConsumer.seekAsync(any(MessageId.class))).thenReturn(partitionSeeks);
+
+        // Both receive loops wait for the next message of their consumer
+        impl.internalPinnedExecutor.submit(() -> {
+            impl.receiveMessageFromConsumer(stoppedConsumer, false);
+            impl.receiveMessageFromConsumer(waitingConsumer, false);
+        }).get();
+        CompletableFuture<Void> seek = impl.seekAsync(MessageId.earliest);
+        // A message from before the seek reaches one of the loops during the seek: the loop drops it, and stops until
+        // the seek completes. The other loop still waits for its receive.
+        completeReceive(stoppedReceives.get(0), newMessage(stoppedTopic, 1, 2, 0));
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+        assertEquals(impl.getTotalIncomingMessages(), 0);
+        assertEquals(stoppedReceives.size(), 1);
+
+        partitionSeeks.complete(null);
+        seek.get();
+        // The restart of the stopped loop runs on the pinned executor before this task
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+
+        // The seek restarted the stopped loop only. A second loop on the consumer whose loop still waits would race
+        // the first one for its messages, and could hand a later message over first.
+        assertEquals(stoppedReceives.size(), 2);
+        assertEquals(waitingReceives.size(), 1);
+
+        // The waiting loop goes on when its receive completes
+        completeReceive(waitingReceives.get(0), newMessage(waitingTopic, 2, 0, 1));
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+        assertEquals(impl.getTotalIncomingMessages(), 1);
+        assertEquals(waitingReceives.size(), 2);
+    }
+
+    @Test(timeOut = 10000)
+    public void testSeekLeavesConsumerReplacedDuringSeekToItsReplacement() throws Exception {
+        String replacedTopic = "persistent://public/default/topic-partition-0";
+        String slowTopic = "persistent://public/default/topic-partition-1";
+        int receiverQueueSize = 10;
+        MultiTopicsConsumerImpl<byte[]> impl = createMultiTopicsConsumer();
+        ClientCnx cnx = mock(ClientCnx.class);
+        ConsumerImpl<byte[]> replacedConsumer = addPartitionConsumer(impl, replacedTopic, cnx, receiverQueueSize);
+        ConsumerImpl<byte[]> slowConsumer = addPartitionConsumer(impl, slowTopic, cnx, receiverQueueSize);
+        List<CompletableFuture<?>> replacedReceives = recordReceives(replacedConsumer);
+        when(replacedConsumer.seekAsync(any(MessageId.class))).thenReturn(CompletableFuture.completedFuture(null));
+        CompletableFuture<Void> slowSeek = new CompletableFuture<>();
+        when(slowConsumer.seekAsync(any(MessageId.class))).thenReturn(slowSeek);
+
+        impl.internalPinnedExecutor.submit(() -> impl.receiveMessageFromConsumer(replacedConsumer, false)).get();
+        CompletableFuture<Void> seek = impl.seekAsync(MessageId.earliest);
+        // The seek of one partition completed. Its loop dropped a message from before the seek, and stopped until the
+        // seek of the other partition completes too.
+        completeReceive(replacedReceives.get(0), newMessage(replacedTopic, 1, 0, 0));
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+
+        // Meanwhile, unsubscribing and subscribing the topic of the first partition again replaces its consumer. The
+        // new consumer does not seek: its loop receives, and its messages reach the queue.
+        ConsumerImpl<byte[]> replacement = addPartitionConsumer(impl, replacedTopic, cnx, receiverQueueSize);
+        List<CompletableFuture<?>> replacementReceives = recordReceives(replacement);
+        impl.internalPinnedExecutor.submit(() -> impl.receiveMessageFromConsumer(replacement, false)).get();
+        assertEquals(replacementReceives.size(), 1);
+        completeReceive(replacementReceives.get(0), newMessage(replacedTopic, 2, 0, 0));
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+        assertEquals(impl.getTotalIncomingMessages(), 1);
+        assertEquals(replacementReceives.size(), 2);
+
+        slowSeek.complete(null);
+        seek.get();
+        impl.internalPinnedExecutor.submit(() -> { }).get();
+
+        // The seek neither restarts nor refills the replaced consumer, nor the replacement, which got its permits when
+        // it subscribed. It refills the other consumer that sought.
+        assertEquals(replacedReceives.size(), 1);
+        verify(replacedConsumer, never()).increaseAvailablePermits(any(ClientCnx.class), anyInt());
+        assertEquals(replacementReceives.size(), 2);
+        verify(replacement, never()).increaseAvailablePermits(any(ClientCnx.class), anyInt());
+        verify(slowConsumer).increaseAvailablePermits(cnx, receiverQueueSize);
     }
 
     // Seek one partition only: by a message id of the partition, or by a function that gives no position for the other
@@ -536,6 +625,28 @@ public class MultiTopicsConsumerImplTest {
     private static MessageImpl<byte[]> newMessage(String topic, long ledgerId, long entryId, int partitionIndex) {
         return MessageImpl.create(topic, new MessageIdImpl(ledgerId, entryId, partitionIndex), new MessageMetadata(),
                 Unpooled.wrappedBuffer(new byte[1]), Optional.empty(), null, Schema.BYTES, 0, false, 0);
+    }
+
+    // Make each receive request of a partition consumer wait until the test completes it, and record it
+    private static List<CompletableFuture<?>> recordReceives(ConsumerImpl<byte[]> consumer) {
+        List<CompletableFuture<?>> receives = new CopyOnWriteArrayList<>();
+        when(consumer.receiveAsync()).thenAnswer(invocation -> {
+            CompletableFuture<Message<byte[]>> receive = new CompletableFuture<>();
+            receives.add(receive);
+            return receive;
+        });
+        when(consumer.batchReceiveAsync()).thenAnswer(invocation -> {
+            CompletableFuture<Messages<byte[]>> receive = new CompletableFuture<>();
+            receives.add(receive);
+            return receive;
+        });
+        return receives;
+    }
+
+    // Complete a receive request for a single message, see receiveMessageFromConsumer(consumer, false)
+    @SuppressWarnings("unchecked")
+    private static void completeReceive(CompletableFuture<?> receive, MessageImpl<byte[]> message) {
+        assertTrue(((CompletableFuture<Message<byte[]>>) receive).complete(message));
     }
 
     @Test

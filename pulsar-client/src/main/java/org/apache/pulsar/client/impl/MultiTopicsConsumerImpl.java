@@ -109,8 +109,11 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final ConsumerConfigurationData<T> internalConfig;
 
     private final MessageIdAdv startMessageId;
-    // The topics whose consumer is seeking: receiving from it pauses, and the messages it hands over are dropped
-    private final Set<String> seekingTopics = ConcurrentHashMap.newKeySet();
+    // The consumers that are seeking: receiving from them pauses, and the messages they hand over are dropped. A
+    // consumer that replaces one of them during the seek, for the same topic, is not seeking.
+    private final Set<ConsumerImpl<T>> seekingConsumers = ConcurrentHashMap.newKeySet();
+    // The seeking consumers whose receive loop stopped for the seek, which afterSeek() restarts
+    private final Set<ConsumerImpl<T>> consumersPausedForSeek = ConcurrentHashMap.newKeySet();
     private final long startMessageRollbackDurationInSec;
     private final ConsumerInterceptors<T> internalConsumerInterceptors;
     MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf,
@@ -245,21 +248,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     private void startReceivingMessages(List<ConsumerImpl<T>> newConsumers) {
-        startReceivingMessages(newConsumers, false);
-    }
-
-    private void startReceivingMessages(List<ConsumerImpl<T>> newConsumers, boolean refillAfterSeek) {
             log.debug().attr("consumersCount", newConsumers.size())
                     .log("startReceivingMessages for new consumers");
 
         if (getState() == State.Ready) {
             newConsumers.forEach(consumer -> {
-                if (refillAfterSeek) {
-                    consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(),
-                            consumer.getCurrentReceiverQueueSize());
-                } else {
-                    consumer.initializeReceiverQueuePermits();
-                }
+                consumer.initializeReceiverQueuePermits();
                 internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer, true));
             });
         }
@@ -267,10 +261,15 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     @VisibleForTesting
     void receiveMessageFromConsumer(ConsumerImpl<T> consumer, boolean batchReceive) {
-        if (seekingTopics.contains(consumer.getTopic())) {
-            log.info().attr("topic", consumer.getTopic())
-                    .log("Pause receiving messages for topic due to seek");
-            return;
+        if (seekingConsumers.contains(consumer)) {
+            consumersPausedForSeek.add(consumer);
+            // If the seek completed before the consumer was added, afterSeek() may have missed it. Whichever of the
+            // two removes the consumer continues its loop.
+            if (seekingConsumers.contains(consumer) || !consumersPausedForSeek.remove(consumer)) {
+                log.info().attr("topic", consumer.getTopic())
+                        .log("Pause receiving messages for topic due to seek");
+                return;
+            }
         }
         CompletableFuture<List<Message<T>>> messagesFuture;
         if (batchReceive) {
@@ -287,7 +286,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             }
             // Process the message, add to the queue and trigger listener or async callback
             messages.forEach(msg -> {
-                final boolean skipDueToSeek = seekingTopics.contains(consumer.getTopic());
+                final boolean skipDueToSeek = seekingConsumers.contains(consumer);
                 MessageImpl<T> msgImpl = (MessageImpl<T>) msg;
                 ClientCnx cnx = msgImpl.getCnx();
                 boolean isValidEpoch = isValidConsumerEpoch(msgImpl);
@@ -370,7 +369,7 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     protected void discardIncomingMessage(Message<?> message) {
         TopicMessageImpl<?> topicMessage = (TopicMessageImpl<?>) message;
-        if (listener != null && !seekingTopics.contains(topicMessage.receivedByconsumer.getTopic())) {
+        if (listener != null && !seekingConsumers.contains(topicMessage.receivedByconsumer)) {
             // With a listener, the consumer that received the message gives back its permit only when the listener
             // gets the message, see callMessageListener(). Give it back before the release clears the connection
             // that a pooled message was received on. Not for a consumer that is seeking: afterSeek() refills its
@@ -931,8 +930,8 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
     // A seek invalidates only the queued and unacknowledged messages of the consumers that seek. The others keep their
     // connection, so the broker would not deliver their messages again if they were dropped here.
     private void beforeSeek(Set<ConsumerImpl<T>> soughtConsumers) {
+        seekingConsumers.addAll(soughtConsumers);
         Set<String> soughtTopics = soughtConsumers.stream().map(ConsumerImpl::getTopic).collect(Collectors.toSet());
-        seekingTopics.addAll(soughtTopics);
         Predicate<TopicMessageId> sought = messageId -> soughtTopics.contains(messageId.getOwnerTopic());
         removeTopicMessagesFromUnackedTracker(sought);
         List<Message<T>> discarded = new ArrayList<>();
@@ -944,22 +943,36 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             return false;
         });
         discarded.forEach(this::discardIncomingMessage);
-        // afterSeek() resumes receiving from the consumers that seek. The others may resume now, if dropping the
-        // messages made room for them.
-        pausedConsumers.removeAll(soughtConsumers);
+        // Dropping the messages may make room for the paused consumers. One that seeks stops again, until the seek
+        // completes.
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 
     private void afterSeek(Set<ConsumerImpl<T>> soughtConsumers, CompletableFuture<Void> seekFuture,
                            @Nullable Throwable throwable) {
+        seekingConsumers.removeAll(soughtConsumers);
         List<String> soughtTopics = soughtConsumers.stream().map(ConsumerImpl::getTopic).collect(Collectors.toList());
-        seekingTopics.removeAll(soughtTopics);
         log.info().attr("topics", soughtTopics)
                 .log("Resume receiving messages for since seek is done");
-        // Refill only the consumers that sought, whose seek dropped their queued messages without giving back their
-        // permits. A seek disconnects a consumer of a persistent topic, whose reconnection resets its permits, but not
-        // one of a non-persistent topic.
-        startReceivingMessages(new ArrayList<>(soughtConsumers), true);
+        for (ConsumerImpl<T> consumer : soughtConsumers) {
+            boolean paused = consumersPausedForSeek.remove(consumer);
+            // Leave alone a consumer that was replaced during the seek, by unsubscribing and subscribing its topic
+            // again: the replacement has its own receive loop and permits.
+            if (getState() != State.Ready || consumers.get(consumer.getTopic()) != consumer) {
+                continue;
+            }
+            // Refill the consumers that sought, whose seek dropped their queued messages without giving back their
+            // permits. A seek disconnects a consumer of a persistent topic, whose reconnection resets its permits,
+            // but not one of a non-persistent topic.
+            consumer.increaseAvailablePermits(consumer.getConnectionHandler().cnx(),
+                    consumer.getCurrentReceiverQueueSize());
+            // Restart only the receive loops that stopped for the seek. A loop that still waits for a receive goes on
+            // when the receive completes, and a second loop on the same consumer could hand its messages over out of
+            // order.
+            if (paused) {
+                internalPinnedExecutor.execute(() -> receiveMessageFromConsumer(consumer, true));
+            }
+        }
         if (throwable == null) {
             seekFuture.complete(null);
         } else {
