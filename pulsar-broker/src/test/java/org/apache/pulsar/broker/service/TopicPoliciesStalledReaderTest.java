@@ -35,7 +35,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.systopic.NamespaceEventsSystemTopicFactory;
 import org.apache.pulsar.broker.systopic.SystemTopicClient;
+import org.apache.pulsar.client.admin.LongRunningProcessStatus;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -45,6 +47,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
+import org.apache.pulsar.common.policies.data.TopicPolicies;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -229,6 +232,72 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
                 .isEqualTo(9);
     }
 
+    @Test(timeOut = 120_000)
+    public void testPolicyDeletedAndCompactedDuringStallIsGoneAfterReaderReplacement() throws Exception {
+        final TopicName deletedTopic = newTopic();
+        final TopicName otherTopic = newTopic();
+        setMaxConsumers(deletedTopic, 5).get(30, TimeUnit.SECONDS);
+
+        // Stalled, but with the default timeout for now: the deletion has to keep waiting while the topic is
+        // compacted.
+        final List<StallableReader> stalledReaders = service.stallReaders();
+        final CompletableFuture<Void> deletion = service.deleteTopicPoliciesAsync(deletedTopic);
+        awaitWithheldEvents(stalledReaders, 1);
+
+        // Compaction drops the key together with its tombstone, so no later reader can learn of the deletion.
+        compactChangeEvents();
+        assertThat(TopicPolicyTestUtils.getTopicPoliciesBypassCache(service, deletedTopic, false))
+                .describedAs("a new reader still finds a policy for the topic in the compacted __change_events, so"
+                        + " the deletion was not compacted away and this is not the scenario under test")
+                .isEmpty();
+
+        // An update of another topic now reports the stall and has the reader replaced.
+        pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(READ_TIMEOUT_SECONDS);
+        assertStallReported(stalledUpdate(otherTopic, 7), "the policy update", TimeoutException.class);
+
+        assertThat(deletion)
+                .describedAs("replacing the reader ends the wait of the deletion")
+                .succeedsWithin(Duration.ofSeconds(30));
+        assertThat(service.getTopicPoliciesAsync(deletedTopic, TopicPoliciesService.GetType.LOCAL_ONLY))
+                .describedAs("the replacement reader cannot see the deletion any more, so the policy cache must not"
+                        + " keep what it held when the reader stalled")
+                .succeedsWithin(Duration.ofSeconds(30))
+                .isEqualTo(Optional.empty());
+    }
+
+    @Test(timeOut = 90_000)
+    public void testListenerLearnsOfPolicyDeletedDuringStallAfterReaderReplacement() throws Exception {
+        final TopicName topicName = newTopic();
+        final List<Optional<TopicPolicies>> updates = new CopyOnWriteArrayList<>();
+        final TopicPolicyListener listener = policies -> updates.add(Optional.ofNullable(policies));
+        service.registerListenerAsync(topicName, listener).get(30, TimeUnit.SECONDS);
+        try {
+            // Control: while the reader delivers, a deletion reaches the listener as a null update.
+            setMaxConsumers(topicName, 5).get(30, TimeUnit.SECONDS);
+            service.deleteTopicPoliciesAsync(topicName).get(30, TimeUnit.SECONDS);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("a deletion the reader delivers must reach the listener as a null update")
+                    .contains(Optional.empty()));
+
+            setMaxConsumers(topicName, 6).get(30, TimeUnit.SECONDS);
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("the listener must hold a policy again before the stall")
+                    .last().matches(update -> update.map(TopicPolicies::getMaxConsumerPerTopic).orElse(0) == 6));
+            updates.clear();
+
+            stallReaders();
+            assertStallReported(thenRestoreDefaultTimeout(service.deleteTopicPoliciesAsync(topicName)),
+                    "the policy deletion", TimeoutException.class);
+
+            Awaitility.await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(updates)
+                    .describedAs("the replacement reader read the deletion that the stalled reader withheld, so the"
+                            + " listener must get the null update a delivered deletion gives it")
+                    .contains(Optional.empty()));
+        } finally {
+            service.unregisterListener(topicName, listener);
+        }
+    }
+
     /** The limit the loaded topic enforces; the admin API answers from the policy cache instead. */
     private static Integer liveMaxConsumers(PersistentTopic topic) {
         return topic.getHierarchyTopicPolicies().getMaxConsumerPerTopic().get();
@@ -274,13 +343,26 @@ public class TopicPoliciesStalledReaderTest extends MockedPulsarServiceBaseTest 
 
     /** An update that is expected to time out; the default timeout is back the moment it has. */
     private CompletableFuture<Void> stalledUpdate(TopicName topicName, int maxConsumers) {
-        final CompletableFuture<Void> update = setMaxConsumers(topicName, maxConsumers);
-        update.whenComplete((__, e) -> restoreDefaultTimeout());
-        return update;
+        return thenRestoreDefaultTimeout(setMaxConsumers(topicName, maxConsumers));
+    }
+
+    private CompletableFuture<Void> thenRestoreDefaultTimeout(CompletableFuture<Void> operation) {
+        operation.whenComplete((__, e) -> restoreDefaultTimeout());
+        return operation;
     }
 
     private void restoreDefaultTimeout() {
         pulsar.getConfiguration().setTopicPoliciesCacheInitTimeoutSeconds(defaultTimeoutSeconds);
+    }
+
+    private void compactChangeEvents() throws Exception {
+        final String changeEvents =
+                NamespaceEventsSystemTopicFactory.getEventsTopicName(NamespaceName.get(NAMESPACE)).toString();
+        admin.topics().triggerCompaction(changeEvents);
+        Awaitility.await().atMost(Duration.ofSeconds(60)).untilAsserted(() ->
+                assertThat(admin.topics().compactionStatus(changeEvents).status)
+                        .describedAs("the compaction of %s", changeEvents)
+                        .isEqualTo(LongRunningProcessStatus.Status.SUCCESS));
     }
 
     private static void awaitWithheldEvents(List<StallableReader> stalledReaders, int events) {
