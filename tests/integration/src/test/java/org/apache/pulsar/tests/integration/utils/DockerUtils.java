@@ -58,20 +58,21 @@ public class DockerUtils {
 
     /**
      * The environment of the commands the tests run in a container. It replaces the container's PULSAR_EXTRA_OPTS and
-     * OPTS, which carry JVM options for its Pulsar service (Netty leak detection, a profiler agent), so that they don't
-     * interfere with the test.
+     * OPTS, which carry JVM options for its Pulsar service (Netty leak detection, a profiler or coverage agent), so
+     * that they don't interfere with the test.
      *
-     * <p>The commands are mostly Pulsar tools (pulsar-admin, pulsar-client, pulsar-perf, bin/pulsar and bin/bookkeeper
-     * commands), which pass PULSAR_EXTRA_OPTS to their JVM. Such a JVM is short-lived and spends most of its time
-     * starting up, so it runs C1-only: C2 compilations cost CPU that rarely pays off before the JVM exits, which slows
-     * the tools down where CPUs are few, as on the CI runners.
+     * <p>The commands are mostly Pulsar tools (pulsar-admin, pulsar-client, pulsar-perf, bin/pulsar commands), which
+     * pass PULSAR_EXTRA_OPTS to their JVM. Such a JVM is short-lived and spends most of its time starting up, so it
+     * runs C1-only: C2 compilations cost CPU that rarely pays off before the JVM exits, which slows the tools down
+     * where CPUs are few, as on the CI runners.
      */
     private static final List<String> SHORT_LIVED_COMMAND_ENV =
             List.of("PULSAR_EXTRA_OPTS=-XX:TieredStopAtLevel=1", "OPTS=");
 
     /**
-     * The environment of the commands that {@link #runCommandAsyncWithLogging} runs in the background, such as the
-     * profiling tests' pulsar-perf load generators, which run long enough for C2 to pay off.
+     * Like {@link #SHORT_LIVED_COMMAND_ENV}, but with tiered compilation, for the commands that
+     * {@link #runCommandAsyncWithLogging} runs in the background, such as the profiling tests' pulsar-perf load
+     * generators, which run long enough for C2 to pay off.
      */
     private static final List<String> LONG_RUNNING_COMMAND_ENV = List.of("PULSAR_EXTRA_OPTS=", "OPTS=");
 
