@@ -170,9 +170,10 @@ public abstract class PulsarClusterTestBase extends PulsarTestBase {
      * a class asks for another spec or doesn't share its cluster, a test fails on it, or the tests end.
      *
      * <p>A class that shares its cluster leaves it as the next class expects to find it: it stops, pauses and
-     * reconfigures none of the containers, changes no broker or cluster-wide setting, and gives its tenants,
-     * namespaces and topics names that no other class uses. Classes that share a cluster run one after the other in
-     * the suite, as only the last one's cluster is kept.
+     * reconfigures none of the containers, unless it is the last class on the cluster
+     * ({@link #isLastClassOnCluster()}), changes no broker or cluster-wide setting, and gives its tenants, namespaces
+     * and topics names that no other class uses. Classes that share a cluster run one after the other in the suite,
+     * as only the last one's cluster is kept.
      */
     protected boolean isClusterShared() {
         return false;
