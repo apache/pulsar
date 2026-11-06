@@ -337,6 +337,62 @@ public class PulsarShellTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void testAdminAndClientModes() throws Exception {
+        Terminal terminal = TerminalBuilder.builder().build();
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        linereader.addCmd("admin");
+        linereader.addCmd("topics create my-topic --metadata a=b");
+        linereader.addCmd("exitmode");
+        linereader.addCmd("client produce -m msg my-topic");
+        linereader.addCmd("quit");
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        testPulsarShell.run((a) -> linereader, () -> terminal);
+        verify(topics).createNonPartitionedTopic(eq("persistent://public/default/my-topic"), any(Map.class));
+        verify(testPulsarShell.cmdProduceHolder.get(), times(1)).call();
+        assertEquals((int) testPulsarShell.exitCode, 0);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testModePrefixScopeIsPerSession() throws Exception {
+        Terminal terminal = TerminalBuilder.builder().build();
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        linereader.addCmd("admin");
+        linereader.addCmd("client produce -m msg my-topic");
+        linereader.addCmd("exitmode");
+        linereader.addCmd("client produce -m msg my-topic");
+        linereader.addCmd("quit");
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        testPulsarShell.run((a) -> linereader, () -> terminal);
+        verify(testPulsarShell.cmdProduceHolder.get(), times(1)).call();
+        assertEquals((int) testPulsarShell.exitCode, 0);
+        assertTrue(PulsarShell.createPrompt("default(localhost)", "admin").contains("default(localhost) admin>"));
+        assertTrue(PulsarShell.createPrompt("default(localhost)", null).contains("default(localhost)>"));
+        assertTrue(PulsarShell.createPrompt("default(localhost)", "client").contains("default(localhost) client>"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testExitModeWithoutMode() throws Exception {
+        Terminal terminal = TerminalBuilder.builder().build();
+        final MockLineReader linereader = new MockLineReader(terminal);
+        final Properties props = new Properties();
+        props.setProperty("webServiceUrl", "http://localhost:8080");
+        linereader.addCmd("exitmode");
+        linereader.addCmd("client produce -m msg my-topic");
+        linereader.addCmd("quit");
+        final TestPulsarShell testPulsarShell = new TestPulsarShell(new String[]{}, props, pulsarAdmin);
+        testPulsarShell.run((a) -> linereader, () -> terminal);
+        verify(testPulsarShell.cmdProduceHolder.get(), times(1)).call();
+        assertEquals((int) testPulsarShell.exitCode, 0);
+    }
+
+    @Test
     public void testSubstituteVariables() throws Exception {
         Map<String, String> vars = new HashMap<>();
         vars.put("mytopic", "the-topic");

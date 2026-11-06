@@ -142,6 +142,9 @@ public class PulsarShell {
     private CommandLine shellCommander;
     private Function<Map<String, ShellCommandsProvider>, InteractiveLineReader> readerBuilder;
     private InteractiveLineReader reader;
+    private String basePrompt;
+    private String prompt;
+    private String currentMode;
     private final ConfigShell configShell;
     private volatile ExecState execState = ExecState.IDLE;
     /**
@@ -285,11 +288,12 @@ public class PulsarShell {
             } else {
                 promptMessage = getHostFromUrl(serviceUrl);
             }
-            final String prompt = createPrompt(promptMessage);
+            this.basePrompt = promptMessage;
+            this.prompt = createPrompt(promptMessage, currentMode);
             return new InteractiveLineReader() {
                 @Override
                 public String readLine() {
-                    return reader.readLine(prompt);
+                    return reader.readLine(PulsarShell.this.prompt);
                 }
 
                 @Override
@@ -472,11 +476,34 @@ public class PulsarShell {
                 return;
             }
             if (isHelp(line)) {
-                shellCommander.usage(System.out);
+                final CommandLine modeCommander = currentMode != null
+                        ? shellCommander.getSubcommands().get(currentMode) : null;
+                if (modeCommander != null) {
+                    modeCommander.usage(System.out);
+                } else {
+                    shellCommander.usage(System.out);
+                }
                 continue;
             }
+            if (isModeSwitch(words)) {
+                enterMode(words.get(0));
+                continue;
+            }
+            if ("exitmode".equalsIgnoreCase(line)) {
+                exitMode();
+                continue;
+            }
+            List<String> dispatchWords = words;
+            String dispatchLine = line;
+            if (currentMode != null) {
+                dispatchWords = new ArrayList<>(words.size() + 1);
+                dispatchWords.add(currentMode);
+                dispatchWords.addAll(words);
+                dispatchLine = String.join(" ", dispatchWords);
+            }
 
-            final ShellCommandsProvider pulsarShellCommandsProvider = getProviderFromArgs(shellCommander, words);
+            final ShellCommandsProvider pulsarShellCommandsProvider =
+                    getProviderFromArgs(shellCommander, dispatchWords);
             if (pulsarShellCommandsProvider == null) {
                 shellCommander.usage(System.out);
                 continue;
@@ -487,7 +514,7 @@ public class PulsarShell {
                 synchronized (interruptLock) {
                     interruptTarget = Thread.currentThread();
                 }
-                systemRegistry.execute(line);
+                systemRegistry.execute(dispatchLine);
             } catch (InterruptShellException t) {
                 // no-op
             } catch (Throwable t) {
@@ -501,7 +528,7 @@ public class PulsarShell {
                 final boolean willExitWithError = mainOptions.failOnError && !commandOk;
                 if (commandsInfo != null && !willExitWithError) {
                     commandsInfo.executingCommand = null;
-                    commandsInfo.executedCommands.add(new CommandsInfo.ExecutedCommandInfo(line, commandOk));
+                    commandsInfo.executedCommands.add(new CommandsInfo.ExecutedCommandInfo(dispatchLine, commandOk));
                     printExecutingCommands(terminal, commandsInfo, true);
                 }
             }
@@ -572,14 +599,44 @@ public class PulsarShell {
         return commander.getCommand();
     }
 
-    private static String createPrompt(String hostname) {
-        final String string = (hostname == null ? "pulsar" : hostname) + ">";
+    static String createPrompt(String hostname) {
+        return createPrompt(hostname, null);
+    }
+
+    static String createPrompt(String hostname, String mode) {
+        final String string = (hostname == null ? "pulsar" : hostname) + (mode == null ? "" : " " + mode) + ">";
         return new AttributedStringBuilder()
                 .style(LOG_STYLE)
                 .append(string)
                 .style(AttributedStyle.DEFAULT)
                 .append(" ")
                 .toAnsi();
+    }
+
+    private boolean isModeSwitch(List<String> words) {
+        if (words.size() != 1) {
+            return false;
+        }
+        final String word = words.get(0);
+        return "admin".equals(word) || "client".equals(word);
+    }
+
+    private void enterMode(String mode) {
+        currentMode = mode;
+        refreshPrompt();
+    }
+
+    private void exitMode() {
+        if (currentMode == null) {
+            shellCommander.usage(System.out);
+            return;
+        }
+        currentMode = null;
+        refreshPrompt();
+    }
+
+    private void refreshPrompt() {
+        this.prompt = createPrompt(this.basePrompt, this.currentMode);
     }
 
     static List<String> substituteVariables(List<String> line, Map<String, String> vars) {
