@@ -87,8 +87,8 @@ import org.apache.pulsar.common.protocol.Commands;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -656,14 +656,16 @@ public class MessageDuplicationTest extends BrokerTestBase {
         });
     }
 
-    @BeforeMethod(alwaysRun = true)
+    // The test methods share the broker (most of them don't use it) and use topics of their own. After a failed
+    // method, the next one gets a new broker (TestRetrySupport).
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         this.conf.setBrokerDeduplicationEnabled(true);
         super.baseSetup();
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();

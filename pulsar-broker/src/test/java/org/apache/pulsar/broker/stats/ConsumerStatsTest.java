@@ -90,9 +90,8 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.assertj.core.groups.Tuple;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
-import org.testng.SkipException;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -100,7 +99,9 @@ import org.testng.annotations.Test;
 @Test(groups = "broker")
 public class ConsumerStatsTest extends ProducerConsumerBase {
 
-    @BeforeMethod
+    // The test methods share the broker and use topics of their own. After a failed method, the next one gets a new
+    // broker (TestRetrySupport).
+    @BeforeClass(alwaysRun = true)
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
@@ -121,7 +122,7 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         return conf;
     }
 
-    @AfterMethod(alwaysRun = true)
+    @AfterClass(alwaysRun = true)
     @Override
     protected void cleanup() throws Exception {
         super.internalCleanup();
@@ -192,12 +193,14 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
             PulsarClientException, InterruptedException {
         final String topic = "persistent://my-property/my-ns/testAckStatsOnPartitionedTopicForExclusiveSubscription";
         admin.topics().createPartitionedTopic(topic, 3);
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topic)
                 .subscriptionType(SubscriptionType.Exclusive)
                 .subscriptionName("sub")
                 .subscribe();
 
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer()
                 .topic(topic)
                 .create();
@@ -230,7 +233,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
     @Test
     public void testUpdateStatsForActiveConsumerAndSubscription() throws Exception {
         final String topicName = "persistent://public/default/testUpdateStatsForActiveConsumerAndSubscription";
-        pulsarClient.newConsumer()
+        @Cleanup
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
                 .topic(topicName)
                 .subscriptionType(SubscriptionType.Shared)
                 .subscriptionName("my-subscription")
@@ -262,9 +266,6 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
 
     @Test(dataProvider = "sharedSubscriptionTypes")
     public void testConsumerStatsOutput(SubscriptionType subscriptionType) throws Exception {
-        if (this instanceof AuthenticatedConsumerStatsTest) {
-            throw new SkipException("Skip test for AuthenticatedConsumerStatsTest");
-        }
         Set<String> expectedFields = Sets.newHashSet(
                 "msgRateOut",
                 "msgThroughputOut",
@@ -585,6 +586,8 @@ public class ConsumerStatsTest extends ProducerConsumerBase {
         // Average of "messages per batch" is "Math.round(1 * 0.9 + 20 * 0.1) = 2.9 ～ 3".
         int avgMessagesPerEntry = consumerStats.getAvgMessagesPerEntry();
         assertEquals(3, avgMessagesPerEntry);
+        // the test methods share the broker (a failed method gets a new one)
+        conf.setAllowOverrideEntryFilters(false);
     }
 
     @Test()
