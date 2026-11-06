@@ -247,6 +247,9 @@ jobs:
 
 
   unit-tests:
+    permissions:
+      contents: read
+      actions: read # Download the test class durations that master's runs uploaded.
     name: CI - Unit - ${{ matrix.name }}
     env:
       JOB_NAME: CI - Unit - ${{ matrix.name }}
@@ -257,6 +260,7 @@ jobs:
       THREAD_LEAK_DETECTOR_DIR: ${{ github.workspace }}/build/thread-leak-dumps
       NETTY_LEAK_DETECTION: "${{ needs.preconditions.outputs.netty_leak_detection }}"
       NETTY_LEAK_DUMP_DIR: ${{ github.workspace }}/build/netty-leak-dumps
+      TEST_DURATIONS_DIR: ${{ github.workspace }}/build/test-durations
     runs-on: ubuntu-24.04
     timeout-minutes: ${{ matrix.timeout || 60 }}
     needs: ['preconditions', 'build-and-license-check']
@@ -335,6 +339,13 @@ jobs:
           tar xf gradle-build-outputs.tar
           rm -f -- gradle-build-outputs.tar
 
+      # the test class durations of the latest successful run of this group on master,
+      # which run_unit_group_gradle.sh uses to balance the group's test shards
+      - name: Download test class durations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./pulsar-build/pulsar_ci_tool.sh download_test_durations ${{ matrix.group }}
+
       - name: Run setup commands
         if: ${{ matrix.setup }}
         run: |
@@ -343,6 +354,17 @@ jobs:
       - name: Run unit test group '${{ matrix.group }}'
         run: |
           ./pulsar-build/run_unit_group_gradle.sh ${{ matrix.group }}
+
+      # master's runs keep the durations for later runs as an artifact, which, unlike a
+      # cache entry, isn't evicted when the repository's cache is full
+      - name: Upload test class durations
+        if: ${{ success() && github.ref == 'refs/heads/master' && hashFiles(format('build/test-durations/{0}.txt', matrix.group)) != '' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: unit-test-durations-${{ matrix.group }}
+          path: build/test-durations/${{ matrix.group }}.txt
+          retention-days: 7
 
       - name: print JVM thread dumps when cancelled
         if: cancelled()
@@ -932,7 +954,8 @@ jobs:
     name: Run CodeQL Analysis
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    needs: ['preconditions', 'unit-tests']
+    # build-mode: none reads the sources only, so the analysis doesn't wait for the build or the tests.
+    needs: ['preconditions']
     # Private repositories need Code Security enabled before opting in.
     if: ${{ (github.event.repository.visibility == 'public' || vars.CI_ENABLE_CODEQL == 'true') && (needs.preconditions.outputs.java_non_tests == 'true' || github.event_name != 'pull_request') && ((github.event_name == 'pull_request' && github.base_ref == 'master') || (github.event_name != 'pull_request' && github.ref_name == 'master')) }}
     permissions:

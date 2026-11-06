@@ -34,6 +34,14 @@ function gradle_test() {
       use_fail_fast=0
       shift
     fi
+    local configuration_cache_arg="--no-configuration-cache"
+    local test_durations_file=""
+    if [[ "$1" == "--test-shards" ]]; then
+      # see gradle_test_shards
+      configuration_cache_arg="--configuration-cache"
+      test_durations_file="$2"
+      shift 2
+    fi
     local failfast_args=""
     local continue_args=""
     if [ $use_fail_fast -eq 1 ]; then
@@ -45,11 +53,28 @@ function gradle_test() {
       continue_args="--continue"
     fi
     echo "::group::Run tests for " "$@"
-    ./gradlew --no-configuration-cache $continue_args "$@" $failfast_args "${COMMANDLINE_ARGS[@]}"
+    ./gradlew $configuration_cache_arg $continue_args "$@" $failfast_args "${COMMANDLINE_ARGS[@]}"
     echo "::endgroup::"
     set +x
+    if [ -n "$test_durations_file" ]; then
+      "$SCRIPT_DIR/pulsar_ci_tool.sh" record_test_durations "$test_durations_file"
+    fi
     "$SCRIPT_DIR/pulsar_ci_tool.sh" move_test_reports
   )
+}
+
+# Runs a module's tests as `testShards`, four test tasks with one fork each, instead of `test`, whose four
+# forks get the test classes round-robin in name order (see pulsar.java-conventions.gradle.kts). The shards
+# get the classes packed by the durations that the group's latest successful CI run on master recorded (see
+# download_test_durations in pulsar_ci_tool.sh), and a successful run records them. Without recorded
+# durations, `testShards` runs `test`. Gradle runs the tasks of one project in parallel only with the
+# configuration cache.
+function gradle_test_shards() {
+  local project="$1"
+  shift
+  local durations_file="${TEST_DURATIONS_DIR:-$PWD/build/test-durations}/${TEST_GROUP}.txt"
+  gradle_test --test-shards "$durations_file" "${project}:testShards" -PtestShards=4 \
+    -PtestShardDurations="$durations_file" "$@"
 }
 
 # solution for printing output in "set -x" trace mode without tracing the echo calls
@@ -62,19 +87,19 @@ alias echo='{ [[ $- =~ .*x.* ]] && trace_enabled=1 || trace_enabled=0; set +x; }
 
 # Test Groups  -- start --
 function test_group_broker_group_1() {
-  gradle_test :pulsar-broker:test -PtestGroups='broker'
+  gradle_test_shards :pulsar-broker -PtestGroups='broker'
   # run broker-isolated test individually
   gradle_test :pulsar-broker:test -PexcludedTestGroups='' \
     --tests 'org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsGeneratorWithNoUnsafeTest'
 }
 
 function test_group_broker_group_2() {
-  gradle_test :pulsar-broker:test \
+  gradle_test_shards :pulsar-broker \
     -PtestGroups='schema,utils,functions-worker,broker-io,broker-discovery,broker-compaction,broker-naming,websocket,other,builtin,stats'
 }
 
 function test_group_broker_group_3() {
-  gradle_test :pulsar-broker:test -PtestGroups='broker-admin'
+  gradle_test_shards :pulsar-broker -PtestGroups='broker-admin'
   # run AdminApiTransactionMultiBrokerTest independently with a larger heap size
   gradle_test :pulsar-broker:test -PexcludedTestGroups='' \
     --tests 'org.apache.pulsar.broker.admin.v3.AdminApiTransactionMultiBrokerTest' \
@@ -86,28 +111,28 @@ function test_group_broker_group_4() {
 }
 
 function test_group_broker_group_5() {
-  gradle_test :pulsar-broker:test -PtestGroups='broker-replication'
+  gradle_test_shards :pulsar-broker -PtestGroups='broker-replication'
 }
 
 function test_group_broker_client_api() {
-  gradle_test :pulsar-broker:test -PtestGroups='broker-api'
+  gradle_test_shards :pulsar-broker -PtestGroups='broker-api'
 }
 
 function test_group_broker_client_impl() {
-  gradle_test :pulsar-broker:test -PtestGroups='broker-impl'
+  gradle_test_shards :pulsar-broker -PtestGroups='broker-impl'
 }
 
 function test_group_client() {
-  gradle_test :pulsar-client-original:test
+  gradle_test_shards :pulsar-client-original
 }
 
 function test_group_metadata() {
-  gradle_test :pulsar-metadata:test
+  gradle_test_shards :pulsar-metadata
 }
 
 function test_group_proxy() {
   echo "::group::Running pulsar-proxy tests"
-  gradle_test :pulsar-proxy:test
+  gradle_test_shards :pulsar-proxy
   echo "::endgroup::"
 }
 
@@ -127,6 +152,9 @@ function test_group_broker_flaky() {
 function test_group_other() {
   # Run tests in all modules except the ones that have dedicated CI groups.
   # Uses Gradle's -x flag to exclude tasks by path.
+  # Gradle starts the test tasks in the order they are requested, and `test` requests them by project path.
+  # tiered-storage-jcloud's tests are requested first: they take 2-4 minutes, mostly in one test class on one
+  # fork, and when they started last they ran alone at the end of the build.
   gradle_test \
     --exclude-task :pulsar-broker:test \
     --exclude-task :pulsar-proxy:test \
@@ -145,6 +173,7 @@ function test_group_other() {
     -x :tests:pulsar-client-shade-test:test \
     -x :tests:pulsar-client-native-image:test \
     -x :tests:pulsar-client-java-compatibility:test \
+    :tiered-storage:tiered-storage-jcloud:test \
     test
 
   # Run DnsResolverTest separately since it relies on static field values

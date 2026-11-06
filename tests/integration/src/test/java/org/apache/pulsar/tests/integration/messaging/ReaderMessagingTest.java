@@ -40,6 +40,11 @@ import org.testng.annotations.Test;
 @CustomLog
 public class ReaderMessagingTest extends MessagingBase {
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test(dataProvider = "ServiceAndAdminUrls")
     public void testReaderReconnectAndRead(Supplier<String> serviceUrl, Supplier<String> adminUrl) throws Exception {
         log.info().attr("starting", methodName).log("-- Starting test --");

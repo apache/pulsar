@@ -136,6 +136,9 @@ public class PersistentSubscription extends AbstractSubscription {
     private final PendingAckHandle pendingAckHandle;
     private volatile CompletableFuture<Void> fenceFuture;
     private volatile CompletableFuture<Void> inProgressResetCursorFuture;
+    // Keep the last admitted reset identity after completion, including failed resets. A local seek
+    // supersedes a previously received remote target even when the mark-delete position is unchanged.
+    private volatile CompletableFuture<Void> lastCursorResetFuture;
     // Guarded by this; unlike the reset fence, retirement must never reopen this subscription.
     private boolean nonDurableCursorCleanupStarted;
     private volatile Boolean replicatedControlled;
@@ -470,6 +473,27 @@ public class PersistentSubscription extends AbstractSubscription {
         if (currentDispatcher != null) {
             currentDispatcher.notifyChannelWritable(consumer);
         }
+    }
+
+    /**
+     * Atomically admit a received remote ACK against local seek admission. The controller calls this
+     * outside its lifecycle lock; getters used while holding that lock must remain non-blocking.
+     */
+    CompletableFuture<Void> acknowledgeReplicatedSubscriptionMessage(Position position, Position admittedMarkDelete,
+            CompletableFuture<Void> admittedReset, boolean admittedDuringReset) {
+        return FutureUtil.supplySafely(() -> {
+            synchronized (this) {
+                if (admittedDuringReset || lastCursorResetFuture != admittedReset
+                        || admittedReset != null && !admittedReset.isDone()
+                        || cursor.getMarkDeletedPosition().compareTo(admittedMarkDelete) < 0) {
+                    return CompletableFuture.completedFuture(null);
+                }
+                // resetCursor uses the same monitor for admission. Start the ACK before a later
+                // reset can be admitted, without waiting for asynchronous persistence to complete.
+                return acknowledgeMessageAsync(Collections.singletonList(position), AckType.Cumulative,
+                        Collections.emptyMap());
+            }
+        });
     }
 
     public CompletableFuture<Void> acknowledgeMessageAsync(List<Position> positions, AckType ackType,
@@ -841,7 +865,7 @@ public class PersistentSubscription extends AbstractSubscription {
                         .attr("entriesInBacklog", cursor.getNumberOfEntriesInBacklog(false))
                         .log("Backlog size after clearing");
                 if (dispatcher != null) {
-                    dispatcher.clearDelayedMessages().whenComplete((__, ex) -> {
+                    dispatcher.clearDelayedMessagesAfterBacklogClear().whenComplete((__, ex) -> {
                         if (ex != null) {
                             future.completeExceptionally(ex);
                         } else {
@@ -909,6 +933,10 @@ public class PersistentSubscription extends AbstractSubscription {
         return future;
     }
 
+    CompletableFuture<Void> getLastCursorResetFuture() {
+        return lastCursorResetFuture;
+    }
+
     @Override
     public CompletableFuture<Void> resetCursor(long timestamp) {
         final CompletableFuture<Void> future = new CompletableFuture<>();
@@ -918,6 +946,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
             }
             inProgressResetCursorFuture = future;
+            lastCursorResetFuture = future;
         }
         PersistentMessageFinder persistentMessageFinder = new PersistentMessageFinder(topicName, cursor,
                 config.getManagedLedgerCursorResetLedgerCloseTimestampMaxClockSkewMillis(),
@@ -993,6 +1022,7 @@ public class PersistentSubscription extends AbstractSubscription {
                 return CompletableFuture.failedFuture(new SubscriptionBusyException("Failed to fence subscription"));
             }
             inProgressResetCursorFuture = future;
+            lastCursorResetFuture = future;
             if (dispatcher != null && dispatcher.isConsumerConnected()) {
                 disconnectFuture = dispatcher.disconnectActiveConsumers(true);
             } else {
