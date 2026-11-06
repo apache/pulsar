@@ -175,6 +175,11 @@ import org.testng.annotations.Test;
 @Test(groups = "broker-admin")
 public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
+    // The backlog size in bytes that some tests check counts the message metadata, which has the producer name, and
+    // the names the broker generates get longer the more producers it has created. Those tests name their producers,
+    // with as many characters as the broker's first producers have ("test-0-1").
+    private static final String PRODUCER_NAME = "producer";
+
     private boolean restartClusterAfterTest;
     private int usageCount;
     private String defaultNamespace;
@@ -2062,8 +2067,6 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
 
     @Test(timeOut = 30000)
     public void testPreciseBacklog() throws Exception {
-        restartClusterIfReused();
-
         final String topic = "persistent://" + defaultNamespace + "/precise-back-log";
         final String subName = "sub-name";
 
@@ -2080,6 +2083,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
             .topic(topic)
+            .producerName(PRODUCER_NAME)
             .enableBatching(false)
             .create();
 
@@ -2421,6 +2425,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
             .topic(topic)
+            .producerName(PRODUCER_NAME)
             .enableBatching(false)
             .create();
 
@@ -2469,6 +2474,7 @@ public class AdminApi2Test extends MockedPulsarServiceBaseTest {
         @Cleanup
         Producer<byte[]> producer = client.newProducer()
             .topic(topic)
+            .producerName(PRODUCER_NAME)
             .enableBatching(false)
             .create();
 
