@@ -55,6 +55,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -141,6 +142,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
@@ -218,20 +220,23 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         restoreBrokerShutdownTimeout();
         pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
-        for (String tenant : admin.tenants().getTenants()) {
-            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                try {
-                    admin.namespaces().deleteNamespace(namespace, true);
-                } catch (PulsarAdminException e) {
-                    // deleteNamespaceWithRetry waits 500 ms before its first attempt, so it's only the fallback
-                    deleteNamespaceWithRetry(namespace, true);
+        if (!recreateDefaultNamespaceIfNothingElseChanged()) {
+            for (String tenant : admin.tenants().getTenants()) {
+                for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                    try {
+                        admin.namespaces().deleteNamespace(namespace, true);
+                    } catch (PulsarAdminException e) {
+                        // deleteNamespaceWithRetry waits 500 ms before its first attempt, so it's only the fallback
+                        deleteNamespaceWithRetry(namespace, true);
+                    }
                 }
+                admin.tenants().deleteTenant(tenant, true);
             }
-            admin.tenants().deleteTenant(tenant, true);
-        }
 
-        for (String cluster : admin.clusters().getClusters()) {
-            admin.clusters().deleteCluster(cluster);
+            for (String cluster : admin.clusters().getClusters()) {
+                admin.clusters().deleteCluster(cluster);
+            }
+            setupClusters();
         }
 
         pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
@@ -239,7 +244,52 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         resetConfig();
         applyDefaultConfig();
-        setupClusters();
+    }
+
+    /**
+     * Deletes the namespaces of prop-xyz, which drops what the test method left in them, and recreates prop-xyz/ns1,
+     * if the test method left the cluster and the tenant as {@link #setupClusters()} created them. Every metadata
+     * update waits for the next batch of the metadata store, so deleting and recreating the cluster and the tenant as
+     * well would take longer, and the namespaces are deleted concurrently.
+     *
+     * @return false, without changing anything, if the test method changed the cluster or the tenant
+     */
+    private boolean recreateDefaultNamespaceIfNothingElseChanged() throws Exception {
+        // As setupClusters() creates them
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+
+        List<CompletableFuture<Boolean>> checks = new ArrayList<>();
+        checks.add(admin.clusters().getClustersAsync().thenApply(List.of("test")::equals));
+        checks.add(admin.clusters().getClusterAsync("test").thenApply(clusterData::equals));
+        checks.add(admin.clusters().getFailureDomainsAsync("test").thenApply(Map::isEmpty));
+        checks.add(admin.clusters().getNamespaceIsolationPoliciesAsync("test").thenApply(Map::isEmpty)
+                // the cluster has no isolation policies
+                .exceptionally(e -> FutureUtil.unwrapCompletionException(e)
+                        instanceof PulsarAdminException.NotFoundException));
+        checks.add(admin.tenants().getTenantsAsync().thenApply(List.of("prop-xyz")::equals));
+        checks.add(admin.tenants().getTenantInfoAsync("prop-xyz").thenApply(tenantInfo::equals));
+        CompletableFuture<List<String>> namespaces = admin.namespaces().getNamespacesAsync("prop-xyz");
+        boolean nothingElseChanged = true;
+        for (CompletableFuture<Boolean> check : checks) {
+            // a check fails when, for example, the test method deleted the tenant
+            nothingElseChanged &= check.exceptionally(e -> false).get();
+        }
+        if (!nothingElseChanged) {
+            return false;
+        }
+        FutureUtil.waitForAll(namespaces.get().stream()
+                .map(namespace -> CompletableFuture.runAsync(() -> {
+                    try {
+                        deleteNamespaceWithRetry(namespace, true);
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                }))
+                .toList())
+                .get();
+        admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
+        return true;
     }
 
     /**
