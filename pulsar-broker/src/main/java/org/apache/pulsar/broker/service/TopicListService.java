@@ -62,7 +62,6 @@ import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterUtil;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.topics.TopicList;
 import org.apache.pulsar.common.topics.TopicsPattern;
-import org.apache.pulsar.common.topics.TopicsPatternFactory;
 import org.apache.pulsar.common.util.Backoff;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -403,6 +402,7 @@ public class TopicListService {
     private final int maxSubscriptionPatternLength;
     private final int topicListUpdateMaxQueueSize;
     private final ConcurrentLongHashMap<WatcherFuture> watchers;
+    private final TopicsPatternCache topicsPatternCache;
     private final Backoff retryBackoff;
 
     public TopicListService(PulsarService pulsar, ServerCnx connection,
@@ -426,6 +426,7 @@ public class TopicListService {
                 .concurrencyLevel(1)
                 .build();
         this.topicResources = pulsar.getPulsarResources().getTopicResources();
+        this.topicsPatternCache = pulsar.getBrokerService().getTopicsPatternCache();
         this.retryBackoff = Backoff.builder()
                 .maxBackoff(Duration.ofSeconds(25))
                 .build();
@@ -517,7 +518,7 @@ public class TopicListService {
                 request != null ? request.watcherFuture() : watchers.get(watcherId), topicsPatternString);
         if (topicsPattern == null) {
             try {
-                topicsPattern = TopicsPatternFactory.create(topicsPatternString, topicsPatternRegexImplementation);
+                topicsPattern = topicsPatternCache.get(topicsPatternString, topicsPatternRegexImplementation);
             } catch (Exception e) {
                 log.warn()
                         .attr("connection", connection)
