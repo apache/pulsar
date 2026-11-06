@@ -22,7 +22,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -34,8 +33,6 @@ import static org.testng.Assert.assertEquals;
 import io.netty.buffer.Unpooled;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import lombok.CustomLog;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Message;
@@ -127,17 +124,10 @@ public class FunctionAssignmentTailerTest {
 
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = mock(FunctionRuntimeManager.class);
-
-        // Use CountDownLatch to park the background thread after first processing and before re-stubbing
-        CountDownLatch firstProcessed = new java.util.concurrent.CountDownLatch(1);
-        CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
-
-        // On first processing of message1, block and wait for re-stubbing
-        doAnswer(inv -> {
-            firstProcessed.countDown();
-            release.await(5, TimeUnit.SECONDS);
-            return null;
-        }).when(functionRuntimeManager).processAssignmentMessage(eq(message1));
+        // Processing the second message fails. Stub it before the tailer thread starts calling the mock, rather than
+        // re-stubbing it in between: processAssignmentMessage is synchronized, so the stubbing call waits for any call
+        // of the tailer thread that is still in it.
+        doThrow(new RuntimeException("test")).when(functionRuntimeManager).processAssignmentMessage(eq(message2));
 
         FunctionAssignmentTailer functionAssignmentTailer =
                 spy(new FunctionAssignmentTailer(functionRuntimeManager, readerBuilder, workerConfig, errorNotifier));
@@ -148,16 +138,10 @@ public class FunctionAssignmentTailerTest {
         verify(errorNotifier, times(0)).triggerError(any());
 
         readerStub.add(message1);
-        Assert.assertTrue(firstProcessed.await(5, TimeUnit.SECONDS),
-                "First processing did not reach the blocking point");
+        Awaitility.await().untilAsserted(() ->
+                verify(functionRuntimeManager, times(1)).processAssignmentMessage(eq(message1)));
 
         verify(errorNotifier, times(0)).triggerError(any());
-
-        // trigger an error to be thrown
-        doThrow(new RuntimeException("test")).when(functionRuntimeManager).processAssignmentMessage(any());
-
-        // Release the first processing
-        release.countDown();
 
         readerStub.add(message2);
 
