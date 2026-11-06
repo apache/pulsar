@@ -482,6 +482,7 @@ public class PersistentSubscription extends AbstractSubscription {
     CompletableFuture<Void> acknowledgeReplicatedSubscriptionMessage(Position position, Position admittedMarkDelete,
             CompletableFuture<Void> admittedReset, boolean admittedDuringReset) {
         return FutureUtil.supplySafely(() -> {
+            CompletableFuture<Void> ackFuture;
             synchronized (this) {
                 if (admittedDuringReset || lastCursorResetFuture != admittedReset
                         || admittedReset != null && !admittedReset.isDone()
@@ -490,9 +491,18 @@ public class PersistentSubscription extends AbstractSubscription {
                 }
                 // resetCursor uses the same monitor for admission. Start the ACK before a later
                 // reset can be admitted, without waiting for asynchronous persistence to complete.
-                return acknowledgeMessageAsync(Collections.singletonList(position), AckType.Cumulative,
+                ackFuture = acknowledgeMessageAsync(Collections.singletonList(position), AckType.Cumulative,
                         Collections.emptyMap());
             }
+            // The remote cluster's ACK moves the mark-delete position past entries that local consumers may still
+            // hold, and they might never ACK them. The ACK can complete synchronously, so attach this outside the
+            // monitor to avoid running the dispatcher's cleanup, which takes the dispatcher's lock, while holding it.
+            return ackFuture.thenRun(() -> {
+                Dispatcher currentDispatcher = dispatcher;
+                if (currentDispatcher != null) {
+                    currentDispatcher.markDeletePositionMoveForward();
+                }
+            });
         });
     }
 
