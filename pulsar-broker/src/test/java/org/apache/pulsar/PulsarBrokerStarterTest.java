@@ -18,11 +18,13 @@
  */
 package org.apache.pulsar;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import com.google.common.collect.Sets;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -37,8 +39,12 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import lombok.Cleanup;
+import org.apache.bookkeeper.stats.NullStatsProvider;
+import org.apache.bookkeeper.stats.StatsProvider;
+import org.apache.commons.configuration2.PropertiesConfiguration;
 import org.apache.pulsar.PulsarBrokerStarter.BrokerStarter;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.metrics.prometheus.bookkeeper.PrometheusMetricsProvider;
 import org.testng.annotations.Test;
 import picocli.CommandLine.Option;
 
@@ -397,5 +403,27 @@ public class PulsarBrokerStarterTest {
         } finally {
             System.setOut(oldStream);
         }
+    }
+
+    @Test
+    public void testInProcessBookieStatsProviderStaysOutOfTheBrokerScrape() throws Exception {
+        PropertiesConfiguration bookieConf = new PropertiesConfiguration();
+        bookieConf.setProperty(PrometheusMetricsProvider.PROMETHEUS_STATS_HTTP_ENABLE, false);
+        StatsProvider provider = PulsarBrokerStarter.newBookieStatsProvider(PrometheusMetricsProvider.class);
+        provider.start(bookieConf);
+        try {
+            // The bookie's own stats endpoint still serves the JVM metrics.
+            StringWriter bookieEndpoint = new StringWriter();
+            provider.writeAllMetrics(bookieEndpoint);
+            assertThat(bookieEndpoint.toString()).contains("# TYPE jvm_memory_direct_bytes_used gauge\n");
+            // But none of them reached the registry the broker's /metrics scrapes.
+            assertThat(PrometheusRegistry.defaultRegistry.scrape(name -> name.startsWith("jvm_")
+                    || name.startsWith("process_") || name.startsWith("bookie_")).size()).isZero();
+        } finally {
+            provider.stop();
+        }
+        // Any other provider still comes from its no-arg constructor.
+        assertThat(PulsarBrokerStarter.newBookieStatsProvider(NullStatsProvider.class))
+                .isInstanceOf(NullStatsProvider.class);
     }
 }

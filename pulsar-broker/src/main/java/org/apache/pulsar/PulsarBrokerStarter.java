@@ -24,6 +24,7 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.create;
 import static org.apache.pulsar.common.configuration.PulsarConfigurationLoader.isComplete;
 import com.google.common.annotations.VisibleForTesting;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
@@ -235,8 +236,7 @@ public class PulsarBrokerStarter {
                 final String filepath = Path.of(starterArguments.bookieConfigFile)
                         .toAbsolutePath().normalize().toString();
                 bookieConfig = readBookieConfFile(filepath);
-                Class<? extends StatsProvider> statsProviderClass = bookieConfig.getStatsProviderClass();
-                bookieStatsProvider = ReflectionUtils.newInstance(statsProviderClass);
+                bookieStatsProvider = newBookieStatsProvider(bookieConfig.getStatsProviderClass());
             } else {
                 bookieConfig = null;
                 bookieStatsProvider = null;
@@ -377,6 +377,24 @@ public class PulsarBrokerStarter {
             ShutdownUtil.triggerImmediateForcefulShutdown();
         } finally {
             starter.join();
+        }
+    }
+
+    /**
+     * The broker's /metrics reads the Prometheus Java client 1.x default registry. A bookie or autorecovery
+     * running in this process must not register into it: its JVM metrics would be a second copy of the
+     * broker's and the bookie metrics belong to the bookie's own stats endpoint. A provider that can take a
+     * registry, like Pulsar's, therefore gets one of its own. The provider is loaded by name from the bookie
+     * configuration, so the constructor is looked up the same way.
+     */
+    static StatsProvider newBookieStatsProvider(Class<? extends StatsProvider> statsProviderClass) {
+        try {
+            return statsProviderClass.getConstructor(PrometheusRegistry.class).newInstance(new PrometheusRegistry());
+        } catch (NoSuchMethodException e) {
+            return ReflectionUtils.newInstance(statsProviderClass);
+        } catch (ReflectiveOperationException e) {
+            throw new RuntimeException("Could not create the bookie stats provider " + statsProviderClass.getName(),
+                    e);
         }
     }
 }
