@@ -774,6 +774,10 @@ public class TopicsTest extends SharedPulsarBaseTest {
                 .build();
         admin.namespaces().setBacklogQuota(namespaceName, backlogQuota,
                 BacklogQuota.BacklogQuotaType.destination_storage);
+        // the loaded topic gets the namespace's new quota asynchronously
+        Topic topic = getTopic(topicName, false).get().orElseThrow();
+        await().untilAsserted(() -> Assert.assertEquals(
+                topic.getBacklogQuota(BacklogQuota.BacklogQuotaType.destination_storage).getLimitSize(), 0));
 
         AsyncResponse asyncResponse = mock(AsyncResponse.class);
         ProducerMessages producerMessages = new ProducerMessages();
