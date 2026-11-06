@@ -444,10 +444,9 @@ public class IsolatedBookieEnsemblePlacementPolicyTest {
         Map<String, byte[]> customMetadata1 = new HashMap<>();
         customMetadata1.put(EnsemblePlacementPolicyConfig.ENSEMBLE_PLACEMENT_POLICY_CONFIG, policyConfig.encode());
 
-        // Every bookie belongs to an isolation group, so an explicitly empty override has no ungrouped candidate.
-        assertThatThrownBy(() -> isolationPolicy.replaceBookie(3, 3, 3, customMetadata1,
-                Arrays.asList(bookie1Id, bookie2Id, bookie3Id), bookie3Id, null))
-                .isInstanceOf(BKNotEnoughBookiesException.class);
+        BookieId replaceBookie1 = isolationPolicy.replaceBookie(3, 3, 3, customMetadata1,
+                Arrays.asList(bookie1Id, bookie2Id, bookie3Id), bookie3Id, null).getResult();
+        assertEquals(replaceBookie1, bookie4Id);
 
         // when ISOLATION_BOOKIE_GROUPS miss.
         Map<String, Object> placementPolicyProperties2 = new HashMap<>();
