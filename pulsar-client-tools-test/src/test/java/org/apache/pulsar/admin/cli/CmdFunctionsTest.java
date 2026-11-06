@@ -288,6 +288,21 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testGetFunctionStats() throws Exception {
+        assertTrue(cmd.run(new String[] {"stats", "--tenant", TENANT, "--namespace", NAMESPACE, "--name", FN_NAME}));
+
+        verify(functions, times(1)).getFunctionStats(TENANT, NAMESPACE, FN_NAME);
+    }
+
+    @Test
+    public void testGetFunctionInstanceStats() throws Exception {
+        assertTrue(cmd.run(new String[] {"stats", "--tenant", TENANT, "--namespace", NAMESPACE, "--name", FN_NAME,
+                "--instance-id", "1"}));
+
+        verify(functions, times(1)).getFunctionStats(TENANT, NAMESPACE, FN_NAME, 1);
+    }
+
+    @Test
     public void testCreateFunctionWithFileUrl() throws Exception {
         cmd.run(new String[] {
             "create",
