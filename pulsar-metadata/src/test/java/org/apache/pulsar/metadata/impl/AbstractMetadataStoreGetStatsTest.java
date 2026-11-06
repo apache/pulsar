@@ -25,7 +25,10 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
 import io.opentelemetry.api.OpenTelemetry;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
+import io.prometheus.metrics.model.snapshots.HistogramSnapshot;
+import io.prometheus.metrics.model.snapshots.Labels;
+import io.prometheus.metrics.model.snapshots.MetricSnapshot;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -83,11 +86,17 @@ public class AbstractMetadataStoreGetStatsTest {
     }
 
     private static double getOpsCount(String storeName, String status) {
-        Double value = CollectorRegistry.defaultRegistry.getSampleValue(
-                "pulsar_metadata_store_ops_latency_ms_count",
-                new String[]{"name", "type", "status"},
-                new String[]{storeName, "get", status});
-        return value == null ? 0.0 : value;
+        Labels labels = Labels.of("name", storeName, "type", "get", "status", status);
+        for (MetricSnapshot snapshot : PrometheusRegistry.defaultRegistry
+                .scrape("pulsar_metadata_store_ops_latency_ms"::equals)) {
+            for (HistogramSnapshot.HistogramDataPointSnapshot point :
+                    ((HistogramSnapshot) snapshot).getDataPoints()) {
+                if (point.getLabels().equals(labels)) {
+                    return point.getCount();
+                }
+            }
+        }
+        return 0.0;
     }
 
     @Test

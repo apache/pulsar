@@ -38,7 +38,7 @@ dependencies {
     implementation(libs.commons.lang3)
     implementation(libs.commons.codec)
     api(libs.jakarta.servlet.api)
-    implementation(libs.simpleclient.caffeine)
+    implementation(libs.prometheus.metrics.instrumentation.caffeine)
 
     testImplementation(libs.commons.io)
     testImplementation(libs.kerby.simplekdc)
