@@ -167,6 +167,13 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
             @SuppressWarnings("unchecked")
             Optional<Class<? extends EnsemblePlacementPolicy>> policyClass =
                     (Optional) Optional.ofNullable(ensemblePlacementPolicyConfig.getPolicyClass());
+            CompletableFuture<BookKeeper> existing = bkEnsemblePolicyToBkClientMap
+                    .getIfPresent(ensemblePlacementPolicyConfig);
+            if (existing != null && existing.isCompletedExceptionally()) {
+                // Failure eviction can trail a caller observing completion. Do not return that failed client again
+                // or remove a newer creation installed concurrently by another request.
+                bkEnsemblePolicyToBkClientMap.asMap().remove(ensemblePlacementPolicyConfig, existing);
+            }
             return bkEnsemblePolicyToBkClientMap.get(ensemblePlacementPolicyConfig,
                     (config, executor) -> createPolicyClient(config, () -> bookkeeperProvider.create(
                             conf, metadataStore, eventLoopGroup,
@@ -257,8 +264,8 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
                 }
             }
         });
-        // Return the tracked future before invoking the provider: a synchronous provider must not keep the cache's
-        // mapping function or managed-ledger initialization in progress while shutdown waits for this future.
+        // Invoke the provider asynchronously so the cache's mapping function returns without waiting. A synchronous
+        // provider must not keep managed-ledger initialization in progress while shutdown waits for this future.
         CompletableFuture.completedFuture(null).thenComposeAsync(__ -> {
             if (closed || result.isDone()) {
                 return CompletableFuture.<BookKeeper>failedFuture(new ManagedLedgerFactoryClosedException());
@@ -278,6 +285,7 @@ public class ManagedLedgerClientFactory implements ManagedLedgerStorage {
     private CompletableFuture<Void> closePolicyClientAsync(EnsemblePlacementPolicyConfig policy, BookKeeper bk) {
         return CompletableFuture.runAsync(() -> {
             try {
+                BookKeeperClientFactoryImpl.releaseClientListeners(bk);
                 bk.close();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();

@@ -38,6 +38,7 @@ import java.util.function.Consumer;
 import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.BookKeeperClientConfigAccessor;
 import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RegionAwareEnsemblePlacementPolicy;
@@ -110,13 +111,13 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         CompletableFuture<BookKeeper> result = new CompletableFuture<>();
         result.whenComplete((bk, error) -> {
             if (error != null) {
-                disposeClientListenerCleanup(listenerCleanup);
+                listenerCleanup.run();
             }
         });
         creation.whenComplete((bk, error) -> {
             if (error != null) {
                 // A builder can register its resolver before failing without returning a BookKeeper instance.
-                disposeClientListenerCleanup(listenerCleanup);
+                listenerCleanup.run();
                 result.completeExceptionally(error);
             } else if (!result.complete(bk)) {
                 closeBookKeeperAsync(bk, new CancellationException("BookKeeper client creation was cancelled"),
@@ -154,7 +155,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                                                         ClientListenerCleanup listenerCleanup) {
         // BookKeeper.close() can block. Never run it on the metadata callback or timeout thread.
         return CompletableFuture.runAsync(() -> {
-            disposeClientListenerCleanup(listenerCleanup);
+            listenerCleanup.run();
             try {
                 bk.close();
             } catch (InterruptedException e) {
@@ -357,11 +358,13 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
         return cleanup;
     }
 
-    private void disposeClientListenerCleanup(ClientListenerCleanup cleanup) {
-        synchronized (this) {
-            metadataStoreListenerCleanups.remove(cleanup);
+    // A storage factory can discard a late client even after the provider's own creation future succeeded.
+    static void releaseClientListeners(BookKeeper client) {
+        Object registration = BookKeeperClientConfigAccessor.getConfigurationProperty(client,
+                BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP);
+        if (registration instanceof ClientListenerCleanup cleanup) {
+            cleanup.run();
         }
-        cleanup.run();
     }
 
     @VisibleForTesting
@@ -371,7 +374,7 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     // Both factory shutdown and a failed or cancelled creation can claim this client's resolver listeners.
     // Callbacks registered after either cleanup are unregistered immediately, without invoking them under a lock.
-    private static final class ClientListenerCleanup implements Consumer<Runnable>, Runnable {
+    private final class ClientListenerCleanup implements Consumer<Runnable>, Runnable {
         private final List<Runnable> callbacks = new ArrayList<>();
         private boolean disposed;
 
@@ -396,6 +399,9 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
                 disposed = true;
                 pending = new ArrayList<>(callbacks);
                 callbacks.clear();
+            }
+            synchronized (BookKeeperClientFactoryImpl.this) {
+                metadataStoreListenerCleanups.remove(this);
             }
             pending.forEach(ClientListenerCleanup::runCallback);
         }

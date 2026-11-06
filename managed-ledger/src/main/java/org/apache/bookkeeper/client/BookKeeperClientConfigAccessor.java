@@ -38,4 +38,10 @@ public final class BookKeeperClientConfigAccessor {
         return conf != null && conf.getUseV2WireProtocol() && conf.isBatchReadEnabled();
     }
 
+    /** Returns a client configuration property, or {@code null} for a client without a configuration. */
+    public static Object getConfigurationProperty(BookKeeper bookKeeper, String key) {
+        ClientConfiguration conf = bookKeeper.getConf();
+        return conf == null ? null : conf.getProperty(key);
+    }
+
 }

@@ -28,6 +28,7 @@ import static org.apache.bookkeeper.conf.AbstractConfiguration.MIN_NUM_RACKS_PER
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
@@ -70,18 +71,21 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl.BookkeeperFactoryForCustomEnsemblePlacementPolicy;
 import org.apache.bookkeeper.net.CachedDNSToSwitchMapping;
 import org.apache.bookkeeper.stats.StatsLogger;
 import org.apache.commons.configuration2.ex.ConfigurationException;
 import org.apache.commons.lang3.reflect.FieldUtils;
 import org.apache.pulsar.bookie.rackawareness.BookieRackAffinityMapping;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
+import org.apache.pulsar.common.policies.data.EnsemblePlacementPolicyConfig;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.awaitility.Awaitility;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -385,6 +389,56 @@ public class BookKeeperClientFactoryImplTest {
             initialization.readiness().complete(null);
             initialization.factory().close();
             executor.shutdownNow();
+        }
+    }
+
+    @DataProvider
+    public Object[][] abandonedPolicyClients() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "abandonedPolicyClients")
+    public void testStorageAbandoningLateClientReleasesProviderListeners(boolean closeStorage) throws Exception {
+        PulsarMockBookKeeper policyClient = mock(PulsarMockBookKeeper.class);
+        ClientInitialization initialization = newClientInitialization(policyClient);
+        Runnable cleanup = mock(Runnable.class);
+        ListenerRegistration registration = trackListenerOnBuild(initialization, cleanup);
+        doReturn(CompletableFuture.completedFuture(mock(BookKeeper.class))).when(initialization.factory())
+                .create(any(), any(), any(), any(), isNull(), any());
+        ServiceConfiguration conf = new ServiceConfiguration();
+        conf.setBookkeeperClientExposeStatsToPrometheus(false);
+        try (ManagedLedgerClientFactory storage = spy(new ManagedLedgerClientFactory())) {
+            doReturn(mock(ManagedLedgerFactoryImpl.class)).when(storage)
+                    .createManagedLedgerFactory(any(), any(), any(), any(), any());
+            storage.initialize(conf, mock(MetadataStoreExtended.class), initialization.factory(),
+                    mock(EventLoopGroup.class), OpenTelemetry.noop());
+            ArgumentCaptor<BookkeeperFactoryForCustomEnsemblePlacementPolicy> factory =
+                    ArgumentCaptor.forClass(BookkeeperFactoryForCustomEnsemblePlacementPolicy.class);
+            verify(storage).createManagedLedgerFactory(any(), any(), factory.capture(), any(), any());
+            EnsemblePlacementPolicyConfig policy = new EnsemblePlacementPolicyConfig(
+                    IsolatedBookieEnsemblePlacementPolicy.class,
+                    Map.of(IsolatedBookieEnsemblePlacementPolicy.ISOLATION_BOOKIE_GROUPS, "group1"));
+            CompletableFuture<BookKeeper> cachedClient = factory.getValue().get(policy);
+            initialization.readinessRequested().get(5, TimeUnit.SECONDS);
+            ClientConfiguration clientConf = new ClientConfiguration();
+            clientConf.setProperty(BookieRackAffinityMapping.METADATA_STORE_LISTENER_CLEANUP,
+                    registration.registrar().get(5, TimeUnit.SECONDS));
+            when(policyClient.getConf()).thenReturn(clientConf);
+            if (closeStorage) {
+                storage.close();
+            } else {
+                assertThat(cachedClient.cancel(false)).isTrue();
+            }
+            initialization.readiness().complete(null);
+            // The provider remains open: discarding the late client must release its listeners independently.
+            Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+                verify(policyClient).close();
+                verify(cleanup).run();
+                assertThat(initialization.factory().getMetadataStoreListenerCleanupCount()).isZero();
+            });
+        } finally {
+            initialization.readiness().complete(null);
+            initialization.factory().close();
         }
     }
 
