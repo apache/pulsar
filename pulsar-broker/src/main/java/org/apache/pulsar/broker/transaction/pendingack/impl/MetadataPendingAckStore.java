@@ -83,9 +83,10 @@ import org.apache.pulsar.metadata.api.ScanConsumer;
  *       scan {@code idx:acks-by-segment-subscription} for this {@code (segment, sub)}, group by
  *       {@code txnId}, fetch each header, and seed the in-memory open-txn set; then mark the
  *       handle ready and drain any events that fired during recovery.</li>
- *   <li><b>Cursor reset</b> — {@link #beforeCursorReset} drops the records of terminal transactions
- *       before the reset is persisted, so recovery cannot reapply ACKs the reset discarded;
- *       {@link #afterCursorReset} recreates them if the reset is not persisted.</li>
+ *   <li><b>Cursor reset</b> — {@link #beforeCursorReset} marks the records of terminal transactions
+ *       {@code resetPending} in place before the reset is persisted, so recovery cannot reapply ACKs the
+ *       reset discards while the TC keeps their headers; {@link #afterCursorReset} deletes them if the
+ *       reset is persisted, or clears the mark if it is not.</li>
  * </ul>
  *
  * <p>Same TOCTOU / unbounded-cache caveats documented on {@code MetadataTransactionBuffer} apply
@@ -109,11 +110,18 @@ public class MetadataPendingAckStore implements PendingAckStore {
      */
     private final Set<CompletableFuture<Void>> appendsInProgress = new HashSet<>();
     /**
-     * The records {@link #beforeCursorReset} dropped for the cursor reset in progress, recreated by
-     * {@link #afterCursorReset} if that reset is not persisted. The subscription runs one reset at a time. Guarded by
-     * {@link #lock}.
+     * Cursor reset bookkeeping, guarded by {@link #lock}; the subscription runs one reset at a time.
+     * {@link #beforeCursorReset} marks the records of terminal transactions {@code resetPending} in place, so the TC
+     * keeps their headers; {@link #afterCursorReset} deletes them if the reset was persisted, or clears the mark if it
+     * was not. A delete or an unmark that fails stays here and is retried on reconcile.
      */
-    private List<OpImage> droppedForReset = List.of();
+    private boolean resetInProgress;
+    /** The records marked by the reset in progress, at their marked versions. */
+    private List<OpImage> markedForReset = new ArrayList<>();
+    /** Marked records whose ACKs a persisted reset discarded, or that recovery found marked: to be deleted. */
+    private final Map<String, OpImage> obsoleteMarked = new HashMap<>();
+    /** Marked records of a reset that was not persisted: their mark is to be cleared. */
+    private final Map<String, OpImage> unmarkPending = new HashMap<>();
 
     private final CompletableFuture<Void> recoveryFuture = new CompletableFuture<>();
     private volatile AutoCloseable eventSubscription;
@@ -153,13 +161,28 @@ public class MetadataPendingAckStore implements PendingAckStore {
             @Override
             public void onNext(GetResult r) {
                 TxnOp op = TxnMetadataStore.fromJson(r.getValue(), TxnOp.class);
-                if (op.getKind() != TxnOpKind.ACK) {
+                // A store with a native index doesn't apply the scan's filter, and its lookup also matches the
+                // records of a subscription whose name extends this one's.
+                if (op.getKind() != TxnOpKind.ACK || !segmentName.equals(op.getSegment())
+                        || !subscriptionName.equals(op.getSubscription())) {
                     return;
                 }
-                String txnIdKey = TxnPaths.txnIdFromOpPath(r.getStat().getPath());
-                if (txnIdKey != null) {
-                    opsByTxn.computeIfAbsent(txnIdKey, __ -> new ConcurrentLinkedQueue<>()).add(op);
+                String path = r.getStat().getPath();
+                String txnIdKey = TxnPaths.txnIdFromOpPath(path);
+                if (txnIdKey == null) {
+                    return;
                 }
+                if (Boolean.TRUE.equals(op.getResetPending())) {
+                    // Marked by a cursor reset in progress when this subscription was last loaded: whether the
+                    // reset was persisted is unknown, so the ACK is not reapplied (at worst the message is
+                    // redelivered), and the record is deleted.
+                    synchronized (lock) {
+                        obsoleteMarked.put(path,
+                                new OpImage(new OpRecord(path, txnIdKey, r.getStat().getVersion()), op));
+                    }
+                    return;
+                }
+                opsByTxn.computeIfAbsent(txnIdKey, __ -> new ConcurrentLinkedQueue<>()).add(op);
             }
 
             @Override
@@ -392,6 +415,8 @@ public class MetadataPendingAckStore implements PendingAckStore {
         if (closed || !recoveryFuture.isDone() || recoveryFuture.isCompletedExceptionally()) {
             return;
         }
+        // Retry the marked records left by a reset; the TC keeps re-publishing their outcome while they exist.
+        resolveMarkedRecords();
         Set<String> snapshot;
         synchronized (lock) {
             snapshot = new HashSet<>(openTxns);
@@ -537,74 +562,119 @@ public class MetadataPendingAckStore implements PendingAckStore {
     // ---- Cursor reset ------------------------------------------------------
 
     /**
-     * Drops the ACK records of terminal transactions before the cursor is reset. A committed ACK record is kept
-     * after its ACK is applied, until the durable whole-entry prefix covers it, so recovery can reapply an ACK the
-     * cursor held only in memory. The reset replaces that cursor state, after which nothing covers the record, and
-     * recovery would reapply the ACK and undo the reset. The records of OPEN transactions stay: their ACKs apply
-     * when they commit, after the reset, as on the live handle. A terminal transaction whose outcome is not applied
-     * yet loses only the durability of its ACK, which at worst redelivers the message.
+     * Marks the ACK records of terminal transactions {@code resetPending} before the cursor is reset. A committed ACK
+     * record is kept after its ACK is applied, until the durable whole-entry prefix covers it, so recovery can reapply
+     * an ACK the cursor held only in memory. The reset replaces that cursor state, after which nothing covers the
+     * record, and recovery would reapply the ACK and undo the reset; recovery never reapplies a marked record. The
+     * records of OPEN transactions stay unmarked: their ACKs apply when they commit, after the reset, as on the live
+     * handle. A terminal transaction whose outcome is not applied yet loses only the durability of its ACK, which at
+     * worst redelivers the message.
      *
-     * <p>The contents of every dropped record are captured before any is deleted, so {@link #afterCursorReset} can
-     * recreate them if the reset is not persisted, including after a deletion that failed part way.
+     * <p>The records are marked in place rather than deleted, so the TC never sees a terminal transaction without op
+     * records, and keeps its header, while the outcome of the reset is unknown. Each mark that lands is tracked, so
+     * {@link #afterCursorReset} can clear it if the reset is not persisted, including after marking failed part way.
      */
     @Override
     public CompletableFuture<Void> beforeCursorReset() {
         synchronized (lock) {
-            droppedForReset = List.of();
+            resetInProgress = true;
+            markedForReset = new ArrayList<>();
+            // This reset marks those records again, at their current versions.
+            unmarkPending.clear();
         }
-        // Recovery applies the recovered committed ACKs before it completes; their records are then dropped here.
+        // Recovery applies the recovered committed ACKs before it completes; their records are then marked here.
         return recoveryFuture
                 .thenCompose(__ -> txnStore.collectAckOpImagesForSegmentSubscription(segmentName, subscriptionName))
                 .thenCompose(images -> {
                     Map<String, List<OpImage>> imagesByTxn = new HashMap<>();
-                    for (OpImage image : images) {
-                        imagesByTxn.computeIfAbsent(image.record().txnId(), __ -> new ArrayList<>()).add(image);
+                    synchronized (lock) {
+                        for (OpImage image : images) {
+                            // A record whose ACK a persisted reset already discarded stays marked until deleted.
+                            if (!obsoleteMarked.containsKey(image.record().path())) {
+                                imagesByTxn.computeIfAbsent(image.record().txnId(), __ -> new ArrayList<>())
+                                        .add(image);
+                            }
+                        }
                     }
-                    ConcurrentLinkedQueue<OpImage> obsolete = new ConcurrentLinkedQueue<>();
+                    ConcurrentLinkedQueue<OpImage> marks = new ConcurrentLinkedQueue<>();
                     List<CompletableFuture<Void>> reads = new ArrayList<>(imagesByTxn.size());
                     imagesByTxn.forEach((txnIdKey, txnImages) -> reads.add(txnStore.getHeader(txnIdKey)
                             .thenAccept(header -> {
                                 TxnState state = header.map(v -> v.value().getState()).orElse(TxnState.ABORTED);
                                 if (state.isTerminal()) {
-                                    obsolete.addAll(txnImages);
+                                    txnImages.forEach(image -> marks.add(withResetPending(image, true)));
                                 }
                             })));
-                    return FutureUtil.waitForAll(reads).thenCompose(__ -> {
-                        List<OpImage> dropped = List.copyOf(obsolete);
-                        synchronized (lock) {
-                            droppedForReset = dropped;
-                        }
-                        return txnStore.deleteOps(dropped.stream().map(OpImage::record).toList());
-                    });
+                    return FutureUtil.waitForAll(reads).thenCompose(__ -> txnStore.replaceOps(List.copyOf(marks),
+                            marked -> {
+                                synchronized (lock) {
+                                    markedForReset.add(marked);
+                                }
+                            }));
                 });
     }
 
     /**
-     * Recreates the records {@link #beforeCursorReset} dropped if the reset was not persisted: the cursor state they
-     * protect, which may hold their ACKs only in memory, still stands. A recreated record whose ACK the durable cursor
-     * covers by then is cleaned up again by reconcile.
+     * Resolves the records {@link #beforeCursorReset} marked: deletes them if the reset was persisted, or clears their
+     * mark if it was not, since the cursor state they protect, which may hold their ACKs only in memory, still stands.
      */
     @Override
     public CompletableFuture<Void> afterCursorReset(boolean persisted) {
-        List<OpImage> dropped;
         synchronized (lock) {
-            dropped = droppedForReset;
-            droppedForReset = List.of();
+            for (OpImage marked : markedForReset) {
+                (persisted ? obsoleteMarked : unmarkPending).put(marked.record().path(), marked);
+            }
+            markedForReset = new ArrayList<>();
+            resetInProgress = false;
         }
-        if (persisted || dropped.isEmpty()) {
+        return resolveMarkedRecords();
+    }
+
+    /**
+     * Deletes the marked records whose ACKs a persisted reset discarded, and clears the mark of those whose reset was
+     * not persisted. Each stays in the bookkeeping until that succeeds, and is retried on the next reconcile.
+     */
+    private CompletableFuture<Void> resolveMarkedRecords() {
+        List<OpImage> obsolete;
+        List<OpImage> unmark;
+        synchronized (lock) {
+            obsolete = List.copyOf(obsoleteMarked.values());
+            // A reset in progress marks these records again; clearing their mark meanwhile would race it.
+            unmark = resetInProgress ? List.of() : List.copyOf(unmarkPending.values());
+        }
+        if (obsolete.isEmpty() && unmark.isEmpty()) {
             return CompletableFuture.completedFuture(null);
         }
-        return txnStore.restoreOps(dropped).whenComplete((__, error) -> {
+        CompletableFuture<Void> deletes = txnStore.deleteOps(obsolete.stream().map(OpImage::record).toList())
+                .thenRun(() -> {
+                    synchronized (lock) {
+                        obsolete.forEach(image -> obsoleteMarked.remove(image.record().path(), image));
+                    }
+                });
+        CompletableFuture<Void> unmarks = txnStore.replaceOps(
+                unmark.stream().map(image -> withResetPending(image, false)).toList(), unmarked -> {
+                    synchronized (lock) {
+                        // Track the txn, so reconcile deletes the record once the durable cursor covers it.
+                        openTxns.add(unmarked.record().txnId());
+                    }
+                }).thenRun(() -> {
+                    synchronized (lock) {
+                        unmark.forEach(image -> unmarkPending.remove(image.record().path(), image));
+                    }
+                });
+        return FutureUtil.waitForAll(List.of(deletes, unmarks)).whenComplete((__, error) -> {
             if (error != null) {
-                log.error().attr("segment", segmentName).attr("sub", subscriptionName)
-                        .attr("records", dropped.size()).exception(error)
-                        .log("Failed to restore the ACK records dropped for a cursor reset that was not persisted");
-                return;
-            }
-            synchronized (lock) {
-                dropped.forEach(image -> openTxns.add(image.record().txnId()));
+                log.warn().attr("segment", segmentName).attr("sub", subscriptionName).exception(error)
+                        .log("Failed to resolve the ACK records marked for a cursor reset; will retry on reconcile");
             }
         });
+    }
+
+    private static OpImage withResetPending(OpImage image, boolean pending) {
+        TxnOp op = image.op();
+        return new OpImage(image.record(), new TxnOp(op.getKind(), op.getSegment(), op.getSubscription(),
+                op.getLedgerId(), op.getEntryId(), op.getCumulative(), op.getBatchSize(), op.getAckSet(),
+                pending ? Boolean.TRUE : null));
     }
 
     // ---- Close -------------------------------------------------------------

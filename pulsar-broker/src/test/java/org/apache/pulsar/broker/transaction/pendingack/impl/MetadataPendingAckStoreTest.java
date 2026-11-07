@@ -50,8 +50,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -64,6 +66,7 @@ import org.apache.pulsar.broker.transaction.metadata.TxnEvent;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
+import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore.OpImage;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore.OpRecord;
 import org.apache.pulsar.broker.transaction.metadata.TxnOp;
 import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
@@ -576,73 +579,70 @@ public class MetadataPendingAckStoreTest {
     }
 
     @Test
-    public void beforeCursorResetDropsTerminalRecordsAndKeepsOpenOnes() throws Exception {
+    public void cursorResetMarksTerminalRecordsAndKeepsOpenOnes() throws Exception {
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
-        ackStore.replayAsync(handle, replayExecutor);
-        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
-        TxnID committed = new TxnID(1, 1);
-        createOpenHeader(committed);
-        // Above the persisted mark-delete (100:100), so the record is retained after the commit is applied.
-        ackStore.appendIndividualAck(committed, Collections.singletonList(
-                MutablePair.of(PositionFactory.create(200, 1), 1))).get();
-        commitHeader(committed);
-        publishDecision(committed);
-        Awaitility.await().untilAsserted(() -> verify(handle).commitTxn(eq(committed), eq(Map.of()), eq(0L)));
+        TxnID committed = commitRetainedAcks(ackStore, PositionFactory.create(200, 1));
         TxnID open = new TxnID(1, 2);
         createOpenHeader(open);
         ackStore.appendIndividualAck(open, Collections.singletonList(
                 MutablePair.of(PositionFactory.create(200, 2), 1))).get();
-        List<TxnOp> before = new ArrayList<>();
-        txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(before)).get();
-        assertThat(before).hasSize(2);
+        assertThat(ackOps()).hasSize(2);
 
         ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS);
+        assertThat(ackOps()).as("records are marked in place, not deleted, while the reset is in progress")
+                .hasSize(2).allSatisfy(op -> assertThat(op.getResetPending())
+                        .isEqualTo(op.getEntryId() == 1L ? Boolean.TRUE : null));
 
-        List<TxnOp> after = new ArrayList<>();
-        txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(after)).get();
-        assertThat(after).as("only the OPEN transaction's ACK survives the reset").singleElement()
+        ackStore.afterCursorReset(true).get(5, TimeUnit.SECONDS);
+        assertThat(ackOps()).as("only the OPEN transaction's ACK survives the persisted reset").singleElement()
                 .satisfies(op -> assertThat(op.getEntryId()).isEqualTo(2L));
+        assertThat(txnStore.getHeader(TxnIds.toKey(committed)).get()).isPresent();
     }
 
     @Test
-    public void failedCursorResetRestoresRecordsDroppedPartWay() throws Exception {
-        TxnMetadataStore partialDelete = spy(txnStore);
+    public void failedCursorResetUnmarksRecordsMarkedPartWay() throws Exception {
+        TxnMetadataStore partialMark = spy(txnStore);
+        AtomicBoolean failMarking = new AtomicBoolean(true);
         doAnswer(invocation -> {
-            List<OpRecord> ops = invocation.getArgument(0);
-            if (ops.size() < 2) {
+            List<OpImage> replacements = invocation.getArgument(0);
+            Consumer<OpImage> onReplaced = invocation.getArgument(1);
+            if (replacements.size() < 2 || !failMarking.getAndSet(false)) {
                 return invocation.callRealMethod();
             }
-            // Delete one of the records, then fail: the reset is rejected part way through its preparation.
-            return txnStore.deleteOps(ops.subList(0, 1)).thenCompose(__ -> CompletableFuture.<Void>failedFuture(
-                    new MetadataStoreException("injected partial deletion failure")));
-        }).when(partialDelete).deleteOps(any());
-        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, partialDelete);
+            // Mark one of the records, then fail: the reset is rejected part way through its preparation.
+            return txnStore.replaceOps(replacements.subList(0, 1), onReplaced).thenCompose(__ ->
+                    CompletableFuture.<Void>failedFuture(new MetadataStoreException("injected marking failure")));
+        }).when(partialMark).replaceOps(any(), any());
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, partialMark);
         TxnID txnId = commitRetainedAcks(ackStore, PositionFactory.create(200, 1), PositionFactory.create(200, 2));
 
         assertThatThrownBy(() -> ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS))
                 .hasRootCauseInstanceOf(MetadataStoreException.class);
-        assertThat(ackOps()).as("the preparation deleted one record before it failed").hasSize(1);
+        assertThat(ackOps()).as("the preparation marked one record before it failed")
+                .filteredOn(op -> Boolean.TRUE.equals(op.getResetPending())).hasSize(1);
         ackStore.afterCursorReset(false).get(5, TimeUnit.SECONDS);
-        assertThat(ackOps()).as("the failed reset recreates the dropped record").hasSize(2);
+        assertThat(ackOps()).as("the failed reset clears the mark it set").hasSize(2)
+                .allSatisfy(op -> assertThat(op.getResetPending()).isNull());
 
         assertRecoveryReappliesCommittedAcks(txnId, 2);
     }
 
     @Test
-    public void unpersistedCursorResetRestoresDroppedRecords() throws Exception {
+    public void unpersistedCursorResetClearsTheMark() throws Exception {
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
         TxnID txnId = commitRetainedAcks(ackStore, PositionFactory.create(200, 1));
 
         ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS);
-        assertThat(ackOps()).isEmpty();
+        assertThat(ackOps()).singleElement().satisfies(op -> assertThat(op.getResetPending()).isTrue());
         ackStore.afterCursorReset(false).get(5, TimeUnit.SECONDS);
-        assertThat(ackOps()).as("the reset was not persisted, so its ACK still needs the record").hasSize(1);
+        assertThat(ackOps()).as("the reset was not persisted, so its ACK must stay recoverable").singleElement()
+                .satisfies(op -> assertThat(op.getResetPending()).isNull());
 
         assertRecoveryReappliesCommittedAcks(txnId, 1);
     }
 
     @Test
-    public void persistedCursorResetDiscardsDroppedRecords() throws Exception {
+    public void persistedCursorResetDeletesMarkedRecords() throws Exception {
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
         commitRetainedAcks(ackStore, PositionFactory.create(200, 1));
 
@@ -650,6 +650,75 @@ public class MetadataPendingAckStoreTest {
         ackStore.afterCursorReset(true).get(5, TimeUnit.SECONDS);
         ackStore.afterCursorReset(false).get(5, TimeUnit.SECONDS);
         assertThat(ackOps()).as("a persisted reset leaves nothing to restore").isEmpty();
+    }
+
+    @Test
+    public void gcSweepDuringAFailedResetKeepsTheCommittedOutcome() throws Exception {
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
+        TxnID txnId = commitRetainedAcks(ackStore, PositionFactory.create(200, 1));
+
+        ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS);
+        // The txn is past GC retention: a sweep now deletes its header unless an op record of it remains.
+        sweepFinalizedHeader(txnId);
+        assertThat(txnStore.getHeader(TxnIds.toKey(txnId)).get()).as("the reset keeps the record, so its header")
+                .hasValueSatisfying(header -> assertThat(header.value().getState()).isEqualTo(TxnState.COMMITTED));
+        ackStore.afterCursorReset(false).get(5, TimeUnit.SECONDS);
+
+        assertRecoveryReappliesCommittedAcks(txnId, 1);
+    }
+
+    @Test
+    public void recoveryDiscardsRecordsMarkedByAnInterruptedReset() throws Exception {
+        MetadataPendingAckStore interrupted = new MetadataPendingAckStore(subscription, txnStore);
+        TxnID txnId = commitRetainedAcks(interrupted, PositionFactory.create(200, 1));
+        interrupted.beforeCursorReset().get(5, TimeUnit.SECONDS);
+        // The owner stops before the outcome of the reset is known.
+
+        PendingAckHandleImpl recovering = newRecoveringHandle();
+        MetadataPendingAckStore recovered = new MetadataPendingAckStore(subscription, txnStore);
+        recovered.replayAsync(recovering, replayExecutor);
+        recovered.recoveryFuture().get(5, TimeUnit.SECONDS);
+        verify(recovering, never()).handleIndividualAckRecover(eq(txnId), anyList());
+        verify(recovering, never()).commitRecoveredTxn(txnId);
+        Awaitility.await().untilAsserted(() -> assertThat(ackOps()).as("the marked record is deleted").isEmpty());
+    }
+
+    @Test
+    public void failedUnmarkIsRetriedOnReconcile() throws Exception {
+        TxnMetadataStore failingUnmark = spy(txnStore);
+        AtomicBoolean failUnmark = new AtomicBoolean(true);
+        doAnswer(invocation -> {
+            List<OpImage> replacements = invocation.getArgument(0);
+            boolean unmark = !replacements.isEmpty() && replacements.get(0).op().getResetPending() == null;
+            if (unmark && failUnmark.getAndSet(false)) {
+                return CompletableFuture.<Void>failedFuture(new MetadataStoreException("injected unmark failure"));
+            }
+            return invocation.callRealMethod();
+        }).when(failingUnmark).replaceOps(any(), any());
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, failingUnmark);
+        TxnID txnId = commitRetainedAcks(ackStore, PositionFactory.create(200, 1));
+
+        ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS);
+        assertThatThrownBy(() -> ackStore.afterCursorReset(false).get(5, TimeUnit.SECONDS))
+                .hasRootCauseInstanceOf(MetadataStoreException.class);
+        assertThat(ackOps()).singleElement().satisfies(op -> assertThat(op.getResetPending()).isTrue());
+
+        // The TC re-publishes the outcome while the record exists; the next reconcile clears the mark.
+        Awaitility.await().untilAsserted(() -> {
+            publishDecision(txnId);
+            assertThat(ackOps()).singleElement().satisfies(op -> assertThat(op.getResetPending()).isNull());
+        });
+        assertRecoveryReappliesCommittedAcks(txnId, 1);
+    }
+
+    /** The TC's GC sweep of a finalized txn past retention: it deletes the header once no op record of it remains. */
+    private void sweepFinalizedHeader(TxnID txnId) throws Exception {
+        String txnIdKey = TxnIds.toKey(txnId);
+        List<TxnOp> ops = new ArrayList<>();
+        txnStore.listOpsByTxn(txnIdKey, collectOps(ops)).get();
+        if (ops.isEmpty()) {
+            txnStore.deleteHeader(txnIdKey, txnStore.getHeader(txnIdKey).get().orElseThrow().version()).get();
+        }
     }
 
     /** Commits ACKs above the persisted mark-delete (100:100), so their records are retained after the commit. */
@@ -672,15 +741,21 @@ public class MetadataPendingAckStoreTest {
 
     /** A restart: a fresh store and handle recover the committed ACKs from the metadata records alone. */
     private void assertRecoveryReappliesCommittedAcks(TxnID txnId, int acks) throws Exception {
-        PendingAckHandleImpl recovering = mock(PendingAckHandleImpl.class);
-        when(recovering.changeToReadyState()).thenReturn(true);
-        when(recovering.commitRecoveredTxn(any())).thenReturn(CompletableFuture.completedFuture(null));
-        when(recovering.commitTxn(any(), any(), anyLong())).thenReturn(CompletableFuture.completedFuture(null));
+        PendingAckHandleImpl recovering = newRecoveringHandle();
         MetadataPendingAckStore recovered = new MetadataPendingAckStore(subscription, txnStore);
         recovered.replayAsync(recovering, replayExecutor);
         recovered.recoveryFuture().get(5, TimeUnit.SECONDS);
         verify(recovering, times(acks)).handleIndividualAckRecover(eq(txnId), anyList());
         verify(recovering).commitRecoveredTxn(txnId);
+    }
+
+    private PendingAckHandleImpl newRecoveringHandle() {
+        PendingAckHandleImpl recovering = mock(PendingAckHandleImpl.class);
+        when(recovering.changeToReadyState()).thenReturn(true);
+        when(recovering.commitRecoveredTxn(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(recovering.commitTxn(any(), any(), anyLong())).thenReturn(CompletableFuture.completedFuture(null));
+        when(recovering.abortTxn(any(), any(), anyLong())).thenReturn(CompletableFuture.completedFuture(null));
+        return recovering;
     }
 
     private List<TxnOp> ackOps() throws Exception {

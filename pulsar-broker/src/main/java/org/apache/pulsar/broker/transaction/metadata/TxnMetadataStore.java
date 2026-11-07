@@ -74,8 +74,8 @@ public class TxnMetadataStore {
      */
     public record OpRecord(String path, String txnId, long version) {}
 
-    /** A collected {@code /txn/op} record with its serialized contents, so {@link #restoreOps} can recreate it. */
-    public record OpImage(OpRecord record, TxnOp op, byte[] value) {}
+    /** A collected {@code /txn/op} record with the operation it holds, so {@link #replaceOps} can rewrite it. */
+    public record OpImage(OpRecord record, TxnOp op) {}
 
     public TxnMetadataStore(MetadataStore store) {
         this.store = store;
@@ -140,26 +140,31 @@ public class TxnMetadataStore {
     }
 
     /**
-     * Recreate {@code /txn/op} records captured by {@link #collectAckOpImagesForSegmentSubscription} after they were
-     * deleted, at their original paths and with the indexes {@link #appendOp} gave them. A record that exists at its
-     * path again is left alone.
+     * Rewrite {@code /txn/op} records in place with new contents, each at the version it was collected at and with the
+     * indexes {@link #appendOp} gave it. A record deleted or rewritten since is left alone. {@code onReplaced} receives
+     * each rewritten record at its new version as soon as its rewrite lands, so the caller knows which rewrites landed
+     * even if another fails; the returned future fails if any rewrite failed for another reason.
      */
-    public CompletableFuture<Void> restoreOps(List<OpImage> images) {
-        List<CompletableFuture<Void>> restores = new ArrayList<>(images.size());
-        for (OpImage image : images) {
-            OpRecord record = image.record();
-            restores.add(store.put(record.path(), image.value(), Optional.of(-1L),
-                            opOptions(record.txnId(), image.op(), false))
-                    .<Void>thenApply(__ -> null)
-                    .exceptionally(ex -> {
-                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
-                        if (cause instanceof MetadataStoreException.BadVersionException) {
-                            return null;
-                        }
-                        throw FutureUtil.wrapToCompletionException(cause);
-                    }));
-        }
-        return FutureUtil.waitForAll(restores);
+    public CompletableFuture<Void> replaceOps(List<OpImage> replacements, Consumer<OpImage> onReplaced) {
+        return FutureUtil.supplySafely(() -> {
+            List<CompletableFuture<Void>> puts = new ArrayList<>(replacements.size());
+            for (OpImage replacement : replacements) {
+                OpRecord record = replacement.record();
+                puts.add(store.put(record.path(), toJson(replacement.op()), Optional.of(record.version()),
+                                opOptions(record.txnId(), replacement.op(), false))
+                        .thenAccept(stat -> onReplaced.accept(new OpImage(
+                                new OpRecord(record.path(), record.txnId(), stat.getVersion()), replacement.op())))
+                        .exceptionally(ex -> {
+                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                            if (cause instanceof MetadataStoreException.NotFoundException
+                                    || cause instanceof MetadataStoreException.BadVersionException) {
+                                return null;
+                            }
+                            throw FutureUtil.wrapToCompletionException(cause);
+                        }));
+            }
+            return FutureUtil.waitForAll(puts);
+        });
     }
 
     private static Set<Option> opOptions(String txnId, TxnOp op, boolean append) {
@@ -265,8 +270,8 @@ public class TxnMetadataStore {
     }
 
     /**
-     * Like {@link #collectAckOpsForSegmentSubscription}, with each record's contents, so that records deleted by
-     * {@link #deleteOps} can be recreated by {@link #restoreOps}.
+     * Like {@link #collectAckOpsForSegmentSubscription}, with the operation each record holds, so that the records can
+     * be rewritten in place by {@link #replaceOps}.
      */
     public CompletableFuture<List<OpImage>> collectAckOpImagesForSegmentSubscription(String segment,
                                                                                      String subscription) {
@@ -384,8 +389,7 @@ public class TxnMetadataStore {
                 String path = r.getStat().getPath();
                 String txnIdKey = TxnPaths.txnIdFromOpPath(path);
                 if (txnIdKey != null) {
-                    opsByPath.put(path, new OpImage(new OpRecord(path, txnIdKey, r.getStat().getVersion()), op,
-                            r.getValue()));
+                    opsByPath.put(path, new OpImage(new OpRecord(path, txnIdKey, r.getStat().getVersion()), op));
                 }
             }
 

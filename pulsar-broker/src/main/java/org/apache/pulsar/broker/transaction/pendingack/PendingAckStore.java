@@ -84,9 +84,10 @@ public interface PendingAckStore {
 
     /**
      * Prepare for a reset of the subscription cursor, before the reset is persisted. A store that keeps the
-     * records of acknowledgements already applied to the cursor, to reapply them after a restart, must drop them
-     * here: the reset replaces that cursor state, and reapplying them would undo the reset. The reset fails if
-     * the returned future fails. {@link #afterCursorReset} follows, whether this succeeds or not.
+     * records of acknowledgements already applied to the cursor, to reapply them after a restart, must keep them
+     * from being reapplied once the reset is persisted: the reset replaces that cursor state, and reapplying them
+     * would undo the reset. The reset fails if the returned future fails. {@link #afterCursorReset} follows,
+     * whether this succeeds or not.
      *
      * @return a future represents the result of this operation
      */
@@ -96,7 +97,7 @@ public interface PendingAckStore {
 
     /**
      * Complete the reset {@link #beforeCursorReset} prepared for. If the reset was not persisted, the cursor
-     * state those records protect still stands, so a store must recreate the records it dropped for it.
+     * state those records protect still stands, so a store must be able to reapply them again.
      *
      * @param persisted whether the cursor reset was persisted
      * @return a future represents the result of this operation

@@ -496,7 +496,8 @@ public class V5TransactionCrashWindowRecoveryTest extends MockedPulsarServiceBas
         } finally {
             armed.set(false);
         }
-        assertThat(ackOps(segment, subscription)).as("the failed reset recreates the record it dropped").hasSize(1);
+        assertThat(ackOps(segment, subscription)).as("the failed reset leaves the record recoverable").singleElement()
+                .satisfies(op -> assertThat(op.getResetPending()).isNull());
         assertThat(cursorBatchMask(segment, subscription, first))
                 .as("the reset was not persisted, so the live cursor keeps the committed ACK").containsExactly(14L);
 

@@ -1070,9 +1070,9 @@ public class PersistentSubscription extends AbstractSubscription {
                 });
             }
 
-            // Drop the transactional ACK records the reset discards before it is persisted, or recovery after a
-            // restart would reapply them and undo the reset. If the reset is not persisted, the records are
-            // recreated before the subscription is unfenced, since the cursor state they protect still stands.
+            // Keep recovery from reapplying the transactional ACKs the reset discards, or a restart would undo the
+            // reset. If the reset is not persisted, those ACKs are made recoverable again before the subscription
+            // is unfenced, since the cursor state they protect still stands.
             pendingAckHandle.beforeCursorReset().thenCompose(__ -> forceReset).thenAccept(forceResetValue -> {
                 cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
                     @Override
