@@ -605,6 +605,91 @@ public class MetadataPendingAckStoreTest {
     }
 
     @Test
+    public void failedCursorResetRestoresRecordsDroppedPartWay() throws Exception {
+        TxnMetadataStore partialDelete = spy(txnStore);
+        doAnswer(invocation -> {
+            List<OpRecord> ops = invocation.getArgument(0);
+            if (ops.size() < 2) {
+                return invocation.callRealMethod();
+            }
+            // Delete one of the records, then fail: the reset is rejected part way through its preparation.
+            return txnStore.deleteOps(ops.subList(0, 1)).thenCompose(__ -> CompletableFuture.<Void>failedFuture(
+                    new MetadataStoreException("injected partial deletion failure")));
+        }).when(partialDelete).deleteOps(any());
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, partialDelete);
+        TxnID txnId = commitRetainedAcks(ackStore, PositionFactory.create(200, 1), PositionFactory.create(200, 2));
+
+        assertThatThrownBy(() -> ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS))
+                .hasRootCauseInstanceOf(MetadataStoreException.class);
+        assertThat(ackOps()).as("the preparation deleted one record before it failed").hasSize(1);
+        ackStore.afterCursorReset(false).get(5, TimeUnit.SECONDS);
+        assertThat(ackOps()).as("the failed reset recreates the dropped record").hasSize(2);
+
+        assertRecoveryReappliesCommittedAcks(txnId, 2);
+    }
+
+    @Test
+    public void unpersistedCursorResetRestoresDroppedRecords() throws Exception {
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
+        TxnID txnId = commitRetainedAcks(ackStore, PositionFactory.create(200, 1));
+
+        ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS);
+        assertThat(ackOps()).isEmpty();
+        ackStore.afterCursorReset(false).get(5, TimeUnit.SECONDS);
+        assertThat(ackOps()).as("the reset was not persisted, so its ACK still needs the record").hasSize(1);
+
+        assertRecoveryReappliesCommittedAcks(txnId, 1);
+    }
+
+    @Test
+    public void persistedCursorResetDiscardsDroppedRecords() throws Exception {
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
+        commitRetainedAcks(ackStore, PositionFactory.create(200, 1));
+
+        ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS);
+        ackStore.afterCursorReset(true).get(5, TimeUnit.SECONDS);
+        ackStore.afterCursorReset(false).get(5, TimeUnit.SECONDS);
+        assertThat(ackOps()).as("a persisted reset leaves nothing to restore").isEmpty();
+    }
+
+    /** Commits ACKs above the persisted mark-delete (100:100), so their records are retained after the commit. */
+    private TxnID commitRetainedAcks(MetadataPendingAckStore ackStore, Position... positions) throws Exception {
+        ackStore.replayAsync(handle, replayExecutor);
+        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
+        TxnID txnId = new TxnID(1, 1);
+        createOpenHeader(txnId);
+        List<MutablePair<Position, Integer>> acks = new ArrayList<>();
+        for (Position position : positions) {
+            acks.add(MutablePair.of(position, 1));
+        }
+        ackStore.appendIndividualAck(txnId, acks).get();
+        commitHeader(txnId);
+        publishDecision(txnId);
+        Awaitility.await().untilAsserted(() -> verify(handle).commitTxn(eq(txnId), eq(Map.of()), eq(0L)));
+        assertThat(ackOps()).hasSize(positions.length);
+        return txnId;
+    }
+
+    /** A restart: a fresh store and handle recover the committed ACKs from the metadata records alone. */
+    private void assertRecoveryReappliesCommittedAcks(TxnID txnId, int acks) throws Exception {
+        PendingAckHandleImpl recovering = mock(PendingAckHandleImpl.class);
+        when(recovering.changeToReadyState()).thenReturn(true);
+        when(recovering.commitRecoveredTxn(any())).thenReturn(CompletableFuture.completedFuture(null));
+        when(recovering.commitTxn(any(), any(), anyLong())).thenReturn(CompletableFuture.completedFuture(null));
+        MetadataPendingAckStore recovered = new MetadataPendingAckStore(subscription, txnStore);
+        recovered.replayAsync(recovering, replayExecutor);
+        recovered.recoveryFuture().get(5, TimeUnit.SECONDS);
+        verify(recovering, times(acks)).handleIndividualAckRecover(eq(txnId), anyList());
+        verify(recovering).commitRecoveredTxn(txnId);
+    }
+
+    private List<TxnOp> ackOps() throws Exception {
+        List<TxnOp> ops = new ArrayList<>();
+        txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(ops)).get();
+        return ops;
+    }
+
+    @Test
     public void closeReleasesACursorResetWaitingForRecovery() throws Exception {
         MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
         CompletableFuture<Void> reset = ackStore.beforeCursorReset();

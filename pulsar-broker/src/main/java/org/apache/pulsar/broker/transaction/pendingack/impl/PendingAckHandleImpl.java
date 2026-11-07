@@ -41,6 +41,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.Getter;
 import org.apache.bookkeeper.client.api.BKException;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -980,6 +981,15 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
 
     @Override
     public CompletableFuture<Void> beforeCursorReset() {
+        return withCreatedStore(PendingAckStore::beforeCursorReset);
+    }
+
+    @Override
+    public CompletableFuture<Void> afterCursorReset(boolean persisted) {
+        return withCreatedStore(store -> store.afterCursorReset(persisted));
+    }
+
+    private CompletableFuture<Void> withCreatedStore(Function<PendingAckStore, CompletableFuture<Void>> action) {
         // init() publishes the store from a task on the pinned executor. Queue behind that task, so a reset
         // arriving right after this handle is created still reaches the store that is about to recover.
         return FutureUtil.supplySafely(() -> CompletableFuture.supplyAsync(() -> {
@@ -990,7 +1000,7 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
                 ? CompletableFuture.completedFuture(null)
                 // A store that failed to be created has nothing to prepare; the reset proceeds as before.
                 : storeFuture.handle((store, error) -> store).thenCompose(store -> store == null
-                        ? CompletableFuture.completedFuture(null) : store.beforeCursorReset()));
+                        ? CompletableFuture.completedFuture(null) : action.apply(store)));
     }
 
     @Override

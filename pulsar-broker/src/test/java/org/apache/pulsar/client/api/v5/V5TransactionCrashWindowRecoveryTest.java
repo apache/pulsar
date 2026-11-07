@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.google.common.collect.Sets;
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -29,16 +30,20 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.PulsarMockBookKeeper;
 import org.apache.bookkeeper.client.PulsarMockLedgerHandle;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.MetaStoreImpl;
 import org.apache.bookkeeper.mledger.proto.ManagedCursorInfo;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.transaction.metadata.TxnHeader;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
@@ -61,6 +66,8 @@ import org.apache.pulsar.common.scalable.HashRange;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.metadata.api.GetResult;
 import org.apache.pulsar.metadata.api.ScanConsumer;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.MockZooKeeper;
 import org.awaitility.Awaitility;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -434,6 +441,82 @@ public class V5TransactionCrashWindowRecoveryTest extends MockedPulsarServiceBas
                 values.add(message.value());
             }
             assertThat(values).containsExactlyInAnyOrder("input-0", "input-2");
+        }
+    }
+
+    @Test
+    public void failedSeekKeepsCommittedPartialBatchAckAcrossVolatileCursorLoss() throws Exception {
+        String topic = newTopic();
+        String segment = onlySegment(topic);
+        String subscription = "failed-seek-partial-batch";
+        MessageIdAdv first;
+        CursorImage image;
+        try (Producer<String> producer = client.newProducer(Schema.string()).topic(topic)
+                .batchingPolicy(BatchingPolicy.builder().maxMessages(4)
+                        .maxPublishDelay(Duration.ofSeconds(5)).build()).create();
+                QueueConsumer<String> consumer = subscribe(topic, subscription)) {
+            List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                sends.add(producer.async().newMessage().key("same-batch").value("input-" + i).send());
+            }
+            first = physical(sends.get(0).get(10, TimeUnit.SECONDS));
+            for (int i = 0; i < sends.size(); i++) {
+                MessageIdAdv actual = physical(sends.get(i).get(10, TimeUnit.SECONDS));
+                assertThat(actual.getEntryId()).isEqualTo(first.getEntryId());
+                assertThat(actual.getBatchIndex()).isEqualTo(i);
+            }
+            Message<String> selected = consumer.receive(Duration.ofSeconds(10));
+            assertThat(selected).isNotNull();
+            assertThat(selected.value()).isEqualTo("input-0");
+            Transaction transaction = client.newTransaction();
+            consumer.acknowledge(selected.id(), transaction);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(ackOps(segment, subscription)).hasSize(1));
+            transaction.commit();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(cursorBatchMask(segment, subscription, first)).containsExactly(14L));
+            image = captureCursorImage(segment, subscription);
+        }
+        assertThat(ackOps(segment, subscription)).hasSize(1);
+
+        // Fail the persistence of the reset: fence the cursor ledger, and fail the metadata-store fallback once.
+        PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(segment)
+                .get(10, TimeUnit.SECONDS).orElseThrow();
+        PersistentSubscription persistentSubscription = persistentTopic.getSubscription(subscription);
+        long cursorLedger = ((ManagedCursorImpl) persistentSubscription.getCursor()).getCursorLedger();
+        if (cursorLedger >= 0) {
+            pulsarTestContext.getMockBookKeeper().getLedgerMap().get(cursorLedger).close();
+        }
+        AtomicBoolean armed = new AtomicBoolean(true);
+        mockZooKeeper.failConditional(KeeperException.Code.CONNECTIONLOSS, (op, path) ->
+                armed.get() && op == MockZooKeeper.Op.SET && path.equals(image.metadataPath()));
+        try {
+            assertThatThrownBy(() -> persistentSubscription.resetCursor(PositionFactory.EARLIEST)
+                    .get(10, TimeUnit.SECONDS)).isInstanceOf(ExecutionException.class);
+        } finally {
+            armed.set(false);
+        }
+        assertThat(ackOps(segment, subscription)).as("the failed reset recreates the record it dropped").hasSize(1);
+        assertThat(cursorBatchMask(segment, subscription, first))
+                .as("the reset was not persisted, so the live cursor keeps the committed ACK").containsExactly(14L);
+
+        client.close();
+        client = null;
+        stopBroker();
+        restoreCursorImage(image);
+        startBroker();
+        client = newClient();
+        try (QueueConsumer<String> recovered = subscribe(topic, subscription)) {
+            List<String> values = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                Message<String> message = recovered.receive(Duration.ofSeconds(2));
+                if (message == null) {
+                    break;
+                }
+                values.add(message.value());
+            }
+            assertThat(values).as("a committed ACK must survive a failed seek and the loss of volatile cursor state")
+                    .containsExactlyInAnyOrder("input-1", "input-2", "input-3");
         }
     }
 

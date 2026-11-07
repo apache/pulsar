@@ -74,6 +74,9 @@ public class TxnMetadataStore {
      */
     public record OpRecord(String path, String txnId, long version) {}
 
+    /** A collected {@code /txn/op} record with its serialized contents, so {@link #restoreOps} can recreate it. */
+    public record OpImage(OpRecord record, TxnOp op, byte[] value) {}
+
     public TxnMetadataStore(MetadataStore store) {
         this.store = store;
     }
@@ -133,6 +136,33 @@ public class TxnMetadataStore {
      * {@code path} carries the generated sequence key.
      */
     public CompletableFuture<Stat> appendOp(String txnId, TxnOp op) {
+        return store.put(TxnPaths.opParent(txnId), toJson(op), Optional.empty(), opOptions(txnId, op, true));
+    }
+
+    /**
+     * Recreate {@code /txn/op} records captured by {@link #collectAckOpImagesForSegmentSubscription} after they were
+     * deleted, at their original paths and with the indexes {@link #appendOp} gave them. A record that exists at its
+     * path again is left alone.
+     */
+    public CompletableFuture<Void> restoreOps(List<OpImage> images) {
+        List<CompletableFuture<Void>> restores = new ArrayList<>(images.size());
+        for (OpImage image : images) {
+            OpRecord record = image.record();
+            restores.add(store.put(record.path(), image.value(), Optional.of(-1L),
+                            opOptions(record.txnId(), image.op(), false))
+                    .<Void>thenApply(__ -> null)
+                    .exceptionally(ex -> {
+                        Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                        if (cause instanceof MetadataStoreException.BadVersionException) {
+                            return null;
+                        }
+                        throw FutureUtil.wrapToCompletionException(cause);
+                    }));
+        }
+        return FutureUtil.waitForAll(restores);
+    }
+
+    private static Set<Option> opOptions(String txnId, TxnOp op, boolean append) {
         Option.SecondaryIndex participantIdx = switch (op.getKind()) {
             case WRITE -> new Option.SecondaryIndex(TxnPaths.IDX_WRITES_BY_SEGMENT,
                     TxnPaths.segmentKey(op.getSegment()));
@@ -142,9 +172,9 @@ public class TxnMetadataStore {
         // Also index by txnId so the TC's endTxn can enumerate this txn's ops without scanning
         // the whole /txn/op namespace.
         Option.SecondaryIndex byTxnIdx = new Option.SecondaryIndex(TxnPaths.IDX_OPS_BY_TXN, txnId);
-        Set<Option> opts = Set.of(new Option.PartitionKey(txnId), participantIdx, byTxnIdx,
-                APPEND_DELTAS);
-        return store.put(TxnPaths.opParent(txnId), toJson(op), Optional.empty(), opts);
+        Option.PartitionKey partitionKey = new Option.PartitionKey(txnId);
+        return append ? Set.of(partitionKey, participantIdx, byTxnIdx, APPEND_DELTAS)
+                : Set.of(partitionKey, participantIdx, byTxnIdx);
     }
 
     // ---- Index queries -----------------------------------------------------
@@ -230,7 +260,17 @@ public class TxnMetadataStore {
      */
     public CompletableFuture<List<OpRecord>> collectAckOpsForSegmentSubscription(String segment,
                                                                                 String subscription) {
-        return collectOpsOnSegment(segment,
+        return collectAckOpImagesForSegmentSubscription(segment, subscription)
+                .thenApply(images -> images.stream().map(OpImage::record).toList());
+    }
+
+    /**
+     * Like {@link #collectAckOpsForSegmentSubscription}, with each record's contents, so that records deleted by
+     * {@link #deleteOps} can be recreated by {@link #restoreOps}.
+     */
+    public CompletableFuture<List<OpImage>> collectAckOpImagesForSegmentSubscription(String segment,
+                                                                                     String subscription) {
+        return collectOpImagesOnSegment(segment,
                 op -> op.getKind() == TxnOpKind.ACK && segment.equals(op.getSegment())
                         && subscription.equals(op.getSubscription()),
                 collector -> listAcksBySegmentSubscription(segment, subscription, collector));
@@ -327,17 +367,25 @@ public class TxnMetadataStore {
      */
     private CompletableFuture<List<OpRecord>> collectOpsOnSegment(
             String segment, Predicate<TxnOp> matches, Function<ScanConsumer, CompletableFuture<Void>> scan) {
-        Map<String, OpRecord> opsByPath = new ConcurrentHashMap<>();
+        return collectOpImagesOnSegment(segment, matches, scan)
+                .thenApply(images -> images.stream().map(OpImage::record).toList());
+    }
+
+    private CompletableFuture<List<OpImage>> collectOpImagesOnSegment(
+            String segment, Predicate<TxnOp> matches, Function<ScanConsumer, CompletableFuture<Void>> scan) {
+        Map<String, OpImage> opsByPath = new ConcurrentHashMap<>();
         ScanConsumer collector = new ScanConsumer() {
             @Override
             public void onNext(GetResult r) {
-                if (!matches.test(fromJson(r.getValue(), TxnOp.class))) {
+                TxnOp op = fromJson(r.getValue(), TxnOp.class);
+                if (!matches.test(op)) {
                     return;
                 }
                 String path = r.getStat().getPath();
                 String txnIdKey = TxnPaths.txnIdFromOpPath(path);
                 if (txnIdKey != null) {
-                    opsByPath.put(path, new OpRecord(path, txnIdKey, r.getStat().getVersion()));
+                    opsByPath.put(path, new OpImage(new OpRecord(path, txnIdKey, r.getStat().getVersion()), op,
+                            r.getValue()));
                 }
             }
 

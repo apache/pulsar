@@ -135,6 +135,17 @@ public interface PendingAckHandle {
     }
 
     /**
+     * Complete the reset {@link #beforeCursorReset} prepared for, whether that preparation succeeded or not.
+     *
+     * @param persisted whether the cursor reset was persisted
+     * @return the future of this operation.
+     * @see PendingAckStore#afterCursorReset(boolean)
+     */
+    default CompletableFuture<Void> afterCursorReset(boolean persisted) {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
      * Pending ack recover whether ready future.
      *
      * @return the future of result.

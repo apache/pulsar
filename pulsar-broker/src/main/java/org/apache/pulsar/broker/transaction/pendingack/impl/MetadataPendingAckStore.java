@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.transaction.metadata.TxnIds;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore;
+import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore.OpImage;
 import org.apache.pulsar.broker.transaction.metadata.TxnMetadataStore.OpRecord;
 import org.apache.pulsar.broker.transaction.metadata.TxnOp;
 import org.apache.pulsar.broker.transaction.metadata.TxnOpKind;
@@ -83,7 +84,8 @@ import org.apache.pulsar.metadata.api.ScanConsumer;
  *       {@code txnId}, fetch each header, and seed the in-memory open-txn set; then mark the
  *       handle ready and drain any events that fired during recovery.</li>
  *   <li><b>Cursor reset</b> — {@link #beforeCursorReset} drops the records of terminal transactions
- *       before the reset is persisted, so recovery cannot reapply ACKs the reset discarded.</li>
+ *       before the reset is persisted, so recovery cannot reapply ACKs the reset discarded;
+ *       {@link #afterCursorReset} recreates them if the reset is not persisted.</li>
  * </ul>
  *
  * <p>Same TOCTOU / unbounded-cache caveats documented on {@code MetadataTransactionBuffer} apply
@@ -106,6 +108,12 @@ public class MetadataPendingAckStore implements PendingAckStore {
      * {@link #closed} check of an append.
      */
     private final Set<CompletableFuture<Void>> appendsInProgress = new HashSet<>();
+    /**
+     * The records {@link #beforeCursorReset} dropped for the cursor reset in progress, recreated by
+     * {@link #afterCursorReset} if that reset is not persisted. The subscription runs one reset at a time. Guarded by
+     * {@link #lock}.
+     */
+    private List<OpImage> droppedForReset = List.of();
 
     private final CompletableFuture<Void> recoveryFuture = new CompletableFuture<>();
     private volatile AutoCloseable eventSubscription;
@@ -535,29 +543,68 @@ public class MetadataPendingAckStore implements PendingAckStore {
      * recovery would reapply the ACK and undo the reset. The records of OPEN transactions stay: their ACKs apply
      * when they commit, after the reset, as on the live handle. A terminal transaction whose outcome is not applied
      * yet loses only the durability of its ACK, which at worst redelivers the message.
+     *
+     * <p>The contents of every dropped record are captured before any is deleted, so {@link #afterCursorReset} can
+     * recreate them if the reset is not persisted, including after a deletion that failed part way.
      */
     @Override
     public CompletableFuture<Void> beforeCursorReset() {
+        synchronized (lock) {
+            droppedForReset = List.of();
+        }
         // Recovery applies the recovered committed ACKs before it completes; their records are then dropped here.
         return recoveryFuture
-                .thenCompose(__ -> txnStore.collectAckOpsForSegmentSubscription(segmentName, subscriptionName))
-                .thenCompose(records -> {
-                    Map<String, List<OpRecord>> recordsByTxn = new HashMap<>();
-                    for (OpRecord record : records) {
-                        recordsByTxn.computeIfAbsent(record.txnId(), __ -> new ArrayList<>()).add(record);
+                .thenCompose(__ -> txnStore.collectAckOpImagesForSegmentSubscription(segmentName, subscriptionName))
+                .thenCompose(images -> {
+                    Map<String, List<OpImage>> imagesByTxn = new HashMap<>();
+                    for (OpImage image : images) {
+                        imagesByTxn.computeIfAbsent(image.record().txnId(), __ -> new ArrayList<>()).add(image);
                     }
-                    ConcurrentLinkedQueue<OpRecord> obsolete = new ConcurrentLinkedQueue<>();
-                    List<CompletableFuture<Void>> reads = new ArrayList<>(recordsByTxn.size());
-                    recordsByTxn.forEach((txnIdKey, txnRecords) -> reads.add(txnStore.getHeader(txnIdKey)
+                    ConcurrentLinkedQueue<OpImage> obsolete = new ConcurrentLinkedQueue<>();
+                    List<CompletableFuture<Void>> reads = new ArrayList<>(imagesByTxn.size());
+                    imagesByTxn.forEach((txnIdKey, txnImages) -> reads.add(txnStore.getHeader(txnIdKey)
                             .thenAccept(header -> {
                                 TxnState state = header.map(v -> v.value().getState()).orElse(TxnState.ABORTED);
                                 if (state.isTerminal()) {
-                                    obsolete.addAll(txnRecords);
+                                    obsolete.addAll(txnImages);
                                 }
                             })));
-                    return FutureUtil.waitForAll(reads)
-                            .thenCompose(__ -> txnStore.deleteOps(List.copyOf(obsolete)));
+                    return FutureUtil.waitForAll(reads).thenCompose(__ -> {
+                        List<OpImage> dropped = List.copyOf(obsolete);
+                        synchronized (lock) {
+                            droppedForReset = dropped;
+                        }
+                        return txnStore.deleteOps(dropped.stream().map(OpImage::record).toList());
+                    });
                 });
+    }
+
+    /**
+     * Recreates the records {@link #beforeCursorReset} dropped if the reset was not persisted: the cursor state they
+     * protect, which may hold their ACKs only in memory, still stands. A recreated record whose ACK the durable cursor
+     * covers by then is cleaned up again by reconcile.
+     */
+    @Override
+    public CompletableFuture<Void> afterCursorReset(boolean persisted) {
+        List<OpImage> dropped;
+        synchronized (lock) {
+            dropped = droppedForReset;
+            droppedForReset = List.of();
+        }
+        if (persisted || dropped.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
+        }
+        return txnStore.restoreOps(dropped).whenComplete((__, error) -> {
+            if (error != null) {
+                log.error().attr("segment", segmentName).attr("sub", subscriptionName)
+                        .attr("records", dropped.size()).exception(error)
+                        .log("Failed to restore the ACK records dropped for a cursor reset that was not persisted");
+                return;
+            }
+            synchronized (lock) {
+                dropped.forEach(image -> openTxns.add(image.record().txnId()));
+            }
+        });
     }
 
     // ---- Close -------------------------------------------------------------
