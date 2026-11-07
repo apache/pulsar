@@ -1,0 +1,51 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# The brokers' TCP connections to the clients disappear without the clients knowing, as when a load balancer in front of
+# the brokers times its connections out and resets only its side towards the brokers, or a broker's host restarts behind
+# it: the gateways' connections at 30 s of the measurement, and the applications' at 100 s. The brokers close the
+# connections, and their producers and consumers, at once, while their resets are dropped, so that the clients keep
+# sending and waiting on connections that lead nowhere, until their keep-alive finds them dead, in 30-60 s with the
+# default 30 s interval. The old connections' packets stay dropped until the run ends.
+#
+# Look for: how long the producers' sends and the consumers' deliveries stall before the clients reconnect, the publish
+# latency when they all reconnect at once, the producers' resends and their deduplication, and the redelivered
+# duplicates.
+
+network:
+  impairments:
+    gateways-forgotten:
+      from: brokers
+      to: gateways
+      silentDisconnect: true
+      start: 30s
+    applications-forgotten:
+      from: brokers
+      to: applications
+      silentDisconnect: true
+      start: 100s
+workloads:
+  iotTelemetry:
+    measurement:
+      seconds: 180
+    timeoutSeconds: 360
+    gateways:
+      env:
+        PULSAR_CLIENT_LOG_LEVEL: info
+    applications:
+      env:
+        PULSAR_CLIENT_LOG_LEVEL: info

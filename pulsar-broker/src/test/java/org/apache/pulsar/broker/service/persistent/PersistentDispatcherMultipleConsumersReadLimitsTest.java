@@ -20,8 +20,14 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doAnswer;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import lombok.Cleanup;
@@ -29,16 +35,22 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.pulsar.broker.BrokerTestUtil;
+import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.testinterceptor.BrokerTestInterceptor;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -69,6 +81,96 @@ public class PersistentDispatcherMultipleConsumersReadLimitsTest extends Produce
     @AfterMethod(alwaysRun = true)
     protected void resetInterceptors() throws Exception {
         BrokerTestInterceptor.INSTANCE.reset();
+    }
+
+    @DataProvider
+    public Object[][] subscriptionTypesAndFlowControl() {
+        return new Object[][] {
+                {SubscriptionType.Shared, false},
+                {SubscriptionType.Shared, true},
+                {SubscriptionType.Key_Shared, false},
+                {SubscriptionType.Key_Shared, true},
+                {SubscriptionType.Exclusive, false},
+                {SubscriptionType.Exclusive, true},
+                {SubscriptionType.Failover, false},
+                {SubscriptionType.Failover, true}
+        };
+    }
+
+    @Test(dataProvider = "subscriptionTypesAndFlowControl", timeOut = 60_000)
+    public void testDynamicMaxReadBatchSizeDecrease(SubscriptionType subscriptionType, boolean preciseFlowControl)
+            throws Exception {
+        String topicName = BrokerTestUtil.newUniqueName("persistent://public/default/dynamic-read-batch-size");
+        String subscription = "sub";
+        int initialBatchSize = 500;
+        int reducedBatchSize = 100;
+        boolean originalPreciseFlowControl = conf.isPreciseDispatcherFlowControl();
+        BlockingQueue<Integer> requestedReadSizes = new LinkedBlockingQueue<>();
+        BrokerTestInterceptor.INSTANCE.applyCursorSpyDecorator(cursor -> {
+            if (subscription.equals(cursor.getName())) {
+                doAnswer(invocation -> {
+                    requestedReadSizes.add(invocation.getArgument(0));
+                    return invocation.callRealMethod();
+                }).when(cursor).asyncReadEntriesWithSkipOrWait(anyInt(), anyLong(), any(), any(), any(), any());
+            }
+        });
+        conf.setPreciseDispatcherFlowControl(preciseFlowControl);
+        try {
+            admin.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize", "500");
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(conf.getDispatcherMaxReadBatchSize()).isEqualTo(initialBatchSize));
+            // The broker snapshots precise flow control when the connection is created.
+            @Cleanup
+            PulsarClient client = newPulsarClient(pulsar.getBrokerServiceUrl(), 0);
+            @Cleanup
+            Consumer<byte[]> consumer = client.newConsumer()
+                    .topic(topicName)
+                    .subscriptionName(subscription)
+                    .subscriptionType(subscriptionType)
+                    .startPaused(true)
+                    .receiverQueueSize(initialBatchSize)
+                    .subscribe();
+            int numberOfMessages = initialBatchSize * 3;
+            @Cleanup
+            Producer<byte[]> producer = client.newProducer().topic(topicName).enableBatching(false)
+                    .maxPendingMessages(numberOfMessages).create();
+            List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+            for (int i = 0; i < numberOfMessages; i++) {
+                sends.add(producer.newMessage().key("key").value(new byte[] {1}).sendAsync());
+            }
+            CompletableFuture.allOf(sends.toArray(CompletableFuture[]::new)).get(30, TimeUnit.SECONDS);
+            PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName)
+                    .orElseThrow();
+            Dispatcher dispatcher = topic.getSubscription(subscription).getDispatcher();
+            assertThat(dispatcher.getConsumers().get(0).isPreciseDispatcherFlowControl())
+                    .isEqualTo(preciseFlowControl);
+            consumer.resume();
+            assertThat(requestedReadSizes.poll(10, TimeUnit.SECONDS)).isEqualTo(initialBatchSize);
+            // Exhaust the initial permits without consuming, so no read is in flight when the config changes.
+            Awaitility.await().untilAsserted(() -> {
+                assertThat(((ConsumerImpl<?>) consumer).numMessagesInQueue()).isEqualTo(initialBatchSize);
+                assertThat(dispatcher.getConsumers().get(0).getAvailablePermits()).isZero();
+            });
+            assertThat(requestedReadSizes).isEmpty();
+
+            admin.brokers().updateDynamicConfiguration("dispatcherMaxReadBatchSize", "100");
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(conf.getDispatcherMaxReadBatchSize()).isEqualTo(reducedBatchSize));
+            for (int i = 0; i < numberOfMessages; i++) {
+                Message<byte[]> message = consumer.receive(5, TimeUnit.SECONDS);
+                assertThat(message).isNotNull();
+                consumer.acknowledge(message);
+            }
+            assertThat(topic.getSubscription(subscription).getDispatcher()).isSameAs(dispatcher);
+            assertThat(requestedReadSizes).isNotEmpty().allSatisfy(size ->
+                    assertThat(size).as("cursor read after lowering the dynamic maximum")
+                            .isLessThanOrEqualTo(reducedBatchSize));
+        } finally {
+            conf.setPreciseDispatcherFlowControl(originalPreciseFlowControl);
+            admin.brokers().deleteDynamicConfiguration("dispatcherMaxReadBatchSize");
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(conf.getDispatcherMaxReadBatchSize()).isEqualTo(initialBatchSize));
+        }
     }
 
     @SuppressWarnings("deprecation")

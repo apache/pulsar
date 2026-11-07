@@ -26,7 +26,8 @@ import static org.mockito.Mockito.spy;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -69,7 +70,8 @@ public class FrameworkHttpClientFactoryTest {
 
     @BeforeMethod
     public void setup() throws IOException {
-        eventLoopGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("test-http"));
+        eventLoopGroup = new MultiThreadIoEventLoopGroup(1, new DefaultThreadFactory("test-http"),
+                NioIoHandler.newFactory());
         timer = new HashedWheelTimer(new DefaultThreadFactory("test-http-timer"));
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/echo-get", exchange -> {

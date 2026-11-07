@@ -201,3 +201,7 @@ geo-replications for isolating the online workloads and analytics workloads
 topics to store data in 3 replicas, you will end up have at least 6 copies
 of data. So “geo-replication” might not be ideal for addressing this use
 case.
+
+# Links
+
+* Mailing List discussion thread: https://lists.apache.org/thread/k1jyb8yp93dhx24g9cwg6ghvg5f1vn7z

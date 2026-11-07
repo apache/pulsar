@@ -19,10 +19,14 @@
 package org.apache.pulsar.metadata.impl;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.annotations.VisibleForTesting;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -32,7 +36,9 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import lombok.CustomLog;
 import lombok.Getter;
 import org.apache.pulsar.common.migration.MigrationPhase;
@@ -77,17 +83,73 @@ public class DualMetadataStore implements MetadataStoreExtended {
     volatile MetadataStoreExtended targetStore = null;
 
     private volatile MigrationState migrationState = MigrationState.NOT_STARTED;
+    private final Object migrationLock = new Object();
 
     private final MetadataStoreConfig config;
     private String participantId;
     private final Set<String> localEphemeralPaths = ConcurrentHashMap.newKeySet();
+    private final Map<EphemeralAcquisition, CompletableFuture<Void>> targetEphemeralCopies = new ConcurrentHashMap<>();
+
+    private record EphemeralAcquisition(String path, ByteBuffer value) {
+        private EphemeralAcquisition(String path, byte[] value) {
+            this(path, ByteBuffer.wrap(value.clone()).asReadOnlyBuffer());
+        }
+    }
 
     private final ScheduledExecutorService executor;
+    private final Runnable cancelMigrationEventsListener;
 
     private final MetadataCache<MigrationState> migrationStateCache;
 
-    private final Set<Consumer<Notification>> listeners = ConcurrentHashMap.newKeySet();
-    private final Set<Consumer<SessionEvent>> sessionListeners = ConcurrentHashMap.newKeySet();
+    private final Set<ListenerRegistration<Notification>> listeners = ConcurrentHashMap.newKeySet();
+    private final Set<ListenerRegistration<SessionEvent>> sessionListeners = ConcurrentHashMap.newKeySet();
+
+    /**
+     * A listener registered before the migration completed. It's registered with the source store, and with the
+     * target store when the migration completes, so unregistering it has to cancel both registrations.
+     */
+    private static final class ListenerRegistration<T> {
+        private final Consumer<T> listener;
+        private final Set<ListenerRegistration<T>> registrations;
+        private Runnable cancelSourceRegistration;
+        private Runnable cancelTargetRegistration;
+        private boolean cancelled;
+
+        private ListenerRegistration(Consumer<T> listener, Set<ListenerRegistration<T>> registrations) {
+            this.listener = listener;
+            this.registrations = registrations;
+        }
+
+        private synchronized void registerWithSource(Function<Consumer<T>, Runnable> register) {
+            if (!cancelled) {
+                cancelSourceRegistration = register.apply(listener);
+            }
+        }
+
+        private synchronized void registerWithTarget(Function<Consumer<T>, Runnable> register) {
+            if (!cancelled && cancelTargetRegistration == null) {
+                cancelTargetRegistration = register.apply(listener);
+            }
+        }
+
+        private void accept(T event) {
+            listener.accept(event);
+        }
+
+        private synchronized void cancel() {
+            if (cancelled) {
+                return;
+            }
+            cancelled = true;
+            registrations.remove(this);
+            if (cancelSourceRegistration != null) {
+                cancelSourceRegistration.run();
+            }
+            if (cancelTargetRegistration != null) {
+                cancelTargetRegistration.run();
+            }
+        }
+    }
 
     private final AtomicInteger pendingSourceWrites = new AtomicInteger();
 
@@ -95,6 +157,11 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
     private static final IllegalStateException READ_ONLY_STATE_EXCEPTION =
             new IllegalStateException("Write operations not allowed during migrations");
+
+    /** Returns the current migration phase used to route metadata operations. */
+    public MigrationPhase getMigrationPhase() {
+        return migrationState.getPhase();
+    }
 
     public DualMetadataStore(MetadataStore sourceStore, MetadataStoreConfig config) throws MetadataStoreException {
         this.sourceStore = (MetadataStoreExtended) sourceStore;
@@ -111,7 +178,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
         registerAsParticipant();
 
         // Watch for migration events
-        watchForMigrationEvents();
+        cancelMigrationEventsListener = watchForMigrationEvents();
 
         if (migrationState.getPhase() == MigrationPhase.PREPARATION
                 || migrationState.getPhase() == MigrationPhase.COPYING) {
@@ -151,18 +218,21 @@ public class DualMetadataStore implements MetadataStoreExtended {
         }
     }
 
-    private void watchForMigrationEvents() {
+    private Runnable watchForMigrationEvents() {
         // Register listener for migration-related paths
-        sourceStore.registerListener(notification -> {
+        return sourceStore.registerCancellableListener(notification -> {
             if (!MigrationState.MIGRATION_FLAG_PATH.equals(notification.getPath())) {
                 return;
             }
 
             migrationStateCache.get(MigrationState.MIGRATION_FLAG_PATH)
-                    .thenAccept(migrationState -> {
-                        this.migrationState = migrationState.orElse(MigrationState.NOT_STARTED);
+                    .thenAccept(state -> {
+                        MigrationState newState = state.orElse(MigrationState.NOT_STARTED);
+                        synchronized (migrationLock) {
+                            this.migrationState = newState;
+                        }
 
-                        switch (this.migrationState.getPhase()) {
+                        switch (newState.getPhase()) {
                             case PREPARATION -> executor.execute(this::handleMigrationStart);
                             case COMPLETED -> executor.execute(this::handleMigrationComplete);
                             case FAILED -> executor.execute(this::handleMigrationFailed);
@@ -202,7 +272,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
 
             // Mark the session as lost so that all the component will avoid trying to make metadata writes
             // for anything that can be deferred (eg: ledgers rollovers)
-            sessionListeners.forEach(listener -> listener.accept(SessionEvent.SessionLost));
+            sessionListeners.forEach(registration -> registration.accept(SessionEvent.SessionLost));
 
             // Initialize target store
             initializeTargetStore(migrationState.getTargetUrl());
@@ -232,15 +302,16 @@ public class DualMetadataStore implements MetadataStoreExtended {
         }
 
         caches.forEach(DualMetadataCache::handleSwitchToTargetStore);
-        listeners.forEach(targetStore::registerListener);
-        sessionListeners.forEach(targetStore::registerSessionListener);
+        listeners.forEach(registration -> registration.registerWithTarget(targetStore::registerCancellableListener));
+        sessionListeners.forEach(registration ->
+                registration.registerWithTarget(targetStore::registerCancellableSessionListener));
 
-        sessionListeners.forEach(listener -> listener.accept(SessionEvent.SessionReestablished));
+        sessionListeners.forEach(registration -> registration.accept(SessionEvent.SessionReestablished));
     }
 
     private void handleMigrationFailed() {
         log.info("=== Metadata Migration Failed ===");
-        sessionListeners.forEach(listener -> listener.accept(SessionEvent.SessionReestablished));
+        sessionListeners.forEach(registration -> registration.accept(SessionEvent.SessionReestablished));
     }
 
 
@@ -270,14 +341,43 @@ public class DualMetadataStore implements MetadataStoreExtended {
                 .map(path ->
                         sourceStore.get(path)
                                 .thenCompose(ogr ->
-                                        ogr.map(gr -> targetStore.put(path, gr.getValue(), Optional.empty(),
-                                                        EnumSet.of(CreateOption.Ephemeral)))
+                                        ogr.map(gr -> copyEphemeralToTarget(path, gr))
                                                 .orElse(
                                                         CompletableFuture.completedFuture(null))
                                 )
                 ).toList();
 
         FutureUtil.waitForAll(futures).get();
+    }
+
+    private CompletableFuture<Void> copyEphemeralToTarget(String path, GetResult source) {
+        if (!source.getStat().isEphemeral() || !source.getStat().isCreatedBySelf()) {
+            // A path retained after source session expiration may now belong to another store session.
+            return CompletableFuture.completedFuture(null);
+        }
+        byte[] value = source.getValue().clone();
+        EphemeralAcquisition acquisition = new EphemeralAcquisition(path, value);
+        CompletableFuture<Void> copy = new CompletableFuture<>();
+        synchronized (migrationLock) {
+            MigrationPhase phase = migrationState.getPhase();
+            if (phase != MigrationPhase.PREPARATION && phase != MigrationPhase.COPYING) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Register the acquisition before submitting the write, including ambiguous failures.
+            // FAILED cleanup waits for every submitted copy of this acquisition, but not other acquisitions.
+            targetEphemeralCopies.compute(acquisition, (key, previous) -> previous == null ? copy
+                    : previous.handle((ignored, error) -> null).thenCompose(ignored -> copy));
+        }
+        FutureUtil.supplySafely(() -> targetStore.put(path, value, Optional.empty(),
+                        EnumSet.of(CreateOption.Ephemeral)))
+                .whenComplete((ignored, error) -> {
+                    if (error == null) {
+                        copy.complete(null);
+                    } else {
+                        copy.completeExceptionally(FutureUtil.unwrapCompletionException(error));
+                    }
+                });
+        return copy;
     }
 
     @Override
@@ -403,6 +503,117 @@ public class DualMetadataStore implements MetadataStoreExtended {
         }
     }
 
+    /**
+     * Applies the migration phase handling of {@link #put} and {@link #delete} to a write made through a
+     * {@link DualMetadataCache}, whose inner cache writes to its own store directly. The write fails during
+     * PREPARATION and COPYING, and after the completion until the cache has switched to the target store. In
+     * NOT_STARTED and FAILED, it's counted as a pending source write, which the preparation waits for, and an
+     * ephemeral put is tracked to be recreated in the target store.
+     */
+    <T> CompletableFuture<T> cacheWrite(DualMetadataCache<?> cache, String path, Set<Option> opts,
+                                        Supplier<CompletableFuture<T>> write) {
+        MigrationPhase phase;
+        // Check the phase and count the write under the lock that the phase changes take, so that a preparation
+        // started after the check waits for the write
+        synchronized (migrationLock) {
+            phase = migrationState.getPhase();
+            if (phase == MigrationPhase.NOT_STARTED || phase == MigrationPhase.FAILED) {
+                if (OptionsHelper.isEphemeral(opts)) {
+                    localEphemeralPaths.add(path);
+                }
+                pendingSourceWrites.incrementAndGet();
+            }
+        }
+        return switch (phase) {
+            case NOT_STARTED, FAILED -> {
+                CompletableFuture<T> future = FutureUtil.supplySafely(write);
+                future.whenComplete((result, e) -> pendingSourceWrites.decrementAndGet());
+                // Return a copy: a caller completing it, e.g. with orTimeout(), must not end the count before the
+                // write completes
+                CompletableFuture<T> copy = new CompletableFuture<>();
+                FutureUtil.completeAfter(copy, future);
+                yield copy;
+            }
+            case PREPARATION, COPYING -> CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
+            // The completion switches the caches after changing the phase. Until then, the cache would write to the
+            // source store, which has already been copied.
+            case COMPLETED -> cache.isOnTargetStore() ? FutureUtil.supplySafely(write)
+                    : CompletableFuture.failedFuture(READ_ONLY_STATE_EXCEPTION);
+        };
+    }
+
+    /**
+     * Deletes an ephemeral acquisition, including its owned target-store copy after a failed migration.
+     * The caller must supply the acquisition's value and, if the source is still owned, its current version.
+     * An empty source version cleans only the target copy, preserving any replacement in the source.
+     * Target ownership is checked before a version-conditional delete; this does not atomically fence node
+     * recreation on backends that reuse versions.
+     */
+    public CompletableFuture<Void> deleteEphemeral(String path, byte[] expectedValue, Optional<Long> sourceVersion) {
+        if (expectedValue == null || sourceVersion == null) {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("Acquisition value/version is null"));
+        }
+        MigrationState state = migrationState;
+        if (state.getPhase() != MigrationPhase.FAILED) {
+            if (sourceVersion.isEmpty()) {
+                return CompletableFuture.failedFuture(
+                        new MetadataStoreException("Metadata migration changed during ephemeral cleanup; retry"));
+            }
+            return FutureUtil.supplySafely(() -> delete(path, sourceVersion));
+        }
+
+        // Migration preparation must wait until both copies have been cleaned up before recreating ephemerals.
+        pendingSourceWrites.incrementAndGet();
+        CompletableFuture<Void> cleanup = FutureUtil.supplySafely(() -> {
+            if (migrationState != state) {
+                return CompletableFuture.<Void>failedFuture(
+                        new MetadataStoreException("Metadata migration changed during ephemeral cleanup; retry"));
+            }
+            EphemeralAcquisition acquisition = new EphemeralAcquisition(path, expectedValue);
+            CompletableFuture<Void> copied = targetEphemeralCopies.get(acquisition);
+            if (copied == null) {
+                // A source-only acquisition must remain releasable when the failed target is unavailable.
+                return CompletableFuture.<Void>completedFuture(null);
+            }
+            MetadataStoreExtended target = targetStore;
+            if (target == null) {
+                return CompletableFuture.<Void>failedFuture(
+                        new MetadataStoreException("Target unavailable for copied acquisition; retry cleanup"));
+            }
+            return copied.handle((ignored, error) -> null).thenCompose(ignored -> target.get(path))
+                    .thenCompose(existing -> {
+                        if (existing.isEmpty() || !existing.get().getStat().isEphemeral()
+                                || !existing.get().getStat().isCreatedBySelf()
+                                || !Arrays.equals(existing.get().getValue(), expectedValue)) {
+                            return CompletableFuture.<Void>completedFuture(null);
+                        }
+                        return target.delete(path, Optional.of(existing.get().getStat().getVersion()))
+                                .exceptionallyCompose(error -> {
+                                    Throwable cause = FutureUtil.unwrapCompletionException(error);
+                                    return cause instanceof MetadataStoreException.NotFoundException
+                                            ? CompletableFuture.completedFuture(null)
+                                            : CompletableFuture.failedFuture(cause);
+                                });
+                    }).thenRun(() -> targetEphemeralCopies.remove(acquisition, copied));
+        }).thenCompose(ignored -> {
+            if (sourceVersion.isEmpty()) {
+                return CompletableFuture.completedFuture(null);
+            }
+            // Remove tracking before submitting the source delete so a later acquisition can register the path.
+            localEphemeralPaths.remove(path);
+            return sourceStore.delete(path, sourceVersion);
+        });
+        return cleanup.whenComplete((ignored, error) -> {
+            Throwable cause = error == null ? null : FutureUtil.unwrapCompletionException(error);
+            if (sourceVersion.isPresent() && cause != null
+                    && !(cause instanceof MetadataStoreException.NotFoundException)) {
+                // Preparation after a failed delete must still recreate the surviving source acquisition.
+                localEphemeralPaths.add(path);
+            }
+            pendingSourceWrites.decrementAndGet();
+        });
+    }
+
     @Override
     public CompletableFuture<Void> deleteRecursive(String path, Set<Option> opts) {
         switch (migrationState.getPhase()) {
@@ -424,49 +635,68 @@ public class DualMetadataStore implements MetadataStoreExtended {
     }
 
     @Override
-    public void registerListener(Consumer<Notification> listener) {
-        switch (migrationState.getPhase()) {
-            case NOT_STARTED, PREPARATION, COPYING, FAILED -> {
-                listeners.add(listener);
-                sourceStore.registerListener(listener);
-            }
-
-            case COMPLETED -> targetStore.registerListener(listener);
-        }
+    public Runnable registerCancellableListener(Consumer<Notification> listener) {
+        return registerCancellableListener(listener, listeners, sourceStore::registerCancellableListener,
+                targetListener -> targetStore.registerCancellableListener(targetListener));
     }
 
     @Override
-    public void registerSessionListener(Consumer<SessionEvent> listener) {
-        switch (migrationState.getPhase()) {
-            case NOT_STARTED, PREPARATION, COPYING, FAILED -> {
-                sessionListeners.add(listener);
-                sourceStore.registerSessionListener(listener);
-            }
+    public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+        return registerCancellableListener(listener, sessionListeners, sourceStore::registerCancellableSessionListener,
+                targetListener -> targetStore.registerCancellableSessionListener(targetListener));
+    }
 
-            case COMPLETED -> targetStore.registerSessionListener(listener);
+    private <T> Runnable registerCancellableListener(Consumer<T> listener, Set<ListenerRegistration<T>> registrations,
+                                                   Function<Consumer<T>, Runnable> registerWithSource,
+                                                   Function<Consumer<T>, Runnable> registerWithTarget) {
+        MigrationPhase phase = getMigrationPhase();
+        ListenerRegistration<T> registration = new ListenerRegistration<>(listener, registrations);
+        registrations.add(registration);
+        if (phase != MigrationPhase.COMPLETED) {
+            registration.registerWithSource(registerWithSource);
         }
+        // Completion may have traversed the registry before this registration was added. Recheck after publishing
+        // it. If the target is not initialized yet, the completion handler will find it after initialization.
+        if (getMigrationPhase() == MigrationPhase.COMPLETED && targetStore != null) {
+            registration.registerWithTarget(registerWithTarget);
+        }
+        return registration::cancel;
     }
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(Class<T> clazz, MetadataCacheConfig<?> cacheConfig) {
-        var cache =  new DualMetadataCache<>(this, clazz, null, null, null, cacheConfig);
-        caches.add(cache);
-        return cache;
+        return registerCache(new DualMetadataCache<>(this, clazz, null, null, null, cacheConfig));
     }
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(TypeReference<T> typeRef, MetadataCacheConfig<?> cacheConfig) {
-        var cache =  new DualMetadataCache<>(this, null, typeRef, null, null, cacheConfig);
-        caches.add(cache);
-        return cache;
+        return registerCache(new DualMetadataCache<>(this, null, typeRef, null, null, cacheConfig));
     }
 
     @Override
     public <T> MetadataCache<T> getMetadataCache(String cacheName, MetadataSerde<T> serde,
                                                  MetadataCacheConfig<?> cacheConfig) {
-        var cache =  new DualMetadataCache<>(this, null, null, cacheName, serde, cacheConfig);
+        return registerCache(new DualMetadataCache<>(this, null, null, cacheName, serde, cacheConfig));
+    }
+
+    private <T> MetadataCache<T> registerCache(DualMetadataCache<T> cache) {
         caches.add(cache);
+        // The cache picked its store before it was added, and completion may have traversed the caches in between.
+        // Recheck after adding it. If the target is not initialized yet, the completion handler will find it after
+        // initialization.
+        if (getMigrationPhase() == MigrationPhase.COMPLETED && targetStore != null) {
+            cache.handleSwitchToTargetStore();
+        }
         return cache;
+    }
+
+    void unregisterMetadataCache(DualMetadataCache<?> cache) {
+        caches.remove(cache);
+    }
+
+    @VisibleForTesting
+    int getMetadataCacheCount() {
+        return caches.size();
     }
 
     @Override
@@ -487,6 +717,7 @@ public class DualMetadataStore implements MetadataStoreExtended {
     @Override
     public void close() throws Exception {
         log.info("Closing DualMetadataStore");
+        cancelMigrationEventsListener.run();
 
         // Close target store first (if exists)
         if (targetStore != null) {

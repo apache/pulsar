@@ -58,4 +58,12 @@ public class ScalableTopicMetadata {
      * the namespace policy and then the broker configuration apply.
      */
     private AutoScalePolicyOverride autoScalePolicy;
+
+    /**
+     * Set while the topic is being deleted, like {@code PartitionedTopicMetadata.deleted}. No
+     * controller elects itself for a topic marked deleted, so the delete can remove the
+     * controller lock along with the rest of the topic's metadata. A delete that fails after
+     * marking the topic leaves it marked, until a retried delete removes it.
+     */
+    private boolean deleted;
 }

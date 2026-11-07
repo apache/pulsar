@@ -1,0 +1,50 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Scheduled device commands with delayed delivery: a fleet management service schedules configuration changes and
+# firmware update triggers for 100,000 devices' maintenance windows, 1 to 5 minutes ahead, at 5,000 commands per
+# second to four topics. The broker keeps each command back until its time, in the delayed delivery trackers of the
+# subscriptions: up to about 1.5 million scheduled commands at a time for each of the four command dispatchers, each
+# a Shared subscription with four pods. It measures the delayed delivery trackers' cost and how late each command
+# arrives after its time, and checks that every command arrives once and none early.
+extends: iot-telemetry-base.yaml
+workloads:
+  iotTelemetry:
+    rate: 5000
+    payload:
+      size: 256
+    measurement:
+      seconds: 180
+    timeoutSeconds: 700
+    devices:
+      count: 100000
+    gateways:
+      count: 10
+      producer:
+        precreate: true
+    topics:
+      count: 4
+      prefix: persistent://public/default/iot-commands-
+    applications:
+      count: 4
+      podsPerApplication: 4
+      subscriptionPrefix: command-dispatcher-
+      subscriptionType: Shared
+    behaviors:
+      scheduledDelivery:
+        minDelayMillis: 60000
+        maxDelayMillis: 300000

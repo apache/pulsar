@@ -147,7 +147,7 @@ final class TimeSeriesRenderer {
             graphics.drawString(title, 70, 55);
             graphics.setColor(MUTED);
             graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 15));
-            graphics.drawString(yLabel + ", sampled once per second", 70, 82);
+            graphics.drawString(yLabel + ", sampled from the topic stats", 70, 82);
             graphics.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
             if (scale.minSeconds() < 0) {
                 graphics.setColor(WARMUP);
@@ -234,7 +234,7 @@ final class TimeSeriesRenderer {
                         + "</style>\n")
                 .append("<text x=\"70\" y=\"55\" font-size=\"28\" font-weight=\"bold\">").append(xml(title))
                 .append("</text>\n<text class=\"muted\" x=\"70\" y=\"82\" font-size=\"15\">").append(xml(yLabel))
-                .append(", sampled once per second</text>\n");
+                .append(", sampled from the topic stats</text>\n");
         if (scale.minSeconds() < 0) {
             out.append("<rect x=\"").append(PLOT_LEFT).append("\" y=\"").append(PLOT_TOP).append("\" width=\"")
                     .append(scale.x(0) - PLOT_LEFT).append("\" height=\"").append(PLOT_HEIGHT)

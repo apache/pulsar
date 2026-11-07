@@ -1,0 +1,48 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# The clients' TCP connections to the brokers are reset during the measurement, as a load balancer or a NAT gateway that
+# resets its connections does: the gateways' at 20 s, 50 s and 80 s, and the applications' at 35 s. The clients
+# reconnect after 100 ms. A reset of the applications' connections makes every consumer resubscribe at once, as
+# consumer-reconnect-storm.yaml does on its own. A NAT gateway that forgets its connections without resetting them is a
+# partition instead, which the clients notice through their keep-alive.
+#
+# Look for: the publish latency spike of each reset, also of the producers that the applications' reset doesn't touch,
+# reconnections, redelivered duplicates and ordering.
+
+network:
+  impairments:
+    reset-gateways-1:
+      from: gateways
+      to: brokers
+      reset: true
+      start: 20s
+    reset-applications:
+      from: applications
+      to: brokers
+      reset: true
+      start: 35s
+    reset-gateways-2:
+      from: gateways
+      to: brokers
+      reset: true
+      start: 50s
+    reset-gateways-3:
+      from: gateways
+      to: brokers
+      reset: true
+      start: 80s

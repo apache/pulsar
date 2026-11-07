@@ -71,7 +71,7 @@ public class CmdClientApiRoutingTest {
 
     /**
      * The merged commands keep every option of the former command pairs (produce + produce-v4,
-     * consume + consume-v4, read + read-v4), and add only {@code --client-api}.
+     * consume + consume-v4, read + read-v4), plus the client selection and compacted-reading options.
      */
     @Test
     public void testMergedCommandsKeepEveryOptionOfTheFormerCommandPairs() {
@@ -93,14 +93,14 @@ public class CmdClientApiRoutingTest {
                 "-ca", "--crypto-failure-action", "-st", "--schema-type", "-rs", "--replicated",
                 "-mp", "--print-metadata", "-etp", "--end-timestamp",
                 "-stp", "--start-timestamp", "-mc", "--max_chunked_msg", "-ac", "--auto_ack_chunk_q_full",
-                "-pm", "--pool-messages");
+                "-pm", "--pool-messages", "--read-compacted");
         assertThat(commandOptionNames(commander, "read")).containsExactlyInAnyOrder(
                 "--client-api",
                 "-m", "--start-message-id", "-n", "--num-messages", "--hex", "--hide-content",
                 "-r", "--rate", "-ekv", "--encryption-key-value", "-ca", "--crypto-failure-action",
                 "-st", "--schema-type", "-mp", "--print-metadata",
                 "-i", "--start-message-id-inclusive", "-q", "--queue-size", "-mc", "--max_chunked_msg",
-                "-ac", "--auto_ack_chunk_q_full", "-pm", "--pool-messages");
+                "-ac", "--auto_ack_chunk_q_full", "-pm", "--pool-messages", "--read-compacted");
     }
 
     @DataProvider(name = "sections")
@@ -112,10 +112,10 @@ public class CmdClientApiRoutingTest {
             {"consume", List.of("--client-api", "--subscription-type", "--subscription-position",
                     "--crypto-failure-action", "--end-timestamp"),
                     List.of("--start-timestamp", "--max_chunked_msg", "--auto_ack_chunk_q_full",
-                            "--pool-messages", "--replicated")},
+                            "--pool-messages", "--replicated", "--read-compacted")},
             {"read", List.of("--client-api", "--start-message-id", "--crypto-failure-action"),
                     List.of("--start-message-id-inclusive", "--queue-size", "--max_chunked_msg",
-                            "--auto_ack_chunk_q_full", "--pool-messages")},
+                            "--auto_ack_chunk_q_full", "--pool-messages", "--read-compacted")},
         };
     }
 
@@ -151,9 +151,17 @@ public class CmdClientApiRoutingTest {
                     "--queue-size applies only to the v4 client"},
             {new String[]{"consume", "-s", "sub", "-rs", "topic://public/default/t"},
                     "--replicated applies only to the v4 client"},
+            {new String[]{"consume", "-s", "sub", "--read-compacted", "topic://public/default/t"},
+                    "--read-compacted applies only to the v4 client"},
+            {new String[]{"read", "--read-compacted", "topic://public/default/t"},
+                    "--read-compacted applies only to the v4 client"},
             // The groups follow the resolved client, not the topic domain.
             {new String[]{"consume", "--client-api", "V5", "-s", "sub", "-pm", "false",
                     "persistent://public/default/t"}, "--pool-messages applies only to the v4 client"},
+            {new String[]{"consume", "--client-api", "V5", "-s", "sub", "--read-compacted",
+                    "persistent://public/default/t"}, "--read-compacted applies only to the v4 client"},
+            {new String[]{"read", "--client-api", "V5", "--read-compacted", "persistent://public/default/t"},
+                    "--read-compacted applies only to the v4 client"},
             // --client-api conflicts.
             {new String[]{"produce", "--client-api", "V4", "-m", "a", "topic://public/default/t"},
                     "the v4 client does not support topic://"},

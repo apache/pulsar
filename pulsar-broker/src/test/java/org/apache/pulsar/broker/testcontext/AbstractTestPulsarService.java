@@ -33,6 +33,7 @@ import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.PulsarMetadataEventSynchronizer;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreException;
 import org.apache.pulsar.metadata.api.extended.MetadataStoreExtended;
@@ -54,8 +55,9 @@ abstract class AbstractTestPulsarService extends PulsarService {
                                      BrokerInterceptor brokerInterceptor,
                                      BookKeeperClientFactory bookKeeperClientFactory,
                                      Consumer<AutoConfiguredOpenTelemetrySdkBuilder>
-                                             openTelemetrySdkBuilderCustomizer) {
-        super(config, new WorkerConfig(), Optional.empty(),
+                                             openTelemetrySdkBuilderCustomizer,
+                                     Optional<WorkerService> functionWorkerService) {
+        super(config, new WorkerConfig(), functionWorkerService,
                 exitCode -> log.info().attr("exitCode", exitCode).log("Pulsar process termination requested"),
                 openTelemetrySdkBuilderCustomizer);
 

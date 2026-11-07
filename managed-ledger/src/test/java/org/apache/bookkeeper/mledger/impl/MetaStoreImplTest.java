@@ -30,6 +30,7 @@ import static org.testng.Assert.fail;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import lombok.AllArgsConstructor;
@@ -280,6 +281,22 @@ public class MetaStoreImplTest extends MockedBookKeeperTestCase {
         });
 
         promise.get();
+    }
+
+    @Test(timeOut = 20000)
+    void unwatchKeepsWatchOfAnotherCallback() throws Exception {
+        MetaStore store = new MetaStoreImpl(metadataStore, executor);
+        metadataStore.put("/managed-ledgers/my_test", "".getBytes(), Optional.empty()).join();
+        CompletableFuture<ManagedLedgerInfo> notified = new CompletableFuture<>();
+        MetaStore.UpdateCallback<ManagedLedgerInfo> replacedCallback = (mlInfo, stat) -> { };
+        store.watchManagedLedgerInfo("my_test", replacedCallback);
+        store.watchManagedLedgerInfo("my_test", (mlInfo, stat) -> notified.complete(mlInfo));
+
+        // Unwatching with the replaced callback, as an instance closed after another one started watching would
+        store.unwatchManagedLedgerInfo("my_test", replacedCallback);
+        metadataStore.put("/managed-ledgers/my_test", "".getBytes(), Optional.empty()).join();
+
+        assertNotNull(notified.get(10, TimeUnit.SECONDS));
     }
 
     @Test

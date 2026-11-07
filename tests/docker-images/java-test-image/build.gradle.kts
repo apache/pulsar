@@ -79,6 +79,9 @@ val prepareBuildContext = tasks.register<Sync>("prepareBuildContext") {
     into("${projectDir}/target")
 }
 
+// Whether the test image installs the offloader of a 4.x release image, which only the scenarios that offload need
+val installOffloaders = providers.gradleProperty("performance.installOffloaders").getOrElse("false")
+
 /**
  * Registers a `docker build` of the test image on [pulsarImage]. With [pulsarImageTask], the Pulsar image is the one
  * that task builds from this repository, and the test image is rebuilt only when it or the build context changes.
@@ -105,6 +108,9 @@ fun registerDockerBuild(taskName: String, imageTag: String, installAsyncProfiler
             "--iidfile", imageIdFile.absolutePath,
             "--build-arg", "PULSAR_IMAGE=${pulsarImage}",
             "--build-arg", "INSTALL_ASYNC_PROFILER=${installAsyncProfiler}",
+            // The offloader of a 4.x release image, which -Pperformance.installOffloaders=true installs for the
+            // scenarios that offload
+            "--build-arg", "INSTALL_OFFLOADERS=${installOffloaders}",
             "--build-arg", "ASYNC_PROFILER_VERSION=${asyncProfilerVersion}"
         )
 

@@ -2,9 +2,7 @@
 
 * **Status**: Proposal
 * **Authors**: Bo Cong, Penghui Li
-* **Pull Request**:
-* **Mailing List discussion**:
-* **Release**:
+* **Mailing List discussion**: https://lists.apache.org/thread/lkqxnwblcx2hg82wlc88ys12lo8d150r
 
 ## Motivation
 

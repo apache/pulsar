@@ -32,7 +32,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
-import java.net.URL;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -421,7 +421,7 @@ public class PrometheusMetricsProviderTest {
         int port = ((ServerConnector) server.getConnectors()[0]).getLocalPort();
 
         String metricsUrl = String.format(URL_FORMAT, port);
-        HttpURLConnection conn = (HttpURLConnection) new URL(metricsUrl).openConnection();
+        HttpURLConnection conn = (HttpURLConnection) URI.create(metricsUrl).toURL().openConnection();
         conn.setRequestMethod("TRACE");
         conn.connect();
         assertEquals(HttpURLConnection.HTTP_FORBIDDEN, conn.getResponseCode());

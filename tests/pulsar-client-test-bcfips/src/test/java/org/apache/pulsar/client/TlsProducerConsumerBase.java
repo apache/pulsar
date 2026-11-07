@@ -76,13 +76,17 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         }
 
         ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)
-                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false)
-                .operationTimeout(1000, TimeUnit.MILLISECONDS);
+                .tlsTrustCertsFilePath(CA_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false);
         if (addCertificates) {
             Map<String, String> authParams = new HashMap<>();
             authParams.put("tlsCertFile", getTlsFileForClient("admin.cert"));
             authParams.put("tlsKeyFile", getTlsFileForClient("admin.key-pk8"));
             clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
+        } else {
+            // The broker rejects a client without a certificate, and an HTTP lookup retries that failure until the
+            // operation timeout. Only these clients get a short one: a client with a certificate keeps the default,
+            // since the first topic load in a namespace (and in a cold JVM) can take longer than a second.
+            clientBuilder.operationTimeout(1000, TimeUnit.MILLISECONDS);
         }
         pulsarClient = clientBuilder.build();
     }

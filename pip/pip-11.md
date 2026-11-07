@@ -3,7 +3,7 @@
 * **Status**: Implemented
 * **Author**: [Matteo Merli](https://github.com/merlimat), [Sijie Guo](https://github.com/sijie)
 * **Pull Request**: [#1536](https://github.com/apache/incubator-pulsar/pull/1535)
-* **Mailing List discussion**:
+* **Mailing List discussion**: https://lists.apache.org/thread/dgqdohrbdy666w57tjd268ymj5oxyr3v
 
 
 ## Motivation

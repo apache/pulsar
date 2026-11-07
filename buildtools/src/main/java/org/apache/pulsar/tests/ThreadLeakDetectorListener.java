@@ -19,6 +19,7 @@
 
 package org.apache.pulsar.tests;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.io.Files;
 import java.io.File;
 import java.io.IOException;
@@ -227,7 +228,8 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
         return threadKeys;
     }
 
-    private static boolean shouldSkipThread(Thread thread) {
+    @VisibleForTesting
+    static boolean shouldSkipThread(Thread thread) {
         // skip ForkJoinPool threads
         if (thread instanceof ForkJoinWorkerThread) {
             return true;
@@ -239,6 +241,12 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
         }
         String threadName = thread.getName();
         if (threadName != null) {
+            // skip java.lang.ref.Cleaner threads, which live as long as their Cleaner. A Cleaner kept in a static
+            // field, as in PulsarExecutors, keeps its thread until the JVM exits.
+            if (threadName.startsWith("Cleaner-") && threadGroup != null
+                    && "InnocuousThreadGroup".equals(threadGroup.getName())) {
+                return true;
+            }
             // skip ClientTestFixtures.SCHEDULER threads
             if (threadName.startsWith("ClientTestFixtures-SCHEDULER-")) {
                 return true;
@@ -257,6 +265,21 @@ public class ThreadLeakDetectorListener extends BetweenTestClassesListenerAdapte
             }
             // skip JVM internal thread used for CompletableFuture.delayedExecutor
             if (threadName.equals("CompletableFutureDelayScheduler")) {
+                return true;
+            }
+            // skip the common ForkJoinPool's delay scheduler, which runs CompletableFuture.delayedExecutor and
+            // orTimeout since Java 25, in place of the CompletableFutureDelayScheduler thread
+            if (threadName.equals("ForkJoinPool.commonPool-delayScheduler")) {
+                return true;
+            }
+            // skip JVM internal threads that start on first use and run until the JVM exits
+            if (threadName.equals("JFR Recorder Thread") || threadName.equals("JFR Periodic Tasks")
+                    || threadName.equals("Java2D Disposer") || threadName.equals("VirtualThread-unblocker")) {
+                return true;
+            }
+            // skip the shared pool that V5AuthContexts lends to v4 authentication plugins when no client executor
+            // is bound. It lives for the JVM, and its idle threads retire only after a minute.
+            if (threadName.equals("pulsar-auth-blocking-shared")) {
                 return true;
             }
             // skip threadpool created in dev.failsafe.internal.util.DelegatingScheduler

@@ -1,0 +1,50 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Fleet analytics with hot-standby stream processors on partitioned topics: a fleet operator's gateways publish the
+# telemetry of 300,000 devices to four topics of 12 partitions each, and each device's messages go to one partition by
+# its key. Eight stream-processing applications, such as rolling averages, anomaly detection, energy rollups and a
+# digital twin, keep per-device state in memory, so each reads every partition through one active consumer, in order:
+# a Failover subscription of their own, with three pods each, of which the broker makes one the active consumer of
+# each partition and keeps the others as hot standbys. Every 20 seconds, each application restarts one of its pods, as
+# a rolling deployment does: the partitions of the pod that stops fail over to a standby, and the broker redelivers what
+# the stopped pod hadn't acknowledged. It measures the fail-overs' delivery gap in the latency percentiles and their
+# redelivery in the duplicates, and checks that each device's messages arrive in order.
+extends: iot-telemetry-base.yaml
+workloads:
+  iotTelemetry:
+    rate: 20000
+    payload:
+      size: 256
+    timeoutSeconds: 300
+    gateways:
+      count: 20
+      producer:
+        precreate: true
+    topics:
+      count: 4
+      partitions: 12
+      prefix: persistent://public/default/iot-fleet-
+    applications:
+      count: 8
+      podsPerApplication: 3
+      subscriptionPrefix: stream-processor-
+      subscriptionType: Failover
+    behaviors:
+      podRestarts:
+        intervalSeconds: 20
+        fraction: 0.33

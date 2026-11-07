@@ -235,6 +235,54 @@ public class CmdScalableTopics extends CmdBase {
         }
     }
 
+    @Command(description = "Get the permissions on a scalable topic: the permissions set at the namespace"
+            + " level combined (union) with any eventual specific permission set on the topic")
+    private class PermissionsCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Override
+        void run() throws Exception {
+            print(scalableTopics().getPermissions(topic));
+        }
+    }
+
+    @Command(description = "Grant a new permission to a client role on a scalable topic. The permission"
+            + " applies to every segment of the topic")
+    private class GrantPermissionCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-r", "--role"}, description = "Client role to which grant permissions", required = true)
+        private String role;
+
+        @Option(names = {"-a", "--actions"}, description = "Actions to be granted (produce,consume,sources,sinks,"
+                + "functions,packages)", required = true, split = ",")
+        private List<String> actions;
+
+        @Override
+        void run() throws Exception {
+            scalableTopics().grantPermission(topic, role, getAuthActions(actions));
+            print("Granted " + actions + " to role " + role + " on topic " + topic);
+        }
+    }
+
+    @Command(description = "Revoke the permissions granted to a client role on a scalable topic. Permissions"
+            + " granted at the namespace level are not affected")
+    private class RevokePermissionCmd extends CliCommand {
+        @Parameters(description = "tenant/namespace/topic", arity = "1")
+        private String topic;
+
+        @Option(names = {"-r", "--role"}, description = "Client role to which revoke permissions", required = true)
+        private String role;
+
+        @Override
+        void run() throws Exception {
+            scalableTopics().revokePermissions(topic, role);
+            print("Revoked the permissions of role " + role + " on topic " + topic);
+        }
+    }
+
     public CmdScalableTopics(Supplier<PulsarAdmin> admin) {
         super("scalable-topics", admin);
         addCommand("list", new ListCmd());
@@ -248,6 +296,9 @@ public class CmdScalableTopics extends CmdBase {
         addCommand("merge-segments", new MergeSegmentsCmd());
         addCommand("seek", new SeekSubscriptionCmd());
         addCommand("clear-backlog", new ClearBacklogCmd());
+        addCommand("permissions", new PermissionsCmd());
+        addCommand("grant-permission", new GrantPermissionCmd());
+        addCommand("revoke-permission", new RevokePermissionCmd());
     }
 
     private Map<String, String> parseProperties(List<String> properties) {

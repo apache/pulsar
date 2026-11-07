@@ -82,3 +82,7 @@ Interfaces that are incompatible and `disabled` will take effect：
 ## Test Plan
 1. Test whether the API at each level is working properly
 2. When policies of different levels exist at the same time, test whether the priority is correct
+
+# Links
+
+* Mailing List discussion thread: https://lists.apache.org/thread/8vck4cz9d508gm1s9g2gqtbfd79wk4fv

@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl.v5;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import java.util.List;
@@ -171,6 +172,29 @@ public class ScalableTopicsWatcherTest {
             resume.countDown();
             caller.join();
         }
+        assertThat(listener.calls).containsExactly(
+                "added [" + C + "] removed []",
+                "added [] removed [" + B + "]");
+    }
+
+    @Test
+    public void testListenerErrorDoesNotStopLaterChanges() {
+        ScalableTopicsWatcher watcher = watcherWithSnapshot();
+        RecordingListener listener = new RecordingListener() {
+            @Override
+            public void onDiff(List<String> added, List<String> removed) {
+                super.onDiff(added, removed);
+                if (calls.size() == 1) {
+                    throw new Error("listener failure");
+                }
+            }
+        };
+        watcher.setListener(listener);
+
+        // Whether or not the Error reaches the I/O thread, the changes that follow must still be delivered.
+        catchThrowable(() -> watcher.onDiff(List.of(C), List.of()));
+        watcher.onDiff(List.of(), List.of(B));
+
         assertThat(listener.calls).containsExactly(
                 "added [" + C + "] removed []",
                 "added [] removed [" + B + "]");

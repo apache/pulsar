@@ -146,6 +146,14 @@ Test JVMs default to a `1300m` heap and up to four forks per task. Override thes
 concurrent workers across projects. Task-specific limits, such as the integration tests' single
 fork and `1G` heap, take precedence.
 
+A test task deals its classes to its forks round-robin, in class name order, before any of them runs,
+so a few slow classes can end up on one fork. CI therefore runs most unit test groups as `testShards`.
+With `-PtestShards=4 -PtestShardDurations=<file>` (lines of `<seconds> <class name>`, which CI takes
+from the `unit-test-durations-<GROUP>` artifact of the group's latest successful run on master), it runs
+`testShard1` to `testShard4`, test tasks with one fork each that run in parallel when the configuration
+cache is on, with the classes packed longest-first by those durations; a class missing from the file goes
+by a hash of its name. Without recorded durations, `testShards` runs `test`.
+
 Use `-PtestForkEvery=50` to replace a test JVM after 50 detected test classes, limiting state
 retained across classes. The default is `0` (no class limit). Gradle counts candidate classes
 passed to test workers before TestNG group filtering, so classes excluded by groups still count
@@ -166,7 +174,9 @@ instead of having retries mask them.
 ### Netty buffer leak detection
 
 Tests enable Netty's `paranoid` leak detection by default, using `ExtendedNettyLeakDetector`
-to include test names in leak reports and write `netty_leak_*.txt` files. Set
+to include test names in leak reports and write `netty_leak_*.txt` files. Leaks are detected with a
+GC after the test methods of each test class and when the test JVM finishes, and a report names the
+test that was running when the leaked buffer was allocated. Set
 `NETTY_LEAK_DUMP_DIR` to choose the output directory (the default is the JVM's temporary directory).
 
 `NETTY_LEAK_DETECTION=report` (the default) reports leaks without failing tests.
@@ -395,6 +405,14 @@ git merge <apache-pulsar-remote>/master
 (Rebasing onto an updated `master` is fine *before* the PR is opened — see the Personal CI loop above
 — but not after.)
 
+### Reviewing pull requests
+
+At the beginning of a review, check the related issue and search for other PRs addressing the same
+problem, including closed and merged PRs. Check whether the issue author volunteered to submit a PR
+or another contributor is already working on it. If work overlaps or the problem is already fixed,
+resolve that with the contributors before spending time on a detailed code review. Also check that
+the PR description links the issue it resolves with `Fixes #N` or `Closes #N`.
+
 ### Branches and backports
 
 Target `master` first. Once the change is merged, **project maintainers handle backporting** a bug or
@@ -418,6 +436,36 @@ want to check Pulsar's exposure to is *not* a private disclosure — search the 
 PRs/issues first, then ask via a GitHub issue or dev@pulsar.apache.org.
 
 ## AI coding agents
+
+AI-assisted contributions must follow the
+[ASF Generative Tooling guidance](https://www.apache.org/legal/generative-tooling.html).
+A human contributor must review and verify the change, submit it, and take responsibility for it,
+including responding to review feedback. Fully autonomous agents opening PRs or filing reports
+without human oversight are not acceptable.
+
+Before asking an agent to implement a fix, perform these checks or verify the agent's findings:
+
+1. **Confirm the bug still exists on the latest `master` from `apache/pulsar`.** Run the reproducing
+   test with only the test changes, without the proposed fix, and check that it fails for the reported
+   reason. Confirm it passes with the fix applied; follow the [testing conventions](CODING.md#testing-conventions).
+2. **Check existing issues and who is working on them.** Read the description, comments, and assignees,
+   including whether the issue author selected **"I'm willing to submit a PR!"**. An unassigned issue
+   may still have someone working on it. Coordinate with them before directing an agent to implement it.
+3. **Search open, closed, and merged PRs for the same problem.** Check issue references as well as
+   keywords, since a PR may not be linked to the issue. Coordinate with existing PR authors before
+   starting overlapping work. If an author does not respond promptly or you want to demonstrate an
+   alternative solution, a new PR is acceptable; reference the earlier work and explain the difference.
+
+Before pushing, inspect the changes and validate the agent's output with the relevant checks and tests.
+After pushing or posting, check the actual result on GitHub: the diff, PR title and description,
+and review replies. Ensure descriptions and replies contain the intended text, with no unresolved
+placeholders or local file references left by the tooling.
+
+When using an agent to address review feedback, verify that its replies answer the individual comment
+threads. A generated summary that claims all feedback is addressed does not replace those replies.
+Respond personally to questions about human oversight of the agent.
+
+The [review checks](#reviewing-pull-requests) also apply to AI-assisted PRs.
 
 If you use an AI coding assistant (Claude Code, Copilot, Cursor, Gemini, Codex, Aider, …), see
 [`AGENTS.md`](AGENTS.md) for the agent-facing guidance — a routing index into this guide,

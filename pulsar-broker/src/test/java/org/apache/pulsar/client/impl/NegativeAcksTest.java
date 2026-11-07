@@ -22,8 +22,11 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +40,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.TopicMessageId;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
 import org.testng.Assert;
@@ -163,25 +167,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
     @DataProvider(name = "variationsBackoff")
     public static Object[][] variationsBackoff() {
         return new Object[][] {
-                // batching / partitions / subscription-type / min-nack-time-ms/ max-nack-time-ms / ack-timeout
-                { false, false, SubscriptionType.Shared, 100, 1000 },
-                { false, false, SubscriptionType.Failover, 100, 1000 },
-                { false, true, SubscriptionType.Shared, 100, 1000 },
-                { false, true, SubscriptionType.Failover, 100, 1000 },
-                { true, false, SubscriptionType.Shared, 100, 1000 },
-                { true, false, SubscriptionType.Failover, 100, 1000 },
-                { true, true, SubscriptionType.Shared, 100, 1000 },
-                { true, true, SubscriptionType.Failover, 100, 1000 },
-
-                { false, false, SubscriptionType.Shared, 0, 1000 },
-                { false, false, SubscriptionType.Failover, 0, 1000 },
-                { false, true, SubscriptionType.Shared, 0, 1000 },
-                { false, true, SubscriptionType.Failover, 0, 1000 },
-                { true, false, SubscriptionType.Shared, 0, 1000 },
-                { true, false, SubscriptionType.Failover, 0, 1000 },
-                { true, true, SubscriptionType.Shared, 0, 1000 },
-                { true, true, SubscriptionType.Failover, 0, 1000 },
-
+                // batching / partitions / subscription-type / min-nack-time-ms/ max-nack-time-ms
                 { false, false, SubscriptionType.Shared, 100, 1000 },
                 { false, false, SubscriptionType.Failover, 100, 1000 },
                 { false, true, SubscriptionType.Shared, 100, 1000 },
@@ -233,6 +219,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
         Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .enableBatching(batching)
+                .batchingMaxPublishDelay(30, TimeUnit.SECONDS)
                 .create();
 
         Set<String> sentMessages = new HashSet<>();
@@ -251,8 +238,9 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
         for (int i = 0; i < redeliverCount; i++) {
             Message<String> msg = null;
             for (int j = 0; j < num; j++) {
-                msg = consumer.receive();
-                log.info().attr("message", msg.getValue()).log("Received message");
+                msg = consumer.receive(10, TimeUnit.SECONDS);
+                assertNotNull(msg);
+                log.info().attr("msgId", msg.getMessageId()).attr("message", msg.getValue()).log("Received message");
                 if (!batching) {
                     consumer.negativeAcknowledge(msg);
                 }
@@ -268,7 +256,8 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
 
         // All the messages should be received again
         for (int i = 0; i < num; i++) {
-            Message<String> msg = consumer.receive();
+            Message<String> msg = consumer.receive(10, TimeUnit.SECONDS);
+            assertNotNull(msg);
             receivedMessages.add(msg.getValue());
             consumer.acknowledge(msg);
         }
@@ -473,7 +462,7 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
         consumerLatch.await();
         Thread.sleep(500);
         count = 0;
-        while (true) {
+        while (!datas.isEmpty()) {
             Message<Integer> msg = consumer.receive(5, TimeUnit.SECONDS);
             if (msg == null) {
                 break;
@@ -484,6 +473,8 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
             log.info().attr("msg", msg.getMessageId()).log("received msg");
             count++;
         }
+        // The redelivered batch is a single entry, so a message delivered again would already be queued
+        assertNull(consumer.receive(200, TimeUnit.MILLISECONDS));
         Assert.assertEquals(count, 9);
         Assert.assertEquals(0, datas.size());
     }
@@ -517,15 +508,15 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
 
         Awaitility.await().until(() -> consumer.incomingMessages.size() == receiverQueueSize);
 
-        // For testing the race condition of issue #18491
-        // We need to inject a delay for the pinned internal thread
-        Thread.sleep(1000L);
+        // For testing the race condition of issue #18491: redeliver from the pinned internal thread once the full
+        // queue made the consumer stop receiving from its partitions
+        Awaitility.await().until(() -> !consumer.pausedConsumers.isEmpty());
         internalPinnedExecutor.submit(() -> consumer.redeliverUnacknowledgedMessages()).get();
         // Make sure the message redelivery is completed. The incoming queue will be cleaned up during the redelivery.
         internalPinnedExecutor.submit(() -> {}).get();
 
         Set<Integer> receivedMsgs = new HashSet<>();
-        for (;;){
+        while (receivedMsgs.size() < receiverQueueSize) {
             Message<Integer> msg = consumer.receive(2, TimeUnit.SECONDS);
             if (msg == null){
                 break;
@@ -538,26 +529,27 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
         consumer.close();
     }
 
-    @DataProvider(name = "negativeAckPrecisionBitCnt")
-    public Object[][] negativeAckPrecisionBitCnt() {
-        return new Object[][]{
-                {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}, {11}, {12}
-        };
-    }
-
     /**
      * When negativeAckPrecisionBitCnt is greater than 0, the lower bits of the redelivery time will be truncated
      * to reduce the memory occupation. If set to k, the redelivery time will be bucketed by 2^k ms, resulting in
      * the redelivery time could be earlier(no later) than the expected time no more than 2^k ms.
+     * Each precision gets a consumer of its own, so that their redelivery delays run at the same time.
      * @throws Exception if an error occurs
      */
-    @Test(dataProvider = "negativeAckPrecisionBitCnt")
-    public void testConfigureNegativeAckPrecisionBitCnt(int negativeAckPrecisionBitCnt) throws Exception {
+    @Test
+    public void testConfigureNegativeAckPrecisionBitCnt() throws Exception {
+        List<CompletableFuture<Void>> checks = new ArrayList<>();
+        for (int negativeAckPrecisionBitCnt = 1; negativeAckPrecisionBitCnt <= 12; negativeAckPrecisionBitCnt++) {
+            checks.add(checkNegativeAckPrecisionBitCnt(negativeAckPrecisionBitCnt));
+        }
+        FutureUtil.waitForAll(checks).get();
+    }
+
+    private CompletableFuture<Void> checkNegativeAckPrecisionBitCnt(int negativeAckPrecisionBitCnt) throws Exception {
         String topic = newTopicName();
         long timeDeviation = 1L << negativeAckPrecisionBitCnt;
         long delayInMs = 2000;
 
-        @Cleanup
         Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("sub1")
@@ -580,8 +572,10 @@ public class NegativeAcksTest extends SharedPulsarBaseTest {
 
         // receive the redelivered message and calculate the time deviation
         // assert that the redelivery time is no earlier than the `expected time - timeDeviation`
-        Message<String> msg1 = consumer.receive();
-        assertTrue(System.currentTimeMillis() >= expectedTime - timeDeviation);
-        assertNotNull(msg1);
+        return consumer.receiveAsync().thenAccept(msg1 -> {
+            assertTrue(System.currentTimeMillis() >= expectedTime - timeDeviation,
+                    "negativeAckPrecisionBitCnt=" + negativeAckPrecisionBitCnt);
+            assertNotNull(msg1);
+        }).whenComplete((v, e) -> consumer.closeAsync());
     }
 }

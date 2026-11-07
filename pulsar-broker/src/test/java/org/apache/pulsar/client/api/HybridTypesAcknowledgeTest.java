@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import java.net.URI;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -118,7 +119,7 @@ public class HybridTypesAcknowledgeTest  extends TestRetrySupport {
         // Start broker.
         pulsar = new PulsarService(conf);
         pulsar.start();
-        url = new URL(pulsar.getWebServiceAddress());
+        url = URI.create(pulsar.getWebServiceAddress()).toURL();
         admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
         client =
                 (PulsarClientImpl) PulsarClient.builder().serviceUrl(pulsar.getBrokerServiceUrl()).build();

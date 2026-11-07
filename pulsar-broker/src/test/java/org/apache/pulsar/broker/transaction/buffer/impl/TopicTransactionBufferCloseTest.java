@@ -19,10 +19,13 @@
 package org.apache.pulsar.broker.transaction.buffer.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -34,6 +37,7 @@ import static org.testng.Assert.assertTrue;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.util.HashedWheelTimer;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -48,6 +52,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -221,6 +226,60 @@ public class TopicTransactionBufferCloseTest {
             verify(lateEntry).release();
             verify(context.managedCursor).asyncReadEntries(anyInt(), any(), anyLong(), any());
         }
+    }
+
+    @Test(timeOut = 10_000)
+    public void testCloseFailsPlainEntriesQueuedBehindTransactionalAppends() throws Exception {
+        CompletableFuture<Position> recoveryFuture = new CompletableFuture<>();
+        try (TestContext context = new TestContext(recoveryFuture, PositionFactory.EARLIEST)) {
+            context.awaitExecutorsIdle();
+            // While the buffer recovers, it holds back transactional appends, and the plain entries published after
+            // them.
+            ByteBuf txnEntry = Unpooled.copiedBuffer("txn".getBytes());
+            CompletableFuture<Position> txnAppend =
+                    context.transactionBuffer.appendBufferToTxn(new TxnID(1, 1), 0, txnEntry);
+            txnEntry.release();
+            ByteBuf plainEntry = Unpooled.copiedBuffer("plain".getBytes());
+            CompletableFuture<Position> plainAdd = addPlainEntry(context, plainEntry);
+            // The publisher releases the entry once the publish call returns: the buffer holds on to it.
+            plainEntry.release();
+            assertThat(plainEntry.refCnt()).isOne();
+
+            context.transactionBuffer.closeAsync().get(5, TimeUnit.SECONDS);
+            assertThatThrownBy(txnAppend::get)
+                    .hasCauseInstanceOf(BrokerServiceException.ServiceUnitNotReadyException.class);
+            assertThatThrownBy(plainAdd::get)
+                    .hasCauseInstanceOf(ManagedLedgerException.class)
+                    .hasRootCauseInstanceOf(BrokerServiceException.ServiceUnitNotReadyException.class);
+            assertThat(txnEntry.refCnt()).isZero();
+            assertThat(plainEntry.refCnt()).isZero();
+            verify(context.managedLedger, never()).asyncAddEntry(any(ByteBuf.class), anyInt(), any(), any());
+
+            // Nothing is queued anymore: a plain entry goes straight to the ledger, without the buffer holding it.
+            ByteBuf laterEntry = Unpooled.copiedBuffer("later".getBytes());
+            addPlainEntry(context, laterEntry);
+            verify(context.managedLedger).asyncAddEntry(same(laterEntry), eq(1), any(), any());
+            assertThat(laterEntry.refCnt()).isOne();
+            laterEntry.release();
+        }
+    }
+
+    /** Add a non-transactional entry through the buffer, as a publish on the topic does. */
+    private static CompletableFuture<Position> addPlainEntry(TestContext context, ByteBuf entry) {
+        CompletableFuture<Position> added = new CompletableFuture<>();
+        context.transactionBuffer.addEntryInPublishOrder(context.managedLedger, entry, 1,
+                new AsyncCallbacks.AddEntryCallback() {
+                    @Override
+                    public void addComplete(Position position, ByteBuf entryData, Object ctx) {
+                        added.complete(position);
+                    }
+
+                    @Override
+                    public void addFailed(ManagedLedgerException exception, Object ctx) {
+                        added.completeExceptionally(exception);
+                    }
+                }, null);
+        return added;
     }
 
     private static final class TestContext implements AutoCloseable {

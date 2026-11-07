@@ -82,10 +82,13 @@ dependencies {
     implementation(libs.simpleclient)
     implementation(libs.simpleclient.hotspot)
     implementation(libs.simpleclient.common)
+    implementation(libs.prometheus.metrics.model)
+    implementation(libs.prometheus.metrics.exposition.textformats)
 
     compileOnly(libs.swagger.annotations)
 
     testImplementation(libs.protobuf.java.util)
+    testImplementation(libs.opentelemetry.sdk.testing)
     testImplementation(project(":pulsar-functions:pulsar-functions-api-examples"))
 }
 

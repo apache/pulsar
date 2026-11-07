@@ -347,6 +347,32 @@ public class ContextImplTest {
     }
 
     @Test
+    public void testGetPulsarAdminFromSinkAndSourceContext() {
+        SinkContext sinkContext = context;
+        SourceContext sourceContext = context;
+        assertEquals(sinkContext.getPulsarAdmin(), pulsarAdmin);
+        assertEquals(sourceContext.getPulsarAdmin(), pulsarAdmin);
+    }
+
+    @Test
+    public void testGetPulsarAdminFromSinkAndSourceContextWithExposePulsarAdminDisabled()
+            throws PulsarClientException {
+        config.setExposePulsarAdminClientEnabled(false);
+        context = new ContextImpl(
+                config,
+                logger,
+                client,
+                new EnvironmentBasedSecretsProvider(), FunctionCollectorRegistry.getDefaultImplementation(),
+                new String[0],
+                FunctionDetails.ComponentType.SINK, null, new InstanceStateManager(),
+                pulsarAdmin, clientBuilder, t -> {}, producerCache);
+        SinkContext sinkContext = context;
+        SourceContext sourceContext = context;
+        assertThatThrownBy(sinkContext::getPulsarAdmin).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(sourceContext::getPulsarAdmin).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
     public void testUnsupportedExtendedSinkContext() throws PulsarClientException {
         config.setExposePulsarAdminClientEnabled(false);
         context = new ContextImpl(

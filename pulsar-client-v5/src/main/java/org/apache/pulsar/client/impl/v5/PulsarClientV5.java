@@ -19,8 +19,9 @@
 package org.apache.pulsar.client.impl.v5;
 
 import java.time.Duration;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import org.apache.pulsar.client.api.v5.CheckpointConsumerBuilder;
@@ -43,6 +44,14 @@ final class PulsarClientV5 implements PulsarClient {
     private final String description;
     private final Duration transactionTimeout;
 
+    /**
+     * The V5 producers on scalable topics, until their close completes. Closing the v4 client closes
+     * the per-segment v4 producers but not these, whose sends waiting for a new layout would then
+     * never complete: they are closed first, and the v4 client once they are, including those already
+     * closing.
+     */
+    private final Set<ScalableTopicProducer<?>> producers = ConcurrentHashMap.newKeySet();
+
     PulsarClientV5(PulsarClientImpl v4Client, String description, Duration transactionTimeout) {
         this.v4Client = v4Client;
         this.description = description;
@@ -54,6 +63,21 @@ final class PulsarClientV5 implements PulsarClient {
      */
     PulsarClientImpl v4Client() {
         return v4Client;
+    }
+
+    void registerProducer(ScalableTopicProducer<?> producer) {
+        producers.add(producer);
+    }
+
+    void deregisterProducer(ScalableTopicProducer<?> producer) {
+        producers.remove(producer);
+    }
+
+    /** Close the V5 producers, before the v4 client and its executors. Never fails. */
+    private CompletableFuture<Void> closeProducersAsync() {
+        return CompletableFuture.allOf(producers.stream()
+                .map(producer -> producer.closeAsync().exceptionally(__ -> null))
+                .toArray(CompletableFuture[]::new));
     }
 
     @Override
@@ -81,8 +105,7 @@ final class PulsarClientV5 implements PulsarClient {
         try {
             return newTransactionAsync().get();
         } catch (ExecutionException e) {
-            Throwable cause = e.getCause() != null ? e.getCause() : e;
-            throw new PulsarClientException(cause.getMessage(), cause);
+            throw V5ExceptionMappings.toV5Exception(e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new PulsarClientException("Interrupted while creating transaction", e);
@@ -95,27 +118,38 @@ final class PulsarClientV5 implements PulsarClient {
         if (transactionTimeout != null) {
             builder.withTransactionTimeout(transactionTimeout.toMillis(), TimeUnit.MILLISECONDS);
         }
-        return builder.build().thenApply(v4Txn -> (Transaction) new TransactionV5(v4Txn));
+        return builder.build().thenApply(v4Txn -> (Transaction) new TransactionV5(v4Txn))
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override
     public void close() throws PulsarClientException {
         try {
+            closeProducersAsync().get();
+        } catch (InterruptedException e) {
+            // Close the v4 client all the same.
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException e) {
+            // Not reached: closeProducersAsync never fails.
+        }
+        try {
             v4Client.close();
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {
-            throw new PulsarClientException(e.getMessage(), e);
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return v4Client.closeAsync().exceptionally(ex -> {
-            throw new CompletionException(new PulsarClientException(ex.getMessage(), ex));
-        });
+        return closeProducersAsync().thenCompose(__ -> v4Client.closeAsync())
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override
     public void shutdown() {
+        // Without waiting: this fails the sends waiting for a layout right away, and the v4 shutdown
+        // fails the ones in flight.
+        closeProducersAsync();
         try {
             v4Client.shutdown();
         } catch (org.apache.pulsar.client.api.PulsarClientException e) {

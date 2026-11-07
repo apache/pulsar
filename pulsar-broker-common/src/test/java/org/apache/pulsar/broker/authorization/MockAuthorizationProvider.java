@@ -99,6 +99,12 @@ public class MockAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
+    public CompletableFuture<Boolean> allowTopicAutoCreationAsync(TopicName topic, String role,
+                                                                  AuthenticationDataSource authData) {
+        return shouldPass(role);
+    }
+
+    @Override
     public CompletableFuture<Boolean> allowTopicPolicyOperationAsync(TopicName topic, String role, PolicyName policy,
                                                                      PolicyOperation operation,
                                                                      AuthenticationDataSource authData) {

@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
 import static org.apache.bookkeeper.client.api.BKException.Code.NoSuchLedgerExistsException;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.AdditionalAnswers.delegatesTo;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -36,12 +37,14 @@ import lombok.CustomLog;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloaderStats;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.OffloadedLedgerHandle;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
@@ -177,6 +180,54 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             final byte[] entryBytes = ledgerEntry.getEntryBytes();
             assertEquals(storedData, entryBytes);
         }
+    }
+
+    @Test
+    public void testLedgerMetadataOfAClosedReadHandle() throws Exception {
+        @Cleanup
+        LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
+            put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
+        }});
+        ManagedLedger ml = createMockManagedLedger();
+        UUID uuid = UUID.randomUUID();
+        Map<String, String> driverMeta = new HashMap<String, String>() {{
+            put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
+        }};
+        @Cleanup
+        OffloadHandle offloadHandle = offloader.streamingOffload(ml, uuid, 0, 0, driverMeta).get();
+        for (int i = 0; i < 10; i++) {
+            final byte[] data = new byte[100];
+            random.nextBytes(data);
+            offloadHandle.offerEntry(EntryImpl.create(0, i, data));
+        }
+        offloadHandle.getOffloadResultAsync().get();
+        final OffloadContext context = new OffloadContext();
+        context.addOffloadSegment()
+                .setUidLsb(uuid.getLeastSignificantBits())
+                .setUidMsb(uuid.getMostSignificantBits())
+                .setComplete(true).setEndEntryId(9);
+
+        final ReadHandle readHandle = offloader.readOffloaded(0, context, driverMeta).get();
+        readHandle.closeAsync().get();
+
+        // The managed ledger may close a read handle while a read that got it from its cache still uses it: the
+        // handle's ledger metadata stays, and the read fails with OffloadReadHandleClosedException, which makes the
+        // managed ledger reopen the handle
+        LedgerMetadata metadata = readHandle.getLedgerMetadata();
+        assertNotNull(metadata);
+        long length = readHandle.getLength();
+        long lastAddConfirmed = readHandle.getLastAddConfirmed();
+        assertThatThrownBy(() -> readHandle.readAsync(0, 9).get())
+                .hasCauseInstanceOf(ManagedLedgerException.OffloadReadHandleClosedException.class);
+
+        // the same as a handle that is open
+        @Cleanup
+        final ReadHandle openHandle = offloader.readOffloaded(0, context, driverMeta).get();
+        assertEquals(metadata.getLastEntryId(), openHandle.getLedgerMetadata().getLastEntryId());
+        assertEquals(length, openHandle.getLength());
+        assertEquals(lastAddConfirmed, openHandle.getLastAddConfirmed());
     }
 
     @Test

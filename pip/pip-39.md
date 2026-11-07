@@ -3,8 +3,7 @@
 * **Status**: Drafting
 * **Author**: Sijie Guo
 * **Pull Request**: https://github.com/apache/pulsar/issues/4899
-* **Mailing List discussion**:
-* **Release**:
+* **Mailing List discussion**: https://lists.apache.org/thread/fcj3m5j2w672fx65yyyotp827p5n05d2
 
 ### Motivation
 

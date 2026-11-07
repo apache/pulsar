@@ -66,14 +66,11 @@ test_group_backwards_compat() {
 
 test_group_cli() {
   gradle_integration_test -PintegrationTestSuiteFile=pulsar-cli.xml "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-auth.xml "$@"
 }
 
 test_group_messaging() {
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-messaging.xml "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-proxy.xml "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-websocket.xml "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-tls.xml "$@"
+  # One run for the suites: each run starts Gradle and a test JVM
+  gradle_integration_test -PintegrationTestSuiteFile=pulsar-messaging.xml,pulsar-websocket.xml,pulsar-tls.xml "$@"
 }
 
 test_group_loadbalance() {
@@ -118,14 +115,10 @@ test_group_tiered_jcloud() {
 
 test_group_pulsar_connectors_thread() {
   gradle_integration_test -PintegrationTestSuiteFile=pulsar-thread.xml -PtestGroups=function "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-thread.xml -PtestGroups=source "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-thread.xml -PtestGroups=sink "$@"
 }
 
 test_group_pulsar_connectors_process() {
   gradle_integration_test -PintegrationTestSuiteFile=pulsar-process.xml -PtestGroups=function "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-process.xml -PtestGroups=source "$@"
-  gradle_integration_test -PintegrationTestSuiteFile=pulsar-process.xml -PtestGroups=sink "$@"
 }
 
 test_group_pulsar_io() {

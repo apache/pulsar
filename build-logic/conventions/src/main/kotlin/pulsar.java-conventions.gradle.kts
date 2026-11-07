@@ -32,6 +32,7 @@ val catalog = the<VersionCatalogsExtension>().named("libs")
 // explicit versions rather than relying on the alignment platform being on every classpath).
 val jakartaActivationApiVersion = catalog.findVersion("jakarta-activation").get().requiredVersion
 val angusActivationVersion = catalog.findVersion("angus-activation").get().requiredVersion
+val grpcVersion = catalog.findVersion("grpc").get().requiredVersion
 
 // Internal version-alignment platform bucket.
 // The enforced platform (:pulsar-dependencies) must align the build's OWN resolution but must NOT
@@ -94,7 +95,9 @@ val testJavaVersion = if (path == ":tests:pulsar-client-java-compatibility") {
 } else {
     providers.gradleProperty("testJavaVersion").map { it.toInt() }
 }
-val testRelease = testJavaVersion.getOrElse(pulsarJavaVersion.get())
+// A newer test JVM (-PtestJavaVersion=25) only changes the test launcher; test sources are still
+// compiled by the Gradle JDK, which may not support a release above the server baseline.
+val testRelease = minOf(testJavaVersion.getOrElse(pulsarJavaVersion.get()), pulsarJavaVersion.get())
 if (path == ":tests:pulsar-client-java-compatibility") {
     tasks.withType<Test>().configureEach {
         systemProperty("pulsarClientJavaVersion", pulsarClientJavaVersion.get())
@@ -182,6 +185,20 @@ dependencies {
                     if (removeAll { it.group == "com.sun.activation" && it.name == "jakarta.activation" }) {
                         add("jakarta.activation:jakarta.activation-api:$jakartaActivationApiVersion")
                         add("org.eclipse.angus:angus-activation:$angusActivationVersion")
+                    }
+                }
+            }
+        }
+        // grpc-netty-shaded bundles its own relocated copy of Netty, which duplicates the Netty that
+        // Pulsar already ships and stays outside Pulsar's Netty version management. The BookKeeper
+        // stream-storage modules depend on it, but only reach the transport through gRPC's provider
+        // lookup (ManagedChannelBuilder/ServerBuilder), so the unshaded grpc-netty, which uses
+        // Pulsar's Netty, works in its place.
+        all {
+            allVariants {
+                withDependencies {
+                    if (removeAll { it.group == "io.grpc" && it.name == "grpc-netty-shaded" }) {
+                        add("io.grpc:grpc-netty:$grpcVersion")
                     }
                 }
             }
@@ -350,6 +367,10 @@ tasks.withType<Test>().configureEach {
         // loopback would otherwise fail to start.
         "-Djava.net.preferIPv4Stack=true",
     )
+    // Don't fsync the transaction log of the ZooKeeper servers that tests start: the requests that arrive
+    // during an fsync wait for it, the clients' pings included, so a slow disk can stall a server long enough
+    // for its clients to drop their connection.
+    systemProperty("zookeeper.forceSync", "no")
     // Deliberately no org.apache.avro.SERIALIZABLE_* system properties here. Avro 1.12.2 (AVRO-4189)
     // only reflects over classes that are explicitly trusted, and Pulsar declares them where the
     // application hands over a class: building a schema from a class trusts it and everything the
@@ -362,6 +383,82 @@ tasks.withType<Test>().configureEach {
         // every test JVM that touches a Netty native transport prints a multi-line warning to
         // stderr, which is noise in test output and breaks assertions on empty stderr.
         jvmArgs("--enable-native-access=ALL-UNNAMED")
+    }
+}
+
+// CI runs the unit test groups as `testShards` (see pulsar-build/run_unit_group_gradle.sh). A test task
+// deals its classes to its forks round-robin, in class name order, before any of them runs, so a few slow
+// classes that sort close together can share a fork while the other forks finish early. With
+// `-PtestShards=N` and the durations in `-PtestShardDurations` (lines of "<seconds> <class name>", which CI
+// records from its previous run of the group), `testShards` runs N test tasks with one fork each, which
+// Gradle runs in parallel when the configuration cache is on, with the classes packed longest-first. A
+// class missing from that file goes by a hash of its name. Every test class goes to exactly one shard, so
+// the shards run the same tests as `test`. Without recorded durations, `testShards` runs `test`.
+val testShardCount = providers.gradleProperty("testShards").map { it.toInt() }.getOrElse(0)
+if (testShardCount > 0) {
+    // Locals, so that the exclude spec below doesn't capture the script object (configuration cache).
+    val shardCount = testShardCount
+    val shardOfClass = mutableMapOf<String, Int>()
+    val shardSeconds = DoubleArray(shardCount)
+    providers.gradleProperty("testShardDurations")
+        .flatMap { providers.fileContents(rootProject.layout.projectDirectory.file(it)).asText }
+        .getOrElse("")
+        .lines()
+        .mapNotNull { line ->
+            val fields = line.trim().split(Regex("\\s+"))
+            val seconds = fields[0].toDoubleOrNull()
+            if (seconds != null && fields.size == 2) fields[1] to seconds else null
+        }
+        .sortedWith(compareByDescending<Pair<String, Double>> { it.second }.thenBy { it.first })
+        .forEach { (className, seconds) ->
+            val shard = shardSeconds.indices.minBy { shardSeconds[it] }
+            shardOfClass[className] = shard
+            shardSeconds[shard] += seconds
+        }
+    if (shardOfClass.isEmpty()) {
+        tasks.register("testShards") {
+            description = "Runs the tests with `test`, as there are no recorded durations to balance shards by."
+            group = "verification"
+            dependsOn("test")
+        }
+    } else {
+        // FailFastNotifier creates this file when a test fails and, with testFailFast, skips the remaining
+        // tests while it exists, so that a failure stops the other shards too. The shards share it, so it is
+        // neither an output nor local state of theirs: Gradle doesn't run tasks whose outputs or local state
+        // overlap at the same time.
+        val failFastFile = layout.buildDirectory.file("test-shards/fail-fast")
+        val resetFailFast = tasks.register<Delete>("testShardsResetFailFast") {
+            delete(failFastFile)
+        }
+        val testSourceSet = project.the<SourceSetContainer>()["test"]
+        // The `withType<Test>` blocks, in this plugin and in the modules, configure the shards like `test`, with
+        // the same system properties, JVM arguments, TestNG options and task dependencies.
+        val shards = (0 until shardCount).map { shard ->
+            tasks.register<Test>("testShard${shard + 1}") {
+                description = "Runs shard ${shard + 1} of $shardCount of the tests, in one fork."
+                group = "verification"
+                testClassesDirs = testSourceSet.output.classesDirs
+                classpath = testSourceSet.runtimeClasspath
+                maxParallelForks = 1
+                exclude { element ->
+                    val path = element.relativePath.pathString
+                    if (element.isDirectory || !path.endsWith(".class")) {
+                        false
+                    } else {
+                        // A nested class goes with its top-level class.
+                        val className = path.removeSuffix(".class").substringBefore('$').replace('/', '.')
+                        (shardOfClass[className] ?: Math.floorMod(className.hashCode(), shardCount)) != shard
+                    }
+                }
+                systemProperty("testFailFastFile", failFastFile.get().asFile.absolutePath)
+                dependsOn(resetFailFast)
+            }
+        }
+        tasks.register("testShards") {
+            description = "Runs the tests as $shardCount test tasks with one fork each, balanced by recorded durations."
+            group = "verification"
+            dependsOn(shards)
+        }
     }
 }
 

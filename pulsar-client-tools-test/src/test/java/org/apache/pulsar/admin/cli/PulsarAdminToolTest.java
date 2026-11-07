@@ -91,6 +91,8 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.proto.CompressionType;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoSubscriptionCreationOverride;
 import org.apache.pulsar.common.policies.data.AutoTopicCreationOverride;
@@ -187,25 +189,30 @@ public class PulsarAdminToolTest {
 
         CmdBrokerStats brokerStats = new CmdBrokerStats(() -> admin);
 
-        doReturn("null").when(mockBrokerStats).getTopics();
+        doReturn("null").when(mockBrokerStats).getTopics(null);
         brokerStats.run(split("topics"));
-        verify(mockBrokerStats).getTopics();
+        verify(mockBrokerStats).getTopics(null);
 
-        doReturn(null).when(mockBrokerStats).getLoadReport();
+        doReturn(null).when(mockBrokerStats).getLoadReport(null);
         brokerStats.run(split("load-report"));
-        verify(mockBrokerStats).getLoadReport();
+        verify(mockBrokerStats).getLoadReport(null);
 
-        doReturn("null").when(mockBrokerStats).getMBeans();
+        doReturn("null").when(mockBrokerStats).getMBeans(null);
         brokerStats.run(split("mbeans"));
-        verify(mockBrokerStats).getMBeans();
+        verify(mockBrokerStats).getMBeans(null);
 
-        doReturn("null").when(mockBrokerStats).getMetrics();
+        doReturn("null").when(mockBrokerStats).getMetrics(null);
         brokerStats.run(split("monitoring-metrics"));
-        verify(mockBrokerStats).getMetrics();
+        verify(mockBrokerStats).getMetrics(null);
 
-        doReturn(null).when(mockBrokerStats).getAllocatorStats("default");
+        doReturn(null).when(mockBrokerStats).getAllocatorStats(null, "default");
         brokerStats.run(split("allocator-stats default"));
-        verify(mockBrokerStats).getAllocatorStats("default");
+        verify(mockBrokerStats).getAllocatorStats(null, "default");
+
+        brokerStats.run(split("load-report --broker-id host:8080"));
+        verify(mockBrokerStats).getLoadReport("host:8080");
+        brokerStats.run(split("allocator-stats default -b host:8080"));
+        verify(mockBrokerStats).getAllocatorStats("host:8080", "default");
     }
 
     @Test
@@ -2820,6 +2827,67 @@ public class PulsarAdminToolTest {
 
         public static void main(String[] args) {
         }
+    }
+
+    @Test
+    public void topicsPrintMessageCompressionType() throws Exception {
+        PulsarAdmin admin = mock(PulsarAdmin.class);
+        Topics mockTopics = mock(Topics.class);
+        when(admin.topics()).thenReturn(mockTopics);
+        CmdTopics cmdTopics = new CmdTopics(() -> admin);
+
+        MessageImpl<byte[]> compressed = mockMessage(CompressionType.LZ4);
+        MessageImpl<byte[]> uncompressed = mockMessage(null);
+        when(mockTopics.peekMessages("persistent://myprop/ns1/ds1", "sub1", 2, false,
+                TransactionIsolationLevel.READ_COMMITTED)).thenReturn(List.of(compressed, uncompressed));
+        when(mockTopics.examineMessage("persistent://myprop/ns1/ds1", "latest", 1)).thenReturn(compressed);
+        when(mockTopics.getMessageById("persistent://myprop/ns1/ds1", 10, 2)).thenReturn(compressed);
+
+        String peekOutput = captureStdOut(
+                () -> cmdTopics.run(split("peek-messages persistent://myprop/ns1/ds1 -s sub1 -n 2")));
+        assertEquals(peekOutput.split("Compression type: LZ4", -1).length - 1, 1, peekOutput);
+
+        String examineOutput = captureStdOut(
+                () -> cmdTopics.run(split("examine-messages persistent://myprop/ns1/ds1")));
+        assertTrue(examineOutput.contains("Compression type: LZ4"), examineOutput);
+
+        String getByIdOutput = captureStdOut(
+                () -> cmdTopics.run(split("get-message-by-id persistent://myprop/ns1/ds1 -l 10 -e 2")));
+        assertTrue(getByIdOutput.contains("Compression type: LZ4"), getByIdOutput);
+
+        when(mockTopics.examineMessage("persistent://myprop/ns1/ds1", "latest", 1)).thenReturn(uncompressed);
+        String uncompressedOutput = captureStdOut(
+                () -> cmdTopics.run(split("examine-messages persistent://myprop/ns1/ds1")));
+        assertFalse(uncompressedOutput.contains("Compression type"), uncompressedOutput);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static MessageImpl<byte[]> mockMessage(CompressionType compressionType) {
+        MessageImpl<byte[]> message = mock(MessageImpl.class);
+        MessageMetadata metadata = new MessageMetadata();
+        if (compressionType != null) {
+            metadata.setCompression(compressionType);
+        }
+        when(message.getMessageBuilder()).thenReturn(metadata);
+        when(message.getMessageId()).thenReturn(new MessageIdImpl(1L, 1L, 1));
+        when(message.getData()).thenReturn(new byte[]{});
+        return message;
+    }
+
+    private interface ThrowingRunnable {
+        void run() throws Exception;
+    }
+
+    private static String captureStdOut(ThrowingRunnable runnable) throws Exception {
+        PrintStream originalOut = System.out;
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(output, true, StandardCharsets.UTF_8));
+        try {
+            runnable.run();
+        } finally {
+            System.setOut(originalOut);
+        }
+        return output.toString(StandardCharsets.UTF_8);
     }
 
     String[] split(String s) {

@@ -2,9 +2,6 @@
 
 * **Status**: Proposal
 * **Author**: Jerry Peng
-* **Pull Request**:
-* **Mailing List discussion**:
-* **Release**:
 
 ## Goals
 

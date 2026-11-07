@@ -76,6 +76,7 @@ Pass these with `-P` on the command line, or set them in `~/.gradle/gradle.prope
 | `performance.reportsServer.baseUrl` | The URL of the reports server, such as `http://192.168.1.123:8000/`, with which the launcher prints each report's URL. Default: `http://<bind address>:<port>/`, see [Browsing the reports over HTTP](run-reports.md#browsing-the-reports-over-http). |
 | `performance.profile.maxHeapSize` | The heap of the `profile`, `runJonoffcpuCorrelator` and `runJfrConverter` tasks. Default: `4g`. |
 | `performance.clusterPulsarImage` | A released Pulsar image for the cluster, such as `apachepulsar/pulsar:4.0.13` or `apachepulsar/pulsar:latest`, to test that release instead of the checkout. The tasks build the test image on it, which needs an Alpine-based Pulsar image, and use it for ZooKeeper, the bookies and the brokers; the workloads, and so the Pulsar client, stay on the checkout's image. See [Comparing with a released Pulsar](comparing-revisions.md#comparing-with-a-released-pulsar). |
+| `performance.installOffloaders` | `true` installs the release's jcloud offloader in a test image built on a released Pulsar image that doesn't include it, as the images of 4.x releases don't, for the scenarios that offload, see [Offloading](offloading.md#comparing-pulsar-releases). Default: `false`. |
 | `performance.compare.baselineImage`, `performance.compare.candidateImage` | For `compareImages` and `compareImageWithCheckout`, the Pulsar images that the comparison's clusters run, see [Comparing two Pulsar images](comparing-revisions.md#comparing-two-pulsar-images). `compareImageWithCheckout` takes only the baseline image. |
 | `performance.compare.repetitions`, `performance.compare.medianBy` | For the comparison tasks, the runs per side, 3 by default, and the measure that picks each side's median run: `throughput` (default), `publish-p99`, `e2e-p99` or `broker-cpu` |
 | `docker.tag` | The tag of the Docker images the tasks build and run, `latest` by default. Separate tags keep the images of two revisions apart, see [Comparing revisions](comparing-revisions.md). |
@@ -155,15 +156,16 @@ backlog and end-to-end latency. The prefix has the time since the gateways start
 
 ```
 [01:21 measurement 47 s] Produced: 67,816 msg of 140,000 (48%) --- 1,020.0 msg/s --- 0.5 Mbit/s --- pending: 3 --- Latency: mean: 65.769 ms - med: 6.271 - 95pct: 342.783 - 99pct: 504.063 - 99.9pct: 744.447 - 99.99pct: 802.815 - Max: 814.591
-[01:21 measurement 47 s] Received: 1,354,097 msg of 2,800,000 (48%) --- 20,048.9 msg/s --- 10.3 Mbit/s --- backlog: 1,081 msg (max per application: 65) --- Latency: mean: 80.588 ms - med: 13.007 - 95pct: 383.231 - 99pct: 550.399 - 99.9pct: 776.191 - 99.99pct: 874.495 - Max: 921.087
+[01:21 measurement 47 s] Received: 1,354,097 msg of 2,800,000 (48%) --- 20,048.9 msg/s --- 10.3 Mbit/s --- backlog: 1,081 entries (max per application: 65) --- Latency: mean: 80.588 ms - med: 13.007 - 95pct: 383.231 - 99pct: 550.399 - 99.9pct: 776.191 - 99.99pct: 874.495 - Max: 921.087
 ```
 
 - The throughput and the latencies are those of the interval since the previous lines. The received messages and
   the throughput are summed over every application, and the latencies merged over every application; they include
   the warmup, which the latency logs and the run report leave out. The bit rates count the payload only.
 - The backlog is the sum of every subscription's backlog, from the latest topic stats sample, and the largest
-  application's, summed over its topics. It includes the messages that the applications have received but whose
-  acknowledgments the broker hasn't processed yet, so it isn't zero while messages flow. When the latest sample is
+  application's, summed over its topics, in entries, as the broker counts it: a batch counts once. It includes the
+  messages that the applications have received but whose acknowledgments the broker hasn't processed yet, so it
+  isn't zero while messages flow. When the latest sample is
   5 seconds old or older, because the broker answers the stats requests slowly, the line says how old it is. The lines
   also show duplicates and ordering violations as soon as an application has any.
 - The end-to-end latency is measured from the broker's publish time, which has millisecond resolution.

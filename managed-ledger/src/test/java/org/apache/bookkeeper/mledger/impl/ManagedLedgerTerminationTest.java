@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -185,6 +186,36 @@ public class ManagedLedgerTerminationTest extends MockedBookKeeperTestCase {
         } catch (NoMoreEntriesToReadException e) {
             // Expected
         }
+    }
+
+    @Test(timeOut = 20000)
+    public void terminateFailsLaterAddsAfterTheInFlightOnes() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger",
+                initManagedLedgerConfig(defaultConfig()));
+        Position p0 = ledger.addEntry("entry-0".getBytes());
+
+        // The entry is stored, and its add is in flight until the response arrives
+        List<String> completionOrder = new CopyOnWriteArrayList<>();
+        CompletableFuture<Void> responseGate = bkc.addEntryResponseGate();
+        CompletableFuture<Position> add1 = addEntryAsync(ledger, "entry-1");
+        add1.whenComplete((__, ___) -> completionOrder.add("entry-1"));
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.currentLedger.getLastAddConfirmed(), 1));
+
+        CompletableFuture<Position> terminated = terminateAsync(ledger);
+        CompletableFuture<Position> add2 = addEntryAsync(ledger, "entry-2");
+        add2.whenComplete((__, ___) -> completionOrder.add("entry-2"));
+        // The add that arrived after the terminate waits for the one in flight
+        Awaitility.await().untilAsserted(() -> assertEquals(ledger.getPendingAddEntriesCount(), 2));
+        assertFalse(add2.isDone());
+
+        // ... and fails once that one succeeded
+        responseGate.complete(null);
+        Position p1 = add1.get();
+        assertEquals(p1, PositionFactory.create(p0.getLedgerId(), 1));
+        assertFailedWithTerminated(add2);
+        assertEquals(completionOrder, List.of("entry-1", "entry-2"));
+        assertEquals(terminated.get(), p1);
+        assertTerminatedAt(factory, ledger, p1);
     }
 
     @Test(timeOut = 20000)

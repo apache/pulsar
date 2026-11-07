@@ -89,6 +89,16 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
+    /**
+     * The managed ledger was fenced because another client fenced its current ledger after the metadata store's
+     * session was lost, such as another broker that took the topic over once the session expired.
+     */
+    public static class ManagedLedgerFencedByAnotherWriterException extends ManagedLedgerFencedException {
+        public ManagedLedgerFencedByAnotherWriterException(String message) {
+            super(message);
+        }
+    }
+
     public static class ManagedLedgerNotFoundException extends ManagedLedgerException {
         public ManagedLedgerNotFoundException(Exception e) {
             super(e);

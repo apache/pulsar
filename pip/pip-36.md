@@ -2,8 +2,6 @@
 
 - Status: Proposed
 - Author: Yong Zhang
-- Discusstion Thread:
-- Issue:
 
 ## Motivation
 
@@ -69,3 +67,7 @@ Client shouldn’t set max message size in configuration and When client connect
 
 **Proxy**
 It will have two operation when client connect to proxy. One is client is looking up brokers and another is client has know which broker to connect and it connecting to broker. There is no messages except connect message is transferring between proxy and client when client just looking up brokers. So it needn’t set message size when proxy connected. But when client has know which broker to connect proxy server will create a direct proxy, then proxy and client will receive the message max size and replace the `LengthFieldBasedFrameDecoder` between proxy and client.
+
+# Links
+
+* Mailing List discussion thread: https://lists.apache.org/thread/h3bhjy7t4q51ys0o1rvw2k8ktwmq754y

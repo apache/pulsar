@@ -2,9 +2,8 @@
 
 * **Status**: Accepted
 * **Author**: [Matteo Merli](https://github.com/merlimat)
-* **Pull Request**:
-* **Mailing List discussion**:
 * **Release**: 2.3.0
+* **Mailing List discussion**: https://lists.apache.org/thread/op17p0ost4w2bf7cxvymkqc1bjb0kp03
 
 
 ## Motivation

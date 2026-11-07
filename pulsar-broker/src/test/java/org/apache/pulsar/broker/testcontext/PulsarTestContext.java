@@ -32,7 +32,6 @@ import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import lombok.AccessLevel;
-import lombok.Builder;
 import lombok.CustomLog;
 import lombok.Getter;
 import lombok.Singular;
@@ -66,6 +65,7 @@ import org.apache.pulsar.common.util.PortManager;
 import org.apache.pulsar.compaction.CompactionServiceFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.metadata.TestZKServer;
 import org.apache.pulsar.metadata.api.MetadataStore;
 import org.apache.pulsar.metadata.api.MetadataStoreConfig;
@@ -135,7 +135,7 @@ import org.mockito.internal.util.MockUtil;
 @CustomLog
 @ToString
 @Getter
-@Builder(builderClassName = "Builder")
+@lombok.Builder(builderClassName = "Builder")
 @SuppressWarnings("try")
 public class PulsarTestContext implements AutoCloseable {
     private final ServiceConfiguration config;
@@ -179,6 +179,8 @@ public class PulsarTestContext implements AutoCloseable {
 
     private final boolean enableOpenTelemetry;
     private final InMemoryMetricReader openTelemetryMetricReader;
+
+    private final WorkerService functionWorkerService;
 
     public ManagedLedgerStorage getManagedLedgerStorage() {
         return managedLedgerStorage;
@@ -345,6 +347,13 @@ public class PulsarTestContext implements AutoCloseable {
 
             if (svcConfig.getTopicLoadTimeoutSeconds() == unconfiguredDefaults.getTopicLoadTimeoutSeconds()) {
                 svcConfig.setTopicLoadTimeoutSeconds(10);
+            }
+
+            // With batching, every metadata store operation waits for the store's next flush, which runs every
+            // metadataStoreBatchingMaxDelayMillis: a chain of operations, like an admin call's, waits for one flush
+            // per operation. A test that needs batching enables it with configOverride(...)
+            if (svcConfig.isMetadataStoreBatchingEnabled() == unconfiguredDefaults.isMetadataStoreBatchingEnabled()) {
+                svcConfig.setMetadataStoreBatchingEnabled(false);
             }
         }
 
@@ -939,7 +948,7 @@ public class PulsarTestContext implements AutoCloseable {
                             builder.configurationMetadataStore, compactionServiceFactory,
                             builder.brokerInterceptor,
                             bookKeeperClientFactory, builder.brokerServiceCustomizer,
-                            openTelemetrySdkBuilderCustomizer);
+                            openTelemetrySdkBuilderCustomizer, Optional.ofNullable(builder.functionWorkerService));
             if (compactionServiceFactory != null) {
                 compactionServiceFactory.initialize(pulsarService);
             }

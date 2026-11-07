@@ -30,9 +30,13 @@ public class ZKContainer extends PulsarContainer<ZKContainer> {
     }
 
     public ZKContainer(String clusterName, String imageName) {
+        this(clusterName, NAME, imageName);
+    }
+
+    public ZKContainer(String clusterName, String hostName, String imageName) {
         super(
             clusterName,
-            NAME,
+            hostName,
             NAME,
             "bin/run-local-zk.sh",
             ZK_PORT,

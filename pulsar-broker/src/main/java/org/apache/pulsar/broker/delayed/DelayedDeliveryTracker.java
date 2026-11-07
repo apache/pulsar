@@ -134,7 +134,7 @@ public interface DelayedDeliveryTracker extends AutoCloseable {
 
         @Override
         public CompletableFuture<Void> clear() {
-            return null;
+            return CompletableFuture.completedFuture(null);
         }
 
         @Override

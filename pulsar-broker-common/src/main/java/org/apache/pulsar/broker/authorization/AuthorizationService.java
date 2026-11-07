@@ -964,6 +964,30 @@ public class AuthorizationService {
         }
     }
 
+    /**
+     * Check if a client may have a topic created automatically, see
+     * {@link AuthorizationProvider#allowTopicAutoCreationAsync}. Through a proxy, both the proxy role and the
+     * original principal must be allowed, as for topic operations.
+     */
+    public CompletableFuture<Boolean> allowTopicAutoCreationAsync(TopicName topicName,
+                                                                  String originalRole,
+                                                                  String role,
+                                                                  AuthenticationDataSource originalAuthData,
+                                                                  AuthenticationDataSource authData) {
+        if (!this.conf.isAuthorizationEnabled()) {
+            return CompletableFuture.completedFuture(true);
+        }
+        if (!isValidOriginalPrincipal(role, originalRole, originalAuthData)) {
+            return CompletableFuture.completedFuture(false);
+        }
+        if (isProxyRole(role) && !isWebsocketPrinciple(originalRole)) {
+            return provider.allowTopicAutoCreationAsync(topicName, role, authData)
+                    .thenCombine(provider.allowTopicAutoCreationAsync(topicName, originalRole, originalAuthData),
+                            (isRoleAllowed, isOriginalAllowed) -> isRoleAllowed && isOriginalAllowed);
+        }
+        return provider.allowTopicAutoCreationAsync(topicName, role, authData);
+    }
+
     public CompletableFuture<Boolean> allowTopicOperationAsync(TopicName topicName,
                                                                TopicOperation operation,
                                                                String originalRole,
@@ -1005,6 +1029,15 @@ public class AuthorizationService {
 
     public CompletableFuture<Void> removePermissionsAsync(TopicName topicName) {
         return provider.removePermissionsAsync(topicName);
+    }
+
+    /**
+     * Grant on a topic the permissions granted on another topic itself.
+     *
+     * @see AuthorizationProvider#copyPermissionsAsync(TopicName, TopicName)
+     */
+    public CompletableFuture<Void> copyPermissionsAsync(TopicName sourceTopicName, TopicName targetTopicName) {
+        return provider.copyPermissionsAsync(sourceTopicName, targetTopicName);
     }
 
     public CompletableFuture<Map<String, Set<AuthAction>>> getPermissionsAsync(TopicName topicName) {

@@ -177,6 +177,22 @@ public class ConsumerPrioritySelectorTest {
     }
 
     @Test
+    public void instanceRemovalPreservesEqualReplacement() {
+        List<Slot> consumers = new CopyOnWriteArrayList<>();
+        ConsumerPrioritySelector<Slot> selector = new ConsumerPrioritySelector<>(consumers, c -> c.priority,
+                c -> c.available);
+        Slot original = new Slot(0, 0);
+        Slot replacement = new Slot(0, 3);
+        selector.add(replacement);
+        selector.removeInstance(original);
+        assertThat(consumers).singleElement().isSameAs(replacement);
+        assertThat(selector.priorityLevelCount()).isEqualTo(1);
+        selector.removeInstance(replacement);
+        assertThat(consumers).isEmpty();
+        assertThat(selector.priorityLevelCount()).isZero();
+    }
+
+    @Test
     public void bulkRemovalRepairsInconsistentMembership() {
         List<Slot> consumers = new CopyOnWriteArrayList<>();
         ConsumerPrioritySelector<Slot> selector = new ConsumerPrioritySelector<>(consumers, c -> c.priority,

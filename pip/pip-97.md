@@ -47,7 +47,7 @@ This class has a `checkAuth` method. The creation of a subscription is currently
 This class is an implementation of the `javax.servlet.Filter` interface. We will need to follow the servlet's paradigm for ensuring that asynchronous results are properly handled when determining whether to call `chain.doFilter` after the asynchronous authentication is complete. I will need to do a little research to complete this implementation.
 
 #### ServerConnection
-The `ServerConnection` class is part of the `DiscoveryService`. Instead of updating the implementation, I think it makes more sense to remove the module altogether. I started a thread about this on the mailing list here: https://lists.apache.org/x/thread.html/rc8b796dda2bc1b022e855c7368d832b570967cb1ef29e9cd18e04e97@%3Cdev.pulsar.apache.org%3E. If we do not remove the module, this class will need to be updated as well.
+The `ServerConnection` class is part of the `DiscoveryService`. Instead of updating the implementation, I think it makes more sense to remove the module altogether. I started a thread about this on the mailing list here: https://lists.apache.org/thread/dz776xbjt2ncg464r7y1w26j2hz2pldb. If we do not remove the module, this class will need to be updated as well.
 
 #### ServerCnx and ProxyConnection
 Both of these classes rely on netty for method synchronization. Since authentication can happen in another thread, we will need to update these class's state to `State.Connecting` before calling the `authenticateAsync` methods. This will prevent a potential denial of service issue. Then, when the `authenticateAsync` method is called, we will need to register a callback to update the state of the connection class. I believe we will want to schedule this using each class's executor, as follows: `this.ctx().executor()`. By using the class's executor, we won't need to update any values to `volatile`. I'd appreciate confirmation that this interpretation of netty's method is true.
@@ -84,4 +84,9 @@ Further, if we created a new interfaces named `AsyncAuthenticationProvider` and 
 
 ## References
 
-This addition was first discussed on the dev mailing list here: https://lists.apache.org/x/thread.html/r6c2522ca62242109758586696261cb1f4b4ce8e94ae593fda6e97b99@%3Cdev.pulsar.apache.org%3E.
+This addition was first discussed on the dev mailing list here: https://lists.apache.org/thread/4m6vg9gz27wyqb1z6s9z3bzgr8n5mc6o.
+
+# Links
+
+* Mailing List discussion thread: https://lists.apache.org/thread/kqhfxy075dcgtr7cz9of8vj3ohpzq1rq
+* Mailing List voting thread: https://lists.apache.org/thread/2wbp56r9zt4vh7tzontw8hfdn0tnbmdk

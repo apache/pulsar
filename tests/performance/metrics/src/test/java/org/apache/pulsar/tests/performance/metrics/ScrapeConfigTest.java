@@ -60,6 +60,7 @@ public class ScrapeConfigTest {
     public void namesAContainerOnTheDashboardsWithoutItsCluster() {
         assertThat(RunScrape.instanceName("iot-42", "iot-42-pulsar-bookie-1")).isEqualTo("pulsar-bookie-1");
         assertThat(RunScrape.instanceName("iot-42", "zookeeper")).isEqualTo("zookeeper");
+        assertThat(RunScrape.instanceName("iot-42", "iot-42-iot-42-pulsar-broker-0")).isEqualTo("pulsar-broker-0");
     }
 
     @Test

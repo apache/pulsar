@@ -28,7 +28,8 @@ import static org.testng.Assert.assertNotNull;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.MultiThreadIoEventLoopGroup;
+import io.netty.channel.nio.NioIoHandler;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -68,7 +69,8 @@ public class HttpLookupServiceTest {
 
     @BeforeClass(alwaysRun = true)
     void beforeClass() {
-        eventLoopGroup = new NioEventLoopGroup(1, new DefaultThreadFactory("HttpLookupServiceTest"));
+        eventLoopGroup = new MultiThreadIoEventLoopGroup(1, new DefaultThreadFactory("HttpLookupServiceTest"),
+                NioIoHandler.newFactory());
         timer = new HashedWheelTimer(new DefaultThreadFactory("HttpLookupServiceTest-timer"));
     }
 

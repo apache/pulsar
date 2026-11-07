@@ -47,7 +47,11 @@ dependencies {
     implementation(libs.hdrHistogram)
     // Samples topic backlog and message counters during a run for the run report
     implementation(project(":pulsar-client-admin-original"))
+    // Creates each TLS run's CA and broker certificates, see TlsSettings
+    implementation(libs.bcpkix.jdk18on)
     jonoffcpuAgent(libs.tooling.jonoffcpu.agent)
+    // Checks that the brokers' token provider accepts the tokens that JwtSettings creates
+    testImplementation(project(":pulsar-broker-common"))
 }
 
 // The launcher already needs a recent JDK at run time (JfrCut uses the JDK 19+ recording writer), and the report
@@ -66,6 +70,23 @@ tasks.named<Test>("test") {
     inputs.dir(layout.projectDirectory.dir("../scenarios"))
         .withPropertyName("scenarios")
         .withPathSensitivity(PathSensitivity.RELATIVE)
+    // It needs a Docker engine that runs privileged containers; networkCheck runs it
+    exclude("**/NetworkImpairmentsCheck*")
+}
+
+// Checks the network impairments on small containers, with ping and iperf3, see docs/network-conditions.md
+val networkCheck by tasks.registering(Test::class) {
+    description = "Checks that the network impairments do what their settings ask, on small Docker containers"
+    group = "verification"
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useTestNG()
+    include("**/NetworkImpairmentsCheck*")
+    outputs.upToDateWhen { false }
+    testLogging {
+        events("passed", "failed", "skipped")
+        showStandardStreams = true
+    }
 }
 
 // Profiled containers use the same Alpine image as every other run, which is also Pulsar's default image, since a

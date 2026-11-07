@@ -22,12 +22,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
 import org.apache.pulsar.common.scalable.SegmentInfo;
 import org.apache.pulsar.common.scalable.SegmentTopicName;
+import org.apache.pulsar.common.util.DateFormatter;
 
 /**
  * Assembles a {@link ScalableTopicStats} snapshot out of the segment DAG, the per-segment
@@ -84,10 +86,22 @@ public final class ScalableTopicStatsBuilder {
                                            Map<Long, SegmentTopicStats> segmentStats,
                                            Map<String, ScalableSubscriptionType> persistedTypes,
                                            Map<String, List<StreamConsumer>> streamConsumers) {
+        return build(topic, layout, segmentStats, persistedTypes, streamConsumers, Map.of(), Set.of());
+    }
+
+    /** Build the snapshot including controller ordering and checkpoint-group diagnostics. */
+    public static ScalableTopicStats build(TopicName topic,
+                                           SegmentLayout layout,
+                                           Map<Long, SegmentTopicStats> segmentStats,
+                                           Map<String, ScalableSubscriptionType> persistedTypes,
+                                           Map<String, List<StreamConsumer>> streamConsumers,
+                                           Map<String, Set<Long>> blockedSegments,
+                                           Set<String> checkpointGroups) {
         ScalableTopicStats stats = new ScalableTopicStats();
         addLayout(topic, layout, segmentStats, stats);
         addProducers(layout, segmentStats, stats);
-        addSubscriptions(layout, segmentStats, persistedTypes, streamConsumers, stats);
+        addSubscriptions(layout, segmentStats, persistedTypes, streamConsumers,
+                blockedSegments, checkpointGroups, stats);
         roundRates(stats);
         return stats;
     }
@@ -102,10 +116,13 @@ public final class ScalableTopicStatsBuilder {
             node.setParentIds(new ArrayList<>(segment.parentIds()));
             node.setChildIds(new ArrayList<>(segment.childIds()));
             node.setEntryBuckets(segment.bucketCount());
+            node.setCreatedAt(segment.createdAtMs() > 0 ? DateFormatter.format(segment.createdAtMs()) : null);
+            node.setSealedAt(segment.sealedAtMs() > 0 ? DateFormatter.format(segment.sealedAtMs()) : null);
 
             SegmentTopicStats ts = segmentStats.get(segment.segmentId());
             if (ts != null) {
                 node.setOwnerBroker(ts.getOwnerBroker());
+                node.setTerminated(ts.getTerminated());
                 stats.setMsgRateIn(stats.getMsgRateIn() + ts.getMsgRateIn());
                 stats.setByteRateIn(stats.getByteRateIn() + ts.getByteRateIn());
                 stats.setMsgRateOut(stats.getMsgRateOut() + ts.getMsgRateOut());
@@ -150,6 +167,8 @@ public final class ScalableTopicStatsBuilder {
     private static void addSubscriptions(SegmentLayout layout, Map<Long, SegmentTopicStats> segmentStats,
                                          Map<String, ScalableSubscriptionType> persistedTypes,
                                          Map<String, List<StreamConsumer>> streamConsumers,
+                                         Map<String, Set<Long>> blockedSegments,
+                                         Set<String> checkpointGroups,
                                          ScalableTopicStats stats) {
         // Every subscription known anywhere: recorded in the metadata store, held by the
         // controller, or present as a cursor on some segment (a QUEUE subscription created by
@@ -181,6 +200,12 @@ public final class ScalableTopicStatsBuilder {
             sub.setType(persisted != null ? persisted
                     : sessions != null ? ScalableSubscriptionType.STREAM : ScalableSubscriptionType.QUEUE);
 
+            boolean checkpoint = checkpointGroups.contains(name);
+            if (checkpoint) {
+                sub.setUncoveredSegmentIds(null);
+            }
+            Set<Long> blocked = !checkpoint && sub.getType() == ScalableSubscriptionType.STREAM
+                    ? blockedSegments.getOrDefault(name, Set.of()) : Set.of();
             Map<String, ScalableTopicStats.ConsumerStats> consumers = new LinkedHashMap<>();
             if (sessions != null) {
                 for (StreamConsumer session : sessions) {
@@ -195,9 +220,20 @@ public final class ScalableTopicStatsBuilder {
                 SegmentTopicStats ts = segmentStats.get(segmentId);
                 SegmentTopicStats.SubscriptionStats ss = ts != null ? ts.getSubscriptions().get(name) : null;
                 if (ss == null) {
+                    if (!checkpoint && ts != null && layout.getAllSegments().get(segmentId).isActive()) {
+                        sub.getUncoveredSegmentIds().add(segmentId);
+                    }
+                    // A blocked segment is useful even before its cursor is materialized.
+                    if (blocked.contains(segmentId)) {
+                        ScalableTopicStats.SegmentSubscriptionStats seg =
+                                new ScalableTopicStats.SegmentSubscriptionStats();
+                        seg.setBlocked(true);
+                        sub.getSegments().put(segmentId, seg);
+                    }
                     continue;
                 }
                 addSegmentSubscription(sub, segmentId, ss);
+                sub.getSegments().get(segmentId).setBlocked(blocked.contains(segmentId));
                 for (SegmentTopicStats.ConsumerStats consumer : ss.getConsumers()) {
                     addSegmentConsumer(consumers, segmentId, consumer);
                 }
@@ -216,6 +252,7 @@ public final class ScalableTopicStatsBuilder {
         seg.setMsgRateOut(ss.getMsgRateOut());
         seg.setByteRateOut(ss.getByteRateOut());
         seg.setConsumerCount(ss.getConsumers().size());
+        seg.setDrainingBuckets(ss.getDrainingBuckets());
         sub.getSegments().put(segmentId, seg);
 
         sub.setMsgBacklog(sub.getMsgBacklog() + ss.getMsgBacklog());

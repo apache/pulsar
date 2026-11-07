@@ -18,6 +18,13 @@
  */
 package org.apache.pulsar.tests.performance.tools;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientSharedResources;
 
 final class SharedClientResources {
@@ -41,6 +48,34 @@ final class SharedClientResources {
                 .configureThreadPool(PulsarClientSharedResources.SharedResource.LookupExecutor,
                         config -> config.numberOfThreads(Math.min(2, ioThreads)))
                 .build();
+    }
+
+    /**
+     * A builder of a client of the scenario's cluster that uses the shared resources, trusts the scenario's CA
+     * certificate when it has one, and authenticates with its token when it has one.
+     */
+    static ClientBuilder clientBuilder(IotScenario scenario, PulsarClientSharedResources sharedResources) {
+        ClientBuilder builder = PulsarClient.builder()
+                .serviceUrl(scenario.serviceUrl())
+                .sharedResources(sharedResources);
+        if (scenario.tlsTrustCertsFilePath() != null) {
+            builder.tlsTrustCertsFilePath(scenario.tlsTrustCertsFilePath());
+        }
+        if (scenario.authTokenFilePath() != null) {
+            // Reads the token from the file whenever the client authenticates, as a client configured with a token
+            // file does
+            Path tokenFile = Path.of(scenario.authTokenFilePath());
+            builder.authentication(AuthenticationFactory.token(() -> readToken(tokenFile)));
+        }
+        return builder;
+    }
+
+    private static String readToken(Path tokenFile) {
+        try {
+            return Files.readString(tokenFile).trim();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Couldn't read the token " + tokenFile, e);
+        }
     }
 
     private SharedClientResources() {

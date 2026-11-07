@@ -56,10 +56,7 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
         try {
             return subscribeAsync().join();
         } catch (java.util.concurrent.CompletionException e) {
-            if (e.getCause() instanceof PulsarClientException pce) {
-                throw pce;
-            }
-            throw new PulsarClientException(e.getCause());
+            throw V5ExceptionMappings.toV5Exception(e);
         }
     }
 
@@ -84,7 +81,8 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
 
         if (namespaceSet) {
             return MultiTopicStreamConsumer.createAsync(
-                    client, v5Schema, conf, namespaceName, propertyFilters);
+                            client, v5Schema, conf, namespaceName, propertyFilters)
+                    .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
         }
 
         TopicName topic = V5Utils.parseScalableTopicInput(topicName);
@@ -107,7 +105,8 @@ final class StreamConsumerBuilderV5<T> implements StreamConsumerBuilder<T> {
                         // path already closed the session.
                         session.close();
                     }
-                });
+                })
+                .exceptionallyCompose(V5ExceptionMappings::failWithV5Exception);
     }
 
     @Override

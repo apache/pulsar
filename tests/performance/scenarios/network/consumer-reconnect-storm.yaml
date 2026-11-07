@@ -1,0 +1,46 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# The applications' TCP connections are reset once during the warmup and once 30 s into the measurement, as a load
+# balancer or a NAT gateway in front of the consumers that resets its connections does, while the gateways' connections
+# stay up. Every pod's client reconnects after its initial backoff of 100 ms, with only 5 % of jitter, so every consumer
+# resubscribes at once. The first reset warms up the brokers' code for it, so that the second one measures a warm
+# broker. The clients' INFO logs show the reconnections in each workload's pulsar-client.log.txt.
+#
+# On iot-telemetry-small, 20 applications of 10 pods have 6,000 Key_Shared consumers on one broker. A broker removes a
+# closed connection's consumers on the I/O thread that also serves producers, and each removal and addition changes the
+# Key_Shared subscription's hash ring. Look for: the publish latency of the untouched producers after each reset,
+# against --set workloads.iotTelemetry.applications.podsPerApplication=1, 5 or 10, and the redelivered duplicates.
+
+network:
+  impairments:
+    reset-applications-warmup:
+      from: applications
+      to: brokers
+      reset: true
+      anchor: run
+      start: 12s
+    reset-applications:
+      from: applications
+      to: brokers
+      reset: true
+      start: 30s
+workloads:
+  iotTelemetry:
+    applications:
+      env:
+        PULSAR_CLIENT_LOG_LEVEL: info

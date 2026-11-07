@@ -1,0 +1,49 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# Fleet onboarding with a topic per site: a facility operator brings 2,000 sites online at once, each with its own
+# telemetry topic, which the first message of one of its devices creates. Ten gateways publish the telemetry of
+# 100,000 devices, 2,000 messages per second, from the measurement's start, without a warmup, so the topics and the
+# gateways' 20,000 producers are created during the measurement. Three applications, such as a data lake ingestion,
+# alarms and billing, each subscribe with two pods to every site's topic by a pattern, and discover each topic as it is
+# created, through the broker's topic list watcher and every 30 seconds by a lookup, with Key_Shared subscriptions
+# that they create at the earliest position. It measures the topic creation and discovery under load, which delays
+# the first messages of each topic, and checks that every message arrives once and in order for its device.
+extends: [iot-telemetry-base.yaml, configs/iot-telemetry-high-mem.yaml]
+workloads:
+  iotTelemetry:
+    warmup:
+      seconds: 0
+    # The gateways create the producers as they send, which slows the sending while the topics come online
+    timeoutSeconds: 360
+    rate: 2000
+    payload:
+      size: 128
+    devices:
+      count: 100000
+    gateways:
+      count: 10
+      producer:
+        precreate: false
+    topics:
+      count: 2000
+      prefix: persistent://public/default/iot-site-
+      patternDiscoverySeconds: 30
+    applications:
+      count: 3
+      podsPerApplication: 2
+      subscriptionPrefix: fleet-application-

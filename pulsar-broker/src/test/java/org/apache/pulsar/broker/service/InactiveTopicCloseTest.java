@@ -107,6 +107,24 @@ public class InactiveTopicCloseTest extends BrokerTestBase {
     }
 
     @Test
+    public void testEnableBrokerCloseInactiveTopicsDynamically() throws Exception {
+        conf.setBrokerDeleteInactiveTopicsEnabled(false);
+        conf.setBrokerCloseInactiveTopicsEnabled(false);
+        conf.setBrokerDeleteInactiveTopicsFrequencySeconds(1);
+        conf.setBrokerDeleteInactiveTopicsMaxInactiveDurationSeconds(1);
+        super.baseSetup();
+
+        final String topic = "persistent://" + NAMESPACE + "/testEnableCloseDynamically";
+        pulsarClient.newProducer().topic(topic).create().close();
+        assertTrue(pulsar.getBrokerService().getTopicReference(topic).isPresent());
+
+        admin.brokers().updateDynamicConfiguration("brokerCloseInactiveTopicsEnabled", "true");
+        Awaitility.await().untilAsserted(() ->
+                assertFalse(pulsar.getBrokerService().getTopicReference(topic).isPresent()));
+        assertTrue(admin.topics().getList(NAMESPACE).contains(topic));
+    }
+
+    @Test
     public void testMutualExclusionWithDeleteInactive() throws Exception {
         conf.setBrokerDeleteInactiveTopicsEnabled(true);
         conf.setBrokerCloseInactiveTopicsEnabled(true);

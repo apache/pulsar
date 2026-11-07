@@ -19,10 +19,12 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import io.github.merlimat.slog.Logger;
+import io.netty.channel.ChannelFuture;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 import org.apache.pulsar.broker.resources.ScalableTopicMetadata;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
@@ -79,6 +81,11 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
      *  it (set by namespace consumers so a deleted topic isn't resurrected on a per-topic reconnect). */
     private final boolean createIfMissing;
     private volatile boolean closed = false;
+    private final AtomicBoolean metricsTrackingStopped = new AtomicBoolean();
+    private final AtomicBoolean initialResponseCompleted = new AtomicBoolean();
+    private final AtomicBoolean layoutWritten = new AtomicBoolean();
+    private final ScalableTopicMetrics metrics;
+    private final ScalableTopicMetrics.Request request;
 
     public DagWatchSession(long sessionId,
                            TopicName topicName,
@@ -86,6 +93,16 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
                            ScalableTopicResources resources,
                            BrokerService brokerService,
                            boolean createIfMissing) {
+        this(sessionId, topicName, cnx, resources, brokerService, createIfMissing, null);
+    }
+
+    public DagWatchSession(long sessionId,
+                           TopicName topicName,
+                           ServerCnx cnx,
+                           ScalableTopicResources resources,
+                           BrokerService brokerService,
+                           boolean createIfMissing,
+                           ScalableTopicMetrics.Request request) {
         this.sessionId = sessionId;
         this.topicName = topicName;
         this.cnx = cnx;
@@ -96,6 +113,11 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
         this.scalableTopicName = topicName.toScalableTopic();
         this.resolvedTopicName = scalableTopicName.toString();
         this.log = LOG.with().attr("topic", topicName).attr("sessionId", sessionId).build();
+        this.metrics = brokerService.getScalableTopicMetrics();
+        this.request = request;
+        if (metrics != null) {
+            metrics.sessionOpened(ScalableTopicMetrics.WatchType.TOPIC);
+        }
     }
 
     @Override
@@ -159,13 +181,14 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
 
     /**
      * A lookup for a {@code topic://...} scalable topic that doesn't exist yet. Auto-create it
-     * with a single initial segment — gated by the same broker/namespace auto-topic-creation
-     * policy as regular topics ({@link BrokerService#isAllowAutoTopicCreationAsync}) — then
-     * return its layout. If the policy disallows it, fail with the same not-found error as
-     * before so the client sees no behavioural change when auto-creation is off.
+     * with a single initial segment — gated like regular topics by the broker/namespace
+     * auto-topic-creation policy and the client's authorization
+     * ({@link ServerCnx#isAllowAutoTopicCreationAsync}) — then return its layout. If either
+     * disallows it, fail with the same not-found error as before so the client sees no
+     * behavioural change when auto-creation is off.
      */
     private CompletableFuture<ScalableTopicLayoutResponse> maybeAutoCreateAndBuildResponse() {
-        return brokerService.isAllowAutoTopicCreationAsync(scalableTopicName)
+        return cnx.isAllowAutoTopicCreationAsync(scalableTopicName)
                 .thenCompose(allowed -> {
                     if (!allowed) {
                         return CompletableFuture.failedFuture(
@@ -283,8 +306,19 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
             return;
         }
         // Metadata changed — reload and push update
-        resources.getScalableTopicMetadataAsync(topicName, true)
-                .thenAccept(optMd -> optMd.ifPresent(this::onMetadataChanged));
+        CompletableFuture<Optional<ScalableTopicMetadata>> metadata;
+        try {
+            metadata = resources.getScalableTopicMetadataAsync(topicName, true);
+        } catch (RuntimeException e) {
+            recordWatchUpdate(false);
+            throw e;
+        }
+        metadata.whenComplete((ignored, error) -> {
+            if (error != null) {
+                recordWatchUpdate(false);
+            }
+        });
+        metadata.thenAccept(optMd -> optMd.ifPresent(this::onMetadataChanged));
     }
 
     /**
@@ -294,22 +328,78 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
         if (closed) {
             return;
         }
-        buildResponse(newMetadata).thenAccept(this::pushUpdate);
+        CompletableFuture<ScalableTopicLayoutResponse> response;
+        try {
+            response = buildResponse(newMetadata);
+        } catch (RuntimeException e) {
+            recordWatchUpdate(false);
+            throw e;
+        }
+        response.whenComplete((ignored, error) -> {
+            if (error != null) {
+                recordWatchUpdate(false);
+            }
+        });
+        response.thenAccept(this::pushUpdate);
     }
 
     /**
-     * Push an update to the connected client.
+     * Push the initial snapshot, completing the lookup request only when its write completes.
+     * Initial snapshots are not watch updates.
+     */
+    public void pushInitialResponse(ScalableTopicLayoutResponse response) {
+        pushResponse(response, true);
+    }
+
+    /**
+     * Push a subsequent layout update to the connected client.
      */
     public void pushUpdate(ScalableTopicLayoutResponse response) {
+        pushResponse(response, false);
+    }
+
+    private void pushResponse(ScalableTopicLayoutResponse response, boolean initial) {
         if (closed) {
             return;
         }
-        ScalableTopicDAG dag = buildDagProto(response);
-        log.info().attr("epoch", response.epoch()).log("Pushing DAG update");
-        // Always report the canonical topic://... identity so clients that looked up
-        // via persistent://... or short-form know the resolved name.
-        cnx.ctx().writeAndFlush(Commands.newScalableTopicUpdate(
-                sessionId, resolvedTopicName, dag));
+        try {
+            ScalableTopicDAG dag = buildDagProto(response);
+            log.info().attr("epoch", response.epoch()).log("Pushing DAG update");
+            // Always report the canonical topic://... identity so clients that looked up
+            // via persistent://... or short-form know the resolved name.
+            ChannelFuture write = cnx.ctx().writeAndFlush(Commands.newScalableTopicUpdate(
+                    sessionId, resolvedTopicName, dag));
+            write.addListener(future -> responseWritten(initial, future.isSuccess()));
+        } catch (RuntimeException e) {
+            responseWritten(initial, false);
+            throw e;
+        }
+    }
+
+    private void responseWritten(boolean initial, boolean success) {
+        // A notification may overtake start()'s metadata read. Complete the request
+        // on the first layout actually written, regardless of which read built it.
+        boolean firstResponse = layoutWritten.compareAndSet(false, true) && request != null;
+        completeInitialRequest(success);
+        if (!initial && !firstResponse) {
+            recordWatchUpdate(success);
+        }
+    }
+
+    private void recordWatchUpdate(boolean success) {
+        if (metrics != null && !metricsTrackingStopped.get()) {
+            metrics.recordWatchUpdate(success);
+        }
+    }
+
+    private void completeInitialRequest(boolean success) {
+        if (request != null && initialResponseCompleted.compareAndSet(false, true)) {
+            if (success) {
+                request.success();
+            } else {
+                request.failure();
+            }
+        }
     }
 
     private ScalableTopicDAG buildDagProto(ScalableTopicLayoutResponse response) {
@@ -372,10 +462,19 @@ public class DagWatchSession implements ScalableTopicResources.MetadataPathListe
 
     public void close() {
         closed = true;
+        completeInitialRequest(false);
+        stopMetricsTracking();
         // Drop ourselves from the resources' fan-out so the per-event dispatch skips
         // us — no listener leak, no per-notification dispatch tax across the broker's
         // lifetime.
         resources.deregisterPathListener(this);
+    }
+
+    /** Stops counting this session without changing its lifecycle or request completion. */
+    public void stopMetricsTracking() {
+        if (metricsTrackingStopped.compareAndSet(false, true) && metrics != null) {
+            metrics.sessionClosed(ScalableTopicMetrics.WatchType.TOPIC);
+        }
     }
 
     /**

@@ -37,6 +37,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import java.util.stream.Collectors;
@@ -1309,6 +1311,126 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertEquals(offloader.offloadedLedgers(), Set.of(allLedgerIds.get(0), allLedgerIds.get(1)));
     }
 
+    @Test
+    public void automaticOffloadFailureInBackgroundTaskDoesNotBlockLaterTriggers() throws Exception {
+        // When armed, fail once in the background offload task before it takes the offload mutex. Other callers,
+        // such as the trigger on the caller thread or ledger trimming, are not affected.
+        AtomicBoolean failureArmed = new AtomicBoolean();
+        CountDownLatch failureThrown = new CountDownLatch(1);
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public boolean isAppendable() {
+                    if (isOnStack("maybeOffload") && failureArmed.compareAndSet(true, false)) {
+                        failureThrown.countDown();
+                        throw new IllegalStateException("injected offloader failure");
+                    }
+                    return super.isAppendable();
+                }
+            };
+        ManagedLedgerConfig config = defaultConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(-1L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        assertEquals(offloader.offloadedLedgers().size(), 0);
+
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+        failureArmed.set(true);
+        ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
+        assertTrue(failureThrown.await(5, TimeUnit.SECONDS));
+
+        // The failed automatic run must finish so that a later automatic trigger still offloads.
+        ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
+
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().size() == 2);
+        List<Long> allLedgerIds = ledger.getLedgersInfoAsList().stream().map(LedgerInfo::getLedgerId).toList();
+        assertEquals(offloader.offloadedLedgers(), Set.of(allLedgerIds.get(0), allLedgerIds.get(1)));
+    }
+
+    @DataProvider(name = "failingLedgerIndex")
+    public Object[][] failingLedgerIndexProvider() {
+        return new Object[][]{
+                // The first ledger fails when the run starts offloading after taking the offload mutex.
+                {0},
+                // The second ledger fails when the loop continues from the first ledger's completion callback.
+                {1}
+        };
+    }
+
+    @Test(dataProvider = "failingLedgerIndex")
+    public void offloadLoopFailureReleasesOffloadMutex(int failingLedgerIndex) throws Exception {
+        // When armed, the offload loop fails once while it starts offloading the ledger at failingLedgerIndex.
+        AtomicInteger loopCallsUntilFailure = new AtomicInteger(-1);
+        CountDownLatch failureThrown = new CountDownLatch(1);
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public String getOffloadDriverName() {
+                    if (calledFromOffloadLoop()
+                            && loopCallsUntilFailure.getAndUpdate(n -> n >= 0 ? n - 1 : n) == 0) {
+                        failureThrown.countDown();
+                        throw new IllegalStateException("injected offloader failure");
+                    }
+                    return super.getOffloadDriverName();
+                }
+            };
+        ManagedLedgerConfig config = defaultConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(-1L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger =
+                (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 25; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        List<Long> ledgerIds = ledger.getLedgersInfoAsList().stream().map(LedgerInfo::getLedgerId).toList();
+        assertEquals(ledgerIds.size(), 3);
+        assertEquals(offloader.offloadedLedgers().size(), 0);
+
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+        loopCallsUntilFailure.set(failingLedgerIndex);
+        ledger.maybeOffloadInBackground(ManagedLedgerImpl.AUTOMATIC_OFFLOAD_TRIGGER);
+        assertTrue(failureThrown.await(5, TimeUnit.SECONDS));
+
+        // The failed run must release the offload mutex, so an explicit offload is not rejected as in progress.
+        Position offloadTo = PositionFactory.create(ledgerIds.get(2), 0);
+        Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                .ignoreException(ManagedLedgerException.OffloadInProgressException.class)
+                .untilAsserted(() -> ledger.offloadPrefix(offloadTo));
+        assertEquals(offloader.offloadedLedgers(), Set.of(ledgerIds.get(0), ledgerIds.get(1)));
+
+        // The failed automatic run must finish, so the automatic offload triggered by the next rollover runs.
+        for (int i = 25; i < 35; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+        assertEventuallyTrue(() -> offloader.offloadedLedgers().contains(ledgerIds.get(2)));
+    }
+
+    private static boolean isOnStack(String methodName) {
+        return StackWalker.getInstance().walk(frames -> frames.anyMatch(f -> f.getMethodName().equals(methodName)));
+    }
+
+    // Matches only the offload loop's own lookup of the driver name, not lookups from callbacks it completes inline.
+    private static boolean calledFromOffloadLoop() {
+        // Skip this method and the overridden offloader method to reach their caller.
+        String caller = StackWalker.getInstance().walk(frames -> frames.skip(2).findFirst())
+                .map(StackWalker.StackFrame::getMethodName).orElse("");
+        return caller.equals("offloadLoop") || caller.equals("offloadNextLedger");
+    }
+
     @DataProvider(name = "offloadAsSoonAsClosed")
     public Object[][] offloadAsSoonAsClosedProvider() {
         return new Object[][]{
@@ -1346,6 +1468,242 @@ public class OffloadPrefixTest extends MockedBookKeeperTestCase {
         assertEquals(offloader.offloadedLedgers(),
                 Set.of(ledger.getLedgersInfoAsList().get(0).getLedgerId(),
                                             ledger.getLedgersInfoAsList().get(1).getLedgerId()));
+    }
+
+    @Test
+    public void offloadTerminatedLastLedger() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.terminate();
+
+        Position firstUnoffloaded = ledger.offloadPrefix(lastPosition);
+
+        assertEquals(firstUnoffloaded, lastPosition.getNext());
+        assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId));
+        LedgerInfo lastLedgerInfo = ledger.getLedgersInfoAsList().get(0);
+        assertEquals(lastLedgerInfo.getLedgerId(), lastLedgerId);
+        assertTrue(lastLedgerInfo.getEntries() > 0);
+        assertTrue(lastLedgerInfo.getSize() > 0);
+        assertTrue(lastLedgerInfo.getTimestamp() > 0);
+        assertTrue(lastLedgerInfo.getOffloadContext().isComplete());
+    }
+
+    @Test
+    public void offloadDoesNotIncludeFinalLedgerBeforeTerminationClose() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.getLastConfirmedEntry();
+        CompletableFuture<Void> closeLedger = bkc.promiseAfter(0);
+        CompletableFuture<Position> terminationResult = new CompletableFuture<>();
+        try {
+            ledger.asyncTerminate(new AsyncCallbacks.TerminateCallback() {
+                @Override
+                public void terminateComplete(Position lastCommittedPosition, Object ctx) {
+                    terminationResult.complete(lastCommittedPosition);
+                }
+
+                @Override
+                public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                    terminationResult.completeExceptionally(exception);
+                }
+            }, null);
+            Awaitility.await().atMost(5, TimeUnit.SECONDS).until(() -> closeLedger.getNumberOfDependents() > 0);
+            assertFalse(terminationResult.isDone());
+            assertEquals(ledger.getLedgersInfo().get(lastLedgerId).getEntries(), 0);
+
+            Position firstUnoffloaded = ledger.offloadPrefix(lastPosition);
+            assertEquals(firstUnoffloaded, PositionFactory.create(lastLedgerId, 0));
+            assertTrue(offloader.offloadedLedgers().isEmpty());
+        } finally {
+            closeLedger.complete(null);
+        }
+
+        assertEquals(terminationResult.get(5, TimeUnit.SECONDS), lastPosition);
+        assertEquals(ledger.offloadPrefix(lastPosition), lastPosition.getNext());
+        assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId));
+    }
+
+    @Test
+    public void manualOffloadWaitsForTerminationMetadataUpdate() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        String ledgerName = "my_test_ledger" + UUID.randomUUID();
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open(ledgerName, config);
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.getLastConfirmedEntry();
+        CountDownLatch terminationMetadataPutStarted = new CountDownLatch(1);
+        CountDownLatch allowTerminationMetadataPut = new CountDownLatch(1);
+        AtomicBoolean allowConcurrentMetadataPuts = new AtomicBoolean();
+        AtomicInteger metadataPutCount = new AtomicInteger();
+        String metadataPath = "/managed-ledgers/" + ledgerName;
+        metadataStore.failConditional(new MetadataStoreException.BadVersionException("concurrent metadata update"),
+                (operation, path) -> {
+                    if (operation != FaultInjectionMetadataStore.OperationType.PUT || !metadataPath.equals(path)) {
+                        return false;
+                    }
+                    if (metadataPutCount.incrementAndGet() == 1) {
+                        terminationMetadataPutStarted.countDown();
+                        try {
+                            return !allowTerminationMetadataPut.await(5, TimeUnit.SECONDS);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            return true;
+                        }
+                    }
+                    return !allowConcurrentMetadataPuts.get();
+                });
+
+        CompletableFuture<Position> terminationResult = new CompletableFuture<>();
+        ledger.asyncTerminate(new AsyncCallbacks.TerminateCallback() {
+            @Override
+            public void terminateComplete(Position lastCommittedPosition, Object ctx) {
+                terminationResult.complete(lastCommittedPosition);
+            }
+
+            @Override
+            public void terminateFailed(ManagedLedgerException exception, Object ctx) {
+                terminationResult.completeExceptionally(exception);
+            }
+        }, null);
+        assertTrue(terminationMetadataPutStarted.await(5, TimeUnit.SECONDS));
+
+        OffloadCallbackPromise offloadResult = new OffloadCallbackPromise();
+        // The blocked metadata put holds the managed ledger lock, so start the offload from another thread
+        CompletableFuture.runAsync(() -> ledger.asyncOffloadPrefix(lastPosition, offloadResult, null));
+        try {
+            assertThrows(TimeoutException.class, () -> offloadResult.get(1, TimeUnit.SECONDS));
+            assertEquals(metadataPutCount.get(), 1);
+        } finally {
+            allowConcurrentMetadataPuts.set(true);
+            allowTerminationMetadataPut.countDown();
+        }
+
+        assertEquals(terminationResult.get(5, TimeUnit.SECONDS), lastPosition);
+        assertEquals(offloadResult.get(5, TimeUnit.SECONDS), lastPosition.getNext());
+        assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId));
+        assertFalse(ledger.getState().isFenced());
+    }
+
+    @Test
+    public void offloadTerminatedLastLedgerOnlyWhenPositionCoversTerminatedPosition() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.terminate();
+        Position beforeTerminatedPosition = PositionFactory.create(lastLedgerId, lastPosition.getEntryId() - 1);
+
+        Position firstUnoffloaded = ledger.offloadPrefix(beforeTerminatedPosition);
+
+        assertEquals(firstUnoffloaded, PositionFactory.create(lastLedgerId, 0));
+        assertEquals(offloader.offloadedLedgers().size(), 0);
+        assertFalse(ledger.getLedgersInfoAsList().get(0).getOffloadContext().isComplete());
+    }
+
+    @Test
+    public void offloadTerminatedLastLedgerIsIdempotent() throws Exception {
+        AtomicInteger offloadCalls = new AtomicInteger();
+        MockLedgerOffloader offloader = new MockLedgerOffloader() {
+                @Override
+                public CompletableFuture<Void> offload(ReadHandle ledger,
+                                                       UUID uuid,
+                                                       Map<String, String> extraMetadata) {
+                    offloadCalls.incrementAndGet();
+                    return super.offload(ledger, uuid, extraMetadata);
+                }
+            };
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.terminate();
+
+        Position firstUnoffloaded = ledger.offloadPrefix(lastPosition);
+        Position firstUnoffloadedAgain = ledger.offloadPrefix(lastPosition);
+
+        assertEquals(firstUnoffloaded, lastPosition.getNext());
+        assertEquals(firstUnoffloadedAgain, lastPosition.getNext());
+        assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId));
+        assertEquals(offloadCalls.get(), 1);
+    }
+
+    @Test
+    public void terminateTriggersAutomaticOffloadForLastLedger() throws Exception {
+        MockLedgerOffloader offloader = new MockLedgerOffloader();
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(10);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInBytes(0L);
+        offloader.getOffloadPolicies().setManagedLedgerOffloadThresholdInSeconds(null);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("my_test_ledger" + UUID.randomUUID(), config);
+
+        for (int i = 0; i < 5; i++) {
+            ledger.addEntry(buildEntry(10, "entry-" + i));
+        }
+
+        long lastLedgerId = ledger.getLastConfirmedEntry().getLedgerId();
+        Position lastPosition = ledger.terminate();
+
+        assertEquals(lastPosition.getLedgerId(), lastLedgerId);
+        Awaitility.await().untilAsserted(() -> assertEquals(offloader.offloadedLedgers(), Set.of(lastLedgerId)));
+        assertTrue(ledger.isTerminated());
+        assertEquals(ledger.getLedgersInfoAsList().size(), 1);
+        // the offloader completes before the ledger info is marked complete with an async metadata update
+        Awaitility.await().until(() -> ledger.getLedgersInfoAsList().get(0).getOffloadContext().isComplete());
     }
 
 

@@ -144,6 +144,24 @@ public class MessageRedeliveryControllerTest {
         }
     }
 
+    @Test(dataProvider = "allowOutOfOrderDelivery", timeOut = 10000)
+    public void testRemoveAllUpToASparsePrefixRemovesItsHashes(boolean allowOutOfOrderDelivery) {
+        MessageRedeliveryController controller = new MessageRedeliveryController(allowOutOfOrderDelivery);
+        // a gap between the positions removed and the one kept, in the same ledger
+        controller.add(1, 5, 100);
+        controller.add(1, 100, 200);
+
+        controller.removeAllUpTo(1, 10);
+
+        assertEquals(controller.size(), 1);
+        assertNull(controller.getHash(1, 5));
+        assertEquals(controller.getHash(1, 100), Long.valueOf(200));
+        assertFalse(controller.containsStickyKeyHash(100));
+        if (!allowOutOfOrderDelivery) {
+            assertTrue(controller.containsStickyKeyHash(200));
+        }
+    }
+
     @Test(timeOut = 10000)
     public void testOutOfOrderSentinelHashDoesNotInitializePositionHashMap() {
         MessageRedeliveryController controller = new MessageRedeliveryController(true);
