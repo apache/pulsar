@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -34,6 +35,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.raw.MessageParser;
 import org.apache.pulsar.common.api.raw.RawMessage;
 import org.apache.pulsar.common.naming.TopicName;
@@ -165,6 +167,55 @@ public class MessageParserTest extends MockedPulsarServiceBaseTest {
                     assertEquals(byteBuf.refCnt(), 0);
                 });
             }
+        }
+    }
+
+    /**
+     * Verify that MessageParser refuses to allocate a ByteBuf for a client-controlled
+     * uncompressedSize that exceeds maxMessageSize or is non-positive (Layer 2 of #26442).
+     */
+    @Test
+    public void testUncompressPayloadRejectsOversizedUncompressedSize() {
+        MessageMetadata metadata = new MessageMetadata();
+        metadata.setCompression(org.apache.pulsar.common.api.proto.CompressionType.ZLIB);
+        metadata.setUncompressedSize(Commands.DEFAULT_MAX_MESSAGE_SIZE + 1024);
+
+        ByteBuf tinyPayload = Unpooled.buffer().writeByte(0x78).writeByte(0x9c); // zlib header, but invalid
+        try {
+            ByteBuf result = MessageParser.uncompressPayloadIfNeeded(
+                    "persistent://my-tenant/my-ns/test-oversized", metadata, tinyPayload, 0, 0,
+                    Commands.DEFAULT_MAX_MESSAGE_SIZE);
+            assertNull(result, "MessageParser should reject uncompressedSize > maxMessageSize");
+        } finally {
+            tinyPayload.release();
+        }
+    }
+
+    @Test
+    public void testUncompressPayloadRejectsNonPositiveUncompressedSize() {
+        MessageMetadata metadata = new MessageMetadata();
+        metadata.setCompression(org.apache.pulsar.common.api.proto.CompressionType.ZLIB);
+        metadata.setUncompressedSize(0);
+
+        ByteBuf tinyPayload = Unpooled.buffer().writeByte(0x78).writeByte(0x9c);
+        try {
+            ByteBuf result = MessageParser.uncompressPayloadIfNeeded(
+                    "persistent://my-tenant/my-ns/test-zero", metadata, tinyPayload, 0, 0,
+                    Commands.DEFAULT_MAX_MESSAGE_SIZE);
+            assertNull(result, "MessageParser should reject uncompressedSize == 0");
+        } finally {
+            tinyPayload.release();
+        }
+
+        metadata.setUncompressedSize(-1);
+        tinyPayload = Unpooled.buffer().writeByte(0x78).writeByte(0x9c);
+        try {
+            ByteBuf result = MessageParser.uncompressPayloadIfNeeded(
+                    "persistent://my-tenant/my-ns/test-negative", metadata, tinyPayload, 0, 0,
+                    Commands.DEFAULT_MAX_MESSAGE_SIZE);
+            assertNull(result, "MessageParser should reject uncompressedSize < 0");
+        } finally {
+            tinyPayload.release();
         }
     }
 }
