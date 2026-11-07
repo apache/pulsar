@@ -18,26 +18,16 @@
  */
 package org.apache.pulsar.transaction.coordinator.impl;
 
-import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 
 public class DisabledTxnLogBufferedWriterMetricsStats extends TxnLogBufferedWriterMetricsStats {
 
     public static final DisabledTxnLogBufferedWriterMetricsStats DISABLED_BUFFERED_WRITER_METRICS =
             new DisabledTxnLogBufferedWriterMetricsStats();
 
-    private static class DisabledCollectorRegistry extends CollectorRegistry {
-
-        private static final DisabledCollectorRegistry INSTANCE = new DisabledCollectorRegistry();
-
-        public void register(Collector m) {
-        }
-        public void unregister(Collector m) {
-        }
-    }
-
     private DisabledTxnLogBufferedWriterMetricsStats() {
-        super("disabled", new String[0], new String[0], DisabledCollectorRegistry.INSTANCE);
+        // A private registry that is never scraped, so the no-op instance stays out of the default registry.
+        super("disabled", new String[0], new String[0], new PrometheusRegistry());
     }
 
     public void close() {
