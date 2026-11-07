@@ -39,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -3509,32 +3510,28 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
             return subscriptionFutures;
         }
         // Keep using the captured subscription instances if a name is removed or replaced during sampling.
-        List<SubscriptionStatsRequest> requests = new ArrayList<>(subscriptions.size());
-        List<Position> positions = new ArrayList<>();
+        Map<PersistentSubscription, Position> positions = new LinkedHashMap<>(subscriptions.size());
         for (Map.Entry<String, PersistentSubscription> entry : subscriptions.entrySet()) {
             PersistentSubscription subscription = entry.getValue();
-            Position position = null;
-            if (subscription.getClass() == PersistentSubscription.class) {
-                position = subscription.getCursor().getMarkDeletedPosition();
-                positions.add(position);
+            // Preserve public overrides before capturing cursor positions for the batch.
+            if (subscription.getClass() != PersistentSubscription.class) {
+                subscriptionFutures.put(entry.getKey(), subscription.getStatsAsync(getStatsOptions));
+                continue;
             }
-            requests.add(new SubscriptionStatsRequest(entry.getKey(), subscription, position));
+            Position position = subscription.getCursor().getMarkDeletedPosition();
+            if (position == null) {
+                subscriptionFutures.put(entry.getKey(), subscription.getStatsAsync(getStatsOptions));
+                continue;
+            }
+            positions.put(subscription, position);
         }
-        boolean useBatchEstimate = positions.size() > 1;
-        Map<Position, Long> backlogSizes = useBatchEstimate
-                ? ManagedLedgerBacklogSizeEstimator.estimate(ledger, positions) : Collections.emptyMap();
-        for (SubscriptionStatsRequest request : requests) {
-            PersistentSubscription subscription = request.subscription();
-            // Keep invoking the public method for subclasses that may override the stats calculation.
-            subscriptionFutures.put(request.name(), useBatchEstimate
-                    && subscription.getClass() == PersistentSubscription.class
-                    ? subscription.getStatsAsync(getStatsOptions, backlogSizes.get(request.position()))
-                    : subscription.getStatsAsync(getStatsOptions));
+        Map<Position, Long> backlogSizes = ManagedLedgerBacklogSizeEstimator.estimate(ledger, positions.values());
+        for (Map.Entry<PersistentSubscription, Position> entry : positions.entrySet()) {
+            PersistentSubscription subscription = entry.getKey();
+            subscriptionFutures.put(subscription.getName(),
+                    subscription.getStatsAsync(getStatsOptions, backlogSizes.get(entry.getValue())));
         }
         return subscriptionFutures;
-    }
-
-    private record SubscriptionStatsRequest(String name, PersistentSubscription subscription, Position position) {
     }
 
     private Optional<CompactorMXBean> getCompactorMXBean() {

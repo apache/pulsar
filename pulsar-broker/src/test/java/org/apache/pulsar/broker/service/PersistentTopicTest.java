@@ -2611,6 +2611,38 @@ public class PersistentTopicTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testSubscriptionBacklogSizeWithMissingPosition() throws Exception {
+        doReturn("test-broker-id").when(pulsarTestContext.getPulsarService()).getBrokerId();
+        when(ledgerMock.getLastAddEntryTime()).thenReturn(1L);
+        when(cursorMock.getMarkDeletedPosition()).thenReturn(null);
+        when(ledgerMock.getEstimatedBacklogSize(null)).thenReturn(0L);
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        topic.initialize().join();
+        topic.getSubscriptions().put("missing", new PersistentSubscription(topic, "missing", cursorMock, false));
+        for (int i = 1; i <= 2; i++) {
+            String name = "sub-" + i;
+            ManagedCursor cursor = mock(ManagedCursor.class);
+            Position position = PositionFactory.create(i, 0);
+            when(cursor.getName()).thenReturn(name);
+            when(cursor.getMarkDeletedPosition()).thenReturn(position);
+            when(ledgerMock.getEstimatedBacklogSize(position)).thenReturn(i * 100L);
+            topic.getSubscriptions().put(name, new PersistentSubscription(topic, name, cursor, false));
+        }
+
+        var stats = topic.asyncGetStats(new GetStatsOptions(false, true, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("missing").backlogSize, 0L);
+        assertEquals(stats.subscriptions.get("sub-1").backlogSize, 100L);
+        assertEquals(stats.subscriptions.get("sub-2").backlogSize, 200L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(null);
+
+        stats = topic.asyncGetStats(new GetStatsOptions(false, false, false, false, false)).get();
+        assertEquals(stats.subscriptions.get("missing").backlogSize, -1L);
+        assertEquals(stats.subscriptions.get("sub-1").backlogSize, -1L);
+        assertEquals(stats.subscriptions.get("sub-2").backlogSize, -1L);
+        verify(ledgerMock, times(1)).getEstimatedBacklogSize(null);
+    }
+
+    @Test
     public void testSubscriptionBacklogSizeBatch() throws Exception {
         doReturn("test-broker-id").when(pulsarTestContext.getPulsarService()).getBrokerId();
         ManagedLedgerConfig config = new ManagedLedgerConfig()
