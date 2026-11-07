@@ -42,6 +42,8 @@ import org.apache.pulsar.tests.integration.functions.PulsarFunctionsTest;
 import org.apache.pulsar.tests.integration.functions.utils.CommandGenerator.Runtime;
 import org.apache.pulsar.tests.integration.topologies.FunctionRuntimeType;
 import org.apache.pulsar.tests.integration.topologies.PulsarCluster;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 @CustomLog
@@ -58,13 +60,38 @@ public abstract class PulsarWorkerRebalanceDrainTest extends PulsarFunctionsTest
     }
 
     @Override
-    public void setupCluster() throws Exception {
+    public void setupCluster() {
+        // Drain and rebalance need independent worker state. For each test, startTestCluster() calls
+        // super.setupCluster() to start a fresh cluster and advance the setup number tracked by TestRetrySupport.
+    }
+
+    @Override
+    public void tearDownCluster() {
+        // stopTestCluster() calls super.tearDownCluster() after each test, marking that setup as cleaned
+        // for TestRetrySupport before the next test or retry.
+    }
+
+    @BeforeMethod(alwaysRun = true)
+    public void startTestCluster() throws Exception {
         super.setupCluster();
         pulsarCluster.setupFunctionWorkers(randomName(5), functionRuntimeType, numAdditionalWorkersAtSetup);
         log.debug()
                 .attr("of", pulsarCluster.getAlWorkers().size())
                 .attr("type", functionRuntimeType)
                 .log("PulsarWorkerRebalanceDrainTest: set up a total of function workers, of type");
+    }
+
+    @AfterMethod(alwaysRun = true)
+    public void stopTestCluster() throws Exception {
+        try {
+            if (pulsarAdmin != null) {
+                pulsarAdmin.close();
+            }
+        } finally {
+            if (pulsarCluster != null) {
+                super.tearDownCluster();
+            }
+        }
     }
 
     @Test(groups = {"java_function", "rebalance_drain", "rebalance"})
