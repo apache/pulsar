@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 import java.util.concurrent.TimeUnit;
+import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
 import org.apache.pulsar.client.api.Consumer;
@@ -45,12 +46,14 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends SharedPulsarBaseTest
         final int totalMessages = 15;
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .subscriptionType(SubscriptionType.Shared).subscribe();
@@ -143,12 +146,14 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends SharedPulsarBaseTest
         final int totalMessages = 15;
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
         // 2. Create consumer,doesn't set the ackTimeout
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(50).subscriptionType(SubscriptionType.Shared).subscribe();
 
@@ -185,12 +190,14 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends SharedPulsarBaseTest
         final int totalMessages = 15;
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .subscriptionType(SubscriptionType.Exclusive).subscribe();
@@ -283,12 +290,14 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends SharedPulsarBaseTest
         final int totalMessages = 15;
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .subscriptionType(SubscriptionType.Failover).subscribe();
@@ -389,11 +398,13 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends SharedPulsarBaseTest
         admin.topics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // 2. Create consumer
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .subscriptionType(SubscriptionType.Shared).subscribe();

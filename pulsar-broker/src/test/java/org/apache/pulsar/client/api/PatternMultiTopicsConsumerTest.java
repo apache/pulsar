@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.fail;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -62,9 +63,11 @@ public class PatternMultiTopicsConsumerTest extends SharedPulsarBaseTest {
     private void testWithConsumer(Consumer<byte[]> consumer) throws Exception {
         String ns = getNamespace();
         Map<String, List<String>> sentMessages = new HashMap<>();
+        List<Producer<byte[]>> producers = new ArrayList<>();
         for (int p = 0; p < 10; ++p) {
             String name = "persistent://" + ns + "/topic-" + p;
             Producer<byte[]> producer = pulsarClient.newProducer().topic(name).create();
+            producers.add(producer);
             for (int i = 0; i < 10; i++) {
                 String message = "message-" + p + i;
                 producer.send(message.getBytes());
@@ -83,6 +86,9 @@ public class PatternMultiTopicsConsumerTest extends SharedPulsarBaseTest {
 
         Assert.assertEquals(receivedMessages, sentMessages);
         consumer.close();
+        for (Producer<byte[]> producer : producers) {
+            producer.close();
+        }
     }
 
     @Test(timeOut = 30000)

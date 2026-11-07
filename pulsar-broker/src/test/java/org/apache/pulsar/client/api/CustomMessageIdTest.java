@@ -59,13 +59,13 @@ public class CustomMessageIdTest extends SharedPulsarBaseTest {
     @Test(dataProvider = "enableBatching")
     public void testAcknowledgment(boolean enableBatching) throws Exception {
         final var topic = newTopicName();
-        final var producer = pulsarClient.newProducer(Schema.INT32)
+        @Cleanup final var producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topic)
                 .enableBatching(enableBatching)
                 .batchingMaxMessages(10)
                 .batchingMaxPublishDelay(300, TimeUnit.MILLISECONDS)
                 .create();
-        final var consumer = pulsarClient.newConsumer(Schema.INT32)
+        @Cleanup final var consumer = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topic)
                 .subscriptionName("sub")
                 .isAckReceiptEnabled(true)
