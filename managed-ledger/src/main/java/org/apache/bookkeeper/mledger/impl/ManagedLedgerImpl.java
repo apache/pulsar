@@ -1236,11 +1236,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         CompletableFuture<ManagedCursor> uninitializedCursor = failedLazyRecoveryCursors.contains(cursorName)
                 ? recoverCursorLazily(cursorName) : uninitializedCursors.get(cursorName);
         if (uninitializedCursor != null) {
-            uninitializedCursor.thenAccept(cursor -> callback.openCursorComplete(cursor, ctx))
-                    .exceptionally(ex -> {
-                callback.openCursorFailed(ManagedLedgerException
-                        .getManagedLedgerException(FutureUtil.unwrapCompletionException(ex)), ctx);
-                return null;
+            uninitializedCursor.whenComplete((cursor, error) -> {
+                if (error == null) {
+                    callback.openCursorComplete(cursor, ctx);
+                } else {
+                    callback.openCursorFailed(ManagedLedgerException.getManagedLedgerException(
+                            FutureUtil.unwrapCompletionException(error)), ctx);
+                }
             });
             return;
         }
@@ -1256,35 +1258,54 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final ManagedCursorImpl cursor = createCursor(bookKeeper, cursorName);
         CompletableFuture<ManagedCursor> cursorFuture = new CompletableFuture<>();
         uninitializedCursors.put(cursorName, cursorFuture);
-        Position position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
         long startTimeInit = System.currentTimeMillis();
-        cursor.initialize(position, properties, cursorProperties, new VoidCallback() {
+        AtomicBoolean initializationCallbackEntered = new AtomicBoolean();
+        VoidCallback initializationCallback = new VoidCallback() {
             @Override
             public void operationComplete() {
-                log.info().attr("cursor", cursor)
-                    .attr("cost ms", System.currentTimeMillis() - startTimeInit).log("Opened new cursor");
-                cursor.setActive();
                 synchronized (ManagedLedgerImpl.this) {
-                    // Update the ack position (ignoring entries that were written while the cursor was being created)
+                    if (uninitializedCursors.get(cursorName) != cursorFuture || cursorFuture.isDone()) {
+                        return;
+                    }
+                    initializationCallbackEntered.set(true);
+                    log.info().attr("cursor", cursor)
+                            .attr("cost ms", System.currentTimeMillis() - startTimeInit).log("Opened new cursor");
+                    cursor.setActive();
+                    // Update the ack position, ignoring entries written while the cursor was being created.
                     cursor.initializeCursorPosition(InitialPosition.Earliest == initialPosition
-                            ? getFirstPositionAndCounter()
-                            : getLastPositionAndCounter());
+                            ? getFirstPositionAndCounter() : getLastPositionAndCounter());
                     addCursor(cursor);
-                    uninitializedCursors.remove(cursorName).complete(cursor);
+                    if (!uninitializedCursors.remove(cursorName, cursorFuture)) {
+                        return;
+                    }
                 }
+                cursorFuture.complete(cursor);
                 callback.openCursorComplete(cursor, ctx);
             }
 
             @Override
             public void operationFailed(ManagedLedgerException exception) {
-                log.warn().attr("cursor", cursor).log("Failed to open cursor");
-
                 synchronized (ManagedLedgerImpl.this) {
-                    uninitializedCursors.remove(cursorName).completeExceptionally(exception);
+                    if (!uninitializedCursors.remove(cursorName, cursorFuture)) {
+                        return;
+                    }
+                    initializationCallbackEntered.set(true);
                 }
+                log.warn().attr("cursor", cursor).log("Failed to open cursor");
+                cursorFuture.completeExceptionally(exception);
                 callback.openCursorFailed(exception, ctx);
             }
-        });
+        };
+        try {
+            Position position = InitialPosition.Earliest == initialPosition ? getFirstPosition() : getLastPosition();
+            cursor.initialize(position, properties, cursorProperties, initializationCallback);
+        } catch (Throwable error) {
+            if (initializationCallbackEntered.get()) {
+                // Do not reinterpret a callback or post-persistence initialization error as a new failed open.
+                throw error;
+            }
+            initializationCallback.operationFailed(ManagedLedgerException.getManagedLedgerException(error));
+        }
     }
 
     protected ManagedCursorImpl createCursor(BookKeeper bookKeeper, String cursorName) {
@@ -5261,13 +5282,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public Position getFirstPosition() {
-        Long ledgerId = ledgers.firstKey();
-        if (ledgerId == null) {
-            return null;
+        Map.Entry<Long, LedgerInfo> firstLedger = ledgers.firstEntry();
+        Position lastPosition = lastConfirmedEntry;
+        if (firstLedger == null) {
+            // A recovered terminated ledger can have no retained data ledgers. Its final position
+            // is still the boundary for a new cursor, including when the ledger was always empty.
+            return lastPosition;
         }
-        if (ledgerId > lastConfirmedEntry.getLedgerId()) {
-            checkState(ledgers.get(ledgerId).getEntries() == 0);
-            ledgerId = lastConfirmedEntry.getLedgerId();
+        long ledgerId = firstLedger.getKey();
+        if (ledgerId > lastPosition.getLedgerId()) {
+            checkState(firstLedger.getValue().getEntries() == 0);
+            ledgerId = lastPosition.getLedgerId();
         }
         return PositionFactory.create(ledgerId, -1);
     }
