@@ -148,6 +148,7 @@ public class OneWayReplicatorUsingGlobalZKTest extends OneWayReplicatorTest {
         // permissions request with a 404, which Awaitility does not retry.
         waitReplicatorStarted(topic);
         Awaitility.await().untilAsserted(() -> {
+            assertTrue(admin2.topics().getList(replicatedNamespace).contains(topic));
             assertThat(admin1.topics().getPermissions(topic)).containsEntry(role, permissions);
             assertThat(admin2.topics().getPermissions(topic)).containsEntry(role, permissions);
         });
