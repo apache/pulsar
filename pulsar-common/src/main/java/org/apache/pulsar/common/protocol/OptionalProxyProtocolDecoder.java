@@ -41,6 +41,16 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
     public static final int MIN_BYTES_SIZE_TO_DETECT_PROTOCOL = 12;
 
     private CompositeByteBuf cumulatedByteBuf;
+    private final Runnable pipelineValidator;
+
+    public OptionalProxyProtocolDecoder() {
+        this(null);
+    }
+
+    /** Validate a controlled pipeline transition before handing the buffered input to the next handler. */
+    public OptionalProxyProtocolDecoder(Runnable pipelineValidator) {
+        this.pipelineValidator = pipelineValidator;
+    }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -65,6 +75,16 @@ public class OptionalProxyProtocolDecoder extends ChannelInboundHandlerAdapter {
                 ctx.pipeline().addAfter(NAME, null, new HAProxyMessageDecoder());
             }
             ctx.pipeline().remove(this);
+            if (pipelineValidator != null) {
+                try {
+                    pipelineValidator.run();
+                } catch (RuntimeException | Error error) {
+                    // Ownership has not reached the next handler yet, including when buf is a composite.
+                    buf.release();
+                    ctx.close();
+                    throw error;
+                }
+            }
             super.channelRead(ctx, buf);
         } else {
             super.channelRead(ctx, msg);

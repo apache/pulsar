@@ -21,11 +21,16 @@ package org.apache.pulsar.common.util.netty;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.testng.annotations.Test;
 
 /**
@@ -112,4 +117,60 @@ public class PulsarFlowControlHandlerTest {
 
         assertFalse(channel.finish());
     }
+
+    @Test
+    public void shouldDrainOnlyExistingMessagesWithSeparateDeliveryPolicy() {
+        AtomicBoolean paused = new AtomicBoolean(true);
+        AtomicInteger reads = new AtomicInteger();
+        PulsarFlowControlHandler flow = new PulsarFlowControlHandler(paused::get);
+        EmbeddedChannel channel = new EmbeddedChannel(new ChannelOutboundHandlerAdapter() {
+            @Override
+            public void read(ChannelHandlerContext ctx) {
+                reads.incrementAndGet();
+                ctx.read();
+            }
+        }, flow);
+        try {
+            channel.config().setAutoRead(false);
+            int readsBefore = reads.get();
+            // Even the read issued at activation cannot force delivery past an explicit business pause.
+            assertFalse(channel.writeInbound("one", "two"));
+            channel.read();
+            assertFalse(flow.isQueueEmpty());
+            assertEquals(reads.get(), readsBefore);
+
+            paused.set(false);
+            flow.drainQueuedMessages();
+            assertEquals(channel.readInbound(), "one");
+            assertEquals(channel.readInbound(), "two");
+            flow.drainQueuedMessages();
+            channel.read();
+            assertTrue(flow.isQueueEmpty());
+            assertFalse(channel.config().isAutoRead());
+            assertEquals(reads.get(), readsBefore);
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+    }
+
+    @Test
+    public void shouldPreserveQueuedMessagesWhenRemovedAndIgnoreSubsequentDrain() {
+        PulsarFlowControlHandler flow = new PulsarFlowControlHandler(() -> true);
+        EmbeddedChannel channel = new EmbeddedChannel(flow);
+        ByteBuf buffer = Unpooled.buffer().writeByte(1);
+        try {
+            channel.config().setAutoRead(false);
+            assertFalse(channel.writeInbound(buffer));
+            channel.pipeline().remove(flow);
+            assertTrue(flow.isQueueEmpty());
+            flow.drainQueuedMessages();
+            ByteBuf delivered = channel.readInbound();
+            assertEquals(delivered, buffer);
+            delivered.release();
+        } finally {
+            channel.finishAndReleaseAll();
+        }
+        assertEquals(buffer.refCnt(), 0);
+    }
+
 }

@@ -47,6 +47,7 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.api.metrics.ObservableLongGauge;
 import io.opentelemetry.api.metrics.ObservableLongUpDownCounter;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
@@ -111,6 +112,7 @@ import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.bookie.rackawareness.IsolatedBookieEnsemblePlacementPolicy;
+import org.apache.pulsar.broker.InProgressRequestFrameMemoryLimitMode;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -209,7 +211,9 @@ import org.apache.pulsar.common.scalable.SegmentTopicName;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
 import org.apache.pulsar.common.semaphore.AsyncSemaphore;
+import org.apache.pulsar.common.stats.JvmMetrics;
 import org.apache.pulsar.common.stats.Metrics;
+import org.apache.pulsar.common.util.DirectMemoryUtils;
 import org.apache.pulsar.common.util.FieldParser;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.GracefulExecutorServicesShutdown;
@@ -292,6 +296,7 @@ public class BrokerService implements Closeable {
     protected final AtomicReference<Semaphore> lookupRequestSemaphore;
     @Getter
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
+    private final @Nullable InProgressRequestFrameMemoryController inProgressRequestFrameMemoryController;
     @Getter
     private final TopicListSizeResultCache topicListSizeResultCache;
     @Getter
@@ -311,6 +316,10 @@ public class BrokerService implements Closeable {
     private final ObserverGauge pendingTopicLoadRequests;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsCounter;
     private final ObservableLongUpDownCounter pendingTopicLoadOperationsLimitCounter;
+    private final @Nullable ObservableLongUpDownCounter inProgressRequestFrameMemoryUsageCounter;
+    public static final String IN_PROGRESS_REQUEST_FRAME_MEMORY_THROTTLED_METRIC_NAME =
+            "pulsar.broker.publish.in.progress.buffer.memory.throttled";
+    private final @Nullable ObservableLongGauge inProgressRequestFrameMemoryThrottledGauge;
 
     public static final String CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME = "pulsar.broker.connection.rate_limit.count";
     private final LongCounter rateLimitedConnectionsCounter;
@@ -405,6 +414,15 @@ public class BrokerService implements Closeable {
         this.pulsar = pulsar;
         this.clock = pulsar.getClock();
         this.dynamicConfigurationMap = prepareDynamicConfigurationMap();
+        ServiceConfiguration configuration = pulsar.getConfiguration();
+        long requestFrameMemoryLimitBytes = configuration.getMaxMessagePublishBufferSizeInMB() * 1024L * 1024L;
+        InProgressRequestFrameMemoryLimitMode requestFrameMemoryMode =
+                configuration.getInProgressRequestFrameMemoryLimitEnabled();
+        this.inProgressRequestFrameMemoryController =
+                requestFrameMemoryMode == InProgressRequestFrameMemoryLimitMode.DISABLED ? null
+                        : new InProgressRequestFrameMemoryController(pulsar.getExecutor(), requestFrameMemoryMode,
+                                requestFrameMemoryLimitBytes, JvmMetrics::getJvmDirectMemoryUsed,
+                                DirectMemoryUtils.jvmMaxDirectMemory());
         this.brokerPublishRateLimiter = new PublishRateLimiterImpl(pulsar.getMonotonicClock(), producer -> {
             producer.getCnx().getThrottleTracker().markThrottled(
                     ServerCnxThrottleTracker.ThrottleType.BrokerPublishRate);
@@ -540,6 +558,30 @@ public class BrokerService implements Closeable {
                 .setUnit("{operation}")
                 .buildWithCallback(
                         measurement -> measurement.record(pulsar.getConfig().getMaxConcurrentTopicLoadRequest()));
+
+        if (inProgressRequestFrameMemoryController != null) {
+            this.inProgressRequestFrameMemoryUsageCounter = pulsar.getOpenTelemetry().getMeter()
+                    .upDownCounterBuilder("pulsar.broker.publish.in.progress.buffer.memory.usage")
+                    .setDescription("Direct-memory root allocations retained by inbound request frames and their "
+                            + "downstream owners.")
+                    .setUnit("By")
+                    .buildWithCallback(measurement -> measurement.record(
+                            inProgressRequestFrameMemoryController.getRetainedFrameBytes()));
+
+            this.inProgressRequestFrameMemoryThrottledGauge = pulsar.getOpenTelemetry().getMeter()
+                    .gaugeBuilder(IN_PROGRESS_REQUEST_FRAME_MEMORY_THROTTLED_METRIC_NAME)
+                    .ofLongs()
+                    .setDescription("Whether request-frame memory limiting currently requires socket auto-read "
+                            + "to pause: "
+                            + "1 when throttled, 0 otherwise. Reports the limiter's current throttle state "
+                            + "and excludes other throttling reasons.")
+                    .setUnit("1")
+                    .buildWithCallback(measurement -> measurement.record(
+                            inProgressRequestFrameMemoryController.getLimiter().isThrottled() ? 1 : 0));
+        } else {
+            this.inProgressRequestFrameMemoryUsageCounter = null;
+            this.inProgressRequestFrameMemoryThrottledGauge = null;
+        }
 
         this.rateLimitedConnectionsCounter = pulsar.getOpenTelemetry().getMeter()
                 .counterBuilder(BrokerService.CONNECTION_RATE_LIMIT_COUNT_METRIC_NAME)
@@ -1037,6 +1079,9 @@ public class BrokerService implements Closeable {
     public CompletableFuture<Void> closeAsync() {
         try {
             log.info("Shutting down Pulsar Broker service");
+            if (inProgressRequestFrameMemoryController != null) {
+                inProgressRequestFrameMemoryController.close();
+            }
 
             // shutdown executor for ledger deletion
             if (ledgerDeletionExecutorProvider != null) {
@@ -1133,6 +1178,12 @@ public class BrokerService implements Closeable {
                                 scalableTopicMetrics.close();
                                 pendingTopicLoadOperationsCounter.close();
                                 pendingLookupOperationsCounter.close();
+                                if (inProgressRequestFrameMemoryUsageCounter != null) {
+                                    inProgressRequestFrameMemoryUsageCounter.close();
+                                }
+                                if (inProgressRequestFrameMemoryThrottledGauge != null) {
+                                    inProgressRequestFrameMemoryThrottledGauge.close();
+                                }
                                 try {
                                     delayedDeliveryTrackerFactory.close();
                                     if (fallbackDelayedDeliveryTrackerFactory != null) {
@@ -3922,6 +3973,12 @@ public class BrokerService implements Closeable {
         registerConfigurationListener("maxConcurrentTopicLoadRequest",
                 (maxConcurrentTopicLoadRequest) -> topicLoadRequestSemaphore.set(
                         new Semaphore((int) maxConcurrentTopicLoadRequest, false)));
+        if (inProgressRequestFrameMemoryController != null) {
+            registerConfigurationListener("maxMessagePublishBufferSizeInMB", value -> {
+                long requestFrameMemoryLimitBytes = ((int) value) * 1024L * 1024L;
+                inProgressRequestFrameMemoryController.updateLimitBytes(requestFrameMemoryLimitBytes);
+            });
+        }
         registerConfigurationListener("loadManagerClassName", className -> {
             pulsar.getExecutor().execute(() -> {
                 LoadManager newLoadManager = null;
@@ -3990,7 +4047,6 @@ public class BrokerService implements Closeable {
                     defaultManagedLedgerFactory.updateCacheEvictionExtendTTLOfRecentlyAccessed(
                             (boolean) extendTTLOfRecentlyAccessed);
                 });
-
         // add listener to update message-dispatch-rate in msg for topic
         registerConfigurationListener("dispatchThrottlingRatePerTopicInMsg", (dispatchRatePerTopicInMsg) -> {
             updateTopicMessageDispatchRate();
@@ -4327,6 +4383,23 @@ public class BrokerService implements Closeable {
 
     public List<String> getDynamicConfiguration() {
         return dynamicConfigurationMap.keySet().stream().toList();
+    }
+
+    // A null limiter means tracking was disabled at startup, including for connections accepted later.
+    @Nullable
+    InProgressRequestFrameMemoryLimiter getInProgressRequestFrameMemoryLimiter() {
+        return inProgressRequestFrameMemoryController == null ? null
+                : inProgressRequestFrameMemoryController.getLimiter();
+    }
+
+    long getInProgressRequestFrameMemoryUsedBytes() {
+        return inProgressRequestFrameMemoryController == null ? 0
+                : inProgressRequestFrameMemoryController.getRetainedFrameBytes();
+    }
+
+    boolean isInProgressRequestFrameMemoryLimiterAutomaticallyEnabled() {
+        return inProgressRequestFrameMemoryController != null
+                && inProgressRequestFrameMemoryController.isAutomaticallyEnabled();
     }
 
     public Map<String, String> getRuntimeConfiguration() {
