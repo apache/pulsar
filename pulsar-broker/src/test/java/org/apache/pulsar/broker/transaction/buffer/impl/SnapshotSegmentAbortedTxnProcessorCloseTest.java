@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
@@ -134,6 +135,7 @@ public class SnapshotSegmentAbortedTxnProcessorCloseTest {
             when(managedLedger.getLedgersInfo()).thenReturn(new TreeMap<>());
             ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
             ReadOnlyManagedLedger readOnlyManagedLedger = mock(ReadOnlyManagedLedger.class);
+            when(readOnlyManagedLedger.asyncClose()).thenReturn(CompletableFuture.completedFuture(null));
             when(brokerService.getManagedLedgerFactoryForTopic(any()))
                     .thenReturn(CompletableFuture.completedFuture(managedLedgerFactory));
             doAnswer(invocation -> {
@@ -152,6 +154,7 @@ public class SnapshotSegmentAbortedTxnProcessorCloseTest {
             assertTrue(indexUpdateStarted.await(5, TimeUnit.SECONDS));
             // A later recovery must not replace the in-flight update in the close barrier.
             processor.recoverFromSnapshot().get(5, TimeUnit.SECONDS);
+            verify(readOnlyManagedLedger, times(2)).asyncClose();
 
             CompletableFuture<Void> closeFuture = processor.closeAsync();
 
