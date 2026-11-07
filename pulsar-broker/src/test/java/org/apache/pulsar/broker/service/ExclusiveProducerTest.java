@@ -18,24 +18,32 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertThrows;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import io.netty.util.HashedWheelTimer;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.Cleanup;
+import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerAccessMode;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerFencedException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
@@ -108,6 +116,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
         p1.close();
 
         // Now producer should be allowed to get in
+        @Cleanup
         Producer<String> p2 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .producerName("p2")
@@ -157,7 +166,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
                 .createAsync();
 
         // wait for all the Producers to be enqueued in order to prevent races
-        Thread.sleep(2000);
+        waitForQueuedProducers(topic, 1);
 
         // p6 fences out all the current producers, even p5
         Producer<String> p6 = pulsarClient.newProducer(Schema.STRING)
@@ -253,8 +262,8 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
                 .topic(topic)
                 .accessMode(ProducerAccessMode.WaitForExclusive)
                 .createAsync();
-        // sleep 1 second to make sure p1, p2, p3Future are added to broker producers and waitingExclusiveProducers
-        Thread.sleep(1000L);
+        // make sure p3Future is added to waitingExclusiveProducers, behind the broker producers p1 and p2
+        waitForQueuedProducers(topic, 1);
         // now p3Future is still pending because p1,p2 are active in shared mode.
         assertFalse(p3Future.isDone());
         p1.close();
@@ -292,6 +301,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void producerReconnection(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
+        @Cleanup
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(accessMode)
@@ -308,6 +318,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void producerFenced(ProducerAccessMode accessMode, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
+        @Cleanup
         Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
                 .accessMode(accessMode)
@@ -343,15 +354,24 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void topicDeleted(String ignored, boolean partitioned) throws Exception {
         String topic = newTopic("persistent", partitioned);
 
-        @Cleanup
-        Producer<String> p1 = pulsarClient.newProducer(Schema.STRING)
+        ProducerBuilder<String> producerBuilder = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
-                .accessMode(ProducerAccessMode.Exclusive)
-                .create();
+                .accessMode(ProducerAccessMode.Exclusive);
+        if (partitioned) {
+            // The send after the deletion can only time out, see below
+            producerBuilder.sendTimeout(2, TimeUnit.SECONDS);
+        }
+        @Cleanup
+        Producer<String> p1 = producerBuilder.create();
 
         p1.send("msg-1");
 
+        // Each connection attempt of a partition's producer increments its epoch
+        Map<ProducerImpl<String>, Long> epochs = new HashMap<>();
         if (partitioned) {
+            for (ProducerImpl<String> producer : ((PartitionedProducerImpl<String>) p1).getProducers()) {
+                epochs.put(producer, producer.getConnectionHandler().getEpoch());
+            }
             admin.topics().deletePartitionedTopic(topic, true);
         } else {
             admin.topics().delete(topic, true);
@@ -362,7 +382,13 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
             p1.send("msg-2");
         } else {
             // The partitioned topic is deleted, the producer should not be able to publish again on the topic.
-            // Partitioned metadata is required to publish messages to the topic.
+            // Partitioned metadata is required to publish messages to the topic: once the broker has refused to
+            // reconnect each partition's producer, a send can only time out.
+            epochs.forEach((producer, epochBeforeDeletion) -> Awaitility.await().untilAsserted(() -> {
+                // A reconnection was attempted, and failed: it left the producer without a cnx
+                assertTrue(producer.getConnectionHandler().getEpoch() > epochBeforeDeletion);
+                assertNull(producer.getClientCnx());
+            }));
             assertThrows(TimeoutException.class, () -> p1.send("msg-2"));
         }
     }
@@ -383,9 +409,9 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
                 .accessMode(ProducerAccessMode.WaitForExclusive)
                 .createAsync();
 
-        // This sleep is made to ensure P2 is enqueued before P3. Because of the lookups
+        // This wait is made to ensure P2 is enqueued before P3. Because of the lookups
         // there's no strict guarantee they would be attempted in the same order otherwise
-        Thread.sleep(1000);
+        waitForQueuedProducers(topic, 1);
 
         CompletableFuture<Producer<String>> fp3 = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic)
@@ -393,7 +419,7 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
                 .accessMode(ProducerAccessMode.WaitForExclusive)
                 .createAsync();
 
-        Thread.sleep(1000);
+        waitForQueuedProducers(topic, 2);
         // The second producer should get queued
         assertFalse(fp2.isDone());
         assertFalse(fp3.isDone());
@@ -449,12 +475,26 @@ public class ExclusiveProducerTest extends SharedPulsarBaseTest {
     public void exclusiveWithConsumers(String type, boolean partitioned) throws Exception {
         String topic = newTopic(type, partitioned);
 
-        pulsarClient.newConsumer(Schema.STRING)
+        @Cleanup
+        Consumer<String> consumer = pulsarClient.newConsumer(Schema.STRING)
                 .topic(topic)
                 .subscriptionName("test")
                 .subscribe();
 
         simpleTest(topic);
+    }
+
+    /**
+     * Waits until the broker has queued {@code count} WaitForExclusive producers on the topic. A partitioned producer
+     * waits on its first partition only, and creates its producers on the other partitions once it holds that one.
+     */
+    private void waitForQueuedProducers(String topic, int count) throws Exception {
+        String queueTopic = admin.topics().getPartitionedTopicMetadata(topic).partitions > 0
+                ? TopicName.get(topic).getPartition(0).toString() : topic;
+        Awaitility.await().pollDelay(0, TimeUnit.MILLISECONDS).pollInterval(10, TimeUnit.MILLISECONDS)
+                .untilAsserted(() -> assertEquals(
+                        ((AbstractTopic) getTopicReference(queueTopic).orElseThrow()).getWaitingProducersCount(),
+                        count));
     }
 
     private String newTopic(String type, boolean isPartitioned) throws Exception {

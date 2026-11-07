@@ -127,6 +127,8 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         PulsarClient pulsarClient = PulsarClient.builder()
                 .serviceUrl(pulsar.getBrokerServiceUrl())
                 .statsInterval(0, TimeUnit.SECONDS)
+                // A throttled lookup is retried until the lookup timeout, then fails with the broker's error
+                .lookupTimeout(1, TimeUnit.SECONDS)
                 .build();
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("mysub").subscribe();

@@ -22,6 +22,7 @@
 <suite name="Pulsar Function Process Integration Tests" verbose="2" annotations="JDK">
     <test name="pulsar-function-process-test-suite" preserve-order="true" >
         <classes>
+            <!-- These classes share one cluster (isClusterShared), so they run one after the other -->
             <class name="org.apache.pulsar.tests.integration.functions.go.PulsarFunctionsGoProcessTest" />
             <class name="org.apache.pulsar.tests.integration.functions.java.PulsarFunctionsJavaProcessTest"/>
             <class name="org.apache.pulsar.tests.integration.functions.python.PulsarFunctionsPythonProcessTest" />

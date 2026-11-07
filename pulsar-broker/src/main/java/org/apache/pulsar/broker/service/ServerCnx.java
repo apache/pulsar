@@ -36,6 +36,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Strings;
 import io.github.merlimat.slog.Logger;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
@@ -1712,6 +1713,10 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                     ServerError error = ServerError.ServiceNotReady;
                     if (actEx instanceof MetadataStoreException) {
                         error = ServerError.MetadataError;
+                    } else if (actEx instanceof IllegalArgumentException) {
+                        // The settings forbid the topic that auto-creation would create, as with a default number of
+                        // partitions over maxNumPartitionsPerPartitionedTopic: a retry would get the same answer
+                        error = ServerError.NotAllowedError;
                     } else if (actEx instanceof RestException restException) {
                         int responseCode = restException.getResponse().getStatus();
                         if (responseCode == NOT_FOUND.getStatusCode()) {
@@ -3776,8 +3781,9 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                                                     if (topicsPattern.get().length() <= maxSubscriptionPatternLength) {
                                                         filterTopics = true;
                                                         filteredTopics = TopicList.filterTopics(filteredTopics,
-                                                                topicsPattern.get(),
-                                                                topicsPatternImplementation);
+                                                                service.getTopicsPatternCache().get(
+                                                                        topicsPattern.get(),
+                                                                        topicsPatternImplementation));
                                                     } else {
                                                         log.info()
                                                                 .attr("get", topicsPattern.get())
@@ -4749,20 +4755,24 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS).thenApply(isAuthorized -> {
+            TopicListService.WatchTopicListRequest request = topicListService.beginWatchTopicListRequest(watcherId);
+            CompletableFuture<Boolean> authorizationFuture = FutureUtil.supplySafely(
+                    () -> isNamespaceOperationAllowed(namespaceName, NamespaceOperation.GET_TOPICS));
+            authorizationFuture.thenApply(isAuthorized -> {
                 if (isAuthorized) {
                     String topicsPatternString = commandWatchTopicList.hasTopicsPattern()
                             ? commandWatchTopicList.getTopicsPattern() : TopicList.ALL_TOPICS_PATTERN;
                     String topicsHash = commandWatchTopicList.hasTopicsHash()
                             ? commandWatchTopicList.getTopicsHash() : null;
                     topicListService.handleWatchTopicList(namespaceName, watcherId, requestId, topicsPatternString,
-                            topicsPatternImplementation, topicsHash, lookupSemaphore);
+                            topicsPatternImplementation, topicsHash, lookupSemaphore, request);
                 } else {
                     final String msg = "Proxy Client is not authorized to watchTopicList";
                     log.warn()
                             .attr("principal", getPrincipal())
                             .attr("namespace", namespaceName)
                             .log(msg);
+                    topicListService.failWatchTopicListRequest(request, new IllegalStateException(msg));
                     commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
                     lookupSemaphore.release();
                 }
@@ -4771,6 +4781,7 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
                 logNamespaceNameAuthException(remoteAddress, "watchTopicList", getPrincipal(),
                         Optional.of(namespaceName), ex);
                 final String msg = "Exception occurred while trying to handle command WatchTopicList";
+                topicListService.failWatchTopicListRequest(request, ex);
                 commandSender.sendErrorResponse(requestId, ServerError.AuthorizationError, msg);
                 lookupSemaphore.release();
                 return null;
@@ -5067,7 +5078,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         BaseCommand command = Commands.newMessageCommand(consumerId, ledgerId, entryId, partition, redeliveryCount,
                 ackSet, epoch);
         ByteBufPair res = Commands.serializeCommandMessageWithSize(command, metadataAndPayload);
-        interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
+        try {
+            interceptMessage(command, consumerId, ledgerId, entryId, metadataAndPayload);
+        } catch (Throwable t) {
+            // The caller still owns the payload until this method returns.
+            res.getFirst().release();
+            throw t;
+        }
         return res;
     }
 
@@ -5131,10 +5148,13 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
         // state: 19.
         // Len = 166.
         StringBuilder buf = new StringBuilder(166);
+        Channel channel = ctx == null ? null : ctx.channel();
         if (ctx == null) {
             buf.append("[ctx: null]");
+        } else if (channel == null) {
+            buf.append("[channel: null]");
         } else {
-            buf.append(ctx.channel().toString());
+            buf.append(channel.toString());
         }
         String clientSourceAddr = clientSourceAddress();
         buf.append(" [SR:").append(clientSourceAddr == null ? "-" : clientSourceAddr)

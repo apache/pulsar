@@ -76,6 +76,7 @@ import org.apache.pulsar.client.util.RetryMessageUtil;
 import org.apache.pulsar.common.api.proto.CommandAck;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.transaction.coordinator.TransactionCoordinatorID;
 import org.apache.pulsar.transaction.coordinator.TransactionMetadataStore;
 import org.apache.pulsar.transaction.coordinator.TransactionSubscription;
@@ -102,6 +103,8 @@ public class TransactionEndToEndTest extends TransactionTestBase {
     @BeforeClass(alwaysRun = true)
     protected void setup() throws Exception {
         setUpBase(1, NUM_PARTITIONS, TOPIC_OUTPUT, TOPIC_PARTITION);
+        // Each transactional ack is an add to the pending ack log: don't make every add sleep 1 ms
+        pulsarTestContexts.get(0).getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
         admin.topics().createPartitionedTopic(TOPIC_MESSAGE_ACK_TEST, 1);
     }
 
@@ -174,7 +177,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
 
         // can't receive message anymore
-        assertNull(consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS));
+        assertNoMoreMessages(consumer);
     }
 
 
@@ -239,18 +242,17 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 .subscriptionType(SubscriptionType.Shared)
                 .subscribe();
 
-        Message<Integer> message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNoMoreMessages(consumer);
 
         // abort txn1
         txn1.abort().get();
         // after txn1 aborted, consumer will receive messages txn1 contains
-        int receiveCounter = 0;
-        while ((message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS)) != null) {
-            Assert.assertEquals(message.getValue().intValue(), receiveCounter);
-            receiveCounter++;
+        for (int i = 0; i < count / 2; i++) {
+            Message<Integer> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
+            Assert.assertEquals(message.getValue().intValue(), i);
         }
-        Assert.assertEquals(receiveCounter, count / 2);
+        assertNoMoreMessages(consumer);
     }
 
     @Test
@@ -335,32 +337,32 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         int txnMessageCnt = 0;
         int messageCnt = 1000;
+        List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
         for (int i = 0; i < messageCnt; i++) {
             if (i % 5 == 0) {
-                producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+                sendFutures.add(producer.newMessage(txn1).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync());
             } else {
-                producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+                sendFutures.add(producer.newMessage(txn2).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync());
             }
             txnMessageCnt++;
         }
+        FutureUtil.waitForAll(sendFutures).get();
 
         // Can't receive transaction messages before commit.
-        Message<byte[]> message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNoMoreMessages(consumer);
 
         txn1.commit().get();
         txn2.commit().get();
 
         int receiveCnt = 0;
         for (int i = 0; i < txnMessageCnt; i++) {
-            message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+            Message<byte[]> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             receiveCnt++;
         }
         Assert.assertEquals(txnMessageCnt, receiveCnt);
 
-        message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNoMoreMessages(consumer);
 
         // cleanup.
         producer.close();
@@ -395,14 +397,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Awaitility.await().until(consumer::isConnected);
 
         // Can't receive transaction messages before abort.
-        Message<byte[]> message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNoMoreMessages(consumer);
 
         txn.abort().get();
 
         // Cant't receive transaction messages after abort.
-        message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNoMoreMessages(consumer);
         Awaitility.await().until(() -> {
             boolean flag = true;
             for (int partition = 0; partition < TOPIC_PARTITION; partition++) {
@@ -641,8 +641,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
 
             // the messages are pending ack state and can't be received
-            Message<byte[]> message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-            Assert.assertNull(message);
+            assertNoMoreMessages(consumer);
 
             // 1) txn abort
             txn.abort().get();
@@ -650,7 +649,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             // after transaction abort, the messages could be received
             Transaction commitTxn = getTxn();
             for (int i = 0; i < messageCnt; i++) {
-                message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+                Message<byte[]> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
                 consumer.acknowledgeAsync(message.getMessageId(), commitTxn).get();
                 log.info().attr("msgId", message.getMessageId()).attr("count", i).log("receive msgId: , count");
@@ -660,8 +659,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             commitTxn.commit().get();
 
             // after transaction commit, the messages can't be received
-            message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-            Assert.assertNull(message);
+            assertNoMoreMessages(consumer);
 
             Field field = TransactionImpl.class.getDeclaredField("state");
             field.setAccessible(true);
@@ -729,14 +727,15 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         Transaction txn = getTxn();
 
         int messageCnt = 10;
+        List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
         for (int i = 0; i < messageCnt; i++) {
-            producer.newMessage(txn).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync();
+            sendFutures.add(producer.newMessage(txn).value(("Hello Txn - " + i).getBytes(UTF_8)).sendAsync());
         }
+        FutureUtil.waitForAll(sendFutures).get();
         log.info("produce transaction messages finished");
 
         // Can't receive transaction messages before commit.
-        Message<byte[]> message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNoMoreMessages(consumer);
         log.info("transaction messages can't be received before transaction committed");
 
         txn.commit().get();
@@ -744,7 +743,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         int ackedMessageCount = 0;
         int receiveCnt = 0;
         for (int i = 0; i < messageCnt; i++) {
-            message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+            Message<byte[]> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             receiveCnt++;
             if (i % 2 == 0) {
@@ -754,8 +753,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         }
         Assert.assertEquals(messageCnt, receiveCnt);
 
-        message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNoMoreMessages(consumer);
 
         String checkTopic = TopicName.get(topic).getPartition(0).toString();
         PersistentTopicInternalStats stats = admin.topics().getInternalStats(checkTopic, false);
@@ -766,15 +764,14 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         receiveCnt = 0;
         for (int i = 0; i < messageCnt - ackedMessageCount; i++) {
-            message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+            Message<byte[]> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
             Assert.assertNotNull(message);
             consumer.acknowledge(message);
             receiveCnt++;
         }
         Assert.assertEquals(messageCnt - ackedMessageCount, receiveCnt);
 
-        message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        Assert.assertNull(message);
+        assertNoMoreMessages(consumer);
 
         topic = TopicName.get(topic).getPartition(0).toString();
         boolean exist = false;
@@ -844,7 +841,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // The aborted transaction must not have acknowledged anything
         consumer.redeliverUnacknowledgedMessages();
-        assertEquals(drainMessages(consumer).size(), messageCount);
+        receiveAllMessages(consumer, messageCount);
     }
 
     @Test
@@ -862,8 +859,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // Only the other partition's messages may come back
         consumer.redeliverUnacknowledgedMessages();
-        List<Message<Integer>> redelivered = drainMessages(consumer);
-        assertEquals(redelivered.size(), messageCount / 2);
+        List<Message<Integer>> redelivered = receiveAllMessages(consumer, messageCount / 2);
         for (Message<Integer> message : redelivered) {
             assertNotEquals(message.getTopicName(), lastMessage.getTopicName());
         }
@@ -897,12 +893,14 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         return lastMessage;
     }
 
-    private List<Message<Integer>> drainMessages(Consumer<Integer> consumer) throws Exception {
+    private List<Message<Integer>> receiveAllMessages(Consumer<Integer> consumer, int messageCount) throws Exception {
         List<Message<Integer>> messages = new ArrayList<>();
-        Message<Integer> message;
-        while ((message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS)) != null) {
+        for (int i = 0; i < messageCount; i++) {
+            Message<Integer> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+            Assert.assertNotNull(message);
             messages.add(message);
         }
+        assertNoMoreMessages(consumer);
         return messages;
     }
 
@@ -931,11 +929,12 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             Transaction abortTxn = getTxn();
             int messageCnt = 1000;
             // produce normal messages
+            List<CompletableFuture<MessageId>> sendFutures = new ArrayList<>();
             for (int i = 0; i < messageCnt; i++){
-                producer.newMessage().value("hello".getBytes()).sendAsync();
+                sendFutures.add(producer.newMessage().value("hello".getBytes()).sendAsync());
             }
             Message<byte[]> message = null;
-            Thread.sleep(1000L);
+            FutureUtil.waitForAll(sendFutures).get();
             for (int i = 0; i < messageCnt; i++) {
                 message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
                 Assert.assertNotNull(message);
@@ -966,8 +965,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
             }
 
             // the messages are pending ack state and can't be received
-            message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-            Assert.assertNull(message);
+            assertNoMoreMessages(consumer);
 
             abortTxn.abort().get();
             consumer.redeliverUnacknowledgedMessages();
@@ -999,8 +997,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                 Assert.assertTrue(reCommitError.getCause() instanceof TransactionNotFoundException);
             }
 
-            message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-            Assert.assertNull(message);
+            assertNoMoreMessages(consumer);
         }
 
         // cleanup.
@@ -1266,19 +1263,22 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         producer.send("Hello Pulsar!");
 
+        int txnTimeoutSeconds = 3;
+        long start = System.nanoTime();
         Transaction consumeTimeoutTxn = pulsarClient
                 .newTransaction()
-                .withTransactionTimeout(7, TimeUnit.SECONDS)
+                .withTransactionTimeout(txnTimeoutSeconds, TimeUnit.SECONDS)
                 .build().get();
 
         Message<String> message = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
 
         consumer.acknowledgeAsync(message.getMessageId(), consumeTimeoutTxn).get();
 
-        Message<String> reReceiveMessage = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        assertNull(reReceiveMessage);
+        assertNoMoreMessages(consumer);
 
-        reReceiveMessage = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+        Message<String> reReceiveMessage = consumer.receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS);
+        // the message only comes back once the transaction has timed out
+        assertTrue(System.nanoTime() - start >= TimeUnit.SECONDS.toNanos(txnTimeoutSeconds));
 
         assertEquals(reReceiveMessage.getValue(), message.getValue());
 
@@ -1457,6 +1457,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
                     .InvalidTxnStatusException);
         }
 
+        // The broker times the transaction out on its own timer: wait until it has aborted it, or the test methods
+        // that run next would see its timeout
+        TransactionMetadataStoreService tcService = getPulsarServiceList().get(0).getTransactionMetadataStoreService();
+        Awaitility.await().until(() -> tcService.getTxnMeta(transaction.getTxnID()).isCompletedExceptionally());
+
         // cleanup.
         producer.close();
         consumer.close();
@@ -1527,8 +1532,7 @@ public class TransactionEndToEndTest extends TransactionTestBase {
         commitTransaction.commit().get();
 
         // then redeliver will not receive any message
-        message = consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS);
-        assertNull(message);
+        assertNoMoreMessages(consumer);
 
         // cleanup.
         producer.close();
@@ -1670,12 +1674,11 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // consumer receive the message the third time, redeliverCount = 2,
         // the message will be sent to DLQ, can't receive
-        assertNull(consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS));
-
-        assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 3);
-
         assertEquals(value, new String(deadLetterConsumer
                 .receive(waitTimeForCanReceiveMsgInSec, TimeUnit.SECONDS).getValue()));
+        assertNoMoreMessages(consumer);
+
+        assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 3);
 
         // cleanup.
         consumer.close();
@@ -1743,14 +1746,13 @@ public class TransactionEndToEndTest extends TransactionTestBase {
 
         // consumer receive the batch message the third time, redeliverCount = 2,
         // the message will be sent to DLQ, can't receive
-        assertNull(consumer.receive(waitTimeForCannotReceiveMsgInSec, TimeUnit.SECONDS));
-
-        assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 6);
-
         assertEquals(value1, new String(deadLetterConsumer.receive(waitTimeForCanReceiveMsgInSec,
                 TimeUnit.SECONDS).getValue()));
         assertEquals(value2, new String(deadLetterConsumer.receive(waitTimeForCanReceiveMsgInSec,
                 TimeUnit.SECONDS).getValue()));
+        assertNoMoreMessages(consumer);
+
+        assertEquals(((ConsumerImpl<?>) consumer).getAvailablePermits(), 6);
 
         // cleanup.
         consumer.close();
