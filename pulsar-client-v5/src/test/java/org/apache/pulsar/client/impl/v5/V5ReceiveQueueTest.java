@@ -23,6 +23,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.expectThrows;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.netty.util.HashedWheelTimer;
 import java.time.Duration;
 import java.time.Instant;
@@ -35,6 +36,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.v5.Message;
 import org.apache.pulsar.client.api.v5.MessageId;
@@ -83,6 +85,83 @@ public class V5ReceiveQueueTest {
         Message<Integer> m = msg(1);
         queue.offer(m);
         assertSame(f.get(5, TimeUnit.SECONDS), m);
+    }
+
+    @Test
+    public void deferredEnqueueDoesNotInvokeEvenDirectExecutorReceivers() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        V5ReceiveQueue<Integer> q = new V5ReceiveQueue<>(direct, timer, 4);
+        try {
+            CompletableFuture<Message<Integer>> pending = q.receiveAsync();
+            AtomicBoolean notified = new AtomicBoolean();
+            pending.thenRun(() -> notified.set(true));
+            Message<Integer> message = msg(1);
+            assertTrue(q.enqueueToBuffer(message));
+            assertTrue(!pending.isDone());
+            assertTrue(!notified.get());
+            q.afterEnqueue().get(5, TimeUnit.SECONDS);
+            assertSame(pending.get(5, TimeUnit.SECONDS), message);
+            assertTrue(notified.get());
+        } finally {
+            q.close();
+            direct.shutdown();
+        }
+    }
+
+    @Test
+    public void receiverRegisteringBetweenEnqueueAndDispatchCannotLoseOrDuplicateMessage() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        V5ReceiveQueue<Integer> q = new V5ReceiveQueue<>(direct, timer, 4);
+        try {
+            Message<Integer> message = msg(1);
+            assertTrue(q.enqueueToBuffer(message));
+            assertSame(q.receiveAsync().get(5, TimeUnit.SECONDS), message);
+            q.afterEnqueue().get(5, TimeUnit.SECONDS);
+            assertNull(q.poll(Duration.ZERO));
+        } finally {
+            q.close();
+            direct.shutdown();
+        }
+    }
+
+    @Test
+    public void deferredEnqueueRetainsCapacityBackpressureUntilTheBufferDrains() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        V5ReceiveQueue<Integer> q = new V5ReceiveQueue<>(direct, timer, 2);
+        try {
+            Message<Integer> first = msg(1);
+            Message<Integer> second = msg(2);
+            assertTrue(q.enqueueToBuffer(first));
+            assertTrue(q.enqueueToBuffer(second));
+            CompletableFuture<Void> capacity = q.afterEnqueue();
+            assertTrue(!capacity.isDone());
+            assertSame(q.receiveAsync().get(5, TimeUnit.SECONDS), first);
+            capacity.get(5, TimeUnit.SECONDS);
+            assertSame(q.receiveAsync().get(5, TimeUnit.SECONDS), second);
+            assertNull(q.poll(Duration.ZERO));
+        } finally {
+            q.close();
+            direct.shutdown();
+        }
+    }
+
+    @Test
+    public void closeBetweenEnqueueAndDispatchFailsTheWaiterWithoutStrandingCapacity() throws Exception {
+        ExecutorService direct = MoreExecutors.newDirectExecutorService();
+        V5ReceiveQueue<Integer> q = new V5ReceiveQueue<>(direct, timer, 1);
+        try {
+            CompletableFuture<Message<Integer>> pending = q.receiveAsync();
+            assertTrue(q.enqueueToBuffer(msg(1)));
+            q.close();
+            ExecutionException error = expectThrows(ExecutionException.class,
+                    () -> pending.get(5, TimeUnit.SECONDS));
+            assertTrue(error.getCause() instanceof PulsarClientException.AlreadyClosedException);
+            q.afterEnqueue().get(5, TimeUnit.SECONDS);
+            assertTrue(!q.enqueueToBuffer(msg(2)));
+        } finally {
+            q.close();
+            direct.shutdown();
+        }
     }
 
     @Test
