@@ -39,6 +39,7 @@ import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics.TopicLoadFailureR
 import org.apache.pulsar.broker.stats.BrokerStats;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
+import org.apache.pulsar.common.api.proto.ServerError;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -288,6 +289,10 @@ public class PulsarStats implements Closeable {
 
     public void recordConnectionCreateFail() {
         brokerOperabilityMetrics.recordConnectionCreateFail();
+    }
+
+    public void recordProducerCreateFailure(ServerError error) {
+        brokerOperabilityMetrics.recordProducerCreateFailure(error);
     }
 
     public void recordPublishLatency(long latency, TimeUnit unit) {
