@@ -93,6 +93,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.PositionBound;
 import org.apache.bookkeeper.mledger.PositionFactory;
+import org.apache.bookkeeper.mledger.impl.BacklogSizeSnapshot;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorContainer.CursorInfo;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -3451,7 +3452,7 @@ public class PersistentTopic extends AbstractTopic implements Topic, AddEntryCal
 
         Map<String, CompletableFuture<SubscriptionStatsImpl>> subscriptionFutures = new HashMap<>();
         ToLongFunction<Position> backlogSizeSnapshot = getStatsOptions.isSubscriptionBacklogSize()
-                && subscriptions.size() > 1 ? ledger.getEstimatedBacklogSizeSnapshot() : null;
+                && subscriptions.size() > 1 ? BacklogSizeSnapshot.create(ledger) : null;
         subscriptions.forEach((name, subscription) -> {
             // Keep invoking the public method for subclasses that may override the stats calculation.
             subscriptionFutures.put(name, backlogSizeSnapshot != null

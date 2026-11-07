@@ -5624,7 +5624,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
             positions.add(ledger.addEntry(new byte[i]));
         }
 
-        ToLongFunction<Position> snapshot = ledger.getEstimatedBacklogSizeSnapshot();
+        ToLongFunction<Position> snapshot = BacklogSizeSnapshot.create(ledger);
         assertEquals(snapshot.applyAsLong(null), 0);
         assertEquals(snapshot.applyAsLong(PositionFactory.create(-1, -1)),
                 ledger.getEstimatedBacklogSize(PositionFactory.create(-1, -1)));
@@ -5671,7 +5671,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         });
         // Existing positions retain the captured estimate even after the underlying ledgers are trimmed.
         assertEquals(snapshot.applyAsLong(current), oldEstimate);
-        ToLongFunction<Position> afterTrim = ledger.getEstimatedBacklogSizeSnapshot();
+        ToLongFunction<Position> afterTrim = BacklogSizeSnapshot.create(ledger);
         for (Position pos : positions) {
             assertEquals(afterTrim.applyAsLong(pos), ledger.getEstimatedBacklogSize(pos));
         }
@@ -5703,7 +5703,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
                 assertEquals(ledger.getTotalSize(), 0);
                 assertFalse(add.isDone());
             });
-            ToLongFunction<Position> snapshot = ledger.getEstimatedBacklogSizeSnapshot();
+            ToLongFunction<Position> snapshot = BacklogSizeSnapshot.create(ledger);
             responseGate.complete(null);
             Position confirmed = add.get(5, TimeUnit.SECONDS);
             assertEquals(ledger.getEstimatedBacklogSize(confirmed), 0);
