@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.broker.stats.prometheus;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,10 +42,13 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopicMetrics;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.stats.ConsumerStatsImpl;
 import org.apache.pulsar.common.policies.data.stats.SubscriptionStatsImpl;
+import org.apache.pulsar.common.policies.data.stats.TopicMetricBean;
 import org.apache.pulsar.common.policies.data.stats.TopicStatsImpl;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.apache.pulsar.metadata.impl.ZKMetadataStore;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -62,8 +69,13 @@ public class NamespaceStatsAggregatorTest {
         doReturn(broker).when(pulsar).getBrokerService();
     }
 
-    @Test
-    public void testGenerateSubscriptionsStats() {
+    @DataProvider
+    public Object[][] topicMetrics() {
+        return new Object[][] {{true}, {false}};
+    }
+
+    @Test(dataProvider = "topicMetrics")
+    public void testGenerateSubscriptionsStats(boolean includeTopicMetrics) {
         // given
         final String namespace = "tenant/cluster/ns";
 
@@ -95,6 +107,10 @@ public class NamespaceStatsAggregatorTest {
         SubscriptionStatsImpl subStats = new SubscriptionStatsImpl();
         TopicStatsImpl topicStats = new TopicStatsImpl();
         topicStats.subscriptions.put("my-subscription", subStats);
+        topicStats.bytesInCounter = 9007199254740993L;
+        topicStats.bytesOutCounter = 9007199254740993L;
+        topicStats.bucketDelayedIndexStats.put("bucket", new TopicMetricBean(
+                "pulsar_test_delayed_bucket", 2.5, new String[]{"bucket", "bucket-a"}));
         when(topic.getStats(false, false, false)).thenReturn(topicStats);
         when(topic.getBrokerService()).thenReturn(broker);
         when(topic.getSubscriptions()).thenReturn(subscriptionsMaps);
@@ -118,49 +134,35 @@ public class NamespaceStatsAggregatorTest {
         subStats.consumers.add(0, consumerStats);
 
         // when
-        NamespaceStatsAggregator.generate(pulsar, true, true,
+        NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, true,
                 true, true, metricStreams);
 
         // then
-        verifySubscriptionMetric(metricStreams, "pulsar_subscription_blocked_on_unacked_messages", 1);
-        verifyConsumerMetric(metricStreams, "pulsar_consumer_blocked_on_unacked_messages", 0);
-
-        verifySubscriptionMetric(metricStreams, "pulsar_subscription_msg_rate_redeliver", 0.7);
-        verifySubscriptionMetric(metricStreams, "pulsar_subscription_unacked_messages", 1L);
-        verifySubscriptionMetric(metricStreams, "pulsar_subscription_storage_backlog_age_seconds", 123L);
-    }
-
-    private void verifySubscriptionMetric(PrometheusMetricStreams metricStreams, String metricName, Number value) {
-        Mockito.verify(metricStreams).writeSample(metricName,
-                value,
-                "cluster",
-                null,
-                "namespace",
-                "tenant/cluster/ns",
-                "topic",
-                "my-topic",
-                "partition",
-                "-1",
-                "subscription",
-                "my-subscription");
-    }
-
-    private void verifyConsumerMetric(PrometheusMetricStreams metricStreams, String metricName, Number value) {
-        Mockito.verify(metricStreams).writeSample(metricName,
-                value,
-                "cluster",
-                null,
-                "namespace",
-                "tenant/cluster/ns",
-                "topic",
-                "my-topic",
-                "partition",
-                "-1",
-                "subscription",
-                "my-subscription",
-                "consumer_name",
-                null,
-                "consumer_id",
-                "0");
+        ByteBuf buffer = Unpooled.buffer();
+        try {
+            metricStreams.flushAllToStream(new SimpleTextOutputStream(buffer));
+            String metrics = buffer.toString(StandardCharsets.UTF_8);
+            if (includeTopicMetrics) {
+                String subscriptionLabels = "{cluster=\"\",namespace=\"tenant/cluster/ns\",topic=\"my-topic\","
+                        + "partition=\"-1\",subscription=\"my-subscription\"";
+                assertThat(metrics).contains(
+                        "pulsar_subscription_blocked_on_unacked_messages" + subscriptionLabels + "} 1\n",
+                        "pulsar_consumer_blocked_on_unacked_messages" + subscriptionLabels
+                                + ",consumer_name=\"\",consumer_id=\"0\"} 0\n",
+                        "pulsar_subscription_msg_rate_redeliver" + subscriptionLabels + "} 0.700\n",
+                        "pulsar_subscription_unacked_messages" + subscriptionLabels + "} 1\n",
+                        "pulsar_subscription_storage_backlog_age_seconds" + subscriptionLabels + "} 123\n");
+            } else {
+                assertThat(metrics).contains("pulsar_test_delayed_bucket{cluster=\"\","
+                        + "namespace=\"tenant/cluster/ns\",bucket=\"bucket-a\"} 2.500\n");
+            }
+            assertThat(metrics).contains(
+                    "pulsar_broker_in_bytes_total{cluster=\"\",system_topic=\"false\"} 9007199254740993\n",
+                    "pulsar_broker_in_bytes_total{cluster=\"\",system_topic=\"true\"} 0\n",
+                    "pulsar_broker_out_bytes_total{cluster=\"\",system_subscription=\"false\"} 9007199254740993\n",
+                    "pulsar_broker_out_bytes_total{cluster=\"\",system_subscription=\"true\"} 0\n");
+        } finally {
+            buffer.release();
+        }
     }
 }
