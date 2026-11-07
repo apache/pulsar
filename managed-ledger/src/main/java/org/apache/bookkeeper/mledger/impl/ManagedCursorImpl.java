@@ -933,45 +933,14 @@ public class ManagedCursorImpl implements ManagedCursor {
                 new MetaStoreCallback<>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
-                        readBackCreatedCursorNodeStat(stat, () -> {
-                            changeStateIfNotClosed(State.NoLedger);
-                            callback.operationComplete();
-                        });
+                        changeStateIfNotClosed(State.NoLedger);
+                        callback.operationComplete();
                     }
                     @Override
                     public void operationFailed(MetaStoreException e) {
                         callback.operationFailed(e);
                     }
         }, false);
-    }
-
-    /**
-     * ZooKeeper does not report the creation timestamp of a node that it has just created. Read the cursor node back,
-     * so that a failed cursor ledger publication can later be reconciled against this node. The native Stat is used
-     * only while the node still holds the created version and content.
-     */
-    private void readBackCreatedCursorNodeStat(Stat created, Runnable then) {
-        ManagedCursorInfo createdInfo = managedCursorInfo;
-        if (created == null || created.getCreationTimestamp() > 0 || cursorLedgerStat != created) {
-            then.run();
-            return;
-        }
-        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
-            @Override
-            public void operationComplete(ManagedCursorInfo info, Stat stat) {
-                if (cursorLedgerStat == created && stat.getVersion() == created.getVersion()
-                        && Arrays.equals(createdInfo.toByteArray(), info.toByteArray())) {
-                    updateCursorLedgerStat(createdInfo, stat);
-                }
-                then.run();
-            }
-
-            @Override
-            public void operationFailed(MetaStoreException e) {
-                log.debug().exceptionMessage(e).log("Could not read back the created cursor node");
-                then.run();
-            }
-        });
     }
 
     @Override
@@ -4236,8 +4205,8 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void switchToNewLedger(final LedgerHandle lh, final VoidCallback callback) {
         log.debug().attr("ledgerId", lh.getId()).log("Switching to new metadata ledger");
-        persistPositionMetaStore(lh.getId(), lastMarkDeleteEntry.newPosition, lastMarkDeleteEntry.properties,
-                new CursorLedgerPublicationCallback() {
+        MarkDeleteEntry mdEntry = lastMarkDeleteEntry;
+        CursorLedgerPublicationCallback publication = new CursorLedgerPublicationCallback() {
             @Override
             public void operationComplete(Void result, Stat stat) {
                 log.info()
@@ -4267,7 +4236,57 @@ public class ManagedCursorImpl implements ManagedCursor {
                     lh.asyncClose((rc, handle, context) -> callback.operationFailed(e), null);
                 }
             }
-        }, false);
+        };
+        resolveCursorNodeIdentity(publication, () -> persistPositionMetaStore(lh.getId(), mdEntry.newPosition,
+                mdEntry.properties, publication, false));
+    }
+
+    /**
+     * ZooKeeper does not report the creation timestamp of a node that it has just created. Reconciling a failed
+     * publication needs that timestamp to recognize the cursor node, so learn it before publishing: use the native
+     * Stat while the node still holds this cursor's version and content, or else refresh to it after an ownership
+     * check, as a version conflict does. Otherwise, the publication fails before writing anything.
+     */
+    private void resolveCursorNodeIdentity(CursorLedgerPublicationCallback publication, Runnable publish) {
+        Stat localStat = cursorLedgerStat;
+        ManagedCursorInfo localInfo = managedCursorInfo;
+        if (localStat == null || localStat.getCreationTimestamp() > 0) {
+            publish.run();
+            return;
+        }
+        ledger.getStore().asyncGetCursorInfo(ledger.getName(), name, new MetaStoreCallback<>() {
+            @Override
+            public void operationComplete(ManagedCursorInfo info, Stat stat) {
+                boolean sameVersion = stat.getVersion() == localStat.getVersion()
+                        && Arrays.equals(localInfo.toByteArray(), info.toByteArray());
+                CompletableFuture<Boolean> usable = sameVersion || ledger.mlOwnershipChecker == null
+                        ? CompletableFuture.completedFuture(sameVersion)
+                        : FutureUtil.supplySafely(ledger.mlOwnershipChecker);
+                usable.whenComplete((canUse, error) -> {
+                    Runnable completion = () -> {
+                        if (cursorLedgerStat == localStat && !state.isClosed()) {
+                            if (error != null || !Boolean.TRUE.equals(canUse)) {
+                                publication.operationFailed(new MetaStoreException.BadVersionException(
+                                        "Cursor metadata changed since this cursor last wrote it"), true);
+                                return;
+                            }
+                            updateCursorLedgerStat(sameVersion ? localInfo : info, stat);
+                        }
+                        publish.run();
+                    };
+                    try {
+                        ledger.getExecutor().execute(completion);
+                    } catch (RejectedExecutionException rejected) {
+                        publication.operationFailed(new MetaStoreException(rejected), true);
+                    }
+                });
+            }
+
+            @Override
+            public void operationFailed(MetaStoreException e) {
+                publication.operationFailed(e, true);
+            }
+        });
     }
 
     /**
