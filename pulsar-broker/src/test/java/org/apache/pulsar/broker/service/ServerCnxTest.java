@@ -139,6 +139,9 @@ import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.topiclistlimit.TopicListMemoryLimiter;
 import org.apache.pulsar.broker.topiclistlimit.TopicListSizeResultCache;
+import org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5;
+import org.apache.pulsar.broker.transaction.coordinator.v5.TransactionCoordinatorV5.TcAssignmentsSnapshot;
+import org.apache.pulsar.broker.transaction.metadata.TcLeader;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.ProducerAccessMode;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -176,6 +179,7 @@ import org.apache.pulsar.common.api.proto.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.CommandSuccess;
+import org.apache.pulsar.common.api.proto.CommandWatchTcAssignmentsUpdate;
 import org.apache.pulsar.common.api.proto.CommandWatchTopicListSuccess;
 import org.apache.pulsar.common.api.proto.MessageMetadata;
 import org.apache.pulsar.common.api.proto.ProtocolVersion;
@@ -311,6 +315,132 @@ public class ServerCnxTest {
             pulsarTestContext.close();
             pulsarTestContext = null;
         }
+    }
+
+    @Test(timeOut = 30000)
+    public void testTcAssignmentsWatchDoesNotPublishOlderSnapshotLast() throws Exception {
+        List<Runnable> listeners = new ArrayList<>();
+        List<AutoCloseable> registrations = new ArrayList<>();
+        TransactionCoordinatorV5 coordinator = connectTcAssignmentsWatch(listeners, registrations);
+        CompletableFuture<TcAssignmentsSnapshot> oldSnapshot = new CompletableFuture<>();
+        CompletableFuture<TcAssignmentsSnapshot> newSnapshot = new CompletableFuture<>();
+        when(coordinator.buildAssignmentsSnapshot()).thenReturn(oldSnapshot, newSnapshot);
+
+        channel.writeInbound(Commands.newWatchTcAssignments(41));
+        listeners.get(0).run();
+        channel.runPendingTasks();
+        // The newer metadata read finishes first. An independent older build used to publish
+        // after it and permanently rewind the client's full routing map without another event.
+        newSnapshot.complete(tcAssignmentsSnapshot("broker-new"));
+        channel.runPendingTasks();
+        oldSnapshot.complete(tcAssignmentsSnapshot("broker-old"));
+        List<CommandWatchTcAssignmentsUpdate> updates = readTcAssignmentsUpdates();
+
+        assertThat(updates).isNotEmpty();
+        assertThat(updates.get(updates.size() - 1).getSnapshot().getAssignmentAt(0).getBrokerServiceUrl())
+                .as("the last published full snapshot must not rewind to the old broker")
+                .isEqualTo("pulsar://broker-new:6650");
+        assertThat(updates).as("coalesce the invalidated build into one current snapshot").hasSize(1);
+        verify(coordinator, times(2)).buildAssignmentsSnapshot();
+    }
+
+    @Test(timeOut = 30000)
+    public void testTcAssignmentsWatchReusedIdRejectsPreviousSessionCompletion() throws Exception {
+        List<Runnable> listeners = new ArrayList<>();
+        List<AutoCloseable> registrations = new ArrayList<>();
+        TransactionCoordinatorV5 coordinator = connectTcAssignmentsWatch(listeners, registrations);
+        CompletableFuture<TcAssignmentsSnapshot> oldSnapshot = new CompletableFuture<>();
+        CompletableFuture<TcAssignmentsSnapshot> newSnapshot = new CompletableFuture<>();
+        when(coordinator.buildAssignmentsSnapshot()).thenReturn(oldSnapshot, newSnapshot);
+
+        channel.writeInbound(Commands.newWatchTcAssignments(41));
+        channel.writeInbound(Commands.newWatchTcAssignmentsClose(41));
+        channel.writeInbound(Commands.newWatchTcAssignments(41));
+        newSnapshot.complete(tcAssignmentsSnapshot("broker-new"));
+        channel.runPendingTasks();
+        oldSnapshot.complete(tcAssignmentsSnapshot("broker-old"));
+        List<CommandWatchTcAssignmentsUpdate> updates = readTcAssignmentsUpdates();
+
+        assertThat(updates).isNotEmpty();
+        assertThat(updates.get(updates.size() - 1).getSnapshot().getAssignmentAt(0).getBrokerServiceUrl())
+                .as("a previous watch session cannot overwrite a replacement using the same watch ID")
+                .isEqualTo("pulsar://broker-new:6650");
+        assertThat(updates).hasSize(1);
+        verify(registrations.get(0)).close();
+        // A callback already enqueued by the deregistered listener must also be fenced.
+        listeners.get(0).run();
+        assertThat(readTcAssignmentsUpdates()).isEmpty();
+        verify(coordinator, times(2)).buildAssignmentsSnapshot();
+    }
+
+    @Test(timeOut = 30000)
+    public void testTcAssignmentsWatchReusedIdCancelsPreviousRepush() throws Exception {
+        List<Runnable> listeners = new ArrayList<>();
+        List<AutoCloseable> registrations = new ArrayList<>();
+        TransactionCoordinatorV5 coordinator = connectTcAssignmentsWatch(listeners, registrations);
+        when(coordinator.buildAssignmentsSnapshot()).thenReturn(
+                CompletableFuture.completedFuture(new TcAssignmentsSnapshot(1, Map.of())),
+                CompletableFuture.completedFuture(tcAssignmentsSnapshot("broker-new")));
+
+        channel.writeInbound(Commands.newWatchTcAssignments(41));
+        List<CommandWatchTcAssignmentsUpdate> initial = readTcAssignmentsUpdates();
+        assertThat(initial).hasSize(1);
+        assertThat(initial.get(0).getSnapshot().getAssignmentsCount()).isZero();
+        channel.writeInbound(Commands.newWatchTcAssignmentsClose(41));
+        channel.writeInbound(Commands.newWatchTcAssignments(41));
+        assertThat(readTcAssignmentsUpdates()).hasSize(1);
+
+        channel.advanceTimeBy(1, TimeUnit.SECONDS);
+        channel.runScheduledPendingTasks();
+        assertThat(readTcAssignmentsUpdates()).as("the closed session's delayed repush must be cancelled").isEmpty();
+        verify(coordinator, times(2)).buildAssignmentsSnapshot();
+        verify(registrations.get(0)).close();
+    }
+
+    private TransactionCoordinatorV5 connectTcAssignmentsWatch(List<Runnable> listeners,
+                                                               List<AutoCloseable> registrations) throws Exception {
+        svcConfig.setScalableTopicsEnabled(true);
+        svcConfig.setTransactionCoordinatorEnabled(true);
+        svcConfig.setTransactionCoordinatorScalableTopicsEnabled(true);
+        svcConfig.setKeepAliveIntervalSeconds(60);
+        TransactionCoordinatorV5 coordinator = mock(TransactionCoordinatorV5.class);
+        doReturn(coordinator).when(pulsar).getTransactionCoordinatorV5();
+        when(coordinator.registerAssignmentChangeListener(any())).thenAnswer(invocation -> {
+            listeners.add(invocation.getArgument(0));
+            AutoCloseable registration = mock(AutoCloseable.class);
+            registrations.add(registration);
+            return registration;
+        });
+        resetChannel();
+        channel.writeInbound(Commands.newConnect("none", "", null));
+        assertThat(getResponse()).isInstanceOf(CommandConnected.class);
+        return coordinator;
+    }
+
+    private static TcAssignmentsSnapshot tcAssignmentsSnapshot(String broker) {
+        return new TcAssignmentsSnapshot(1, Map.of(0,
+                new TcLeader(broker + ":8080", "pulsar://" + broker + ":6650", null, "http://" + broker + ":8080")));
+    }
+
+    private List<CommandWatchTcAssignmentsUpdate> readTcAssignmentsUpdates() {
+        channel.runPendingTasks();
+        List<CommandWatchTcAssignmentsUpdate> updates = new ArrayList<>();
+        for (ByteBuf frame; (frame = channel.readOutbound()) != null;) {
+            try {
+                frame.readInt();
+                int commandSize = frame.readInt();
+                BaseCommand command = new BaseCommand();
+                command.parseFrom(frame, commandSize);
+                if (command.getType() == Type.PING) {
+                    continue;
+                }
+                assertThat(command.getType()).isEqualTo(Type.WATCH_TC_ASSIGNMENTS_UPDATE);
+                updates.add(new CommandWatchTcAssignmentsUpdate().copyFrom(command.getWatchTcAssignmentsUpdate()));
+            } finally {
+                frame.release();
+            }
+        }
+        return updates;
     }
 
     @Test(timeOut = 30000)
