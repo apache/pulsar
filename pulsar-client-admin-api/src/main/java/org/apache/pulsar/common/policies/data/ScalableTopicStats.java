@@ -47,6 +47,13 @@ import org.apache.pulsar.client.api.ProducerAccessMode;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class ScalableTopicStats {
 
+    /** Broker leading the topic's controller, absent when no controller runs. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String controllerBroker;
+
+    /** Effective auto-scale policy and the latest evaluation's diagnostics. */
+    private AutoScaleStats autoScale = new AutoScaleStats();
+
     /** The segment DAG. */
     private LayoutStats layout = new LayoutStats();
 
@@ -77,6 +84,72 @@ public class ScalableTopicStats {
     /** Per-subscription stats keyed by subscription name. */
     private Map<String, SubscriptionStats> subscriptions = new LinkedHashMap<>();
 
+    /** Auto split/merge policy resolved from broker, namespace and topic settings. */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class AutoScaleStats {
+        /** Effective policy, absent when it could not be collected. */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private AutoScalePolicyOverride policy;
+
+        /**
+         * Last evaluation's hard limit: max_segments, max_entry_buckets, max_dag_depth,
+         * unsplittable or invalid_policy. Absent when not blocked (including cooldowns).
+         */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String blockedReason;
+
+        /** Last completed split (ISO-8601), absent if unknown. */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String lastSplitAt;
+
+        /** Last completed merge (ISO-8601), absent if unknown. */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String lastMergeAt;
+
+        /** Last completed rebucket (ISO-8601), absent if unknown. */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String lastRebucketAt;
+    }
+
+    /** Last layout operation completed since the current controller started leading. */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class LayoutOperationStats {
+        /** split, merge, rebucket or prune. */
+        private String operation;
+        /** manual or auto. */
+        private String trigger;
+        /** Source segments operated on. */
+        private List<Long> segmentIds = new ArrayList<>();
+        /**
+         * success, failure or partial. A split, merge or rebucket is partial only when a source
+         * was sealed but the layout was not committed; a prune is partial when the layout was
+         * pruned but backing storage remains. Errors after a split/merge/rebucket layout commit
+         * (for example during refresh or notification) are failures, not partial layout changes.
+         */
+        private String status;
+        /** Completion time (ISO-8601). */
+        private String at;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String error;
+    }
+
+    /** The last reported segment load used by auto-scale, not the live topic rates. */
+    @Data
+    @NoArgsConstructor
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class SegmentLoadStats {
+        private double msgRateIn;
+        private double byteRateIn;
+        private double msgRateOut;
+        private double byteRateOut;
+        /** Age of the last load record in seconds at stats collection time. */
+        private double ageSeconds;
+    }
+
     /** The segment DAG: the layout epoch and every segment, active or sealed. */
     @Data
     @NoArgsConstructor
@@ -85,6 +158,14 @@ public class ScalableTopicStats {
 
         /** Current layout epoch, incremented on every split, merge, rebucket or prune. */
         private long epoch;
+
+        /**
+         * Latest completed operation in this controller leadership term, including automatic prune.
+         * Later operations replace earlier outcomes, including failures; this is not failure history.
+         * Absent before any operation completes.
+         */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private LayoutOperationStats lastOperation;
 
         /** The segments, keyed by segment ID. */
         private Map<Long, LayoutSegment> segments = new LinkedHashMap<>();
@@ -115,6 +196,25 @@ public class ScalableTopicStats {
         /** Child segment IDs; omitted from the JSON form when empty (an active segment). */
         @JsonInclude(JsonInclude.Include.NON_EMPTY)
         private List<Long> childIds = new ArrayList<>();
+
+        /** Creation time (ISO-8601), absent when unknown. */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String createdAt;
+
+        /** Seal time (ISO-8601), absent for active segments or when unknown. */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String sealedAt;
+
+        /** Latest load record used by auto-scale, absent when none has been reported. */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private SegmentLoadStats load;
+
+        /**
+         * Whether the backing topic is terminated; absent when stats could not be collected
+         * or an older owning broker did not report termination state.
+         */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private Boolean terminated;
 
         /** Number of entry-buckets the segment is divided into (PIP-486). */
         private int entryBuckets;
@@ -208,6 +308,14 @@ public class ScalableTopicStats {
         /** Total rate of message acknowledgements (msg/s). */
         private double messageAckRate;
 
+        /**
+         * Active segments confirmed to have no cursor for this subscription.
+         * Absent for CHECKPOINT groups, which keep positions in the client. Segments whose
+         * stats could not be collected are not assumed to be uncovered.
+         */
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private List<Long> uncoveredSegmentIds = new ArrayList<>();
+
         /** Per-segment breakdown of the subscription, keyed by segment ID. */
         private Map<Long, SegmentSubscriptionStats> segments = new LinkedHashMap<>();
 
@@ -235,6 +343,12 @@ public class ScalableTopicStats {
 
         /** Rate of bytes delivered from this segment (byte/s). */
         private double byteRateOut;
+
+        /** Whether an undrained ancestor prevents assignment (STREAM only). */
+        private boolean blocked;
+
+        /** Entry buckets withheld from a new owner pending acknowledgement by the old owner. */
+        private int drainingBuckets;
 
         /** Number of consumers attached to the subscription on this segment. */
         private int consumerCount;

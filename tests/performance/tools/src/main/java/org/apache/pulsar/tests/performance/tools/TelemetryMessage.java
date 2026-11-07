@@ -19,6 +19,8 @@
 package org.apache.pulsar.tests.performance.tools;
 
 import java.nio.ByteBuffer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.TypedMessageBuilder;
 
 final class TelemetryMessage {
     static final int HEADER_BYTES = Long.BYTES * 4;
@@ -41,6 +43,26 @@ final class TelemetryMessage {
         ByteBuffer buffer = ByteBuffer.wrap(payload);
         return new Decoded(buffer.getLong(), buffer.getLong(), buffer.getLong(),
                 (buffer.getLong() & MEASUREMENT_FLAG) != 0);
+    }
+
+    /** Keys the device's message: its ID as 8 big-endian bytes, or {@code device-<ID>} with string keys. */
+    static TypedMessageBuilder<byte[]> key(TypedMessageBuilder<byte[]> message, long deviceId, boolean stringKeys) {
+        return stringKeys ? message.key(stringKey(deviceId))
+                : message.keyBytes(ByteBuffer.allocate(Long.BYTES).putLong(deviceId).array());
+    }
+
+    /** Whether the message has the key that {@link #key} gives the device's messages. */
+    static boolean hasKey(Message<?> message, long deviceId, boolean stringKeys) {
+        if (stringKeys) {
+            // a string key reaches the consumer as it was sent, not base64-encoded
+            return !message.hasBase64EncodedKey() && stringKey(deviceId).equals(message.getKey());
+        }
+        byte[] key = message.getKeyBytes();
+        return key != null && key.length == Long.BYTES && ByteBuffer.wrap(key).getLong() == deviceId;
+    }
+
+    private static String stringKey(long deviceId) {
+        return "device-" + deviceId;
     }
 
     private TelemetryMessage() {

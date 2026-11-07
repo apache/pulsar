@@ -19,8 +19,11 @@
 package org.apache.pulsar.broker.service.scalable;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertThrows;
@@ -82,6 +85,7 @@ public class ScalableTopicControllerAutoScaleTest {
     private Policies namespacePolicies;
     private ScalableTopicController controller;
     private TopicName topicName;
+    private ScalableTopicControllerMetrics metrics;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -93,6 +97,7 @@ public class ScalableTopicControllerAutoScaleTest {
 
         // Auto-scale tuned for deterministic single-shot evaluation: no cooldowns/windows so a
         // single evaluateAutoScaleForTest() call acts immediately, low-ish thresholds.
+        metrics = mock(ScalableTopicControllerMetrics.class);
         config = new ServiceConfiguration();
         config.setScalableTopicAutoScaleEnabled(true);
         config.setScalableTopicMaxSegments(64);
@@ -157,11 +162,23 @@ public class ScalableTopicControllerAutoScaleTest {
                 ScalableTopicController.createInitialMetadata(initialSegments, 4, Map.of())).get();
         controller = new ScalableTopicController(topicName, resources, brokerService,
                 coordinationService);
+        controller.setMetrics(metrics);
         controller.initialize().get();
     }
 
     private int activeSegmentCount() throws Exception {
         return controller.getLayout().get().getActiveSegments().size();
+    }
+
+    @Test
+    public void testBlockedAutoScaleMetric() throws Exception {
+        config.setScalableTopicMaxSegments(2);
+        startController(2);
+        resources.reportSegmentLoadAsync(topicName, 0,
+                new SegmentLoadStats(20_000, 0, 0, 0)).get();
+        controller.evaluateAutoScaleForTest().get();
+        verify(metrics).recordBlocked("max_segments");
+        assertEquals(activeSegmentCount(), 2);
     }
 
     @Test
@@ -175,6 +192,7 @@ public class ScalableTopicControllerAutoScaleTest {
 
         controller.evaluateAutoScaleForTest().get();
         assertEquals(activeSegmentCount(), 3, "hot segment should have been split");
+        verify(metrics).recordOperation(eq("split"), eq("auto"), eq("success"), anyDouble());
     }
 
     @Test
@@ -330,6 +348,7 @@ public class ScalableTopicControllerAutoScaleTest {
         controller.evaluateAutoScaleForTest().get();
         assertEquals(activeSegmentCount(), 2,
                 "invalid override combination must disable auto split/merge, not split");
+        verify(metrics).recordBlocked("invalid_policy");
     }
 
     /**
@@ -489,6 +508,7 @@ public class ScalableTopicControllerAutoScaleTest {
         controller.close().join();
         controller = new ScalableTopicController(topicName, resources, brokerService,
                 coordinationService);
+        controller.setMetrics(metrics);
         controller.initialize().get();
 
         // …so another consumer-driven rollover is blocked by the seeded rebucket cooldown…
@@ -557,6 +577,7 @@ public class ScalableTopicControllerAutoScaleTest {
         }
         controller = new ScalableTopicController(topicName, resources, brokerService,
                 coordinationService);
+        controller.setMetrics(metrics);
         controller.initialize().get();
 
         controller.evaluateAutoScaleForTest().get();
@@ -585,6 +606,7 @@ public class ScalableTopicControllerAutoScaleTest {
         controller.close().join();
         controller = new ScalableTopicController(topicName, resources, brokerService,
                 coordinationService);
+        controller.setMetrics(metrics);
         controller.initialize().get();
 
         resources.reportSegmentLoadAsync(topicName, 1,

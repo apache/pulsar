@@ -22,9 +22,13 @@ import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import io.github.merlimat.slog.Logger;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import java.lang.management.ManagementFactory;
+import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 import lombok.CustomLog;
 import lombok.experimental.UtilityClass;
@@ -103,10 +107,17 @@ public class PerfClientUtils {
                 .serviceUrl(arguments.serviceURL)
                 .connectionsPerBroker(arguments.maxConnections)
                 .ioThreads(arguments.ioThreads)
+                .useKeyStoreTls(arguments.useKeyStoreTls)
+                .tlsTrustStoreType(arguments.tlsTrustStoreType)
+                .tlsTrustStorePath(arguments.tlsTrustStorePath)
+                .tlsTrustStorePassword(arguments.tlsTrustStorePassword)
+                .tlsKeyStoreType(arguments.tlsKeyStoreType)
+                .tlsKeyStorePath(arguments.tlsKeyStorePath)
+                .tlsKeyStorePassword(arguments.tlsKeyStorePassword)
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
                 .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS)
                 .enableBusyWait(arguments.enableBusyWait)
                 .listenerThreads(arguments.listenerThreads)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
                 .maxLookupRequests(arguments.maxLookupRequest)
                 .proxyServiceUrl(arguments.proxyServiceURL, arguments.proxyProtocol)
                 .openTelemetry(AutoConfiguredOpenTelemetrySdk.builder()
@@ -188,25 +199,7 @@ public class PerfClientUtils {
         }
 
         if (wantsTls(arguments)) {
-            TlsPolicy.Builder tls = TlsPolicy.builder();
-            if (isNotBlank(arguments.tlsTrustCertsFilePath)) {
-                tls.trustCertsFilePath(arguments.tlsTrustCertsFilePath);
-            }
-            if (arguments.tlsAllowInsecureConnection != null) {
-                tls.allowInsecureConnection(arguments.tlsAllowInsecureConnection);
-            }
-            if (arguments.tlsHostnameVerificationEnable != null) {
-                tls.enableHostnameVerification(arguments.tlsHostnameVerificationEnable);
-            }
-            // PIP-478: both provider axes, so a FIPS run can pin BCJSSE and BCFIPS together. Format-
-            // independent — they apply to PEM and keystore material alike.
-            if (isNotBlank(arguments.jsseProvider)) {
-                tls.jsseProvider(arguments.jsseProvider);
-            }
-            if (isNotBlank(arguments.jcaProvider)) {
-                tls.jcaProvider(arguments.jcaProvider);
-            }
-            builder.tlsPolicy(tls.build());
+            builder.tlsPolicy(createV5TlsPolicy(arguments));
         }
 
         if (isNotBlank(arguments.listenerName)) {
@@ -217,6 +210,55 @@ public class PerfClientUtils {
     }
 
     /**
+     * Build the V5 {@link TlsPolicy} from the perf CLI arguments: {@link TlsPolicy.Format#KEYSTORE} material
+     * when {@code --use-keystore-tls} is set (PIP-351), PEM otherwise.
+     *
+     * <p>As on the v4 client ({@code ClientTlsFactorySupport}) and in {@code pulsar-client}, the PEM trust file is
+     * only used when keystore TLS is off, so a {@code tlsTrustCertsFilePath} left in client.conf does not break
+     * {@code --use-keystore-tls}.
+     *
+     * <p>Package-private for {@code PerfClientUtilsTest} (VisibleForTesting).
+     *
+     * @param arguments the parsed perf-tool arguments
+     * @return the TLS policy for the V5 client
+     */
+    static TlsPolicy createV5TlsPolicy(PerformanceBaseArguments arguments) {
+        TlsPolicy.Builder tls = TlsPolicy.builder();
+        if (arguments.useKeyStoreTls) {
+            tls.format(TlsPolicy.Format.KEYSTORE)
+                    .trustStoreType(arguments.tlsTrustStoreType)
+                    .trustStorePath(arguments.tlsTrustStorePath)
+                    .keyStoreType(arguments.tlsKeyStoreType);
+            if (isNotBlank(arguments.tlsTrustStorePassword)) {
+                tls.trustStorePassword(arguments.tlsTrustStorePassword);
+            }
+            if (isNotBlank(arguments.tlsKeyStorePath)) {
+                tls.keyStorePath(arguments.tlsKeyStorePath);
+            }
+            if (isNotBlank(arguments.tlsKeyStorePassword)) {
+                tls.keyStorePassword(arguments.tlsKeyStorePassword);
+            }
+        } else if (isNotBlank(arguments.tlsTrustCertsFilePath)) {
+            tls.trustCertsFilePath(arguments.tlsTrustCertsFilePath);
+        }
+        if (arguments.tlsAllowInsecureConnection != null) {
+            tls.allowInsecureConnection(arguments.tlsAllowInsecureConnection);
+        }
+        if (arguments.tlsHostnameVerificationEnable != null) {
+            tls.enableHostnameVerification(arguments.tlsHostnameVerificationEnable);
+        }
+        // PIP-478: both provider axes, so a FIPS run can pin BCJSSE and BCFIPS together. Format-
+        // independent — they apply to PEM and keystore material alike.
+        if (isNotBlank(arguments.jsseProvider)) {
+            tls.jsseProvider(arguments.jsseProvider);
+        }
+        if (isNotBlank(arguments.jcaProvider)) {
+            tls.jcaProvider(arguments.jcaProvider);
+        }
+        return tls.build();
+    }
+
+    /**
      * Whether the arguments express an actual intent to use TLS, and so whether a {@code TlsPolicy} should be
      * wired onto the V5 builder at all — {@code PulsarClientBuilderV5#tlsPolicy} unconditionally flips
      * {@code useTls=true}, so setting one against a plaintext endpoint makes the client attempt a TLS
@@ -224,8 +266,8 @@ public class PerfClientUtils {
      *
      * <p>The Boolean flags arrive as {@code Boolean.FALSE} (not {@code null}) whenever picocli's
      * default-value resolution fires without the flag being passed, so "non-null" cannot mean "the user
-     * wanted TLS". TLS is on when the URL is {@code pulsar+ssl://}, when a trust-cert path was supplied, or
-     * when {@code tlsAllowInsecureConnection} was explicitly {@code TRUE}.
+     * wanted TLS". TLS is on when the URL is {@code pulsar+ssl://}, when a trust-cert path was supplied, when
+     * {@code useKeyStoreTls} was set, or when {@code tlsAllowInsecureConnection} was explicitly {@code TRUE}.
      *
      * <p>{@code tlsHostnameVerificationEnable} is deliberately <em>not</em> one of those signals. Hostname
      * verification is on by default since Pulsar 5.0 (PIP-478) and {@code conf/client.conf} ships that
@@ -243,7 +285,7 @@ public class PerfClientUtils {
         boolean tlsByUrl = arguments.serviceURL != null && arguments.serviceURL.startsWith("pulsar+ssl://");
         boolean tlsByTrustPath = isNotBlank(arguments.tlsTrustCertsFilePath);
         boolean tlsByAllowInsecure = Boolean.TRUE.equals(arguments.tlsAllowInsecureConnection);
-        return tlsByUrl || tlsByTrustPath || tlsByAllowInsecure;
+        return tlsByUrl || tlsByTrustPath || arguments.useKeyStoreTls || tlsByAllowInsecure;
     }
 
     public static PulsarAdminBuilder createAdminBuilderFromArguments(PerformanceBaseArguments arguments,
@@ -251,8 +293,15 @@ public class PerfClientUtils {
             throws PulsarClientException.UnsupportedAuthenticationException {
 
         PulsarAdminBuilder pulsarAdminBuilder = PulsarAdmin.builder()
-                .serviceHttpUrl(adminUrl)
-                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+                .useKeyStoreTls(arguments.useKeyStoreTls)
+                .tlsTrustStoreType(arguments.tlsTrustStoreType)
+                .tlsTrustStorePath(arguments.tlsTrustStorePath)
+                .tlsTrustStorePassword(arguments.tlsTrustStorePassword)
+                .tlsKeyStoreType(arguments.tlsKeyStoreType)
+                .tlsKeyStorePath(arguments.tlsKeyStorePath)
+                .tlsKeyStorePassword(arguments.tlsKeyStorePassword)
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath)
+                .serviceHttpUrl(adminUrl);
 
         if (isNotBlank(arguments.authPluginClassName)) {
             pulsarAdminBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
@@ -388,6 +437,32 @@ public class PerfClientUtils {
                 }
                 Thread.sleep(200);
             }
+        }
+    }
+
+    /**
+     * Wait for the transaction ends a perf tool has issued before it reports the run done: the exit
+     * that follows ends the process, and closing the client would cut them off and lose their outcome.
+     * The wait is bounded by {@code --txn-timeout}, as a broker that stopped answering must not hang
+     * the tool, and an interrupt ends it.
+     *
+     * @param log the tool's logger, for the warning when the wait gives up
+     * @param ends the ends, each completing normally once its outcome is counted
+     * @param timeoutSeconds the tool's {@code --txn-timeout}
+     */
+    static void awaitTransactionEnds(Logger log, Collection<? extends CompletableFuture<?>> ends,
+                                     long timeoutSeconds) {
+        try {
+            CompletableFuture.allOf(ends.toArray(new CompletableFuture[0])).get(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } catch (TimeoutException e) {
+            log.warn()
+                    .attr("timeoutSeconds", timeoutSeconds)
+                    .log("Gave up waiting for the transaction ends at the end of the run");
+        } catch (ExecutionException e) {
+            // The ends count their own failures, so only a failure of that counting lands here.
+            log.warn().exception(e).log("Transaction end failed");
         }
     }
 

@@ -22,8 +22,14 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.codec.haproxy.HAProxyMessage;
+import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
+import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -197,6 +203,47 @@ public class DirectProxyHandlerAuthTest {
 
     private BinaryAuthenticationDriver realDriver() {
         return new V5BinaryAuthenticationDriver(V5AuthenticationLoader.forStartedV4Plugin(plugin));
+    }
+
+    @Test
+    public void theProxyProtocolHeaderUsesTheClientAddressFamily() throws Exception {
+        // The test JVM forces the IPv4 stack. Supply IPv6 endpoints without opening an IPv6 socket.
+        InetSocketAddress source = new InetSocketAddress("2001:db8::1", 35646);
+        InetSocketAddress destination = new InetSocketAddress("2001:db8::2", 6650);
+        inboundChannel.finishAndReleaseAll();
+        inboundChannel = new EmbeddedChannel() {
+            @Override
+            protected SocketAddress remoteAddress0() {
+                return source;
+            }
+
+            @Override
+            protected SocketAddress localAddress0() {
+                return destination;
+            }
+        };
+        when(proxyConnection.ctx().channel()).thenReturn(inboundChannel);
+        proxyConfig.setHaProxyProtocolEnabled(true);
+        activateBackend(realDriver());
+        awaitCommandWritten(2);
+
+        EmbeddedChannel decoder = new EmbeddedChannel(new HAProxyMessageDecoder());
+        try {
+            ByteBuf header = backendChannel.readOutbound();
+            decoder.writeInbound(header);
+            HAProxyMessage decoded = decoder.readInbound();
+            try {
+                assertThat(decoded.proxiedProtocol()).isEqualTo(HAProxyProxiedProtocol.TCP6);
+                assertThat(decoded.sourceAddress()).isEqualTo(source.getAddress().getHostAddress());
+                assertThat(decoded.destinationAddress()).isEqualTo(destination.getAddress().getHostAddress());
+                assertThat(decoded.sourcePort()).isEqualTo(source.getPort());
+                assertThat(decoded.destinationPort()).isEqualTo(destination.getPort());
+            } finally {
+                decoded.release();
+            }
+        } finally {
+            decoder.finishAndReleaseAll();
+        }
     }
 
     private static CommandAuthChallenge challenge(String payload) {

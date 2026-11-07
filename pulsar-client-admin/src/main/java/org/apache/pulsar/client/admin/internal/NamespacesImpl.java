@@ -1212,14 +1212,14 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     /**
      * Used by the broker when dispatching to namespace bundles; not part of the public
      * {@link org.apache.pulsar.client.admin.Namespaces} API.
+     * The subscription-only route is deliberately distinct so that older owners reject it rather than ignore
+     * an unknown query parameter and resolve the name as a replicator cursor.
      */
     public CompletableFuture<Void> clearNamespaceBundleBacklogForSubscriptionAsync(String namespace, String bundle,
             String subscription, boolean subscriptionOnly) {
         NamespaceName ns = NamespaceName.get(namespace);
-        WebTarget path = namespacePath(ns, bundle, "clearBacklog", subscription);
-        if (subscriptionOnly) {
-            path = path.queryParam("subscriptionOnly", true);
-        }
+        WebTarget path = namespacePath(ns, bundle,
+                subscriptionOnly ? "clearSubscriptionBacklog" : "clearBacklog", subscription);
         return asyncPostRequest(path, Entity.entity("", MediaType.APPLICATION_JSON));
     }
 

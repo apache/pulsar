@@ -55,6 +55,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -66,7 +67,7 @@ import lombok.Cleanup;
 import lombok.CustomLog;
 import lombok.SneakyThrows;
 import lombok.Value;
-import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorTestUtil;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -76,6 +77,8 @@ import org.apache.pulsar.broker.loadbalance.LeaderBroker;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.stats.TopicInternalInfo;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
 import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.GetStatsOptions;
@@ -139,6 +142,7 @@ import org.apache.pulsar.common.policies.data.TenantInfoImpl;
 import org.apache.pulsar.common.policies.data.TopicHashPositions;
 import org.apache.pulsar.common.policies.data.TopicStats;
 import org.apache.pulsar.common.util.Codec;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.compaction.PulsarCompactionServiceFactory;
@@ -156,12 +160,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final String BROKER_SHUTDOWN_TIMEOUT_MS = "brokerShutdownTimeoutMs";
 
-    private MockedPulsarService mockPulsarSetup;
-
-    private PulsarService otherPulsar;
-
     private PulsarAdmin adminTls;
-    private PulsarAdmin otheradmin;
 
     private NamespaceBundleFactory bundleFactory;
 
@@ -206,13 +205,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(CA_CERT_FILE_PATH)
                 .serviceHttpUrl(brokerUrlTls.toString()).build());
 
-        // create otherbroker to test redirect on calls that need
-        // namespace ownership
-        mockPulsarSetup = new MockedPulsarService(this.conf);
-        mockPulsarSetup.setup();
-        otherPulsar = mockPulsarSetup.getPulsar();
-        otheradmin = mockPulsarSetup.getAdmin();
-
         setupClusters();
     }
 
@@ -228,15 +220,23 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         restoreBrokerShutdownTimeout();
         pulsar.getConfiguration().setForceDeleteTenantAllowed(true);
         pulsar.getConfiguration().setForceDeleteNamespaceAllowed(true);
-        for (String tenant : admin.tenants().getTenants()) {
-            for (String namespace : admin.namespaces().getNamespaces(tenant)) {
-                deleteNamespaceWithRetry(namespace, true);
+        if (!recreateDefaultNamespaceIfNothingElseChanged()) {
+            for (String tenant : admin.tenants().getTenants()) {
+                for (String namespace : admin.namespaces().getNamespaces(tenant)) {
+                    try {
+                        admin.namespaces().deleteNamespace(namespace, true);
+                    } catch (PulsarAdminException e) {
+                        // deleteNamespaceWithRetry waits 500 ms before its first attempt, so it's only the fallback
+                        deleteNamespaceWithRetry(namespace, true);
+                    }
+                }
+                admin.tenants().deleteTenant(tenant, true);
             }
-            admin.tenants().deleteTenant(tenant, true);
-        }
 
-        for (String cluster : admin.clusters().getClusters()) {
-            admin.clusters().deleteCluster(cluster);
+            for (String cluster : admin.clusters().getClusters()) {
+                admin.clusters().deleteCluster(cluster);
+            }
+            setupClusters();
         }
 
         pulsar.getConfiguration().setForceDeleteTenantAllowed(false);
@@ -244,7 +244,52 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         resetConfig();
         applyDefaultConfig();
-        setupClusters();
+    }
+
+    /**
+     * Deletes the namespaces of prop-xyz, which drops what the test method left in them, and recreates prop-xyz/ns1,
+     * if the test method left the cluster and the tenant as {@link #setupClusters()} created them. Every metadata
+     * update waits for the next batch of the metadata store, so deleting and recreating the cluster and the tenant as
+     * well would take longer, and the namespaces are deleted concurrently.
+     *
+     * @return false, without changing anything, if the test method changed the cluster or the tenant
+     */
+    private boolean recreateDefaultNamespaceIfNothingElseChanged() throws Exception {
+        // As setupClusters() creates them
+        ClusterData clusterData = ClusterData.builder().serviceUrl(pulsar.getWebServiceAddress()).build();
+        TenantInfoImpl tenantInfo = new TenantInfoImpl(Set.of("role1", "role2"), Set.of("test"));
+
+        List<CompletableFuture<Boolean>> checks = new ArrayList<>();
+        checks.add(admin.clusters().getClustersAsync().thenApply(List.of("test")::equals));
+        checks.add(admin.clusters().getClusterAsync("test").thenApply(clusterData::equals));
+        checks.add(admin.clusters().getFailureDomainsAsync("test").thenApply(Map::isEmpty));
+        checks.add(admin.clusters().getNamespaceIsolationPoliciesAsync("test").thenApply(Map::isEmpty)
+                // the cluster has no isolation policies
+                .exceptionally(e -> FutureUtil.unwrapCompletionException(e)
+                        instanceof PulsarAdminException.NotFoundException));
+        checks.add(admin.tenants().getTenantsAsync().thenApply(List.of("prop-xyz")::equals));
+        checks.add(admin.tenants().getTenantInfoAsync("prop-xyz").thenApply(tenantInfo::equals));
+        CompletableFuture<List<String>> namespaces = admin.namespaces().getNamespacesAsync("prop-xyz");
+        boolean nothingElseChanged = true;
+        for (CompletableFuture<Boolean> check : checks) {
+            // a check fails when, for example, the test method deleted the tenant
+            nothingElseChanged &= check.exceptionally(e -> false).get();
+        }
+        if (!nothingElseChanged) {
+            return false;
+        }
+        FutureUtil.waitForAll(namespaces.get().stream()
+                .map(namespace -> CompletableFuture.runAsync(() -> {
+                    try {
+                        deleteNamespaceWithRetry(namespace, true);
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                }))
+                .toList())
+                .get();
+        admin.namespaces().createNamespace("prop-xyz/ns1", Set.of("test"));
+        return true;
     }
 
     /**
@@ -278,9 +323,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public void cleanup() throws Exception {
         pulsar.getConfiguration().setBrokerShutdownTimeoutMs(0);
         adminTls.close();
-        otheradmin.close();
         super.internalCleanup();
-        mockPulsarSetup.cleanup();
     }
 
     @DataProvider(name = "numBundles")
@@ -555,10 +598,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertNotNull(list1);
         Assert.assertEquals(list1.size(), 1);
 
-        List<String> list2 = otheradmin.brokers().getActiveBrokers("test");
-        Assert.assertNotNull(list2);
-        Assert.assertEquals(list2.size(), 1);
-
         BrokerInfo leaderBroker = admin.brokers().getLeaderBroker();
         Assert.assertEquals(leaderBroker.getBrokerId(),
                 pulsar.getLeaderElectionService().getCurrentLeader().map(LeaderBroker::getBrokerId).get());
@@ -699,7 +738,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Verifies broker sets watch on dynamic-configuration map even with invalid init json data
+     * Verifies broker sets watch on dynamic-configuration map even with invalid init json data.
      *
      * <pre>
      * 1. Set invalid json at dynamic-config znode
@@ -939,9 +978,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         producer = pulsarClient.newProducer(Schema.BYTES).topic("persistent://prop-xyz/ns2/my-topic").create();
         producer.close();
         admin.topics().delete("persistent://prop-xyz/ns2/my-topic");
-
-        // both unload and delete should succeed for ns2 on other broker with a redirect
-        // otheradmin.namespaces().unload("prop-xyz/use/ns2");
     }
 
     @SuppressWarnings("deprecation")
@@ -1397,9 +1433,9 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         PartitionedManagedLedgerInfo partitionedManagedLedgerInfo = new PartitionedManagedLedgerInfo();
         partitionedManagedLedgerInfo.version = 0L;
         partitionedManagedLedgerInfo.partitions.put(partitionTopic0,
-            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic0InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic0InfoResponse, TopicInternalInfo.class));
         partitionedManagedLedgerInfo.partitions.put(partitionTopic1,
-            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic1InfoResponse, ManagedLedgerInfo.class));
+            ObjectMapperFactory.getMapper().reader().readValue(partitionTopic1InfoResponse, TopicInternalInfo.class));
 
         String expectedResult = ObjectMapperFactory.getMapper()
                 .writer().writeValueAsString(partitionedManagedLedgerInfo);
@@ -1515,7 +1551,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("prop-xyz/ns1-bundles", numBundles);
         admin.namespaces().setNamespaceReplicationClusters("prop-xyz/ns1-bundles", Set.of("test"), false);
 
-        // since we have 2 brokers running, we try to let both of them acquire bundle ownership
+        // let the broker acquire the bundles' ownership
         admin.lookups().lookupTopic("persistent://prop-xyz/ns1-bundles/ds1");
         admin.lookups().lookupTopic("persistent://prop-xyz/ns1-bundles/ds2");
         admin.lookups().lookupTopic("persistent://prop-xyz/ns1-bundles/ds3");
@@ -2143,7 +2179,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         NamespaceBundle bundle = bundleFactory.getBundle(NamespaceName.get("prop-xyz/unloadBundle"),
                 Range.range(0L, BoundType.CLOSED, 0xffffffffL, BoundType.CLOSED));
         assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle));
-        assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle));
         pulsarClient.shutdown();
 
         log.info("--- RELOAD ---");
@@ -2195,7 +2230,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         // check that no one owns the namespace bundle
         assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle));
-        assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle));
 
         log.info("--- RELOAD ---");
 
@@ -2373,8 +2407,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> {
                     assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                             "Bundle should not be owned by current broker");
-                    assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                            "Bundle should not be owned by other broker");
                 });
 
         admin.namespaces().clearNamespaceBundleBacklog(namespace, bundle.getBundleRange());
@@ -2435,8 +2467,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> {
                     assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                             "Bundle should not be owned by current broker");
-                    assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                            "Bundle should not be owned by other broker");
                 });
 
         admin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle.getBundleRange(),
@@ -2548,8 +2578,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> {
                     assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                             "Bundle should not be owned by current broker");
-                    assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                            "Bundle should not be owned by other broker");
                 });
 
         admin.namespaces().unsubscribeNamespaceBundle(namespace, bundle.getBundleRange(), subscription);
@@ -2591,8 +2619,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 .untilAsserted(() -> {
                     assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                             "Bundle should not be owned by current broker");
-                    assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                            "Bundle should not be owned by other broker");
                 });
 
         admin.namespaces().unsubscribeNamespace(namespace, subscription);
@@ -2644,8 +2670,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                     .untilAsserted(() -> {
                         assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                                 "Bundle should not be owned by current broker");
-                        assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                                "Bundle should not be owned by other broker");
                     });
         }
 
@@ -2718,8 +2742,6 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                     .untilAsserted(() -> {
                         assertFalse(pulsar.getNamespaceService().isServiceUnitOwned(bundle),
                                 "Bundle should not be owned by current broker");
-                        assertFalse(otherPulsar.getNamespaceService().isServiceUnitOwned(bundle),
-                                "Bundle should not be owned by other broker");
                     });
         }
 
@@ -3770,9 +3792,10 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().size(), 1);
         Assert.assertEquals(admin.topics().getStats(topic).getSubscriptions().values().iterator()
                 .next().getLastExpireTimestamp(), 0L);
-        Thread.sleep(10000);
+        // let the messages get older than the TTL set next
+        Thread.sleep(2000);
         // Update policy to trigger message expiry check.
-        admin.namespaces().setNamespaceMessageTTL("prop-xyz/ns1", 5);
+        admin.namespaces().setNamespaceMessageTTL("prop-xyz/ns1", 1);
         Awaitility.await().until(() -> admin.topics().getStats(topic).getSubscriptions()
                 .values().iterator().next().getLastExpireTimestamp() > 0L);
     }
@@ -3796,15 +3819,28 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setSubscriptionExpirationTime(namespace1, 0);
         admin.namespaces().setSubscriptionExpirationTime(namespace2, 1);
         admin.namespaces().setSubscriptionExpirationTime(namespace3, 1);
+        // The broker applies namespace policies to its topics asynchronously. Let topic3 get this expiration time
+        // before it's removed: the wait below can't tell the default it falls back to, 0, from the one it had before
+        waitForSubscriptionExpirationTimeApplied(topic3, 1);
         admin.namespaces().removeSubscriptionExpirationTime(namespace3);
 
         Assert.assertEquals((int) admin.namespaces().getSubscriptionExpirationTime(namespace1), 0);
         Assert.assertEquals((int) admin.namespaces().getSubscriptionExpirationTime(namespace2), 1);
         Assert.assertNull(admin.namespaces().getSubscriptionExpirationTime(namespace3));
+        waitForSubscriptionExpirationTimeApplied(topic1, 0);
+        waitForSubscriptionExpirationTimeApplied(topic2, 1);
+        waitForSubscriptionExpirationTimeApplied(topic3, 0);
 
-
-        Awaitility.await().timeout(120, TimeUnit.SECONDS)
-                .until(() -> admin.topics().getSubscriptions(topic2).size() == 0);
+        // Make the subscriptions look inactive for longer than namespace2's 1 minute expiration time instead of waiting
+        // for that, and run the broker's check for expired subscriptions instead of waiting for its periodic run
+        long lastActive = System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(2);
+        for (String topic : List.of(topic1, topic2, topic3)) {
+            PersistentTopic persistentTopic =
+                    (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic).orElseThrow();
+            ManagedCursorTestUtil.setLastActive(persistentTopic.getSubscription(sub).getCursor(), lastActive);
+        }
+        pulsar.getBrokerService().checkInactiveSubscriptions();
+        Awaitility.await().until(() -> admin.topics().getSubscriptions(topic2).size() == 0);
         Assert.assertEquals(admin.topics().getSubscriptions(topic1).size(), 1);
         Assert.assertEquals(admin.topics().getSubscriptions(topic2).size(), 0);
         Assert.assertEquals(admin.topics().getSubscriptions(topic3).size(), 1);
@@ -3815,6 +3851,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         deleteNamespaceWithRetry(namespace1, false);
         deleteNamespaceWithRetry(namespace2, false);
         deleteNamespaceWithRetry(namespace3, false);
+    }
+
+    private void waitForSubscriptionExpirationTimeApplied(String topic, int expirationTimeInMinutes) {
+        Awaitility.await().untilAsserted(() -> assertEquals(pulsar.getBrokerService().getTopicReference(topic)
+                .orElseThrow().getHierarchyTopicPolicies().getSubscriptionExpirationTimeInMinutes().get(),
+                Integer.valueOf(expirationTimeInMinutes)));
     }
 
     @Test

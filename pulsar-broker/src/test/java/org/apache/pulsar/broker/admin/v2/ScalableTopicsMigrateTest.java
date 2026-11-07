@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.admin.v2;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,10 +27,12 @@ import static org.testng.Assert.assertEquals;
 import jakarta.ws.rs.container.AsyncResponse;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
+import org.apache.pulsar.broker.resources.ScalableTopicResources.CreationLock;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.TopicOperation;
 import org.mockito.ArgumentCaptor;
@@ -96,7 +99,12 @@ public class ScalableTopicsMigrateTest {
         when(pulsar.getPulsarResources()).thenReturn(pulsarResources);
         when(pulsarResources.getScalableTopicResources()).thenReturn(scalableResources);
         when(pulsar.getNamespaceService()).thenReturn(namespaceService);
-        when(scalableResources.getScalableTopicMetadataAsync(any(TopicName.class)))
+        // The creation lock is free: run the migration steps it guards, with the lock held throughout.
+        when(scalableResources.runWithCreationLock(any(TopicName.class), any())).thenAnswer(invocation -> {
+            Function<CreationLock, CompletableFuture<Object>> action = invocation.getArgument(1);
+            return action.apply(() -> CompletableFuture.completedFuture(null));
+        });
+        when(scalableResources.getScalableTopicMetadataAsync(any(TopicName.class), eq(true)))
                 .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
         // Stop the pipeline at the existence check; every identity the endpoint
         // derives has been observed by then.
@@ -118,7 +126,7 @@ public class ScalableTopicsMigrateTest {
         assertEquals(resource.authorizedTopic, expectedPersistent);
 
         ArgumentCaptor<TopicName> metadataLookup = ArgumentCaptor.forClass(TopicName.class);
-        verify(scalableResources).getScalableTopicMetadataAsync(metadataLookup.capture());
+        verify(scalableResources).getScalableTopicMetadataAsync(metadataLookup.capture(), eq(true));
         assertEquals(metadataLookup.getValue(), expectedScalable);
 
         ArgumentCaptor<TopicName> existenceCheck = ArgumentCaptor.forClass(TopicName.class);

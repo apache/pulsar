@@ -36,6 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 import lombok.Getter;
 import org.apache.pulsar.broker.resources.ScalableTopicResources;
 import org.apache.pulsar.broker.service.TransportCnx;
@@ -66,6 +67,29 @@ import org.apache.pulsar.common.util.Backoff;
  * new leader regardless of how long they had been disconnected under the old one.
  */
 public class SubscriptionCoordinator {
+
+    enum RebalanceReason {
+        CONSUMER_JOIN,
+        CONSUMER_LEAVE,
+        CONSUMER_EVICT,
+        LAYOUT_CHANGE,
+        SEGMENT_DRAINED
+    }
+
+    record ConsumerStats(long active, long idle, long disconnected, long blocked) {
+        static final ConsumerStats EMPTY = new ConsumerStats(0, 0, 0, 0);
+
+        ConsumerStats plus(ConsumerStats other) {
+            return new ConsumerStats(active + other.active, idle + other.idle,
+                    disconnected + other.disconnected, blocked + other.blocked);
+        }
+    }
+
+    private Consumer<RebalanceReason> rebalanceListener = __ -> { };
+    // Updated under this coordinator's monitor; exporters only read the immutable volatile snapshot.
+    private volatile ConsumerStats consumerStatsSnapshot = ConsumerStats.EMPTY;
+    private Set<String> assignedConsumerNames = Set.of();
+    private long blockedSegmentCount;
 
     private static final Logger LOG = Logger.get(SubscriptionCoordinator.class);
     private final Logger log;
@@ -209,6 +233,18 @@ public class SubscriptionCoordinator {
                     computeAssignment(currentLayout, sessions.values());
             ConsumerAssignment assignment = current.get(existing);
             if (assignment != null) {
+                // Only this consumer receives an assignment on reconnect. A pending eviction
+                // may change the computed assignments of peers that have not been notified yet.
+                Set<String> assigned = new HashSet<>(assignedConsumerNames);
+                if (assignment.assignedSegments().isEmpty()) {
+                    assigned.remove(consumerName);
+                } else {
+                    assigned.add(consumerName);
+                }
+                assignedConsumerNames = assigned;
+            }
+            publishConsumerStats();
+            if (assignment != null) {
                 existing.sendAssignmentUpdate(assignment);
             }
             return CompletableFuture.completedFuture(current);
@@ -223,8 +259,9 @@ public class SubscriptionCoordinator {
                             // The registration is persisted: the next leader restores it.
                             throw notServing();
                         }
-                        sessions.put(consumerName, session);
-                        Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
+                        ConsumerSession previous = sessions.put(consumerName, session);
+                        Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify(
+                                previous == null ? RebalanceReason.CONSUMER_JOIN : null);
                         // First consumer (or rejoining one) — kick off drain checks at the
                         // shortest delay rather than whatever long backoff we'd accumulated
                         // while idle.
@@ -281,11 +318,18 @@ public class SubscriptionCoordinator {
                         if (removed != null) {
                             removed.cancelGraceTimer();
                         }
+                        RebalanceReason reason = removed == null ? null : RebalanceReason.CONSUMER_LEAVE;
                         if (sessions.isEmpty()) {
                             segmentAssignments.clear();
+                            updateConsumerStats(Map.of());
+                            if (reason != null) {
+                                rebalanceListener.accept(reason);
+                            }
                             return Map.of();
                         }
-                        return rebalanceAndNotify();
+                        // Preserve the existing notification/index refresh even if another in-flight
+                        // removal already removed this session; only the event count is suppressed.
+                        return rebalanceAndNotify(reason);
                     }
                 });
     }
@@ -302,6 +346,7 @@ public class SubscriptionCoordinator {
             return;
         }
         session.markDisconnected();
+        publishConsumerStats();
     }
 
     /**
@@ -330,6 +375,7 @@ public class SubscriptionCoordinator {
         Map<ConsumerSession, ConsumerAssignment> result =
                 computeAssignment(currentLayout, sessions.values());
         updateSegmentAssignmentIndex(result);
+        updateConsumerStats(result);
         return result;
     }
 
@@ -346,9 +392,10 @@ public class SubscriptionCoordinator {
         this.currentLayout = newLayout;
         if (sessions.isEmpty()) {
             segmentAssignments.clear();
+            updateConsumerStats(Map.of());
             return CompletableFuture.completedFuture(Map.of());
         }
-        Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify();
+        Map<ConsumerSession, ConsumerAssignment> result = rebalanceAndNotify(RebalanceReason.LAYOUT_CHANGE);
         // New sealed segments may have appeared — restart drain checks from the
         // initial delay rather than continuing whatever long backoff we'd settled into.
         resetAndRearmDrainPoll();
@@ -368,7 +415,8 @@ public class SubscriptionCoordinator {
         this.drainChecker = checker;
         log.info().log("Drain checker installed on existing coordinator; rebalancing");
         if (!sessions.isEmpty()) {
-            rebalanceAndNotify();
+            // Restoring STREAM ordering on reconnect is not a membership or layout change.
+            rebalanceAndNotify(null);
         }
         resetAndRearmDrainPoll();
     }
@@ -402,11 +450,34 @@ public class SubscriptionCoordinator {
      */
     public synchronized void close() {
         closed = true;
+        consumerStatsSnapshot = ConsumerStats.EMPTY;
+        assignedConsumerNames = Set.of();
         if (drainPollTask != null) {
             drainPollTask.cancel(false);
             drainPollTask = null;
         }
         sessions.values().forEach(ConsumerSession::cancelGraceTimer);
+    }
+
+    /** Segments withheld specifically for ancestor ordering, not already-drained segments. */
+    synchronized Set<Long> getBlockedSegmentIds() {
+        if (drainChecker == null || checkpointGroup) {
+            return Set.of();
+        }
+        Set<Long> blocked = new HashSet<>();
+        for (SegmentInfo segment : currentLayout.getAllSegments().values()) {
+            if (!segment.isActive() && drainedSegmentIds.contains(segment.segmentId())) {
+                continue;
+            }
+            if (!ancestorsDrained(segment, currentLayout)) {
+                blocked.add(segment.segmentId());
+            }
+        }
+        return Set.copyOf(blocked);
+    }
+
+    synchronized boolean isCheckpointGroup() {
+        return checkpointGroup;
     }
 
     // --- Drain tracking ---
@@ -435,6 +506,10 @@ public class SubscriptionCoordinator {
         if (!segment.isActive() && drainedSegmentIds.contains(segment.segmentId())) {
             return false;
         }
+        return ancestorsDrained(segment, layout);
+    }
+
+    private boolean ancestorsDrained(SegmentInfo segment, SegmentLayout layout) {
         Map<Long, SegmentInfo> segments = layout.getAllSegments();
         Set<Long> visited = new HashSet<>();
         Deque<Long> ancestors = new ArrayDeque<>(segment.parentIds());
@@ -473,7 +548,7 @@ public class SubscriptionCoordinator {
             // on the same DAG branch often follow shortly.
             if (!sessions.isEmpty()) {
                 log.info().attr("drained", segmentIds).log("Sealed segments drained, rebalancing");
-                rebalanceAndNotify();
+                rebalanceAndNotify(RebalanceReason.SEGMENT_DRAINED);
             }
             resetAndRearmDrainPoll();
         }
@@ -583,6 +658,53 @@ public class SubscriptionCoordinator {
         return Set.copyOf(sessions.values());
     }
 
+    /** Installed before this coordinator is published. The listener must not acquire controller locks. */
+    synchronized void setRebalanceListener(Consumer<RebalanceReason> listener) {
+        rebalanceListener = listener;
+    }
+
+    /** Collection never acquires coordination locks, computes assignments, or performs IO. */
+    ConsumerStats consumerStats() {
+        return consumerStatsSnapshot;
+    }
+
+    private void updateConsumerStats(Map<ConsumerSession, ConsumerAssignment> assignments) {
+        Set<String> assigned = new HashSet<>();
+        assignments.forEach((session, assignment) -> {
+            if (!assignment.assignedSegments().isEmpty()) {
+                assigned.add(session.getConsumerName());
+            }
+        });
+        assignedConsumerNames = assigned;
+        // Compute ancestor blocking on state transitions, never on a shared metrics scrape.
+        blockedSegmentCount = drainChecker == null || sessions.isEmpty() ? 0
+                : currentLayout.getAllSegments().values().stream()
+                .filter(segment -> segment.isActive() || !drainedSegmentIds.contains(segment.segmentId()))
+                .filter(segment -> !ancestorsDrained(segment, currentLayout))
+                .count();
+        publishConsumerStats();
+    }
+
+    private void publishConsumerStats() {
+        if (closed || sessions.isEmpty()) {
+            consumerStatsSnapshot = ConsumerStats.EMPTY;
+            return;
+        }
+        long active = 0;
+        long idle = 0;
+        long disconnected = 0;
+        for (ConsumerSession session : sessions.values()) {
+            if (!session.isConnected()) {
+                disconnected++;
+            } else if (assignedConsumerNames.contains(session.getConsumerName())) {
+                active++;
+            } else {
+                idle++;
+            }
+        }
+        consumerStatsSnapshot = new ConsumerStats(active, idle, disconnected, blockedSegmentCount);
+    }
+
     // --- Internals ---
 
     /**
@@ -608,6 +730,7 @@ public class SubscriptionCoordinator {
                 return;
             }
             sessions.remove(consumerName);
+            publishConsumerStats();
             log.info().attr("consumer", consumerName)
                     .log("Consumer evicted after grace period");
         }
@@ -624,9 +747,11 @@ public class SubscriptionCoordinator {
                             return;
                         }
                         if (!sessions.isEmpty()) {
-                            rebalanceAndNotify();
+                            rebalanceAndNotify(RebalanceReason.CONSUMER_EVICT);
                         } else {
                             segmentAssignments.clear();
+                            updateConsumerStats(Map.of());
+                            rebalanceListener.accept(RebalanceReason.CONSUMER_EVICT);
                         }
                     }
                 });
@@ -760,10 +885,14 @@ public class SubscriptionCoordinator {
         return result;
     }
 
-    private Map<ConsumerSession, ConsumerAssignment> rebalanceAndNotify() {
+    private Map<ConsumerSession, ConsumerAssignment> rebalanceAndNotify(RebalanceReason reason) {
         Map<ConsumerSession, ConsumerAssignment> assignments =
                 computeAssignment(currentLayout, sessions.values());
         updateSegmentAssignmentIndex(assignments);
+        updateConsumerStats(assignments);
+        if (reason != null) {
+            rebalanceListener.accept(reason);
+        }
 
         for (var entry : assignments.entrySet()) {
             entry.getKey().sendAssignmentUpdate(entry.getValue());

@@ -64,7 +64,13 @@ graalvmNative {
     binaries.named("main") {
         imageName = nativeImageName
         mainClass = "org.apache.pulsar.tests.integration.nativeimage.NativeImageTesterApp"
+        // The plugin builds a shared library when java-library is applied; the smoke test runs an executable.
+        sharedLibrary = false
         buildArgs.add("--no-fallback")
+        // GraalVM simulates class initializers in parallel, and two threads can publish different results
+        // for TypeParameterMatcher, failing the build with "mismatch with existing registration".
+        // Registering the class itself as run-time initialized gives every thread the same result.
+        buildArgs.add("--initialize-at-run-time=io.netty.util.internal.TypeParameterMatcher")
     }
 }
 

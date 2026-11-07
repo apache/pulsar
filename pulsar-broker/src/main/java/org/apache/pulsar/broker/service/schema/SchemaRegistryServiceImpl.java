@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.CustomLog;
 import org.apache.avro.Schema;
@@ -107,7 +108,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         } else {
             long longVersion = ((LongSchemaVersion) version).getVersion();
             //If the schema has been deleted, it cannot be obtained
-            completableFuture = trimDeletedSchemaAndGetList(schemaId)
+            CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> schemaFutureList =
+                    getAllSchemas(schemaId, this::getAllForVersionedRead);
+            completableFuture = trimDeletedSchemaAndGetList(schemaId, schemaFutureList)
                 .thenApply(metadataList -> metadataList.stream().filter(schemaAndMetadata ->
                         ((LongSchemaVersion) schemaAndMetadata.version).getVersion() == longVersion)
                         .collect(Collectors.toList())
@@ -148,9 +151,22 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     public CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(String schemaId) {
+        return getAllSchemas(schemaId, schemaStorage::getAll);
+    }
+
+    private CompletableFuture<List<CompletableFuture<StoredSchema>>> getAllForVersionedRead(String schemaId) {
+        if (schemaStorage instanceof BookkeeperSchemaStorage bookkeeperSchemaStorage) {
+            return bookkeeperSchemaStorage.getAllForVersionedRead(schemaId);
+        }
+        return schemaStorage.getAll(schemaId);
+    }
+
+    private CompletableFuture<List<CompletableFuture<SchemaAndMetadata>>> getAllSchemas(
+            String schemaId,
+            Function<String, CompletableFuture<List<CompletableFuture<StoredSchema>>>> schemaReader) {
         long start = this.clock.millis();
 
-        return schemaStorage.getAll(schemaId)
+        return schemaReader.apply(schemaId)
                 .thenCompose(schemas -> convertToSchemaAndMetadata(schemaId, schemas))
                 .whenComplete((v, t) -> {
                     var latencyMs = this.clock.millis() - start;

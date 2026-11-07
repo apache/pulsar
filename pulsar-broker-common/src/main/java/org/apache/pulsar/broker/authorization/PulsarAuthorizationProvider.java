@@ -26,16 +26,19 @@ import jakarta.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.resources.NamespaceResources;
 import org.apache.pulsar.broker.resources.PulsarResources;
 import org.apache.pulsar.client.admin.GrantTopicPermissionOptions;
 import org.apache.pulsar.client.admin.RevokeTopicPermissionOptions;
@@ -844,6 +847,70 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             });
                     });
         });
+    }
+
+    @Override
+    public CompletableFuture<Void> copyPermissionsAsync(TopicName sourceTopicName, TopicName targetTopicName) {
+        NamespaceName namespace = sourceTopicName.getNamespaceObject();
+        if (!namespace.equals(targetTopicName.getNamespaceObject())) {
+            return FutureUtil.failedFuture(new IllegalArgumentException("Can't copy the permissions of "
+                    + sourceTopicName + " to a topic of another namespace: " + targetTopicName));
+        }
+        String sourceTopicUri = sourceTopicName.toString();
+        String targetTopicUri = targetTopicName.toString();
+        NamespaceResources namespaceResources = pulsarResources.getNamespaceResources();
+        // Not the cached policies: they may miss a permission granted on another broker just before.
+        return namespaceResources.refreshAndGetPoliciesAsync(namespace).thenCompose(latestPolicies -> {
+            if (!latestPolicies.map(policies -> hasTopicPermissions(policies, sourceTopicUri)).orElse(false)) {
+                // Nothing to copy: don't require the policies to be writable.
+                return CompletableFuture.completedFuture(null);
+            }
+            return getPoliciesReadOnlyAsync().thenCompose(readonly -> {
+                if (readonly) {
+                    log.debug("Policies are read-only. Broker cannot do read-write operations");
+                    throw new IllegalStateException("policies are in readonly mode");
+                }
+                AtomicReference<Set<String>> copiedRoles = new AtomicReference<>(Set.of());
+                return namespaceResources.setPoliciesAsync(namespace, policies -> {
+                    // Read the source permissions from the version of the policies being updated, which is the
+                    // latest one when the update is retried after a concurrent change: a permission revoked
+                    // meanwhile must not be copied.
+                    Map<String, Map<String, Set<AuthAction>>> topicPermissions =
+                            policies.auth_policies.getTopicAuthentication();
+                    Map<String, Set<AuthAction>> sourceRoles = topicPermissions.getOrDefault(sourceTopicUri, Map.of());
+                    copiedRoles.set(Set.copyOf(sourceRoles.keySet()));
+                    if (!sourceRoles.isEmpty()) {
+                        Map<String, Set<AuthAction>> targetRoles =
+                                topicPermissions.computeIfAbsent(targetTopicUri, __ -> new HashMap<>());
+                        sourceRoles.forEach((role, actions) -> {
+                            Set<AuthAction> granted = new HashSet<>(actions);
+                            granted.addAll(targetRoles.getOrDefault(role, Set.of()));
+                            targetRoles.put(role, granted);
+                        });
+                    }
+                    return policies;
+                }).whenComplete((__, ex) -> {
+                    if (ex != null) {
+                        log.error()
+                                .attr("sourceTopic", sourceTopicName)
+                                .attr("targetTopic", targetTopicName)
+                                .exception(ex)
+                                .log("Failed to copy permissions to topic");
+                    } else {
+                        log.info()
+                                .attr("sourceTopic", sourceTopicName)
+                                .attr("targetTopic", targetTopicName)
+                                .attr("roles", copiedRoles.get())
+                                .log("Successfully copied permissions to topic");
+                    }
+                });
+            });
+        });
+    }
+
+    private static boolean hasTopicPermissions(Policies policies, String topicUri) {
+        Map<String, Set<AuthAction>> roles = policies.auth_policies.getTopicAuthentication().get(topicUri);
+        return roles != null && !roles.isEmpty();
     }
 
     @Override

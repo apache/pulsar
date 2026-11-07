@@ -262,9 +262,7 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
                 .attr("messagesCount", positions.size())
                 .log("Get scheduled messages");
         if (delayedMessageMap.isEmpty()) {
-            // Reset to initial state
-            highestDeliveryTimeTracked = 0;
-            messagesHaveFixedDelay = true;
+            resetFixedDelayDetection();
             if (delayedMessagesCount.get() != 0) {
                 log.warn()
                         .attr("delayedMessagesCount", delayedMessagesCount.get())
@@ -281,7 +279,17 @@ public class InMemoryDelayedDeliveryTracker extends AbstractDelayedDeliveryTrack
         this.delayedMessageMap.clear();
         this.delayedMessagesCount.set(0);
         this.memoryUsage.set(0);
+        resetFixedDelayDetection();
         return CompletableFuture.completedFuture(null);
+    }
+
+    /**
+     * Go back to the initial state of the fixed delay detection. It must be done whenever the tracker is emptied,
+     * since the messages added afterwards are not related to the ones that were tracked before.
+     */
+    private void resetFixedDelayDetection() {
+        highestDeliveryTimeTracked = 0;
+        messagesHaveFixedDelay = true;
     }
 
     @Override

@@ -37,8 +37,10 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SizeUnit;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -127,10 +129,9 @@ public class ProducerBuilderImplTest {
     }
 
     /**
-     * {@code loadConf} rebuilds the configuration by replaying every property through the public
-     * setters, and {@code setMaxPendingMessagesAcrossPartitions} rejects a value below
-     * {@code maxPendingMessages}. Pins that loading a positive limit does not trip that check on the
-     * across-partitions property that comes with it, and that the limit is recorded as configured.
+     * {@code setMaxPendingMessagesAcrossPartitions} used to reject a value below {@code maxPendingMessages}.
+     * Pins that loading a positive limit does not trip that check on the across-partitions property, and
+     * that only the loaded limit is recorded as configured.
      */
     @SuppressWarnings("deprecation")
     @Test
@@ -141,6 +142,28 @@ public class ProducerBuilderImplTest {
         assertEquals(producerBuilderImpl.getConf().getMaxPendingMessages(), 5000);
         assertTrue(producerBuilderImpl.getConf().isMaxPendingMessagesConfigured());
         assertFalse(producerBuilderImpl.getConf().isMaxPendingMessagesAcrossPartitionsConfigured());
+    }
+
+    /**
+     * A null limit in the map resets it to 0 and still counts as configured, so with memory limiting
+     * disabled the producer keeps no limit instead of getting the defaults for unset limits.
+     */
+    @Test
+    public void testLoadConfWithNullMaxPendingMessagesKeepsNoLimit() throws Exception {
+        try (PulsarClientImpl realClient = (PulsarClientImpl) PulsarClient.builder()
+                .serviceUrl("pulsar://localhost:6650")
+                .memoryLimit(0, SizeUnit.BYTES)
+                .build()) {
+            Map<String, Object> config = new HashMap<>();
+            config.put("maxPendingMessages", null);
+            config.put("maxPendingMessagesAcrossPartitions", null);
+            ProducerBuilderImpl<byte[]> builder = new ProducerBuilderImpl<>(realClient, Schema.BYTES);
+            builder.loadConf(config);
+
+            ProducerConfigurationData resolved = realClient.applyNoMemoryLimitProducerDefaults(builder.getConf());
+            assertEquals(resolved.getMaxPendingMessages(), 0);
+            assertEquals(resolved.getMaxPendingMessagesAcrossPartitions(), 0);
+        }
     }
 
     @Test

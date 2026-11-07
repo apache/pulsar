@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 
 import static java.util.Objects.requireNonNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.pulsar.common.util.Runnables.catchingAndLoggingThrowables;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Sets;
 import io.netty.bootstrap.ServerBootstrap;
@@ -77,7 +78,9 @@ import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.client.impl.tls.ClientTlsFactorySupport;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiter;
 import org.apache.pulsar.common.semaphore.AsyncDualMemoryLimiterImpl;
+import org.apache.pulsar.common.semaphore.AsyncSemaphore;
 import org.apache.pulsar.common.tls.impl.TlsContextAcquisition;
 import org.apache.pulsar.common.tls.impl.TlsSynthesisSpec;
 import org.apache.pulsar.common.util.netty.DnsResolverUtil;
@@ -190,7 +193,7 @@ public class ProxyService implements Closeable {
     private final AsyncDualMemoryLimiterImpl maxTopicListInFlightLimiter;
 
     @Getter
-    private final TopicListSizeResultCache topicListSizeResultCache = new TopicListSizeResultCache();
+    private final TopicListSizeResultCache topicListSizeResultCache;
 
     private boolean gracefulShutdown = true;
 
@@ -227,7 +230,7 @@ public class ProxyService implements Closeable {
         this.authenticationService = authenticationService;
 
         DnsNameResolverBuilder dnsNameResolverBuilder = new DnsNameResolverBuilder()
-                .channelType(EventLoopUtil.getDatagramChannelClass(workerGroup))
+                .datagramChannelType(EventLoopUtil.getDatagramChannelClass(workerGroup))
                 .socketChannelType(EventLoopUtil.getClientSocketChannelClass(workerGroup), true);
         DnsResolverUtil.applyJdkDnsCacheSettings(dnsNameResolverBuilder);
 
@@ -244,17 +247,9 @@ public class ProxyService implements Closeable {
 
         statsExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("proxy-stats-executor"));
-        statsExecutor.scheduleAtFixedRate(() -> {
-            this.clientCnxs.forEach(cnx -> {
-                if (cnx.getDirectProxyHandler() != null
-                        && cnx.getDirectProxyHandler().getInboundChannelRequestsRate() != null) {
-                    cnx.getDirectProxyHandler().getInboundChannelRequestsRate().calculateRate();
-                }
-            });
-            this.topicStats.forEach((topic, stats) -> {
-                stats.calculate();
-            });
-        }, statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
+        // scheduleAtFixedRate cancels all later runs if a run throws, so the task must not propagate exceptions
+        statsExecutor.scheduleAtFixedRate(catchingAndLoggingThrowables(this::updateStats),
+                statsUpdateInterval, statsUpdateInterval, statsUpdateIntervalUnit);
         this.proxyAdditionalServlets = AdditionalServlets.load(proxyConfig);
         this.proxyClientAuthentication = proxyClientAuthentication;
         this.connectionController = new ConnectionController.DefaultConnectionController(
@@ -272,6 +267,11 @@ public class ProxyService implements Closeable {
                 proxyConfig.getMaxTopicListInFlightDirectMemSizeMB() * 1024L * 1024L,
                 proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireQueueSize(),
                 proxyConfig.getMaxTopicListInFlightDirectMemSizePermitsAcquireTimeoutMillis());
+        AsyncSemaphore topicListHeapLimiter =
+                maxTopicListInFlightLimiter.getLimiter(AsyncDualMemoryLimiter.LimitType.HEAP_MEMORY);
+        this.topicListSizeResultCache = new TopicListSizeResultCache(
+                proxyConfig.getMaxTopicListInFlightHeapMemSizeMB() * 1024L * 1024L,
+                () -> topicListHeapLimiter.getQueueSize() == 0 && topicListHeapLimiter.getAcquiredPermits() == 0);
     }
 
     public void start() throws Exception {
@@ -294,7 +294,7 @@ public class ProxyService implements Closeable {
         bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
         bootstrap.group(acceptorGroup, workerGroup);
         bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-        bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+        bootstrap.childOption(ChannelOption.RECVBUF_ALLOCATOR,
                 new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
         Class<? extends ServerSocketChannel> serverSocketChannelClass =
@@ -447,7 +447,7 @@ public class ProxyService implements Closeable {
             bootstrap.option(ChannelOption.SO_REUSEADDR, true);
             bootstrap.childOption(ChannelOption.ALLOCATOR, PulsarByteBufAllocator.DEFAULT);
             bootstrap.childOption(ChannelOption.TCP_NODELAY, true);
-            bootstrap.childOption(ChannelOption.RCVBUF_ALLOCATOR,
+            bootstrap.childOption(ChannelOption.RECVBUF_ALLOCATOR,
                     new AdaptiveRecvByteBufAllocator(1024, 16 * 1024, 1 * 1024 * 1024));
 
             EventLoopUtil.enableTriggeredMode(bootstrap);
@@ -470,6 +470,19 @@ public class ProxyService implements Closeable {
                 .attr("extensionName", extensionName)
                 .attr("address", address)
                 .log("Successfully bound extension");
+    }
+
+    private void updateStats() {
+        this.clientCnxs.forEach(cnx -> {
+            // read once: the connection's event loop may clear the handler concurrently
+            DirectProxyHandler directProxyHandler = cnx.getDirectProxyHandler();
+            if (directProxyHandler != null) {
+                directProxyHandler.getInboundChannelRequestsRate().calculateRate();
+            }
+        });
+        this.topicStats.forEach((topic, stats) -> {
+            stats.calculate();
+        });
     }
 
     public BrokerDiscoveryProvider getDiscoveryProvider() {
@@ -503,6 +516,14 @@ public class ProxyService implements Closeable {
             Thread.currentThread().interrupt();
         }
 
+        // No listener accepts connections any more, the extensions' included (they are on the acceptor group too).
+        // Close the extensions before what they may still use while closing: the open connections, the discovery
+        // provider, the metadata stores and the event loops.
+        if (proxyExtensions != null) {
+            proxyExtensions.close();
+            proxyExtensions = null;
+        }
+
         closeAllConnections();
 
         dnsAddressResolverGroup.close();
@@ -531,6 +552,9 @@ public class ProxyService implements Closeable {
         }
         resetMetricsServlet();
 
+        if (pulsarResources != null) {
+            pulsarResources.close();
+        }
         if (localMetadataStore != null) {
             try {
                 localMetadataStore.close();
@@ -749,12 +773,15 @@ public class ProxyService implements Closeable {
     }
 
     // Shutdown the event loop.
-    // If graceful is true, will wait for the current requests to be completed, up to 15 seconds.
+    // If graceful is true, will wait for the current requests to be completed, up to 15 seconds. As in the broker,
+    // the quiet period is 1 ms, not Netty's default 2 s that every close would wait out: the listen channels and the
+    // connections are already closed by then. Not 0, which can end an event loop that is running tasks without the
+    // pass that closes its channels.
     // Graceful shutdown can be disabled by setting the gracefulShutdown flag to false. This is used in tests
     // to speed up the shutdown process.
     private Future<?> shutdownEventLoop(EventLoopGroup eventLoop) {
         if (gracefulShutdown) {
-            return eventLoop.shutdownGracefully();
+            return eventLoop.shutdownGracefully(1, 15_000, TimeUnit.MILLISECONDS);
         } else {
             return eventLoop.shutdownGracefully(0, 0, TimeUnit.SECONDS);
         }

@@ -40,7 +40,15 @@ class StickyKeyConsumerSelectorUtils {
      * @return the generated hash value, ensuring it is not zero (since zero is a special value in dispatchers)
      */
     static int makeStickyKeyHash(byte[] stickyKey, Range fullHashRange) {
-        int hashValue = HASH_INSTANCE.makeHash(stickyKey) % fullHashRange.size() + fullHashRange.getStart();
+        return makeStickyKeyHashOfKeyHash(HASH_INSTANCE.makeHash(stickyKey), fullHashRange);
+    }
+
+    /**
+     * The same as {@link #makeStickyKeyHash(byte[], Range)} for the key's hash, {@link Murmur3_32Hash#makeHash(byte[])}
+     * of its bytes.
+     */
+    static int makeStickyKeyHashOfKeyHash(int keyHash, Range fullHashRange) {
+        int hashValue = keyHash % fullHashRange.size() + fullHashRange.getStart();
         // Avoid using STICKY_KEY_HASH_NOT_SET as hash value
         if (hashValue == STICKY_KEY_HASH_NOT_SET) {
             // use next value as hash value

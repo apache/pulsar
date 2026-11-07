@@ -26,8 +26,11 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.google.common.collect.Sets;
+import com.sun.net.httpserver.HttpServer;
 import io.jsonwebtoken.Jwts;
 import java.io.File;
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -43,6 +46,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import lombok.Cleanup;
@@ -1140,6 +1144,103 @@ public class NamespaceAuthZTest extends MockedPulsarStandalone {
         deleteNamespaceWithRetry(namespace, true, superUserAdmin);
         superUserAdmin.tenants().deleteTenant(tenant);
         superUserAdmin.clusters().deleteCluster(remoteCluster);
+    }
+
+    @Test
+    public void testNamespaceSubscriptionForwardingToLegacyBundleOwner() throws Exception {
+        final String random = UUID.randomUUID().toString();
+        final String tenant = "tenant-" + random;
+        final String namespace = tenant + "/ns";
+        final String topic = "persistent://" + namespace + "/topic";
+        final String remoteCluster = "remote-" + random;
+        final String localCluster = getServiceConfiguration().getClusterName();
+        final String subject = "consumer-" + random;
+        final String token = Jwts.builder().claim("sub", subject).signWith(SECRET_KEY).compact();
+        final String bundle = "0x00000000_0xffffffff";
+        final int numMessages = 5;
+        superUserAdmin.clusters().createCluster(remoteCluster, ClusterData.builder()
+                .serviceUrl("http://127.0.0.1:1").brokerServiceUrl("pulsar://127.0.0.1:1").build());
+        superUserAdmin.tenants().createTenant(tenant, TenantInfo.builder()
+                .adminRoles(Set.of(TENANT_ADMIN_SUBJECT)).allowedClusters(Set.of(localCluster, remoteCluster)).build());
+        superUserAdmin.namespaces().createNamespace(namespace, 1);
+        superUserAdmin.topics().createNonPartitionedTopic(topic);
+        superUserAdmin.namespaces().setNamespaceReplicationClusters(namespace, Set.of(localCluster, remoteCluster),
+                false);
+        superUserAdmin.namespaces().grantPermissionOnNamespace(namespace, subject, Set.of(AuthAction.consume));
+        @Cleanup
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).enableBatching(false).create();
+        @Cleanup
+        PulsarAdmin subAdmin = PulsarAdmin.builder().serviceHttpUrl(getPulsarService().getWebServiceAddress())
+                .authentication(new AuthenticationToken(token)).build();
+        @Cleanup
+        HttpClient httpClient = HttpClient.newHttpClient();
+        HttpServer legacyOwner = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        AtomicInteger legacyBundleRequests = new AtomicInteger();
+        // Model the old owner's REST protocol: only the old route exists, and unknown query parameters are ignored.
+        // Forward to the real broker without subscriptionOnly, preserving the internal client's credentials. Its
+        // admin path executes the same cursor fallback as the old owner, using real replication cursors.
+        legacyOwner.createContext("/admin/v2/namespaces/" + namespace + "/" + bundle
+                + "/clearBacklog/" + remoteCluster, exchange -> {
+            legacyBundleRequests.incrementAndGet();
+            HttpRequest request = HttpRequest.newBuilder(URI.create(getPulsarService().getWebServiceAddress()
+                            + exchange.getRequestURI().getRawPath()))
+                    .header("Authorization", exchange.getRequestHeaders().getFirst("Authorization"))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(exchange.getRequestBody().readAllBytes())).build();
+            try {
+                HttpResponse<byte[]> response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray());
+                exchange.sendResponseHeaders(response.statusCode(), response.body().length == 0
+                        ? -1 : response.body().length);
+                exchange.getResponseBody().write(response.body());
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IOException(e);
+            } finally {
+                exchange.close();
+            }
+        });
+        legacyOwner.start();
+        @Cleanup
+        PulsarAdmin internalAdmin = PulsarAdmin.builder()
+                .serviceHttpUrl("http://127.0.0.1:" + legacyOwner.getAddress().getPort())
+                .authentication(getServiceConfiguration().getBrokerClientAuthenticationPlugin(),
+                        getServiceConfiguration().getBrokerClientAuthenticationParameters()).build();
+        try {
+            Awaitility.await().untilAsserted(() -> assertNotNull(
+                    superUserAdmin.topics().getStats(topic).getReplication().get(remoteCluster)));
+            sendMessages(producer, numMessages);
+            Awaitility.await().untilAsserted(() -> assertEquals(getReplicationBacklog(topic, remoteCluster),
+                    numMessages));
+            // Confirm that the legacy route really resolves the bare cluster name to the replication cursor.
+            internalAdmin.namespaces().clearNamespaceBundleBacklogForSubscription(namespace, bundle, remoteCluster);
+            Awaitility.await().untilAsserted(() -> assertEquals(getReplicationBacklog(topic, remoteCluster), 0));
+            sendMessages(producer, numMessages);
+            Awaitility.await().untilAsserted(() -> assertEquals(getReplicationBacklog(topic, remoteCluster),
+                    numMessages));
+
+            // Only replace the destination of the real internal HTTP client; authorization and cursor operations
+            // still run through the production namespace REST entry point and the real broker.
+            Mockito.doReturn(internalAdmin).when(getPulsarService()).getAdminClient();
+            PulsarAdminException failure = null;
+            try {
+                subAdmin.namespaces().clearNamespaceBacklogForSubscription(namespace, remoteCluster);
+            } catch (PulsarAdminException e) {
+                failure = e;
+            }
+            assertEquals(getReplicationBacklog(topic, remoteCluster), numMessages,
+                    "A subscription-only request must not clear the legacy owner's replication cursor");
+            assertTrue(failure instanceof PulsarAdminException.NotFoundException,
+                    "An owner without the subscription-only route must reject the request");
+            assertEquals(legacyBundleRequests.get(), 1, "The restricted request must not use the legacy route");
+        } finally {
+            Mockito.doCallRealMethod().when(getPulsarService()).getAdminClient();
+            legacyOwner.stop(0);
+            producer.close();
+            superUserAdmin.namespaces().setNamespaceReplicationClusters(namespace, Set.of(localCluster), false);
+            deleteNamespaceWithRetry(namespace, true, superUserAdmin);
+            superUserAdmin.tenants().deleteTenant(tenant);
+            superUserAdmin.clusters().deleteCluster(remoteCluster);
+        }
     }
 
     @Test

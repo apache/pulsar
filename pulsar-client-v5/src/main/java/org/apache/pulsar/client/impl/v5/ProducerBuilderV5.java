@@ -79,6 +79,7 @@ final class ProducerBuilderV5<T> implements ProducerBuilder<T> {
                 .thenCompose(initialLayout -> {
                     ScalableTopicProducer<T> producer = new ScalableTopicProducer<>(
                             client, v5Schema, conf, dagWatch, initialLayout);
+                    client.registerProducer(producer);
                     // For exclusive access modes, claim every active segment up front so
                     // a collision surfaces here instead of being deferred to first send.
                     return producer.eagerAttachInitialAsync()

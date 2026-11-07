@@ -24,7 +24,10 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.EventExecutor;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,6 +40,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import org.apache.pulsar.client.api.EncodeData;
@@ -73,6 +78,13 @@ import org.apache.pulsar.common.scalable.ScalableTopicConstants;
  * producers only account for the payload once a message reaches them and never block on the limit
  * themselves ({@link ProducerConfigurationData#isMemoryLimitAdmittedUpstream()}), so nothing on the
  * dispatch chain, whose links may run on an IO thread, ever waits for memory.
+ *
+ * <p>Per-key order across layout changes: async sends of a key are stored in call order across a
+ * split or merge (see {@link #dispatchSend}). While a segment retires, new async sends whose key it
+ * owned are held until the sends that were pending on it have been re-sent, which takes until the new
+ * layout reaches the client; sends of other keys, and sends without a key, are not held. A synchronous
+ * {@link MessageBuilder#send()} does not go through the hold: mixing synchronous and async sends of
+ * one key can reorder them across a layout change.
  */
 final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.LayoutChangeListener {
 
@@ -85,6 +97,19 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private static final long SEND_RETRY_MAX_BACKOFF_MS = 500L;
     /** Failure of a send routed on a layout that changed before its segment producer was created. */
     private static final String SEGMENT_NOT_ACTIVE = "not found in active segments";
+
+    // Per-key ordering states of an async send (PendingSend.state).
+    /** Not tracked: a synchronous send, or an async send that is done or being re-routed. */
+    private static final int SEND_UNTRACKED = 0;
+    /** Routed to a segment and not resolved yet. */
+    private static final int SEND_IN_FLIGHT = 1;
+    /** Its segment is gone: waits to be re-sent, in call order, once the segment has retired. */
+    private static final int SEND_PARKED = 2;
+    /** A new send held back while a segment retires. */
+    private static final int SEND_HELD = 3;
+
+    /** {@link #dispatchSend} argument for a send from the caller, rather than released. */
+    private static final long NOT_RELEASED = -1;
 
     /**
      * Memory charged for each pending message on top of its payload, covering the per-message
@@ -120,9 +145,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
 
     /**
      * Where the caller's future is completed when its result did not arrive on an IO thread: on
-     * the dispatch thread, the timer, the thread closing the producer. Code chained on the future
-     * may block, and a send from it may wait for memory, which none of those threads can afford to
-     * do (see {@link #finish}). Results that arrive on an IO thread complete in place.
+     * the dispatch thread or the timer. Code chained on the future may block, and a send from it may
+     * wait for memory, which neither thread can afford to do (see {@link #finish}). Results that
+     * arrive on an IO thread complete in place, and so do all results once closing, when a send
+     * from the chained code fails fast.
      */
     private final ExecutorService completionExecutor;
 
@@ -136,6 +162,10 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     /** Test hook: how many per-segment v4 producers have been created so far. */
     @VisibleForTesting
     final AtomicInteger segmentProducersCreated = new AtomicInteger();
+
+    /** Test hook: how many times an async send was parked or held behind a retiring segment. */
+    @VisibleForTesting
+    final AtomicLong sendsParkedOrHeld = new AtomicLong();
 
     /**
      * Per-segment v4 producers. Stored as futures so concurrent send-on-cold-segment
@@ -163,6 +193,20 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private final Object dispatchLock = new Object();
 
     /**
+     * Tails of the dispatch chains of the segments a layout dropped, until they complete.
+     * {@link #closeAsync} waits for them along with the current chains.
+     */
+    private final Set<CompletableFuture<?>> droppedChainTails = ConcurrentHashMap.newKeySet();
+
+    /**
+     * The heads of the dispatch chains, until they complete. {@link #closeAsync} fails the ones still
+     * pending, and with them the sends behind them: a head waits for the segment producer to be
+     * created, which under {@code WAIT_FOR_EXCLUSIVE} can take forever, and then for a hop to the
+     * dispatch executor, which the client drops if it shuts down first.
+     */
+    private final Set<CompletableFuture<?>> pendingChainHeads = ConcurrentHashMap.newKeySet();
+
+    /**
      * Currently in-flight async sends. {@link #flushAsync()} snapshots and
      * awaits these (each user-visible send future completes on broker ack —
      * exactly the flush guarantee).
@@ -177,10 +221,67 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     private final Set<CompletableFuture<MessageId>> inFlightSends =
             ConcurrentHashMap.newKeySet();
 
+    /**
+     * Guards the per-key ordering state of async sends: the segment each one is routed to, the
+     * segments being retired, and the sends held back while they are (see {@link #dispatchSend}).
+     * Held only for this bookkeeping and never while calling into a segment producer, so that a v4
+     * callback taking it cannot deadlock against a dispatch holding a v4 lock. Parking a send also
+     * charges the client memory limit under it, which may run the limit's trigger inline; that
+     * trigger does not call back into this producer.
+     */
+    private final Object orderLock = new Object();
+
+    /**
+     * The async sends routed to each segment and not yet resolved. The entry of an active segment
+     * stays while the segment does, so that it is not allocated and dropped as its in-flight count
+     * goes 0 and back; that of a segment the layout dropped goes once it is idle or retired. Guarded
+     * by {@link #orderLock}.
+     */
+    private final Map<Long, SegmentSends<T>> segmentSends = new HashMap<>();
+
+    /** New async sends held, in call order, while a segment retires. Guarded by {@link #orderLock}. */
+    private final ArrayDeque<PendingSend<T>> heldSends = new ArrayDeque<>();
+
+    /**
+     * Whether new async sends are held: set when a segment starts retiring, cleared once the held
+     * sends have all been dispatched. Only the sends of a key that one of {@link #holdScopes} owns
+     * are held. Guarded by {@link #orderLock}.
+     */
+    private boolean holdingSends;
+
+    /**
+     * The segments that started retiring since {@link #holdingSends} was last set, each with the
+     * layout it was active in: a new send is held when its key routes to one of them in that layout,
+     * which are the keys whose earlier sends may still be re-sent. Kept until the hold clears, so
+     * that a key's new sends keep queueing behind its held ones. Guarded by {@link #orderLock}.
+     */
+    private final List<HoldScope> holdScopes = new ArrayList<>();
+
+    /** How many sends were parked and held since the hold was set, for logging. Guarded by {@link #orderLock}. */
+    private int parkedInHold;
+    private int heldInHold;
+
+    /**
+     * How many layouts were applied. {@link #releaseSends} stops dispatching a batch when it changes:
+     * the sends left in the batch would be routed by the new layout, possibly to the successors of a
+     * segment that earlier sends of the batch went to, and overtake them there. Guarded by
+     * {@link #orderLock}.
+     */
+    private long layoutChanges;
+
+    /** Call order of the async sends, by which the sends of a retired segment are re-sent. */
+    private final AtomicLong sendOrder = new AtomicLong();
+
+    /** Serializes {@link #releaseSends}, so that released sends are dispatched in order. */
+    private final Object releaseLock = new Object();
+    private final AtomicBoolean releaseScheduled = new AtomicBoolean();
+
     // Current active segments (volatile for visibility across threads)
     private volatile List<ActiveSegment> activeSegments = List.of();
 
     private volatile boolean closed = false;
+    /** Completes once {@link #closeAsync} is done; set by its first call. */
+    private final AtomicReference<CompletableFuture<Void>> closeFuture = new AtomicReference<>();
     private final AsyncProducerV5<T> asyncView;
 
     ScalableTopicProducer(PulsarClientV5 client,
@@ -291,6 +392,18 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
          */
         volatile boolean dispatching;
 
+        // Ordering state of an async send, guarded by orderLock.
+        /** Position in call order. */
+        long order;
+        /** One of the {@code SEND_*} states. */
+        int state = SEND_UNTRACKED;
+        /** The segment it is in flight to or parked on, in those states. */
+        long segmentId = -1;
+        /** How many times it was parked because its segment was gone. */
+        int attempts;
+        /** Why it was last parked: the failure it ends with if it can't be re-sent. */
+        Throwable lastFailure;
+
         PendingSend(String key, V value, EncodeData encoded, int payloadSize,
                     Map<String, String> properties, Instant eventTime, Long sequenceId,
                     Duration deliverAfter, Instant deliverAt, List<String> replicationClusters,
@@ -308,6 +421,29 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
             this.txn = txn;
             this.userFuture = userFuture;
         }
+    }
+
+    /**
+     * The async sends routed to one segment, guarded by {@link #orderLock}. A segment is retiring
+     * once one of its sends failed because the segment is gone, or the layout dropped it while it
+     * had sends: from then on no new send is routed anywhere until its in-flight sends are resolved
+     * and the new layout is in, and its parked sends have been re-sent.
+     */
+    private static final class SegmentSends<V> {
+        int inFlight;
+        final List<PendingSend<V>> parked = new ArrayList<>();
+        boolean retiring;
+
+        boolean isIdle() {
+            return inFlight == 0 && parked.isEmpty() && !retiring;
+        }
+    }
+
+    /**
+     * A retiring segment, with the layout it was active in, or null if that is not known: see
+     * {@link #holdScopes}.
+     */
+    private record HoldScope(long segmentId, List<ActiveSegment> layout) {
     }
 
     /**
@@ -552,44 +688,68 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         // Tracked until the caller-visible future is done, whichever side completes it. Registered
         // before the future is handed out, so it runs after the caller's own continuations.
         userFuture.whenComplete((__, ___) -> inFlightSends.remove(userFuture));
-        dispatchSendAttempt(send, 0);
+        send.order = sendOrder.getAndIncrement();
+        dispatchSend(send, NOT_RELEASED);
         return userFuture;
     }
 
-    private void dispatchSendAttempt(PendingSend<T> send, int attempt) {
+    /**
+     * Route an async send and append it to its segment's dispatch chain, keeping per-key order
+     * across layout changes.
+     *
+     * <p>When a segment is sealed by a split/merge, or terminated by a regular-to-scalable
+     * migration, the sends still pending on it fail and must be re-sent to its successors. Newer
+     * sends for the same keys must not reach the successors before them. So once a segment is gone
+     * it retires: its failed sends are parked rather than retried one by one, and new sends of the
+     * keys it owned are held, in call order, instead of routed. When the new layout is in and the
+     * segment has no send in flight any more, {@link #releaseSends} re-sends the parked sends in call
+     * order and then the held ones. Routing and the retirement state change together under
+     * {@link #orderLock}, so a send of such a key either goes to the old segment and is parked if it
+     * fails there, or is held. Sends of other keys, and sends without a key, which have no order to
+     * keep, are routed as usual meanwhile.
+     *
+     * @param releasedAt {@link #NOT_RELEASED} for a send from the caller, which is held while new
+     *                   sends are held; for a send {@link #releaseSends} dispatches, the
+     *                   {@link #layoutChanges} count its batch was taken at: such a send is routed
+     *                   even while new sends are held, unless a new layout was applied since
+     * @return false if a released send was not dispatched because a new layout was applied
+     */
+    private boolean dispatchSend(PendingSend<T> send, long releasedAt) {
         if (abandonIfDone(send)) {
-            return;
-        }
-        if (isShuttingDown()) {
-            finish(send, null, new PulsarClientException.AlreadyClosedException("Producer already closed"));
-            return;
+            return true;
         }
         long segmentId;
-        try {
-            segmentId = routeMessage(send.key);
-        } catch (Exception e) {
-            finish(send, null, e);
-            return;
+        Exception failure = null;
+        synchronized (orderLock) {
+            // Checked under the lock: closeAsync fails the held sends under it after closing.
+            if (isShuttingDown()) {
+                failure = new PulsarClientException.AlreadyClosedException("Producer already closed");
+                segmentId = -1;
+            } else if (releasedAt == NOT_RELEASED && holdingSends && isHeldKey(send.key)) {
+                send.state = SEND_HELD;
+                heldSends.add(send);
+                heldInHold++;
+                sendsParkedOrHeld.incrementAndGet();
+                return true;
+            } else if (releasedAt != NOT_RELEASED && releasedAt != layoutChanges) {
+                return false;
+            } else {
+                try {
+                    segmentId = routeMessage(send.key);
+                    segmentSends.computeIfAbsent(segmentId, __ -> new SegmentSends<>()).inFlight++;
+                    send.state = SEND_IN_FLIGHT;
+                    send.segmentId = segmentId;
+                } catch (Exception e) {
+                    failure = e;
+                    segmentId = -1;
+                }
+            }
+        }
+        if (failure != null) {
+            finish(send, null, failure);
+            return true;
         }
         final long routedSegmentId = segmentId;
-
-        // Re-dispatch this message on the next attempt. Used when the target segment is gone
-        // — sealed by a split/merge or terminated by a regular-to-scalable migration — and
-        // the DAG watch is expected to refresh the layout shortly so routeMessage lands on an
-        // active child. The dead per-segment producer stays where it is until applyLayout drops
-        // it: a send routed to the segment in the meantime fails fast on it, instead of
-        // re-creating a producer on a terminated topic for every send that finds it gone.
-        Runnable retry = () -> {
-            if (abandonIfDone(send)) {
-                return;
-            }
-            // The message stays with this layer while it waits for the new layout.
-            reholdPayloadShare(send);
-            CompletableFuture.delayedExecutor(
-                            Math.min(100L * (attempt + 1), SEND_RETRY_MAX_BACKOFF_MS),
-                            TimeUnit.MILLISECONDS)
-                    .execute(() -> dispatchSendAttempt(send, attempt + 1));
-        };
 
         appendToDispatchChain(routedSegmentId,
                 producer -> {
@@ -603,7 +763,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                             ackFuture = buildV4Message(producer, send).sendAsync();
                         } catch (Exception e) {
                             // Only this send fails; the chain stays healthy for the sends behind it.
-                            finish(send, null, e);
+                            onSendFailure(send, routedSegmentId, e);
                             return;
                         }
                         if (afterV4EnqueueHook != null) {
@@ -619,7 +779,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                                 finish(send, new MessageIdV5(v4MsgId, routedSegmentId), null);
                             } else {
                                 // Failure from the v4 send (e.g. the segment sealed mid-flight).
-                                handleAsyncSegmentFailure(send, routedSegmentId, attempt, ex, retry);
+                                onSendFailure(send, routedSegmentId, ex);
                             }
                         });
                     } finally {
@@ -628,25 +788,375 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                 },
                 // Failure while (re)creating the per-segment producer — e.g. the partition was
                 // terminated by a migration between routing and creation.
-                createEx -> handleAsyncSegmentFailure(send, routedSegmentId, attempt, createEx, retry));
+                createEx -> onSendFailure(send, routedSegmentId, createEx));
+        return true;
     }
 
     /**
-     * Decide whether an async send failure should be retried. If the target segment is gone
-     * (a split/merge seal or a migration termination) and the retry budget isn't exhausted,
-     * run {@code retry}; otherwise fail the user-visible future. No new layout is coming once
-     * this producer or its client is closing, so their sends fail right away. Covers both the
-     * v4 send failure and the per-segment producer-creation failure.
+     * An async send failed on {@code segmentId}. If the segment is gone (a split/merge seal or a
+     * migration termination) and the send has attempts left, park it and retire the segment, to be
+     * re-sent in call order by {@link #releaseSends}; otherwise fail the user-visible future. No new
+     * layout is coming once this producer or its client is closing, so their sends fail right away.
+     * Covers both the v4 send failure and the per-segment producer-creation failure.
      */
-    private void handleAsyncSegmentFailure(PendingSend<T> send, long segmentId,
-                                           int attempt, Throwable ex, Runnable retry) {
+    private void onSendFailure(PendingSend<T> send, long segmentId, Throwable ex) {
         Throwable cause = ex instanceof CompletionException ? ex.getCause() : ex;
-        if (isSegmentGoneError(cause) && attempt < SEND_RETRY_MAX_ATTEMPTS && !isShuttingDown()) {
-            log.debug().attr("segmentId", segmentId).attr("attempt", attempt + 1)
-                    .log("Target segment gone, retrying async send after layout update");
-            retry.run();
+        if (!isSegmentGoneError(cause)) {
+            finish(send, null, ex);
+            return;
+        }
+        boolean parked = false;
+        boolean startedRetiring = false;
+        boolean shuttingDown;
+        synchronized (orderLock) {
+            if (send.state != SEND_IN_FLIGHT || send.segmentId != segmentId) {
+                // Already given up on: finish() untracked it.
+                return;
+            }
+            // Checked under the lock, together with parking: failWaitingSends drains under it once
+            // closing is visible, and a send parked after that would wait for a layout that never
+            // comes. No new layout is coming once this producer or its client is closing.
+            shuttingDown = isShuttingDown();
+            if (!shuttingDown) {
+                SegmentSends<T> sends = segmentSends.get(segmentId);
+                sends.inFlight--;
+                if (send.attempts < SEND_RETRY_MAX_ATTEMPTS) {
+                    send.attempts++;
+                    send.lastFailure = ex;
+                    send.state = SEND_PARKED;
+                    sends.parked.add(send);
+                    // The message stays with this layer until it is re-sent.
+                    reholdPayloadShare(send);
+                    parkedInHold++;
+                    sendsParkedOrHeld.incrementAndGet();
+                    parked = true;
+                } else {
+                    send.state = SEND_UNTRACKED;
+                    send.segmentId = -1;
+                }
+                if (!sends.retiring) {
+                    // The layout still has the segment: a layout that dropped it while this send
+                    // was in flight would have started its retirement.
+                    startRetiring(segmentId, sends, activeSegments);
+                    startedRetiring = true;
+                }
+            }
+        }
+        if (shuttingDown) {
+            finish(send, null, ex);
+            // Closing the client does not close this producer: fail what waits for a layout here.
+            failWaitingSends();
+            return;
+        }
+        if (parked) {
+            log.debug().attr("segmentId", segmentId).attr("attempt", send.attempts)
+                    .log("Target segment gone, re-sending async send in order after layout update");
         } else {
-            finish(send, null, V5ExceptionMappings.toV5Exception(ex));
+            finish(send, null, ex);
+        }
+        if (startedRetiring) {
+            // The segment failed before the layout dropped it: wait for the new layout.
+            scheduleRetirementCheck(segmentId, 1);
+        }
+        scheduleRelease();
+    }
+
+    private void scheduleRelease() {
+        if (!releaseScheduled.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            dispatchExecutor.execute(this::releaseSends);
+        } catch (RejectedExecutionException e) {
+            // The client is closing and its executors are gone: nothing will release the waiting sends.
+            releaseScheduled.set(false);
+            failWaitingSends();
+        }
+    }
+
+    /**
+     * No new layout is coming once this producer or its client is closing: fail the sends waiting
+     * for one, parked or held. Closing the client does not close this producer, so besides
+     * {@link #closeAsync}, every path that finds the client closing calls this. Idempotent. The sends
+     * still in flight fail as their segment producers close.
+     */
+    private void failWaitingSends() {
+        List<PendingSend<T>> waiting = new ArrayList<>();
+        synchronized (orderLock) {
+            waiting.addAll(heldSends);
+            heldSends.clear();
+            for (var sends : segmentSends.values()) {
+                waiting.addAll(sends.parked);
+                sends.parked.clear();
+            }
+            for (var send : waiting) {
+                send.state = SEND_UNTRACKED;
+                send.segmentId = -1;
+            }
+            clearHold();
+        }
+        for (var send : waiting) {
+            finish(send, null, new PulsarClientException.AlreadyClosedException("Producer already closed"));
+        }
+    }
+
+    /**
+     * Re-send the parked sends of the segments that have retired, in call order, and once no
+     * segment is retiring any more, the held sends. A segment has retired when the layout no longer
+     * has it and none of its sends is in flight. Runs on the dispatch executor, one at a time, and
+     * dispatches outside {@link #orderLock}: a send failing right away re-enters it.
+     *
+     * <p>A batch stops when a new layout is applied while it is dispatched: the rest of the batch
+     * would be routed by it, possibly to the successors of a segment its first sends went to. The
+     * rest goes back to the head of the held sends: it is older than all of them, and newer than what
+     * was dispatched. A send of the batch failing on a segment that is gone while the layout stays
+     * does not stop it: the rest goes to the same segments, where any that fail are parked too and
+     * re-sent in call order.
+     */
+    private void releaseSends() {
+        synchronized (releaseLock) {
+            releaseScheduled.set(false);
+            if (isShuttingDown()) {
+                failWaitingSends();
+                return;
+            }
+            while (true) {
+                List<PendingSend<T>> batch = new ArrayList<>();
+                long batchLayout;
+                boolean parkedBatch;
+                synchronized (orderLock) {
+                    if (!holdingSends) {
+                        return;
+                    }
+                    batchLayout = layoutChanges;
+                    boolean retiring = false;
+                    var it = segmentSends.entrySet().iterator();
+                    while (it.hasNext()) {
+                        var entry = it.next();
+                        SegmentSends<T> sends = entry.getValue();
+                        if (!sends.retiring) {
+                            continue;
+                        }
+                        if (sends.inFlight == 0 && !isActive(entry.getKey())) {
+                            batch.addAll(sends.parked);
+                            it.remove();
+                        } else {
+                            retiring = true;
+                        }
+                    }
+                    parkedBatch = !batch.isEmpty();
+                    if (!parkedBatch) {
+                        if (retiring) {
+                            return;
+                        }
+                        if (heldSends.isEmpty()) {
+                            clearHold();
+                            return;
+                        }
+                        batch.addAll(heldSends);
+                        heldSends.clear();
+                    }
+                    for (var send : batch) {
+                        send.state = SEND_UNTRACKED;
+                        send.segmentId = -1;
+                    }
+                }
+                if (parkedBatch) {
+                    // Retired segments of a merge interleave: restore the call order. The order of a
+                    // send is set before it is dispatched and never changes.
+                    batch.sort(Comparator.comparingLong(send -> send.order));
+                }
+                for (int i = 0; i < batch.size(); i++) {
+                    if (!dispatchSend(batch.get(i), batchLayout)) {
+                        boolean closing;
+                        synchronized (orderLock) {
+                            // failWaitingSends fails the held sends under the lock after closing.
+                            closing = isShuttingDown();
+                            if (!closing) {
+                                for (int j = batch.size() - 1; j >= i; j--) {
+                                    var send = batch.get(j);
+                                    send.state = SEND_HELD;
+                                    heldSends.addFirst(send);
+                                }
+                            }
+                        }
+                        if (closing) {
+                            for (int j = i; j < batch.size(); j++) {
+                                finish(batch.get(j), null,
+                                        new PulsarClientException.AlreadyClosedException("Producer already closed"));
+                            }
+                            failWaitingSends();
+                            return;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * A segment whose sends failed because it is gone, while the layout still has it, retires once
+     * the new layout drops it. If no new layout comes within the retry budget, its parked sends fail.
+     *
+     * <p>Runs on the JDK's delayed executor rather than the client's: the client's executors drop
+     * queued tasks when they shut down, as on {@link PulsarClientV5#shutdown()}, and the check must
+     * still run then to fail the waiting sends. It only does bookkeeping and completes futures, which
+     * {@link #finish} hands off.
+     */
+    private void scheduleRetirementCheck(long segmentId, int check) {
+        CompletableFuture.delayedExecutor(Math.min(100L * check, SEND_RETRY_MAX_BACKOFF_MS),
+                        TimeUnit.MILLISECONDS)
+                .execute(() -> checkRetirement(segmentId, check));
+    }
+
+    private void checkRetirement(long segmentId, int check) {
+        if (isShuttingDown()) {
+            failWaitingSends();
+            return;
+        }
+        List<PendingSend<T>> expired = List.of();
+        boolean recheck = false;
+        synchronized (orderLock) {
+            SegmentSends<T> sends = segmentSends.get(segmentId);
+            if (sends == null || !sends.retiring || !isActive(segmentId)) {
+                // Retired: releaseSends re-sends its parked sends.
+            } else if (check < SEND_RETRY_MAX_ATTEMPTS || sends.inFlight > 0) {
+                recheck = true;
+            } else {
+                expired = new ArrayList<>(sends.parked);
+                for (var send : expired) {
+                    send.state = SEND_UNTRACKED;
+                    send.segmentId = -1;
+                }
+                segmentSends.remove(segmentId);
+            }
+        }
+        if (recheck) {
+            scheduleRetirementCheck(segmentId, check + 1);
+            return;
+        }
+        for (var send : expired) {
+            finish(send, null, send.lastFailure);
+        }
+        scheduleRelease();
+    }
+
+    /** Test hook: how many async sends wait to be re-sent or dispatched, parked or held. */
+    @VisibleForTesting
+    int waitingSendCount() {
+        synchronized (orderLock) {
+            int waiting = heldSends.size();
+            for (var sends : segmentSends.values()) {
+                waiting += sends.parked.size();
+            }
+            return waiting;
+        }
+    }
+
+    /** Test hook: how many async sends are in flight to a segment. */
+    @VisibleForTesting
+    int inFlightSendCount() {
+        synchronized (orderLock) {
+            int inFlight = 0;
+            for (var sends : segmentSends.values()) {
+                inFlight += sends.inFlight;
+            }
+            return inFlight;
+        }
+    }
+
+    /**
+     * Start retiring a segment, whose keys are those it owns in {@code layout}: hold the new sends
+     * of those keys. Called under {@link #orderLock}.
+     */
+    private void startRetiring(long segmentId, SegmentSends<T> sends, List<ActiveSegment> layout) {
+        sends.retiring = true;
+        boolean inLayout = layout.stream().anyMatch(segment -> segment.segmentId() == segmentId);
+        // Without the layout it was active in, its keys are unknown: hold the sends of every key.
+        holdScopes.add(new HoldScope(segmentId, inLayout ? layout : null));
+        if (!holdingSends) {
+            holdingSends = true;
+            log.debug().attr("segmentId", segmentId)
+                    .log("Segment retiring: holding the async sends of its keys");
+        }
+    }
+
+    /** Stop holding sends, once none is held or parked. Called under {@link #orderLock}. */
+    private void clearHold() {
+        if (holdingSends) {
+            log.debug().attr("parked", parkedInHold).attr("held", heldInHold)
+                    .log("Retired segments done: no longer holding async sends");
+        }
+        holdingSends = false;
+        holdScopes.clear();
+        parkedInHold = 0;
+        heldInHold = 0;
+    }
+
+    /**
+     * Whether a new send of {@code key} is held while sends are: whether one of {@link #holdScopes}
+     * owns the key. Sends without a key have no order to keep. Called under {@link #orderLock}.
+     */
+    private boolean isHeldKey(String key) {
+        if (key == null) {
+            return false;
+        }
+        for (var scope : holdScopes) {
+            if (scope.layout() == null) {
+                return true;
+            }
+            try {
+                if (router.route(key, scope.layout()) == scope.segmentId()) {
+                    return true;
+                }
+            } catch (IllegalStateException e) {
+                // Not routable in that layout, which does not happen for a layout that was applied:
+                // hold the send rather than risk its order.
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isActive(long segmentId) {
+        for (var segment : activeSegments) {
+            if (segment.segmentId() == segmentId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Drop a finished async send from the ordering state. */
+    private void untrack(PendingSend<T> send) {
+        boolean release = false;
+        synchronized (orderLock) {
+            switch (send.state) {
+                case SEND_IN_FLIGHT -> {
+                    SegmentSends<T> sends = segmentSends.get(send.segmentId);
+                    sends.inFlight--;
+                    release = sends.retiring;
+                    if (sends.isIdle() && !isActive(send.segmentId)) {
+                        segmentSends.remove(send.segmentId);
+                    }
+                }
+                // The two cases below are not reached today: every path that finishes a parked or
+                // held send untracks it first. Guards for a future path that does not.
+                case SEND_PARKED -> {
+                    SegmentSends<T> sends = segmentSends.get(send.segmentId);
+                    sends.parked.remove(send);
+                    release = true;
+                }
+                case SEND_HELD -> heldSends.remove(send);
+                default -> {
+                }
+            }
+            send.state = SEND_UNTRACKED;
+            send.segmentId = -1;
+        }
+        if (release) {
+            scheduleRelease();
         }
     }
 
@@ -661,23 +1171,31 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
      * queued behind it, nor on the timer or the thread closing the producer. A result delivered
      * inside the dispatch link, whether a failure raised in {@code sendAsync} or an acknowledgement
      * that beat the callback registration, is on the dispatch thread. Those complete on
-     * {@link #completionExecutor}.
+     * {@link #completionExecutor}, unless this producer or the client is closing: then they complete
+     * in place, as nothing may be left queued on an executor the client is about to shut down.
+     *
+     * <p>A failure is delivered as the V5 exception of its error category, whichever path failed
+     * the send.
      */
-    private void finish(PendingSend<T> send, MessageId messageId, Throwable failure) {
+    private void finish(PendingSend<T> send, MessageId messageId, Throwable sendFailure) {
         if (!send.finished.compareAndSet(false, true)) {
             return;
         }
+        Throwable failure = sendFailure != null ? V5ExceptionMappings.toV5Exception(sendFailure) : null;
+        untrack(send);
         releaseAll(send);
         if (send.userFuture.isDone()) {
             // Completed by the caller (cancelled, timed out): nothing left to deliver.
             return;
         }
         boolean offload = send.dispatching || (failure != null && !isEventLoopThread());
-        if (!offload || client.v4Client().isClosed()) {
-            // In place: the result arrived on an IO thread, or the client is closing. Its executors
-            // are shut down with it, with shutdownNow(), which drops whatever is still queued: a
-            // completion handed to the executor now could be lost and the caller's future never
-            // complete. Once the executors are gone, the same happens below.
+        if (!offload || isShuttingDown()) {
+            // In place: the result arrived on an IO thread, or this producer or the client is
+            // closing. The client's executors are shut down with it, with shutdownNow(), which drops
+            // whatever is still queued: a completion handed to the executor now could be lost and the
+            // caller's future never complete. Closing the client closes this producer first, so a
+            // completion queued while this producer closes could be lost the same way. Once the
+            // executors are gone, the same happens below.
             complete(send, messageId, failure);
             return;
         }
@@ -722,21 +1240,42 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                                        Consumer<org.apache.pulsar.client.api.Producer<T>> dispatchOp,
                                        Consumer<Throwable> onCreateFailure) {
         synchronized (dispatchLock) {
-            // The head completes on the IO thread that finishes creating the segment producer, and
-            // every link queued behind it would run there in one burst: hop off it first.
-            var prev = dispatchChains.computeIfAbsent(segmentId,
-                    id -> getOrCreateSegmentProducerAsync(id)
-                            .thenApplyAsync(Function.identity(), dispatchExecutor));
-            var next = prev.thenApply(producer -> {
-                dispatchOp.accept(producer);
-                return producer;
-            });
-            // If the chain link itself faults (creation failure), hand it to the caller.
-            next.exceptionally(ex -> {
-                onCreateFailure.accept(ex);
-                return null;
-            });
-            dispatchChains.put(segmentId, next);
+            if (!closed) {
+                // The head completes on the IO thread that finishes creating the segment producer, and
+                // every link queued behind it would run there in one burst: hop off it first.
+                var prev = dispatchChains.computeIfAbsent(segmentId, id -> {
+                    var head = getOrCreateSegmentProducerAsync(id)
+                            .thenApplyAsync(Function.identity(), dispatchExecutor);
+                    pendingChainHeads.add(head);
+                    head.whenComplete((__, ___) -> pendingChainHeads.remove(head));
+                    return head;
+                });
+                var next = prev.thenApply(producer -> {
+                    dispatchOp.accept(producer);
+                    return producer;
+                });
+                // If the chain link itself faults (creation failure), hand it to the caller.
+                next.exceptionally(ex -> {
+                    onCreateFailure.accept(ex);
+                    return null;
+                });
+                dispatchChains.put(segmentId, next);
+                return;
+            }
+        }
+        // closeAsync may have collected the chain tails already: a link appended now would not be
+        // waited for. Fail the send as gone, which fails it for good once closing.
+        onCreateFailure.accept(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+    }
+
+    /** Drop the dispatch chain of a segment the layout dropped, keeping its tail until it completes. */
+    private void dropDispatchChain(long segmentId) {
+        synchronized (dispatchLock) {
+            var tail = dispatchChains.remove(segmentId);
+            if (tail != null && !tail.isDone()) {
+                droppedChainTails.add(tail);
+                tail.whenComplete((__, ___) -> droppedChainTails.remove(tail));
+            }
         }
     }
 
@@ -787,22 +1326,64 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
         return CompletableFuture.allOf(pending);
     }
 
+    /**
+     * Close the producer: fail the sends waiting for a layout and those behind a dispatch chain head
+     * that is still pending, close the segment producers, and wait for the sends on the dispatch
+     * chains to be handed to them, which fails them as the segment producers are closed.
+     *
+     * <p>Nothing this waits for depends on the client's executors or on a segment producer still
+     * being created: the client closes its producers first and then shuts its executors down, which
+     * drops their queued tasks, and a segment producer waiting for exclusive access may never be
+     * created. A segment producer still being created is closed once it is, without waiting for it;
+     * closing the client closes it right away. The producer stays registered with the client until
+     * this completes, so that closing the client waits for it too. Idempotent.
+     */
     CompletableFuture<Void> closeAsync() {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        if (!closeFuture.compareAndSet(null, result)) {
+            return closeFuture.get();
+        }
         closed = true;
         dagWatch.close();
 
-        List<CompletableFuture<Void>> futures = new ArrayList<>();
+        // No new layout is coming: fail the sends waiting for one. The sends in flight fail as their
+        // segment producers close below.
+        failWaitingSends();
+
+        List<CompletableFuture<?>> futures = new ArrayList<>();
         for (var future : segmentProducers.values()) {
             // If creation failed, there's nothing to close — swallow so a single bad
             // segment doesn't fail the overall close.
-            futures.add(future.thenCompose(p -> p.closeAsync())
-                    .exceptionally(__ -> null));
+            var segmentClosed = future.thenCompose(p -> p.closeAsync()).exceptionally(__ -> null);
+            if (future.isDone()) {
+                futures.add(segmentClosed);
+            }
         }
-        return CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
+        // Collected after closing is visible, under the lock: no chain is started or link appended
+        // after this.
+        List<CompletableFuture<?>> heads;
+        synchronized (dispatchLock) {
+            heads = new ArrayList<>(pendingChainHeads);
+            for (var tail : dispatchChains.values()) {
+                futures.add(tail.handle((__, ___) -> null));
+            }
+            for (var tail : droppedChainTails) {
+                futures.add(tail.handle((__, ___) -> null));
+            }
+        }
+        // Outside the lock: the sends behind the heads fail in place, and the caller's code chained
+        // on them runs here.
+        for (var head : heads) {
+            head.completeExceptionally(new PulsarClientException.AlreadyClosedException("Producer already closed"));
+        }
+        CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new))
                 .whenComplete((__, ___) -> {
                     segmentProducers.clear();
                     dispatchChains.clear();
+                    client.deregisterProducer(this);
+                    result.complete(null);
                 });
+        return result;
     }
 
     // --- Layout change handling ---
@@ -836,12 +1417,36 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
     }
 
     private void applyLayout(ClientSegmentLayout layout) {
-        this.activeSegments = layout.activeSegments();
-
         // Determine which segments are new and which are gone
         Set<Long> newSegmentIds = ConcurrentHashMap.newKeySet();
         for (var seg : layout.activeSegments()) {
             newSegmentIds.add(seg.segmentId());
+        }
+
+        // A segment the layout drops while sends are pending on it retires: new sends are held
+        // until those are resolved and the failed ones re-sent (see dispatchSend). Done together
+        // with the switch to the new layout, so no send is routed by it before the hold is on.
+        boolean holding;
+        synchronized (orderLock) {
+            var it = segmentSends.entrySet().iterator();
+            while (it.hasNext()) {
+                var entry = it.next();
+                SegmentSends<T> sends = entry.getValue();
+                if (newSegmentIds.contains(entry.getKey()) || sends.retiring) {
+                    continue;
+                }
+                if (sends.isIdle()) {
+                    it.remove();
+                } else {
+                    startRetiring(entry.getKey(), sends, activeSegments);
+                }
+            }
+            this.activeSegments = layout.activeSegments();
+            layoutChanges++;
+            holding = holdingSends;
+        }
+        if (holding) {
+            scheduleRelease();
         }
 
         // Close producers for segments that are no longer active
@@ -861,7 +1466,7 @@ final class ScalableTopicProducer<T> implements Producer<T>, DagWatchClient.Layo
                             }
                         });
                 segmentProducers.remove(entry.getKey());
-                dispatchChains.remove(entry.getKey());
+                dropDispatchChain(entry.getKey());
             }
         }
 

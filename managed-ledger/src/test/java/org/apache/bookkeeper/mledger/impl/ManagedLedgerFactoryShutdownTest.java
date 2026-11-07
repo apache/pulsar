@@ -69,6 +69,8 @@ public class ManagedLedgerFactoryShutdownTest {
 
         metadataReadGate = new CompletableFuture<>();
         metadataStore = mock(MetadataStoreExtended.class);
+        given(metadataStore.registerCancellableListener(any())).willReturn(() -> { });
+        given(metadataStore.registerCancellableSessionListener(any())).willReturn(() -> { });
         bookKeeper = mock(BookKeeper.class);
 
 

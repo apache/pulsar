@@ -27,6 +27,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import lombok.Cleanup;
@@ -71,10 +72,29 @@ public class CoordinationServiceImplTest {
             assertThat(cs.getLeaderElections()).as("elections after closing %s", path).doesNotContainKey(path);
         }
 
-        // The store can't unregister a listener: one listener of each kind dispatches to the open elections,
-        // so the closed ones are no longer reachable from the store
+        // One listener of each kind dispatches to the open elections, so the closed ones are no longer reachable
+        // from the store
         assertThat(store.listenerCount).as("store listeners").hasValue(1);
         assertThat(store.sessionListenerCount).as("session listeners").hasValue(1);
+    }
+
+    @Test(timeOut = 30000)
+    public void closeUnregistersListeners() throws Exception {
+        @Cleanup
+        TestStore store = new TestStore();
+        CoordinationServiceImpl cs = new CoordinationServiceImpl(store);
+        cs.getLeaderElection(String.class, PATH, __ -> {
+        });
+        cs.getLockManager(String.class);
+        // The listeners of the elections, and the ones of the lock manager
+        assertThat(store.listenerCount).as("store listeners").hasValue(2);
+        assertThat(store.sessionListenerCount).as("session listeners").hasValue(2);
+
+        cs.close();
+
+        // The store can outlive the service, for example when it's shared by the brokers of a test
+        assertThat(store.listenerCount).as("store listeners").hasValue(0);
+        assertThat(store.sessionListenerCount).as("session listeners").hasValue(0);
     }
 
     @Test(timeOut = 30000)
@@ -267,8 +287,8 @@ public class CoordinationServiceImplTest {
     }
 
     /**
-     * An in-memory store that counts the listeners registered on it, can trigger session events, records the
-     * paths written, and can hold the reads until the test lets them go.
+     * An in-memory store that counts the listeners registered on it and not unregistered, can trigger session
+     * events, records the paths written, and can hold the reads until the test lets them go.
      */
     private static class TestStore extends FaultInjectionMetadataStore {
         private final AtomicInteger listenerCount = new AtomicInteger();
@@ -300,15 +320,24 @@ public class CoordinationServiceImplTest {
         }
 
         @Override
-        public void registerListener(Consumer<Notification> listener) {
-            listenerCount.incrementAndGet();
-            super.registerListener(listener);
+        public Runnable registerCancellableListener(Consumer<Notification> listener) {
+            return countRegistration(listenerCount, super.registerCancellableListener(listener));
         }
 
         @Override
-        public void registerSessionListener(Consumer<SessionEvent> listener) {
-            sessionListenerCount.incrementAndGet();
-            super.registerSessionListener(listener);
+        public Runnable registerCancellableSessionListener(Consumer<SessionEvent> listener) {
+            return countRegistration(sessionListenerCount, super.registerCancellableSessionListener(listener));
+        }
+
+        private static Runnable countRegistration(AtomicInteger count, Runnable cancelRegistration) {
+            count.incrementAndGet();
+            AtomicBoolean cancelled = new AtomicBoolean();
+            return () -> {
+                if (cancelled.compareAndSet(false, true)) {
+                    count.decrementAndGet();
+                }
+                cancelRegistration.run();
+            };
         }
     }
 }

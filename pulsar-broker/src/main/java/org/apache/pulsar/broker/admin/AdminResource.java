@@ -39,12 +39,14 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.stream.Collectors;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.impl.TopicListResponseMemoryLimiter;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.namespace.TopicExistsInfo;
@@ -484,7 +486,8 @@ public abstract class AdminResource extends PulsarWebResource {
                 .thenCompose(__ -> {
                     if (checkAllowAutoCreation) {
                         return pulsar().getBrokerService()
-                                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName);
+                                .fetchPartitionedTopicMetadataCheckAllowAutoCreationAsync(topicName,
+                                        newTopicCheck(topicName));
                     } else {
                         return pulsar().getBrokerService().fetchPartitionedTopicMetadataAsync(topicName);
                     }
@@ -643,20 +646,17 @@ public abstract class AdminResource extends PulsarWebResource {
                 })
                 .thenCompose(__ -> provisionPartitionedTopicPath(numPartitions, createLocalTopicOnly, properties))
                 .thenCompose(__ -> tryCreatePartitionsAsync(numPartitions))
-                .thenRun(() -> {
+                .thenCompose(__ -> {
                     if (!createLocalTopicOnly
                             && pulsar().getConfig().isCreateTopicToRemoteClusterForReplication()) {
-                        internalCreatePartitionedTopicToReplicatedClustersInBackground(numPartitions);
-                        log.info()
-                                .attr("topic", topicName)
-                                .log("Successfully created partitioned for topic for the remote clusters");
-                    } else {
-                        log.info()
-                                .attr("topic", topicName)
-                                .log("Skip creating partitioned for topic for the remote clusters");
+                        return internalCreatePartitionedTopicToReplicatedClusters(numPartitions);
                     }
-                    asyncResponse.resume(Response.noContent().build());
+                    log.info()
+                            .attr("topic", topicName)
+                            .log("Skip creating partitioned for topic for the remote clusters");
+                    return CompletableFuture.completedFuture(null);
                 })
+                .thenRun(() -> asyncResponse.resume(Response.noContent().build()))
                 .exceptionally(ex -> {
                     if (AdminResource.isConflictException(ex)) {
                         log.info()
@@ -694,11 +694,38 @@ public abstract class AdminResource extends PulsarWebResource {
         return CompletableFuture.completedFuture(-1);
     }
 
-    private void internalCreatePartitionedTopicToReplicatedClustersInBackground(int numPartitions) {
-        getNamespaceReplicatedClustersAsync(namespaceName)
-            .thenAccept(clusters -> {
-                // this call happens in the background without async composition. completion is logged.
-                internalCreatePartitionedTopicToReplicatedClustersInBackground(clusters, numPartitions);
+    /**
+     * Creates the partitioned topic on the other replication clusters of the namespace. Only an existing remote topic
+     * with a different number of partitions fails the returned future; other errors are logged and ignored, because
+     * the replicator creates the remote topic when it starts. The wait is bounded so that an unreachable remote
+     * cluster does not hold the request until the remote admin client times out.
+     */
+    private CompletableFuture<Void> internalCreatePartitionedTopicToReplicatedClusters(int numPartitions) {
+        return getNamespaceReplicatedClustersAsync(namespaceName)
+            .thenCompose(clusters -> {
+                List<CompletableFuture<Void>> futures = new ArrayList<>();
+                internalCreatePartitionedTopicToReplicatedClustersInBackground(clusters, numPartitions)
+                        .values().forEach(future -> futures.add(future.exceptionally(ex -> {
+                            Throwable cause = FutureUtil.unwrapCompletionException(ex);
+                            if (cause instanceof RestException re
+                                    && re.getResponse().getStatus() == Status.PRECONDITION_FAILED.getStatusCode()) {
+                                throw new RestException(Status.PRECONDITION_FAILED, re.getMessage()
+                                        + ". The topic has been created on the local cluster only");
+                            }
+                            return null;
+                        })));
+                return FutureUtil.waitForAll(futures)
+                        .orTimeout(pulsar().getConfig().getMetadataStoreOperationTimeoutSeconds(), TimeUnit.SECONDS)
+                        .exceptionally(ex -> {
+                            if (FutureUtil.unwrapCompletionException(ex) instanceof TimeoutException) {
+                                log.warn()
+                                        .attr("topic", topicName)
+                                        .log("Timed out waiting for the remote clusters to create the partitioned"
+                                                + " topic");
+                                return null;
+                            }
+                            throw FutureUtil.wrapToCompletionException(ex);
+                        });
             });
     }
 
@@ -740,19 +767,10 @@ public abstract class AdminResource extends PulsarWebResource {
                 TopicsImpl topics = (TopicsImpl) remotePulsarAdmin.topics();
                 topics.createPartitionedTopicAsync(shortTopicName, numPartitions, true, null)
                         .whenComplete((ignore, ex2) -> {
-                    if (ex2 == null) {
-                        // Create success.
-                        log.info()
-                                .attr("topic", topicName)
-                                .attr("cluster", cluster)
-                                .log("Successfully created partitioned topic in cluster");
-                        createRemoteTopicFuture.complete(null);
-                        return;
-                    }
-                    // Create topic on the remote cluster error.
-                    Throwable unwrapEx2 = FutureUtil.unwrapCompletionException(ex2);
-                    // The topic has been created before, check the partitions count is expected.
-                    if (unwrapEx2 instanceof PulsarAdminException.ConflictException) {
+                    Throwable unwrapEx2 = ex2 == null ? null : FutureUtil.unwrapCompletionException(ex2);
+                    // Check the partitions count is expected, also after a successful creation: the remote cluster
+                    // accepts a local-only creation of an existing partitioned topic with fewer partitions.
+                    if (unwrapEx2 == null || unwrapEx2 instanceof PulsarAdminException.ConflictException) {
                         topics.getPartitionedTopicMetadataAsync(shortTopicName).whenComplete((topicMeta, ex3) -> {
                             if (ex3 != null) {
                                 // Unexpected error, such as NPE. Catch all error to avoid the
@@ -763,10 +781,24 @@ public abstract class AdminResource extends PulsarWebResource {
                                         .exception(ex3)
                                         .log("Failed to check remote-cluster's topic metadata when creating"
                                                 + " partitioned topic in cluster .");
-                                createRemoteTopicFuture.completeExceptionally(new RestException(ex3));
+                                if (unwrapEx2 == null) {
+                                    // The creation succeeded, only the extra check failed.
+                                    createRemoteTopicFuture.complete(null);
+                                } else {
+                                    createRemoteTopicFuture.completeExceptionally(new RestException(ex3));
+                                }
+                                return;
                             }
-                            // Call get partitioned metadata of remote cluster success.
-                            if (topicMeta.partitions == numPartitions) {
+                            // Call get partitioned metadata of remote cluster success. After a successful creation,
+                            // 0 partitions is a stale read of a missing topic, not a non-partitioned topic.
+                            if (unwrapEx2 == null
+                                    && (topicMeta.partitions == numPartitions || topicMeta.partitions == 0)) {
+                                log.info()
+                                        .attr("topic", topicName)
+                                        .attr("cluster", cluster)
+                                        .log("Successfully created partitioned topic in cluster");
+                                createRemoteTopicFuture.complete(null);
+                            } else if (topicMeta.partitions == numPartitions) {
                                 log.info()
                                         .attr("topic", topicName)
                                         .attr("cluster", cluster)
@@ -1018,6 +1050,20 @@ public abstract class AdminResource extends PulsarWebResource {
         return realCause instanceof WebApplicationException
                 && ((WebApplicationException) realCause).getResponse().getStatus()
                 == Status.NOT_FOUND.getStatusCode();
+    }
+
+    /**
+     * Checks whether a topic listing failed because the topic list memory limit rejected it (429) or because the
+     * request was cancelled (503). These are expected responses that don't need to be logged as errors.
+     */
+    protected static boolean isTopicListLimitRejection(Throwable ex) {
+        Throwable realCause = FutureUtil.unwrapCompletionException(ex);
+        if (!(realCause instanceof WebApplicationException webApplicationException)) {
+            return false;
+        }
+        // other 503 responses, such as a bundle owner that isn't ready, are logged as errors
+        return webApplicationException.getResponse().getStatus() == Status.TOO_MANY_REQUESTS.getStatusCode()
+                || TopicListResponseMemoryLimiter.isRequestCancelled(realCause);
     }
 
     protected static boolean is4xxRestException(Throwable ex) {

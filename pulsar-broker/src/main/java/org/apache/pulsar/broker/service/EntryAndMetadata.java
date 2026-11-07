@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.service;
 
 import com.google.common.annotations.VisibleForTesting;
 import io.netty.buffer.ByteBuf;
+import java.util.function.IntSupplier;
 import java.util.function.ToIntFunction;
 import lombok.Getter;
 import org.apache.bookkeeper.mledger.Entry;
@@ -129,6 +130,29 @@ public class EntryAndMetadata implements Entry {
     public int getOrUpdateCachedStickyKeyHash(ToIntFunction<byte[]> makeStickyKeyHash) {
         if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
             stickyKeyHash = makeStickyKeyHash.applyAsInt(getStickyKey());
+        }
+        return stickyKeyHash;
+    }
+
+    /**
+     * Get the cached sticky key hash or calculate it with the given function, which doesn't need the sticky key.
+     */
+    public int getOrUpdateCachedStickyKeyHash(IntSupplier makeStickyKeyHash) {
+        if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
+            stickyKeyHash = makeStickyKeyHash.getAsInt();
+        }
+        return stickyKeyHash;
+    }
+
+    /**
+     * Get the cached sticky key hash or calculate it with the selector from the key's hash, which hashes the key where
+     * it is in the metadata, without copying, decoding or encoding it into a new array.
+     */
+    public int getOrUpdateCachedStickyKeyHash(StickyKeyConsumerSelector selector) {
+        if (stickyKeyHash == STICKY_KEY_HASH_NOT_INITIALIZED) {
+            stickyKeyHash = metadata != null
+                    ? selector.makeStickyKeyHashOfKeyHash(Commands.resolveStickyKeyHash(metadata))
+                    : selector.makeStickyKeyHash(Commands.NONE_KEY);
         }
         return stickyKeyHash;
     }

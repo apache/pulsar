@@ -253,7 +253,6 @@ public class SharedMultiBrokerPulsarCluster {
         config.setNumHttpServerThreads(4);
         config.setBookkeeperClientNumWorkerThreads(2);
         config.setBookkeeperClientNumIoThreads(2);
-        config.setNumCacheExecutorThreadPoolSize(1);
         config.setManagedLedgerNumSchedulerThreads(2);
         config.setTopicOrderedExecutorThreadNum(4);
 

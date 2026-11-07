@@ -25,6 +25,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,26 +58,34 @@ public class PulsarLedgerManagerTest extends BaseMetadataStoreTest {
     @DataProvider(name = "createConflicts")
     public Object[][] createConflicts() {
         List<Object[]> cases = new ArrayList<>();
-        for (Throwable cause : List.of(new MetadataStoreException.BadVersionException("Ledger exists"),
-                new MetadataStoreException.AlreadyExistsException("Ledger exists"))) {
-            cases.add(new Object[]{cause, cause});
-            cases.add(new Object[]{new CompletionException(cause), cause});
-            cases.add(new Object[]{new ExecutionException(cause), cause});
-            cases.add(new Object[]{new CompletionException(new ExecutionException(cause)), cause});
+        for (int format : List.of(1, 2)) {
+            for (Throwable cause : List.of(new MetadataStoreException.BadVersionException("Ledger exists"),
+                    new MetadataStoreException.AlreadyExistsException("Ledger exists"))) {
+                cases.add(new Object[]{format, cause, cause});
+                cases.add(new Object[]{format, new CompletionException(cause), cause});
+                cases.add(new Object[]{format, new ExecutionException(cause), cause});
+                cases.add(new Object[]{format, new CompletionException(new ExecutionException(cause)), cause});
+            }
         }
         return cases.toArray(Object[][]::new);
     }
 
     @Test(dataProvider = "createConflicts", timeOut = 30000)
-    public void testCreationConflictPreservesCause(Throwable failure, Throwable cause) throws Exception {
+    public void testCreationConflictPreservesCause(int format, Throwable failure, Throwable cause) throws Exception {
         MetadataStore store = mock(MetadataStore.class);
+        doReturn((Runnable) () -> { }).when(store).registerCancellableListener(any());
         doReturn(CompletableFuture.failedFuture(failure)).when(store)
                 .put(anyString(), any(byte[].class), eq(Optional.of(-1L)));
+        // This exception-only mock exercises v1/v2; v3 recovery requires a persisted read-back.
+        LedgerMetadata input = LedgerMetadataBuilder.from(metadata(123L, "value"))
+                .withMetadataFormatVersion(format).build();
         try (var manager = new PulsarLedgerManager(store, "/ledgers")) {
-            assertThatThrownBy(() -> manager.createLedgerMetadata(123L, metadata(123L, "value"))
+            assertThatThrownBy(() -> manager.createLedgerMetadata(123L, input)
                     .get(10, TimeUnit.SECONDS))
                     .cause().isInstanceOf(BKException.BKLedgerExistException.class)
                     .satisfies(error -> assertThat(error.getCause()).isSameAs(cause));
+            verify(store, never()).sync(anyString());
+            verify(store, never()).get(anyString());
         }
     }
 
@@ -93,6 +103,7 @@ public class PulsarLedgerManagerTest extends BaseMetadataStoreTest {
     @Test(dataProvider = "nonConflictFailures", timeOut = 30000)
     public void testOtherCreationFailuresAreNotLedgerConflicts(Throwable failure, Throwable cause) throws Exception {
         MetadataStore store = mock(MetadataStore.class);
+        doReturn((Runnable) () -> { }).when(store).registerCancellableListener(any());
         doReturn(CompletableFuture.failedFuture(failure)).when(store)
                 .put(anyString(), any(byte[].class), eq(Optional.of(-1L)));
         try (var manager = new PulsarLedgerManager(store, "/ledgers")) {

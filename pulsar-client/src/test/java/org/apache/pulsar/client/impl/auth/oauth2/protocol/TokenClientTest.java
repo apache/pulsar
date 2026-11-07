@@ -25,6 +25,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertNotNull;
 import com.google.gson.Gson;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -57,7 +58,7 @@ public class TokenClientTest {
     @Test
     public void exchangeClientCredentialsSuccessByScopeTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
-        URL url = new URL("http://localhost");
+        URL url = URI.create("http://localhost").toURL();
         TokenClient tokenClient = new TokenClient(url, mockHttpClientReturning(sampleTokenResult()));
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .audience("test-audience")
@@ -80,7 +81,7 @@ public class TokenClientTest {
     @Test
     public void exchangeClientCredentialsSuccessWithoutOptionalClientCredentialsTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
-        URL url = new URL("http://localhost");
+        URL url = URI.create("http://localhost").toURL();
         TokenClient tokenClient = new TokenClient(url, mockHttpClientReturning(sampleTokenResult()));
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .clientId("test-client-id")
@@ -98,7 +99,7 @@ public class TokenClientTest {
     @Test
     public void exchangeTlsClientAuthSuccessTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
-        URL url = new URL("http://localhost");
+        URL url = URI.create("http://localhost").toURL();
         TokenClient tokenClient = new TokenClient(url, mockHttpClientReturning(sampleTokenResult()));
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .clientId("test-client-id")
@@ -120,7 +121,7 @@ public class TokenClientTest {
     @Test
     public void exchangeTlsClientAuthSuccessWithoutOptionalParamsTest() throws
             IOException, TokenExchangeException, ExecutionException, InterruptedException {
-        URL url = new URL("http://localhost");
+        URL url = URI.create("http://localhost").toURL();
         TokenClient tokenClient = new TokenClient(url, mockHttpClientReturning(sampleTokenResult()));
         ClientCredentialsExchangeRequest request = ClientCredentialsExchangeRequest.builder()
                 .clientId("test-client-id")

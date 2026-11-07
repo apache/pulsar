@@ -1276,7 +1276,7 @@ public interface Topics {
     CompletableFuture<String> getInternalInfoAsync(String topic);
 
     /**
-     * Get the stats for the partitioned topic
+     * Get the stats for the partitioned topic.
      * <p/>
      * Response Example:
      *

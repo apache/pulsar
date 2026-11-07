@@ -26,6 +26,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -57,6 +58,7 @@ import org.apache.bookkeeper.meta.UnderreplicatedLedger;
 import org.apache.bookkeeper.meta.ZkLedgerUnderreplicationManager;
 import org.apache.bookkeeper.net.DNS;
 import org.apache.bookkeeper.proto.UnderreplicatedLedgerFormat;
+import org.apache.bookkeeper.replication.ReplicationEnableCb;
 import org.apache.bookkeeper.replication.ReplicationException.UnavailableException;
 import org.apache.bookkeeper.util.BookKeeperConstants;
 import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
@@ -92,6 +94,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
     private Future<Long> getLedgerToReplicate(LedgerUnderreplicationManager m) {
         return CompletableFuture.supplyAsync(() -> {
+            getLedgerToReplicateThread = Thread.currentThread();
             try {
                 log.info("Starting thread checking for ledgers");
                 long l = m.getLedgerToRereplicate();
@@ -104,6 +107,38 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }, executor);
     }
 
+    /**
+     * Asserts that a {@link #getLedgerToReplicate} call finds no ledger to replicate: rather than waiting for a while
+     * to see it not return, wait until it has scanned the under replicated ledgers and waits for them to change.
+     */
+    private void assertNoLedgerToReplicate(Future<Long> f) {
+        Awaitility.await().until(() -> f.isDone() || isWaitingForLedgers(getLedgerToReplicateThread));
+        assertFalse(f.isDone(), "Shouldn't be able to find a ledger to replicate");
+    }
+
+    // In the Object.wait() of getLedgerToRereplicate(), which follows a scan that found no ledger it could lock
+    private static boolean isWaitingForLedgers(Thread thread) {
+        if (thread == null) {
+            return false;
+        }
+        StackTraceElement[] stack = thread.getStackTrace();
+        int i = 0;
+        while (i < stack.length && stack[i].getClassName().equals(Object.class.getName())) {
+            i++;
+        }
+        return i > 0 && i < stack.length
+                && stack[i].getClassName().equals(PulsarLedgerUnderreplicationManager.class.getName())
+                && stack[i].getMethodName().equals("getLedgerToRereplicate");
+    }
+
+    // Parked in the ReplicationEnableCb.await() of a call made while the ledger replication is disabled
+    private static boolean isWaitingForReplicationEnabled(Thread thread) {
+        return thread != null && thread.getState() == Thread.State.WAITING
+                && Arrays.stream(thread.getStackTrace()).anyMatch(e -> e.getMethodName().equals("await")
+                        && e.getClassName().equals(ReplicationEnableCb.class.getName()));
+    }
+
+    private volatile Thread getLedgerToReplicateThread;
     private MetadataStoreExtended store;
     private LayoutManager layoutManager;
     private LedgerManagerFactory lmf;
@@ -178,7 +213,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
 
         CountDownLatch reestablished = new CountDownLatch(1);
-        store.registerSessionListener(event -> {
+        store.registerCancellableSessionListener(event -> {
             if (event == SessionEvent.SessionReestablished) {
                 reestablished.countDown();
             }
@@ -215,7 +250,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
         // ZooKeeper sends the watch event before acknowledging the delete to its owner.
         // Pause that real notification so the already applied delete's result remains pending.
-        store.registerListener(notification -> {
+        store.registerCancellableListener(notification -> {
             if (notification.getPath().equals(lockPath)
                     && notification.getType() == NotificationType.Deleted) {
                 callbackBlocked.countDown();
@@ -299,7 +334,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         long sessionId = zkStore.getZkSessionId();
         CountDownLatch lost = new CountDownLatch(1);
         CountDownLatch reestablished = new CountDownLatch(1);
-        store.registerSessionListener(event -> {
+        store.registerCancellableSessionListener(event -> {
             if (event == SessionEvent.SessionLost) {
                 lost.countDown();
             } else if (event == SessionEvent.SessionReestablished) {
@@ -411,7 +446,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
 
     private void expireSourceSession(ZKMetadataStore source) throws Exception {
         CountDownLatch reestablished = new CountDownLatch(1);
-        source.registerSessionListener(event -> {
+        source.registerCancellableSessionListener(event -> {
             if (event == SessionEvent.SessionReestablished) {
                 reestablished.countDown();
             }
@@ -452,7 +487,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         String lockPath = ledgerLockPath(ledgerId);
         GetResult acquired = source.get(lockPath).join().orElseThrow();
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
         try (TestZKServer targetServer = new TestZKServer()) {
             String targetUrl = targetServer.getConnectionString();
             try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
@@ -505,7 +540,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         DualMetadataStore dualStore = (DualMetadataStore) store;
         ZKMetadataStore source = (ZKMetadataStore) dualStore.getSourceStore();
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
         try (TestZKServer targetServer = new TestZKServer()) {
             String targetUrl = targetServer.getConnectionString();
             try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
@@ -562,7 +597,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         lum.acquireUnderreplicatedLedger(ledgerId);
         String lockPath = ledgerLockPath(ledgerId);
         CountDownLatch reestablished = new CountDownLatch(1);
-        source.registerSessionListener(event -> {
+        source.registerCancellableSessionListener(event -> {
             if (event == SessionEvent.SessionReestablished) {
                 reestablished.countDown();
             }
@@ -605,7 +640,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         lum.acquireUnderreplicatedLedger(ledgerId);
         String lockPath = ledgerLockPath(ledgerId);
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
         CompletableFuture<Void> resumeForeignRead = new CompletableFuture<>();
         try (TestZKServer targetServer = new TestZKServer()) {
             String targetUrl = targetServer.getConnectionString();
@@ -692,7 +727,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         ZKMetadataStore source = (ZKMetadataStore) dualStore.getSourceStore();
         String targetUrl = oxia ? "oxia://" + getOxiaServerConnectString() : "memory:" + UUID.randomUUID();
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
         try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
                 MetadataStoreConfig.builder().build())) {
             prepareLockMigration(source, target, targetUrl, lockPath, sessionEvents);
@@ -735,7 +770,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         MetadataStoreExtended source = ((DualMetadataStore) store).getSourceStore();
         String targetUrl = oxia ? "oxia://" + getOxiaServerConnectString() : "memory:" + UUID.randomUUID();
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
         try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
                 MetadataStoreConfig.builder().build())) {
             prepareLockMigration(source, target, targetUrl, lockPath, sessionEvents);
@@ -770,7 +805,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         String lockPath = ledgerLockPath(ledgerId);
         MetadataStoreExtended source = ((DualMetadataStore) store).getSourceStore();
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
         try (TestZKServer targetServer = new TestZKServer()) {
             String targetUrl = targetServer.getConnectionString();
             try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
@@ -837,7 +872,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         GetResult acquired = source.get(lockPath).join().orElseThrow();
         String targetUrl = oxia ? "oxia://" + getOxiaServerConnectString() : "memory:" + UUID.randomUUID();
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
         try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
                 MetadataStoreConfig.builder().build())) {
             prepareLockMigration(source, target, targetUrl, lockPath, sessionEvents);
@@ -923,7 +958,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         GetResult acquired = source.get(lockPath).join().orElseThrow();
         String targetUrl = migrate ? "oxia://" + getOxiaServerConnectString() : null;
         CountDownLatch reestablished = new CountDownLatch(1);
-        store.registerSessionListener(event -> {
+        store.registerCancellableSessionListener(event -> {
             if (event == SessionEvent.SessionReestablished) {
                 reestablished.countDown();
             }
@@ -1001,7 +1036,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         MetadataStoreExtended source = ((DualMetadataStore) store).getSourceStore();
         String targetUrl = oxia ? "oxia://" + getOxiaServerConnectString() : "memory:" + UUID.randomUUID();
         BlockingQueue<SessionEvent> sessionEvents = new LinkedBlockingQueue<>();
-        store.registerSessionListener(sessionEvents::add);
+        store.registerCancellableSessionListener(sessionEvents::add);
         try (MetadataStoreExtended target = MetadataStoreExtended.create(targetUrl,
                 MetadataStoreConfig.builder().build())) {
             source.put(MigrationState.MIGRATION_FLAG_PATH, ObjectMapperFactory.getMapper().writer().writeValueAsBytes(
@@ -1014,7 +1049,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             assertThat(sessionEvents.poll(10, TimeUnit.SECONDS)).isEqualTo(SessionEvent.SessionLost);
             if (expireSource) {
                 CountDownLatch sourceReestablished = new CountDownLatch(1);
-                source.registerSessionListener(event -> {
+                source.registerCancellableSessionListener(event -> {
                     if (event == SessionEvent.SessionReestablished) {
                         sourceReestablished.countDown();
                     }
@@ -1089,7 +1124,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
                 PulsarLedgerUnderreplicationManager.getUrLockPath(ledgersRoot), ledgerId);
         delayedPath.set(lockPath);
         CountDownLatch reestablished = new CountDownLatch(1);
-        store.registerSessionListener(event -> {
+        store.registerCancellableSessionListener(event -> {
             if (event == SessionEvent.SessionReestablished) {
                 reestablished.countDown();
             }
@@ -1166,7 +1201,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
                 assertThat(source.getChildren(MigrationState.PARTICIPANTS_PATH).join()).isEmpty();
             });
             CountDownLatch sourceReestablished = new CountDownLatch(1);
-            source.registerSessionListener(event -> {
+            source.registerCancellableSessionListener(event -> {
                 if (event == SessionEvent.SessionReestablished) {
                     sourceReestablished.countDown();
                 }
@@ -1177,7 +1212,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             assertThat(sourceReadCompleted.await(10, TimeUnit.SECONDS)).isTrue();
             assertThat(sourceResult.get()).isEmpty();
             CountDownLatch migrationCompleted = new CountDownLatch(1);
-            store.registerSessionListener(event -> {
+            store.registerCancellableSessionListener(event -> {
                 if (event == SessionEvent.SessionReestablished) {
                     migrationCompleted.countDown();
                 }
@@ -1211,7 +1246,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         lum.markLedgerUnderreplicated(ledgerId, "bookie:3181");
         assertThat(lum.pollLedgerToRereplicate()).isEqualTo(ledgerId);
         CountDownLatch reestablished = new CountDownLatch(1);
-        store.registerSessionListener(event -> {
+        store.registerCancellableSessionListener(event -> {
             if (event == SessionEvent.SessionReestablished) {
                 reestablished.countDown();
             }
@@ -1292,7 +1327,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
                 assertThat(submittedVersion.get()).contains(acquired.getStat().getVersion());
                 if ("ZooKeeper".equals(provider)) {
                     CountDownLatch reestablished = new CountDownLatch(1);
-                    source.registerSessionListener(event -> {
+                    source.registerCancellableSessionListener(event -> {
                         if (event == SessionEvent.SessionReestablished) {
                             reestablished.countDown();
                         }
@@ -1331,6 +1366,8 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
     }
 
+    // BookKeeper's ZkLedgerUnderreplicationManager resolves its root from the deprecated zkLedgersRootPath here.
+    @SuppressWarnings("deprecation")
     @Test(timeOut = 30000)
     public void testLockDataCompatibilityWithBookKeeper() throws Exception {
         methodSetup(zks::getConnectionString);
@@ -1357,7 +1394,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         String barrierPath = "/session-callback-barrier-" + UUID.randomUUID();
         CountDownLatch callbackBlocked = new CountDownLatch(1);
         CountDownLatch resumeCallbacks = new CountDownLatch(1);
-        store.registerListener(notification -> {
+        store.registerCancellableListener(notification -> {
             if (notification.getPath().equals(barrierPath)
                     && notification.getType() == NotificationType.Created) {
                 callbackBlocked.countDown();
@@ -1607,12 +1644,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
 
         Future<Long> f = getLedgerToReplicate(lum);
-        try {
-            f.get(1, TimeUnit.SECONDS);
-            fail("Shouldn't be able to find a ledger to replicate");
-        } catch (TimeoutException te) {
-            // correct behaviour
-        }
+        assertNoLedgerToReplicate(f);
         Long newl = 0xfefefefefefeL;
         lum.markLedgerUnderreplicated(newl, missingReplica);
         assertEquals(f.get(5, TimeUnit.SECONDS), newl, "Should have got the one just added");
@@ -1667,12 +1699,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         assertEquals(l, ledger, "Should be the ledger I just marked");
 
         f = getLedgerToReplicate(m2);
-        try {
-            f.get(1, TimeUnit.SECONDS);
-            fail("Shouldn't be able to find a ledger to replicate");
-        } catch (TimeoutException te) {
-            // correct behaviour
-        }
+        assertNoLedgerToReplicate(f);
 
         // Release the lock
         m1.close();
@@ -1723,12 +1750,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
             lB.set(b);
         });
         Future<Long> f = getLedgerToReplicate(m2);
-        try {
-            f.get(1, TimeUnit.SECONDS);
-            fail("Shouldn't be able to find a ledger to replicate");
-        } catch (TimeoutException te) {
-            // correct behaviour
-        }
+        assertNoLedgerToReplicate(f);
         m1.markLedgerReplicated(lA.get());
 
         // Release the locks
@@ -1835,12 +1857,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
                 "Should be the ledgers I just marked");
 
         Future<Long> f = getLedgerToReplicate(m2);
-        try {
-            f.get(1, TimeUnit.SECONDS);
-            fail("Shouldn't be able to find a ledger to replicate");
-        } catch (TimeoutException te) {
-            // correct behaviour
-        }
+        assertNoLedgerToReplicate(f);
         m1.markLedgerReplicated(lA);
         m1.releaseUnderreplicatedLedger(lB);
 
@@ -1951,12 +1968,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         m1.markLedgerReplicated(lA);
 
         Future<Long> f = getLedgerToReplicate(m2);
-        try {
-            f.get(1, TimeUnit.SECONDS);
-            fail("Shouldn't be able to find a ledger to replicate");
-        } catch (TimeoutException te) {
-            // correct behaviour
-        }
+        assertNoLedgerToReplicate(f);
     }
 
     /**
@@ -2065,12 +2077,9 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         }
 
         Future<Long> fA = getLedgerToReplicate(lum);
-        try {
-            fA.get(1, TimeUnit.SECONDS);
-            fail("Shouldn't be able to find a ledger to replicate");
-        } catch (TimeoutException te) {
-            // expected behaviour, as the replication is disabled
-        }
+        // expected behaviour, as the replication is disabled
+        Awaitility.await().until(() -> fA.isDone() || isWaitingForReplicationEnabled(getLedgerToReplicateThread));
+        assertFalse(fA.isDone(), "Shouldn't be able to find a ledger to replicate");
         assertEquals(callbackCount.get(), 1, "Notify callback times mismatch");
     }
 
@@ -2102,7 +2111,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         final CountDownLatch znodeLatch = new CountDownLatch(2);
         String urledgerA = StringUtils.substringAfterLast(znodeA, "/");
         String urLockLedgerA = basePath + "/locks/" + urledgerA;
-        store.registerListener(n -> {
+        store.registerCancellableListener(n -> {
             if (n.getType() == NotificationType.Created && n.getPath().equals(urLockLedgerA)) {
                 znodeLatch.countDown();
                 log.debug("Recieved node creation event for the zNodePath:" + n.getPath());
@@ -2122,7 +2131,7 @@ public class LedgerUnderreplicationManagerTest extends BaseMetadataStoreTest {
         thread1.start();
 
         try {
-            assertFalse(znodeLatch.await(1, TimeUnit.SECONDS), "shouldn't complete");
+            Awaitility.await().until(() -> !thread1.isAlive() || isWaitingForReplicationEnabled(thread1));
             assertEquals(znodeLatch.getCount(), 2, "Failed to disable ledger replication!");
 
             lum.enableLedgerReplication();

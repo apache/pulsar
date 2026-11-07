@@ -23,6 +23,8 @@ import com.google.common.collect.Range;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.NavigableMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -109,5 +111,24 @@ public class ManagedLedgerOfflineBacklog {
 
 
         return offlineTopicStats;
+    }
+
+    public CompletableFuture<PersistentOfflineTopicStats> estimateUnloadedTopicBacklogAsync(
+            ManagedLedgerFactory factory, TopicName topicName, Executor blockingExecutor) {
+        try {
+            PersistentOfflineTopicStats offlineTopicStats = new PersistentOfflineTopicStats(
+                    topicName.getPersistenceNamingEncoding(), brokerName);
+            Object ctx = null;
+            if (factory instanceof ManagedLedgerFactoryImpl) {
+                List<Object> credentials = new ArrayList<>();
+                credentials.add(digestType);
+                credentials.add(password);
+                ctx = credentials;
+            }
+            return factory.estimateUnloadedTopicBacklogAsync(offlineTopicStats, topicName, accurate, ctx,
+                    blockingExecutor).thenApply(__ -> offlineTopicStats);
+        } catch (Exception e) {
+            return CompletableFuture.failedFuture(e);
+        }
     }
 }

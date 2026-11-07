@@ -89,8 +89,8 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
             return new EntryCacheDisabled((ManagedLedgerImpl) ml, inflightReadsLimiter);
         }
 
-        EntryCache newEntryCache =
-                new RangeEntryCacheImpl(this, (ManagedLedgerImpl) ml, mlFactory.getConfig().isCopyEntriesInCache(),
+        RangeEntryCacheImpl newEntryCache =
+                new RangeEntryCacheImpl(this, (ManagedLedgerImpl) ml,
                         rangeCacheRemovalQueue, entryLengthFunction);
         EntryCache currentEntryCache = caches.putIfAbsent(ml.getName(), newEntryCache);
         if (currentEntryCache != null) {
@@ -109,6 +109,16 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     @Override
     public void updateCacheEvictionWatermark(double cacheEvictionWatermark) {
         this.cacheEvictionWatermark = cacheEvictionWatermark;
+    }
+
+    public void updateCopyEntriesInCache(boolean copyEntries) {
+        mlFactory.getConfig().setCopyEntriesInCache(copyEntries);
+    }
+
+    boolean isCopyEntriesInCache() {
+        // Read the shared volatile policy on insertion. Per-cache snapshots can miss or overwrite updates while
+        // a cache is being constructed or published; existing entries deliberately keep their original buffers.
+        return mlFactory.getConfig().isCopyEntriesInCache();
     }
 
     @Override
@@ -209,6 +219,11 @@ public class RangeEntryCacheManagerImpl implements EntryCacheManager {
     @VisibleForTesting
     public Pair<Integer, Long> getNonEvictableSize() {
         return evictionHandler.getNonEvictableSize();
+    }
+
+    /** Whether the cache has reached its eviction watermark, above which reads ahead don't add entries. */
+    boolean isAtEvictionWatermark() {
+        return maxSize > 0 && getSize() >= (long) (maxSize * cacheEvictionWatermark);
     }
 
     @Override

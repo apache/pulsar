@@ -36,6 +36,7 @@ dependencies {
     testImplementation(project(":pulsar-client-api-v5"))
     testImplementation(project(":pulsar-functions:pulsar-functions-api"))
     testImplementation(libs.picocli)
+    testCompileOnly(libs.swagger.annotations)
 }
 
 // Copy the custom commands NAR from the example module into test resources

@@ -42,54 +42,18 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
     private static final double[] QUANTILES = {0.50, 0.75, 0.95, 0.99, 0.999, 0.9999, 1};
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
-    private final Counter abortFailed;
-    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
-    private final Counter commitFailed;
-    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
-    private final Summary abortLatency;
-    @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
-    private final Summary commitLatency;
+    private final PrometheusStats prometheusStats;
 
     public static final String PENDING_TRANSACTION_COUNTER = "pulsar.broker.transaction.buffer.client.pending.count";
     private final ObservableLongUpDownCounter pendingTransactionCounter;
 
-    @PulsarDeprecatedMetric(newMetricName = PENDING_TRANSACTION_COUNTER)
-    private final Gauge pendingRequests;
-
-    private final boolean exposeTopicLevelMetrics;
-
     private final BrokerService brokerService;
 
-    private static TransactionBufferClientStats instance;
-
-    private TransactionBufferClientStatsImpl(@NonNull PulsarService pulsarService,
-                                             boolean exposeTopicLevelMetrics,
-                                             @NonNull TransactionBufferHandler handler) {
+    public TransactionBufferClientStatsImpl(@NonNull PulsarService pulsarService,
+                                            boolean exposeTopicLevelMetrics,
+                                            @NonNull TransactionBufferHandler handler) {
         this.brokerService = Objects.requireNonNull(pulsarService.getBrokerService());
-        this.exposeTopicLevelMetrics = exposeTopicLevelMetrics;
-        String[] labelNames = exposeTopicLevelMetrics
-                ? new String[]{"namespace", "topic"} : new String[]{"namespace"};
-
-        this.abortFailed = Counter.build("pulsar_txn_tb_client_abort_failed", "-")
-                .labelNames(labelNames)
-                .register();
-        this.commitFailed = Counter.build("pulsar_txn_tb_client_commit_failed", "-")
-                .labelNames(labelNames)
-                .register();
-        this.abortLatency =
-                this.buildSummary("pulsar_txn_tb_client_abort_latency", "-", labelNames);
-        this.commitLatency =
-                this.buildSummary("pulsar_txn_tb_client_commit_latency", "-", labelNames);
-
-        this.pendingRequests = Gauge.build("pulsar_txn_tb_client_pending_requests", "-")
-                .register()
-                .setChild(new Gauge.Child() {
-                    @Override
-                    public double get() {
-                        return handler.getPendingRequestsCount();
-                    }
-                });
+        this.prometheusStats = PrometheusStats.getInstance(exposeTopicLevelMetrics, handler);
         this.pendingTransactionCounter = pulsarService.getOpenTelemetry().getMeter()
                 .upDownCounterBuilder(PENDING_TRANSACTION_COUNTER)
                 .setDescription("The number of pending transactions in the transaction buffer client.")
@@ -97,27 +61,9 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
                 .buildWithCallback(measurement -> measurement.record(handler.getPendingRequestsCount()));
     }
 
-    private Summary buildSummary(String name, String help, String[] labelNames) {
-        Summary.Builder builder = Summary.build(name, help)
-                .labelNames(labelNames);
-        for (double quantile : QUANTILES) {
-            builder.quantile(quantile, 0.01D);
-        }
-        return builder.register();
-    }
-
-    public static synchronized TransactionBufferClientStats getInstance(PulsarService pulsarService,
-                                                                        boolean exposeTopicLevelMetrics,
-                                                                        TransactionBufferHandler handler) {
-        if (null == instance) {
-            instance = new TransactionBufferClientStatsImpl(pulsarService, exposeTopicLevelMetrics, handler);
-        }
-        return instance;
-    }
-
     @Override
     public void recordAbortFailed(String topic) {
-        this.abortFailed.labels(labelValues(topic)).inc();
+        prometheusStats.abortFailed.labels(prometheusStats.labelValues(topic)).inc();
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getAbortFailedCount)
                 .ifPresent(LongAdder::increment);
@@ -125,7 +71,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordCommitFailed(String topic) {
-        this.commitFailed.labels(labelValues(topic)).inc();
+        prometheusStats.commitFailed.labels(prometheusStats.labelValues(topic)).inc();
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getCommitFailedCount)
                 .ifPresent(LongAdder::increment);
@@ -133,7 +79,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordAbortLatency(String topic, long nanos) {
-        this.abortLatency.labels(labelValues(topic)).observe(nanos);
+        prometheusStats.abortLatency.labels(prometheusStats.labelValues(topic)).observe(nanos);
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getAbortSucceededCount)
                 .ifPresent(LongAdder::increment);
@@ -141,7 +87,7 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
 
     @Override
     public void recordCommitLatency(String topic, long nanos) {
-        this.commitLatency.labels(labelValues(topic)).observe(nanos);
+        prometheusStats.commitLatency.labels(prometheusStats.labelValues(topic)).observe(nanos);
         getTransactionBufferClientMetrics(topic)
                 .map(PersistentTopicMetrics.TransactionBufferClientMetrics::getCommitSucceededCount)
                 .ifPresent(LongAdder::increment);
@@ -154,26 +100,100 @@ public final class TransactionBufferClientStatsImpl implements TransactionBuffer
                 .map(t -> ((PersistentTopic) t).getPersistentTopicMetrics().getTransactionBufferClientMetrics());
     }
 
-    private String[] labelValues(String topic) {
-        try {
-            TopicName topicName = TopicName.get(topic);
-            return exposeTopicLevelMetrics
-                    ? new String[]{topicName.getNamespace(), topic} : new String[]{topicName.getNamespace()};
-        } catch (Throwable t) {
-            return exposeTopicLevelMetrics ? new String[]{"unknown", "unknown"} : new String[]{"unknown"};
-        }
-    }
-
     @Override
     public void close() {
         if (this.closed.compareAndSet(false, true)) {
-            instance = null;
-            CollectorRegistry.defaultRegistry.unregister(this.abortFailed);
-            CollectorRegistry.defaultRegistry.unregister(this.commitFailed);
-            CollectorRegistry.defaultRegistry.unregister(this.abortLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.commitLatency);
-            CollectorRegistry.defaultRegistry.unregister(this.pendingRequests);
+            prometheusStats.close();
             pendingTransactionCounter.close();
+        }
+    }
+
+    /**
+     * The Prometheus collectors. They live in the JVM-wide default {@link CollectorRegistry}, which takes each metric
+     * name once, so the clients of all the brokers in a JVM share them: the first client registers them, the first
+     * client to close unregisters them, and a client created after that registers new ones.
+     */
+    private static final class PrometheusStats {
+        private final AtomicBoolean closed = new AtomicBoolean(false);
+
+        @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
+        private final Counter abortFailed;
+        @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
+        private final Counter commitFailed;
+        @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
+        private final Summary abortLatency;
+        @PulsarDeprecatedMetric(newMetricName = OpenTelemetryTopicStats.TRANSACTION_BUFFER_CLIENT_OPERATION_COUNTER)
+        private final Summary commitLatency;
+
+        @PulsarDeprecatedMetric(newMetricName = PENDING_TRANSACTION_COUNTER)
+        private final Gauge pendingRequests;
+
+        private final boolean exposeTopicLevelMetrics;
+
+        private static PrometheusStats instance;
+
+        private PrometheusStats(boolean exposeTopicLevelMetrics, TransactionBufferHandler handler) {
+            this.exposeTopicLevelMetrics = exposeTopicLevelMetrics;
+            String[] labelNames = exposeTopicLevelMetrics
+                    ? new String[]{"namespace", "topic"} : new String[]{"namespace"};
+
+            this.abortFailed = Counter.build("pulsar_txn_tb_client_abort_failed", "-")
+                    .labelNames(labelNames)
+                    .register();
+            this.commitFailed = Counter.build("pulsar_txn_tb_client_commit_failed", "-")
+                    .labelNames(labelNames)
+                    .register();
+            this.abortLatency =
+                    this.buildSummary("pulsar_txn_tb_client_abort_latency", "-", labelNames);
+            this.commitLatency =
+                    this.buildSummary("pulsar_txn_tb_client_commit_latency", "-", labelNames);
+
+            this.pendingRequests = Gauge.build("pulsar_txn_tb_client_pending_requests", "-")
+                    .register()
+                    .setChild(new Gauge.Child() {
+                        @Override
+                        public double get() {
+                            return handler.getPendingRequestsCount();
+                        }
+                    });
+        }
+
+        private Summary buildSummary(String name, String help, String[] labelNames) {
+            Summary.Builder builder = Summary.build(name, help)
+                    .labelNames(labelNames);
+            for (double quantile : QUANTILES) {
+                builder.quantile(quantile, 0.01D);
+            }
+            return builder.register();
+        }
+
+        static synchronized PrometheusStats getInstance(boolean exposeTopicLevelMetrics,
+                                                        TransactionBufferHandler handler) {
+            if (null == instance) {
+                instance = new PrometheusStats(exposeTopicLevelMetrics, handler);
+            }
+            return instance;
+        }
+
+        private String[] labelValues(String topic) {
+            try {
+                TopicName topicName = TopicName.get(topic);
+                return exposeTopicLevelMetrics
+                        ? new String[]{topicName.getNamespace(), topic} : new String[]{topicName.getNamespace()};
+            } catch (Throwable t) {
+                return exposeTopicLevelMetrics ? new String[]{"unknown", "unknown"} : new String[]{"unknown"};
+            }
+        }
+
+        void close() {
+            if (this.closed.compareAndSet(false, true)) {
+                instance = null;
+                CollectorRegistry.defaultRegistry.unregister(this.abortFailed);
+                CollectorRegistry.defaultRegistry.unregister(this.commitFailed);
+                CollectorRegistry.defaultRegistry.unregister(this.abortLatency);
+                CollectorRegistry.defaultRegistry.unregister(this.commitLatency);
+                CollectorRegistry.defaultRegistry.unregister(this.pendingRequests);
+            }
         }
     }
 }

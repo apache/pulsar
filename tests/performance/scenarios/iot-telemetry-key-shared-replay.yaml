@@ -1,0 +1,56 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+# Key_Shared under stalls and rolling restarts: a large replay queue. Five applications consume the telemetry of
+# 100,000 devices, with string keys, from four topics through 20 pods each. Every 15 seconds each application pauses
+# three of its pods for five seconds, as a garbage collection or a slow downstream would stall them, and every 20
+# seconds it restarts one, as a rolling deployment does. While a pod is paused, the broker holds back its keys'
+# messages in the subscription's replay queue, thousands of entries, and dispatches the other keys' messages around
+# them; a restarted pod's unacknowledged messages go there too. It measures the Key_Shared dispatcher's replay path: the
+# replay queue's bookkeeping, the filtering of its positions on every read, and the replay reads.
+extends: [iot-telemetry-base.yaml, configs/iot-telemetry-high-mem.yaml]
+workloads:
+  iotTelemetry:
+    warmup:
+      seconds: 20
+    measurement:
+      seconds: 180
+    timeoutSeconds: 420
+    rate: 30000
+    payload:
+      size: 128
+    devices:
+      count: 100000
+      keyType: string
+    gateways:
+      count: 20
+      producer:
+        precreate: true
+    topics:
+      count: 4
+      prefix: persistent://public/default/iot-replay-
+    applications:
+      count: 5
+      podsPerApplication: 20
+      subscriptionPrefix: replay-application-
+    behaviors:
+      podPauses:
+        intervalSeconds: 15
+        fraction: 0.15
+        pauseMillis: 5000
+      podRestarts:
+        intervalSeconds: 20
+        fraction: 0.05

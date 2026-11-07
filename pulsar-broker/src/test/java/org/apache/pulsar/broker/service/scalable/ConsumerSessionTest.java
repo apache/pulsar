@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service.scalable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -181,10 +182,9 @@ public class ConsumerSessionTest {
         // startGraceTimer cancels any prior timer before scheduling a new one; a double
         // markDisconnected (edge case) should leave only the latest timer armed.
         TestContext ctx = new TestContext();
-        @SuppressWarnings({"unchecked", "rawtypes"})
         ScheduledFuture<?> second = mock(ScheduledFuture.class);
-        when(ctx.scheduler.schedule(any(Runnable.class), anyLong(), any(TimeUnit.class)))
-                .thenReturn((ScheduledFuture) ctx.future, (ScheduledFuture) second);
+        doReturn(ctx.future, second).when(ctx.scheduler)
+                .schedule(any(Runnable.class), anyLong(), any(TimeUnit.class));
 
         ConsumerSession session = ctx.session("c1", 10L, mock(TransportCnx.class));
 

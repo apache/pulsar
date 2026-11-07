@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.DEDUPLICATION_CURSOR_NAME;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -26,11 +28,17 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.Cleanup;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
@@ -39,9 +47,21 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.BrokerTestUtil;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.InjectedClientCnxClientBuilder;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
+import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.impl.metrics.InstrumentProvider;
+import org.apache.pulsar.common.api.proto.CommandSendReceipt;
 import org.apache.pulsar.common.naming.TopicName;
 import org.awaitility.Awaitility;
 import org.awaitility.reflect.WhiteboxImpl;
@@ -49,6 +69,7 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker")
@@ -214,7 +235,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             assertNotNull(messageDeduplication.highestSequencedPushed);
             long seqId = messageDeduplication.getLastPublishedSequenceId(producerName);
             assertEquals(seqId, maxSeq);
-            assertEquals(messageDeduplication.highestSequencedPersisted.get(producerName).longValue(), maxSeq);
+            assertEquals(messageDeduplication.getHighestSequencedPersisted(producerName).longValue(), maxSeq);
             assertEquals(messageDeduplication.highestSequencedPushed.get(producerName).longValue(), maxSeq);
         }).get();
     }
@@ -244,7 +265,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         cleanup();
         conf.setBrokerDeduplicationEnabled(true);
         conf.setBrokerDeduplicationSnapshotFrequencyInSeconds(1);
-        conf.setBrokerDeduplicationSnapshotIntervalSeconds(7);
+        conf.setBrokerDeduplicationSnapshotIntervalSeconds(3);
         conf.setBrokerDeduplicationEntriesInterval(20000);
         setup();
 
@@ -255,8 +276,8 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
                 .newProducer(Schema.STRING).topic(topicName).enableBatching(false)
                 .producerName(producerName).create();
         waitCacheInit(topicName);
-        admin.topicPolicies().setDeduplicationSnapshotInterval(topicName, 3);
-        admin.namespaces().setDeduplicationSnapshotInterval(myNamespace, 5);
+        admin.topicPolicies().setDeduplicationSnapshotInterval(topicName, 1);
+        admin.namespaces().setDeduplicationSnapshotInterval(myNamespace, 2);
 
         int msgNum = 10;
         CountDownLatch countDownLatch = new CountDownLatch(msgNum);
@@ -266,12 +287,13 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic =
                 (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(topicName).get().get();
-        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        long seqId = persistentTopic.getMessageDeduplication().getHighestSequencedPersisted(producerName);
         Position position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
-        //The first time, use topic-leve policies, 1 second delay + 3 second interval
+        waitForSnapshotInterval(persistentTopic, 1);
+        //The first time, use topic-leve policies, 1 second delay + 1 second interval
         Awaitility.await()
                 .until(() -> (persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum - 1);
@@ -279,13 +301,21 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         Position markDeletedPosition = managedCursor.getMarkDeletedPosition();
         assertEquals(position, markDeletedPosition);
 
-        //remove topic-level policies, namespace-level should be used, interval becomes 5 seconds
+        //remove topic-level policies, namespace-level should be used, interval becomes 2 seconds
         admin.topicPolicies().removeDeduplicationSnapshotInterval(topicName);
+        waitForSnapshotInterval(persistentTopic, 2);
+        // The last time seen before the second snapshot: the broker-level interval starts after it
+        AtomicLong beforeSecondSnapshotMillis = new AtomicLong(System.currentTimeMillis());
         producer.newMessage().value("msg").send();
-        //zk update time + 5 second interval time
-        Awaitility.await()
-                .until(() -> (persistentTopic.getMessageDeduplication().getManagedCursor()
-                        .getMarkDeletedPosition()).getEntryId() == msgNum);
+        //zk update time + 2 second interval time
+        Awaitility.await().until(() -> {
+            long nowMillis = System.currentTimeMillis();
+            if (managedCursor.getMarkDeletedPosition().getEntryId() == msgNum) {
+                return true;
+            }
+            beforeSecondSnapshotMillis.set(nowMillis);
+            return false;
+        });
         markDeletedPosition = managedCursor.getMarkDeletedPosition();
         position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger()
                 .getLastConfirmedEntry();
@@ -296,19 +326,23 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         admin.namespaces().removeDeduplicationSnapshotInterval(myNamespace);
         Awaitility.await()
                 .until(() -> (admin.namespaces().getDeduplicationSnapshotInterval(myNamespace) == null));
+        waitForSnapshotInterval(persistentTopic, 3);
         producer.newMessage().value("msg").send();
-        //ensure that the time exceeds the scheduling interval of ns and topic, but no snapshot is generated
-        Thread.sleep(3000);
+        // A snapshot check right after the last snapshot takes no new one (it moves the mark-delete position before
+        // it returns)
+        persistentTopic.checkDeduplicationSnapshot();
         markDeletedPosition = managedCursor.getMarkDeletedPosition();
         position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
-        // broker-level interval is 7 seconds, so 3 seconds will not take a snapshot
+        // broker-level interval is 3 seconds, so it will not take a snapshot yet
         assertNotEquals(msgNum + 1, markDeletedPosition.getEntryId());
         assertNotEquals(position, markDeletedPosition);
         // wait for scheduler
         Awaitility.await()
                 .until(() -> (persistentTopic.getMessageDeduplication().getManagedCursor()
                         .getMarkDeletedPosition()).getEntryId() == msgNum + 1);
+        // The broker-level interval separates the last two snapshots
+        assertTrue(System.currentTimeMillis() - beforeSecondSnapshotMillis.get() >= 3000);
         markDeletedPosition = managedCursor.getMarkDeletedPosition();
         position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
@@ -375,14 +409,14 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(topicName).get().get();
-        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        long seqId = persistentTopic.getMessageDeduplication().getHighestSequencedPersisted(producerName);
         Position position = persistentTopic.getMessageDeduplication().getManagedCursor().getManagedLedger()
                 .getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
         assertEquals(position.getEntryId(), msgNum - 1);
 
-        Thread.sleep(2000);
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
+        waitForSnapshotIfEnabled(enabledSnapshot, managedCursor, msgNum - 1);
         Position markDeletedPosition = managedCursor.getMarkDeletedPosition();
         if (enabledSnapshot) {
             assertEquals(position, markDeletedPosition);
@@ -398,7 +432,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertNotEquals(msgNum, markDeletedPosition.getEntryId());
         assertNotNull(position);
 
-        Thread.sleep(2000);
+        waitForSnapshotIfEnabled(enabledSnapshot, managedCursor, msgNum);
         markDeletedPosition = managedCursor.getMarkDeletedPosition();
         position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
@@ -410,6 +444,24 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
             assertNotEquals(position, markDeletedPosition);
         }
 
+    }
+
+    // The snapshot monitor takes a snapshot of the last entry at its next run once the interval has elapsed; without
+    // the monitor, nothing takes one in the 2 s it would have had for two runs
+    private static void waitForSnapshotIfEnabled(boolean enabledSnapshot, ManagedCursor managedCursor,
+                                                 long lastEntryId) throws InterruptedException {
+        if (enabledSnapshot) {
+            Awaitility.await().untilAsserted(() ->
+                    assertEquals(managedCursor.getMarkDeletedPosition().getEntryId(), lastEntryId));
+        } else {
+            Thread.sleep(2000);
+        }
+    }
+
+    private static void waitForSnapshotInterval(PersistentTopic persistentTopic, int intervalSeconds) {
+        Awaitility.await().untilAsserted(() -> assertEquals(
+                persistentTopic.getHierarchyTopicPolicies().getDeduplicationSnapshotIntervalSeconds().get(),
+                Integer.valueOf(intervalSeconds)));
     }
 
     @Test(timeOut = 30000)
@@ -457,7 +509,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         countDownLatch.await();
         PersistentTopic persistentTopic = (PersistentTopic) pulsar.getBrokerService()
                 .getTopicIfExists(topicName).get().get();
-        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        long seqId = persistentTopic.getMessageDeduplication().getHighestSequencedPersisted(producerName);
         Position position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
@@ -470,14 +522,12 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         assertEquals(position, markDeletedPosition);
         //remove namespace-level policies, broker-level should be used
         admin.namespaces().removeDeduplicationSnapshotInterval(myNamespace);
-        Thread.sleep(2000);
+        waitForSnapshotInterval(persistentTopic, 3);
         markDeletedPosition = managedCursor.getMarkDeletedPosition();
         position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
         assertNotEquals(msgNum - 1, markDeletedPosition.getEntryId());
         assertNotEquals(position, markDeletedPosition.getEntryId());
-        //3 seconds total
-        Thread.sleep(1000);
         markDeletedPosition = managedCursor.getMarkDeletedPosition();
         position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
@@ -514,7 +564,7 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         ManagedCursor managedCursor = persistentTopic.getMessageDeduplication().getManagedCursor();
         Position markDeletedPosition = managedCursor.getMarkDeletedPosition();
 
-        long seqId = persistentTopic.getMessageDeduplication().highestSequencedPersisted.get(producerName);
+        long seqId = persistentTopic.getMessageDeduplication().getHighestSequencedPersisted(producerName);
         Position position = persistentTopic.getMessageDeduplication().getManagedCursor()
                 .getManagedLedger().getLastConfirmedEntry();
         assertEquals(seqId, msgNum - 1);
@@ -589,8 +639,14 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
         // So it would not trigger takeSnapshot
         final Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
                 .topic(topic).enableBatching(false).create();
-        for (int i = 0; i < brokerDeduplicationEntriesInterval - 1; i++) {
-            producer.send(i + "");
+        // Each add to the mock BookKeeper takes 1 ms by default
+        pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(0);
+        try {
+            for (int i = 0; i < brokerDeduplicationEntriesInterval - 1; i++) {
+                producer.send(i + "");
+            }
+        } finally {
+            pulsarTestContext.getMockBookKeeper().setDefaultAddEntryDelayMillis(1);
         }
         producer.close();
         int snapshotCounter1 = WhiteboxImpl.getInternalState(deduplication1, "snapshotCounter");
@@ -649,6 +705,173 @@ public class TopicDuplicationTest extends ProducerConsumerBase {
 
         // cleanup.
         admin.topics().delete(topic);
+    }
+
+    @Test(timeOut = 120000, dataProvider = "deduplicationBatching")
+    public void testDeduplicationContractAfterLostReceiptsAndRestart(boolean batching) throws Exception {
+        String namespace = testTenant + "/dedup-recovery-" + UUID.randomUUID();
+        String topic = "persistent://" + namespace + "/telemetry";
+        String subscription = "dedup-contract";
+        int messagesPerProducer = 12;
+        int producerCount = 2;
+        int initialMessages = messagesPerProducer * producerCount;
+        Map<ProducerSequence, MessageId> storedIds = new HashMap<>();
+        AtomicBoolean discardReceipts = new AtomicBoolean(true);
+        CountDownLatch persistedReceipts = new CountDownLatch(batching ? producerCount : initialMessages);
+        admin.namespaces().createNamespace(namespace);
+        try {
+            admin.namespaces().setDeduplicationStatus(namespace, true);
+            admin.namespaces().setDeduplicationSnapshotInterval(namespace, 0);
+            ClientBuilderImpl builder = (ClientBuilderImpl) PulsarClient.builder()
+                    .serviceUrl(lookupUrl.toString());
+            try (PulsarClient faultClient = InjectedClientCnxClientBuilder.create(builder,
+                    (clientConfig, eventLoopGroup) -> new ClientCnx(
+                            InstrumentProvider.NOOP, clientConfig, eventLoopGroup) {
+                        @Override
+                        protected void handleSendReceipt(CommandSendReceipt receipt) {
+                            if (discardReceipts.get()) {
+                                // The broker persisted the entry, but the producer cannot know that it succeeded.
+                                persistedReceipts.countDown();
+                            } else {
+                                super.handleSendReceipt(receipt);
+                            }
+                        }
+                    })) {
+                List<CompletableFuture<MessageId>> pending = new ArrayList<>();
+                // The client owns these producers, including cleanup if an assertion fails while receipts are lost.
+                List<Producer<String>> producers = new ArrayList<>();
+                try (Consumer<String> consumer = faultClient.newConsumer(Schema.STRING).topic(topic)
+                        .subscriptionName(subscription).subscribe()) {
+                    for (int p = 0; p < producerCount; p++) {
+                        Producer<String> producer = faultClient.newProducer(Schema.STRING).topic(topic)
+                                .producerName("gateway-" + p).enableBatching(batching)
+                                .batchingMaxMessages(messagesPerProducer)
+                                .batchingMaxPublishDelay(1, TimeUnit.HOURS)
+                                .maxPendingMessages(initialMessages).sendTimeout(0, TimeUnit.SECONDS).create();
+                        producers.add(producer);
+                        for (int sequence = 0; sequence < messagesPerProducer; sequence++) {
+                            pending.add(producer.newMessage().sequenceId(sequence)
+                                    .value(producer.getProducerName() + ":" + sequence).sendAsync());
+                        }
+                    }
+                    assertThat(persistedReceipts.await(15, TimeUnit.SECONDS))
+                            .as("the lost-receipt fault must affect persisted publishes").isTrue();
+                    assertThat(pending).allMatch(future -> !future.isDone());
+                    while (storedIds.size() < initialMessages) {
+                        recordStoredMessage(storedIds, consumer.receive(10, TimeUnit.SECONDS));
+                    }
+                    assertThat(storedIds).hasSize(initialMessages);
+                    // Close without acknowledgements: the recovered subscription must legitimately redeliver these.
+                }
+
+                // This restarts the broker service over the same BookKeeper/metadata fixtures, not a process crash.
+                restartBroker(ignored -> discardReceipts.set(false));
+                faultClient.updateServiceUrl(lookupUrl.toString());
+                for (CompletableFuture<MessageId> publish : pending) {
+                    publish.get(30, TimeUnit.SECONDS);
+                }
+                for (Producer<String> producer : producers) {
+                    // Retry inside the recovered batch before newer writes can raise the high-water mark.
+                    // The automatic resend starts at 0, which even an incorrectly recovered high-water mark rejects.
+                    for (int sequence = 1; sequence < messagesPerProducer; sequence++) {
+                        pending.add(producer.newMessage().sequenceId(sequence)
+                                .value(producer.getProducerName() + ":" + sequence).sendAsync());
+                    }
+                    producer.flushAsync().get(15, TimeUnit.SECONDS);
+                    for (int sequence = messagesPerProducer; sequence < messagesPerProducer * 2; sequence++) {
+                        pending.add(producer.newMessage().sequenceId(sequence)
+                                .value(producer.getProducerName() + ":" + sequence).sendAsync());
+                    }
+                    producer.flushAsync().get(15, TimeUnit.SECONDS);
+                    // Retry OLD sequences only after newer writes succeed. A latest-message-only oracle misses these.
+                    for (int sequence = 0; sequence < messagesPerProducer; sequence++) {
+                        pending.add(producer.newMessage().sequenceId(sequence)
+                                .value(producer.getProducerName() + ":" + sequence).sendAsync());
+                    }
+                    producer.flushAsync().get(15, TimeUnit.SECONDS);
+                }
+                for (CompletableFuture<MessageId> publish : pending) {
+                    publish.get(15, TimeUnit.SECONDS);
+                }
+                for (Producer<String> producer : producers) {
+                    producer.close();
+                }
+
+                try (Consumer<String> consumer = faultClient.newConsumer(Schema.STRING).topic(topic)
+                        .subscriptionName(subscription).subscribe()) {
+                    Map<ProducerSequence, MessageId> recoveredIds = new HashMap<>();
+                    while (recoveredIds.size() < initialMessages * 2) {
+                        Message<String> message = consumer.receive(10, TimeUnit.SECONDS);
+                        recordStoredMessage(storedIds, message);
+                        // Count unique sequences, not deliveries: any number of same-ID redeliveries is legitimate.
+                        recordStoredMessage(recoveredIds, message);
+                    }
+                    assertThat(storedIds).hasSize(initialMessages * 2);
+                    assertThat(recoveredIds).as("all unacknowledged messages must redeliver with their original IDs")
+                            .containsAllEntriesOf(storedIds);
+                }
+
+                // Scan the entire retained backlog, not just until every unique sequence has been seen. Otherwise
+                // persisted duplicates at the tail can be hidden by an early completeness-based success.
+                try (Reader<String> reader = faultClient.newReader(Schema.STRING).topic(topic)
+                        .startMessageId(MessageId.earliest).create()) {
+                    Map<ProducerSequence, MessageId> scannedIds = new HashMap<>();
+                    while (reader.hasMessageAvailableAsync().get(10, TimeUnit.SECONDS)) {
+                        Message<String> message = reader.readNextAsync().get(10, TimeUnit.SECONDS);
+                        recordStoredMessage(storedIds, message);
+                        recordStoredMessage(scannedIds, message);
+                        assertThat(scannedIds.size()).isLessThanOrEqualTo(initialMessages * 2);
+                    }
+                    assertThat(scannedIds).hasSize(initialMessages * 2).containsAllEntriesOf(storedIds);
+                }
+            }
+        } finally {
+            for (String createdTopic : admin.topics().getList(namespace)) {
+                admin.topics().delete(createdTopic, true);
+            }
+            admin.namespaces().deleteNamespace(namespace);
+        }
+    }
+
+    @DataProvider
+    public Object[][] deduplicationBatching() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test
+    public void testStoredSequenceOracleAllowsRedeliveryButRejectsRepublishing() {
+        Map<ProducerSequence, MessageId> storedIds = new HashMap<>();
+        MessageId first = new BatchMessageIdImpl(1, 2, -1, 0);
+        recordStoredId(storedIds, "gateway-a", 0, first);
+        recordStoredId(storedIds, "gateway-a", 1, new MessageIdImpl(1, 3, -1));
+        recordStoredId(storedIds, "gateway-b", 0, new MessageIdImpl(1, 4, -1));
+        recordStoredId(storedIds, "gateway-a", 0, new BatchMessageIdImpl(1, 2, -1, 0));
+        assertThat(storedIds).hasSize(3);
+        // Even an old sequence at a different batch index in the SAME entry is a distinct persisted copy.
+        assertThatThrownBy(() -> recordStoredId(storedIds, "gateway-a", 0,
+                new BatchMessageIdImpl(1, 2, -1, 1))).isInstanceOf(AssertionError.class)
+                .hasMessageContaining("persisted more than once");
+        assertThatThrownBy(() -> recordStoredId(storedIds, "gateway-a", 0,
+                new MessageIdImpl(2, 0, -1))).isInstanceOf(AssertionError.class)
+                .hasMessageContaining("persisted more than once");
+    }
+
+    private record ProducerSequence(String producer, long sequence) { }
+
+    private static void recordStoredMessage(Map<ProducerSequence, MessageId> storedIds, Message<String> message) {
+        assertThat(message).as("expected a stored message").isNotNull();
+        assertThat(message.getValue()).isEqualTo(message.getProducerName() + ":" + message.getSequenceId());
+        recordStoredId(storedIds, message.getProducerName(), message.getSequenceId(), message.getMessageId());
+    }
+
+    private static void recordStoredId(Map<ProducerSequence, MessageId> storedIds, String producer, long sequence,
+                                       MessageId messageId) {
+        ProducerSequence key = new ProducerSequence(producer, sequence);
+        MessageId original = storedIds.putIfAbsent(key, messageId);
+        if (original != null) {
+            assertThat(messageId).as("%s persisted more than once; original stored ID: %s", key, original)
+                    .isEqualTo(original);
+        }
     }
 
     private void waitCacheInit(String topicName) throws Exception {

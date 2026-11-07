@@ -222,7 +222,7 @@ final class ProgressMonitor implements AutoCloseable {
                 (received - lastReceived) / seconds, bitRate((received - lastReceived) / seconds)));
         TopicStatsSampler.Backlog currentBacklog = backlog.get();
         if (currentBacklog != null) {
-            receivedLine.append(String.format(Locale.ROOT, " --- backlog: %,d msg (max per application: %,d%s)",
+            receivedLine.append(String.format(Locale.ROOT, " --- backlog: %,d entries (max per application: %,d%s)",
                     currentBacklog.total(), currentBacklog.maxSubscription(), age(currentBacklog)));
         }
         if (finishedApplications > 0 && finishedApplications < applications) {
@@ -272,13 +272,13 @@ final class ProgressMonitor implements AutoCloseable {
                 of(receivedTarget, received), (received - lastRemoteReceived) / seconds));
         TopicStatsSampler.Backlog remote = remoteBacklog.get();
         if (remote != null) {
-            remoteLine.append(String.format(Locale.ROOT, " --- backlog: %,d msg (max per application: %,d%s)",
+            remoteLine.append(String.format(Locale.ROOT, " --- backlog: %,d entries (max per application: %,d%s)",
                     remote.total(), remote.maxSubscription(), age(remote)));
         }
         TopicStatsSampler.Backlog currentBacklog = backlog.get();
         if (currentBacklog != null && currentBacklog.replication() >= 0) {
             String age = age(currentBacklog);
-            remoteLine.append(String.format(Locale.ROOT, " --- replication backlog: %,d msg%s",
+            remoteLine.append(String.format(Locale.ROOT, " --- replication backlog: %,d entries%s",
                     currentBacklog.replication(), age.isEmpty() ? "" : " (" + age.substring(2) + ")"));
         }
         if (finishedApplications > 0 && finishedApplications < remoteApplications) {

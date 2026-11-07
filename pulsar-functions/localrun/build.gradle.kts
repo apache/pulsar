@@ -30,7 +30,7 @@ dependencies {
     implementation(libs.commons.lang3)
     implementation(libs.simpleclient.httpserver)
     implementation(libs.jackson.databind)
-    implementation(libs.grpc.netty.shaded)
+    implementation(libs.grpc.netty)
     implementation(libs.grpc.stub)
     implementation(project(":pulsar-functions:pulsar-functions-proto"))
     implementation(project(":pulsar-functions:pulsar-functions-secrets"))

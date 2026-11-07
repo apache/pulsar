@@ -119,7 +119,8 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
                     new InMemoryDelayedDeliveryTracker(dispatcher, timer, 500, clock,
                             true, 0)
             }};
-            case "testWithFixedDelays", "testWithMixedDelays", "testWithNoDelays" -> new Object[][]{{
+            case "testWithFixedDelays", "testWithMixedDelays", "testWithNoDelays",
+                 "testClearResetsHighestDeliveryTime", "testClearResetsFixedDelayFlag" -> new Object[][]{{
                     new InMemoryDelayedDeliveryTracker(dispatcher, timer, 8, clock,
                             true, 100)
             }};
@@ -248,6 +249,54 @@ public class InMemoryDeliveryTrackerTest extends AbstractDeliveryTrackerTest {
         assertFalse(tracker.addMessage(5, 6, -1L));
 
         assertFalse(tracker.shouldPauseAllDeliveries());
+
+        tracker.close();
+    }
+
+    /**
+     * The dispatcher clears the tracker and rewinds the cursor when the first consumer connects to a subscription
+     * without consumers, so the messages that were tracked before are read and added again. Their delivery times are
+     * lower than the highest one seen before the clear, which must not be taken as out-of-order delivery.
+     */
+    @Test(dataProvider = "delayedTracker")
+    public void testClearResetsHighestDeliveryTime(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+        for (int i = 1; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
+            assertTrue(tracker.addMessage(i, i, i * 10));
+        }
+        assertTrue(tracker.shouldPauseAllDeliveries());
+
+        tracker.clear().get();
+
+        assertEquals(tracker.getNumberOfDelayedMessages(), 0);
+        assertFalse(tracker.shouldPauseAllDeliveries());
+
+        // The same messages are read again from the start
+        for (int i = 1; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
+            assertTrue(tracker.addMessage(i, i, i * 10));
+        }
+
+        assertTrue(tracker.shouldPauseAllDeliveries());
+
+        tracker.close();
+    }
+
+    /**
+     * Out-of-order delivery seen before the tracker was cleared says nothing about the messages added after it.
+     */
+    @Test(dataProvider = "delayedTracker")
+    public void testClearResetsFixedDelayFlag(InMemoryDelayedDeliveryTracker tracker) throws Exception {
+        assertTrue(tracker.addMessage(1, 1, 100));
+        // Add message with earlier delivery time
+        assertTrue(tracker.addMessage(1, 2, 10));
+
+        tracker.clear().get();
+
+        // All delivery times are above the highest one seen before the clear
+        for (int i = 1; i <= tracker.getFixedDelayDetectionLookahead(); i++) {
+            assertTrue(tracker.addMessage(i, i, 100 + i * 10));
+        }
+
+        assertTrue(tracker.shouldPauseAllDeliveries());
 
         tracker.close();
     }

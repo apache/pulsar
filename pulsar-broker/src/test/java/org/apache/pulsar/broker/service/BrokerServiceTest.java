@@ -24,11 +24,17 @@ import static org.apache.pulsar.common.naming.SystemTopicNames.TRANSACTION_COORD
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
@@ -44,6 +50,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.BufferedReader;
@@ -67,6 +74,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -77,7 +85,9 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
+import org.apache.bookkeeper.mledger.impl.ManagedCursorTestUtil;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.NonAppendableLedgerOffloader;
@@ -113,6 +123,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.ConnectionPool;
+import org.apache.pulsar.client.impl.PartitionedProducerImpl;
+import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.PulsarServiceNameResolver;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
@@ -290,6 +302,108 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testTimedOutTopicLoadDoesNotOpenTheManagedLedger() throws Exception {
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/timed-out-load-" + UUID.randomUUID());
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        CompletableFuture<Void> ownershipCheckStarted = new CompletableFuture<>();
+        CompletableFuture<Void> ownershipCheck = new CompletableFuture<>();
+        doAnswer(invocation -> {
+            ownershipCheckStarted.complete(null);
+            return ownershipCheck;
+        }).when(brokerService).checkTopicNsOwnership(topicName.toString());
+        ManagedLedgerFactory managedLedgerFactory = mock(ManagedLedgerFactory.class);
+        doReturn(managedLedgerFactory).when(brokerService).getManagedLedgerFactoryForTopic(eq(topicName), any());
+        TopicLoadingContext context = new TopicLoadingContext(topicName, true, new CompletableFuture<>(),
+                mock(PulsarStats.class));
+        CompletableFuture<Optional<Topic>> topicFuture = context.getTopicFuture();
+        brokerService.getTopics().put(topicName.toString(), topicFuture);
+
+        brokerService.createPersistentTopic0(context);
+        ownershipCheckStarted.get(10, TimeUnit.SECONDS);
+        // the load times out while it waits for the ownership check before opening the managed ledger
+        topicFuture.completeExceptionally(new TimeoutException("Failed to load topic within timeout"));
+        ownershipCheck.complete(null);
+
+        // the timed-out future no longer blocks a new load of the topic
+        Awaitility.await().untilAsserted(() -> assertNull(brokerService.getTopics().get(topicName.toString())));
+        verify(managedLedgerFactory, never()).asyncOpen(anyString(), any(), any(), any(), any());
+    }
+
+    @Test
+    public void testPendingTopicLoadThatTimedOutIsNotStarted() throws Exception {
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        Semaphore topicLoadSemaphore = brokerService.topicLoadRequestSemaphore.get();
+        TopicName queuedTopicName = TopicName.get("persistent://prop/ns-abc/queued-load-" + UUID.randomUUID());
+        TopicName otherTopicName = TopicName.get("persistent://prop/ns-abc/other-load-" + UUID.randomUUID());
+        TopicLoadingContext queuedContext = new TopicLoadingContext(queuedTopicName, true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        TopicLoadingContext otherContext = new TopicLoadingContext(otherTopicName, true,
+                new CompletableFuture<>(), mock(PulsarStats.class));
+        CompletableFuture<Optional<Topic>> queuedFuture = queuedContext.getTopicFuture();
+        brokerService.getTopics().put(queuedTopicName.toString(), queuedFuture);
+        brokerService.getTopics().put(otherTopicName.toString(), otherContext.getTopicFuture());
+        doReturn(CompletableFuture.completedFuture(null)).when(brokerService)
+                .checkTopicNsOwnership(queuedTopicName.toString());
+        // acquire the ownership of the bundle so that the other topic can be loaded
+        admin.lookups().lookupTopic(otherTopicName.toString());
+        try {
+            // no permits are left, so the load is queued
+            brokerService.topicLoadRequestSemaphore.set(new Semaphore(0));
+            brokerService.loadOrCreatePersistentTopic(queuedContext);
+            // the queued load times out while it waits for a permit
+            queuedFuture.completeExceptionally(new TimeoutException("Failed to load topic within timeout"));
+
+            // the next load to finish processes the queue
+            brokerService.topicLoadRequestSemaphore.set(new Semaphore(1));
+            brokerService.loadOrCreatePersistentTopic(otherContext).get(10, TimeUnit.SECONDS);
+
+            Awaitility.await().untilAsserted(
+                    () -> assertNull(brokerService.getTopics().get(queuedTopicName.toString())));
+            verify(brokerService, never()).createPersistentTopic0(argThat(c -> c == queuedContext));
+            admin.topics().delete(otherTopicName.toString(), true);
+        } finally {
+            brokerService.topicLoadRequestSemaphore.set(topicLoadSemaphore);
+        }
+    }
+
+    @Test
+    public void testPendingTopicLoadsFailWhenTheBrokerShutsDown() throws Exception {
+        BrokerService brokerService = spy(pulsar.getBrokerService());
+        Semaphore topicLoadSemaphore = brokerService.topicLoadRequestSemaphore.get();
+        long namespaceBundleUnloadingTimeoutMs = conf.getNamespaceBundleUnloadingTimeoutMs();
+        TopicName topicName = TopicName.get("persistent://prop/ns-abc/shutdown-load-" + UUID.randomUUID());
+        TopicLoadingContext context = new TopicLoadingContext(topicName, true, new CompletableFuture<>(),
+                mock(PulsarStats.class));
+        CompletableFuture<Optional<Topic>> topicFuture = context.getTopicFuture();
+        brokerService.getTopics().put(topicName.toString(), topicFuture);
+        doReturn(CompletableFuture.completedFuture(null)).when(brokerService)
+                .checkTopicNsOwnership(topicName.toString());
+        // acquire the ownership of the bundle so that the graceful unload unloads it
+        admin.lookups().lookupTopic(topicName.toString());
+        try {
+            // no permits are left, so the load is queued
+            brokerService.topicLoadRequestSemaphore.set(new Semaphore(0));
+            brokerService.loadOrCreatePersistentTopic(context);
+            assertFalse(topicFuture.isDone());
+
+            // without failing the queued load first, unloading the bundle would wait for this timeout
+            conf.setNamespaceBundleUnloadingTimeoutMs(TimeUnit.SECONDS.toMillis(60));
+            long startNanos = System.nanoTime();
+            pulsar.getBrokerService().unloadNamespaceBundlesGracefully();
+            assertThat(System.nanoTime() - startNanos).isLessThan(TimeUnit.SECONDS.toNanos(30));
+
+            assertTrue(topicFuture.isDone());
+            assertThatThrownBy(topicFuture::get)
+                    .hasCauseInstanceOf(BrokerServiceException.ServiceUnitNotReadyException.class)
+                    .hasMessageContaining("Broker is shutting down");
+        } finally {
+            brokerService.topicLoadRequestSemaphore.set(topicLoadSemaphore);
+            conf.setNamespaceBundleUnloadingTimeoutMs(namespaceBundleUnloadingTimeoutMs);
+            resetState();
+        }
+    }
+
+    @Test
     public void testNonStageTraceIsPending() {
         TopicLoadingContext context = new TopicLoadingContext(TopicName.get("persistent://public/default/test"), true,
                 new CompletableFuture<>(), mock(PulsarStats.class));
@@ -349,35 +463,62 @@ public class BrokerServiceTest extends BrokerTestBase {
     @Test
     public void testShutDownWithMaxConcurrentUnload() throws Exception {
         int bundleNum = 3;
+        int partitionCount = 12;
         cleanup();
         conf.setDefaultNumberOfNamespaceBundles(bundleNum);
         setup();
         final String topic = "persistent://prop/ns-abc/successTopic";
-        admin.topics().createPartitionedTopic(topic, 12);
-        Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
-
-        BundlesData bundlesData = admin.namespaces().getBundles("prop/ns-abc");
-        assertEquals(bundlesData.getNumBundles(), bundleNum);
-        List<String> list = admin.brokers().getActiveBrokers("test");
-        assertEquals(list.size(), 1);
-        BrokerService brokerService = pulsar.getBrokerService();
-        admin.brokers().shutDownBrokerGracefully(1, false);
-        //We can only unload one bundle per second, so it takes at least 2 seconds.
-        Awaitility.await().atLeast(bundleNum - 1, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertEquals(brokerService.getTopics().size(), 0);
-        });
-        Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
-            assertNull(pulsar.getBrokerService());
-            assertEquals(pulsar.getState(), PulsarService.State.Closed);
-        });
-        try {
-            producer.send("1".getBytes(StandardCharsets.UTF_8));
-            fail("sending msg should timeout, because broker is down and there is only one broker");
-        } catch (Exception e) {
-            assertTrue(e instanceof PulsarClientException.TimeoutException);
+        admin.topics().createPartitionedTopic(topic, partitionCount);
+        try (Producer<byte[]> producer = pulsarClient.newProducer(Schema.BYTES).topic(topic).create();
+             Producer<byte[]> timeoutProducer = pulsarClient.newProducer(Schema.BYTES).topic(topic)
+                     .sendTimeout(1, TimeUnit.SECONDS).create()) {
+            BundlesData bundlesData = admin.namespaces().getBundles("prop/ns-abc");
+            assertEquals(bundlesData.getNumBundles(), bundleNum);
+            List<String> list = admin.brokers().getActiveBrokers("test");
+            assertEquals(list.size(), 1);
+            BrokerService brokerService = pulsar.getBrokerService();
+            List<ProducerImpl<byte[]>> partitionProducers = new ArrayList<>();
+            for (Producer<byte[]> topicProducer : List.of(producer, timeoutProducer)) {
+                List<ProducerImpl<byte[]>> partitions =
+                        ((PartitionedProducerImpl<byte[]>) topicProducer).getProducers();
+                assertEquals(partitions.size(), partitionCount);
+                partitionProducers.addAll(partitions);
+            }
+            Set<Channel> producerChannels = new HashSet<>();
+            partitionProducers.forEach(partitionProducer -> {
+                assertTrue(partitionProducer.isConnected());
+                ClientCnx cnx = partitionProducer.getClientCnx();
+                assertNotNull(cnx);
+                producerChannels.add(cnx.ctx().channel());
+            });
+            List<Channel> listenChannels = List.copyOf(brokerService.getListenChannels());
+            assertFalse(listenChannels.isEmpty());
+            EventLoopGroup acceptorGroup = brokerService.getAcceptorGroup();
+            EventLoopGroup workerGroup = brokerService.executor();
+            admin.brokers().shutDownBrokerGracefully(1, false);
+            // We can only unload one bundle per second, so it takes at least 2 seconds.
+            Awaitility.await().atLeast(bundleNum - 1, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertEquals(brokerService.getTopics().size(), 0);
+            });
+            Awaitility.await().atMost(60, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertNull(pulsar.getBrokerService());
+                assertEquals(pulsar.getState(), PulsarService.State.Closed);
+                partitionProducers.forEach(partitionProducer ->
+                        assertFalse(partitionProducer.isConnected(), "Every partition producer must be disconnected"));
+                producerChannels.forEach(channel ->
+                        assertTrue(channel.closeFuture().isDone(), "Every producer connection must be closed"));
+                listenChannels.forEach(channel ->
+                        assertFalse(channel.isOpen(), "Every broker listener must be closed"));
+                assertTrue(acceptorGroup.isTerminated(), "Broker acceptor threads must terminate");
+                assertTrue(workerGroup.isTerminated(), "Broker worker threads must terminate");
+            });
+            try {
+                timeoutProducer.send("1".getBytes(StandardCharsets.UTF_8));
+                fail("sending msg should timeout, because broker is down and there is only one broker");
+            } catch (Exception e) {
+                assertTrue(e instanceof PulsarClientException.TimeoutException);
+            }
         }
-
-        producer.close();
         resetState();
     }
 
@@ -1538,9 +1679,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         ManagedCursorImpl cursor = (ManagedCursorImpl) sub.getCursor();
 
         // make cursor last active time to very small to check if it will be deleted
-        Field cursorLastActiveField = ManagedCursorImpl.class.getDeclaredField("lastActive");
-        cursorLastActiveField.setAccessible(true);
-        cursorLastActiveField.set(cursor, 0);
+        ManagedCursorTestUtil.setLastActive(cursor, 0);
 
         // replace origin object. so we can check if subscription is deleted.
         PersistentSubscription spySubscription = Mockito.spy(sub);
@@ -1767,8 +1906,9 @@ public class BrokerServiceTest extends BrokerTestBase {
         // so subscription should not be deleted.
         Thread.sleep(1000);
         persistentTopic.checkInactiveSubscriptions(1000);
+        // The check decides at once: a subscription it deletes is gone within milliseconds
         PersistentTopic finalPersistentTopic = persistentTopic;
-        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() ->
+        Awaitility.await().during(500, TimeUnit.MILLISECONDS).until(() ->
                 finalPersistentTopic.getSubscriptions().containsKey("sub1"));
         PersistentSubscription sub = persistentTopic.getSubscription("sub1");
 
@@ -1793,7 +1933,7 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // check if subscription is still present
         PersistentTopic finalPersistentTopic1 = persistentTopic;
-        Awaitility.await().pollDelay(3, TimeUnit.SECONDS).until(() ->
+        Awaitility.await().during(500, TimeUnit.MILLISECONDS).until(() ->
                 finalPersistentTopic1.getSubscriptions().containsKey("sub1"));
         sub = persistentTopic.getSubscription("sub1");
         assertNotNull(sub);
@@ -2393,6 +2533,31 @@ public class BrokerServiceTest extends BrokerTestBase {
     }
 
     @Test
+    public void testManagedLedgerCacheCopyEntriesDynamicUpdate() throws Exception {
+        String setting = "managedLedgerCacheCopyEntries";
+        var serviceConfiguration = pulsar.getConfiguration();
+        boolean originalCopyEntries = serviceConfiguration.isManagedLedgerCacheCopyEntries();
+        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getDefaultManagedLedgerFactory();
+        assertThat(pulsar.getBrokerService().isDynamicConfiguration(setting)).isTrue();
+        assertThat(admin.brokers().getAllDynamicConfigurations()).doesNotContainKey(setting);
+        try {
+            for (boolean copyEntries : new boolean[]{!originalCopyEntries, originalCopyEntries, !originalCopyEntries}) {
+                admin.brokers().updateDynamicConfiguration(setting, Boolean.toString(copyEntries));
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                    assertThat(serviceConfiguration.isManagedLedgerCacheCopyEntries()).isEqualTo(copyEntries);
+                    assertThat(factory.getConfig().isCopyEntriesInCache()).isEqualTo(copyEntries);
+                });
+            }
+        } finally {
+            admin.brokers().deleteDynamicConfiguration(setting);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                assertThat(serviceConfiguration.isManagedLedgerCacheCopyEntries()).isEqualTo(originalCopyEntries);
+                assertThat(factory.getConfig().isCopyEntriesInCache()).isEqualTo(originalCopyEntries);
+            });
+        }
+    }
+
+    @Test
     public void testManagedLedgerReadEntriesCallbackInlineConfiguration() throws Exception {
         var serviceConfiguration = pulsar.getConfiguration();
         boolean originalInline = serviceConfiguration.isManagedLedgerReadEntriesCallbackInline();
@@ -2656,10 +2821,6 @@ public class BrokerServiceTest extends BrokerTestBase {
         BrokerService brokerService = pulsar.getBrokerService();
         NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
         Topic topic = brokerService.getTopic(topicName, true).get().orElseThrow();
-        // The bundle cleanup only ever runs after unloadServiceUnit has attempted to close the topic, which
-        // fences it synchronously even on a failed/incomplete close. Mirror that precondition here.
-        ((AbstractTopic) topic).isFenced = true;
-
         // A snapshot that matches exactly what is currently cached must still be cleaned up: this is the
         // legitimate backstop case (a topic whose close() failed to remove itself from the cache).
         Map<String, CompletableFuture<Optional<Topic>>> currentSnapshot = brokerService.getTopicFuturesInBundle(bundle);
@@ -2667,6 +2828,86 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         assertFalse(brokerService.getTopicReference(topicName).isPresent(),
                 "cleanup should still remove a topic future that matches what was captured");
+    }
+
+    @Test
+    public void testBundleUnloadRemovesTopicWhoseCloseFailed() throws Exception {
+        final String namespace = "prop/failedCloseUnload" + UUID.randomUUID().toString().replace("-", "");
+        admin.namespaces().createNamespace(namespace);
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("test"), false);
+        final String topicName = "persistent://" + namespace + "/topic";
+        final BrokerService brokerService = pulsar.getBrokerService();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.close();
+        PersistentTopic topic = (PersistentTopic) brokerService.getTopicReference(topicName).orElseThrow();
+        CompletableFuture<Optional<Topic>> topicFuture = brokerService.getTopics().get(topicName);
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
+
+        // A producer whose disconnect fails makes the topic close fail, which unfences the topic again.
+        org.apache.pulsar.broker.service.Producer failingProducer =
+                mock(org.apache.pulsar.broker.service.Producer.class);
+        CompletableFuture<Void> disconnectFailure =
+                CompletableFuture.failedFuture(new RuntimeException("injected disconnect failure"));
+        doReturn(disconnectFailure).when(failingProducer).disconnect();
+        doReturn(disconnectFailure).when(failingProducer).disconnect(any());
+        topic.getProducers().put("failing-producer", failingProducer);
+        try {
+            // Wait for the clients to disconnect, so that the failed disconnect fails the topic close.
+            pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 5, TimeUnit.SECONDS, false)
+                    .get(10, TimeUnit.SECONDS);
+
+            assertNull(pulsar.getNamespaceService().getOwnershipCache().getOwnedBundle(bundle),
+                    "the bundle ownership should have been released despite the failed topic close");
+            assertThat(brokerService.getTopics().get(topicName))
+                    .as("a topic whose close failed must not stay cached after its bundle was unloaded")
+                    .isNull();
+            // Disconnected once by the failed close, and once more by the close that does not wait for it.
+            verify(failingProducer, times(2)).disconnect(any());
+            Awaitility.await().untilAsserted(() ->
+                    assertThat(((ManagedLedgerImpl) topic.getManagedLedger()).getState())
+                            .as("a topic whose close failed must be closed when its bundle is unloaded")
+                            .isEqualTo(ManagedLedgerImpl.State.Closed));
+        } finally {
+            topic.getProducers().remove("failing-producer");
+            topic.close(true, true).get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    @Test
+    public void testCleanFencedTopicsFromCacheKeepsTopicWhoseCloseFailed() throws Exception {
+        final String unfencedTopicName = "persistent://prop/ns-abc/cleanFencedKeepsUnfenced-" + UUID.randomUUID();
+        final String fencedTopicName = "persistent://prop/ns-abc/cleanFencedRemovesFenced-" + UUID.randomUUID();
+        admin.topics().createNonPartitionedTopic(unfencedTopicName);
+        admin.topics().createNonPartitionedTopic(fencedTopicName);
+        final BrokerService brokerService = pulsar.getBrokerService();
+        PersistentTopic unfencedTopic =
+                (PersistentTopic) brokerService.getTopic(unfencedTopicName, true).get().orElseThrow();
+        PersistentTopic fencedTopic =
+                (PersistentTopic) brokerService.getTopic(fencedTopicName, true).get().orElseThrow();
+        CompletableFuture<Optional<Topic>> unfencedTopicFuture = brokerService.getTopics().get(unfencedTopicName);
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(unfencedTopicName));
+        assertEquals(pulsar.getNamespaceService().getBundle(TopicName.get(fencedTopicName)), bundle);
+        // A topic whose close failed is unfenced again, while a topic still being closed stays fenced.
+        ((AbstractTopic) fencedTopic).isFenced = true;
+        try {
+            brokerService.cleanFencedTopicsFromCache(bundle, Map.of(
+                    unfencedTopicName, unfencedTopicFuture,
+                    fencedTopicName, brokerService.getTopics().get(fencedTopicName)));
+
+            assertThat(brokerService.getTopics().get(unfencedTopicName))
+                    .as("a topic whose close failed must stay cached while its bundle stays owned")
+                    .isSameAs(unfencedTopicFuture);
+            assertFalse(unfencedTopic.isFenced(), "a topic whose close failed must not be closed again");
+            assertThat(((ManagedLedgerImpl) unfencedTopic.getManagedLedger()).getState())
+                    .isNotEqualTo(ManagedLedgerImpl.State.Closed);
+            assertThat(brokerService.getTopics().get(fencedTopicName))
+                    .as("a topic still being closed is removed from the cache")
+                    .isNull();
+        } finally {
+            unfencedTopic.close(true, true).get(10, TimeUnit.SECONDS);
+            ((AbstractTopic) fencedTopic).isFenced = false;
+            fencedTopic.close(true, true).get(10, TimeUnit.SECONDS);
+        }
     }
 
     private static class BlockingCompletedFuture<T> extends CompletableFuture<T> {

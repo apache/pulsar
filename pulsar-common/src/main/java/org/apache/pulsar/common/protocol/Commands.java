@@ -119,6 +119,7 @@ import org.apache.pulsar.common.intercept.BrokerEntryMetadataInterceptor;
 import org.apache.pulsar.common.protocol.schema.SchemaVersion;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.util.Murmur3_32Hash;
 import org.apache.pulsar.common.util.collections.BitSetRecyclable;
 import org.apache.pulsar.common.util.collections.ConcurrentBitSet;
 
@@ -165,6 +166,13 @@ public class Commands {
         return LOCAL_BASE_COMMAND.get()
                 .clear()
                 .setType(type);
+    }
+
+    /**
+     * Returns whether the command is the reusable command of the current thread.
+     */
+    public static boolean isThreadLocalCommand(BaseCommand command) {
+        return command != null && command == LOCAL_BASE_COMMAND.getIfExists();
     }
 
     private static final FastThreadLocal<SingleMessageMetadata> LOCAL_SINGLE_MESSAGE_METADATA = //
@@ -329,6 +337,14 @@ public class Commands {
     public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
                                                   boolean supportsTopicWatchers, boolean supportsScalableTopics,
                                                   boolean supportsTcMetadataDiscovery) {
+        return newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
+                supportsScalableTopics, supportsTcMetadataDiscovery, true);
+    }
+
+    public static BaseCommand newConnectedCommand(int clientProtocolVersion, int maxMessageSize,
+                                                  boolean supportsTopicWatchers, boolean supportsScalableTopics,
+                                                  boolean supportsTcMetadataDiscovery,
+                                                  boolean supportsAutoProduceBytesWithoutSchema) {
         BaseCommand cmd = localCmd(Type.CONNECTED);
         CommandConnected connected = cmd.setConnected()
                 .setServerVersion("Pulsar Server" + PulsarVersion.getVersion());
@@ -350,6 +366,7 @@ public class Commands {
         connected.setFeatureFlags().setSupportsTopicWatcherReconcile(supportsTopicWatchers);
         connected.setFeatureFlags().setSupportsScalableTopics(supportsScalableTopics);
         connected.setFeatureFlags().setSupportsTcMetadataDiscovery(supportsTcMetadataDiscovery);
+        connected.setFeatureFlags().setSupportsAutoProduceBytesWithoutSchema(supportsAutoProduceBytesWithoutSchema);
         return cmd;
     }
 
@@ -363,6 +380,13 @@ public class Commands {
                                        boolean supportsScalableTopics, boolean supportsTcMetadataDiscovery) {
         return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
                 supportsScalableTopics, supportsTcMetadataDiscovery));
+    }
+
+    public static ByteBuf newConnected(int clientProtocolVersion, int maxMessageSize, boolean supportsTopicWatchers,
+                                       boolean supportsScalableTopics, boolean supportsTcMetadataDiscovery,
+                                       boolean supportsAutoProduceBytesWithoutSchema) {
+        return serializeWithSize(newConnectedCommand(clientProtocolVersion, maxMessageSize, supportsTopicWatchers,
+                supportsScalableTopics, supportsTcMetadataDiscovery, supportsAutoProduceBytesWithoutSchema));
     }
 
     public static ByteBuf newAuthChallenge(String authMethod, AuthData brokerData, int clientProtocolVersion) {
@@ -954,6 +978,15 @@ public class Commands {
                                       long epoch, boolean userProvidedProducerName,
                                       ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnabled,
                                       String initialSubscriptionName) {
+        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, schemaInfo, epoch,
+                userProvidedProducerName, accessMode, topicEpoch, isTxnEnabled, initialSubscriptionName, false);
+    }
+
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+                                      boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo,
+                                      long epoch, boolean userProvidedProducerName,
+                                      ProducerAccessMode accessMode, Optional<Long> topicEpoch, boolean isTxnEnabled,
+                                      String initialSubscriptionName, boolean isAutoProduceBytes) {
         BaseCommand cmd = localCmd(Type.PRODUCER);
         CommandProducer producer = cmd.setProducer()
                 .setTopic(topic)
@@ -963,6 +996,7 @@ public class Commands {
                 .setUserProvidedProducerName(userProvidedProducerName)
                 .setEncrypted(encrypted)
                 .setTxnEnabled(isTxnEnabled)
+                .setAutoProduceBytes(isAutoProduceBytes)
                 .setProducerAccessMode(convertProducerAccessMode(accessMode));
         if (producerName != null) {
             producer.setProducerName(producerName);
@@ -2554,6 +2588,11 @@ public class Commands {
         }
     }
 
+    /**
+     * The key that Key_Shared dispatch hashes: the ordering key, else the partition key, decoded when it is Base64,
+     * else the producer name and sequence ID. {@link #resolveStickyKeyHash(MessageMetadata)} hashes the same key, so a
+     * change to the priority here changes it there too.
+     */
     public static byte[] resolveStickyKey(MessageMetadata metadata) {
         byte[] stickyKey;
         if (metadata.hasOrderingKey()) {
@@ -2571,6 +2610,24 @@ public class Commands {
             stickyKey = NONE_KEY;
         }
         return stickyKey;
+    }
+
+    /**
+     * {@link Murmur3_32Hash#makeHash(byte[])} of {@link #resolveStickyKey(MessageMetadata)}, which hashes the key where
+     * it is: an ordering key in the metadata's buffer, and a partition key from its string, decoding a Base64 key and
+     * encoding a plain one to UTF-8 as it hashes them. It follows resolveStickyKey's priority of the keys, and leaves
+     * the other keys to it.
+     */
+    public static int resolveStickyKeyHash(MessageMetadata metadata) {
+        if (metadata.hasOrderingKey()) {
+            return Murmur3_32Hash.makeHash(metadata.getOrderingKeySlice());
+        } else if (metadata.hasPartitionKey()) {
+            if (metadata.isPartitionKeyB64Encoded()) {
+                return Murmur3_32Hash.makeHashBase64(metadata.getPartitionKey());
+            }
+            return Murmur3_32Hash.makeHashUtf8(metadata.getPartitionKey());
+        }
+        return Murmur3_32Hash.getInstance().makeHash(resolveStickyKey(metadata));
     }
 
     public static int getCurrentProtocolVersion() {

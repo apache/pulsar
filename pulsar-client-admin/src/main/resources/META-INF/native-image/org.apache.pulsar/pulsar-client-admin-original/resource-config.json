@@ -11,6 +11,45 @@
       {
         "comment": "Jersey localization bundles loaded reflectively at runtime.",
         "pattern": "org/glassfish/jersey/.*\\.properties"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/jakarta.ws.rs.client.ClientBuilder\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/jakarta.ws.rs.core.Feature\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/jakarta.ws.rs.ext.RuntimeDelegate\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.glassfish.hk2.extension.ServiceLocatorGenerator\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.glassfish.jersey.client.spi.ClientBuilderListener\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.glassfish.jersey.client.spi.ConnectorProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.glassfish.jersey.innate.inject.spi.ExternalRegistrables\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.glassfish.jersey.internal.inject.InjectionManagerFactory\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.glassfish.jersey.internal.spi.AutoDiscoverable\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.glassfish.jersey.internal.spi.ForcedAutoDiscoverable\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.glassfish.jersey.spi.ComponentProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.glassfish.jersey.spi.ExternalConfigurationProvider\\E"
+      },
+      {
+        "pattern": "\\QMETA-INF/services/org.glassfish.jersey.spi.HeaderDelegateProvider\\E"
       }
     ]
   }

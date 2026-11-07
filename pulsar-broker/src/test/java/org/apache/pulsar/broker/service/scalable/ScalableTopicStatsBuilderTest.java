@@ -22,6 +22,8 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +33,8 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ScalableSubscriptionType;
 import org.apache.pulsar.common.policies.data.ScalableTopicStats;
 import org.apache.pulsar.common.policies.data.SegmentTopicStats;
+import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.testng.annotations.Test;
 
 /**
@@ -130,6 +134,43 @@ public class ScalableTopicStatsBuilderTest {
         assertEquals(stats.getBacklogSize(), 2_000L);
         assertTrue(stats.getProducers().isEmpty());
         assertTrue(stats.getSubscriptions().isEmpty());
+    }
+
+    @Test
+    public void testOlderSegmentStatsPreserveUnknownTermination() throws Exception {
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        SegmentTopicStats older = mapper.readValue(
+                "{\"ownerBroker\":\"older-broker\",\"msgRateIn\":1.5}", SegmentTopicStats.class);
+        SegmentTopicStats roundTrip = mapper.readValue(mapper.writeValueAsString(older), SegmentTopicStats.class);
+        ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
+                TOPIC, splitLayout(), Map.of(1L, roundTrip), Map.of(), Map.of());
+
+        assertNull(stats.getLayout().getSegments().get(1L).getTerminated(),
+                "an older broker's omitted field does not prove the segment is writable");
+        assertEquals(stats.getLayout().getSegments().get(1L).getOwnerBroker(), "older-broker");
+        assertEquals(stats.getMsgRateIn(), 1.5, "unknown termination must not drop available segment stats");
+        JsonNode json = mapper.valueToTree(stats);
+        assertFalse(json.get("layout").get("segments").get("1").has("terminated"));
+        assertFalse(mapper.valueToTree(older).has("terminated"));
+        assertNull(mapper.readValue(mapper.writeValueAsString(stats), ScalableTopicStats.class)
+                .getLayout().getSegments().get(1L).getTerminated());
+    }
+
+    @Test
+    public void testExplicitSegmentTerminationSurvivesRoundTripAndAggregation() throws Exception {
+        ObjectMapper mapper = ObjectMapperFactory.getMapper().getObjectMapper();
+        for (boolean terminated : List.of(false, true)) {
+            SegmentTopicStats segment = mapper.readValue(
+                    "{\"ownerBroker\":\"new-broker\",\"terminated\":" + terminated + "}", SegmentTopicStats.class);
+            SegmentTopicStats roundTrip = mapper.readValue(mapper.writeValueAsString(segment), SegmentTopicStats.class);
+            ScalableTopicStats stats = ScalableTopicStatsBuilder.build(
+                    TOPIC, splitLayout(), Map.of(1L, roundTrip), Map.of(), Map.of());
+
+            assertEquals(stats.getLayout().getSegments().get(1L).getTerminated(), Boolean.valueOf(terminated));
+            JsonNode json = mapper.valueToTree(stats);
+            assertEquals(json.get("layout").get("segments").get("1").get("terminated").booleanValue(), terminated);
+            assertEquals(mapper.valueToTree(roundTrip).get("terminated").booleanValue(), terminated);
+        }
     }
 
     @Test
@@ -282,6 +323,46 @@ public class ScalableTopicStatsBuilderTest {
         assertEquals(stats.getSubscriptions().get("admin-queue").getType(), ScalableSubscriptionType.QUEUE);
         assertTrue(stats.getSubscriptions().get("admin-queue").getConsumers().isEmpty());
         assertEquals(stats.getSubscriptions().get("admin-queue").getMsgBacklog(), 0L);
+    }
+
+    @Test
+    public void testSegmentDiagnosticsAndSubscriptionCoverage() {
+        SegmentLayout layout = splitLayout();
+        SegmentTopicStats parent = segmentStats("broker-a", 0, 0);
+        parent.setTerminated(true);
+        parent.getSubscriptions().put("stream", subscription(10));
+        SegmentTopicStats child = segmentStats("broker-b", 0, 0);
+        child.setTerminated(true); // An ACTIVE but terminated segment exposes a partial layout operation.
+        child.getSubscriptions().put("stream", subscription(0));
+        child.getSubscriptions().get("stream").setDrainingBuckets(3);
+        SegmentTopicStats uncovered = segmentStats("broker-c", 0, 0);
+
+        ScalableTopicStats stats = ScalableTopicStatsBuilder.build(TOPIC, layout,
+                Map.of(0L, parent, 2L, child, 3L, uncovered),
+                Map.of("stream", ScalableSubscriptionType.STREAM,
+                        "queue", ScalableSubscriptionType.QUEUE),
+                Map.of("checkpoint", List.of()),
+                Map.of("stream", Set.of(2L, 3L), "queue", Set.of(2L), "checkpoint", Set.of(2L)),
+                Set.of("checkpoint"));
+
+        var segments = stats.getLayout().getSegments();
+        assertEquals(segments.get(0L).getTerminated(), Boolean.TRUE);
+        assertEquals(DateFormatter.parse(segments.get(0L).getSealedAt()), 1_000L);
+        assertEquals(DateFormatter.parse(segments.get(2L).getCreatedAt()), 1_000L);
+        assertNull(segments.get(2L).getSealedAt());
+        assertEquals(segments.get(2L).getTerminated(), Boolean.TRUE);
+        assertNull(segments.get(1L).getTerminated(), "unavailable stats do not imply writable");
+        var stream = stats.getSubscriptions().get("stream");
+        assertEquals(stream.getUncoveredSegmentIds(), List.of(3L),
+                "only confirmed missing cursors on active segments count, not unavailable stats");
+        assertFalse(stream.getSegments().get(0L).isBlocked());
+        assertTrue(stream.getSegments().get(2L).isBlocked());
+        assertTrue(stream.getSegments().get(3L).isBlocked(), "blocked even without a cursor");
+        assertEquals(stream.getSegments().get(2L).getDrainingBuckets(), 3);
+        assertEquals(stats.getSubscriptions().get("queue").getUncoveredSegmentIds(), List.of(2L, 3L));
+        assertTrue(stats.getSubscriptions().get("queue").getSegments().isEmpty());
+        assertNull(stats.getSubscriptions().get("checkpoint").getUncoveredSegmentIds());
+        assertTrue(stats.getSubscriptions().get("checkpoint").getSegments().isEmpty());
     }
 
     @Test

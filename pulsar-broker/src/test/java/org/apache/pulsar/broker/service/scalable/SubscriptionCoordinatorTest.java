@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.scalable;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -255,6 +256,65 @@ public class SubscriptionCoordinatorTest {
         } finally {
             orderedCoordinator.close();
         }
+    }
+
+    @Test
+    public void testBlockedSegmentStatsTrackEveryAncestorAndExcludeDrainedSegments() throws Exception {
+        SubscriptionCoordinator orderedCoordinator = coordinatorDrainedOnlyByTest();
+        try {
+            assertThat(orderedCoordinator.isCheckpointGroup()).as("STREAM coordinator").isFalse();
+            assertThat(orderedCoordinator.getBlockedSegmentIds()).as("initial roots have no ancestors").isEmpty();
+            orderedCoordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).splitSegment(5, 0L)).get();
+
+            assertThat(orderedCoordinator.getBlockedSegmentIds())
+                    .as("both sealed children and active descendants wait for their ancestors")
+                    .containsExactlyInAnyOrder(4L, 5L, 6L, 7L);
+
+            orderedCoordinator.markSegmentsDrained(Set.of(5L));
+            assertThat(orderedCoordinator.getBlockedSegmentIds())
+                    .as("a drained segment is retired, but its children still wait for the undrained root")
+                    .containsExactlyInAnyOrder(4L, 6L, 7L);
+
+            orderedCoordinator.markSegmentsDrained(Set.of(0L));
+            assertThat(orderedCoordinator.getBlockedSegmentIds())
+                    .as("all ancestors drained releases every descendant").isEmpty();
+        } finally {
+            orderedCoordinator.close();
+        }
+    }
+
+    @Test
+    public void testBlockedSegmentStatsClearAsAncestorsDrainInOrder() throws Exception {
+        SubscriptionCoordinator orderedCoordinator = coordinatorDrainedOnlyByTest();
+        try {
+            orderedCoordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).splitSegment(5, 0L)).get();
+            orderedCoordinator.markSegmentsDrained(Set.of(0L));
+            assertThat(orderedCoordinator.getBlockedSegmentIds())
+                    .as("only grandchildren still wait for their direct parent")
+                    .containsExactlyInAnyOrder(6L, 7L);
+
+            orderedCoordinator.markSegmentsDrained(Set.of(5L));
+            assertThat(orderedCoordinator.getBlockedSegmentIds())
+                    .as("drained ancestors are retired rather than reported as blocked").isEmpty();
+        } finally {
+            orderedCoordinator.close();
+        }
+    }
+
+    @Test
+    public void testBlockedSegmentStatsDisabledWithoutDrainCheckerAndForCheckpointGroup() throws Exception {
+        coordinator.onLayoutChange(initialLayout.splitSegment(0, 0L).splitSegment(5, 0L)).get();
+        assertThat(coordinator.isCheckpointGroup()).as("consumer type not yet known").isFalse();
+        assertThat(coordinator.getBlockedSegmentIds()).as("ordering is disabled without a drain checker").isEmpty();
+
+        coordinator.installDrainChecker((segment, sub) -> CompletableFuture.completedFuture(false));
+        assertThat(coordinator.getBlockedSegmentIds()).as("STREAM ordering enabled")
+                .containsExactlyInAnyOrder(4L, 5L, 6L, 7L);
+
+        coordinator.markCheckpointGroup();
+        assertThat(coordinator.isCheckpointGroup()).as("checkpoint consumer type is remembered").isTrue();
+        assertThat(coordinator.getBlockedSegmentIds()).as("checkpoint groups have no broker ancestor blocking")
+                .isEmpty();
     }
 
     /** A merged segment waits for the ancestors of both segments it merges. */

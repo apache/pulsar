@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.broker.resources;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
+import java.util.Optional;
+import org.apache.pulsar.broker.resources.NamespaceResources.PartitionedTopicResources;
+import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.Test;
 
 public class NamespaceResourcesTest {
@@ -30,6 +34,20 @@ public class NamespaceResourcesTest {
         assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies"));
         assertFalse(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant"));
         assertTrue(NamespaceResources.pathIsFromNamespace("/admin/policies/my-tenant/my-ns"));
+    }
+
+    @Test
+    public void testPartitionedTopicNameFromPath() {
+        assertEquals(PartitionedTopicResources.topicNameFromPath("/admin/partitioned-topics/t/ns/persistent/a%25b"),
+                Optional.of(TopicName.get("persistent://t/ns/a%b")));
+        assertEquals(PartitionedTopicResources.topicNameFromPath("/admin/partitioned-topics/t/ns/non-persistent/a"),
+                Optional.of(TopicName.get("non-persistent://t/ns/a")));
+        assertEquals(PartitionedTopicResources.topicNameFromPath("/admin/partitioned-topics/t/ns/persistent"),
+                Optional.empty());
+        assertEquals(PartitionedTopicResources.topicNameFromPath("/admin/partitioned-topics/t/cluster/ns/persistent"),
+                Optional.empty());
+        assertEquals(PartitionedTopicResources.topicNameFromPath("/admin/partitioned-topics/t"), Optional.empty());
+        assertEquals(PartitionedTopicResources.topicNameFromPath("/admin/policies/t/ns"), Optional.empty());
     }
 
 

@@ -18,22 +18,29 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -55,9 +62,11 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.BaseCommand;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 @Test(groups = "broker-impl")
@@ -80,6 +89,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         final String topicName = newTopicName();
         final String subscriptionName = "my-ex-subscription";
 
+        @Cleanup
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
                 .receiverQueueSize(0).subscribe();
         consumer.receive(10, TimeUnit.SECONDS);
@@ -101,12 +111,14 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
 
         // 2. Create Producer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
             .create();
 
         // 3. Create Consumer
+        @Cleanup
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(0).subscribe();
 
@@ -135,6 +147,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
 
         // 2. Create Producer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -143,6 +156,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         // 3. Create Consumer
         List<Message<byte[]>> messages = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(totalMessages);
+        @Cleanup
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(0).messageListener((cons, msg) -> {
                     assertEquals(((ConsumerImpl) cons).numMessagesInQueue(), 0);
@@ -176,6 +190,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
 
         // 2. Create Producer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -205,6 +220,9 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
             assertEquals(consumers[i % numOfSubscribers].numMessagesInQueue(), 0);
             log.info("Consumer received : " + new String(message.getData()));
         }
+        for (ConsumerImpl<?> consumer : consumers) {
+            consumer.close();
+        }
     }
 
     @Test
@@ -214,6 +232,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         final String messagePredicate = "my-message-";
 
         // 2. Create Producer
+        @Cleanup
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
             .enableBatching(false)
             .messageRoutingMode(MessageRoutingMode.SinglePartition)
@@ -241,6 +260,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
             log.info("Consumer received : " + new String(message.getData()));
         }
 
+        @Cleanup
         ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                 .subscriptionName(subscriptionName).receiverQueueSize(0).subscriptionType(SubscriptionType.Failover)
                 .consumerName("consumer-2").subscribe();
@@ -282,22 +302,30 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         }
 
         Producer<byte[]> producer = producerBuilder.create();
+        // send asynchronously so the messages are grouped into batches: a synchronous send would flush a batch
+        // with a single message, which the producer publishes as a non-batched message
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
-            producer.send(message.getBytes());
+            producer.sendAsync(message.getBytes());
         }
+        producer.flush();
 
-        try {
-            consumer.receiveAsync().handle((ok, e) -> {
-                if (e == null) {
-                    // as zero receiverQueueSize doesn't support batch message, must receive exception at callback.
-                    Assert.fail();
-                }
-                return null;
-            });
-        } finally {
-            consumer.close();
-        }
+        AtomicReference<Throwable> exceptionRef = new AtomicReference<>();
+
+        consumer.receiveAsync().handle((ok, e) -> {
+            // as zero receiverQueueSize doesn't support batch message, must receive exception at callback.
+            exceptionRef.set(e);
+            return null;
+        });
+        Awaitility.await().untilAsserted(() -> assertNotNull(exceptionRef.get()));
+        assertEquals(exceptionRef.get().getClass(), PulsarClientException.InvalidMessageException.class);
+        assertEquals(exceptionRef.get().getMessage(),
+                String.format("Unsupported Batch message with 0 size receiver queue for [%s]-[%s] ",
+                        consumer.getSubscription(), consumer.getConsumerName()));
+        // zeroConsumerImpl will close when received batch message.
+        Awaitility.await().untilAsserted(()-> Assert.assertFalse(consumer.isConnected()));
+
+        producer.close();
     }
 
     @Test
@@ -423,6 +451,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
                 .batchingMaxPublishDelay(10, TimeUnit.SECONDS)
                 .batchingMaxMessages(5);
 
+        @Cleanup
         Producer<byte[]> producer = producerBuilder.create();
 
         // send a batch message to trigger zeroQueueConsumer to close
@@ -595,6 +624,372 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         return consumers.get(0).getAvailablePermits();
     }
 
+    private int getBrokerAvailablePermits(String topicName, String consumerName) throws Exception {
+        return admin.topics().getStats(topicName).getSubscriptions().get("sub").getConsumers().stream()
+                .filter(consumer -> consumerName.equals(consumer.getConsumerName()))
+                .findFirst().orElseThrow().getAvailablePermits();
+    }
+
+    @DataProvider
+    public Object[][] failedUnsubscribeListenerCompletionOrder() {
+        return new Object[][] {{true, false, false}, {false, false, false},
+                {true, true, false}, {true, true, true}};
+    }
+
+    @Test(timeOut = 60000, dataProvider = "failedUnsubscribeListenerCompletionOrder")
+    public void testFailedUnsubscribePreservesListenerPermit(boolean listenerFinishesBeforeError,
+                                                            boolean paused,
+                                                            boolean resumeDuringUnsubscribe) throws Exception {
+        String topic = newTopicName();
+        CountDownLatch listenerEntered = new CountDownLatch(1);
+        CountDownLatch releaseListener = new CountDownLatch(1);
+        CompletableFuture<Void> listenerFinished = new CompletableFuture<>();
+        CompletableFuture<Void> secondMessage = new CompletableFuture<>();
+        List<String> received = new CopyOnWriteArrayList<>();
+        try (PulsarClient client = newPulsarClient();
+             ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                     .topic(topic).subscriptionName("sub").consumerName("listener")
+                     .subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
+                     .acknowledgmentGroupTime(0, TimeUnit.MILLISECONDS)
+                     .messageListener((c, msg) -> {
+                         c.acknowledgeAsync(msg);
+                         received.add(msg.getValue());
+                         if ("first".equals(msg.getValue())) {
+                             listenerEntered.countDown();
+                             try {
+                                 assertThat(releaseListener.await(30, TimeUnit.SECONDS)).isTrue();
+                                 listenerFinished.complete(null);
+                             } catch (Throwable t) {
+                                 listenerFinished.completeExceptionally(t);
+                             }
+                         } else {
+                             secondMessage.complete(null);
+                         }
+                     }).subscribe();
+             Consumer<String> otherConsumer = client.newConsumer(Schema.STRING).topic(topic)
+                     .subscriptionName("sub").subscriptionType(SubscriptionType.Shared).receiverQueueSize(0)
+                     .subscribe();
+             Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
+                     .enableBatching(false).create()) {
+            // The second consumer has no receive pending and therefore cannot take the listener's message.
+            producer.send("first");
+            assertThat(listenerEntered.await(10, TimeUnit.SECONDS)).isTrue();
+            ClientCnx cnx = consumer.getClientCnx();
+            long epoch = consumer.getConnectionHandler().getEpoch();
+            if (paused) {
+                consumer.pause();
+            }
+            try (ConsumerResponseGate gate = new ConsumerResponseGate(consumer, BaseCommand.Type.UNSUBSCRIBE)) {
+                if (resumeDuringUnsubscribe) {
+                    // Accumulate a permit while Ready and paused, then resume while unsubscribe is pending.
+                    releaseListener.countDown();
+                    listenerFinished.get(10, TimeUnit.SECONDS);
+                    awaitListenerTasks(consumer);
+                    assertThat(consumer.getAvailablePermits()).isEqualTo(1);
+                }
+                // The real broker rejects this request because another consumer shares the subscription.
+                CompletableFuture<Void> unsubscribe = consumer.unsubscribeAsync(false);
+                gate.responseHeld.get(10, TimeUnit.SECONDS);
+                assertThat(consumer.getState()).isEqualTo(HandlerState.State.Closing);
+                if (listenerFinishesBeforeError) {
+                    releaseListener.countDown();
+                    listenerFinished.get(10, TimeUnit.SECONDS);
+                    awaitListenerTasks(consumer);
+                }
+                if (resumeDuringUnsubscribe) {
+                    consumer.resume();
+                }
+                gate.awaitWrites();
+                assertThat(gate.commands).as("permits remain deferred while unsubscribe is pending").isEmpty();
+
+                gate.completeResponse();
+                assertThatThrownBy(() -> unsubscribe.get(10, TimeUnit.SECONDS))
+                        .hasCauseInstanceOf(PulsarClientException.BrokerMetadataException.class);
+                assertThat(consumer.isConnected()).isTrue();
+                assertThat(consumer.getClientCnx()).isSameAs(cnx);
+                assertThat(consumer.getConnectionHandler().getEpoch()).as("no reconnect replenishes permits")
+                        .isEqualTo(epoch);
+                if (!listenerFinishesBeforeError) {
+                    releaseListener.countDown();
+                    listenerFinished.get(10, TimeUnit.SECONDS);
+                    awaitListenerTasks(consumer);
+                }
+                if (paused && !resumeDuringUnsubscribe) {
+                    gate.awaitWrites();
+                    assertThat(gate.commands).as("unsubscribe failure preserves pause").isEmpty();
+                    assertThat(consumer.getAvailablePermits()).isEqualTo(1);
+                    consumer.resume();
+                }
+
+                Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                        assertThat(getBrokerAvailablePermits(topic, consumer.getConsumerName())).isEqualTo(1));
+                gate.awaitWrites();
+                assertThat(gate.commands).containsExactly(BaseCommand.Type.FLOW);
+                assertThat(gate.permits.get()).isEqualTo(1);
+                producer.send("second");
+                secondMessage.get(10, TimeUnit.SECONDS);
+                assertThat(received).containsExactly("first", "second");
+            } finally {
+                releaseListener.countDown();
+            }
+        } finally {
+            releaseListener.countDown();
+        }
+    }
+
+    @DataProvider
+    public Object[][] listenerReconnectCompletionOrder() {
+        return new Object[][] {{true, false}, {false, false}, {true, true}};
+    }
+
+    @Test(timeOut = 60000, dataProvider = "listenerReconnectCompletionOrder")
+    public void testListenerReconnectSendsAckBeforeSinglePermit(boolean listenerFinishesBeforeSubscribe,
+                                                              boolean resumeDuringSubscribe) throws Exception {
+        String topic = newTopicName();
+        CountDownLatch listenerEntered = new CountDownLatch(1);
+        CountDownLatch releaseListener = new CountDownLatch(1);
+        CompletableFuture<Void> listenerFinished = new CompletableFuture<>();
+        CompletableFuture<Void> secondMessage = new CompletableFuture<>();
+        List<String> received = new CopyOnWriteArrayList<>();
+        try (PulsarClient client = newPulsarClient();
+             ConsumerImpl<String> consumer = (ConsumerImpl<String>) client.newConsumer(Schema.STRING)
+                     .topic(topic).subscriptionName("sub").receiverQueueSize(0)
+                     .acknowledgmentGroupTime(1, TimeUnit.HOURS)
+                     .messageListener((c, msg) -> {
+                         c.acknowledgeAsync(msg);
+                         received.add(msg.getValue());
+                         if ("first".equals(msg.getValue())) {
+                             listenerEntered.countDown();
+                             try {
+                                 assertThat(releaseListener.await(30, TimeUnit.SECONDS)).isTrue();
+                                 listenerFinished.complete(null);
+                             } catch (Throwable t) {
+                                 listenerFinished.completeExceptionally(t);
+                             }
+                         } else {
+                             secondMessage.complete(null);
+                         }
+                     }).subscribe();
+             Producer<String> producer = pulsarClient.newProducer(Schema.STRING).topic(topic)
+                     .enableBatching(false).create()) {
+            producer.send("first");
+            assertThat(listenerEntered.await(10, TimeUnit.SECONDS)).isTrue();
+            try (ConsumerResponseGate gate = new ConsumerResponseGate(consumer, BaseCommand.Type.SUBSCRIBE)) {
+                if (resumeDuringSubscribe) {
+                    // Finish while paused on the old connection, leaving one permit for resume() to flush.
+                    consumer.pause();
+                    releaseListener.countDown();
+                    listenerFinished.get(10, TimeUnit.SECONDS);
+                    awaitListenerTasks(consumer);
+                    assertThat(consumer.getAvailablePermits()).isEqualTo(1);
+                }
+
+                admin.topics().unload(topic);
+                gate.responseHeld.get(10, TimeUnit.SECONDS);
+                assertThat(consumer.getState()).isEqualTo(HandlerState.State.Connecting);
+
+                if (listenerFinishesBeforeSubscribe) {
+                    releaseListener.countDown();
+                    listenerFinished.get(10, TimeUnit.SECONDS);
+                    awaitListenerTasks(consumer);
+                    if (resumeDuringSubscribe) {
+                        consumer.resume();
+                    }
+                    gate.awaitWrites();
+                    assertThat(gate.commands).as("commands before the SUBSCRIBE response").isEmpty();
+                }
+
+                gate.completeResponse();
+                assertThat(consumer.isConnected()).isTrue();
+                if (!listenerFinishesBeforeSubscribe) {
+                    assertThat(gate.commands).as("the running listener still owns the permit")
+                            .containsExactly(BaseCommand.Type.ACK);
+                    releaseListener.countDown();
+                    listenerFinished.get(10, TimeUnit.SECONDS);
+                    awaitListenerTasks(consumer);
+                }
+                gate.awaitWrites();
+                assertThat(gate.commands).containsExactly(BaseCommand.Type.ACK, BaseCommand.Type.FLOW);
+                assertThat(gate.permits.get()).isEqualTo(1);
+                Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                        .untilAsserted(() -> assertThat(getBrokerAvailablePermits(topic)).isEqualTo(1));
+
+                producer.send("second");
+                secondMessage.get(10, TimeUnit.SECONDS);
+                assertThat(received).containsExactly("first", "second");
+            } finally {
+                releaseListener.countDown();
+            }
+        } finally {
+            releaseListener.countDown();
+        }
+    }
+
+    private static void awaitListenerTasks(ConsumerImpl<?> consumer) throws Exception {
+        CompletableFuture<Void> done = new CompletableFuture<>();
+        consumer.externalPinnedExecutor.execute(() -> done.complete(null));
+        done.get(10, TimeUnit.SECONDS);
+    }
+
+    // Delay a real broker response without blocking the connection's event loop or replacing the broker.
+    private static final class ConsumerResponseGate extends ChannelDuplexHandler implements AutoCloseable {
+        private final ClientCnx cnx;
+        private final long consumerId;
+        private final BaseCommand.Type requestType;
+        private final CompletableFuture<Void> responseHeld = new CompletableFuture<>();
+        private final List<BaseCommand.Type> commands = new CopyOnWriteArrayList<>();
+        private final AtomicInteger permits = new AtomicInteger();
+        private long requestId = -1;
+        private ByteBuf response;
+        private ChannelHandlerContext context;
+
+        private ConsumerResponseGate(ConsumerImpl<?> consumer, BaseCommand.Type requestType) throws Exception {
+            cnx = consumer.getClientCnx();
+            consumerId = consumer.consumerId;
+            this.requestType = requestType;
+            cnx.channel().eventLoop().submit(() -> cnx.channel().pipeline()
+                    .addBefore(cnx.ctx().name(), "consumer-response-gate", this)).get(10, TimeUnit.SECONDS);
+        }
+
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            if (msg instanceof ByteBuf frame) {
+                ByteBuf view = frame.duplicate();
+                view.skipBytes(Integer.BYTES); // Outbound frames include the total length.
+                BaseCommand command = readCommand(view);
+                if (command.getType() == requestType) {
+                    if (requestType == BaseCommand.Type.SUBSCRIBE
+                            && command.getSubscribe().getConsumerId() == consumerId) {
+                        requestId = command.getSubscribe().getRequestId();
+                    } else if (requestType == BaseCommand.Type.UNSUBSCRIBE
+                            && command.getUnsubscribe().getConsumerId() == consumerId) {
+                        requestId = command.getUnsubscribe().getRequestId();
+                    }
+                } else if (requestId != -1) {
+                    if (command.getType() == BaseCommand.Type.FLOW
+                            && command.getFlow().getConsumerId() == consumerId) {
+                        commands.add(command.getType());
+                        permits.addAndGet(command.getFlow().getMessagePermits());
+                    } else if (command.getType() == BaseCommand.Type.ACK
+                            && command.getAck().getConsumerId() == consumerId) {
+                        commands.add(command.getType());
+                    }
+                }
+            }
+            super.write(ctx, msg, promise);
+        }
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            BaseCommand command = readCommand(((ByteBuf) msg).duplicate());
+            long responseRequestId = switch (command.getType()) {
+                case SUCCESS -> command.getSuccess().getRequestId();
+                case ERROR -> command.getError().getRequestId();
+                default -> -1;
+            };
+            if (requestId != -1 && responseRequestId == requestId) {
+                response = (ByteBuf) msg;
+                context = ctx;
+                responseHeld.complete(null);
+            } else {
+                super.channelRead(ctx, msg);
+            }
+        }
+
+        private static BaseCommand readCommand(ByteBuf view) {
+            int commandSize = view.readInt();
+            BaseCommand command = new BaseCommand();
+            command.parseFrom(view, commandSize);
+            return command;
+        }
+
+        private void awaitWrites() throws Exception {
+            cnx.channel().eventLoop().submit(() -> { }).get(10, TimeUnit.SECONDS);
+        }
+
+        private void completeResponse() throws Exception {
+            cnx.channel().eventLoop().submit(() -> {
+                ByteBuf frame = response;
+                response = null;
+                context.fireChannelRead(frame);
+            }).get(10, TimeUnit.SECONDS);
+        }
+
+        @Override
+        public void close() throws Exception {
+            cnx.channel().eventLoop().submit(() -> {
+                if (response != null) {
+                    response.release();
+                    response = null;
+                }
+                cnx.channel().pipeline().remove(this);
+            }).get(10, TimeUnit.SECONDS);
+        }
+    }
+
+    @DataProvider
+    public Object[][] receiveCompletionBeforeRegistration() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(timeOut = 30000, dataProvider = "receiveCompletionBeforeRegistration")
+    public void testCompletedReceiveBeforeRegistrationDoesNotSendPermit(boolean timeout) throws Exception {
+        String topicName = newTopicName();
+        @Cleanup PulsarClient client = newPulsarClient();
+        @Cleanup Consumer<String> consumer = client.newConsumer(Schema.STRING)
+                .topic(topicName)
+                .subscriptionName("sub")
+                .subscriptionType(SubscriptionType.Shared)
+                .receiverQueueSize(0)
+                .subscribe();
+        @Cleanup Producer<String> producer = pulsarClient.newProducer(Schema.STRING)
+                .topic(topicName)
+                .enableBatching(false)
+                .create();
+
+        ConsumerImpl<?> consumerImpl = (ConsumerImpl<?>) consumer;
+        CountDownLatch blocked = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        try {
+            // Hold registration until the application has cancelled or timed out the receive.
+            consumerImpl.internalPinnedExecutor.execute(() -> {
+                blocked.countDown();
+                try {
+                    release.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            });
+            assertThat(blocked.await(10, TimeUnit.SECONDS)).isTrue();
+            CompletableFuture<Message<String>> completedReceive = consumer.receiveAsync();
+            if (timeout) {
+                completedReceive.orTimeout(0, TimeUnit.MILLISECONDS);
+                assertThatThrownBy(() -> completedReceive.get(10, TimeUnit.SECONDS))
+                        .isInstanceOf(ExecutionException.class).hasCauseInstanceOf(TimeoutException.class);
+            } else {
+                assertThat(completedReceive.cancel(false)).isTrue();
+            }
+            release.countDown();
+            consumerImpl.internalPinnedExecutor.submit(() -> { }).get(10, TimeUnit.SECONDS);
+            // This request follows any FLOW on the same connection, so a zero-permit assertion
+            // cannot pass merely because the broker has not processed the registration yet.
+            consumer.getLastMessageIdsAsync().get(10, TimeUnit.SECONDS);
+            assertThat(getBrokerAvailablePermits(topicName))
+                    .as("a completed receive must not authorize prefetch").isZero();
+
+            CompletableFuture<Message<String>> receive = consumer.receiveAsync();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS)
+                    .untilAsserted(() -> assertThat(getBrokerAvailablePermits(topicName)).isEqualTo(1));
+            producer.send("message");
+            Message<String> message = receive.get(10, TimeUnit.SECONDS);
+            assertThat(message.getValue()).isEqualTo("message");
+            consumer.acknowledge(message);
+            message.release();
+        } finally {
+            release.countDown();
+        }
+    }
+
     @Test(timeOut = 30000)
     public void testReceiveAsyncRegisteredAfterReconnectionNotStuck() throws Exception {
         String topicName = newTopicName();
@@ -710,6 +1105,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
         AtomicBoolean running = new AtomicBoolean(false);
 
         final List<Integer> receivedMessages = Collections.synchronizedList(new ArrayList<>());
+        @Cleanup
         final Consumer<Integer> consumer = pulsarClient.newConsumer(Schema.INT32)
                 .topic(topicName)
                 .subscriptionName(subName)
@@ -726,6 +1122,7 @@ public class ZeroQueueSizeTest extends SharedPulsarBaseTest {
                         object.notifyAll();
                     }
                 }).subscribe();
+        @Cleanup
         final Producer<Integer> producer = pulsarClient.newProducer(Schema.INT32)
                 .topic(topicName)
                 .enableBatching(false)

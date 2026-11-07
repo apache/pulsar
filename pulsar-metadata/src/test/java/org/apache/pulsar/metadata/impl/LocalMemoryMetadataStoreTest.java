@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.metadata.impl;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -27,10 +28,15 @@ import com.google.common.collect.Sets;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import lombok.Cleanup;
@@ -43,12 +49,92 @@ import org.apache.pulsar.metadata.api.MetadataStoreFactory;
 import org.apache.pulsar.metadata.api.NotificationType;
 import org.apache.pulsar.metadata.api.Stat;
 import org.apache.pulsar.metadata.api.extended.CreateOption;
+import org.apache.pulsar.metadata.api.extended.SessionEvent;
+import org.apache.pulsar.metadata.tableview.impl.MetadataStoreTableViewImpl;
 import org.awaitility.Awaitility;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 public class LocalMemoryMetadataStoreTest {
 
     HashSet<CreateOption> emptySet = new HashSet<>();
+
+    @DataProvider
+    public Object[][] cacheStoreWrappers() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "cacheStoreWrappers")
+    public void testTableViewCloseUnregistersMetadataCache(boolean useFaultInjectionStore) throws Exception {
+        try (var store = new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build())) {
+            int baseline = store.getMetadataCacheCount();
+            for (int i = 0; i < 3; i++) {
+                var tableView = MetadataStoreTableViewImpl.<Integer>builder()
+                        .name("cache-lifecycle")
+                        .clazz(Integer.class)
+                        .store(useFaultInjectionStore ? new FaultInjectionMetadataStore(store) : store)
+                        .pathPrefix("/table-view")
+                        .listenPathValidator(path -> path.startsWith("/table-view/"))
+                        .conflictResolver((oldValue, newValue) -> true)
+                        .timeoutInMillis(10_000)
+                        .build();
+                try {
+                    tableView.start();
+                    tableView.put("key", i).get(10, TimeUnit.SECONDS);
+                    assertThat(store.getMetadataCacheCount()).isEqualTo(baseline + 1);
+                } finally {
+                    tableView.close();
+                }
+                assertThat(store.getMetadataCacheCount())
+                        .as("closing a table view must release its cache from the shared store")
+                        .isEqualTo(baseline);
+            }
+        }
+    }
+
+    @Test
+    public void testCancelledSessionListenerIsNotNotified() throws Exception {
+        @Cleanup
+        LocalMemoryMetadataStore store =
+                new LocalMemoryMetadataStore("memory:local", MetadataStoreConfig.builder().build());
+        List<SessionEvent> cancelledListenerEvents = new CopyOnWriteArrayList<>();
+        Runnable cancelSessionListener = store.registerCancellableSessionListener(cancelledListenerEvents::add);
+        BlockingQueue<SessionEvent> events = new LinkedBlockingQueue<>();
+        store.registerCancellableSessionListener(events::add);
+
+        cancelSessionListener.run();
+        cancelSessionListener.run();
+        store.receivedSessionEvent(SessionEvent.SessionLost);
+
+        assertEquals(events.poll(10, TimeUnit.SECONDS), SessionEvent.SessionLost);
+        assertTrue(cancelledListenerEvents.isEmpty());
+        assertEquals(store.getSessionListenerCount(), 1);
+    }
+
+    @Test
+    public void testClosedStoreIsUnregisteredFromSharedStores() throws Exception {
+        String url = "memory:" + UUID.randomUUID();
+        @Cleanup
+        LocalMemoryMetadataStore store1 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
+        int listenerCountWithoutSharedStores = store1.getListenerCount();
+        @Cleanup
+        LocalMemoryMetadataStore store2 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
+        @Cleanup
+        LocalMemoryMetadataStore store3 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
+        assertEquals(store1.getListenerCount(), listenerCountWithoutSharedStores + 2);
+        assertEquals(store2.getListenerCount(), listenerCountWithoutSharedStores + 2);
+
+        // Closing the store that registered the listeners of both directions, and the one that didn't
+        store2.close();
+        store1.close();
+
+        assertEquals(store3.getListenerCount(), listenerCountWithoutSharedStores);
+        // The stores created later are still linked with the open ones
+        @Cleanup
+        LocalMemoryMetadataStore store4 = new LocalMemoryMetadataStore(url, MetadataStoreConfig.builder().build());
+        assertEquals(store3.getListenerCount(), listenerCountWithoutSharedStores + 1);
+        assertEquals(store4.getListenerCount(), listenerCountWithoutSharedStores + 1);
+    }
     @Test
     public void testNotifyEvent() throws Exception {
         TestMetadataEventSynchronizer sync = new TestMetadataEventSynchronizer();

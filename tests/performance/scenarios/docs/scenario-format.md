@@ -33,7 +33,9 @@ into the workload containers.
   in the workloads' service URL instead of the first, see
   [Brokers in the service URL](../../docs/network-conditions.md#brokers-in-the-service-url). `remote` adds a second
   cluster that the workload's topics replicate to, with applications that consume there, see
-  [Geo-replication](../../docs/network-conditions.md#geo-replication). The IoT telemetry scenarios get it from a
+  [Geo-replication](../../docs/network-conditions.md#geo-replication). `tls.enabled: true` connects the workloads to
+  the brokers with TLS, see [TLS](../README.md#tls), and `jwt.enabled: true` makes the brokers authenticate the
+  clients with tokens, see [JWT authentication](../README.md#jwt-authentication); either works without the other. The IoT telemetry scenarios get it from a
   [memory configuration](../README.md#memory-configurations), which also sets the workload containers' `PULSAR_MEM`.
   A scenario with `offload`, or whose late applications skip messages, reset their subscriptions or unload their
   topics before they join, also starts one Pulsar proxy, through which the launcher sends its admin requests, such as

@@ -18,12 +18,14 @@
  */
 package org.apache.pulsar.client.impl;
 
+import io.netty.buffer.ByteBuf;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.pulsar.broker.service.SharedPulsarBaseTest;
@@ -119,73 +121,75 @@ public class ProduceWithMessageIdTest extends SharedPulsarBaseTest {
         Awaitility.await().untilTrue(result);
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void sendWithCallBack() throws Exception {
-
         int batchSize = 10;
-
         String topic = newTopicName();
-        ProducerImpl<byte[]> producer =
-                (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic)
-                        .enableBatching(true)
-                        .batchingMaxMessages(batchSize)
-                        .create();
-
-        CountDownLatch cdl = new CountDownLatch(1);
-        AtomicReference<OpSendMsgStats> sendMsgStats = new AtomicReference<>();
-        SendCallback sendComplete = new SendCallback() {
-            @Override
-            public void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats) {
-                log.info().exception(e).log("sendComplete");
-                if (e == null){
-                    sendMsgStats.set(opSendMsgStats);
-                    cdl.countDown();
+        List<ByteBuf> payloads = new ArrayList<>(batchSize);
+        try (ProducerImpl<byte[]> producer =
+                     (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topic)
+                             .enableBatching(true)
+                             // Flush on the message count, so the timer cannot split the expected batch.
+                             .batchingMaxPublishDelay(1, TimeUnit.DAYS)
+                             .batchingMaxMessages(batchSize)
+                             .create()) {
+            CompletableFuture<OpSendMsgStats> sendMsgStats = new CompletableFuture<>();
+            SendCallback sendComplete = new SendCallback() {
+                @Override
+                public void sendComplete(Throwable e, OpSendMsgStats opSendMsgStats) {
+                    if (e == null) {
+                        sendMsgStats.complete(opSendMsgStats);
+                    } else {
+                        sendMsgStats.completeExceptionally(e);
+                    }
                 }
+
+                @Override
+                public void addCallback(MessageImpl<?> msg, SendCallback scb) {
+
+                }
+
+                @Override
+                public SendCallback getNextSendCallback() {
+                    return null;
+                }
+
+                @Override
+                public MessageImpl<?> getNextMessage() {
+                    return null;
+                }
+
+                @Override
+                public CompletableFuture<MessageId> getFuture() {
+                    return null;
+                }
+            };
+            int totalReadabled = 0;
+            int totalUncompressedSize = 0;
+            for (int i = 0; i < batchSize; i++) {
+                MessageMetadata metadata = new MessageMetadata();
+                ByteBuffer buffer = ByteBuffer.wrap("data".getBytes(StandardCharsets.UTF_8));
+                MessageImpl<byte[]> msg = MessageImpl.create(metadata, buffer, Schema.BYTES, topic);
+                payloads.add(msg.getDataBuffer().retain());
+                totalReadabled += msg.getDataBuffer().readableBytes();
+                totalUncompressedSize += msg.getUncompressedSize();
+                producer.sendAsync(msg, sendComplete);
             }
 
-            @Override
-            public void addCallback(MessageImpl<?> msg, SendCallback scb) {
-
-            }
-
-            @Override
-            public SendCallback getNextSendCallback() {
-                return null;
-            }
-
-            @Override
-            public MessageImpl<?> getNextMessage() {
-                return null;
-            }
-
-            @Override
-            public CompletableFuture<MessageId> getFuture() {
-                return null;
-            }
-        };
-        int totalReadabled = 0;
-        int totalUncompressedSize = 0;
-        for (int i = 0; i < batchSize; i++) {
-            MessageMetadata metadata = new MessageMetadata();
-            ByteBuffer buffer = ByteBuffer.wrap("data".getBytes(StandardCharsets.UTF_8));
-            MessageImpl<byte[]> msg = MessageImpl.create(metadata, buffer, Schema.BYTES, topic);
-            msg.getDataBuffer().retain();
-            totalReadabled += msg.getDataBuffer().readableBytes();
-            totalUncompressedSize += msg.getUncompressedSize();
-            producer.sendAsync(msg, sendComplete);
+            OpSendMsgStats opSendMsgStats = sendMsgStats.get(10, TimeUnit.SECONDS);
+            // uncompressedSize includes both message payloads and the batch buffer allocation,
+            // whose actual capacity depends on the allocator and may differ from the requested size
+            Assert.assertTrue(opSendMsgStats.getUncompressedSize() >= totalUncompressedSize);
+            Assert.assertEquals(opSendMsgStats.getSequenceId(), 0);
+            Assert.assertEquals(opSendMsgStats.getRetryCount(), 1);
+            Assert.assertEquals(opSendMsgStats.getBatchSizeByte(), totalReadabled);
+            Assert.assertEquals(opSendMsgStats.getNumMessagesInBatch(), batchSize);
+            Assert.assertEquals(opSendMsgStats.getHighestSequenceId(), batchSize - 1);
+            Assert.assertEquals(opSendMsgStats.getTotalChunks(), 0);
+            Assert.assertEquals(opSendMsgStats.getChunkId(), -1);
+        } finally {
+            // Custom callbacks do not release the payload reference retained for batch serialization.
+            payloads.forEach(ByteBuf::release);
         }
-
-        cdl.await();
-        OpSendMsgStats opSendMsgStats = sendMsgStats.get();
-        // uncompressedSize includes both message payloads and the batch buffer allocation,
-        // whose actual capacity depends on the allocator and may differ from the requested size
-        Assert.assertTrue(opSendMsgStats.getUncompressedSize() >= totalUncompressedSize);
-        Assert.assertEquals(opSendMsgStats.getSequenceId(), 0);
-        Assert.assertEquals(opSendMsgStats.getRetryCount(), 1);
-        Assert.assertEquals(opSendMsgStats.getBatchSizeByte(), totalReadabled);
-        Assert.assertEquals(opSendMsgStats.getNumMessagesInBatch(), batchSize);
-        Assert.assertEquals(opSendMsgStats.getHighestSequenceId(), batchSize - 1);
-        Assert.assertEquals(opSendMsgStats.getTotalChunks(), 0);
-        Assert.assertEquals(opSendMsgStats.getChunkId(), -1);
     }
 }

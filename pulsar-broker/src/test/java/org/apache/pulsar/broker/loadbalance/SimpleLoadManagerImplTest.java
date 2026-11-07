@@ -31,10 +31,13 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.lang.reflect.Field;
+import java.net.URI;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -43,7 +46,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import lombok.Cleanup;
 import lombok.CustomLog;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.commons.lang3.SystemUtils;
@@ -78,16 +80,19 @@ import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUnitRanking;
 import org.apache.pulsar.policies.data.loadbalancer.ResourceUsage;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
+import org.apache.pulsar.tests.TestRetrySupport;
 import org.apache.pulsar.utils.ResourceUtils;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
+import org.awaitility.Awaitility;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 @CustomLog
 @Test(groups = "broker")
-public class SimpleLoadManagerImplTest {
+public class SimpleLoadManagerImplTest extends TestRetrySupport {
 
     public static final String CA_CERT_FILE_PATH =
             ResourceUtils.getAbsolutePath("certificate-authority/certs/ca.cert.pem");
@@ -120,8 +125,14 @@ public class SimpleLoadManagerImplTest {
 
     ExecutorService executor = new ThreadPoolExecutor(5, 20, 30, TimeUnit.SECONDS, new LinkedBlockingQueue<>());
 
-    @BeforeMethod
-    void setup() throws Exception {
+    // The load managers the test methods create share pulsar1's lock manager, and stopping one closes it, which
+    // releases pulsar1's registration: they are stopped with the brokers.
+    private final List<SimpleLoadManagerImpl> loadManagersToStop = new ArrayList<>();
+
+    @BeforeClass(alwaysRun = true)
+    @Override
+    protected void setup() throws Exception {
+        incrementSetupNumber();
 
         // Start local bookkeeper ensemble
         bkEnsemble = new LocalBookkeeperEnsemble(3, 0);
@@ -145,7 +156,7 @@ public class SimpleLoadManagerImplTest {
         pulsar1 = new PulsarService(config1);
         pulsar1.start();
 
-        url1 = new URL(pulsar1.getWebServiceAddress());
+        url1 = URI.create(pulsar1.getWebServiceAddress()).toURL();
         admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
         brokerStatsClient1 = admin1.brokerStats();
         primaryHost = pulsar1.getWebServiceAddress();
@@ -170,7 +181,7 @@ public class SimpleLoadManagerImplTest {
         pulsar2 = new PulsarService(config2);
         pulsar2.start();
 
-        url2 = new URL(pulsar2.getWebServiceAddress());
+        url2 = URI.create(pulsar2.getWebServiceAddress()).toURL();
         admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
         brokerStatsClient2 = admin2.brokerStats();
         secondaryHost = pulsar2.getWebServiceAddress();
@@ -179,9 +190,15 @@ public class SimpleLoadManagerImplTest {
         setupClusters();
     }
 
-    @AfterMethod(alwaysRun = true)
-    void shutdown() throws Exception {
+    @AfterClass(alwaysRun = true)
+    @Override
+    protected void cleanup() throws Exception {
+        markCurrentSetupNumberCleaned();
         log.info("--- Shutting down ---");
+        for (SimpleLoadManagerImpl loadManager : loadManagersToStop) {
+            loadManager.stop();
+        }
+        loadManagersToStop.clear();
         if (executor != null) {
             executor.shutdownNow();
             executor = null;
@@ -209,6 +226,23 @@ public class SimpleLoadManagerImplTest {
             bkEnsemble.stop();
             bkEnsemble = null;
         }
+    }
+
+    @AfterMethod
+    void deleteNamespaceIsolationPolicies() throws Exception {
+        // The test methods share the brokers. testPrimary's isolation policy makes both brokers primary brokers,
+        // which leaves no broker for the namespaces without a policy.
+        var isolationPolicies = pulsar1.getPulsarResources().getNamespaceResources().getIsolationPolicies();
+        if (isolationPolicies.getIsolationDataPolicies("test").isPresent()) {
+            isolationPolicies.deleteIsolationData("test");
+            Awaitility.await().until(() -> pulsar2.getPulsarResources().getNamespaceResources()
+                    .getIsolationPolicies().getIsolationDataPolicies("test").isEmpty());
+        }
+    }
+
+    private SimpleLoadManagerImpl stopWithBrokers(SimpleLoadManagerImpl loadManager) {
+        loadManagersToStop.add(loadManager);
+        return loadManager;
     }
 
     private void createNamespacePolicies(PulsarService pulsar) throws Exception {
@@ -241,8 +275,7 @@ public class SimpleLoadManagerImplTest {
 
     @Test
     public void testBasicBrokerSelection() throws Exception {
-        @Cleanup("stop")
-        SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
+        SimpleLoadManagerImpl loadManager = stopWithBrokers(new SimpleLoadManagerImpl(pulsar1));
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
         rd.put("cpu", new ResourceUsage(10, 100));
@@ -277,8 +310,7 @@ public class SimpleLoadManagerImplTest {
     @Test
     public void testPrimary() throws Exception {
         createNamespacePolicies(pulsar1);
-        @Cleanup("stop")
-        SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
+        SimpleLoadManagerImpl loadManager = stopWithBrokers(new SimpleLoadManagerImpl(pulsar1));
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
         rd.put("cpu", new ResourceUsage(10, 100));
@@ -316,8 +348,7 @@ public class SimpleLoadManagerImplTest {
     @Test(enabled = false)
     public void testPrimarySecondary() throws Exception {
         createNamespacePolicies(pulsar1);
-        @Cleanup("stop")
-        SimpleLoadManagerImpl loadManager = new SimpleLoadManagerImpl(pulsar1);
+        SimpleLoadManagerImpl loadManager = stopWithBrokers(new SimpleLoadManagerImpl(pulsar1));
 
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
@@ -388,9 +419,8 @@ public class SimpleLoadManagerImplTest {
 
     @Test(enabled = true)
     public void testDoLoadShedding() throws Exception {
-        @Cleanup("stop")
-        SimpleLoadManagerImpl loadManager =
-                spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1);
+        SimpleLoadManagerImpl loadManager = stopWithBrokers(
+                spyWithClassAndConstructorArgsRecordingInvocations(SimpleLoadManagerImpl.class, pulsar1));
         PulsarResourceDescription rd = new PulsarResourceDescription();
         rd.put("memory", new ResourceUsage(1024, 4096));
         rd.put("cpu", new ResourceUsage(10, 100));

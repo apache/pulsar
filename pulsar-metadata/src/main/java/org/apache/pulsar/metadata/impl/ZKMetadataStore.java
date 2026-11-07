@@ -123,9 +123,22 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         }
     }
 
-    private void processSessionWatcher(WatchedEvent event) {
+    @VisibleForTesting
+    void processSessionWatcher(WatchedEvent event) {
         if (sessionWatcher != null) {
-            processEvent(sessionWatcher::process, event);
+            ZKSessionWatcher.SessionEventSnapshot stateSnapshot;
+            if (event instanceof PulsarZooKeeperClient.HandleStateWatchedEvent handleStateEvent) {
+                stateSnapshot = new ZKSessionWatcher.SessionEventSnapshot(event,
+                        handleStateEvent.getHandleGeneration(), handleStateEvent.getSessionId(),
+                        handleStateEvent.getClientState());
+            } else {
+                long handleGeneration = zkc instanceof PulsarZooKeeperClient
+                        ? ((PulsarZooKeeperClient) zkc).getCurrentHandleGeneration()
+                        : ZKSessionWatcher.UNKNOWN_HANDLE_GENERATION;
+                stateSnapshot = new ZKSessionWatcher.SessionEventSnapshot(
+                        event, handleGeneration, zkc.getSessionId(), zkc.getState());
+            }
+            processEvent(sessionWatcher::process, stateSnapshot);
         }
     }
 
@@ -140,15 +153,26 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
     }
 
     @VisibleForTesting
-    @SneakyThrows
     public ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config, boolean isZkManaged) {
+        this(zkc, config, isZkManaged, true);
+    }
+
+    @VisibleForTesting
+    ZKMetadataStore(ZooKeeper zkc, boolean startSessionWatcherScheduler) {
+        this(zkc, MetadataStoreConfig.builder().build(), false, startSessionWatcherScheduler);
+    }
+
+    @SneakyThrows
+    private ZKMetadataStore(ZooKeeper zkc, MetadataStoreConfig config, boolean isZkManaged,
+                            boolean startSessionWatcherScheduler) {
         super(config);
         this.zkConnectString = null;
         this.rootPath = null;
         this.metadataStoreConfig = null;
         this.isZkManaged = isZkManaged;
         this.zkc = zkc;
-        this.sessionWatcher = new ZKSessionWatcher(zkc, this::receivedSessionEvent);
+        this.sessionWatcher = new ZKSessionWatcher(
+                zkc, this::receivedSessionEvent, startSessionWatcherScheduler);
         zkc.addWatch("/", eventWatcher, AddWatchMode.PERSISTENT_RECURSIVE);
         initBatchStrategy();
     }
@@ -215,6 +239,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
 
     @Override
     protected void batchOperation(List<MetadataOp> ops) {
+        batchOperation(ops, false);
+    }
+
+    private void batchOperation(List<MetadataOp> ops, boolean splitFromRejectedBatch) {
         try {
             zkc.multi(ops.stream().map(this::convertOp).collect(Collectors.toList()), (rc, path, ctx, results) -> {
                 if (results == null) {
@@ -259,6 +287,10 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
                         // Retry with the individual operations
                         scheduleDelayedTask(100, TimeUnit.MILLISECONDS,
                             () -> ops.forEach(o -> batchOperation(Collections.singletonList(o))));
+                    } else if (code == Code.BADARGUMENTS && ops.size() > 1 && ops.stream().allMatch(
+                            op -> op.getType() == MetadataOp.Type.GET
+                                    || op.getType() == MetadataOp.Type.GET_CHILDREN)) {
+                        retryRejectedReadBatch(ops, splitFromRejectedBatch);
                     } else {
                         MetadataStoreException e = getException(code, path);
                         ops.forEach(o -> o.getFuture().completeExceptionally(e));
@@ -294,6 +326,30 @@ public class ZKMetadataStore extends AbstractBatchedMetadataStore
         } catch (Throwable t) {
             ops.forEach(o -> o.getFuture().completeExceptionally(new MetadataStoreException(t)));
         }
+    }
+
+    /**
+     * Retries a read batch that the server rejected for exceeding its multiRead.maxOps or
+     * multiRead.maxResponseBytes limit, which ZooKeeper reports as BADARGUMENTS for the whole batch. Batches are
+     * formed from estimated response sizes, so a batch can exceed the limits even though each of its reads is valid.
+     * Halving the batch ends in single reads, and a rejected single read fails its future instead of being retried,
+     * so a batch of n reads results in at most 2n - 1 requests. Only the rejection of the original batch is logged as
+     * a warning, because splitting a batch can result in up to n - 1 rejections.
+     */
+    private void retryRejectedReadBatch(List<MetadataOp> ops, boolean splitFromRejectedBatch) {
+        if (splitFromRejectedBatch) {
+            log.trace().attr("operations", ops.size())
+                    .log("ZooKeeper rejected a part of a split read batch. Retrying it as two smaller batches.");
+        } else {
+            log.warn().attr("operations", ops.size())
+                    .log("ZooKeeper rejected a read batch for exceeding its multiRead.maxOps or"
+                            + " multiRead.maxResponseBytes limit. Retrying it as smaller batches.");
+        }
+        int middle = ops.size() / 2;
+        safeExecuteCallbacks(() -> {
+            batchOperation(ops.subList(0, middle), true);
+            batchOperation(ops.subList(middle, ops.size()), true);
+        }, ops);
     }
 
     private void handlePutResult(OpPut op, OpResult opr) {

@@ -954,7 +954,7 @@ public class ReplicatedSubscriptionTest extends ReplicatorTestBase {
     }
 
     /**
-     * Test the replication subscription can work normal in the following cases:
+     * Test the replication subscription can work normal in the following cases.
      *  <p>
      *      1. Do not write data into the original topic when the topic does not configure a remote cluster. {topic1}
      *          1. Publish message to the topic and then wait a moment,

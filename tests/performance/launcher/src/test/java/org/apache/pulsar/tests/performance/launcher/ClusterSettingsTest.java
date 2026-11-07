@@ -184,7 +184,8 @@ public class ClusterSettingsTest {
         assertThat(settings.brokers().env()).containsEntry("PULSAR_MEM", "-Xmx4g");
         assertThat(remote.bookies().replicas()).isEqualTo(3);
         assertThat(remote.bookies().journalTmpfs()).isEqualTo("1g");
-        assertThat(remote.serviceUrl("iot-1")).isEqualTo("pulsar://iot-1-remote-pulsar-broker-0:6650");
+        assertThat(remote.serviceUrl("iot-1", TlsSettings.DISABLED))
+                .isEqualTo("pulsar://iot-1-remote-pulsar-broker-0:6650");
         assertThat(remote.applications()).isEqualTo(new ClusterSettings.RemoteApplications(4, null,
                 Map.of("PULSAR_MEM", "-Xmx256m")));
         assertThat(settings.topology()).isEqualTo(new NetworkSettings.Topology(2, 3, 1, 3));

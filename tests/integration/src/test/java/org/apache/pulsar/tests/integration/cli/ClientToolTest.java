@@ -39,6 +39,11 @@ public class ClientToolTest extends TopicMessagingBase {
 
     private static final int MESSAGE_COUNT = 10;
 
+    @Override
+    protected boolean isClusterShared() {
+        return true;
+    }
+
     @Test
     public void testProduceConsumeThroughBrokers() throws Exception {
         BrokerContainer broker = pulsarCluster.getAnyBroker();
