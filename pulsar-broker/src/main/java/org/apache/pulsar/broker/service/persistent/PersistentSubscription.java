@@ -1070,7 +1070,9 @@ public class PersistentSubscription extends AbstractSubscription {
                 });
             }
 
-            forceReset.thenAccept(forceResetValue -> {
+            // Drop the transactional ACK records the reset discards before it is persisted, or recovery after a
+            // restart would reapply them and undo the reset. A failure fails the reset below.
+            pendingAckHandle.beforeCursorReset().thenCompose(__ -> forceReset).thenAccept(forceResetValue -> {
                 cursor.asyncResetCursor(finalPosition, forceResetValue, new AsyncCallbacks.ResetCursorCallback() {
                     @Override
                     public void resetComplete(Object ctx) {

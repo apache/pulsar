@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.createPositionW
 import static org.apache.bookkeeper.mledger.impl.AckSetStateUtil.getAckSetArrayOrNull;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -81,6 +82,8 @@ import org.apache.pulsar.metadata.api.ScanConsumer;
  *       scan {@code idx:acks-by-segment-subscription} for this {@code (segment, sub)}, group by
  *       {@code txnId}, fetch each header, and seed the in-memory open-txn set; then mark the
  *       handle ready and drain any events that fired during recovery.</li>
+ *   <li><b>Cursor reset</b> — {@link #beforeCursorReset} drops the records of terminal transactions
+ *       before the reset is persisted, so recovery cannot reapply ACKs the reset discarded.</li>
  * </ul>
  *
  * <p>Same TOCTOU / unbounded-cache caveats documented on {@code MetadataTransactionBuffer} apply
@@ -523,6 +526,40 @@ public class MetadataPendingAckStore implements PendingAckStore {
         });
     }
 
+    // ---- Cursor reset ------------------------------------------------------
+
+    /**
+     * Drops the ACK records of terminal transactions before the cursor is reset. A committed ACK record is kept
+     * after its ACK is applied, until the durable whole-entry prefix covers it, so recovery can reapply an ACK the
+     * cursor held only in memory. The reset replaces that cursor state, after which nothing covers the record, and
+     * recovery would reapply the ACK and undo the reset. The records of OPEN transactions stay: their ACKs apply
+     * when they commit, after the reset, as on the live handle. A terminal transaction whose outcome is not applied
+     * yet loses only the durability of its ACK, which at worst redelivers the message.
+     */
+    @Override
+    public CompletableFuture<Void> beforeCursorReset() {
+        // Recovery applies the recovered committed ACKs before it completes; their records are then dropped here.
+        return recoveryFuture
+                .thenCompose(__ -> txnStore.collectAckOpsForSegmentSubscription(segmentName, subscriptionName))
+                .thenCompose(records -> {
+                    Map<String, List<OpRecord>> recordsByTxn = new HashMap<>();
+                    for (OpRecord record : records) {
+                        recordsByTxn.computeIfAbsent(record.txnId(), __ -> new ArrayList<>()).add(record);
+                    }
+                    ConcurrentLinkedQueue<OpRecord> obsolete = new ConcurrentLinkedQueue<>();
+                    List<CompletableFuture<Void>> reads = new ArrayList<>(recordsByTxn.size());
+                    recordsByTxn.forEach((txnIdKey, txnRecords) -> reads.add(txnStore.getHeader(txnIdKey)
+                            .thenAccept(header -> {
+                                TxnState state = header.map(v -> v.value().getState()).orElse(TxnState.ABORTED);
+                                if (state.isTerminal()) {
+                                    obsolete.addAll(txnRecords);
+                                }
+                            })));
+                    return FutureUtil.waitForAll(reads)
+                            .thenCompose(__ -> txnStore.deleteOps(List.copyOf(obsolete)));
+                });
+    }
+
     // ---- Close -------------------------------------------------------------
 
     /**
@@ -536,6 +573,8 @@ public class MetadataPendingAckStore implements PendingAckStore {
             closed = true;
             inProgress = appendsInProgress.toArray(new CompletableFuture<?>[0]);
         }
+        // A store closed before its replay started never recovers; release a cursor reset waiting for it.
+        recoveryFuture.completeExceptionally(new IllegalStateException("PendingAckStore is closed"));
         closeSubscriptionQuietly();
         return CompletableFuture.allOf(inProgress).exceptionally(__ -> null);
     }

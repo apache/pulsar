@@ -575,6 +575,45 @@ public class MetadataPendingAckStoreTest {
         });
     }
 
+    @Test
+    public void beforeCursorResetDropsTerminalRecordsAndKeepsOpenOnes() throws Exception {
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
+        ackStore.replayAsync(handle, replayExecutor);
+        ackStore.recoveryFuture().get(5, TimeUnit.SECONDS);
+        TxnID committed = new TxnID(1, 1);
+        createOpenHeader(committed);
+        // Above the persisted mark-delete (100:100), so the record is retained after the commit is applied.
+        ackStore.appendIndividualAck(committed, Collections.singletonList(
+                MutablePair.of(PositionFactory.create(200, 1), 1))).get();
+        commitHeader(committed);
+        publishDecision(committed);
+        Awaitility.await().untilAsserted(() -> verify(handle).commitTxn(eq(committed), eq(Map.of()), eq(0L)));
+        TxnID open = new TxnID(1, 2);
+        createOpenHeader(open);
+        ackStore.appendIndividualAck(open, Collections.singletonList(
+                MutablePair.of(PositionFactory.create(200, 2), 1))).get();
+        List<TxnOp> before = new ArrayList<>();
+        txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(before)).get();
+        assertThat(before).hasSize(2);
+
+        ackStore.beforeCursorReset().get(5, TimeUnit.SECONDS);
+
+        List<TxnOp> after = new ArrayList<>();
+        txnStore.listAcksBySegmentSubscription(SEGMENT, SUB, collectOps(after)).get();
+        assertThat(after).as("only the OPEN transaction's ACK survives the reset").singleElement()
+                .satisfies(op -> assertThat(op.getEntryId()).isEqualTo(2L));
+    }
+
+    @Test
+    public void closeReleasesACursorResetWaitingForRecovery() throws Exception {
+        MetadataPendingAckStore ackStore = new MetadataPendingAckStore(subscription, txnStore);
+        CompletableFuture<Void> reset = ackStore.beforeCursorReset();
+        assertThat(reset).as("a reset waits for recovery").isNotDone();
+        ackStore.closeAsync().get(5, TimeUnit.SECONDS);
+        assertThatThrownBy(() -> reset.get(5, TimeUnit.SECONDS))
+                .hasCauseInstanceOf(IllegalStateException.class);
+    }
+
     private void publishDecision(TxnID txnId) throws Exception {
         txnStore.publishSubscriptionEvent(SEGMENT, SUB,
                 new TxnEvent(TxnIds.toKey(txnId), TxnState.COMMITTED)).get();

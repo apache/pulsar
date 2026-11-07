@@ -124,6 +124,17 @@ public interface PendingAckHandle {
     void clearIndividualPosition(Position position);
 
     /**
+     * Prepare the pending ack store for a reset of the subscription cursor, before the reset is persisted.
+     * The reset fails if the returned future fails.
+     *
+     * @return the future of this operation.
+     * @see PendingAckStore#beforeCursorReset()
+     */
+    default CompletableFuture<Void> beforeCursorReset() {
+        return CompletableFuture.completedFuture(null);
+    }
+
+    /**
      * Pending ack recover whether ready future.
      *
      * @return the future of result.

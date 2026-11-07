@@ -979,6 +979,21 @@ public class PendingAckHandleImpl extends PendingAckHandleState implements Pendi
     }
 
     @Override
+    public CompletableFuture<Void> beforeCursorReset() {
+        // init() publishes the store from a task on the pinned executor. Queue behind that task, so a reset
+        // arriving right after this handle is created still reaches the store that is about to recover.
+        return FutureUtil.supplySafely(() -> CompletableFuture.supplyAsync(() -> {
+            synchronized (PendingAckHandleImpl.this) {
+                return pendingAckStoreFuture;
+            }
+        }, internalPinnedExecutor)).thenCompose(storeFuture -> storeFuture == null
+                ? CompletableFuture.completedFuture(null)
+                // A store that failed to be created has nothing to prepare; the reset proceeds as before.
+                : storeFuture.handle((store, error) -> store).thenCompose(store -> store == null
+                        ? CompletableFuture.completedFuture(null) : store.beforeCursorReset()));
+    }
+
+    @Override
     public CompletableFuture<PendingAckHandle> pendingAckHandleFuture() {
         return pendingAckHandleCompletableFuture;
     }

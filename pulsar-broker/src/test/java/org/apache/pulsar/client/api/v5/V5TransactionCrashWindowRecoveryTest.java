@@ -286,6 +286,157 @@ public class V5TransactionCrashWindowRecoveryTest extends MockedPulsarServiceBas
         }
     }
 
+    @Test
+    public void seekToEarliestSurvivesRestartAfterCommittedPartialBatchAck() throws Exception {
+        String topic = newTopic();
+        String segment = onlySegment(topic);
+        String subscription = "seek-after-partial-batch";
+        MessageIdAdv first;
+        try (Producer<String> producer = client.newProducer(Schema.string()).topic(topic)
+                .batchingPolicy(BatchingPolicy.builder().maxMessages(4)
+                        .maxPublishDelay(Duration.ofSeconds(5)).build()).create();
+                QueueConsumer<String> consumer = subscribe(topic, subscription)) {
+            List<CompletableFuture<MessageId>> sends = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                sends.add(producer.async().newMessage().key("same-batch").value("input-" + i).send());
+            }
+            first = physical(sends.get(0).get(10, TimeUnit.SECONDS));
+            for (int i = 0; i < sends.size(); i++) {
+                MessageIdAdv actual = physical(sends.get(i).get(10, TimeUnit.SECONDS));
+                assertThat(actual.getEntryId()).isEqualTo(first.getEntryId());
+                assertThat(actual.getBatchIndex()).isEqualTo(i);
+            }
+            Message<String> selected = consumer.receive(Duration.ofSeconds(10));
+            assertThat(selected).isNotNull();
+            assertThat(selected.value()).isEqualTo("input-0");
+            Transaction transaction = client.newTransaction();
+            consumer.acknowledge(selected.id(), transaction);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(ackOps(segment, subscription)).hasSize(1));
+            transaction.commit();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(cursorBatchMask(segment, subscription, first)).containsExactly(14L));
+        }
+        assertThat(ackOps(segment, subscription))
+                .as("the committed partial-batch ACK is retained above the durable prefix").hasSize(1);
+
+        admin.scalableTopics().seekSubscription(topic, subscription, 0L);
+        assertThat(cursorBatchMask(segment, subscription, first))
+                .as("the successful seek cleared the live batch ACK").isNull();
+
+        restartAndReconnect();
+        try (QueueConsumer<String> recovered = subscribe(topic, subscription)) {
+            List<String> values = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                Message<String> message = recovered.receive(Duration.ofSeconds(3));
+                if (message == null) {
+                    break;
+                }
+                values.add(message.value());
+            }
+            assertThat(values).as("a seek to earliest must survive owner restart")
+                    .containsExactlyInAnyOrder("input-0", "input-1", "input-2", "input-3");
+        }
+    }
+
+    @Test
+    public void seekToEarliestSurvivesRestartAfterCommittedOutOfOrderAck() throws Exception {
+        String topic = newTopic();
+        String segment = onlySegment(topic);
+        String subscription = "seek-after-out-of-order";
+        try (Producer<String> producer = producer(topic);
+                QueueConsumer<String> consumer = subscribe(topic, subscription)) {
+            for (int i = 0; i < 3; i++) {
+                producer.newMessage().value("input-" + i).send();
+            }
+            Message<String> m0 = consumer.receive(Duration.ofSeconds(10));
+            Message<String> m1 = consumer.receive(Duration.ofSeconds(10));
+            assertThat(m0).isNotNull();
+            assertThat(m1).isNotNull();
+            assertThat(m1.value()).isEqualTo("input-1");
+            Transaction transaction = client.newTransaction();
+            consumer.acknowledge(m1.id(), transaction);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(ackOps(segment, subscription)).hasSize(1));
+            transaction.commit();
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                PersistentTopic t = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(segment)
+                        .get(10, TimeUnit.SECONDS).orElseThrow();
+                MessageIdAdv id = physical(m1.id());
+                assertThat(t.getSubscription(subscription).getCursor()
+                        .isMessageDeleted(PositionFactory.create(id.getLedgerId(), id.getEntryId()))).isTrue();
+            });
+        }
+        assertThat(ackOps(segment, subscription))
+                .as("the committed ACK above the unacknowledged input-0 is retained").hasSize(1);
+
+        admin.scalableTopics().seekSubscription(topic, subscription, 0L);
+
+        restartAndReconnect();
+        try (QueueConsumer<String> recovered = subscribe(topic, subscription)) {
+            List<String> values = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                Message<String> message = recovered.receive(Duration.ofSeconds(3));
+                if (message == null) {
+                    break;
+                }
+                values.add(message.value());
+            }
+            assertThat(values).as("a seek to earliest must survive owner restart")
+                    .containsExactlyInAnyOrder("input-0", "input-1", "input-2");
+        }
+    }
+
+    @Test
+    public void seekToEarliestKeepsOpenTransactionalAckAcrossRestart() throws Exception {
+        String topic = newTopic();
+        String segment = onlySegment(topic);
+        String subscription = "seek-with-open-ack";
+        TxnID transactionId;
+        MessageIdAdv acked;
+        try (Producer<String> producer = producer(topic);
+                QueueConsumer<String> consumer = subscribe(topic, subscription)) {
+            for (int i = 0; i < 3; i++) {
+                producer.newMessage().value("input-" + i).send();
+            }
+            assertThat(consumer.receive(Duration.ofSeconds(10))).isNotNull();
+            Message<String> m1 = consumer.receive(Duration.ofSeconds(10));
+            assertThat(m1).isNotNull();
+            assertThat(m1.value()).isEqualTo("input-1");
+            acked = physical(m1.id());
+            Transaction transaction = client.newTransaction();
+            transactionId = onlyOpenTransaction();
+            consumer.acknowledge(m1.id(), transaction);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() ->
+                    assertThat(ackOps(segment, subscription)).hasSize(1));
+        }
+
+        admin.scalableTopics().seekSubscription(topic, subscription, 0L);
+        assertThat(ackOps(segment, subscription)).as("the reset keeps the ACK of an OPEN transaction").hasSize(1);
+
+        restartAndReconnect();
+        try (QueueConsumer<String> recovered = subscribe(topic, subscription)) {
+            pulsar.getTransactionCoordinatorV5().endTransaction(transactionId, TxnAction.COMMIT_VALUE)
+                    .get(10, TimeUnit.SECONDS);
+            Awaitility.await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                PersistentTopic t = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(segment)
+                        .get(10, TimeUnit.SECONDS).orElseThrow();
+                assertThat(t.getSubscription(subscription).getCursor().isMessageDeleted(
+                        PositionFactory.create(acked.getLedgerId(), acked.getEntryId())))
+                        .as("the OPEN transaction's ACK applies when it commits after the reset").isTrue();
+            });
+            List<String> values = new ArrayList<>();
+            for (int i = 0; i < 3; i++) {
+                Message<String> message = recovered.receive(Duration.ofSeconds(3));
+                if (message == null) {
+                    break;
+                }
+                values.add(message.value());
+            }
+            assertThat(values).containsExactlyInAnyOrder("input-0", "input-2");
+        }
+    }
+
     private long[] cursorBatchMask(String segment, String subscription, MessageIdAdv position) throws Exception {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicIfExists(segment)
                 .get(10, TimeUnit.SECONDS).orElseThrow();
