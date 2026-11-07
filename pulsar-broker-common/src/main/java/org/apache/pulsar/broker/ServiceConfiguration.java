@@ -4197,6 +4197,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     @FieldContext(
         category = CATEGORY_STORAGE_OFFLOADING,
+        minValue = 0,
+        doc = "Timeout in seconds for the asynchronous offload storage check at broker startup. "
+            + "Supported drivers check access by writing and deleting a temporary object. "
+            + "Failures are logged without failing startup. Set to 0 to disable the check."
+    )
+    private int managedLedgerOffloadStorageCheckTimeoutSeconds = 30;
+
+    @FieldContext(
+        category = CATEGORY_STORAGE_OFFLOADING,
         doc = "Maximum number of thread pool threads for ledger offloading"
     )
     private int managedLedgerOffloadMaxThreads = 2;

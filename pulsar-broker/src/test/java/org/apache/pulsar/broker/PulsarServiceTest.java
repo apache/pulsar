@@ -24,6 +24,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
@@ -41,13 +42,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import lombok.Cleanup;
 import lombok.CustomLog;
+import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.logging.log4j.Level;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
@@ -56,6 +61,7 @@ import org.apache.pulsar.broker.loadbalance.extensions.channel.ServiceUnitStateM
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.testcontext.PulsarTestContext;
+import org.apache.pulsar.broker.testcontext.SpyConfig;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminBuilder;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -167,6 +173,98 @@ public class PulsarServiceTest extends MockedPulsarServiceBaseTest {
         assertThat(packagesManagementAtWorkerStart.get())
                 .isNotNull()
                 .isSameAs(context.getPulsarService().getPackagesManagement());
+    }
+
+    @DataProvider
+    public Object[][] offloadStorageCheckFailures() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "offloadStorageCheckFailures", timeOut = 30000)
+    public void testOffloadStorageCheckFailureDoesNotPreventStartup(boolean synchronousFailure) throws Exception {
+        LedgerOffloader offloader = mock(LedgerOffloader.class);
+        RuntimeException failure = new RuntimeException("Storage is unavailable");
+        doAnswer(invocation -> {
+            if (synchronousFailure) {
+                throw failure;
+            }
+            return CompletableFuture.failedFuture(failure);
+        }).when(offloader).checkStorageAsync(any());
+
+        @Cleanup TestLogAppender appender = TestLogAppender.create(PulsarService.class);
+        @Cleanup PulsarTestContext context = newContextWithOffloader(offloader, 30);
+
+        assertTrue(context.getPulsarService().isRunning());
+        Awaitility.await().untilAsserted(() -> assertThat(appender.getEvents()).anySatisfy(event -> {
+            assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+            assertThat(event.getMessage().getFormattedMessage())
+                    .contains("Failed to validate offload storage at startup");
+            assertThat(event.getThrown()).isSameAs(failure);
+        }));
+        verify(offloader).checkStorageAsync(Duration.ofSeconds(30));
+    }
+
+    @DataProvider
+    public Object[][] offloadStorageCheckTimeouts() {
+        return new Object[][] {{false}, {true}};
+    }
+
+    @Test(dataProvider = "offloadStorageCheckTimeouts", timeOut = 30000)
+    public void testOffloadStorageCheckDoesNotBlockStartup(boolean blockBeforeReturning) throws Exception {
+        LedgerOffloader offloader = mock(LedgerOffloader.class);
+        CompletableFuture<Thread> checkingThread = new CompletableFuture<>();
+        CompletableFuture<Void> checkResult = new CompletableFuture<>();
+        CountDownLatch releaseCheck = new CountDownLatch(1);
+        doAnswer(invocation -> {
+            checkingThread.complete(Thread.currentThread());
+            if (blockBeforeReturning && !releaseCheck.await(20, TimeUnit.SECONDS)) {
+                throw new IllegalStateException("Storage check was not released");
+            }
+            return checkResult;
+        }).when(offloader).checkStorageAsync(any());
+
+        @Cleanup TestLogAppender appender = TestLogAppender.create(PulsarService.class);
+        try (PulsarTestContext context = newContextWithOffloader(offloader, 1)) {
+            try {
+                assertTrue(context.getPulsarService().isRunning());
+                assertThat(checkingThread.get(10, TimeUnit.SECONDS)).isNotSameAs(Thread.currentThread());
+                Awaitility.await().untilAsserted(() -> assertThat(appender.getEvents()).anySatisfy(event -> {
+                    assertThat(event.getLevel()).isEqualTo(Level.ERROR);
+                    assertThat(event.getMessage().getFormattedMessage())
+                            .contains("Failed to validate offload storage at startup");
+                    assertThat(event.getThrown()).isInstanceOf(TimeoutException.class);
+                }));
+            } finally {
+                releaseCheck.countDown();
+                checkResult.complete(null);
+            }
+        } finally {
+            releaseCheck.countDown();
+            checkResult.complete(null);
+        }
+    }
+
+    @Test(timeOut = 30000)
+    public void testOffloadStorageCheckCanBeDisabled() throws Exception {
+        LedgerOffloader offloader = mock(LedgerOffloader.class);
+        @Cleanup PulsarTestContext context = newContextWithOffloader(offloader, 0);
+
+        assertTrue(context.getPulsarService().isRunning());
+        verify(offloader, never()).checkStorageAsync(any());
+    }
+
+    private PulsarTestContext newContextWithOffloader(LedgerOffloader offloader, int timeoutSeconds) {
+        return PulsarTestContext.builder()
+                .configCustomizer(config -> config.setManagedLedgerOffloadStorageCheckTimeoutSeconds(timeoutSeconds))
+                .spyConfigCustomizer(spyConfig -> spyConfig.pulsarService(SpyConfig.SpyType.SPY))
+                .pulsarServiceCustomizer(service -> {
+                    try {
+                        doReturn(offloader).when(service).createManagedLedgerOffloader(any());
+                    } catch (PulsarServerException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .build();
     }
 
     /**

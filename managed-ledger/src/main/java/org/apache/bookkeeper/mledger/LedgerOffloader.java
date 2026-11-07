@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
@@ -35,6 +36,19 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Evolving
 public interface LedgerOffloader {
+
+    /**
+     * Asynchronously check whether the configured storage is available for offloading.
+     * Implementations may write and remove a temporary object and should bound storage requests using the timeout.
+     * Failures, including failures to start the check, must be reported through the returned future.
+     * The default implementation skips the check for drivers that do not support it.
+     *
+     * @param timeout positive timeout for the check
+     * @return a future completed when the check succeeds, or exceptionally when it fails
+     */
+    default CompletableFuture<Void> checkStorageAsync(Duration timeout) {
+        return CompletableFuture.completedFuture(null);
+    }
 
     @ToString
     class OffloadResult {

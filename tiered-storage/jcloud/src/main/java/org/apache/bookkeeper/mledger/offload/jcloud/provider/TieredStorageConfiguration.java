@@ -22,6 +22,7 @@ import static org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobSt
 import static org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider.GOOGLE_CLOUD_STORAGE;
 import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -274,7 +275,8 @@ public class TieredStorageConfiguration {
         return 10 * MB;
     }
 
-    public Supplier<Credentials> getProviderCredentials() {
+    public synchronized Supplier<Credentials> getProviderCredentials() {
+        // Serialize lazy initialization to avoid creating multiple assume-role providers and their STS clients.
         if (credentials == null) {
             getProvider().buildCredentials(this);
         }
@@ -299,6 +301,32 @@ public class TieredStorageConfiguration {
 
     public BlobStore getBlobStore() {
         return getProvider().getBlobStore(this);
+    }
+
+    /**
+     * Create a configuration for a short-lived diagnostic client without changing the offload client's settings.
+     */
+    public TieredStorageConfiguration forStorageCheck(Duration timeout) {
+        if (timeout.isZero() || timeout.isNegative()) {
+            throw new IllegalArgumentException("Storage check timeout must be positive");
+        }
+        String timeoutMillis = Long.toString(Math.max(1, Math.min(Integer.MAX_VALUE, timeout.toMillis())));
+        TieredStorageConfiguration checkConfig = new TieredStorageConfiguration(new HashMap<>(configProperties)) {
+            @Override
+            protected Properties getOverrides() {
+                Properties overrides = super.getOverrides();
+                // Apply these after user overrides so diagnostic requests do not inherit long retry policies.
+                overrides.setProperty(Constants.PROPERTY_MAX_RETRIES, "0");
+                overrides.setProperty(Constants.PROPERTY_CONNECTION_TIMEOUT, timeoutMillis);
+                overrides.setProperty(Constants.PROPERTY_SO_TIMEOUT, timeoutMillis);
+                overrides.setProperty(Constants.PROPERTY_REQUEST_TIMEOUT, timeoutMillis);
+                return overrides;
+            }
+        };
+        checkConfig.setProvider(getProvider());
+        // Closing the diagnostic BlobStoreContext does not close a credential provider's separate STS client.
+        checkConfig.setProviderCredentials(getProviderCredentials());
+        return checkConfig;
     }
 
     public Map<String, String> getOffloadDriverMetadata() {

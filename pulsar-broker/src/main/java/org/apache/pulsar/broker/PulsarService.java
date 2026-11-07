@@ -253,6 +253,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
     private OrderedScheduler offloaderReadExecutor;
     private OffloadersCache offloadersCache = new OffloadersCache();
     private LedgerOffloader defaultOffloader;
+    private CompletableFuture<Void> offloadStorageCheck;
     private LedgerOffloaderStats offloaderStats;
     private Map<NamespaceName, LedgerOffloader> ledgerOffloaderMap = new ConcurrentHashMap<>();
     private ScheduledFuture<?> loadReportTask = null;
@@ -681,6 +682,9 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             }
 
             executorServicesShutdown.shutdown(compactorExecutor);
+            if (offloadStorageCheck != null) {
+                offloadStorageCheck.cancel(false);
+            }
             executorServicesShutdown.shutdown(offloaderScheduler);
             executorServicesShutdown.shutdown(offloaderReadExecutor);
             executorServicesShutdown.shutdown(executor);
@@ -1034,6 +1038,7 @@ public class PulsarService implements AutoCloseable, ShutdownService {
             offloaderStats = LedgerOffloaderStats.create(config.isExposeManagedLedgerMetricsInPrometheus(),
                     exposeTopicMetrics, offloaderScheduler, interval);
             this.defaultOffloader = createManagedLedgerOffloader(defaultOffloadPolicies);
+            checkOffloadStorage(defaultOffloadPolicies);
 
             setBrokerInterceptor(newBrokerInterceptor());
             // use getter to support mocking getBrokerInterceptor method in tests
@@ -1771,6 +1776,26 @@ public class PulsarService implements AutoCloseable, ShutdownService {
                         .exception(e)
                         .log("create ledgerOffloader failed for namespace");
                 return new NullLedgerOffloader();
+            }
+        });
+    }
+
+    private void checkOffloadStorage(OffloadPoliciesImpl offloadPolicies) {
+        int timeoutSeconds = config.getManagedLedgerOffloadStorageCheckTimeoutSeconds();
+        if (timeoutSeconds <= 0 || defaultOffloader == NullLedgerOffloader.INSTANCE) {
+            return;
+        }
+        Duration timeout = Duration.ofSeconds(timeoutSeconds);
+        // Invoke plugins off the startup thread, including implementations that throw or block before returning.
+        offloadStorageCheck = FutureUtil.supplySafely(() -> CompletableFuture.supplyAsync(
+                () -> defaultOffloader.checkStorageAsync(timeout),
+                getOffloaderScheduler(offloadPolicies)).thenCompose(future -> future))
+                .orTimeout(timeoutSeconds, TimeUnit.SECONDS);
+        offloadStorageCheck.whenComplete((ignored, error) -> {
+            if (error != null && !(FutureUtil.unwrapCompletionException(error) instanceof CancellationException)) {
+                log.error().attr("driver", offloadPolicies.getManagedLedgerOffloadDriver())
+                        .exception(FutureUtil.unwrapCompletionException(error))
+                        .log("Failed to validate offload storage at startup");
             }
         });
     }
